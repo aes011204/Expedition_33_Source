@@ -18,6 +18,9 @@ IMPLEMENT_REFLECTION(ANS_SL_PartCollisionEnable)
     PROPERTY_STRING("Part Tag", _partTag);
     PROPERTY_STRING("Collider Tag", _colliderTag);
     PROPERTY_ENUM("Hit Reaction", _hitAnimOverride, SL_HitAnimOverride);
+    PROPERTY_WSTRING("Hit Effect", _hitEffectName);
+    PROPERTY_VEC3("Hit Effect Local Offset", _hitEffectLocalOffset);
+    PROPERTY_VEC3("Hit Effect Scale", _hitEffectScale);
 
     return true;
 }
@@ -91,7 +94,10 @@ void ANS_SL_PartCollisionEnable::Set_ColliderActive(const AnimNotifyContext& con
         if (_partTag == "Part_Sword_L" && !dualliste->CanUseLeftSword())
         {
             if (slOwner)
+            {
                 slOwner->Clear_AttackHitAnimOverride(_colliderTag);
+                slOwner->Clear_AttackHitEffect(_colliderTag);
+            }
 
             collider->Set_IsActive(false);
             collider->Clear_Overlap();
@@ -103,9 +109,15 @@ void ANS_SL_PartCollisionEnable::Set_ColliderActive(const AnimNotifyContext& con
     if (slOwner)
     {
         if (active)
+        {
             slOwner->Set_AttackHitAnimOverride(_colliderTag, _hitAnimOverride);
+            slOwner->Set_AttackHitEffect(_colliderTag, _hitEffectName, _hitEffectLocalOffset, _hitEffectScale);
+        }
         else
+        {
             slOwner->Clear_AttackHitAnimOverride(_colliderTag);
+            slOwner->Clear_AttackHitEffect(_colliderTag);
+        }
     }
 
     collider->Clear_Overlap();

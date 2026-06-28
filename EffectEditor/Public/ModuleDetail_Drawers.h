@@ -219,6 +219,17 @@ public:
         DetailPropertyContext& detailContext);
 };
 
+// CylinderOrientation module의 cylinder radial orientation authoring row를 그린다.
+class CylinderOrientationModuleDetail
+{
+public:
+    bool Draw(
+        const AuthoringEmitter& emitter,
+        AuthoringModule& module,
+        CylinderOrientationModuleData& data,
+        DetailPropertyContext& detailContext);
+};
+
 // SphereRadialOrientation module의 sphere radial orientation authoring row를 그린다.
 class SphereRadialOrientationModuleDetail
 {
@@ -370,6 +381,17 @@ public:
         AuthoringEmitter& emitter,
         AuthoringModule& module,
         SizeByLifeModuleData& data,
+        DetailPropertyContext& detailContext);
+};
+
+// BeamEnvelopeOverLife module의 beam visible length/width envelope row를 그린다.
+class BeamEnvelopeOverLifeModuleDetail
+{
+public:
+    bool Draw(
+        AuthoringEmitter& emitter,
+        AuthoringModule& module,
+        BeamEnvelopeOverLifeModuleData& data,
         DetailPropertyContext& detailContext);
 };
 

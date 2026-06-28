@@ -41,6 +41,10 @@ public:
         const wstring& filePath,
         uint32 levelIndex);
 
+    static bool Save_PrefabInstances_ToMapInstanceAuthoring(
+        const wstring& mapInstanceRoot,
+        uint32 levelIndex);
+
     static bool Save_AuthoredObjects_ToMapJson(
         const wstring& filePath,
         uint32 levelIndex);
@@ -49,15 +53,23 @@ public:
         const wstring& filePath,
         uint32 levelIndex);
 
+    static bool Save_Object_ToSourceMap(
+        const Shared<GameObject>& gameObject);
+
     static bool Load_PrefabInstances_FromMapData(
         const json& mapData,
         uint32 levelIndex,
-        vector<Shared<GameObject>>* spawnedObjects = nullptr);
+        vector<Shared<GameObject>>* spawnedObjects = nullptr,
+        const wstring& sourceMapPath = {},
+        size_t prefabStartIndex = 0);
 
     static bool Load_AuthoredObjects_FromMapData(
         const json& mapData,
         uint32 levelIndex,
-        vector<Shared<GameObject>>* spawnedObjects = nullptr);
+        vector<Shared<GameObject>>* spawnedObjects = nullptr,
+        const wstring& sourceMapPath = {},
+        size_t prefabStartIndex = 0,
+        size_t authoredStartIndex = 0);
 
 private:
     static bool Is_RuntimeExcludedObject(const Shared<GameObject>& gameObject);

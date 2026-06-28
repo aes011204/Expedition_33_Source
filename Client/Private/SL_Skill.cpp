@@ -62,6 +62,26 @@ void SL_Skill::Set_SkillRequest(const Skill_Data& skillData, uint32 slotIndex)
     _slotIndex = slotIndex;
 }
 
+bool SL_Skill::Request_Dodge(const SL_MoveRequest& request)
+{
+    if (_stateCom == nullptr || !_stateCom->Can_CancelToDodge())
+        return false;
+
+    _stateCom->Clear_CanActionCancel();
+
+    return _stateCom->Change_State(SL_PlayerState::Dodge);
+}
+
+bool SL_Skill::Request_Jump()
+{
+    if (_stateCom == nullptr || !_stateCom->Can_CancelToJump())
+        return false;
+
+    _stateCom->Clear_CanActionCancel();
+
+    return _stateCom->Change_State(SL_PlayerState::Jump);
+}
+
 SoulLikeAnim SL_Skill::Resolve_SkillAnim(uint32 slotIndex) const
 {
     switch (slotIndex)

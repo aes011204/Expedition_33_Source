@@ -205,6 +205,28 @@ void SoulLikeCamera::SetTargetTransform(Shared<TransformCom> targetTransform)
     _collisionDistance = -1.f;
 }
 
+void SoulLikeCamera::Align_BehindTarget()
+{
+    Shared<TransformCom> targetTransformCom;
+    if (!Try_GetTargetTransform(targetTransformCom))
+        return;
+
+    Vec3 forward = targetTransformCom->Get_WorldForward();
+    forward.y = 0.f;
+
+    if (forward.LengthSquared() <= 0.0001f)
+        return;
+
+    forward.Normalize();
+
+    const float targetYaw = XMConvertToDegrees(atan2f(forward.x, forward.z));
+    _yaw = targetYaw - _currentSettings.yawOffset; // 진입 순간 카메라 기준을 플레이어 등 뒤로 맞춘다.
+
+    _collisionQueryAccum = 0.f;
+    _hasCollisionQueryCache = false;
+    _collisionDistance = -1.f;
+}
+
 void SoulLikeCamera::SetCombatFocusTransforms(Shared<TransformCom> playerTransform, Shared<TransformCom> opponentTransform)
 {
     _targetTransformCom = playerTransform;
@@ -520,6 +542,10 @@ void SoulLikeCamera::Update_SmoothedTargetPosition(const Vec3& targetPos, float 
     constexpr float kTargetStillYFrameDelta = 0.005f;
     constexpr float kVerticalSettleDistance = 0.035f;
 
+    // 수직 높이 찾기
+    constexpr float kRisingVerticalFollowScale = 0.35f;
+    constexpr float kMinRisingVerticalFollowSpeed = 2.5f;
+
     const Vec3 targetDelta = targetPos - _prevTargetPos;
     const float horizontalFollowT = Evaluate_SoulLikeFollowT(
         _currentSettings.targetFollowEasing,
@@ -552,10 +578,15 @@ void SoulLikeCamera::Update_SmoothedTargetPosition(const Vec3& targetPos, float 
     }
     else
     {
+        const bool targetIsRising = targetPos.y > _smoothedTargetPos.y;
+        const float verticalFollowSpeed = targetIsRising
+            ? max(_currentSettings.verticalFollowSpeed * kRisingVerticalFollowScale, kMinRisingVerticalFollowSpeed)
+            : _currentSettings.verticalFollowSpeed;
+
         _smoothedTargetPos.y = Math::Lerp_Damp(
             _smoothedTargetPos.y,
             targetPos.y,
-            _currentSettings.verticalFollowSpeed,
+            verticalFollowSpeed,
             timeDelta);
     }
 }

@@ -1752,6 +1752,10 @@ HRESULT Renderer::Render_PointLightGlow()
         L"Render_PointLightGlow:FAIL Bind_ScreenSpaceCB(Source)");
 
     ENDMRT_RETURN_FAIL_LOG_IF_FAILED(
+        GAME->Bind_CameraCB(_deferredShader),
+        L"Render_PointLightGlow:FAIL Bind_CameraCB(Source)");
+
+    ENDMRT_RETURN_FAIL_LOG_IF_FAILED(
         GAME->Bind_RT_ShaderResource(_deferredShader, "g_DepthTexture", RT::Depth),
         L"Render_PointLightGlow:FAIL Bind_RT_ShaderResource(g_DepthTexture)");
 

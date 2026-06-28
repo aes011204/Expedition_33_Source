@@ -17,7 +17,7 @@ Level_Tool::Level_Tool()
 
 HRESULT Level_Tool::Initialize()
 {
-    Refresh_MapJsonFiles();
+    Refresh_MapInstanceFolders();
     return S_OK;
 }
 
@@ -59,27 +59,27 @@ void Level_Tool::Render_LevelSwitcher()
 
 void Level_Tool::Render_MapLoader()
 {
-    ImGui::Text("Map Json Loader");
+    ImGui::Text("Map Instance Loader");
     ImGui::Spacing();
 
     if (ImGui::Button("Refresh"))
-        Refresh_MapJsonFiles();
+        Refresh_MapInstanceFolders();
 
     ImGui::SameLine();
-    ImGui::TextDisabled("(%zu files)", _jsonFiles.size());
+    ImGui::TextDisabled("(%zu folders)", _mapInstanceFolders.size());
 
-    const fs::path mapSaveJsonDir = Resolve_MapSaveJsonDir();
-    const string mapSaveJsonDirText = mapSaveJsonDir.string();
-    ImGui::TextDisabled("%s", mapSaveJsonDirText.c_str());
+    const fs::path mapInstanceDir = Resolve_MapInstanceDir();
+    const string mapInstanceDirText = mapInstanceDir.string();
+    ImGui::TextDisabled("%s", mapInstanceDirText.c_str());
 
-    for (int i = 0; i < static_cast<int>(_jsonFiles.size()); ++i)
+    for (int i = 0; i < static_cast<int>(_mapInstanceFolders.size()); ++i)
     {
-        const bool selected = (_selectedJsonIndex == i);
-        if (ImGui::Selectable(_jsonFiles[i].c_str(), selected))
-            _selectedJsonIndex = i;
+        const bool selected = (_selectedMapInstanceIndex == i);
+        if (ImGui::Selectable(_mapInstanceFolders[i].c_str(), selected))
+            _selectedMapInstanceIndex = i;
     }
 
-    if (_selectedJsonIndex < 0 || _selectedJsonIndex >= static_cast<int>(_jsonFiles.size()))
+    if (_selectedMapInstanceIndex < 0 || _selectedMapInstanceIndex >= static_cast<int>(_mapInstanceFolders.size()))
         return;
 
     ImGui::Spacing();
@@ -90,63 +90,62 @@ void Level_Tool::Render_MapLoader()
     if (ImGui::Button("Reload Map", ImVec2(-1, 0)))
         Reload_SelectedMap();
 
-    if (ImGui::Button("Save Map State", ImVec2(-1, 0)))
-        Save_SelectedMapState();
+    if (ImGui::Button("Save Prefab Instances", ImVec2(-1, 0)))
+        Save_SelectedPrefabInstances();
 
-    if (ImGui::Button("Reload Authored Objects", ImVec2(-1, 0)))
-        Reload_SelectedAuthoredObjects();
+    ImGui::TextDisabled("Saved to selected MapInstance/PrefabInstances.json.");
 }
 
-void Level_Tool::Refresh_MapJsonFiles()
+void Level_Tool::Refresh_MapInstanceFolders()
 {
     const string previousSelection =
-        (_selectedJsonIndex >= 0 && _selectedJsonIndex < static_cast<int>(_jsonFiles.size()))
-        ? _jsonFiles[_selectedJsonIndex]
+        (_selectedMapInstanceIndex >= 0 && _selectedMapInstanceIndex < static_cast<int>(_mapInstanceFolders.size()))
+        ? _mapInstanceFolders[_selectedMapInstanceIndex]
         : string{};
 
-    _jsonFiles.clear();
-    _selectedJsonIndex = -1;
+    _mapInstanceFolders.clear();
+    _selectedMapInstanceIndex = -1;
 
-    const fs::path mapSaveJsonDir = Resolve_MapSaveJsonDir();
-    if (!fs::exists(mapSaveJsonDir) || !fs::is_directory(mapSaveJsonDir))
+    const fs::path mapInstanceDir = Resolve_MapInstanceDir();
+    if (!fs::exists(mapInstanceDir) || !fs::is_directory(mapInstanceDir))
         return;
 
-    for (const fs::directory_entry& entry : fs::directory_iterator(mapSaveJsonDir))
+    for (const fs::directory_entry& entry : fs::directory_iterator(mapInstanceDir))
     {
-        if (entry.path().extension() == ".json")
-            _jsonFiles.push_back(entry.path().filename().string());
+        if (entry.is_directory())
+            _mapInstanceFolders.push_back(entry.path().filename().string());
     }
 
-    std::sort(_jsonFiles.begin(), _jsonFiles.end());
+    std::sort(_mapInstanceFolders.begin(), _mapInstanceFolders.end());
 
     if (!previousSelection.empty())
     {
-        const auto found = std::find(_jsonFiles.begin(), _jsonFiles.end(), previousSelection);
-        if (found != _jsonFiles.end())
-            _selectedJsonIndex = static_cast<int>(std::distance(_jsonFiles.begin(), found));
+        const auto found = std::find(_mapInstanceFolders.begin(), _mapInstanceFolders.end(), previousSelection);
+        if (found != _mapInstanceFolders.end())
+            _selectedMapInstanceIndex = static_cast<int>(std::distance(_mapInstanceFolders.begin(), found));
     }
 }
 
-fs::path Level_Tool::Resolve_MapSaveJsonDir() const
+fs::path Level_Tool::Resolve_MapInstanceDir() const
 {
     const wstring assetRoot = GAME->Get_AssetRoot();
     if (!assetRoot.empty())
-        return fs::path(assetRoot) / L"Map" / L"SaveJson";
+        return fs::path(assetRoot) / L"Map" / L"MapInstance";
 
-    return fs::path(Client::Constants::Map::SaveJson_Dir);
+    return fs::path(L"../../../Client/Bin/Resources/Map/MapInstance");
 }
 
-fs::path Level_Tool::Resolve_SelectedMapJsonPath() const
+fs::path Level_Tool::Resolve_SelectedMapInstancePath() const
 {
-    if (_selectedJsonIndex < 0 || _selectedJsonIndex >= static_cast<int>(_jsonFiles.size()))
+    if (_selectedMapInstanceIndex < 0 || _selectedMapInstanceIndex >= static_cast<int>(_mapInstanceFolders.size()))
         return {};
 
-    return Resolve_MapSaveJsonDir() / String::ToWString(_jsonFiles[_selectedJsonIndex]);
+    return Resolve_MapInstanceDir() / String::ToWString(_mapInstanceFolders[_selectedMapInstanceIndex]);
 }
 
 void Level_Tool::Load_SelectedMap()
 {
-    const fs::path selectedPath = Resolve_SelectedMapJsonPath();
+    const fs::path selectedPath = Resolve_SelectedMapInstancePath();
     if (selectedPath.empty())
         return;
 
@@ -166,12 +165,11 @@ void Level_Tool::Load_SelectedMap()
 
 void Level_Tool::Reload_SelectedMap()
 {
-    const fs::path selectedPath = Resolve_SelectedMapJsonPath();
+    const fs::path selectedPath = Resolve_SelectedMapInstancePath();
     if (selectedPath.empty())
         return;
 
     Remove_CurrentLevelMapObjects();
-    Remove_CurrentLevelAuthoredObjects();
 
     if (FAILED(MapLoader::Load(
         GAME->Get_Device(),
@@ -187,52 +185,20 @@ void Level_Tool::Reload_SelectedMap()
     NOTIFY("Map 리로드 완료");
 }
 
-void Level_Tool::Reload_SelectedAuthoredObjects()
+void Level_Tool::Save_SelectedPrefabInstances()
 {
-    const fs::path selectedPath = Resolve_SelectedMapJsonPath();
+    const fs::path selectedPath = Resolve_SelectedMapInstancePath();
     if (selectedPath.empty())
         return;
 
-    const json root = GAME->Load_JsonFile(selectedPath);
-    if (!root.is_object() || !root.contains("MapData") || !root["MapData"].is_object())
-    {
-        NOTIFY("Authored Objects 리로드 실패");
-        return;
-    }
-
-    Remove_CurrentLevelAuthoredObjects();
-
-    vector<Shared<GameObject>> spawnedObjects{};
-    if (!Client::MapAuthoringIO::Load_AuthoredObjects_FromMapData(
-        root["MapData"],
-        GAME->Current_LevelIndex(),
-        &spawnedObjects))
-    {
-        NOTIFY("Authored Objects 리로드 실패");
-        return;
-    }
-
-    _reloadedMonsterObjects.clear();
-    for (const Shared<GameObject>& spawnedObject : spawnedObjects)
-        _reloadedMonsterObjects.push_back(spawnedObject);
-
-    NOTIFY("Authored Objects 리로드 완료");
-}
-
-void Level_Tool::Save_SelectedMapState()
-{
-    const fs::path selectedPath = Resolve_SelectedMapJsonPath();
-    if (selectedPath.empty())
-        return;
-
-    const bool saved = Client::MapAuthoringIO::Save_MapState_ToMapJson(
+    const bool saved = Client::MapAuthoringIO::Save_PrefabInstances_ToMapInstanceAuthoring(
         selectedPath.wstring(),
         GAME->Current_LevelIndex());
 
     if (saved)
-        NOTIFY("Map State 저장 완료");
+        NOTIFY("Prefab Instances 저장 완료");
     else
-        NOTIFY("Map State 저장 실패");
+        NOTIFY("Prefab Instances 저장 실패");
 }
 
 void Level_Tool::Remove_CurrentLevelMapObjects()
@@ -251,40 +217,6 @@ void Level_Tool::Remove_CurrentLevelMapObjects()
         GAME->Remove_GameObject(GAME->Current_LevelIndex(), mapObject);
 
     GAME->Flush_RemovedGameObjects();
-}
-
-void Level_Tool::Remove_CurrentLevelAuthoredObjects()
-{
-    vector<Shared<GameObject>> authoredObjects{};
-    std::unordered_set<uintptr_t> authoredObjectKeys{};
-
-    auto QueueRemove = [&](const Shared<GameObject>& gameObject)
-    {
-        if (gameObject == nullptr || !gameObject->Is_RuntimeAuthoringLoaded())
-            return;
-
-        const uintptr_t objectKey = reinterpret_cast<uintptr_t>(gameObject.get());
-        if (!authoredObjectKeys.insert(objectKey).second)
-            return;
-
-        authoredObjects.push_back(gameObject);
-    };
-
-    for (const Weak<GameObject>& weakObject : _reloadedMonsterObjects)
-        QueueRemove(weakObject.lock());
-
-    GAME->Visit_LevelObjects(
-        GAME->Current_LevelIndex(),
-        [&](const wstring&, const Shared<GameObject>& gameObject)
-        {
-            QueueRemove(gameObject);
-        });
-
-    for (const Shared<GameObject>& authoredObject : authoredObjects)
-        GAME->Remove_GameObject(GAME->Current_LevelIndex(), authoredObject);
-
-    GAME->Flush_RemovedGameObjects();
-    _reloadedMonsterObjects.clear();
 }
 
 void Level_Tool::Change_To(LevelType targetLevel)

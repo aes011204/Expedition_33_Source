@@ -71,6 +71,7 @@ public:
     void Clear_AttackHitAnimOverride(const string& colliderTag) override;
     Shared<MovementCom> Get_MovementCom() const;
     Shared<ModelCom> Get_ModelCom() const;
+    bool Try_GetSocketWorldPosition(const string& socketName, Vec3& outWorldPosition) const;
     bool Play_Anim(Anim anim, float blendDuration, bool loop);
     bool Play_Anim(Anim anim, float blendDuration, bool loop, float startFrame);
     void Set_AnimPaused(bool paused);
@@ -134,6 +135,7 @@ private:
     bool _isPhaseChangeInvincible = false;
     bool _skipPhaseChangeStunStart = false;
     bool _isCinematicDriven = false;
+    bool _restorePhysXCCTAfterCinematic = false;
     float _stunElapsed = 0.f;
     float _breakRecoverPerSec = 4.5f;
 

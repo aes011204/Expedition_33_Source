@@ -83,6 +83,8 @@ public:
     static void Set_DebugDisableMapStaticMeshRender(bool disabled);
     static bool Is_DebugDisableMapInstancedMeshShadow();
     static void Set_DebugDisableMapInstancedMeshShadow(bool disabled);
+    static bool Is_DebugUseMapInstancedMeshShadowLOD();
+    static void Set_DebugUseMapInstancedMeshShadowLOD(bool enabled);
     static bool Is_DebugDisableGrassInstancedShadow();
     static void Set_DebugDisableGrassInstancedShadow(bool disabled);
     static bool Is_DebugDisableMapStaticMeshShadow();

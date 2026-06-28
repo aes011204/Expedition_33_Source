@@ -475,6 +475,7 @@ struct ComputeSpriteEmitterDesc : public GameObject::GAMEOBJECT_DESC
     PointParticlePlaneRadialLocationDesc planeRadialLocation{};       // PlaneRadialLocation 모듈이 만든 시작 위치 평면/방사 offset 분포다.
     PointParticleCylinderLocationDesc cylinderLocation{};             // CylinderLocation 모듈이 만든 시작 위치 원통 offset 분포다.
     PointParticlePlaneRadialOrientationDesc planeRadialOrientation{}; // PlaneRadialOrientation 모듈이 만든 radial frame 기반 초기 회전 payload다.
+    PointParticleCylinderOrientationDesc cylinderOrientation{};        // CylinderOrientation 모듈이 만든 cylinder frame 기반 초기 방향 payload다.
     PointParticleRandomSeedRuntimeDesc initialLocationSeed{};         // InitialLocation random sample seed salt다.
     PointParticleRandomSeedRuntimeDesc sphereLocationSeed{};          // SphereLocation random sample seed salt다.
     PointParticleRandomSeedRuntimeDesc subUVRandomFrameSeed{};        // SubUV RandomFrame random sample seed salt다.
@@ -533,6 +534,18 @@ enum class EffectBeamBranchPreset : uint8
     ShortCrack,
 };
 
+// BeamEnvelopeOverLife 모듈에서 beam visible interval과 width 배율을 평가하는 payload다.
+struct EffectBeamEnvelopeOverLifeRuntimeDesc
+{
+    bool enabled{ false };
+    float startRatioFallback{ 0.f };
+    float endRatioFallback{ 1.f };
+    float widthScaleFallback{ 1.f };
+    PointParticleFloatCurveRuntimeDesc startRatioOverLife{};
+    PointParticleFloatCurveRuntimeDesc endRatioOverLife{};
+    PointParticleFloatCurveRuntimeDesc widthScaleOverLife{};
+};
+
 // generated beam이 local authored path를 camera-facing strip으로 낮추는 runtime payload다.
 struct ComputeBeamEmitterDesc : public GameObject::GAMEOBJECT_DESC
 {
@@ -548,6 +561,7 @@ struct ComputeBeamEmitterDesc : public GameObject::GAMEOBJECT_DESC
     EffectColorOverLifeRuntimeDesc colorOverLife{};            // ColorOverLife 모듈에서 beam 색/알파로 소비한다.
     PointParticleSubUVFrameOverLifeDesc subUVFrameOverLife{};  // 수명 진행률 기준 SubUV frame 규칙이다.
     PointParticleSizeByLifeDesc sizeByLife{};                  // SizeByLife 모듈에서 beam 폭 배율로 소비한다.
+    EffectBeamEnvelopeOverLifeRuntimeDesc beamEnvelopeOverLife{}; // BeamEnvelopeOverLife 모듈에서 visible interval/width 배율로 소비한다.
     PointParticleRandomSeedRuntimeDesc subUVRandomFrameSeed{}; // SubUV RandomFrame replay 단위 seed salt다.
     bool usePerStripSubUVVariation{ false };                   // Legacy Beam strip별 SubUV RandomFrame variation compatibility flag다.
 
@@ -836,6 +850,7 @@ struct MeshEmitterDesc : public GameObject::GAMEOBJECT_DESC
     PointParticleCylinderLocationDesc cylinderLocation{};               // CylinderLocation 모듈에서 mesh spawn offset으로 소비하는 payload다.
     PointParticleSphereRadialOrientationDesc sphereRadialOrientation{}; // SphereRadialOrientation 모듈에서 sphere radial frame 회전으로 소비하는 payload다.
     PointParticlePlaneRadialOrientationDesc planeRadialOrientation{};   // PlaneRadialOrientation 모듈에서 mesh radial frame 회전으로 소비하는 payload다.
+    PointParticleCylinderOrientationDesc cylinderOrientation{};          // CylinderOrientation 모듈에서 cylinder frame 회전으로 소비하는 payload다.
     MeshTransformRuntimeDesc meshTransform{};                           // Mesh 전용 Vec3 scale/rotation payload다.
 };
 

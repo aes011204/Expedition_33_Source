@@ -7,11 +7,14 @@
 #include "ClientInstance.h"
 #include "ContainerObject.h"
 #include "GameInstance.h"
+#include "GameplayUI.h"
 #include "Helper_String.h"
 #include "ModelCom.h"
 #include "Monster_WorldBase.h"
 #include "PartObject.h"
 #include "SL_Dualliste.h"
+#include "SL_Maelle.h"
+#include "SL_TargetCom.h"
 #include "Spawn_Prefab.h"
 #include "TransformCom.h"
 #include <algorithm>
@@ -280,6 +283,8 @@ bool CinematicSequenceRunner::Play_Sequence(
     if (_player->Is_CinematicPlaying())
     {
         _player->Stop();
+        Set_GameplayUIHiddenForCinematic(false);
+        GAME->Set_LetterboxEnabled(false);
         Clear_CompletedCallbacks();
         Cleanup_Context();
     }
@@ -313,6 +318,7 @@ bool CinematicSequenceRunner::Play_Sequence(
     _applyEventTrack = applyEventTrack;
     _applyActorTransformTrack = applyActorTransformTrack;
 
+    Set_GameplayUIHiddenForCinematic(true);
     _player->Ready_CinematicPlayer(&_sequence, cinematicTrack, cinematicCamera, true, applyCameraTrack);
     Apply_ActiveCameraTrackPose(static_cast<float>(_sequence.startFrame));
     if (_applyEventTrack)
@@ -346,6 +352,8 @@ bool CinematicSequenceRunner::Play_Sequence(
     if (_player->Is_CinematicPlaying())
     {
         _player->Stop();
+        Set_GameplayUIHiddenForCinematic(false);
+        GAME->Set_LetterboxEnabled(false);
         Cleanup_Context();
     }
 
@@ -376,8 +384,9 @@ bool CinematicSequenceRunner::Play_Sequence(
     _applyEventTrack = applyEventTrack;
     _applyActorTransformTrack = applyActorTransformTrack;
 
-   _player->Ready_CinematicPlayer(&_sequence, cinematicTrack, cinematicCamera, true, applyCameraTrack);
-    Apply_ActiveCameraTrackPose(static_cast<float>(_sequence.startFrame));
+    Set_GameplayUIHiddenForCinematic(true);
+    _player->Ready_CinematicPlayer(&_sequence, cinematicTrack, cinematicCamera, true, applyCameraTrack);
+    Apply_ActiveCameraTrackPose(_sequence.startFrame);
     if (_applyEventTrack)
         Execute_EventsUpToFrame(_sequence.startFrame, static_cast<float>(_sequence.startFrame));
     if (_applyEventTrack && _applyActorTransformTrack && !_suspendActorTransformTrackPreview)
@@ -404,6 +413,7 @@ void CinematicSequenceRunner::Stop_Sequence()
     Cleanup_Context();
     CLIENT->Restore_PreviousCamera();
 
+    Set_GameplayUIHiddenForCinematic(false);
     GAME->Set_LetterboxEnabled(false);
 }
 
@@ -417,6 +427,8 @@ void CinematicSequenceRunner::Stop_SequenceKeepContext()
         return;
 
     _player->Stop();
+    Set_GameplayUIHiddenForCinematic(false);
+    GAME->Set_LetterboxEnabled(false);
 }
 
 void CinematicSequenceRunner::Pause_Sequence()
@@ -641,6 +653,7 @@ void CinematicSequenceRunner::Update(float timeDelta, bool tickBoundAnimationsMa
     if (wasPlaying && !_player->Is_CinematicPlaying())
     {
         CLIENT->Restore_PreviousCamera();   // 완료 콜백이 전투 카메라를 요청할 수 있으므로, 시네마틱 카메라 복원은 먼저 끝낸다.
+        Set_GameplayUIHiddenForCinematic(false);
         _onNaturalCompleted.Broadcast();
         Clear_CompletedCallbacks();         // 완료 콜백
 
@@ -754,16 +767,19 @@ bool CinematicSequenceRunner::Execute_SpawnEvent(const string& targetId, const C
         return true;
     }
 
-    if (Shared<GameObject> existingActor = Find_ReusableActorByPrefabName(payload.prefabName))
+    if (payload.cleanupPolicy == CinematicCleanupPolicy::Keep)
     {
-        Bind_ActorToTarget(targetId, existingActor, false, payload.cleanupPolicy);
+        if (Shared<GameObject> existingActor = Find_ReusableActorByPrefabName(payload.prefabName))
+        {
+            Bind_ActorToTarget(targetId, existingActor, false, payload.cleanupPolicy);
 
-        LOG_INFO(
-            "[CinematicSequenceRunner] SpawnEvent reused existing actor: target='{}' prefab='{}' frame={}",
-            targetId,
-            payload.prefabName,
-            Get_CurrentFrame());
-        return true;
+            LOG_INFO(
+                "[CinematicSequenceRunner] SpawnEvent reused existing actor: target='{}' prefab='{}' frame={}",
+                targetId,
+                payload.prefabName,
+                Get_CurrentFrame());
+            return true;
+        }
     }
 
     Shared<GameObject> actor = Spawn_Prefab::Prefab(payload.prefabName)
@@ -1161,6 +1177,12 @@ void CinematicSequenceRunner::Cleanup_Context(bool forceRemoveAllSpawned)
         Clear_CompletedCallbacks();
 }
 
+void CinematicSequenceRunner::Set_GameplayUIHiddenForCinematic(bool hidden) const
+{
+    if (const Shared<GameplayUI> gameplayUI = CLIENT->Get_GameplayUI())
+        gameplayUI->Set_CinematicUIHidden(hidden);
+}
+
 Shared<GameObject> CinematicSequenceRunner::Find_ReusableActorByPrefabName(const string& prefabName) const
 {
     if (prefabName.empty())
@@ -1213,7 +1235,21 @@ void CinematicSequenceRunner::Apply_CinematicDrivenState(const Shared<GameObject
     }
 
     if (const auto dualliste = dynamic_pointer_cast<SL_Dualliste>(actor))
+    {
         dualliste->Set_CinematicDriven(cinematicDriven);
+        return;
+    }
+
+    if (const auto maelle = dynamic_pointer_cast<SL_Maelle>(actor))
+    {
+        if (cinematicDriven)
+        {
+            if (const Shared<SL_TargetCom> targetCom = maelle->Get_Component<SL_TargetCom>())
+                targetCom->Clear_Candidates();
+        }
+
+        maelle->Set_CinematicDriven(cinematicDriven);
+    }
 }
 
 void CinematicSequenceRunner::Bind_ActorToTarget(

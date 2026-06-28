@@ -436,6 +436,12 @@ json Monster_WorldBase::To_Json() const
     for (const BattleMonsterSpawnDesc& spawnDesc : _battleMonsterSpawnDescs)
         battleMonsterSpawns.push_back(BattleMonsterSpawnDesc_ToJson(spawnDesc));
 
+    json& patrolPoints = customProperties["patrol_points"];
+    patrolPoints = json::array();
+
+    for (const Vec3& patrolPoint : _PatrolPoints)
+        patrolPoints.push_back(Vec3_ToJson(patrolPoint));
+
     return data;
 }
 
@@ -453,6 +459,8 @@ void Monster_WorldBase::From_Json(const json& data)
     _startIdleUntilPlayerInRange = false;
     _hasReleasedStartIdle = false;
     _startIdleReleaseDistance = 0.f;
+    _PatrolPoints.clear();
+    _defaultPatrolPoints.clear();
 
     if (_colliderCom)
     {
@@ -482,6 +490,16 @@ void Monster_WorldBase::From_Json(const json& data)
     _startIdleReleaseDistance = customProperties.value("start_idle_release_distance", 0.f);
     if (customProperties.contains("battle_start_offset"))
         (void)Json_ToVec3(customProperties["battle_start_offset"], _battleStartOffset);
+
+    if (customProperties.contains("patrol_points") && customProperties["patrol_points"].is_array())
+    {
+        for (const json& patrolPointNode : customProperties["patrol_points"])
+        {
+            Vec3 patrolPoint = Vec3::Zero;
+            if (Json_ToVec3(patrolPointNode, patrolPoint))
+                _PatrolPoints.push_back(patrolPoint);
+        }
+    }
 
     if (customProperties.contains("battle_monster_spawns") && customProperties["battle_monster_spawns"].is_array())
     {

@@ -22,6 +22,7 @@ GOOGLE_SHEET_EXPORTS = {
     "DT_Texture.xlsx": "https://docs.google.com/spreadsheets/d/1UuiYVCXSMiU_Rv3d7OpNFRE2Gp2Lo8gfV4_ZCIy5xms/export?format=xlsx",
     "DT_ExpLevel.xlsx": "https://docs.google.com/spreadsheets/d/1tGnts2HdLZXOccMK21symSV6jAdooHCckLeEtwOz97Y/export?format=xlsx",
     "DT_Weapon.xlsx": "https://docs.google.com/spreadsheets/d/1209yLBKX6EXPQ4Zsgy1kd6-O6ilofhKCuhA279U9Res/export?format=xlsx",
+    "DT_WeaponUpgrade.xlsx": "https://docs.google.com/spreadsheets/d/1DqWW957CKkFIoREsV2J4UXg0HaPFPyEBUjCq7eCszvo/export?format=xlsx",
     "DT_Item.xlsx": "https://docs.google.com/spreadsheets/d/17iQZ30XSCVYyXoZLXvf5bGsVv8H4JPs_Lw3Si5odjG4/export?format=xlsx",
     "DT_SkillTree.xlsx": "https://docs.google.com/spreadsheets/d/19--V-7P5UoZd7SRJ3vdMl235gXcka5eVsyjFxOHVHoY/export?format=xlsx",
     "DT_SkillTreeRequirement.xlsx": "https://docs.google.com/spreadsheets/d/1Xxqg_rbp6sAq_PWSUxP6iRek7Itfas9zqrgQE-WQVtk/export?format=xlsx",

@@ -96,6 +96,26 @@ void PanelViewport::Render()
                     ImGui::Checkbox("Instance 숨기기", &_ctx->_hideInstancedMesh);
                     ImGui::Checkbox("Instanced Spawn", &_spawnAsInstanced);
 
+                    if (_ctx && _ctx->_selected && !_ctx->_boxScatterMode)
+                    {
+                        ImGui::Separator();
+
+                        if (ImGui::SmallButton(_gizmoOp == ImGuizmo::TRANSLATE ? "[Move]" : "Move"))
+                            _gizmoOp = ImGuizmo::TRANSLATE;
+                        ImGui::SameLine();
+                        if (ImGui::SmallButton(_gizmoOp == ImGuizmo::ROTATE ? "[Rotate]" : "Rotate"))
+                            _gizmoOp = ImGuizmo::ROTATE;
+                        ImGui::SameLine();
+                        if (ImGui::SmallButton(_gizmoOp == ImGuizmo::SCALE ? "[Scale]" : "Scale"))
+                            _gizmoOp = ImGuizmo::SCALE;
+
+                        if (ImGui::SmallButton(_gizmoMode == ImGuizmo::LOCAL ? "[Local]" : "Local"))
+                            _gizmoMode = ImGuizmo::LOCAL;
+                        ImGui::SameLine();
+                        if (ImGui::SmallButton(_gizmoMode == ImGuizmo::WORLD ? "[World]" : "World"))
+                            _gizmoMode = ImGuizmo::WORLD;
+                    }
+
                     if (auto lp = GAME->Get_LightingPipeline())
                     {
                         bool iblOn = lp->Is_IBLEnabled();
@@ -179,6 +199,10 @@ void PanelViewport::Render()
                     if (ImGui::IsKeyPressed(ImGuiKey_P))
                     {
                         _gizmoOp = ImGuizmo::SCALE;
+                    }
+                    if (ImGui::IsKeyPressed(ImGuiKey_L))
+                    {
+                        _gizmoMode = (_gizmoMode == ImGuizmo::LOCAL) ? ImGuizmo::WORLD : ImGuizmo::LOCAL;
                     }
 
                     if (ImGui::IsKeyPressed(ImGuiKey_Delete))

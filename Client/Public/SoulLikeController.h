@@ -50,6 +50,13 @@ public:
     bool Begin_Battle();
     void End_Battle();
     void Confirm_Victory();
+    void Set_BattleSpawnPoseOverride(
+        const Vec3& playerPosition,
+        const Vec3& playerRotation,
+        const Vec3& monsterPosition,
+        const Vec3& monsterRotation);
+    void Clear_BattleSpawnPoseOverride();
+    void Set_NextMonsterActionDelay(float delaySec);
     bool Is_DebugKeyStartEnabled() const { return _enableDebugKeyStart; }
 
     bool Is_BattleActive() const
@@ -83,6 +90,7 @@ public:
     void Play_PlayerParryFeedback();
     void Notify_PlayerParrySuccess();
     void Play_PlayerAttackHitFeedback(const SL_DamageInfo& damageInfo);
+    void Start_DuallistePhase1BGM();
     void Play_DuallisteBGM(DuallisteBGMPhase phase);
 
     void Set_JumpCounterThreat(const Shared<SL_Base>& attacker, bool active);
@@ -102,7 +110,7 @@ public:
     bool    Is_VictoryCameraBlocked() const;
 
 private:
-    void    Request_SoulLikeCamera();
+    void    Request_SoulLikeCamera(bool alignBehindPlayer = false);
     void    Request_BattleShotCamera(const EvtBattlePresentation& event);
     void    Restore_GameplayCamera();
     bool    Ensure_SoulLikeCamera();
@@ -115,6 +123,7 @@ private:
     bool Spawn_Monster(const Shared<SL_Maelle>& player);
     void Remove_SpawnedBattleActors();
     void Update_EnterFx(float timeDelta);
+    void Update_MonsterActionDelay(float timeDelta);
     void Update_VictorySlow();
     void Check_BattleEnd();
     void Begin_VictorySlow();
@@ -147,6 +156,11 @@ private:
 
     string _monsterPrefab = "";
     float  _monsterSpawnDistance = 3.5f;
+    bool   _hasBattleSpawnPoseOverride = false;
+    Vec3   _overridePlayerSpawnPosition = Vec3::Zero;
+    Vec3   _overridePlayerSpawnRotation = Vec3::Zero;
+    Vec3   _overrideMonsterSpawnPosition = Vec3::Zero;
+    Vec3   _overrideMonsterSpawnRotation = Vec3::Zero;
 
     float  _playerMaxHp = 100.f;
     float  _monsterMaxHp = 500.f;
@@ -168,6 +182,8 @@ private:
     wstring _preSoulLikeBGM{};
     bool _hasPreSoulLikeBGM = false;
     bool  _playerSpawned = false;
+    float _nextMonsterActionDelay = 0.f;
+    float _monsterActionDelayTimer = 0.f;
     FDelegateHandle _editorStopHandle{};
     uint32 _soulLikeCameraLevelIndex = 0;
     uint32 _soulLikeBattleTurnCameraLevelIndex = 0;

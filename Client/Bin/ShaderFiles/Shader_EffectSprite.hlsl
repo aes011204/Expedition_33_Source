@@ -328,21 +328,30 @@ void GS_MAIN(point GS_IN In[1], inout TriangleStream<GS_OUT> OutStream)
     float3 rightDir = float3(0.f, 0.f, 0.f);
     float3 upDir = float3(0.f, 0.f, 0.f);
     ResolveCameraPlaneBasis(rightDir, upDir);
-    if (g_ScreenAlignmentMode == 5)
+    bool usedInstanceLookBasis = false;
+    if (g_UseInstanceLookDirectionBasis != 0)
+    {
+        float3 lookDir = float3(0.f, 0.f, 0.f);
+        usedInstanceLookBasis = TryNormalizeDirection(In[0].velocityDirection, lookDir);
+        if (usedInstanceLookBasis)
+            ResolveLookAlignedBasis(lookDir, rightDir, upDir);
+    }
+
+    if (!usedInstanceLookBasis && g_ScreenAlignmentMode == 5)
     {
         rightDir = float3(1.f, 0.f, 0.f);
         upDir = float3(0.f, 1.f, 0.f);
     }
-    else if (g_ScreenAlignmentMode == 6)
+    else if (!usedInstanceLookBasis && g_ScreenAlignmentMode == 6)
     {
         rightDir = float3(1.f, 0.f, 0.f);
         upDir = float3(0.f, 0.f, 1.f);
     }
-    else if (g_ScreenAlignmentMode == 7)
+    else if (!usedInstanceLookBasis && g_ScreenAlignmentMode == 7)
     {
         ResolveWorldUpFacingCameraBasis(particlePosition, rightDir, upDir);
     }
-    else if (g_ScreenAlignmentMode == 3 || g_ScreenAlignmentMode == 4)
+    else if (!usedInstanceLookBasis && (g_ScreenAlignmentMode == 3 || g_ScreenAlignmentMode == 4))
     {
         float3 lookDir = float3(0.f, 0.f, 0.f);
         const bool hasLookDir = TryResolveDirectionalLookDirection(particlePosition, In[0].velocityDirection, lookDir);
@@ -359,7 +368,7 @@ void GS_MAIN(point GS_IN In[1], inout TriangleStream<GS_OUT> OutStream)
             ResolveLookAlignedBasis(lookDir, rightDir, upDir);
         }
     }
-    else if (g_ScreenAlignmentMode != 1 && g_ScreenAlignmentMode != 2)
+    else if (!usedInstanceLookBasis && g_ScreenAlignmentMode != 1 && g_ScreenAlignmentMode != 2)
     {
         const float3 lookDir = ResolveFacingLookDirection(particlePosition);
         ResolveLookAlignedBasis(lookDir, rightDir, upDir);
