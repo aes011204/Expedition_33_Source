@@ -84,6 +84,7 @@ private: //## Data::ModuleDetail
     InitialRotationModuleDetail _initialRotationModuleDetail{};
     SphereRadialOrientationModuleDetail _sphereRadialOrientationModuleDetail{};
     PlaneRadialOrientationModuleDetail _planeRadialOrientationModuleDetail{};
+    CylinderOrientationModuleDetail _cylinderOrientationModuleDetail{};
     RotationOverLifeModuleDetail _rotationOverLifeModuleDetail{};
     SpriteTiltModuleDetail _spriteTiltModuleDetail{};
     SpriteTiltOverLifeModuleDetail _spriteTiltOverLifeModuleDetail{};
@@ -97,6 +98,7 @@ private: //## Data::ModuleDetail
     ColorOverLifeModuleDetail _colorOverLifeModuleDetail{};
     SubUVFrameOverLifeModuleDetail _subUvFrameOverLifeModuleDetail{};
     SizeByLifeModuleDetail _sizeByLifeModuleDetail{};
+    BeamEnvelopeOverLifeModuleDetail _beamEnvelopeOverLifeModuleDetail{};
     MeshSizeByLifeModuleDetail _meshSizeByLifeModuleDetail{};
     SpawnPerUnitModuleDetail _spawnPerUnitModuleDetail{};
     SourceHistorySpriteTrailPathFollowModuleDetail _sourceHistorySpriteTrailPathFollowModuleDetail{};

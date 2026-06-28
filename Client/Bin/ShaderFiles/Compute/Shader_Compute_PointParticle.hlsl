@@ -262,6 +262,8 @@ cbuffer ComputePointParticleParams : register(b0)
     float4 g_CylinderLocationRadiusHeight;       // x/y: radius range, z/w: height range
     float4 g_CylinderLocationAngle;              // x/y: angle degree range
     uint4 g_CylinderLocationSeedSalts;           // x: radius, y: height, z: angle
+    float4 g_CylinderOrientationParams;          // x: enabled, y: target kind, z: orientation mode, w: follow orbit over life
+    float4 g_CylinderOrientationAngles;          // x: tilt degrees, y: roll offset degrees
 };
 
 RWStructuredBuffer<ParticleInstanceVertex> OutputData : register(u0);
@@ -1099,75 +1101,108 @@ float3 ResolveEmitterLocalVector(float3 worldValue)
     return float3(dot(worldValue, right), dot(worldValue, up), dot(worldValue, look));
 }
 
+float EvaluateOrbitAngleDegrees(float lifeProgress)
+{
+    return EvaluateCompactCurve(
+        lifeProgress,
+        (uint)g_OrbitAngleCurveParams.x,
+        g_OrbitAngleCurveTimes,
+        g_OrbitAngleCurveTimesBlock1,
+        g_OrbitAngleCurveValues,
+        g_OrbitAngleCurveValuesBlock1,
+        g_OrbitAngleCurveArriveTangents,
+        g_OrbitAngleCurveArriveTangentsBlock1,
+        g_OrbitAngleCurveLeaveTangents,
+        g_OrbitAngleCurveLeaveTangentsBlock1,
+        g_OrbitAngleCurveModes,
+        g_OrbitAngleCurveModesBlock1,
+        lerp(g_OrbitAngleRange.x, g_OrbitAngleRange.y, lifeProgress)
+    );
+}
+
+float EvaluateOrbitRadiusScale(float lifeProgress)
+{
+    return EvaluateCompactCurve(
+        lifeProgress,
+        (uint)g_OrbitRadiusCurveParams.x,
+        g_OrbitRadiusCurveTimes,
+        g_OrbitRadiusCurveTimesBlock1,
+        g_OrbitRadiusCurveValues,
+        g_OrbitRadiusCurveValuesBlock1,
+        g_OrbitRadiusCurveArriveTangents,
+        g_OrbitRadiusCurveArriveTangentsBlock1,
+        g_OrbitRadiusCurveLeaveTangents,
+        g_OrbitRadiusCurveLeaveTangentsBlock1,
+        g_OrbitRadiusCurveModes,
+        g_OrbitRadiusCurveModesBlock1,
+        lerp(g_OrbitRadiusRange.x, g_OrbitRadiusRange.y, lifeProgress)
+    );
+}
+
+float3 RotateOrbitLocalVector(float3 localValue, float angleDegrees, uint plane, float planeScale)
+{
+    const float c = cos(radians(angleDegrees));
+    const float s = sin(radians(angleDegrees));
+    float2 planeOffset = localValue.xy;
+    if (plane == 1u)
+        planeOffset = localValue.xz;
+    else if (plane == 2u)
+        planeOffset = localValue.yz;
+
+    planeOffset *= planeScale;
+    const float2 rotatedOffset = float2(
+        planeOffset.x * c - planeOffset.y * s,
+        planeOffset.x * s + planeOffset.y * c
+    );
+
+    if (plane == 1u)
+    {
+        localValue.x = rotatedOffset.x;
+        localValue.z = rotatedOffset.y;
+    }
+    else if (plane == 2u)
+    {
+        localValue.y = rotatedOffset.x;
+        localValue.z = rotatedOffset.y;
+    }
+    else
+    {
+        localValue.x = rotatedOffset.x;
+        localValue.y = rotatedOffset.y;
+    }
+
+    return localValue;
+}
+
 float3 ApplyOrbitOverLife(float3 spawnOffset, float lifeProgress)
 {
     float3 result = spawnOffset;
     if (g_OrbitParams.x != 0.0f)
     {
         float3 localOffset = ResolveEmitterLocalVector(spawnOffset);
-        const float angleDegrees = EvaluateCompactCurve(
-            lifeProgress,
-            (uint)g_OrbitAngleCurveParams.x,
-            g_OrbitAngleCurveTimes,
-            g_OrbitAngleCurveTimesBlock1,
-            g_OrbitAngleCurveValues,
-            g_OrbitAngleCurveValuesBlock1,
-            g_OrbitAngleCurveArriveTangents,
-            g_OrbitAngleCurveArriveTangentsBlock1,
-            g_OrbitAngleCurveLeaveTangents,
-            g_OrbitAngleCurveLeaveTangentsBlock1,
-            g_OrbitAngleCurveModes,
-            g_OrbitAngleCurveModesBlock1,
-            lerp(g_OrbitAngleRange.x, g_OrbitAngleRange.y, lifeProgress)
+        localOffset = RotateOrbitLocalVector(
+            localOffset,
+            EvaluateOrbitAngleDegrees(lifeProgress),
+            (uint)g_OrbitParams.y,
+            EvaluateOrbitRadiusScale(lifeProgress)
         );
-        const float radiusScale = EvaluateCompactCurve(
-            lifeProgress,
-            (uint)g_OrbitRadiusCurveParams.x,
-            g_OrbitRadiusCurveTimes,
-            g_OrbitRadiusCurveTimesBlock1,
-            g_OrbitRadiusCurveValues,
-            g_OrbitRadiusCurveValuesBlock1,
-            g_OrbitRadiusCurveArriveTangents,
-            g_OrbitRadiusCurveArriveTangentsBlock1,
-            g_OrbitRadiusCurveLeaveTangents,
-            g_OrbitRadiusCurveLeaveTangentsBlock1,
-            g_OrbitRadiusCurveModes,
-            g_OrbitRadiusCurveModesBlock1,
-            lerp(g_OrbitRadiusRange.x, g_OrbitRadiusRange.y, lifeProgress)
-        );
-
-        const float c = cos(radians(angleDegrees));
-        const float s = sin(radians(angleDegrees));
-        const uint plane = (uint)g_OrbitParams.y;
-        float2 planeOffset = localOffset.xy;
-        if (plane == 1u)
-            planeOffset = localOffset.xz;
-        else if (plane == 2u)
-            planeOffset = localOffset.yz;
-
-        planeOffset *= radiusScale;
-        const float2 rotatedOffset = float2(
-            planeOffset.x * c - planeOffset.y * s,
-            planeOffset.x * s + planeOffset.y * c
-        );
-
-        if (plane == 1u)
-        {
-            localOffset.x = rotatedOffset.x;
-            localOffset.z = rotatedOffset.y;
-        }
-        else if (plane == 2u)
-        {
-            localOffset.y = rotatedOffset.x;
-            localOffset.z = rotatedOffset.y;
-        }
-        else
-        {
-            localOffset.x = rotatedOffset.x;
-            localOffset.y = rotatedOffset.y;
-        }
-
         result = ResolveEmitterBasisVector(localOffset);
+    }
+
+    return result;
+}
+
+float3 ApplyOrbitOverLifeDirection(float3 localDirection, float lifeProgress)
+{
+    float3 result = localDirection;
+    if (g_OrbitParams.x != 0.0f && g_CylinderOrientationParams.w != 0.0f)
+    {
+        result = RotateOrbitLocalVector(
+            localDirection,
+            EvaluateOrbitAngleDegrees(lifeProgress),
+            (uint)g_OrbitParams.y,
+            1.0f
+        );
     }
 
     return result;
@@ -1254,6 +1289,17 @@ struct PlaneRadialFrame
     float3 tangentCW;
     float3 tangentCCW;
     float3 planeNormal;
+    float sampleAngle;
+    float enabled;
+};
+
+struct CylinderFrame
+{
+    float3 localOffset;
+    float3 radialDirection;
+    float3 tangentCW;
+    float3 tangentCCW;
+    float3 cylinderAxis;
     float sampleAngle;
     float enabled;
 };
@@ -1372,8 +1418,16 @@ void ResolveCylinderLocationBasis(out float3 axisW, out float3 radialU, out floa
     }
 }
 
-float3 SampleCylinderLocationOffset(uint seed, uint placementIndex, uint placementCount)
+void SampleCylinderFrame(uint seed, uint placementIndex, uint placementCount, out CylinderFrame frame)
 {
+    frame.localOffset = float3(0.0f, 0.0f, 0.0f);
+    frame.radialDirection = float3(1.0f, 0.0f, 0.0f);
+    frame.tangentCW = float3(0.0f, -1.0f, 0.0f);
+    frame.tangentCCW = float3(0.0f, 1.0f, 0.0f);
+    frame.cylinderAxis = float3(0.0f, 0.0f, 1.0f);
+    frame.sampleAngle = 0.0f;
+    frame.enabled = 0.0f;
+
     float3 axisW = float3(0.0f, 0.0f, 1.0f);
     float3 radialU = float3(1.0f, 0.0f, 0.0f);
     float3 radialV = float3(0.0f, 1.0f, 0.0f);
@@ -1400,9 +1454,16 @@ float3 SampleCylinderLocationOffset(uint seed, uint placementIndex, uint placeme
                              : Hash01(seed + g_CylinderLocationSeedSalts.z + 1823u);
     const float angle = lerp(radians(angleMinDegrees), radians(angleMaxDegrees), angleRatio);
     const float3 radialVector = (radialU * cos(angle) + radialV * sin(angle)) * radius;
-    const float enabled = g_CylinderLocationParams.x != 0.0f ? 1.0f : 0.0f;
+    if (g_CylinderLocationParams.x == 0.0f)
+        return;
 
-    return ResolveEmitterBasisVector(g_CylinderLocationOffset.xyz + axisW * height + radialVector) * enabled;
+    frame.localOffset = g_CylinderLocationOffset.xyz + axisW * height + radialVector;
+    frame.radialDirection = normalize(radialU * cos(angle) + radialV * sin(angle));
+    frame.tangentCW = normalize(radialU * sin(angle) - radialV * cos(angle));
+    frame.tangentCCW = -frame.tangentCW;
+    frame.cylinderAxis = axisW;
+    frame.sampleAngle = angle;
+    frame.enabled = 1.0f;
 }
 
 float ResolvePlaneRadialSpriteRotation(float frameEnabled, float sampleAngle)
@@ -1422,6 +1483,52 @@ float ResolvePlaneRadialSpriteRotation(float frameEnabled, float sampleAngle)
     }
 
     return rotation;
+}
+
+bool IsCylinderSpriteOrientationEnabled(CylinderFrame frame)
+{
+    const uint targetKind = (uint)g_CylinderOrientationParams.y;
+    const uint orientationMode = (uint)g_CylinderOrientationParams.z;
+    return frame.enabled != 0.0f &&
+           g_CylinderOrientationParams.x != 0.0f &&
+           targetKind != 2u &&
+           orientationMode != 0u;
+}
+
+float ResolveCylinderSpriteRollOffset(CylinderFrame frame)
+{
+    float rollOffset = 0.0f;
+    if (IsCylinderSpriteOrientationEnabled(frame))
+        rollOffset = radians(g_CylinderOrientationAngles.y);
+
+    return rollOffset;
+}
+
+float3 ResolveCylinderSpriteLookDirection(CylinderFrame frame, float lifeProgress, float3 fallbackDirection)
+{
+    float3 result = fallbackDirection;
+    if (IsCylinderSpriteOrientationEnabled(frame))
+    {
+        float3 localDirection = frame.radialDirection;
+        const uint orientationMode = (uint)g_CylinderOrientationParams.z;
+        if (orientationMode == 2u)
+            localDirection = -frame.radialDirection;
+        else if (orientationMode == 3u)
+            localDirection = frame.tangentCW;
+        else if (orientationMode == 4u)
+            localDirection = frame.tangentCCW;
+        else if (orientationMode == 5u)
+            localDirection = frame.cylinderAxis;
+        else if (orientationMode == 6u)
+            localDirection = -frame.cylinderAxis;
+
+        localDirection = ApplyOrbitOverLifeDirection(localDirection, lifeProgress);
+        const float3 worldDirection = ResolveEmitterBasisVector(localDirection);
+        const float directionLength = length(worldDirection);
+        result = directionLength < 0.0001f ? fallbackDirection : worldDirection / directionLength;
+    }
+
+    return result;
 }
 
 // sphere location 설정에 따라 구 내부/표면 spawn 오프셋을 샘플링한다.
@@ -1603,18 +1710,28 @@ void CS_Main(uint3 dispatchThreadId : SV_DispatchThreadID)
         lifecycle.placementCount,
         planeRadialFrame
     );
+    CylinderFrame cylinderFrame;
+    SampleCylinderFrame(
+        cylinderLocationSeed,
+        lifecycle.placementIndex,
+        lifecycle.placementCount,
+        cylinderFrame
+    );
     const bool hasExplicitLocation = g_InitialLocationMin.w != 0.0f ||
                                      g_SphereLocationParams.x != 0.0f ||
                                      planeRadialFrame.enabled != 0.0f ||
-                                     g_CylinderLocationParams.x != 0.0f;
+                                     cylinderFrame.enabled != 0.0f;
     const float3 baseLocationOffset = g_InitialLocationMin.w != 0.0f ? initialLocationOffset : float3(0.0f, 0.0f, 0.0f);
     const float3 planeRadialOffset = planeRadialFrame.enabled != 0.0f
                                      ? ResolveEmitterBasisVector(planeRadialFrame.localOffset)
                                      : float3(0.0f, 0.0f, 0.0f);
+    const float3 cylinderOffset = cylinderFrame.enabled != 0.0f
+                                  ? ResolveEmitterBasisVector(cylinderFrame.localOffset)
+                                  : float3(0.0f, 0.0f, 0.0f);
     const float3 spawnOffset = (hasExplicitLocation ? baseLocationOffset : fallbackSpawnOffset) +
                                SampleSphereLocationOffset(sphereLocationSeed, lifecycle.placementIndex, lifecycle.placementCount) +
                                planeRadialOffset +
-                               SampleCylinderLocationOffset(cylinderLocationSeed, lifecycle.placementIndex, lifecycle.placementCount);
+                               cylinderOffset;
     const float3 orbitSpawnOffset = ApplyOrbitOverLife(spawnOffset, lifeProgress);
     const float3 spawnPosition = g_Center.xyz + orbitSpawnOffset;
     float3 initialVelocity = float3(0.0f, 0.0f, 0.0f);
@@ -1720,8 +1837,12 @@ void CS_Main(uint3 dispatchThreadId : SV_DispatchThreadID)
                                          ? float3(0.0f, 0.0f, 0.0f)
                                          : currentVelocity / currentVelocityLength;
 
+    const bool useCylinderSpriteOrientation = IsCylinderSpriteOrientationEnabled(cylinderFrame);
+    const float radialSpriteRotation = useCylinderSpriteOrientation
+                                       ? ResolveCylinderSpriteRollOffset(cylinderFrame)
+                                       : ResolvePlaneRadialSpriteRotation(planeRadialFrame.enabled, planeRadialFrame.sampleAngle);
     const float initialRotation = radians(lerp(g_RotationInitialRate.x, g_RotationInitialRate.y, Hash01(initialRotationSeed + 809u))) +
-                                  ResolvePlaneRadialSpriteRotation(planeRadialFrame.enabled, planeRadialFrame.sampleAngle);
+                                  radialSpriteRotation;
     const float rotationOverLife = radians(EvaluateRotationOverLifeDegrees(lifeProgress));
     const float rotationRate = radians(lerp(g_RotationInitialRate.z, g_RotationInitialRate.w, Hash01(initialRotationRateSeed + 907u)));
     const float rotationRateScale = EvaluateRotationRateScaleByLifeAverage(lifeProgress);
@@ -1798,7 +1919,7 @@ void CS_Main(uint3 dispatchThreadId : SV_DispatchThreadID)
     ParticleInstanceVertex instance;
     instance.right = float4(rotationCos * sizeX, rotationSin * sizeX, 0.0f, 0.0f);
     instance.up = float4(-rotationSin * sizeY, rotationCos * sizeY, 0.0f, 0.0f);
-    instance.look = float4(velocityAlignmentHint, 0.0f);
+    instance.look = float4(ResolveCylinderSpriteLookDirection(cylinderFrame, lifeProgress, velocityAlignmentHint), 0.0f);
     instance.translation = float4(spawnPosition + motionOffset, 1.0f);
     instance.lifeTime = float2(lifeMax, lifeAge);
     const float4 legacyStartColor = float4(

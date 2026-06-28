@@ -2098,6 +2098,41 @@ namespace Internal
         Read_NumberField(root, "rollOffsetDegrees", outData.rollOffsetDegrees);
     }
 
+    json To_Json(const CylinderOrientationModuleData& data)
+    {
+        json root = json::object();
+        root["targetKind"] = To_EnumToken(data.targetKind);
+        root["orientationMode"] = To_EnumToken(data.orientationMode);
+        root["followOrbitOverLife"] = data.followOrbitOverLife;
+        root["meshForwardAxis"] = To_EnumToken(data.meshForwardAxis);
+        root["meshUpAxis"] = To_EnumToken(data.meshUpAxis);
+        root["tiltDegrees"] = data.tiltDegrees;
+        root["rollOffsetDegrees"] = data.rollOffsetDegrees;
+        return root;
+    }
+
+    void From_Json(const json& root, CylinderOrientationModuleData& outData)
+    {
+        if (!root.is_object())
+            return;
+
+        const auto targetKindIter = root.find("targetKind");
+        if (targetKindIter != root.end())
+            Try_ReadEnumToken(*targetKindIter, outData.targetKind);
+        const auto orientationModeIter = root.find("orientationMode");
+        if (orientationModeIter != root.end())
+            Try_ReadEnumToken(*orientationModeIter, outData.orientationMode);
+        Read_BoolField(root, "followOrbitOverLife", outData.followOrbitOverLife);
+        const auto meshForwardAxisIter = root.find("meshForwardAxis");
+        if (meshForwardAxisIter != root.end())
+            Try_ReadEnumToken(*meshForwardAxisIter, outData.meshForwardAxis);
+        const auto meshUpAxisIter = root.find("meshUpAxis");
+        if (meshUpAxisIter != root.end())
+            Try_ReadEnumToken(*meshUpAxisIter, outData.meshUpAxis);
+        Read_NumberField(root, "tiltDegrees", outData.tiltDegrees);
+        Read_NumberField(root, "rollOffsetDegrees", outData.rollOffsetDegrees);
+    }
+
     json To_Json(const SphereRadialOrientationModuleData& data)
     {
         json root = json::object();
@@ -2708,6 +2743,84 @@ namespace Internal
         }
     }
 
+    FloatDistributionData Extract_FloatChannel(const Vector2DistributionData& data, bool useY)
+    {
+        if (const auto* constant = get_if<ConstantVector2DistributionData>(&data.payload))
+            return FloatDistributionData::Make_Constant(useY ? constant->value.y : constant->value.x);
+
+        if (const auto* uniform = get_if<UniformVector2DistributionData>(&data.payload))
+            return FloatDistributionData::Make_Uniform(
+                useY ? uniform->minValue.y : uniform->minValue.x,
+                useY ? uniform->maxValue.y : uniform->maxValue.x
+            );
+
+        if (const auto* curve = get_if<ConstantCurveVector2DistributionData>(&data.payload))
+        {
+            ConstantCurveFloatDistributionData floatCurve{};
+            floatCurve.keys.clear();
+            floatCurve.keys.reserve(curve->keys.size());
+            for (const Vector2CurveKeyData& key : curve->keys)
+            {
+                floatCurve.keys.push_back(
+                    FloatCurveKeyData{
+                        key.time,
+                        useY ? key.value.y : key.value.x,
+                        useY ? key.arriveTangent.y : key.arriveTangent.x,
+                        useY ? key.leaveTangent.y : key.leaveTangent.x,
+                        key.interpolationMode
+                    }
+                );
+            }
+
+            FloatDistributionData outData{};
+            outData.mode = DistributionMode::ConstantCurve;
+            outData.payload = floatCurve;
+            return outData;
+        }
+
+        return FloatDistributionData::Make_Constant(0.f);
+    }
+
+    void Apply_LegacyBeamEnvelope(const json& legacyEnvelope, BeamEnvelopeOverLifeModuleData& outData)
+    {
+        Vector2DistributionData legacyData{ Vector2DistributionData::Make_ConstantCurve(Vec2{ 1.f, 1.f }) };
+        From_Json(legacyEnvelope, legacyData);
+        outData.startRatioOverLife = FloatDistributionData::Make_ConstantCurve(0.f);
+        outData.endRatioOverLife = Extract_FloatChannel(legacyData, false);
+        outData.widthScaleOverLife = Extract_FloatChannel(legacyData, true);
+    }
+
+    json To_Json(const BeamEnvelopeOverLifeModuleData& data)
+    {
+        json root = json::object();
+        root["startRatioOverLife"] = To_Json(data.startRatioOverLife);
+        root["endRatioOverLife"] = To_Json(data.endRatioOverLife);
+        root["widthScaleOverLife"] = To_Json(data.widthScaleOverLife);
+        return root;
+    }
+
+    void From_Json(const json& root, BeamEnvelopeOverLifeModuleData& outData)
+    {
+        if (!root.is_object())
+            return;
+
+        const auto legacyEnvelopeIter = root.find("envelopeOverLife");
+        if (legacyEnvelopeIter != root.end())
+            Apply_LegacyBeamEnvelope(*legacyEnvelopeIter, outData);
+
+        const auto startRatioIter = root.find("startRatioOverLife");
+        if (startRatioIter != root.end())
+            From_Json(*startRatioIter, outData.startRatioOverLife);
+
+        const auto endRatioIter = root.find("endRatioOverLife");
+        if (endRatioIter != root.end())
+            From_Json(*endRatioIter, outData.endRatioOverLife);
+
+        const auto widthScaleIter = root.find("widthScaleOverLife");
+        if (widthScaleIter != root.end())
+            From_Json(*widthScaleIter, outData.widthScaleOverLife);
+    }
+
     json To_Json(const MeshSizeByLifeModuleData& data)
     {
         json root = json::object();
@@ -3087,6 +3200,9 @@ json EffectAuthoringJsonSerializer::To_Json(const AuthoringModule& module)
     case AuthoringModuleType::PlaneRadialOrientation:
         root["data"] = Internal::To_Json(get<PlaneRadialOrientationModuleData>(module.data));
         break;
+    case AuthoringModuleType::CylinderOrientation:
+        root["data"] = Internal::To_Json(get<CylinderOrientationModuleData>(module.data));
+        break;
     case AuthoringModuleType::RotationOverLife:
         root["data"] = Internal::To_Json(get<RotationOverLifeModuleData>(module.data));
         break;
@@ -3125,6 +3241,9 @@ json EffectAuthoringJsonSerializer::To_Json(const AuthoringModule& module)
         break;
     case AuthoringModuleType::SizeByLife:
         root["data"] = Internal::To_Json(get<SizeByLifeModuleData>(module.data));
+        break;
+    case AuthoringModuleType::BeamEnvelopeOverLife:
+        root["data"] = Internal::To_Json(get<BeamEnvelopeOverLifeModuleData>(module.data));
         break;
     case AuthoringModuleType::MeshSizeByLife:
         root["data"] = Internal::To_Json(get<MeshSizeByLifeModuleData>(module.data));
@@ -3245,6 +3364,9 @@ bool EffectAuthoringJsonSerializer::From_Json(const json& root, AuthoringModule&
         case AuthoringModuleType::PlaneRadialOrientation:
             Internal::From_Json(*dataIter, get<PlaneRadialOrientationModuleData>(module.data));
             break;
+        case AuthoringModuleType::CylinderOrientation:
+            Internal::From_Json(*dataIter, get<CylinderOrientationModuleData>(module.data));
+            break;
         case AuthoringModuleType::RotationOverLife:
             Internal::From_Json(*dataIter, get<RotationOverLifeModuleData>(module.data));
             break;
@@ -3283,6 +3405,9 @@ bool EffectAuthoringJsonSerializer::From_Json(const json& root, AuthoringModule&
             break;
         case AuthoringModuleType::SizeByLife:
             Internal::From_Json(*dataIter, get<SizeByLifeModuleData>(module.data));
+            break;
+        case AuthoringModuleType::BeamEnvelopeOverLife:
+            Internal::From_Json(*dataIter, get<BeamEnvelopeOverLifeModuleData>(module.data));
             break;
         case AuthoringModuleType::MeshSizeByLife:
             Internal::From_Json(*dataIter, get<MeshSizeByLifeModuleData>(module.data));
@@ -3399,6 +3524,8 @@ AuthoringModuleData EffectAuthoringJsonSerializer::Make_DefaultModuleDataForRest
         return SphereRadialOrientationModuleData{};
     case AuthoringModuleType::PlaneRadialOrientation:
         return PlaneRadialOrientationModuleData{};
+    case AuthoringModuleType::CylinderOrientation:
+        return CylinderOrientationModuleData{};
     case AuthoringModuleType::RotationOverLife:
         return RotationOverLifeModuleData{};
     case AuthoringModuleType::SpriteTilt:
@@ -3425,6 +3552,8 @@ AuthoringModuleData EffectAuthoringJsonSerializer::Make_DefaultModuleDataForRest
         return SubUVFrameOverLifeModuleData{};
     case AuthoringModuleType::SizeByLife:
         return SizeByLifeModuleData{};
+    case AuthoringModuleType::BeamEnvelopeOverLife:
+        return BeamEnvelopeOverLifeModuleData{};
     case AuthoringModuleType::MeshSizeByLife:
         return MeshSizeByLifeModuleData{};
     case AuthoringModuleType::SpawnPerUnit:

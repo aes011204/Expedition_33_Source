@@ -2522,6 +2522,11 @@ void Detail_View::Render_ModuleDetail(
             changed = _planeRadialOrientationModuleDetail.Draw(emitter, module, *data, _detailPropertyContext);
         break;
 
+    case AuthoringModuleType::CylinderOrientation:
+        if (auto* data = get_if<CylinderOrientationModuleData>(&module.data))
+            changed = _cylinderOrientationModuleDetail.Draw(emitter, module, *data, _detailPropertyContext);
+        break;
+
     case AuthoringModuleType::RotationOverLife:
         if (auto* data = get_if<RotationOverLifeModuleData>(&module.data))
             changed = _rotationOverLifeModuleDetail.Draw(emitter, module, *data, _detailPropertyContext);
@@ -2585,6 +2590,11 @@ void Detail_View::Render_ModuleDetail(
     case AuthoringModuleType::SizeByLife:
         if (auto* data = get_if<SizeByLifeModuleData>(&module.data))
             changed = _sizeByLifeModuleDetail.Draw(emitter, module, *data, _detailPropertyContext);
+        break;
+
+    case AuthoringModuleType::BeamEnvelopeOverLife:
+        if (auto* data = get_if<BeamEnvelopeOverLifeModuleData>(&module.data))
+            changed = _beamEnvelopeOverLifeModuleDetail.Draw(emitter, module, *data, _detailPropertyContext);
         break;
 
     case AuthoringModuleType::MeshSizeByLife:

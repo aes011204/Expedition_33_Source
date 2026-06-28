@@ -478,6 +478,34 @@ namespace Internal
         }
     }
 
+    PointParticleCylinderOrientationMode Resolve_PointParticleCylinderOrientationMode(CylinderOrientationMode mode)
+    {
+        switch (mode)
+        {
+        case CylinderOrientationMode::FaceRadialOut:
+            return PointParticleCylinderOrientationMode::FaceRadialOut;
+
+        case CylinderOrientationMode::FaceRadialIn:
+            return PointParticleCylinderOrientationMode::FaceRadialIn;
+
+        case CylinderOrientationMode::FaceTangentCW:
+            return PointParticleCylinderOrientationMode::FaceTangentCW;
+
+        case CylinderOrientationMode::FaceTangentCCW:
+            return PointParticleCylinderOrientationMode::FaceTangentCCW;
+
+        case CylinderOrientationMode::FaceCylinderAxisPositive:
+            return PointParticleCylinderOrientationMode::FaceCylinderAxisPositive;
+
+        case CylinderOrientationMode::FaceCylinderAxisNegative:
+            return PointParticleCylinderOrientationMode::FaceCylinderAxisNegative;
+
+        case CylinderOrientationMode::None:
+        default:
+            return PointParticleCylinderOrientationMode::None;
+        }
+    }
+
     PointParticleSphereRadialOrientationMode Resolve_PointParticleSphereRadialOrientationMode(SphereRadialOrientationMode mode)
     {
         switch (mode)
@@ -724,6 +752,20 @@ namespace Internal
         desc.enabled = true;
         desc.targetKind = Resolve_PointParticlePlaneRadialOrientationTargetKind(data.targetKind);
         desc.orientationMode = Resolve_PointParticlePlaneRadialOrientationMode(data.orientationMode);
+        desc.meshForwardAxis = Resolve_PointParticlePlaneRadialOrientationAxis(data.meshForwardAxis);
+        desc.meshUpAxis = Resolve_PointParticlePlaneRadialOrientationAxis(data.meshUpAxis);
+        desc.tiltDegrees = data.tiltDegrees;
+        desc.rollOffsetDegrees = data.rollOffsetDegrees;
+        return desc;
+    }
+
+    PointParticleCylinderOrientationDesc Build_PointParticleCylinderOrientationDesc(const CylinderOrientationModuleData& data)
+    {
+        PointParticleCylinderOrientationDesc desc{};
+        desc.enabled = true;
+        desc.targetKind = Resolve_PointParticlePlaneRadialOrientationTargetKind(data.targetKind);
+        desc.orientationMode = Resolve_PointParticleCylinderOrientationMode(data.orientationMode);
+        desc.followOrbitOverLife = data.followOrbitOverLife;
         desc.meshForwardAxis = Resolve_PointParticlePlaneRadialOrientationAxis(data.meshForwardAxis);
         desc.meshUpAxis = Resolve_PointParticlePlaneRadialOrientationAxis(data.meshUpAxis);
         desc.tiltDegrees = data.tiltDegrees;
@@ -1157,6 +1199,31 @@ namespace Internal
             for (uint32 index = 0; index < keyCount; ++index)
                 Fill_SizeByLifeCurveComponent(desc, index, keys[index]);
         }
+    }
+
+    float Evaluate_FloatDistributionAt(const FloatDistributionData& data, float x, float fallbackValue)
+    {
+        if (const auto* constant = get_if<ConstantFloatDistributionData>(&data.payload))
+            return constant->value;
+
+        if (const auto* uniform = get_if<UniformFloatDistributionData>(&data.payload))
+            return x <= 0.f ? uniform->minValue : uniform->maxValue;
+
+        if (const auto* curve = get_if<ConstantCurveFloatDistributionData>(&data.payload))
+            return Evaluate_FloatConstantCurve(*curve, x, fallbackValue);
+
+        return fallbackValue;
+    }
+
+    void Fill_BeamEnvelopeOverLifePayload(EffectBeamEnvelopeOverLifeRuntimeDesc& desc, const BeamEnvelopeOverLifeModuleData& data)
+    {
+        desc.enabled = true;
+        desc.startRatioFallback = Evaluate_FloatDistributionAt(data.startRatioOverLife, 0.f, desc.startRatioFallback);
+        desc.endRatioFallback = Evaluate_FloatDistributionAt(data.endRatioOverLife, 1.f, desc.endRatioFallback);
+        desc.widthScaleFallback = Evaluate_FloatDistributionAt(data.widthScaleOverLife, 1.f, desc.widthScaleFallback);
+        Fill_FloatCurvePayload(desc.startRatioOverLife, data.startRatioOverLife, desc.startRatioFallback);
+        Fill_FloatCurvePayload(desc.endRatioOverLife, data.endRatioOverLife, desc.endRatioFallback);
+        Fill_FloatCurvePayload(desc.widthScaleOverLife, data.widthScaleOverLife, desc.widthScaleFallback);
     }
 
     void Fill_SpriteTiltPayload(
@@ -2189,6 +2256,9 @@ EffectEmitterDefinition Build_PreviewEmitterDefinition(const AuthoringEmitter& e
     if (const auto* planeRadialOrientation = Internal::Find_ModuleData<PlaneRadialOrientationModuleData>(emitter, AuthoringModuleType::PlaneRadialOrientation))
         desc.planeRadialOrientation = Internal::Build_PointParticlePlaneRadialOrientationDesc(*planeRadialOrientation);
 
+    if (const auto* cylinderOrientation = Internal::Find_ModuleData<CylinderOrientationModuleData>(emitter, AuthoringModuleType::CylinderOrientation))
+        desc.cylinderOrientation = Internal::Build_PointParticleCylinderOrientationDesc(*cylinderOrientation);
+
     if (const auto* rotationOverLife = Internal::Find_ModuleData<RotationOverLifeModuleData>(emitter, AuthoringModuleType::RotationOverLife))
     {
         desc.rotation.enabled = true;
@@ -3123,6 +3193,9 @@ EffectEmitterDefinition Build_PreviewBeamEmitterDefinition(const AuthoringEmitte
     if (const auto* sizeByLife = Internal::Find_ModuleData<SizeByLifeModuleData>(emitter, AuthoringModuleType::SizeByLife))
         Internal::Fill_SizeByLifePayload(emitterDesc.sizeByLife, *sizeByLife);
 
+    if (const auto* beamEnvelope = Internal::Find_ModuleData<BeamEnvelopeOverLifeModuleData>(emitter, AuthoringModuleType::BeamEnvelopeOverLife))
+        Internal::Fill_BeamEnvelopeOverLifePayload(emitterDesc.beamEnvelopeOverLife, *beamEnvelope);
+
     definition.concreteDesc = emitterDesc;
     return definition;
 }
@@ -3529,6 +3602,8 @@ EffectEmitterDefinition Build_PreviewMeshEmitterDefinition(const AuthoringEmitte
         emitterDesc.sphereRadialOrientation = Internal::Build_PointParticleSphereRadialOrientationDesc(*sphereRadialOrientation);
     if (const auto* planeRadialOrientation = Internal::Find_ModuleData<PlaneRadialOrientationModuleData>(emitter, AuthoringModuleType::PlaneRadialOrientation))
         emitterDesc.planeRadialOrientation = Internal::Build_PointParticlePlaneRadialOrientationDesc(*planeRadialOrientation);
+    if (const auto* cylinderOrientation = Internal::Find_ModuleData<CylinderOrientationModuleData>(emitter, AuthoringModuleType::CylinderOrientation))
+        emitterDesc.cylinderOrientation = Internal::Build_PointParticleCylinderOrientationDesc(*cylinderOrientation);
 
     if (const auto* meshRotationOverLife = Internal::Find_ModuleData<MeshRotationOverLifeModuleData>(emitter, AuthoringModuleType::MeshRotationOverLife))
     {

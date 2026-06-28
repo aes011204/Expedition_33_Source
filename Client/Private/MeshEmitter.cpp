@@ -1553,13 +1553,15 @@ void MeshEmitter::Activate_Particle(MeshParticleState& particle, uint32 seed, ui
     const float lifeMax = max(lifeMin, max(_desc.lifetime.lifeTime.x, _desc.lifetime.lifeTime.y));
     PlaneRadialSample planeRadialSample{};
     SphereRadialSample sphereRadialSample{};
+    CylinderRadialSample cylinderRadialSample{};
     const Vec3 spawnOffset = Sample_InitialOffset(
         seed,
         particleIndex,
         placementIndex,
         placementCount,
         planeRadialSample,
-        sphereRadialSample
+        sphereRadialSample,
+        cylinderRadialSample
     );
     Vec3 spawnPosition = spawnOffset;
     if (!_useLocalSpace && _transformCom != nullptr)
@@ -1584,7 +1586,9 @@ void MeshEmitter::Activate_Particle(MeshParticleState& particle, uint32 seed, ui
     particle.acceleration = Sample_Acceleration(seed + 29u);
     particle.drag = Sample_Drag(seed + 31u);
     particle.baseScale = _desc.previewScale * Sample_InitialScale(seed + 37u);
-    particle.spawnOrientation = Build_SphereRadialMeshOrientation(sphereRadialSample, particle.spawnOrientationEnabled);
+    particle.spawnOrientation = Build_CylinderMeshOrientation(cylinderRadialSample, particle.spawnOrientationEnabled);
+    if (!particle.spawnOrientationEnabled)
+        particle.spawnOrientation = Build_SphereRadialMeshOrientation(sphereRadialSample, particle.spawnOrientationEnabled);
     if (!particle.spawnOrientationEnabled)
         particle.spawnOrientation = Build_PlaneRadialMeshOrientation(planeRadialSample, particle.spawnOrientationEnabled);
     particle.rotationRadians = Sample_InitialRotation(seed + 41u);
@@ -1790,7 +1794,8 @@ Vec3 MeshEmitter::Sample_InitialOffset(
     uint32 placementIndex,
     uint32 placementCount,
     PlaneRadialSample& outPlaneRadialSample,
-    SphereRadialSample& outSphereRadialSample) const
+    SphereRadialSample& outSphereRadialSample,
+    CylinderRadialSample& outCylinderRadialSample) const
 {
     Vec3 offset{};
     PointParticleInitialLocationDesc initialLocation = _desc.initialLocation;
@@ -1972,7 +1977,15 @@ Vec3 MeshEmitter::Sample_InitialOffset(
                                  : Random01(angleSeed);
         const float angle = lerp(angleMin, angleMax, angleRatio);
         const Vec3 radialVector = (radialU * cosf(angle) + radialV * sinf(angle)) * radius;
-        offset += cylinderLocation.offset + axisW * height + radialVector;
+        outCylinderRadialSample.enabled = true;
+        outCylinderRadialSample.localOffset = cylinderLocation.offset + axisW * height + radialVector;
+        outCylinderRadialSample.radialDirection =
+            Internal::Normalize_OrFallback(radialU * cosf(angle) + radialV * sinf(angle), radialU);
+        outCylinderRadialSample.tangentCW =
+            Internal::Normalize_OrFallback(radialU * sinf(angle) - radialV * cosf(angle), -radialV);
+        outCylinderRadialSample.tangentCCW = -outCylinderRadialSample.tangentCW;
+        outCylinderRadialSample.cylinderAxis = axisW;
+        offset += outCylinderRadialSample.localOffset;
     }
 
     return Resolve_LocalVector(offset);
@@ -2118,6 +2131,93 @@ Quat MeshEmitter::Build_PlaneRadialMeshOrientation(const PlaneRadialSample& samp
     if (fabsf(_desc.planeRadialOrientation.rollOffsetDegrees) > 0.0001f)
     {
         Quat roll = Quat::CreateFromAxisAngle(targetForward, XMConvertToRadians(_desc.planeRadialOrientation.rollOffsetDegrees));
+        roll.Normalize();
+        orientation = orientation * roll;
+    }
+
+    orientation.Normalize();
+    outEnabled = true;
+    return orientation;
+}
+
+Quat MeshEmitter::Build_CylinderMeshOrientation(const CylinderRadialSample& sample, bool& outEnabled) const
+{
+    outEnabled = false;
+
+    if (!sample.enabled ||
+        !_desc.cylinderOrientation.enabled ||
+        _desc.cylinderOrientation.targetKind == PointParticlePlaneRadialOrientationTargetKind::Sprite2D ||
+        _desc.cylinderOrientation.orientationMode == PointParticleCylinderOrientationMode::None)
+        return Quat::Identity;
+
+    Vec3 targetForward{};
+    switch (_desc.cylinderOrientation.orientationMode)
+    {
+    case PointParticleCylinderOrientationMode::FaceRadialIn:
+        targetForward = -sample.radialDirection;
+        break;
+    case PointParticleCylinderOrientationMode::FaceTangentCW:
+        targetForward = sample.tangentCW;
+        break;
+    case PointParticleCylinderOrientationMode::FaceTangentCCW:
+        targetForward = sample.tangentCCW;
+        break;
+    case PointParticleCylinderOrientationMode::FaceCylinderAxisPositive:
+        targetForward = sample.cylinderAxis;
+        break;
+    case PointParticleCylinderOrientationMode::FaceCylinderAxisNegative:
+        targetForward = -sample.cylinderAxis;
+        break;
+    case PointParticleCylinderOrientationMode::FaceRadialOut:
+    default:
+        targetForward = sample.radialDirection;
+        break;
+    }
+
+    targetForward = Internal::Normalize_OrFallback(Resolve_LocalVector(targetForward), Vec3{ 0.f, 0.f, 1.f });
+    Vec3 targetUp = Internal::Normalize_OrFallback(Resolve_LocalVector(sample.cylinderAxis), Vec3{ 0.f, 1.f, 0.f });
+    if (fabsf(targetForward.Dot(targetUp)) > 1.f - 1e-3f)
+        targetUp = fabsf(targetForward.Dot(Vec3{ 0.f, 1.f, 0.f })) > 1.f - 1e-3f ? Vec3{ 0.f, 0.f, 1.f } : Vec3{ 0.f, 1.f, 0.f };
+
+    Vec3 targetRight = targetUp.Cross(targetForward);
+    targetRight = Internal::Normalize_OrFallback(targetRight, Vec3{ 1.f, 0.f, 0.f });
+    targetUp = Internal::Normalize_OrFallback(targetForward.Cross(targetRight), Vec3{ 0.f, 1.f, 0.f });
+
+    const Vec3 sourceForward = Internal::Resolve_PlaneRadialOrientationAxis(_desc.cylinderOrientation.meshForwardAxis);
+    Vec3 sourceUp = Internal::Resolve_PlaneRadialOrientationAxis(_desc.cylinderOrientation.meshUpAxis);
+    if (fabsf(sourceForward.Dot(sourceUp)) > 1.f - 1e-3f)
+    {
+        if (!_cylinderRadialMeshOrientationFallbackLogged)
+        {
+            LOG_WARN(
+                "MeshEmitter CylinderOrientation fallback: meshForwardAxis and meshUpAxis are parallel. emitter='{}'",
+                _emitterName
+            );
+            _cylinderRadialMeshOrientationFallbackLogged = true;
+        }
+        return Quat::Identity;
+    }
+
+    Vec3 sourceRight = sourceUp.Cross(sourceForward);
+    sourceRight.Normalize();
+    sourceUp = sourceForward.Cross(sourceRight);
+    sourceUp.Normalize();
+
+    const Matrix sourceFrame = Internal::Build_FrameMatrix(sourceRight, sourceUp, sourceForward);
+    const Matrix targetFrame = Internal::Build_FrameMatrix(targetRight, targetUp, targetForward);
+    Quat orientation = Quat::CreateFromRotationMatrix(sourceFrame.Invert() * targetFrame);
+    orientation.Normalize();
+
+    if (fabsf(_desc.cylinderOrientation.tiltDegrees) > 0.0001f)
+    {
+        Quat tilt = Quat::CreateFromAxisAngle(targetRight, XMConvertToRadians(_desc.cylinderOrientation.tiltDegrees));
+        tilt.Normalize();
+        orientation = orientation * tilt;
+    }
+
+    if (fabsf(_desc.cylinderOrientation.rollOffsetDegrees) > 0.0001f)
+    {
+        Quat roll = Quat::CreateFromAxisAngle(targetForward, XMConvertToRadians(_desc.cylinderOrientation.rollOffsetDegrees));
         roll.Normalize();
         orientation = orientation * roll;
     }

@@ -409,6 +409,29 @@ namespace Internal
         }
     }
 
+    static const char* Get_CylinderOrientationModeLabel(CylinderOrientationMode mode)
+    {
+        switch (mode)
+        {
+        case CylinderOrientationMode::None:
+            return "없음";
+        case CylinderOrientationMode::FaceRadialOut:
+            return "바깥쪽";
+        case CylinderOrientationMode::FaceRadialIn:
+            return "안쪽";
+        case CylinderOrientationMode::FaceTangentCW:
+            return "접선 CW";
+        case CylinderOrientationMode::FaceTangentCCW:
+            return "접선 CCW";
+        case CylinderOrientationMode::FaceCylinderAxisPositive:
+            return "축 +";
+        case CylinderOrientationMode::FaceCylinderAxisNegative:
+            return "축 -";
+        default:
+            return "없음";
+        }
+    }
+
     static const char* Get_SphereRadialOrientationModeLabel(SphereRadialOrientationMode mode)
     {
         switch (mode)
@@ -1290,6 +1313,55 @@ namespace Internal
         return changed;
     }
 
+    static bool Draw_CylinderOrientationModeProperty(
+        DetailPropertyContext& detailContext,
+        const char* label,
+        CylinderOrientationMode& value,
+        CylinderOrientationMode defaultValue)
+    {
+        bool changed = false;
+
+        ImGui::PushID(label);
+        detailContext.Draw_PropertyLabel(label);
+        ImGui::SetNextItemWidth(-FLT_MIN);
+        if (ImGui::BeginCombo("##Value", Get_CylinderOrientationModeLabel(value)))
+        {
+            const CylinderOrientationMode candidates[] = {
+                CylinderOrientationMode::None,
+                CylinderOrientationMode::FaceRadialOut,
+                CylinderOrientationMode::FaceRadialIn,
+                CylinderOrientationMode::FaceTangentCW,
+                CylinderOrientationMode::FaceTangentCCW,
+                CylinderOrientationMode::FaceCylinderAxisPositive,
+                CylinderOrientationMode::FaceCylinderAxisNegative,
+            };
+
+            for (const CylinderOrientationMode candidate : candidates)
+            {
+                const bool isSelected = value == candidate;
+                if (ImGui::Selectable(Get_CylinderOrientationModeLabel(candidate), isSelected))
+                {
+                    value = candidate;
+                    changed = true;
+                }
+
+                if (isSelected)
+                    ImGui::SetItemDefaultFocus();
+            }
+
+            ImGui::EndCombo();
+        }
+
+        if (detailContext.Draw_ResetButton(value != defaultValue))
+        {
+            value = defaultValue;
+            changed = true;
+        }
+        ImGui::PopID();
+
+        return changed;
+    }
+
     static bool Draw_EffectOrbitPlaneProperty(
         DetailPropertyContext& detailContext,
         const char* label,
@@ -1414,6 +1486,17 @@ namespace Internal
         for (const AuthoringModule& module : emitter.modules)
         {
             if (module.type == AuthoringModuleType::PlaneRadialLocation)
+                return true;
+        }
+
+        return false;
+    }
+
+    static bool Has_CylinderLocationModule(const AuthoringEmitter& emitter)
+    {
+        for (const AuthoringModule& module : emitter.modules)
+        {
+            if (module.type == AuthoringModuleType::CylinderLocation)
                 return true;
         }
 
@@ -3459,6 +3542,84 @@ bool PlaneRadialOrientationModuleDetail::Draw(
     return changed;
 }
 
+bool CylinderOrientationModuleDetail::Draw(
+    const AuthoringEmitter& emitter,
+    AuthoringModule&,
+    CylinderOrientationModuleData& data,
+    DetailPropertyContext& detailContext)
+{
+    const CylinderOrientationModuleData defaultData{};
+    bool changed = false;
+
+    if (ImGui::CollapsingHeader("실린더 회전", ImGuiTreeNodeFlags_DefaultOpen))
+    {
+        if (detailContext.Begin_PropertyTable("CylinderOrientation"))
+        {
+            Internal::Draw_ReadOnlyTextProperty(
+                detailContext,
+                "대상",
+                Internal::Get_PlaneRadialOrientationTargetKindLabel(Internal::Resolve_PlaneRadialOrientationTargetKind(emitter)),
+                "현재 emitter 타입 기준으로 자동 결정됩니다. targetKind 저장값은 유지하지만 이번 단계에서는 편집 UI를 숨깁니다."
+            );
+            changed |= Internal::Draw_CylinderOrientationModeProperty(
+                detailContext,
+                "방향",
+                data.orientationMode,
+                defaultData.orientationMode
+            );
+
+            if (!Internal::Is_MeshEffectAuthoring(emitter))
+            {
+                changed |= detailContext.Draw_BoolProperty(
+                    "공전 방향 따라 갱신",
+                    data.followOrbitOverLife,
+                    defaultData.followOrbitOverLife,
+                    "OrbitOverLife가 위치를 돌릴 때 sprite가 바라보는 cylinder 방향도 같은 회전으로 갱신합니다."
+                );
+            }
+            else
+            {
+                changed |= Internal::Draw_PlaneRadialOrientationAxisProperty(
+                    detailContext,
+                    "메시 앞축",
+                    data.meshForwardAxis,
+                    defaultData.meshForwardAxis
+                );
+                changed |= Internal::Draw_PlaneRadialOrientationAxisProperty(
+                    detailContext,
+                    "메시 위축",
+                    data.meshUpAxis,
+                    defaultData.meshUpAxis
+                );
+                changed |= detailContext.Draw_FloatProperty(
+                    "기울기",
+                    data.tiltDegrees,
+                    defaultData.tiltDegrees,
+                    0.1f,
+                    "cylinder orientation 결과에 더하는 pitch/tilt 보정입니다. 단위는 degree입니다."
+                );
+                changed |= detailContext.Draw_FloatProperty(
+                    "Roll 오프셋",
+                    data.rollOffsetDegrees,
+                    defaultData.rollOffsetDegrees,
+                    0.1f,
+                    "cylinder orientation 결과에 더하는 roll 보정입니다. 단위는 degree입니다."
+                );
+            }
+
+            detailContext.End_PropertyTable();
+        }
+
+        if (!Internal::Has_CylinderLocationModule(emitter))
+            ImGui::TextDisabled("같은 emitter에 실린더 위치가 없으면 runtime cylinder frame을 만들 수 없습니다.");
+        if (data.orientationMode != CylinderOrientationMode::None &&
+            Internal::Has_EnabledPlaneRadialOrientationModule(emitter))
+            ImGui::TextDisabled("실린더 회전이 켜져 있으면 runtime은 평면/방사 회전보다 실린더 회전을 먼저 적용합니다.");
+    }
+
+    return changed;
+}
+
 bool SphereRadialOrientationModuleDetail::Draw(
     const AuthoringEmitter& emitter,
     AuthoringModule&,
@@ -3939,6 +4100,68 @@ bool SizeByLifeModuleDetail::Draw(
             "생존 중 normalized life(0->1)에 따라 초기 크기에 곱하는 배율입니다."
         );
     }
+
+    return changed;
+}
+
+bool BeamEnvelopeOverLifeModuleDetail::Draw(
+    AuthoringEmitter&,
+    AuthoringModule&,
+    BeamEnvelopeOverLifeModuleData& data,
+    DetailPropertyContext& detailContext)
+{
+    const BeamEnvelopeOverLifeModuleData defaultData{};
+    bool changed = false;
+
+    if (ImGui::CollapsingHeader("시작점 쪽 경계", ImGuiTreeNodeFlags_DefaultOpen))
+    {
+        ImGui::PushID("StartRatioOverLife");
+        changed |= detailContext.Draw_FloatDistributionGroup(
+            "위치 비율",
+            data.startRatioOverLife,
+            defaultData.startRatioOverLife,
+            0.01f,
+            false,
+            true,
+            nullptr,
+            "0은 Beam 시작점, 1은 Beam 끝점입니다."
+        );
+        ImGui::PopID();
+    }
+
+    if (ImGui::CollapsingHeader("끝점 쪽 경계", ImGuiTreeNodeFlags_DefaultOpen))
+    {
+        ImGui::PushID("EndRatioOverLife");
+        changed |= detailContext.Draw_FloatDistributionGroup(
+            "위치 비율",
+            data.endRatioOverLife,
+            defaultData.endRatioOverLife,
+            0.01f,
+            false,
+            true,
+            nullptr,
+            "0은 Beam 시작점, 1은 Beam 끝점입니다."
+        );
+        ImGui::PopID();
+    }
+
+    if (ImGui::CollapsingHeader("폭", ImGuiTreeNodeFlags_DefaultOpen))
+    {
+        ImGui::PushID("WidthScaleOverLife");
+        changed |= detailContext.Draw_FloatDistributionGroup(
+            "폭 배율",
+            data.widthScaleOverLife,
+            defaultData.widthScaleOverLife,
+            0.01f,
+            false,
+            true,
+            nullptr,
+            "SizeByLife 뒤에 추가로 곱하는 Beam 폭 배율입니다."
+        );
+        ImGui::PopID();
+    }
+
+    ImGui::TextDisabled("두 경계가 교차하면 작은 값부터 큰 값까지의 구간을 표시합니다.");
 
     return changed;
 }

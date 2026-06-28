@@ -108,6 +108,16 @@ private: //## Types::PlaybackRuntime
         Vec3 radialDirection{ 0.f, 0.f, 1.f };
     };
 
+    struct CylinderRadialSample
+    {
+        bool enabled{ false }; // CylinderLocation이 실제 sample frame을 만들었는지 나타낸다.
+        Vec3 localOffset{};    // 기존 location module과 더할 emitter-local offset이다.
+        Vec3 radialDirection{ 1.f, 0.f, 0.f };
+        Vec3 tangentCW{ 0.f, -1.f, 0.f };
+        Vec3 tangentCCW{ 0.f, 1.f, 0.f };
+        Vec3 cylinderAxis{ 0.f, 0.f, 1.f };
+    };
+
     struct SourceMotionVelocityContext
     {
         Vec3 sourceVelocity{};
@@ -158,6 +168,8 @@ private: //## Data::Desc
     mutable bool _sphereRadialMeshOrientationFallbackLogged{ false };
     // mesh axis fallback warning을 emitter당 한 번만 남긴다.
     mutable bool _planeRadialMeshOrientationFallbackLogged{ false };
+    // cylinder radial mesh axis fallback warning을 emitter당 한 번만 남긴다.
+    mutable bool _cylinderRadialMeshOrientationFallbackLogged{ false };
 
 private: //## Data::ParticleRuntime
     // active/inactive mesh particle slot 배열이다.
@@ -290,11 +302,14 @@ private: //## Helper::SamplingEvaluation
         uint32 placementIndex,
         uint32 placementCount,
         PlaneRadialSample& outPlaneRadialSample,
-        SphereRadialSample& outSphereRadialSample) const;
+        SphereRadialSample& outSphereRadialSample,
+        CylinderRadialSample& outCylinderRadialSample) const;
     // SphereLocation sample frame을 mesh radial orientation용 회전으로 낮춘다.
     Quat Build_SphereRadialMeshOrientation(const SphereRadialSample& sample, bool& outEnabled) const;
     // PlaneRadialLocation sample frame을 mesh radial orientation용 회전으로 낮춘다.
     Quat Build_PlaneRadialMeshOrientation(const PlaneRadialSample& sample, bool& outEnabled) const;
+    // CylinderLocation sample frame을 mesh radial orientation용 회전으로 낮춘다.
+    Quat Build_CylinderMeshOrientation(const CylinderRadialSample& sample, bool& outEnabled) const;
     // velocity/radial velocity를 합친 초기 속도를 sample한다.
     Vec3 Sample_InitialVelocity(
         const Vec3& spawnPosition,

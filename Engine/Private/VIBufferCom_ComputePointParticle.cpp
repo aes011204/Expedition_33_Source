@@ -241,6 +241,8 @@ struct ComputePointParticleParams
     Vec4 cylinderLocationRadiusHeight{};             // x/y: radius range, z/w: height range.
     Vec4 cylinderLocationAngle{};                    // x/y: angle degree range, z/w: unused.
     XMUINT4 cylinderLocationSeedSalts{};             // x: radius, y: height, z: angle, w: unused.
+    Vec4 cylinderOrientationParams{};                // x: enabled, y: target kind, z: orientation mode, w: follow orbit over life.
+    Vec4 cylinderOrientationAngles{};                // x: tilt degrees, y: roll offset degrees, z/w: unused.
 };
 
 static uint32 Resolve_SeedSalt(const PointParticleRandomSeedRuntimeDesc& seed, uint32 effectPlaybackSeed)
@@ -1182,6 +1184,18 @@ HRESULT VIBufferCom_ComputePointParticle::Update_ConstantBuffer()
             Resolve_SeedSalt(_desc.cylinderLocation.heightSeed, _desc.effectPlaybackSeed),
             Resolve_SeedSalt(_desc.cylinderLocation.angleDegreesSeed, _desc.effectPlaybackSeed),
             0u
+        },
+        .cylinderOrientationParams = Vec4{
+            _desc.cylinderOrientation.enabled ? 1.f : 0.f,
+            static_cast<float>(ETOI(_desc.cylinderOrientation.targetKind)),
+            static_cast<float>(ETOI(_desc.cylinderOrientation.orientationMode)),
+            _desc.cylinderOrientation.followOrbitOverLife ? 1.f : 0.f
+        },
+        .cylinderOrientationAngles = Vec4{
+            _desc.cylinderOrientation.tiltDegrees,
+            _desc.cylinderOrientation.rollOffsetDegrees,
+            0.f,
+            0.f
         }
     };
 

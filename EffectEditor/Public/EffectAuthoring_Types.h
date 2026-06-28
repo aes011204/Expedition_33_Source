@@ -27,6 +27,7 @@ enum class AuthoringModuleType : uint8
     InitialRotation,
     SphereRadialOrientation,
     PlaneRadialOrientation,
+    CylinderOrientation,
     RotationOverLife,
     SpriteTilt,
     SpriteTiltOverLife,
@@ -40,6 +41,7 @@ enum class AuthoringModuleType : uint8
     ColorOverLife,
     SubUVFrameOverLife,
     SizeByLife,
+    BeamEnvelopeOverLife,
     MeshSizeByLife,
     SpawnPerUnit,
     SourceHistorySpriteTrailPathFollow,
@@ -888,6 +890,28 @@ struct PlaneRadialOrientationModuleData
     float rollOffsetDegrees{ 0.f };
 };
 
+enum class CylinderOrientationMode : uint8
+{
+    None,
+    FaceRadialOut,
+    FaceRadialIn,
+    FaceTangentCW,
+    FaceTangentCCW,
+    FaceCylinderAxisPositive,
+    FaceCylinderAxisNegative,
+};
+
+struct CylinderOrientationModuleData
+{
+    PlaneRadialOrientationTargetKind targetKind{ PlaneRadialOrientationTargetKind::Auto };
+    CylinderOrientationMode orientationMode{ CylinderOrientationMode::None };
+    bool followOrbitOverLife{ false };
+    PlaneRadialOrientationAxis meshForwardAxis{ PlaneRadialOrientationAxis::PositiveZ };
+    PlaneRadialOrientationAxis meshUpAxis{ PlaneRadialOrientationAxis::PositiveY };
+    float tiltDegrees{ 0.f };
+    float rollOffsetDegrees{ 0.f };
+};
+
 enum class SphereRadialOrientationMode : uint8
 {
     None,
@@ -1107,6 +1131,13 @@ struct SizeByLifeModuleData
     AxisLock axisLock{ AxisLock::None };
 };
 
+struct BeamEnvelopeOverLifeModuleData
+{
+    FloatDistributionData startRatioOverLife{ FloatDistributionData::Make_ConstantCurve(0.f) };
+    FloatDistributionData endRatioOverLife{ FloatDistributionData::Make_ConstantCurve(1.f) };
+    FloatDistributionData widthScaleOverLife{ FloatDistributionData::Make_ConstantCurve(1.f) };
+};
+
 struct MeshSizeByLifeModuleData
 {
     Vector3DistributionData scaleOverLife{ Vector3DistributionData::Make_ConstantCurve(Vec3{ 1.f, 1.f, 1.f }) };
@@ -1254,6 +1285,7 @@ using AuthoringModuleData = variant<
     InitialRotationModuleData,
     SphereRadialOrientationModuleData,
     PlaneRadialOrientationModuleData,
+    CylinderOrientationModuleData,
     RotationOverLifeModuleData,
     SpriteTiltModuleData,
     SpriteTiltOverLifeModuleData,
@@ -1267,6 +1299,7 @@ using AuthoringModuleData = variant<
     ColorOverLifeModuleData,
     SubUVFrameOverLifeModuleData,
     SizeByLifeModuleData,
+    BeamEnvelopeOverLifeModuleData,
     MeshSizeByLifeModuleData,
     SpawnPerUnitModuleData,
     SourceHistorySpriteTrailPathFollowModuleData,

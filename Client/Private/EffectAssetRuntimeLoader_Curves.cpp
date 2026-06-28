@@ -911,6 +911,114 @@ namespace EffectAssetRuntimeLoad::Curves
         }
     }
 
+    json Extract_FloatDistributionChannel(const json& distribution, bool useY)
+    {
+        json root = json::object();
+        const string mode = Read_String(distribution, "mode");
+        root["mode"] = mode.empty() ? "Constant" : mode;
+        root["payload"] = json::object();
+
+        const json* payload = Find_DistributionPayload(distribution);
+        if (payload == nullptr)
+        {
+            root["mode"] = "Constant";
+            root["payload"]["value"] = 0.f;
+            return root;
+        }
+
+        if ("Uniform" == mode)
+        {
+            Vec2 minValue{};
+            Vec2 maxValue{};
+            if (const auto minIter = payload->find("minValue"); minIter != payload->end())
+                Read_Vec2(*minIter, minValue);
+            if (const auto maxIter = payload->find("maxValue"); maxIter != payload->end())
+                Read_Vec2(*maxIter, maxValue);
+            root["payload"]["minValue"] = useY ? minValue.y : minValue.x;
+            root["payload"]["maxValue"] = useY ? maxValue.y : maxValue.x;
+            if (const auto seedIter = payload->find("randomSeed"); seedIter != payload->end())
+                root["payload"]["randomSeed"] = *seedIter;
+            return root;
+        }
+
+        if ("ConstantCurve" == mode)
+        {
+            root["payload"]["keys"] = json::array();
+            const auto keysIter = payload->find("keys");
+            if (keysIter == payload->end() || !keysIter->is_array())
+                return root;
+
+            for (const json& key : *keysIter)
+            {
+                Vec2 value{};
+                Vec2 arriveTangent{};
+                Vec2 leaveTangent{};
+                if (const auto iter = key.find("value"); iter != key.end())
+                    Read_Vec2(*iter, value);
+                if (const auto iter = key.find("arriveTangent"); iter != key.end())
+                    Read_Vec2(*iter, arriveTangent);
+                if (const auto iter = key.find("leaveTangent"); iter != key.end())
+                    Read_Vec2(*iter, leaveTangent);
+
+                json floatKey = key;
+                floatKey["value"] = useY ? value.y : value.x;
+                floatKey["arriveTangent"] = useY ? arriveTangent.y : arriveTangent.x;
+                floatKey["leaveTangent"] = useY ? leaveTangent.y : leaveTangent.x;
+                root["payload"]["keys"].push_back(move(floatKey));
+            }
+            return root;
+        }
+
+        Vec2 value{};
+        if (const auto valueIter = payload->find("value"); valueIter != payload->end())
+            Read_Vec2(*valueIter, value);
+        root["mode"] = "Constant";
+        root["payload"]["value"] = useY ? value.y : value.x;
+        return root;
+    }
+
+    void Fill_BeamEnvelopeOverLifePayload(EffectBeamEnvelopeOverLifeRuntimeDesc& desc, const json& beamEnvelopeOverLife)
+    {
+        const auto legacyEnvelopeIter = beamEnvelopeOverLife.find("envelopeOverLife");
+        const auto startRatioIter = beamEnvelopeOverLife.find("startRatioOverLife");
+        const auto endRatioIter = beamEnvelopeOverLife.find("endRatioOverLife");
+        const auto widthScaleIter = beamEnvelopeOverLife.find("widthScaleOverLife");
+        const json* startRatio = startRatioIter != beamEnvelopeOverLife.end() ? &*startRatioIter : nullptr;
+        const json* endRatio = endRatioIter != beamEnvelopeOverLife.end() ? &*endRatioIter : nullptr;
+        const json* widthScale = widthScaleIter != beamEnvelopeOverLife.end() ? &*widthScaleIter : nullptr;
+
+        json legacyEndRatio{};
+        json legacyWidthScale{};
+        if (legacyEnvelopeIter != beamEnvelopeOverLife.end())
+        {
+            legacyEndRatio = Extract_FloatDistributionChannel(*legacyEnvelopeIter, false);
+            legacyWidthScale = Extract_FloatDistributionChannel(*legacyEnvelopeIter, true);
+            if (endRatio == nullptr)
+                endRatio = &legacyEndRatio;
+            if (widthScale == nullptr)
+                widthScale = &legacyWidthScale;
+        }
+
+        desc.enabled = true;
+        if (startRatio != nullptr)
+        {
+            desc.startRatioFallback = Evaluate_FloatDistributionMin(*startRatio, desc.startRatioFallback);
+            Fill_FloatCurvePayload(desc.startRatioOverLife, *startRatio, desc.startRatioFallback);
+        }
+
+        if (endRatio != nullptr)
+        {
+            desc.endRatioFallback = Evaluate_FloatDistributionMax(*endRatio, desc.endRatioFallback);
+            Fill_FloatCurvePayload(desc.endRatioOverLife, *endRatio, desc.endRatioFallback);
+        }
+
+        if (widthScale != nullptr)
+        {
+            desc.widthScaleFallback = Evaluate_FloatDistributionMax(*widthScale, desc.widthScaleFallback);
+            Fill_FloatCurvePayload(desc.widthScaleOverLife, *widthScale, desc.widthScaleFallback);
+        }
+    }
+
     void Fill_SpriteTiltOverLifeCurveKey(PointParticleSpriteTiltDesc& desc, uint32 index, const json& key)
     {
         Vec2 value{};
@@ -1641,6 +1749,20 @@ namespace EffectAssetRuntimeLoad::Curves
         Read_Enum(planeRadialOrientation, "meshUpAxis", desc.meshUpAxis);
         desc.tiltDegrees = Read_Float(planeRadialOrientation, "tiltDegrees", desc.tiltDegrees);
         desc.rollOffsetDegrees = Read_Float(planeRadialOrientation, "rollOffsetDegrees", desc.rollOffsetDegrees);
+    }
+
+    void Fill_CylinderOrientationPayload(
+        PointParticleCylinderOrientationDesc& desc,
+        const json& cylinderOrientation)
+    {
+        desc.enabled = true;
+        Read_Enum(cylinderOrientation, "targetKind", desc.targetKind);
+        Read_Enum(cylinderOrientation, "orientationMode", desc.orientationMode);
+        desc.followOrbitOverLife = Read_Bool(cylinderOrientation, "followOrbitOverLife", desc.followOrbitOverLife);
+        Read_Enum(cylinderOrientation, "meshForwardAxis", desc.meshForwardAxis);
+        Read_Enum(cylinderOrientation, "meshUpAxis", desc.meshUpAxis);
+        desc.tiltDegrees = Read_Float(cylinderOrientation, "tiltDegrees", desc.tiltDegrees);
+        desc.rollOffsetDegrees = Read_Float(cylinderOrientation, "rollOffsetDegrees", desc.rollOffsetDegrees);
     }
 
     void Fill_MeshVector3CurvePayload(
