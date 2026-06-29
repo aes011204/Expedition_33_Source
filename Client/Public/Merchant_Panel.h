@@ -26,6 +26,7 @@ public:
     void    Close() override;
     void    Close_Immediately(bool restoreWorldControl = true);
     void    Close_ForMenuTransition();
+    vector<string> Consume_PurchasedPictosIds();
 
 public:
     enum class ShopItemKind
@@ -57,8 +58,8 @@ private:
         Shared<UI_Text>   levelText{};
         Shared<UI_Text>   priceText{};
         Shared<UI_Base>   tooltipRoot{};
-        Shared<UI_Base>   ownedMarkFrame{};
-        Shared<UI_Base>   ownedMark{};
+        Shared<UI_Base>   pictosMarkFrame{};
+        Shared<UI_Base>   pictosMark{};
         Vec4              originalFrameColor{ 1.f, 1.f, 1.f, 1.f };
     };
 
@@ -73,8 +74,6 @@ private:
     void    Refresh_Slot(size_t slotIndex);
     void    Refresh_FrameColor(size_t slotIndex);
     void    Refresh_CurrentChroma();
-    void    Close_AllTooltips();
-    void    Show_Tooltip(size_t slotIndex);
 
     bool    Try_Purchase(size_t slotIndex);
     bool    Can_Purchase(size_t slotIndex) const;
@@ -92,6 +91,7 @@ private:
     Shared<UI_Text> _currentChromaText{};
     std::array<ShopSlotUI, ShopSlotCount> _slotUIs{};
     std::array<uint32, ShopSlotCount> _remainingStocks{};
+    vector<string> _purchasedPictosIds{};
 };
 
 NS_END

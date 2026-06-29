@@ -11,6 +11,8 @@ namespace Client::Constants::UI
     inline constexpr wchar_t UI_Interaction_Key_E_Texture_Path[] = L"../Bin/Resources/Textures/UI/Common/Input/Keys/T_Icon_Key_E.png";
     inline constexpr wchar_t UI_ExpeditionStatus_Path[] = L"UI/UI_Json/CommonSystem/UI_ExpeditionStatus.json";
     inline constexpr wchar_t UI_ChangeWeapon_Path[] = L"UI/UI_Json/CommonSystem/UI_ChangeWeapon.json";
+    inline constexpr wchar_t UI_ChangeWeapon_Current_Weapon_Tooltip_Path[] =
+        L"UI/UI_Json/CommonSystem/UI_ChangeWeapon_Current_Weapon_Tooltip.json";
     inline constexpr wchar_t UI_UpgradeWeapon_Path[] = L"UI/UI_Json/CommonSystem/UI_Upgrade_Weapon.json";
     inline constexpr wchar_t UI_Merchant_Path[] = L"UI/UI_Json/CommonSystem/UI_Merchant.json";
     inline constexpr wchar_t UI_Replay_Path[] = L"UI/UI_Json/CommonSystem/UI_RePlay.json";

@@ -23,8 +23,25 @@ using namespace UI_Utils;
 
 namespace
 {
-    constexpr const wchar_t* kRoundWeaponBgPath = L"../Bin/Resources/Textures/UI/Inventory/Weapons/Background/T_UI_RoundWeaponBackground.png";
-    constexpr const wchar_t* kLongWeaponBgPath = L"../Bin/Resources/Textures/UI/Inventory/Weapons/Background/T_UI_LongWeaponBackground.png";
+    struct CurrentWeaponTooltipSlotDef
+    {
+        const char* characterId = "";
+        const char* weaponId = "";
+        const wchar_t* tooltipToken = L"";
+    };
+
+    constexpr array<CurrentWeaponTooltipSlotDef, 9> kCurrentWeaponTooltipSlots =
+    {
+        CurrentWeaponTooltipSlotDef{ "Gustave", "Lanceram", L"Lanceram" },
+        CurrentWeaponTooltipSlotDef{ "Gustave", "Baguette", L"Gustave_Baguette" },
+        CurrentWeaponTooltipSlotDef{ "Gustave", "Tireso",   L"Tireso" },
+        CurrentWeaponTooltipSlotDef{ "Lune",    "Colim",    L"Colim" },
+        CurrentWeaponTooltipSlotDef{ "Lune",    "Baguette", L"Lune_Baguette" },
+        CurrentWeaponTooltipSlotDef{ "Lune",    "Snowim",   L"Snowim" },
+        CurrentWeaponTooltipSlotDef{ "Maelle",  "Medalum",  L"Maellum" },
+        CurrentWeaponTooltipSlotDef{ "Maelle",  "Baguette", L"Maelle_Baguette" },
+        CurrentWeaponTooltipSlotDef{ "Maelle",  "Plenum",   L"Plenum" },
+    };
 
     void Set_UIMapOpenState(const umap<wstring, Shared<UI_Base>>& uiByName, bool isOpen)
     {
@@ -78,19 +95,64 @@ namespace
         CHECK_FAILED(previewPlayer->Apply_EquippedWeaponFromRuntimeData()); // ChangeWeapon 화면에서만 실제 장착 무기를 preview에 붙인다.
     }
 
-    wstring Resolve_WeaponBackgroundTexturePath(const string& weaponId)
+    int32 Find_CurrentWeaponTooltipSlotIndex(const string& characterId, const string& weaponId)
     {
-        if (weaponId == "Colim" || weaponId == "Esquim")
-            return kRoundWeaponBgPath;
+        for (size_t i = 0; i < kCurrentWeaponTooltipSlots.size(); ++i)
+        {
+            const CurrentWeaponTooltipSlotDef& slot = kCurrentWeaponTooltipSlots[i];
+            if (slot.characterId == characterId && slot.weaponId == weaponId)
+                return static_cast<int32>(i);
+        }
 
-        if (weaponId == "Baguette" ||
-            weaponId == "Lanceram" ||
-            weaponId == "Candy" ||
-            weaponId == "Medalum" ||
-            weaponId == "Sekarum")
-            return kLongWeaponBgPath;
+        return -1;
+    }
 
-        return L"";
+    bool Starts_With(const wstring& value, const wstring& prefix)
+    {
+        return value.size() >= prefix.size() && value.compare(0, prefix.size(), prefix) == 0;
+    }
+
+    bool Ends_With(const wstring& value, const wstring& suffix)
+    {
+        return value.size() >= suffix.size() &&
+               value.compare(value.size() - suffix.size(), suffix.size(), suffix) == 0;
+    }
+
+    Shared<UI_Text> Find_TooltipTextByPrefixSuffix(
+        const umap<wstring, Shared<UI_Base>>& uiByName,
+        const wstring& prefix,
+        const wstring& suffix)
+    {
+        for (const auto& [uiName, ui] : uiByName)
+        {
+            if (!Starts_With(uiName, prefix) || !Ends_With(uiName, suffix))
+                continue;
+
+            if (const Shared<UI_Text> text = dynamic_pointer_cast<UI_Text>(ui))
+                return text;
+        }
+
+        return nullptr;
+    }
+
+    void Set_GradeText(const Shared<UI_Text>& text, const string& grade)
+    {
+        if (text)
+            text->Set_Text(wstring(grade.begin(), grade.end()));
+    }
+
+    void Apply_MilestoneLock(const Shared<UI_Base>& lockRoot, uint32 displayLevel, uint32 milestoneLevel)
+    {
+        if (lockRoot == nullptr)
+            return;
+
+        const bool shouldShow = displayLevel < milestoneLevel;
+        lockRoot->Set_AlphaMultiplier(shouldShow ? 1.f : 0.f);
+
+        if (shouldShow && !lockRoot->Is_Open())
+            lockRoot->Open();
+        else if (!shouldShow && lockRoot->Is_Open())
+            lockRoot->Close();
     }
 
     constexpr Vec4 kWeaponFrameDefaultTint{ 1.f, 1.f, 1.f, 1.f };
@@ -140,7 +202,6 @@ void ChangeWeapon_Panel::Open()
     Update_PreviewHeroVisibility();
     Apply_PreviewOverrides();
     Refresh_WeaponUI();
-    Show_WeaponTooltip(false); // ChangeWeapon 진입 직후 오른쪽 재료/설명 tooltip은 숨긴다.
 
     GAME->Play_SoundCue(Constants::SoundCue::UI_Global_GenericEnter);
     GAME->Unlock_Mouse();
@@ -155,6 +216,7 @@ void ChangeWeapon_Panel::Close()
 void ChangeWeapon_Panel::Close_Immediately(bool restoreWorldControl)
 {
     _isProgressionContentMode = false;
+    Show_CurrentWeaponTooltip("", "", false);
     UI_RuntimePanelBase::Close();
     Set_UIMapOpenState(_uiByName, false);
     Restore_PreviewOverrides();
@@ -194,7 +256,7 @@ void ChangeWeapon_Panel::Close_AsProgressionContent()
         return;
 
     _isProgressionContentMode = false;
-    Show_WeaponTooltip(false);
+    Show_CurrentWeaponTooltip("", "", false);
     UI_RuntimePanelBase::Close();
     Set_UIMapOpenState(_uiByName, false);
 }
@@ -203,7 +265,6 @@ void ChangeWeapon_Panel::Refresh_ForSelectedHero(HeroId selectedHeroId)
 {
     _selectedHeroId = (selectedHeroId == HeroId::END) ? HeroId::Lune : selectedHeroId;
     Refresh_WeaponUI();
-    Show_WeaponTooltip(false);
 }
 
 void ChangeWeapon_Panel::Append_RuntimeUIEntries(
@@ -237,68 +298,109 @@ HRESULT ChangeWeapon_Panel::Load_UI(uint32 levelIndex)
     _root = Find_UI(_uiByName, L"Panel_ChangeWeapon");
     CHECK_NULL(_root, E_FAIL);
 
+    umap<wstring, Shared<UI_Base>> tooltipUIByName{};
+    UI_RuntimeLoader::UI_LoadDesc tooltipDesc{};
+    tooltipDesc.levelIndex = levelIndex;
+    tooltipDesc.jsonPath = Constants::UI::UI_ChangeWeapon_Current_Weapon_Tooltip_Path;
+    tooltipDesc.prototypeTagPrefix = L"ChangeWeaponCurrentWeaponTooltip";
+    tooltipDesc.outUIByName = &tooltipUIByName;
+
+    CHECK_FAILED(UI_RuntimeLoader::Load_Document(tooltipDesc), E_FAIL);
+
+    for (auto& [name, ui] : tooltipUIByName)
+        _uiByName[name] = ui;
+
     return S_OK;
 }
 
 HRESULT ChangeWeapon_Panel::Bind_UI()
 {
-    _tooltipText.weaponNameText = Find_TypedUI<UI_Text>(_uiByName, L"Text_WeaponName");
-    _tooltipText.levelText = Find_TypedUI<UI_Text>(_uiByName, L"Text_CurrentWeaponLevel");
-    _tooltipText.powerText = Find_TypedUI<UI_Text>(_uiByName, L"Text_WeaponTooltip_PowerValue");
-    _weaponTooltipRoot = Find_UI(_uiByName, L"Panel_WeaponTooltip");
+    _weaponRows[0].button = Find_TypedUI<UI_Button>(_uiByName, L"Button_Weapon_First_Slot");
+    _weaponRows[0].background = Find_TypedUI<UI_Image>(_uiByName, L"Image_Weapon_First_Slot_BG");
+    _weaponRows[0].weaponNameText = Find_TypedUI<UI_Text>(_uiByName, L"Text_Weapon_First_Slot_Name");
+    _weaponRows[0].levelText = Find_TypedUI<UI_Text>(_uiByName, L"Text_Weapon_First_Slot_Level_Value");
+    _weaponRows[0].icons =
+    {
+        WeaponRowIconUI{ "Gustave", "Lanceram", Find_TypedUI<UI_Image>(_uiByName, L"Image_Weapon_First_Slot_Gustave_Lanceram") },
+        WeaponRowIconUI{ "Lune",    "Colim",    Find_TypedUI<UI_Image>(_uiByName, L"Image_Weapon_First_Slot_Lune_Colim") },
+        WeaponRowIconUI{ "Maelle",  "Medalum",  Find_TypedUI<UI_Image>(_uiByName, L"Image_Weapon_First_Slot_Maelle_Medalum") },
+    };
 
-    _weaponRows[0].button = Find_TypedUI<UI_Button>(_uiByName, L"Button_Lune_Baguette");
-    _weaponRows[0].background = Find_TypedUI<UI_Image>(_uiByName, L"Image_Weapon_BG_001");
-    _weaponRows[0].icon = Find_TypedUI<UI_Image>(_uiByName, L"Image_Lune_Baguette");
-    _weaponRows[0].weaponNameText = Find_TypedUI<UI_Text>(_uiByName, L"Text_Lune_Baguette");
-    _weaponRows[0].levelText = Find_TypedUI<UI_Text>(_uiByName, L"Text_Weapon_LevelValue");
+    _weaponRows[1].button = Find_TypedUI<UI_Button>(_uiByName, L"Button_Weapon_Second_Slot");
+    _weaponRows[1].background = Find_TypedUI<UI_Image>(_uiByName, L"Image_Weapon_Second_Slot_BG");
+    _weaponRows[1].weaponNameText = Find_TypedUI<UI_Text>(_uiByName, L"Text_Weapon_Second_Slot_Name");
+    _weaponRows[1].levelText = Find_TypedUI<UI_Text>(_uiByName, L"Text_Weapon_Second_Slot_Level_Value");
+    _weaponRows[1].icons =
+    {
+        WeaponRowIconUI{ "Gustave", "Baguette", Find_TypedUI<UI_Image>(_uiByName, L"Image_Weapon_Second_Slot_Gustave_Baguette") },
+        WeaponRowIconUI{ "Lune",    "Baguette", Find_TypedUI<UI_Image>(_uiByName, L"Image_Weapon_Second_Slot_Lune_Baguette") },
+        WeaponRowIconUI{ "Maelle",  "Baguette", Find_TypedUI<UI_Image>(_uiByName, L"Image_Weapon_Second_Slot_Maelle_Baguette") },
+    };
 
-    _weaponRows[1].button = Find_TypedUI<UI_Button>(_uiByName, L"Button_Lune_Snowim");
-    _weaponRows[1].background = Find_TypedUI<UI_Image>(_uiByName, L"Image_Weapon_BG_002");
-    _weaponRows[1].icon = Find_TypedUI<UI_Image>(_uiByName, L"Image_Lune_Snowim");
-    _weaponRows[1].weaponNameText = Find_TypedUI<UI_Text>(_uiByName, L"Text_Lune_Snowim");
-    _weaponRows[1].levelText = Find_TypedUI<UI_Text>(_uiByName, L"Text_Weapon_LevelValue_001");
-
-    _weaponRows[2].button = Find_TypedUI<UI_Button>(_uiByName, L"Button_Lune_Esquim");
-    _weaponRows[2].background = Find_TypedUI<UI_Image>(_uiByName, L"Image_Weapon_BG_003");
-    _weaponRows[2].icon = Find_TypedUI<UI_Image>(_uiByName, L"Image_Lune_Esquim");
-    _weaponRows[2].weaponNameText = Find_TypedUI<UI_Text>(_uiByName, L"Text_Lune_Esquim");
-    _weaponRows[2].levelText = Find_TypedUI<UI_Text>(_uiByName, L"Text_Weapon_LevelValue_002");
-
-    _tooltipDetailUI.abilityValueText1 = Find_TypedUI<UI_Text>(_uiByName, L"Text_WeaponTooltip_AbilityValue_1");
-    _tooltipDetailUI.abilityValueText2 = Find_TypedUI<UI_Text>(_uiByName, L"Text_WeaponTooltip_AbilityValue_2");
-
-    _tooltipDetailUI.levelTexts[0] = Find_TypedUI<UI_Text>(_uiByName, L"Text_WeaponTooltip_Level");
-    _tooltipDetailUI.levelTexts[1] = Find_TypedUI<UI_Text>(_uiByName, L"Text_WeaponTooltip_Level_001");
-    _tooltipDetailUI.levelTexts[2] = Find_TypedUI<UI_Text>(_uiByName, L"Text_WeaponTooltip_Level_002");
-
-    _tooltipDetailUI.descriptionTexts[0] = Find_TypedUI<UI_Text>(_uiByName, L"Text_WaeponTooltip_Description");
-    _tooltipDetailUI.descriptionTexts[1] = Find_TypedUI<UI_Text>(_uiByName, L"Text_WaeponTooltip_Description_001");
-    _tooltipDetailUI.descriptionTexts[2] = Find_TypedUI<UI_Text>(_uiByName, L"Text_WaeponTooltip_Description_002");
-
-    CHECK_NULL(_tooltipText.weaponNameText, E_FAIL);
-    CHECK_NULL(_tooltipText.levelText, E_FAIL);
-    CHECK_NULL(_tooltipText.powerText, E_FAIL);
-    CHECK_NULL(_weaponTooltipRoot, E_FAIL);
-
-    CHECK_NULL(_tooltipDetailUI.abilityValueText1, E_FAIL);
-    CHECK_NULL(_tooltipDetailUI.abilityValueText2, E_FAIL);
-
-    CHECK_NULL(_tooltipDetailUI.levelTexts[0], E_FAIL);
-    CHECK_NULL(_tooltipDetailUI.levelTexts[1], E_FAIL);
-    CHECK_NULL(_tooltipDetailUI.levelTexts[2], E_FAIL);
-
-    CHECK_NULL(_tooltipDetailUI.descriptionTexts[0], E_FAIL);
-    CHECK_NULL(_tooltipDetailUI.descriptionTexts[1], E_FAIL);
-    CHECK_NULL(_tooltipDetailUI.descriptionTexts[2], E_FAIL);
+    _weaponRows[2].button = Find_TypedUI<UI_Button>(_uiByName, L"Button_Weapon_Third_Slot");
+    _weaponRows[2].background = Find_TypedUI<UI_Image>(_uiByName, L"Image_Weapon_Third_Slot_BG");
+    _weaponRows[2].weaponNameText = Find_TypedUI<UI_Text>(_uiByName, L"Text_Weapon_Third_Slot_Name");
+    _weaponRows[2].levelText = Find_TypedUI<UI_Text>(_uiByName, L"Text_Weapon_Third_Slot_Level_Value");
+    _weaponRows[2].icons =
+    {
+        WeaponRowIconUI{ "Gustave", "Tireso", Find_TypedUI<UI_Image>(_uiByName, L"Image_Weapon_Third_Slot_Gustave_Tireso") },
+        WeaponRowIconUI{ "Lune",    "Snowim", Find_TypedUI<UI_Image>(_uiByName, L"Image_Weapon_Third_Slot_Lune_Snowim") },
+        WeaponRowIconUI{ "Maelle",  "Plenum", Find_TypedUI<UI_Image>(_uiByName, L"Image_Weapon_Third_Slot_Maelle_Plenum") },
+    };
 
     for (size_t i = 0; i < WeaponSlotCount; ++i)
     {
         CHECK_NULL(_weaponRows[i].button, E_FAIL);
         CHECK_NULL(_weaponRows[i].background, E_FAIL);
-        CHECK_NULL(_weaponRows[i].icon, E_FAIL);
         CHECK_NULL(_weaponRows[i].weaponNameText, E_FAIL);
         CHECK_NULL(_weaponRows[i].levelText, E_FAIL);
+
+        for (const WeaponRowIconUI& icon : _weaponRows[i].icons)
+            CHECK_NULL(icon.icon, E_FAIL);
+    }
+
+    CHECK_FAILED(Bind_CurrentWeaponTooltipUI(), E_FAIL);
+
+    return S_OK;
+}
+
+HRESULT ChangeWeapon_Panel::Bind_CurrentWeaponTooltipUI()
+{
+    _currentWeaponTooltipRoot = Find_UI(_uiByName, L"Panel_ChangeWeapon_Current_Weapon_Tooltip");
+    CHECK_NULL(_currentWeaponTooltipRoot, E_FAIL);
+
+    for (size_t i = 0; i < _currentWeaponTooltips.size(); ++i)
+    {
+        const wstring token = kCurrentWeaponTooltipSlots[i].tooltipToken;
+        CurrentWeaponTooltipUI& ui = _currentWeaponTooltips[i];
+
+        ui.root = Find_UI(_uiByName, L"Panel_" + token + L"_Tooltip");
+        ui.weaponNameText = Find_TypedUI<UI_Text>(_uiByName, L"Text_" + token + L"_Tooltip");
+        ui.levelText = Find_TypedUI<UI_Text>(_uiByName, L"Text_" + token + L"_Tooltip_Current_" + token + L"_Level_Value");
+        if (ui.levelText == nullptr)
+        {
+            ui.levelText = Find_TooltipTextByPrefixSuffix(
+                _uiByName,
+                L"Text_" + token + L"_Tooltip_Current_",
+                L"_Level_Value");
+        }
+        ui.powerText = Find_TypedUI<UI_Text>(_uiByName, L"Text_" + token + L"_Tooltip_Power_Value");
+        ui.vitalityGradeText = Find_TypedUI<UI_Text>(_uiByName, L"Text_" + token + L"_Tooltip_Vitality_Value");
+        ui.mightGradeText = Find_TypedUI<UI_Text>(_uiByName, L"Text_" + token + L"_Tooltip_Might_Value");
+        ui.agilityGradeText = Find_TypedUI<UI_Text>(_uiByName, L"Text_" + token + L"_Tooltip_Agility_Value");
+        ui.defenseGradeText = Find_TypedUI<UI_Text>(_uiByName, L"Text_" + token + L"_Tooltip_Defense_Value");
+        ui.luckGradeText = Find_TypedUI<UI_Text>(_uiByName, L"Text_" + token + L"_Tooltip_Luck_Value");
+        ui.thumbnail = Find_TypedUI<UI_Image>(_uiByName, L"Image_" + token + L"_Thumnail_Tooltip");
+        ui.thumbnailBackground = Find_TypedUI<UI_Image>(_uiByName, L"Image_" + token + L"_Thumnail_BG_Tooltip");
+        ui.level5Lock = Find_UI(_uiByName, L"Panel_" + token + L"_Level_5_Tooltip_Lock");
+        ui.level8Lock = Find_UI(_uiByName, L"Panel_" + token + L"_Level_8_Tooltip_Lock");
+
+        CHECK_NULL(ui.root, E_FAIL);
+        CHECK_NULL(ui.weaponNameText, E_FAIL);
+        CHECK_NULL(ui.levelText, E_FAIL);
+        CHECK_NULL(ui.powerText, E_FAIL);
+        CHECK_NULL(ui.thumbnail, E_FAIL);
+        CHECK_NULL(ui.thumbnailBackground, E_FAIL);
     }
 
     return S_OK;
@@ -341,10 +443,6 @@ void ChangeWeapon_Panel::Handle_WeaponSelectionInput()
         Apply_ChangeWeaponPreviewWeapon(heroId);
         Refresh_WeaponUI(); // 장착 row 보라색 표시와 selected index를 새 장착값 기준으로 다시 맞춘다.
 
-        Refresh_Tooltip(selectedWeapon);
-        Refresh_TooltipDetails(selectedWeapon); // 설명/등급/능력치도 같이 갱신
-        Show_WeaponTooltip(true);
-
         GAME->Play_SoundCue(Constants::SoundCue::UI_Battle_SelectAlly);
         break;
     }
@@ -372,10 +470,13 @@ void ChangeWeapon_Panel::Refresh_WeaponUI()
         // 무기 데이터가 없으면 이전 hero row가 남지 않게 전부 닫는다.
         for (WeaponRowUI& row : _weaponRows)
         {
+            Close_WeaponRowIcons(row);
+
             if (row.button)
                 row.button->Close();
         }
 
+        Show_CurrentWeaponTooltip("", "", false);
         return;
     }
 
@@ -400,38 +501,106 @@ void ChangeWeapon_Panel::Refresh_WeaponUI()
     if (_selectedWeaponIndex >= weapons->size())
         _selectedWeaponIndex = 0;
 
-    Refresh_Tooltip((*weapons)[_selectedWeaponIndex]);
-    Refresh_TooltipDetails((*weapons)[_selectedWeaponIndex]);
     Refresh_WeaponRows(*weapons, equippedWeaponId);
+
+    const GameDataTable::WeaponDesc& currentWeapon = (*weapons)[_selectedWeaponIndex];
+    Refresh_CurrentWeaponTooltip(characterId, currentWeapon);
+    Show_CurrentWeaponTooltip(characterId, currentWeapon.weaponId, true);
 }
 
-void ChangeWeapon_Panel::Refresh_Tooltip(const GameDataTable::WeaponDesc& weapon)
+void ChangeWeapon_Panel::Refresh_CurrentWeaponTooltip(const string& characterId, const GameDataTable::WeaponDesc& weapon)
 {
-    const string characterId = Get_CharacterId((_selectedHeroId == HeroId::END) ? HeroId::Lune : _selectedHeroId);
-    Apply_WeaponSummary(
-        _tooltipText,
-        weapon,
-        CLIENT->Resolve_WeaponEnhanceLevel(characterId, weapon.weaponId),
-        CLIENT->Resolve_WeaponPower(characterId, weapon.weaponId));
-}
-
-void ChangeWeapon_Panel::Refresh_TooltipDetails(const GameDataTable::WeaponDesc& weapon)
-{
-    UNREFERENCED_PARAMETER(weapon);
-
-    // 음.. 이거 코드로 바꿔야하나
-
-}
-
-void ChangeWeapon_Panel::Show_WeaponTooltip(bool isVisible)
-{
-    if (_weaponTooltipRoot == nullptr)
+    const int32 tooltipIndex = Find_CurrentWeaponTooltipSlotIndex(characterId, weapon.weaponId);
+    if (tooltipIndex < 0 || tooltipIndex >= static_cast<int32>(_currentWeaponTooltips.size()))
         return;
 
-    if (isVisible)
-        _weaponTooltipRoot->Open();
-    else
-        _weaponTooltipRoot->Close();
+    CurrentWeaponTooltipUI& ui = _currentWeaponTooltips[tooltipIndex];
+    const uint32 currentLevel = CLIENT->Resolve_WeaponEnhanceLevel(characterId, weapon.weaponId);
+    const uint32 currentPower = CLIENT->Resolve_WeaponPower(characterId, weapon.weaponId);
+    const GameDataTable::WeaponUpgradeDesc* upgrade =
+        CLIENT->Get_WeaponUpgradeDesc(characterId, weapon.weaponId, currentLevel);
+
+    if (ui.weaponNameText)
+        ui.weaponNameText->Set_Text(weapon.weaponName);
+
+    if (ui.levelText)
+        ui.levelText->Set_Text(to_wstring(currentLevel));
+
+    if (ui.powerText)
+        ui.powerText->Set_Text(to_wstring(currentPower));
+
+    Set_GradeText(ui.vitalityGradeText, upgrade ? upgrade->vitalityGrade : "");
+    Set_GradeText(ui.mightGradeText, upgrade ? upgrade->mightGrade : "");
+    Set_GradeText(ui.agilityGradeText, upgrade ? upgrade->agilityGrade : "");
+    Set_GradeText(ui.defenseGradeText, upgrade ? upgrade->defenseGrade : "");
+    Set_GradeText(ui.luckGradeText, upgrade ? upgrade->luckGrade : "");
+
+    Apply_MilestoneLock(ui.level5Lock, currentLevel, 5);
+    Apply_MilestoneLock(ui.level8Lock, currentLevel, 8);
+}
+
+void ChangeWeapon_Panel::Show_CurrentWeaponTooltip(const string& characterId, const string& weaponId, bool isVisible)
+{
+    Close_AllCurrentWeaponTooltips();
+
+    if (_currentWeaponTooltipRoot == nullptr)
+        return;
+
+    if (!isVisible)
+    {
+        _currentWeaponTooltipRoot->Close();
+        return;
+    }
+
+    const int32 tooltipIndex = Find_CurrentWeaponTooltipSlotIndex(characterId, weaponId);
+    if (tooltipIndex < 0 || tooltipIndex >= static_cast<int32>(_currentWeaponTooltips.size()))
+    {
+        _currentWeaponTooltipRoot->Close();
+        return;
+    }
+
+    if (!_currentWeaponTooltipRoot->Is_Open())
+        _currentWeaponTooltipRoot->Open();
+
+    Shared<UI_Base> tooltipRoot = _currentWeaponTooltips[tooltipIndex].root;
+    if (tooltipRoot == nullptr)
+        return;
+
+    tooltipRoot->Set_AlphaMultiplier(1.f);
+    if (!tooltipRoot->Is_Open())
+        tooltipRoot->Open();
+}
+
+void ChangeWeapon_Panel::Close_AllCurrentWeaponTooltips()
+{
+    for (CurrentWeaponTooltipUI& tooltip : _currentWeaponTooltips)
+    {
+        if (tooltip.root == nullptr)
+            continue;
+
+        tooltip.root->Set_AlphaMultiplier(0.f);
+        tooltip.root->Close();
+    }
+}
+
+void ChangeWeapon_Panel::Close_WeaponRowIcons(WeaponRowUI& row)
+{
+    for (WeaponRowIconUI& icon : row.icons)
+    {
+        if (icon.icon)
+            icon.icon->Close();
+    }
+}
+
+Shared<UI_Image> ChangeWeapon_Panel::Find_WeaponRowIcon(WeaponRowUI& row, const string& characterId, const string& weaponId)
+{
+    for (WeaponRowIconUI& icon : row.icons)
+    {
+        if (icon.characterId == characterId && icon.weaponId == weaponId)
+            return icon.icon;
+    }
+
+    return nullptr;
 }
 
 void ChangeWeapon_Panel::Refresh_WeaponRows(const vector<GameDataTable::WeaponDesc>& weapons, const string& equippedWeaponId)
@@ -447,6 +616,7 @@ void ChangeWeapon_Panel::Refresh_WeaponRows(const vector<GameDataTable::WeaponDe
 
         if (i >= weapons.size())
         {
+            Close_WeaponRowIcons(row);
             row.button->Close();
             continue;
         }
@@ -455,21 +625,19 @@ void ChangeWeapon_Panel::Refresh_WeaponRows(const vector<GameDataTable::WeaponDe
         const bool isOwned = inventory == nullptr || inventory->Is_WeaponUnlocked(characterId, weapon.weaponId);
         if (!isOwned)
         {
+            Close_WeaponRowIcons(row);
             row.button->Close(); // 아직 소유하지 않은 무기는 ChangeWeapon 선택 목록에서 숨긴다.
             continue;
         }
 
         row.button->Open();
+        Close_WeaponRowIcons(row);
 
-        if (row.icon && !weapon.portraitTexturePath.empty())
-            row.icon->Set_TexturePath(weapon.portraitTexturePath);
+        if (Shared<UI_Image> icon = Find_WeaponRowIcon(row, characterId, weapon.weaponId))
+            icon->Open();
 
-        const wstring backgroundTexturePath = Resolve_WeaponBackgroundTexturePath(weapon.weaponId);
         if (row.background)
         {
-            if (!backgroundTexturePath.empty())
-                row.background->Set_TexturePath(backgroundTexturePath);
-
             const bool isEquipped = weapon.weaponId == equippedWeaponId;
             row.background->Set_Color(isEquipped ? kWeaponFrameEquippedTint : kWeaponFrameDefaultTint); // ChangeSkill처럼 장착된 row를 보라색으로 표시한다.
         }
@@ -715,13 +883,13 @@ void ChangeWeapon_Panel::Free()
     if (Is_Open())
         Close_Immediately(false);
 
-    _tooltipText = {};
     _isProgressionContentMode = false;
     _weaponRows = {};
-    _weaponTooltipRoot.reset();
+    _currentWeaponTooltipRoot.reset();
+    _currentWeaponTooltips = {};
 
+    UI_RuntimeLoader::Release_Document(_uiByName);
     _root.reset();
-    _uiByName.clear();
 
     UI_RuntimePanelBase::Free();
 }

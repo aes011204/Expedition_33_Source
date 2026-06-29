@@ -23,15 +23,15 @@ namespace
 
     constexpr array<UpgradeWeapon_Panel::WeaponSlotDef, UpgradeWeapon_Panel::WeaponSlotCount> kWeaponSlots =
     {
-        UpgradeWeapon_Panel::WeaponSlotDef{ HeroId::Lune,    "Lune",    "Baguette", L"Lune_Baguette",    L"Lune_Baguette" },
-        UpgradeWeapon_Panel::WeaponSlotDef{ HeroId::Lune,    "Lune",    "Snowim",   L"Lune_Snowim",      L"Snowim" },
-        UpgradeWeapon_Panel::WeaponSlotDef{ HeroId::Lune,    "Lune",    "Colim",    L"Lune_Colim",       L"Colim" },
-        UpgradeWeapon_Panel::WeaponSlotDef{ HeroId::Gustave, "Gustave", "Baguette", L"Gustave_Baguette", L"Gustave_Baguette" },
-        UpgradeWeapon_Panel::WeaponSlotDef{ HeroId::Gustave, "Gustave", "Lanceram", L"Gustave_Lanceram", L"Lanceram" },
-        UpgradeWeapon_Panel::WeaponSlotDef{ HeroId::Gustave, "Gustave", "Tireso",   L"Gustave_Tireso",   L"Tireso" },
-        UpgradeWeapon_Panel::WeaponSlotDef{ HeroId::Maelle,  "Maelle",  "Medalum",  L"Maelle_Medalum",   L"Maellum" },
-        UpgradeWeapon_Panel::WeaponSlotDef{ HeroId::Maelle,  "Maelle",  "Baguette", L"Maelle_Baguette",  L"Maelle_Baguette" },
-        UpgradeWeapon_Panel::WeaponSlotDef{ HeroId::Maelle,  "Maelle",  "Plenum",   L"Maelle_Plenum",    L"Plenum" },
+        UpgradeWeapon_Panel::WeaponSlotDef{ HeroId::Lune,    "Lune",    "Baguette", L"Lune_Baguette",    L"Lune_Baguette",    L"Lune_Baguette" },
+        UpgradeWeapon_Panel::WeaponSlotDef{ HeroId::Lune,    "Lune",    "Snowim",   L"Lune_Snowim",      L"Snowim",           L"Lune_Snowim" },
+        UpgradeWeapon_Panel::WeaponSlotDef{ HeroId::Lune,    "Lune",    "Colim",    L"Lune_Colim",       L"Colim",            L"Lune_Colim" },
+        UpgradeWeapon_Panel::WeaponSlotDef{ HeroId::Gustave, "Gustave", "Baguette", L"Gustave_Baguette", L"Gustave_Baguette", L"Gustave_Baguette" },
+        UpgradeWeapon_Panel::WeaponSlotDef{ HeroId::Gustave, "Gustave", "Lanceram", L"Gustave_Lanceram", L"Lanceram",         L"Gustave_Lanceram" },
+        UpgradeWeapon_Panel::WeaponSlotDef{ HeroId::Gustave, "Gustave", "Tireso",   L"Gustave_Tireso",   L"Tireso",           L"Gustave_Tireso" },
+        UpgradeWeapon_Panel::WeaponSlotDef{ HeroId::Maelle,  "Maelle",  "Medalum",  L"Maelle_Medalum",   L"Maellum",          L"Maelle_Maellum" },
+        UpgradeWeapon_Panel::WeaponSlotDef{ HeroId::Maelle,  "Maelle",  "Baguette", L"Maelle_Baguette",  L"Maelle_Baguette",  L"Maelle_Baguette" },
+        UpgradeWeapon_Panel::WeaponSlotDef{ HeroId::Maelle,  "Maelle",  "Plenum",   L"Maelle_Plenum",    L"Plenum",           L"Maelle_Plenum" },
     };
 
     void Set_UIMapOpenState(const umap<wstring, Shared<UI_Base>>& uiByName, bool isOpen)
@@ -72,6 +72,12 @@ namespace
     {
         return L"UI/UI_Json/CommonSystem/UpgradeWeapon/UI_Upgrade_Weapon_Fragment_" +
             wstring(uiSuffix ? uiSuffix : L"") + L".json";
+    }
+
+    wstring Make_UpgradeSuccessAnimationPath(const wchar_t* animationToken)
+    {
+        return L"UI/UI_Animations/Common/Upgrade_Weapon/Upgrade_" +
+            wstring(animationToken ? animationToken : L"");
     }
 
     bool Starts_With(const wstring& value, const wstring& prefix)
@@ -189,6 +195,20 @@ void UpgradeWeapon_Panel::Close_ForMenuTransition()
     Close_Immediately(false);
 }
 
+bool UpgradeWeapon_Panel::Consume_BackInput()
+{
+    if (!Is_Open() || !_selectedWeaponIndex.has_value())
+        return false;
+
+    const size_t previousWeaponIndex = *_selectedWeaponIndex;
+    _selectedWeaponIndex.reset();
+
+    Refresh_HoverDetails(previousWeaponIndex);
+    Apply_BaseDim(false);
+
+    return true;
+}
+
 void UpgradeWeapon_Panel::Append_RuntimeUIEntries(
     vector<RuntimeUIEntry>& outEntries,
     const string& category,
@@ -237,6 +257,7 @@ HRESULT UpgradeWeapon_Panel::Load_UIFragment(size_t weaponIndex)
     UI_RuntimeLoader::UI_LoadDesc desc{};
     desc.levelIndex = _levelIndex;
     desc.jsonPath = Make_FragmentPath(slot.uiSuffix);
+    desc.animationPaths.push_back(Make_UpgradeSuccessAnimationPath(slot.upgradeAnimationToken));
     desc.prototypeTagPrefix = L"UpgradeWeaponFragment_" + wstring(slot.uiSuffix);
 
     umap<wstring, Shared<UI_Base>> loadedUIByName{};
@@ -252,12 +273,7 @@ HRESULT UpgradeWeapon_Panel::Load_UIFragment(size_t weaponIndex)
         _uiByName[name] = ui;
 
     fragment.loaded = true;
-    if (fragment.tooltipRoot)
-        fragment.tooltipRoot->Close();
-    if (fragment.confirmRoot)
-        fragment.confirmRoot->Close();
-    if (fragment.requiredRoot)
-        fragment.requiredRoot->Close();
+    Apply_FragmentDisplayMode(weaponIndex, FragmentDisplayMode::Hidden);
 
     return S_OK;
 }
@@ -302,6 +318,12 @@ HRESULT UpgradeWeapon_Panel::Bind_FragmentUI(size_t weaponIndex, const umap<wstr
 
     fragment.tooltipRoot = Find_UI(fragmentUIByName, L"Panel_" + token + L"_Tooltip");
     fragment.confirmRoot = Find_UI(fragmentUIByName, L"Panel_" + token + L"_Upgrade");
+    fragment.hoverLevel5Lock = Find_UI(fragmentUIByName, L"Panel_" + token + L"_Level_5_Tooltip_Lock");
+    fragment.hoverLevel8Lock = Find_UI(fragmentUIByName, L"Panel_" + token + L"_Level_8_Tooltip_Lock");
+    fragment.confirmBeforeLevel5Lock = Find_UI(fragmentUIByName, L"Panel_Upgrade_Before_" + token + L"_Level_5_Tooltip_Lock");
+    fragment.confirmBeforeLevel8Lock = Find_UI(fragmentUIByName, L"Panel_Upgrade_Before_" + token + L"_Level_8_Tooltip_Lock");
+    fragment.confirmAfterLevel5Lock = Find_UI(fragmentUIByName, L"Panel_Upgrade_After_" + token + L"_Level_5_Tooltip_Lock");
+    fragment.confirmAfterLevel8Lock = Find_UI(fragmentUIByName, L"Panel_Upgrade_After_" + token + L"_Level_8_Tooltip_Lock");
 
     fragment.hoverDetail.weaponNameText = Find_TypedUI<UI_Text>(fragmentUIByName, L"Text_" + token + L"_Tooltip", "UpgradeWeapon");
     fragment.hoverDetail.levelText = Find_TypedUIByPrefixSuffix<UI_Text>(
@@ -391,8 +413,8 @@ void UpgradeWeapon_Panel::Handle_WeaponInput()
         Refresh_HoverDetails(*hoveredIndex);
     else
     {
-        Close_AllWeaponTooltips();
-        Close_AllRequiredPanels();
+        Close_AllDetailFragments();
+        Apply_BaseDim(false);
     }
 }
 
@@ -403,36 +425,71 @@ void UpgradeWeapon_Panel::Handle_UpgradeInput()
 
     const size_t weaponIndex = *_selectedWeaponIndex;
     WeaponFragmentUI& fragment = _weaponFragments[weaponIndex];
-    if (fragment.upgradeButton == nullptr || !fragment.upgradeButton->Was_Clicked())
+    const bool requestedByButton = fragment.upgradeButton != nullptr && fragment.upgradeButton->Was_Clicked();
+    const bool requestedByKey = GAME->KeyDown(KEY_TYPE::F);
+    if (!requestedByButton && !requestedByKey)
         return;
 
+    Try_UpgradeSelectedWeapon();
+}
+
+bool UpgradeWeapon_Panel::Try_UpgradeSelectedWeapon()
+{
+    if (!_selectedWeaponIndex.has_value())
+        return false;
+
+    const size_t weaponIndex = *_selectedWeaponIndex;
+    WeaponFragmentUI& fragment = _weaponFragments[weaponIndex];
     const WeaponSlotDef& slot = kWeaponSlots[weaponIndex];
     const GameDataTable::WeaponDesc* weapon = CLIENT->Get_WeaponDesc(slot.characterId, slot.weaponId);
     const auto inventory = CLIENT->Get_PlayerInventory();
     if (weapon == nullptr || inventory == nullptr)
-        return;
+        return false;
 
     const uint32 currentLevel = inventory->Get_WeaponEnhanceLevel(slot.characterId, slot.weaponId);
     const GameDataTable::WeaponUpgradeDesc* nextUpgrade =
         CLIENT->Get_NextWeaponUpgradeDesc(slot.characterId, slot.weaponId, currentLevel);
 
     if (nextUpgrade == nullptr)
-        return;
+        return false;
 
     if (!inventory->Spend_Material(kChromaCatalystMaterialId, nextUpgrade->requiredChromaCatalyst))
     {
         if (fragment.upgradeButtonText)
             fragment.upgradeButtonText->Set_Text(L"Need Catalyst");
-        return;
+        return false;
     }
 
     if (!inventory->Set_WeaponEnhanceLevel(slot.characterId, slot.weaponId, nextUpgrade->level))
-        return;
+        return false;
 
     Apply_EquippedWeaponPower(slot.characterId, slot.weaponId, nextUpgrade->power);
     Refresh_WeaponRows();
     Refresh_SelectedDetails(true);
+    Play_UpgradeSuccessAnimation(weaponIndex);
     GAME->Play_SoundCue(Constants::SoundCue::UI_Battle_SelectAlly);
+    return true;
+}
+
+void UpgradeWeapon_Panel::Play_UpgradeSuccessAnimation(size_t weaponIndex)
+{
+    if (weaponIndex >= WeaponSlotCount)
+        return;
+
+    const wchar_t* animationToken = kWeaponSlots[weaponIndex].upgradeAnimationToken;
+    if (animationToken == nullptr || animationToken[0] == L'\0')
+        return;
+
+    const wstring animationName = L"Upgrade_" + wstring(animationToken);
+    for (auto& [uiName, ui] : _uiByName)
+    {
+        UNREFERENCED_PARAMETER(uiName);
+
+        if (ui == nullptr)
+            continue;
+
+        ui->Play_UIAnimation(animationName, true);
+    }
 }
 
 void UpgradeWeapon_Panel::Refresh_WeaponRows()
@@ -495,14 +552,17 @@ void UpgradeWeapon_Panel::Refresh_SelectedDetails(bool showConfirm)
         Apply_DetailUI(fragment.confirmAfterDetail, *weapon, nextUpgrade, nextUpgrade->level, nextUpgrade->power);
     else
         Apply_DetailUI(fragment.confirmAfterDetail, *weapon, currentUpgrade, currentLevel, currentPower);
+    const uint32 afterLevel = nextUpgrade ? nextUpgrade->level : currentLevel;
 
     Apply_Thumbnail(fragment.confirmAfterThumbnail, *weapon);
     Apply_ThumbnailBackground(fragment.confirmAfterThumbnailBackground, weapon->weaponId);
-    Refresh_Required(weaponIndex, *weapon, currentLevel);
 
     Close_AllDetailFragments();
-    Show_Required(weaponIndex, showConfirm);
-    Show_Confirm(weaponIndex, showConfirm);
+    Apply_MilestoneLocks(weaponIndex, currentLevel, currentLevel, afterLevel);
+    Refresh_Required(weaponIndex, *weapon, currentLevel, showConfirm);
+    Apply_FragmentDisplayMode(
+        weaponIndex,
+        showConfirm ? FragmentDisplayMode::SelectedUpgrade : FragmentDisplayMode::HoverPreview);
     Apply_BaseDim(showConfirm);
 }
 
@@ -524,16 +584,19 @@ void UpgradeWeapon_Panel::Refresh_HoverDetails(size_t weaponIndex)
     Apply_DetailUI(fragment.hoverDetail, *weapon, currentUpgrade, currentLevel, currentPower);
     Apply_Thumbnail(fragment.hoverThumbnail, *weapon);
     Apply_ThumbnailBackground(fragment.hoverThumbnailBackground, weapon->weaponId);
-    Refresh_Required(weaponIndex, *weapon, currentLevel);
 
-    Close_AllConfirmFragments();
-    Close_AllWeaponTooltips();
-    Close_AllRequiredPanels();
-    Show_WeaponTooltip(weaponIndex, true);
-    Show_Required(weaponIndex, true);
+    Close_AllDetailFragments();
+    Apply_MilestoneLocks(weaponIndex, currentLevel, currentLevel, currentLevel);
+    Refresh_Required(weaponIndex, *weapon, currentLevel, false);
+    Apply_FragmentDisplayMode(weaponIndex, FragmentDisplayMode::HoverPreview);
+    Apply_BaseDim(false);
 }
 
-void UpgradeWeapon_Panel::Refresh_Required(size_t weaponIndex, const GameDataTable::WeaponDesc& weapon, uint32 currentLevel)
+void UpgradeWeapon_Panel::Refresh_Required(
+    size_t weaponIndex,
+    const GameDataTable::WeaponDesc& weapon,
+    uint32 currentLevel,
+    bool allowUpgradeInput)
 {
     if (weaponIndex >= WeaponSlotCount)
         return;
@@ -552,15 +615,17 @@ void UpgradeWeapon_Panel::Refresh_Required(size_t weaponIndex, const GameDataTab
     if (fragment.requiredCatalystText)
         fragment.requiredCatalystText->Set_Text(nextUpgrade ? to_wstring(requiredCatalyst) : L"MAX");
 
-    const bool canUpgrade = nextUpgrade != nullptr && currentCatalyst >= requiredCatalyst;
+    const bool hasNextUpgrade = nextUpgrade != nullptr;
+    const bool hasEnoughCatalyst = currentCatalyst >= requiredCatalyst;
+    const bool canUpgrade = allowUpgradeInput && hasNextUpgrade && hasEnoughCatalyst;
     if (fragment.upgradeButton)
         fragment.upgradeButton->Set_Disabled(!canUpgrade);
 
     if (fragment.upgradeButtonText)
     {
-        if (nextUpgrade == nullptr)
+        if (!hasNextUpgrade)
             fragment.upgradeButtonText->Set_Text(L"MAX");
-        else if (!canUpgrade)
+        else if (!hasEnoughCatalyst)
             fragment.upgradeButtonText->Set_Text(L"Need Catalyst");
         else
             fragment.upgradeButtonText->Set_Text(L"Upgrade");
@@ -616,6 +681,34 @@ void UpgradeWeapon_Panel::Apply_EquippedWeaponPower(const string& characterId, c
         statCom->Set_EquippedWeapon(weaponId, power);
 }
 
+void UpgradeWeapon_Panel::Apply_MilestoneLocks(size_t weaponIndex, uint32 hoverLevel, uint32 beforeLevel, uint32 afterLevel)
+{
+    if (weaponIndex >= WeaponSlotCount)
+        return;
+
+    const auto applyLock = [](const Shared<UI_Base>& lockRoot, uint32 displayLevel, uint32 milestoneLevel)
+        {
+            if (lockRoot == nullptr)
+                return;
+
+            const bool shouldShow = displayLevel < milestoneLevel;
+            lockRoot->Set_AlphaMultiplier(shouldShow ? 1.f : 0.f);
+
+            if (shouldShow && !lockRoot->Is_Open())
+                lockRoot->Open();
+            else if (!shouldShow && lockRoot->Is_Open())
+                lockRoot->Close();
+        };
+
+    WeaponFragmentUI& fragment = _weaponFragments[weaponIndex];
+    applyLock(fragment.hoverLevel5Lock, hoverLevel, 5);
+    applyLock(fragment.hoverLevel8Lock, hoverLevel, 8);
+    applyLock(fragment.confirmBeforeLevel5Lock, beforeLevel, 5);
+    applyLock(fragment.confirmBeforeLevel8Lock, beforeLevel, 8);
+    applyLock(fragment.confirmAfterLevel5Lock, afterLevel, 5);
+    applyLock(fragment.confirmAfterLevel8Lock, afterLevel, 8);
+}
+
 HRESULT UpgradeWeapon_Panel::Ensure_FragmentLoaded(size_t weaponIndex)
 {
     if (weaponIndex >= WeaponSlotCount)
@@ -627,6 +720,33 @@ HRESULT UpgradeWeapon_Panel::Ensure_FragmentLoaded(size_t weaponIndex)
     return Load_UIFragment(weaponIndex);
 }
 
+void UpgradeWeapon_Panel::Apply_FragmentDisplayMode(size_t weaponIndex, FragmentDisplayMode mode)
+{
+    if (weaponIndex >= WeaponSlotCount)
+        return;
+
+    WeaponFragmentUI& fragment = _weaponFragments[weaponIndex];
+    const bool showAny = mode != FragmentDisplayMode::Hidden;
+    const bool showTooltip = mode == FragmentDisplayMode::HoverPreview;
+    const bool showUpgrade = mode == FragmentDisplayMode::SelectedUpgrade;
+
+    Show_WeaponTooltip(weaponIndex, showAny);
+    Show_Confirm(weaponIndex, showAny);
+    Show_Required(weaponIndex, showAny);
+
+    if (fragment.tooltipRoot)
+        fragment.tooltipRoot->Set_AlphaMultiplier(showTooltip ? 1.f : 0.f);
+
+    if (fragment.confirmRoot)
+        fragment.confirmRoot->Set_AlphaMultiplier(showUpgrade ? 1.f : 0.f);
+
+    if (fragment.requiredRoot)
+        fragment.requiredRoot->Set_AlphaMultiplier(showAny ? 1.f : 0.f);
+
+    if (fragment.upgradeButton && mode != FragmentDisplayMode::SelectedUpgrade)
+        fragment.upgradeButton->Set_Disabled(true);
+}
+
 void UpgradeWeapon_Panel::Show_WeaponTooltip(size_t weaponIndex, bool isVisible)
 {
     if (weaponIndex >= WeaponSlotCount)
@@ -636,9 +756,9 @@ void UpgradeWeapon_Panel::Show_WeaponTooltip(size_t weaponIndex, bool isVisible)
     if (tooltipRoot == nullptr)
         return;
 
-    if (isVisible)
+    if (isVisible && !tooltipRoot->Is_Open())
         tooltipRoot->Open();
-    else
+    else if (!isVisible && tooltipRoot->Is_Open())
         tooltipRoot->Close();
 }
 
@@ -647,7 +767,10 @@ void UpgradeWeapon_Panel::Close_AllWeaponTooltips()
     for (WeaponFragmentUI& fragment : _weaponFragments)
     {
         if (fragment.tooltipRoot)
+        {
+            fragment.tooltipRoot->Set_AlphaMultiplier(0.f);
             fragment.tooltipRoot->Close();
+        }
     }
 }
 
@@ -660,9 +783,9 @@ void UpgradeWeapon_Panel::Show_Required(size_t weaponIndex, bool isVisible)
     if (requiredRoot == nullptr)
         return;
 
-    if (isVisible)
+    if (isVisible && !requiredRoot->Is_Open())
         requiredRoot->Open();
-    else
+    else if (!isVisible && requiredRoot->Is_Open())
         requiredRoot->Close();
 }
 
@@ -675,9 +798,9 @@ void UpgradeWeapon_Panel::Show_Confirm(size_t weaponIndex, bool isVisible)
     if (confirmRoot == nullptr)
         return;
 
-    if (isVisible)
+    if (isVisible && !confirmRoot->Is_Open())
         confirmRoot->Open();
-    else
+    else if (!isVisible && confirmRoot->Is_Open())
         confirmRoot->Close();
 }
 
@@ -686,7 +809,13 @@ void UpgradeWeapon_Panel::Close_AllConfirmFragments()
     for (WeaponFragmentUI& fragment : _weaponFragments)
     {
         if (fragment.confirmRoot)
+        {
+            fragment.confirmRoot->Set_AlphaMultiplier(0.f);
             fragment.confirmRoot->Close();
+        }
+
+        if (fragment.upgradeButton)
+            fragment.upgradeButton->Set_Disabled(true);
     }
 }
 
@@ -695,7 +824,10 @@ void UpgradeWeapon_Panel::Close_AllRequiredPanels()
     for (WeaponFragmentUI& fragment : _weaponFragments)
     {
         if (fragment.requiredRoot)
+        {
+            fragment.requiredRoot->Set_AlphaMultiplier(0.f);
             fragment.requiredRoot->Close();
+        }
     }
 }
 

@@ -60,7 +60,7 @@ public:
     bool Apply_SaveJson(const json& data);
 
 private:
-    uint32 _chroma = 0;
+    uint32 _chroma = 2000000;
     vector<string> _unlockedPictosIds{};
     vector<WeaponInventoryEntry> _ownedWeapons{};
     vector<MaterialInventoryEntry> _ownedMaterials{};

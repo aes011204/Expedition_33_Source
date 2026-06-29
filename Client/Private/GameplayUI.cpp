@@ -209,6 +209,11 @@ bool GameplayUI::Open_MerchantShop()
     return _worldUI && _worldUI->Request_MerchantShop();
 }
 
+bool GameplayUI::Open_WeaponUpgrade()
+{
+    return _worldUI && _worldUI->Request_WeaponUpgrade();
+}
+
 void GameplayUI::Set_CinematicUIHidden(bool hidden)
 {
     if (_isCinematicUIHidden == hidden)

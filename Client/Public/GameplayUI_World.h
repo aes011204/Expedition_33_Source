@@ -50,6 +50,7 @@ public:
 
     bool    Request_ArenaCharacterSelect();
     bool    Request_MerchantShop();
+    bool    Request_WeaponUpgrade();
 
 private:
     void    Handle_SavePointAction(SavePoint_Panel::SavePointAction action);
@@ -69,6 +70,7 @@ private:
     void    Try_ShowPendingGetCharacter();
     void    Try_ShowPendingGetClothes();
     void    Try_ShowPendingGetWeapon();
+    void    Try_ShowPendingGetPictos();
     bool    Is_GetCharacterOpen() const;
     bool    Is_GetClothesOpen() const;
     bool    Is_GetWeaponOpen() const;
@@ -117,6 +119,7 @@ private:
 
     vector<GameplayMenu>                _menuStack{};
     GamePlayMenuFade                    _menuFade{};
+    vector<string>                      _pendingGetPictosIds{};
 
 public:
     static Unique<GameplayUI_World> Create(uint32 levelIndex);

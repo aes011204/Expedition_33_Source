@@ -34,12 +34,92 @@ using namespace UI_Utils;
 
 namespace
 {
+    constexpr const wchar_t* kRoundWeaponBgPath = L"../Bin/Resources/Textures/UI/Inventory/Weapons/Background/T_UI_RoundWeaponBackground.png";
+    constexpr const wchar_t* kLongWeaponBgPath = L"../Bin/Resources/Textures/UI/Inventory/Weapons/Background/T_UI_LongWeaponBackground.png";
+
     constexpr std::array<HeroId, 3> kHeroOrder =
     {
         HeroId::Lune,
         HeroId::Gustave,
         HeroId::Maelle,
     };
+
+    struct WeaponThumbnailBinding
+    {
+        const wchar_t* rootName = L"";
+        const wchar_t* backgroundName = L"";
+        const wchar_t* iconName = L"";
+    };
+
+    constexpr std::array<WeaponThumbnailBinding, 7> kCurrentWeaponThumbnailBindings =
+    {
+        WeaponThumbnailBinding{ L"Panel_Colim_Thumnail",    L"Image_Colim_Thumnail_BG",    L"Image_Colim_Thumnail" },
+        WeaponThumbnailBinding{ L"Panel_Snowim_Thumnail",   L"Image_Snowim_Thumnail_BG",   L"Image_Snowim_Thumnail" },
+        WeaponThumbnailBinding{ L"Panel_Baguette_Thumnail", L"Image_Baguette_Thumnail_BG", L"Image_Baguette_Thumnail" },
+        WeaponThumbnailBinding{ L"Panel_Lanceram_Thumnail", L"Image_Lanceram_Thumnail_BG", L"Image_Lanceram_Thumnail" },
+        WeaponThumbnailBinding{ L"Panel_Candy_Thumnail",    L"Image_Candy_Thumnail_BG",    L"Image_Candy_Thumnail" },
+        WeaponThumbnailBinding{ L"Panel_Medalum_Thumnail",  L"Image_Medalum_Thumnail_BG",  L"Image_Medalum_Thumnail" },
+        WeaponThumbnailBinding{ L"Panel_Sekarum_Thumnail",  L"Image_Sekarum_Thumnail_BG",  L"Image_Sekarum_Thumnail" },
+    };
+
+    string Normalize_CurrentWeaponId(const string& weaponId)
+    {
+        if (weaponId == "Esquim")
+            return "Snowim";
+
+        if (weaponId == "Candy")
+            return "Tireso";
+
+        if (weaponId == "Sekarum")
+            return "Plenum";
+
+        return weaponId;
+    }
+
+    int32 Resolve_CurrentWeaponThumbnailSlotIndex(const string& weaponId)
+    {
+        const string normalizedWeaponId = Normalize_CurrentWeaponId(weaponId);
+
+        if (normalizedWeaponId == "Colim")
+            return 0;
+
+        if (normalizedWeaponId == "Snowim")
+            return 1;
+
+        if (normalizedWeaponId == "Baguette")
+            return 2;
+
+        if (normalizedWeaponId == "Lanceram")
+            return 3;
+
+        if (normalizedWeaponId == "Tireso")
+            return 4;
+
+        if (normalizedWeaponId == "Medalum")
+            return 5;
+
+        if (normalizedWeaponId == "Plenum")
+            return 6;
+
+        return -1;
+    }
+
+    wstring Resolve_CurrentWeaponBackgroundTexturePath(const string& weaponId)
+    {
+        const string normalizedWeaponId = Normalize_CurrentWeaponId(weaponId);
+
+        if (normalizedWeaponId == "Colim" || normalizedWeaponId == "Snowim")
+            return kRoundWeaponBgPath;
+
+        if (normalizedWeaponId == "Baguette" ||
+            normalizedWeaponId == "Lanceram" ||
+            normalizedWeaponId == "Tireso" ||
+            normalizedWeaponId == "Medalum" ||
+            normalizedWeaponId == "Plenum")
+            return kLongWeaponBgPath;
+
+        return L"";
+    }
 
     void Set_UIMapOpenState(const umap<wstring, Shared<UI_Base>>& uiByName, bool isOpen)
     {
@@ -676,21 +756,28 @@ void CharacterProgression_Panel::Refresh_CurrentWeapon(const Shared<PlayerStatCo
     CLIENT->Ensure_DefaultEquippedWeapon(heroId); // 기본 디폴트 무기 확정
 
     const string characterId = Get_CharacterId(heroId);
-    const string equippedWeaponId = statCom->Get_PlayerRuntimeStat().CurEquippedWeaponId;
+    const string equippedWeaponId = Normalize_CurrentWeaponId(statCom->Get_PlayerRuntimeStat().CurEquippedWeaponId);
     const GameDataTable::WeaponDesc* equippedWeapon = CLIENT->Get_WeaponDesc(characterId, equippedWeaponId);
+    const auto applyWeapon = [this, &characterId](const GameDataTable::WeaponDesc& weapon)
+        {
+            Apply_WeaponSummary(
+                _currentWeaponText,
+                weapon,
+                CLIENT->Resolve_WeaponEnhanceLevel(characterId, weapon.weaponId),
+                CLIENT->Resolve_WeaponPower(characterId, weapon.weaponId));
+            Apply_CurrentWeaponThumbnail(weapon);
+        };
 
     if (equippedWeapon != nullptr)
     {
-        Apply_WeaponSummary(_currentWeaponText, *equippedWeapon);
-        Refresh_CurrentWeaponThumbnail(equippedWeapon->weaponId); // 장착 무기 썸네일만 연다.
+        applyWeapon(*equippedWeapon);
         return;
     }
 
     const vector<GameDataTable::WeaponDesc>* weapons = CLIENT->Get_WeaponDescs(characterId);
     if (weapons != nullptr && !weapons->empty())
     {
-        Apply_WeaponSummary(_currentWeaponText, weapons->front());
-        Refresh_CurrentWeaponThumbnail(weapons->front().weaponId); // 장착 무기 ID를 못 찾으면 첫 무기 썸네일로 fallback 한다.
+        applyWeapon(weapons->front()); // 장착 무기 ID를 못 찾으면 첫 무기로 fallback 한다.
         return;
     }
 
@@ -701,47 +788,35 @@ void CharacterProgression_Panel::Refresh_CurrentWeapon(const Shared<PlayerStatCo
 
 void CharacterProgression_Panel::Refresh_CurrentWeaponThumbnail(const string& weaponId)
 {
-    const auto closeAll = [this]()
-        {
-            if (_colimThumbnailPanel) _colimThumbnailPanel->Close();
-            if (_snowimThumbnailPanel) _snowimThumbnailPanel->Close();
-            if (_baguetteThumbnailPanel) _baguetteThumbnailPanel->Close();
-            if (_lanceramThumbnailPanel) _lanceramThumbnailPanel->Close();
-            if (_candyThumbnailPanel) _candyThumbnailPanel->Close();
-            if (_medalumThumbnailPanel) _medalumThumbnailPanel->Close();
-            if (_sekarumThumbnailPanel) _sekarumThumbnailPanel->Close();
-        };
+    for (WeaponThumbnailSlotUI& slot : _currentWeaponThumbnailSlots)
+    {
+        if (slot.root)
+            slot.root->Close();
+    }
 
-    closeAll();
+    const int32 slotIndex = Resolve_CurrentWeaponThumbnailSlotIndex(weaponId);
+    if (slotIndex < 0 || slotIndex >= static_cast<int32>(_currentWeaponThumbnailSlots.size()))
+        return;
 
-    if (weaponId == "Colim")
-    {
-        if (_colimThumbnailPanel) _colimThumbnailPanel->Open();
-    }
-    else if (weaponId == "Esquim")
-    {
-        if (_snowimThumbnailPanel) _snowimThumbnailPanel->Open(); // 현재 authoring 이름은 Snowim panel을 쓴다.
-    }
-    else if (weaponId == "Baguette")
-    {
-        if (_baguetteThumbnailPanel) _baguetteThumbnailPanel->Open();
-    }
-    else if (weaponId == "Lanceram")
-    {
-        if (_lanceramThumbnailPanel) _lanceramThumbnailPanel->Open();
-    }
-    else if (weaponId == "Candy")
-    {
-        if (_candyThumbnailPanel) _candyThumbnailPanel->Open();
-    }
-    else if (weaponId == "Medalum")
-    {
-        if (_medalumThumbnailPanel) _medalumThumbnailPanel->Open();
-    }
-    else if (weaponId == "Sekarum")
-    {
-        if (_sekarumThumbnailPanel) _sekarumThumbnailPanel->Open();
-    }
+    if (_currentWeaponThumbnailSlots[slotIndex].root)
+        _currentWeaponThumbnailSlots[slotIndex].root->Open();
+}
+
+void CharacterProgression_Panel::Apply_CurrentWeaponThumbnail(const GameDataTable::WeaponDesc& weapon)
+{
+    Refresh_CurrentWeaponThumbnail(weapon.weaponId);
+
+    const int32 slotIndex = Resolve_CurrentWeaponThumbnailSlotIndex(weapon.weaponId);
+    if (slotIndex < 0 || slotIndex >= static_cast<int32>(_currentWeaponThumbnailSlots.size()))
+        return;
+
+    WeaponThumbnailSlotUI& slot = _currentWeaponThumbnailSlots[slotIndex];
+    if (slot.icon && !weapon.portraitTexturePath.empty())
+        slot.icon->Set_TexturePath(weapon.portraitTexturePath);
+
+    const wstring backgroundTexturePath = Resolve_CurrentWeaponBackgroundTexturePath(weapon.weaponId);
+    if (slot.background && !backgroundTexturePath.empty())
+        slot.background->Set_TexturePath(backgroundTexturePath);
 }
 
 void CharacterProgression_Panel::Refresh_CurrentSkills(const Shared<PlayerStatCom>& statCom)
@@ -1567,13 +1642,15 @@ HRESULT CharacterProgression_Panel::Bind_UI()
     _currentPictosPanelRoot = Find_UI(_uiByName, L"Panel_Current_Pictos");
     _wardrobePanelRoot = Find_UI(_uiByName, L"Panel_Wardrobe");
     _tintPanelRoot = Find_UI(_uiByName, L"Panel_Tint");
-    _colimThumbnailPanel = Find_UI(_uiByName, L"Panel_Colim_Thumnail");
-    _snowimThumbnailPanel = Find_UI(_uiByName, L"Panel_Snowim_Thumnail");
-    _baguetteThumbnailPanel = Find_UI(_uiByName, L"Panel_Baguette_Thumnail");
-    _lanceramThumbnailPanel = Find_UI(_uiByName, L"Panel_Lanceram_Thumnail");
-    _candyThumbnailPanel = Find_UI(_uiByName, L"Panel_Candy_Thumnail");
-    _medalumThumbnailPanel = Find_UI(_uiByName, L"Panel_Medalum_Thumnail");
-    _sekarumThumbnailPanel = Find_UI(_uiByName, L"Panel_Sekarum_Thumnail");
+    for (size_t i = 0; i < kCurrentWeaponThumbnailBindings.size(); ++i)
+    {
+        const WeaponThumbnailBinding& binding = kCurrentWeaponThumbnailBindings[i];
+        WeaponThumbnailSlotUI& slot = _currentWeaponThumbnailSlots[i];
+
+        slot.root = Find_UI(_uiByName, binding.rootName);
+        slot.background = Find_TypedUI<UI_Image>(_uiByName, binding.backgroundName, "CharacterProgression");
+        slot.icon = Find_TypedUI<UI_Image>(_uiByName, binding.iconName, "CharacterProgression");
+    }
 
     _currentSkillNameTexts[0] = Find_TypedUI<UI_Text>(_uiByName, L"Text_Current_Skill_1", "CharacterProgression");
     _currentSkillNameTexts[1] = Find_TypedUI<UI_Text>(_uiByName, L"Text_Current_Skill_2", "CharacterProgression");
@@ -1657,13 +1734,12 @@ HRESULT CharacterProgression_Panel::Bind_UI()
     CHECK_NULL(_currentPictosPanelRoot, E_FAIL);
     CHECK_NULL(_wardrobePanelRoot, E_FAIL);
     CHECK_NULL(_tintPanelRoot, E_FAIL);
-    CHECK_NULL(_colimThumbnailPanel, E_FAIL);
-    CHECK_NULL(_snowimThumbnailPanel, E_FAIL);
-    CHECK_NULL(_baguetteThumbnailPanel, E_FAIL);
-    CHECK_NULL(_lanceramThumbnailPanel, E_FAIL);
-    CHECK_NULL(_candyThumbnailPanel, E_FAIL);
-    CHECK_NULL(_medalumThumbnailPanel, E_FAIL);
-    CHECK_NULL(_sekarumThumbnailPanel, E_FAIL);
+    for (const WeaponThumbnailSlotUI& slot : _currentWeaponThumbnailSlots)
+    {
+        CHECK_NULL(slot.root, E_FAIL);
+        CHECK_NULL(slot.background, E_FAIL);
+        CHECK_NULL(slot.icon, E_FAIL);
+    }
 
     CHECK_NULL(_abilityPanelRoot, E_FAIL);
     CHECK_NULL(_abilityPentagonFrame, E_FAIL);
@@ -1763,13 +1839,8 @@ void CharacterProgression_Panel::Free()
     _currentStatCriticalPercentText.reset();
 
     _currentWeaponText = {};
-    _colimThumbnailPanel.reset();
-    _snowimThumbnailPanel.reset();
-    _baguetteThumbnailPanel.reset();
-    _lanceramThumbnailPanel.reset();
-    _candyThumbnailPanel.reset();
-    _medalumThumbnailPanel.reset();
-    _sekarumThumbnailPanel.reset();
+    for (WeaponThumbnailSlotUI& slot : _currentWeaponThumbnailSlots)
+        slot = {};
     _gradientText.reset();
     _gradientGpText.reset();
     _gradientGpBgText.reset();

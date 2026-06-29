@@ -31,6 +31,7 @@ public:
     void    Close();
     void    Close_Immediately(bool restoreWorldControl = true);
     void    Close_ForMenuTransition();
+    bool    Consume_BackInput();
 
     Shared<UI_Base> Get_RootUI() const { return _root; }
     void    Append_RuntimeUIEntries(
@@ -39,6 +40,13 @@ public:
         const string& rootName) const override;
 
 private:
+    enum class FragmentDisplayMode
+    {
+        Hidden,
+        HoverPreview,
+        SelectedUpgrade
+    };
+
     HRESULT Load_UI(uint32 levelIndex);
     HRESULT Load_UIFragment(size_t weaponIndex);
     HRESULT Bind_UI();
@@ -46,10 +54,16 @@ private:
 
     void    Handle_WeaponInput();
     void    Handle_UpgradeInput();
+    bool    Try_UpgradeSelectedWeapon();
+    void    Play_UpgradeSuccessAnimation(size_t weaponIndex);
     void    Refresh_WeaponRows();
     void    Refresh_SelectedDetails(bool showConfirm);
     void    Refresh_HoverDetails(size_t weaponIndex);
-    void    Refresh_Required(size_t weaponIndex, const GameDataTable::WeaponDesc& weapon, uint32 currentLevel);
+    void    Refresh_Required(
+        size_t weaponIndex,
+        const GameDataTable::WeaponDesc& weapon,
+        uint32 currentLevel,
+        bool allowUpgradeInput);
     void    Apply_DetailUI(
         const WeaponSummaryText& detailUI,
         const GameDataTable::WeaponDesc& weapon,
@@ -59,8 +73,10 @@ private:
     void    Apply_Thumbnail(const Shared<UI_Image>& image, const GameDataTable::WeaponDesc& weapon);
     void    Apply_ThumbnailBackground(const Shared<UI_Image>& image, const string& weaponId);
     void    Apply_EquippedWeaponPower(const string& characterId, const string& weaponId, uint32 power);
+    void    Apply_MilestoneLocks(size_t weaponIndex, uint32 hoverLevel, uint32 beforeLevel, uint32 afterLevel);
 
     HRESULT Ensure_FragmentLoaded(size_t weaponIndex);
+    void    Apply_FragmentDisplayMode(size_t weaponIndex, FragmentDisplayMode mode);
     void    Show_WeaponTooltip(size_t weaponIndex, bool isVisible);
     void    Close_AllWeaponTooltips();
     void    Show_Required(size_t weaponIndex, bool isVisible);
@@ -78,6 +94,7 @@ public:
         const char* weaponId = "";
         const wchar_t* uiSuffix = L"";
         const wchar_t* fragmentToken = L"";
+        const wchar_t* upgradeAnimationToken = L"";
     };
 
     static constexpr size_t WeaponSlotCount = 9;
@@ -97,6 +114,12 @@ private:
         bool loaded = false;
         Shared<UI_Base> tooltipRoot{};
         Shared<UI_Base> confirmRoot{};
+        Shared<UI_Base> hoverLevel5Lock{};
+        Shared<UI_Base> hoverLevel8Lock{};
+        Shared<UI_Base> confirmBeforeLevel5Lock{};
+        Shared<UI_Base> confirmBeforeLevel8Lock{};
+        Shared<UI_Base> confirmAfterLevel5Lock{};
+        Shared<UI_Base> confirmAfterLevel8Lock{};
         WeaponSummaryText hoverDetail{};
         WeaponSummaryText confirmBeforeDetail{};
         WeaponSummaryText confirmAfterDetail{};

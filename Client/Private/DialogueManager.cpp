@@ -297,6 +297,11 @@ void DialogueManager::ApplyChoice()
     {
         LOG_INFO("OpenForge");
         EndDialogue();
+
+        const Shared<GameplayUI> gameplayUI = CLIENT->Get_GameplayUI();
+        if (gameplayUI == nullptr || !gameplayUI->Open_WeaponUpgrade())
+            LOG_WARN("DialogueManager: failed to open weapon upgrade.");
+
         return;
     }
 

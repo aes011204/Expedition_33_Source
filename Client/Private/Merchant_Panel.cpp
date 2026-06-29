@@ -8,6 +8,7 @@
 #include "GameDataTable.h"
 #include "GameInstance.h"
 #include "PlayerInventory.h"
+#include "Unlock_Manager.h"
 #include "UI_Base.h"
 #include "UI_Button.h"
 #include "UI_RuntimeLoader.h"
@@ -92,9 +93,10 @@ void Merchant_Panel::Open()
     if (Is_Open())
         return;
 
+    _purchasedPictosIds.clear();
+
     UI_RuntimePanelBase::Open();
     Set_AllUIOpenState(true);
-    Close_AllTooltips();
     Refresh_AllSlots();
 
     GAME->Play_SoundCue(Constants::SoundCue::UI_Global_GenericEnter);
@@ -109,7 +111,6 @@ void Merchant_Panel::Close()
 
 void Merchant_Panel::Close_Immediately(bool restoreWorldControl)
 {
-    Close_AllTooltips();
     UI_RuntimePanelBase::Close();
     Set_AllUIOpenState(false);
 
@@ -123,6 +124,13 @@ void Merchant_Panel::Close_Immediately(bool restoreWorldControl)
 void Merchant_Panel::Close_ForMenuTransition()
 {
     Close_Immediately(false);
+}
+
+vector<string> Merchant_Panel::Consume_PurchasedPictosIds()
+{
+    vector<string> result{};
+    result.swap(_purchasedPictosIds);
+    return result;
 }
 
 HRESULT Merchant_Panel::Load_UI(uint32 levelIndex)
@@ -187,14 +195,14 @@ HRESULT Merchant_Panel::Bind_UI()
 
         if (slot.kind == ShopItemKind::Pictos)
         {
-            slotUI.ownedMarkFrame = Find_UI(
+            slotUI.pictosMarkFrame = Find_UI(
                 _uiByName,
                 Make_SlotUIName(L"Image_Merchant_", slot.uiToken, L"_Mark_Frame"));
-            slotUI.ownedMark = Find_UI(
+            slotUI.pictosMark = Find_UI(
                 _uiByName,
                 Make_SlotUIName(L"Image_Merchant_", slot.uiToken, L"_Mark"));
-            CHECK_NULL(slotUI.ownedMarkFrame, E_FAIL);
-            CHECK_NULL(slotUI.ownedMark, E_FAIL);
+            CHECK_NULL(slotUI.pictosMarkFrame, E_FAIL);
+            CHECK_NULL(slotUI.pictosMark, E_FAIL);
         }
     }
 
@@ -225,18 +233,18 @@ void Merchant_Panel::Set_AllUIOpenState(bool isOpen)
 
 void Merchant_Panel::Handle_ShopInput()
 {
-    optional<size_t> hoveredIndex{};
-
     for (size_t i = 0; i < ShopSlotCount; ++i)
     {
         const ShopSlotUI& slotUI = _slotUIs[i];
         if (slotUI.button == nullptr || !slotUI.button->Is_Open())
             continue;
 
-        if (slotUI.button->Is_Hovered())
-            hoveredIndex = i;
+        const bool isHovered = slotUI.button->Is_Hovered();
+        const bool purchaseRequested =
+            slotUI.button->Was_Clicked() ||
+            (isHovered && GAME->KeyDown(KEY_TYPE::F));
 
-        if (slotUI.button->Was_Clicked())
+        if (purchaseRequested)
         {
             if (Try_Purchase(i))
                 GAME->Play_SoundCue(Constants::SoundCue::UI_Battle_SelectAlly);
@@ -247,11 +255,6 @@ void Merchant_Panel::Handle_ShopInput()
             return;
         }
     }
-
-    if (hoveredIndex.has_value())
-        Show_Tooltip(*hoveredIndex);
-    else
-        Close_AllTooltips();
 }
 
 void Merchant_Panel::Refresh_AllSlots()
@@ -290,23 +293,11 @@ void Merchant_Panel::Refresh_Slot(size_t slotIndex)
 
     if (slot.kind == ShopItemKind::Pictos)
     {
-        const bool isOwned = Is_SlotOwned(slot);
+        if (slotUI.pictosMarkFrame)
+            slotUI.pictosMarkFrame->Open();
 
-        if (slotUI.ownedMarkFrame)
-        {
-            if (isOwned)
-                slotUI.ownedMarkFrame->Open();
-            else
-                slotUI.ownedMarkFrame->Close();
-        }
-
-        if (slotUI.ownedMark)
-        {
-            if (isOwned)
-                slotUI.ownedMark->Open();
-            else
-                slotUI.ownedMark->Close();
-        }
+        if (slotUI.pictosMark)
+            slotUI.pictosMark->Open();
     }
 }
 
@@ -329,26 +320,6 @@ void Merchant_Panel::Refresh_CurrentChroma()
 
     if (_currentChromaText)
         _currentChromaText->Set_Text(Format_NumberWithCommas(chroma));
-}
-
-void Merchant_Panel::Close_AllTooltips()
-{
-    for (ShopSlotUI& slotUI : _slotUIs)
-    {
-        if (slotUI.tooltipRoot)
-            slotUI.tooltipRoot->Close();
-    }
-}
-
-void Merchant_Panel::Show_Tooltip(size_t slotIndex)
-{
-    if (slotIndex >= ShopSlotCount)
-        return;
-
-    Close_AllTooltips();
-
-    if (_slotUIs[slotIndex].tooltipRoot)
-        _slotUIs[slotIndex].tooltipRoot->Open();
 }
 
 bool Merchant_Panel::Try_Purchase(size_t slotIndex)
@@ -463,6 +434,8 @@ void Merchant_Panel::Apply_Purchase(const ShopSlotDef& slot)
         const GameDataTable::WeaponDesc* weapon = CLIENT->Get_WeaponDesc(slot.characterId, slot.itemId);
         const uint32 startLevel = weapon ? weapon->level : 1u;
         inventory->Unlock_Weapon(slot.characterId, slot.itemId, startLevel);
+        if (Unlock_Manager* unlockManager = CLIENT->Get_UnlockManager())
+            unlockManager->Queue_GetWeaponPresentation(slot.characterId, slot.itemId);
         break;
     }
 
@@ -472,6 +445,8 @@ void Merchant_Panel::Apply_Purchase(const ShopSlotDef& slot)
 
     case ShopItemKind::Pictos:
         inventory->Unlock_Pictos(slot.itemId);
+        if (find(_purchasedPictosIds.begin(), _purchasedPictosIds.end(), slot.itemId) == _purchasedPictosIds.end())
+            _purchasedPictosIds.emplace_back(slot.itemId);
         break;
 
     default:

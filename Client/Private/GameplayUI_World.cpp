@@ -213,6 +213,8 @@ void GameplayUI_World::Update(float timeDelta)
         if (Is_GetWeaponOpen())
             return;
 
+        Try_ShowPendingGetPictos();
+
         if (Is_GetPictosOpen())
             return;
 
@@ -434,6 +436,34 @@ bool GameplayUI_World::Request_MerchantShop()
     return true;
 }
 
+bool GameplayUI_World::Request_WeaponUpgrade()
+{
+    if (_upgradeWeaponPanel == nullptr)
+        return false;
+
+    const bool requestedFromDialogue = CLIENT->IsDialogueInteractLocked();
+
+    if (_expeditionStatPanel && _expeditionStatPanel->Is_Open())
+    {
+        if (!requestedFromDialogue)
+            return false;
+
+        _expeditionStatPanel->Close_Immediately();
+    }
+
+    if (Get_CurrentMenu() != GameplayMenu::None)
+        return false;
+
+    if (CLIENT->Is_WorldControlSuspended() || CLIENT->Is_BattleEntering())
+        return false;
+
+    if (GAME->Is_WorldGameplayInputBlocked() && !requestedFromDialogue)
+        return false;
+
+    Push_Menu(GameplayMenu::WeaponUpgrade);
+    return true;
+}
+
 Shared<SoulLikeController> GameplayUI_World::Spawn_SoulLikeControllerForArena()
 {
     if (const Shared<SoulLikeController> existingController = CLIENT->Get_SoulLikeController())
@@ -601,6 +631,11 @@ void GameplayUI_World::Handle_BackInput()
     }
 
     const GameplayMenu currentMenu = _menuStack.back();
+    if (currentMenu == GameplayMenu::WeaponUpgrade &&
+        _upgradeWeaponPanel &&
+        _upgradeWeaponPanel->Consume_BackInput())
+        return;
+
     if (currentMenu == GameplayMenu::Replay)
     {
         Close_AllMenus();
@@ -916,6 +951,12 @@ void GameplayUI_World::Close_Menu(GameplayMenu menu, bool restoreWorldControl)
                 _merchantPanel->Close();
             else
                 _merchantPanel->Close_ForMenuTransition();
+
+            vector<string> purchasedPictosIds = _merchantPanel->Consume_PurchasedPictosIds();
+            _pendingGetPictosIds.insert(
+                _pendingGetPictosIds.end(),
+                purchasedPictosIds.begin(),
+                purchasedPictosIds.end());
         }
         break;
 
@@ -1078,6 +1119,40 @@ void GameplayUI_World::Try_ShowPendingGetWeapon()
         return;
 
     _getWeaponPanel->Open_ForWeaponIds(pendingWeaponIds);
+}
+
+void GameplayUI_World::Try_ShowPendingGetPictos()
+{
+    if (_getPictosPanel == nullptr || _getPictosPanel->Is_Open())
+        return;
+
+    if (_pendingGetPictosIds.empty())
+        return;
+
+    if (Is_GetCharacterOpen() || Is_GetClothesOpen() || Is_GetWeaponOpen())
+        return;
+
+    if (CLIENT->Is_FadeTransitionPlaying())
+        return;
+
+    if (CLIENT->Is_WorldControlSuspended() || CLIENT->Is_BattleEntering())
+        return;
+
+    if (GAME->Is_WorldGameplayInputBlocked())
+        return;
+
+    if (!_menuStack.empty())
+        return;
+
+    if (_savePointPanel && (_savePointPanel->Is_Open() || _savePointPanel->Is_ClosingWithOutro()))
+        return;
+
+    if (_expeditionStatPanel && _expeditionStatPanel->Is_Open())
+        return;
+
+    vector<string> pendingPictosIds{};
+    pendingPictosIds.swap(_pendingGetPictosIds);
+    _getPictosPanel->Open_ForPictosIds(pendingPictosIds);
 }
 
 bool GameplayUI_World::Is_GetClothesOpen() const
