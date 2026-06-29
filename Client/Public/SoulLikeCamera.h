@@ -56,6 +56,7 @@ public:
 
 public:
     void SetTargetTransform(Shared<TransformCom> targetTransform);
+    void Align_BehindTarget();
     void SetCombatFocusTransforms(Shared<TransformCom> playerTransform, Shared<TransformCom> opponentTransform);
     bool Try_GetFlatMoveBasis(Vec3& outForward, Vec3& outRight) const override;
 

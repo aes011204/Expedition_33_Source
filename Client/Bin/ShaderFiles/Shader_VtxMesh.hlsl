@@ -623,7 +623,7 @@ PS_OUT_AmbientVisibility PS_AmbientVisibility(PS_IN In)
     const float depth = In.ProjPos.w / g_Far;
     Out.FrontDepth = In.IsFrontFace ? depth : 1.f;
     Out.BackDepth = In.IsFrontFace ? 0.f : depth;
-    Out.Amount = 0.f;// saturate(g_AmbientVisibilityAmount);
+    Out.Amount = 0.2f;// saturate(g_AmbientVisibilityAmount);
     return Out;
 }
 

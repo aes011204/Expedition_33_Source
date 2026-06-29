@@ -38,6 +38,8 @@ void DialogueDB::LoadFromFile(const string& filePath)
         DialogueData dialogueData{};
         dialogueData.dialogueKey = dialogueJson.value("dialogueKey", "");
         dialogueData.displayName = dialogueJson.value("displayName", "");
+        const string restoreToStartAnimation = dialogueJson.value("restoreToStartAnimation", string("false"));
+        dialogueData.restoreToStartAnimation = (restoreToStartAnimation == "true");
         if (dialogueData.dialogueKey.empty())
             continue;
 
@@ -52,6 +54,7 @@ void DialogueDB::LoadFromFile(const string& filePath)
                 line.action = lineJson.value("action", "");
                 line.nextLineIndex = lineJson.value("nextLineIndex", -1);
                 line.speakerAnimationKey = lineJson.value("speakerAnimationKey", "");
+                line.speakerOffsetY = lineJson.value("speakerOffsetY", 0.f);
                 if (const string speakerRoleName = lineJson.value("speakerRole", string{}); !speakerRoleName.empty())
                 {
                     if (const auto parsedSpeakerRole = magic_enum::enum_cast<DialogueActorRole>(speakerRoleName); parsedSpeakerRole.has_value())

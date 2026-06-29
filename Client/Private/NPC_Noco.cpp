@@ -1,4 +1,4 @@
-﻿#include "NPC_Noco.h"
+#include "NPC_Noco.h"
 #include "ClientInstance.h"
 #include "NPC_Body.h"
 #include "NPC_Hair.h"
@@ -10,6 +10,7 @@ IMPLEMENT_REFLECTION(NPC_Noco)
 
     info.displayName = "NPC_Noco";
     info.category = "NPC";
+    NPC_Base::Register_CommonReflectionProperties(info);
 
     return true;
 }
@@ -17,6 +18,7 @@ IMPLEMENT_REFLECTION(NPC_Noco)
 NPC_Noco::NPC_Noco(const ComPtr<Device>& device, const ComPtr<Context>& context) : NPC_Base(device, context)
 {
     _worldMoveSpeedScale = 0.1f;
+    _defaultAnimationKey = "Noco";
 }
 
 NPC_Noco::NPC_Noco(const NPC_Noco& prototype) : NPC_Base(prototype)
@@ -31,8 +33,6 @@ HRESULT NPC_Noco::Initialize_Prototype()
 HRESULT NPC_Noco::Initialize(void* arg)
 {
     CHECK_FAILED(NPC_Base::Initialize(arg), E_FAIL);
-    CHECK_FAILED(Ready_PartObjects(), E_FAIL);
-    _body->Set_Animation("Noco", 0.3f, true);
 
     return S_OK;
 }

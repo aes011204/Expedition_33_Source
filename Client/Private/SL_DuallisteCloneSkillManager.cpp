@@ -17,6 +17,11 @@ namespace
     constexpr float kCloneBaseDamage = 100.f;
     constexpr char  kCloneDissolveNoise[] = "T_Perlin_Noise_M";
 
+    constexpr Vec3  kCloneGhostRimColor = Vec3(1.f, 0.16f, 0.06f);
+    constexpr float kCloneGhostRimIntensity = 1.25f;
+    constexpr float kCloneGhostRimPower = 1.8f;
+    constexpr float kCloneGhostHairRimIntensity = 0.65f;
+
     Shared<ModelCom> Resolve_CloneModel(const Shared<GameObject>& actor)
     {
         if (actor == nullptr)
@@ -37,6 +42,37 @@ namespace
             return monsterPart->Get_Model();
 
         return nullptr;
+    }
+
+    void Apply_CloneGhostVisual(const Shared<GameObject>& actor)
+    {
+        const Shared<ContainerObject> container = dynamic_pointer_cast<ContainerObject>(actor);
+        if (container == nullptr)
+            return;
+
+        if (const Shared<EffectCom> rootEffectCom = actor->Get_Component<EffectCom>())
+        {
+            rootEffectCom->Set_PreviewRim(
+                kCloneGhostRimColor,
+                kCloneGhostRimIntensity,
+                kCloneGhostRimPower,
+                kCloneGhostHairRimIntensity);
+        }
+
+        for (const auto& [partTag, partObject] : container->Get_PartObjects())
+        {
+            if (partObject == nullptr)
+                continue;
+
+            if (const Shared<EffectCom> partEffectCom = partObject->Get_Component<EffectCom>())
+            {
+                partEffectCom->Set_PreviewRim(
+                    kCloneGhostRimColor,
+                    kCloneGhostRimIntensity,
+                    kCloneGhostRimPower,
+                    kCloneGhostHairRimIntensity);
+            }
+        }
     }
 
     void Start_CloneDissolve(const Shared<GameObject>& actor, float dissolveDuration)
@@ -144,6 +180,8 @@ bool SL_DuallisteCloneSkillManager::Begin_CloneSkill(CloneSkillRuntime runtime)
 
     Shared<GameObject> actor = Spawn_CloneActor(runtime);
     CHECK_NULL(actor, false);
+
+    Apply_CloneGhostVisual(actor); // spawn 직후 clone EffectCom에만 림을 걸어 본체 SL_Dualliste 재질은 유지한다.
 
     runtime.actor = actor;
 

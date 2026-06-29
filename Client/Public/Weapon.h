@@ -18,12 +18,12 @@ struct WeaponSourceHistoryAnchorDesc
     Vec3 localPosition{ Vec3::Zero };
 };
 
-class Weapon final : public PartObject
+class Weapon : public PartObject
 {
     GENERATED_GAMEOBJECT(Weapon, ObjectType::Weapon)
 
 public:
-    typedef struct tagWeaponDesc final : public PartObject::PARTOBJECT_DESC
+    typedef struct tagWeaponDesc : public PartObject::PARTOBJECT_DESC
     {
         ModelType       modelType{ ModelType::NonAnim };
         const wchar_t*  modelTag{ nullptr };

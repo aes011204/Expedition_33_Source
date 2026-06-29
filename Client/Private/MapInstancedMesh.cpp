@@ -745,30 +745,7 @@ HRESULT MapInstancedMesh::CreateCullBuffers(const vector<Matrix>& matrices, cons
         }
     }
 
-    _shadowIndirectArgsBuffers.clear();
-    _shadowIndirectArgsBuffers.resize(numMeshes);
-    for (uint32 i = 0; i < numMeshes; ++i)
-    {
-        D3D11_BUFFER_DESC bd{};
-        bd.ByteWidth = 5 * sizeof(uint32);
-        bd.Usage = D3D11_USAGE_DEFAULT;
-        bd.BindFlags = D3D11_BIND_UNORDERED_ACCESS;
-        bd.MiscFlags = D3D11_RESOURCE_MISC_DRAWINDIRECT_ARGS;
-
-        if (FAILED(_device->CreateBuffer(&bd, nullptr, _shadowIndirectArgsBuffers[i].GetAddressOf())))
-        {
-            return E_FAIL;
-        }
-
-        uint32 args[5] = { 0, 0, 0, 0, 0 };
-        if (_lodModels[0])
-        {
-            args[0] = static_cast<uint32>(_lodModels[0]->Get_NumIndices(i));
-        }
-        _context->UpdateSubresource(_shadowIndirectArgsBuffers[i].Get(), 0, nullptr, args, 0, 0);
-    }
-
-    return S_OK;
+    return CreateShadowIndirectArgsBuffers();
 }
 
 HRESULT MapInstancedMesh::Render_Shadow()
@@ -784,11 +761,25 @@ HRESULT MapInstancedMesh::Render_Shadow()
     }
 
     const uint32 cascadeIndex = GAME->Get_ActiveShadowCascade();
+    uint32 shadowLod = Resolve_ShadowLodIndex(cascadeIndex);
+    if (!_lodModels[shadowLod])
+    {
+        shadowLod = 0u;
+    }
 
-    bool useShadowIndirect = _shadowCullShader && _shadowVisibleVB && !_shadowIndirectArgsBuffers.empty();
+    const uint32 numMeshes = static_cast<uint32>(_lodModels[shadowLod]->Get_NumMeshes());
+    if (numMeshes == 0)
+    {
+        return S_OK;
+    }
+
+    bool useShadowIndirect =
+        _shadowCullShader &&
+        _shadowVisibleVB &&
+        _shadowIndirectArgsBuffers[shadowLod].size() >= numMeshes;
     if (useShadowIndirect)
     {
-        DispatchShadowCull(cascadeIndex);
+        DispatchShadowCull(cascadeIndex, shadowLod);
     }
 
     Matrix identity = Matrix::Identity;
@@ -802,7 +793,6 @@ HRESULT MapInstancedMesh::Render_Shadow()
         return E_FAIL;
     }
 
-    const uint32 numMeshes = static_cast<uint32>(_lodModels[0]->Get_NumMeshes());
     for (uint32 i = 0; i < numMeshes; ++i)
     {
         if (FAILED(_shader->Begin(VtxInstanceMeshExactPassIndex::ShadowPass)))
@@ -812,14 +802,14 @@ HRESULT MapInstancedMesh::Render_Shadow()
 
         if (useShadowIndirect)
         {
-            if (FAILED(_lodModels[0]->RenderInstancedIndirect(i, _shadowVisibleVB.Get(), sizeof(Matrix), _shadowIndirectArgsBuffers[i].Get())))
+            if (FAILED(_lodModels[shadowLod]->RenderInstancedIndirect(i, _shadowVisibleVB.Get(), sizeof(Matrix), _shadowIndirectArgsBuffers[shadowLod][i].Get())))
             {
                 return E_FAIL;
             }
         }
         else
         {
-            if (FAILED(_lodModels[0]->RenderInstanced(i, _instanceVB.Get(), sizeof(Matrix), _instanceCount)))
+            if (FAILED(_lodModels[shadowLod]->RenderInstanced(i, _instanceVB.Get(), sizeof(Matrix), _instanceCount)))
             {
                 return E_FAIL;
             }
@@ -868,6 +858,31 @@ bool MapInstancedMesh::Allows_DynamicShadowCascade(uint32 cascadeIndex) const
     }
 
     return cascadeIndex <= _maxShadowCascade;
+}
+
+uint32 MapInstancedMesh::Resolve_ShadowLodIndex(uint32 cascadeIndex) const
+{
+    if (!ClientInstance::Is_DebugUseMapInstancedMeshShadowLOD())
+    {
+        return 0u;
+    }
+
+    uint32 desiredLod = 0u;
+    if (cascadeIndex == 1u || cascadeIndex == 2u)
+    {
+        desiredLod = 1u;
+    }
+    else if (cascadeIndex >= 3u)
+    {
+        desiredLod = 2u;
+    }
+
+    while (desiredLod > 0u && !_lodModels[desiredLod])
+    {
+        --desiredLod;
+    }
+
+    return desiredLod;
 }
 
 void MapInstancedMesh::DispatchCull()
@@ -936,10 +951,58 @@ void MapInstancedMesh::DispatchCull()
     }
 }
 
-void MapInstancedMesh::DispatchShadowCull(uint32 cascadeIndex)
+HRESULT MapInstancedMesh::CreateShadowIndirectArgsBuffers()
+{
+    ResetShadowIndirectArgsBuffers();
+
+    for (int lod = 0; lod < 3; ++lod)
+    {
+        if (!_lodModels[lod])
+        {
+            continue;
+        }
+
+        const uint32 numMeshes = static_cast<uint32>(_lodModels[lod]->Get_NumMeshes());
+        _shadowIndirectArgsBuffers[lod].resize(numMeshes);
+
+        for (uint32 i = 0; i < numMeshes; ++i)
+        {
+            D3D11_BUFFER_DESC bd{};
+            bd.ByteWidth = 5 * sizeof(uint32);
+            bd.Usage = D3D11_USAGE_DEFAULT;
+            bd.BindFlags = D3D11_BIND_UNORDERED_ACCESS;
+            bd.MiscFlags = D3D11_RESOURCE_MISC_DRAWINDIRECT_ARGS;
+
+            if (FAILED(_device->CreateBuffer(&bd, nullptr, _shadowIndirectArgsBuffers[lod][i].GetAddressOf())))
+            {
+                return E_FAIL;
+            }
+
+            uint32 args[5] = { 0, 0, 0, 0, 0 };
+            args[0] = static_cast<uint32>(_lodModels[lod]->Get_NumIndices(i));
+            _context->UpdateSubresource(_shadowIndirectArgsBuffers[lod][i].Get(), 0, nullptr, args, 0, 0);
+        }
+    }
+
+    return S_OK;
+}
+
+void MapInstancedMesh::ResetShadowIndirectArgsBuffers()
+{
+    for (int lod = 0; lod < 3; ++lod)
+    {
+        for (auto& buffer : _shadowIndirectArgsBuffers[lod])
+        {
+            buffer.Reset();
+        }
+        _shadowIndirectArgsBuffers[lod].clear();
+    }
+}
+
+void MapInstancedMesh::DispatchShadowCull(uint32 cascadeIndex, uint32 shadowLod)
 {
     if (!_shadowCullShader || !_shadowCullCB || !_shadowVisibleUAV ||
-        !_instanceSrcBuffer || !_sphereBuffer || _shadowIndirectArgsBuffers.empty())
+        !_instanceSrcBuffer || !_sphereBuffer || _shadowIndirectArgsBuffers[shadowLod].empty())
     {
         return;
     }
@@ -983,7 +1046,7 @@ void MapInstancedMesh::DispatchShadowCull(uint32 cascadeIndex)
     _context->CSSetUnorderedAccessViews(0, 1, &nullUAV, nullptr);
 
     _context->CopyResource(_shadowVisibleVB.Get(), _shadowVisibleStructured.Get());
-    for (auto& buf : _shadowIndirectArgsBuffers)
+    for (auto& buf : _shadowIndirectArgsBuffers[shadowLod])
     {
         _context->CopyStructureCount(buf.Get(), sizeof(uint32), _shadowVisibleUAV.Get());
     }
@@ -1089,11 +1152,7 @@ void MapInstancedMesh::Free()
     _shadowVisibleUAV.Reset();
     _shadowVisibleVB.Reset();
     _shadowCullCB.Reset();
-    for (auto& buf : _shadowIndirectArgsBuffers)
-    {
-        buf.Reset();
-    }
-    _shadowIndirectArgsBuffers.clear();
+    ResetShadowIndirectArgsBuffers();
     _shadowCullShader.reset();
 
     _instanceSrcBuffer.reset();

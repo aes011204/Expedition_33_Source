@@ -2,6 +2,8 @@
 #include "UI_GetPictos.h"
 
 #include "Client_Constants.h"
+#include "ClientInstance.h"
+#include "GameDataTable.h"
 #include "GameInstance.h"
 #include "UI_Base.h"
 #include "UI_RuntimeLoader.h"
@@ -12,24 +14,31 @@ using namespace UI_Utils;
 namespace
 {
     constexpr wchar_t kGetItemAnimationName[] = L"Get_Item";
+    constexpr wchar_t kPictosGetItemJsonDir[] = L"UI/UI_Json/CommonSystem/Get_Item/Pictos/";
 
-    struct GetPictosPresentationDesc
+    wstring Resolve_GetItemJsonPath(const string& getItemUi)
     {
-        const char* id;
-        const wchar_t* jsonPath;
-        const wchar_t* rootName;
-        const wchar_t* prototypeTagPrefix;
-    };
+        if (getItemUi.empty())
+            return {};
 
-    const array<GetPictosPresentationDesc, 6> kPictosPresentations =
+        return wstring(kPictosGetItemJsonDir) + String::ToWString(getItemUi) + L".json";
+    }
+
+    wstring Resolve_GetItemRootName(const string& pictosId)
     {
-        GetPictosPresentationDesc{ "AugmentedAim", Constants::UI::UI_Get_Pictos_AugmentedAim_Path, L"Panel_Get_Pictos_AugmentedAim", L"GetPictosAugmentedAim" },
-        GetPictosPresentationDesc{ "AugmentedAttack", Constants::UI::UI_Get_Pictos_AugmentedAttack_Path, L"Panel_Get_Pictos_AugmentedAttack", L"GetPictosAugmentedAttack" },
-        GetPictosPresentationDesc{ "EnergisingTurn", Constants::UI::UI_Get_Pictos_EnergisingTurn_Path, L"Panel_Get_Pictos_EnergisingTurn", L"GetPictosEnergisingTurn" },
-        GetPictosPresentationDesc{ "GlassCannon", Constants::UI::UI_Get_Pictos_GlassCannon_Path, L"Panel_Get_Pictos_GlassCannon", L"GetPictosGlassCannon" },
-        GetPictosPresentationDesc{ "Roulette", Constants::UI::UI_Get_Pictos_Roulette_Path, L"Panel_Get_Pictos_Roulette", L"GetPictosRoulette" },
-        GetPictosPresentationDesc{ "WarmingUp", Constants::UI::UI_Get_Pictos_WarmingUp_Path, L"Panel_Get_Pictos_WarmingUp", L"GetPictosWarmingUp" },
-    };
+        if (pictosId.empty())
+            return {};
+
+        return L"Panel_Get_Pictos_" + String::ToWString(pictosId);
+    }
+
+    wstring Resolve_GetItemPrototypeTagPrefix(const string& pictosId)
+    {
+        if (pictosId.empty())
+            return {};
+
+        return L"GetPictos" + String::ToWString(pictosId);
+    }
 }
 
 HRESULT UI_GetPictos::Initialize(uint32 levelIndex)
@@ -91,7 +100,7 @@ void UI_GetPictos::Close_Immediately()
 
     Close_AllRoots();
 
-    // 아직 런타임 보상 소비와 연결하지 않은 연출 UI지만, 열린 상태에서 정지될 경우 입력 차단은 반드시 복구한다.
+    // 열린 상태에서 정지될 경우 다음 월드 입력을 막지 않도록 입력 차단은 반드시 복구한다.
     GAME->Set_PlayerInputBlocked(false);
 }
 
@@ -104,27 +113,35 @@ HRESULT UI_GetPictos::Load_UI(uint32 levelIndex)
 
     _animationDuration = Get_KeyframeAnimationDurationSec(getItemAnimation);
 
-    for (const GetPictosPresentationDesc& presentation : kPictosPresentations)
+    for (const GameDataTable::PictosDesc& pictosDesc : CLIENT->Get_PictosDescs())
     {
+        if (pictosDesc.id.empty() || pictosDesc.getItemUi.empty())
+            continue;
+
         umap<wstring, Shared<Engine::UI_Base>> loadedUIByName{};
+        const wstring jsonPath = Resolve_GetItemJsonPath(pictosDesc.getItemUi);
+        const wstring rootName = Resolve_GetItemRootName(pictosDesc.id);
+        const wstring prototypeTagPrefix = Resolve_GetItemPrototypeTagPrefix(pictosDesc.id);
 
         UI_RuntimeLoader::UI_LoadDesc desc{};
         desc.levelIndex = levelIndex;
-        desc.jsonPath = presentation.jsonPath;
-        desc.prototypeTagPrefix = presentation.prototypeTagPrefix;
+        desc.jsonPath = jsonPath;
+        desc.prototypeTagPrefix = prototypeTagPrefix;
         desc.outUIByName = &loadedUIByName;
 
         CHECK_FAILED(UI_RuntimeLoader::Load_Document(desc), E_FAIL);
 
-        Shared<Engine::UI_Base> root = Find_UI(loadedUIByName, presentation.rootName);
+        Shared<Engine::UI_Base> root = Find_UI(loadedUIByName, rootName);
         CHECK_NULL(root, E_FAIL);
 
         root->Add_UIAnimationAsset(getItemAnimation);
-        _pictosRoots.emplace(presentation.id, root);
+        _pictosRoots.emplace(pictosDesc.id, root);
         _uiByName.insert(loadedUIByName.begin(), loadedUIByName.end());
     }
 
-    _root = Resolve_Root(kPictosPresentations.front().id);
+    if (!_pictosRoots.empty())
+        _root = _pictosRoots.begin()->second;
+
     CHECK_NULL(_root, E_FAIL);
 
     return S_OK;

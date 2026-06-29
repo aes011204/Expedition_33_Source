@@ -51,6 +51,12 @@ public:
         bool applyEventTrack,
         bool applyActorTransformTrack,
         bool forceRebuildContext = false);
+    void Preview_CurrentFrameExact(
+        float frameExact,
+        bool applyCameraTrack,
+        bool applyEventTrack,
+        bool applyActorTransformTrack,
+        bool forceRebuildContext = false);
     bool Sync_PreviewSequence(const CINEMATIC_SEQUENCE& sequence, int trackIndex = -1);
     void Set_ActorTransformTrackPreviewSuspended(bool suspended);
     void Stop_Sequence();
@@ -59,6 +65,7 @@ public:
     bool Is_CinematicPlaying() const;
     bool Is_CinematicPaused() const;
     int  Get_CurrentFrame() const;
+    float Get_CurrentFrameExact() const;
     Shared<GameObject> Get_BoundActor(const string& targetId) const;
     bool Is_ActorTransformTrackPreviewSuspended() const { return _suspendActorTransformTrackPreview; }
 
@@ -73,13 +80,13 @@ private:
         CameraTrackKind& outKind);
     bool Evaluate_ActorRelativeCameraTrack(
         const CINEMATIC_ACTOR_RELATIVE_CAMERA_TRACK& track,
-        int currentFrame,
+        float currentFrameExact,
         CINEMATIC_ACTOR_RELATIVE_CAMERA_KEYFRAME& outKeyframe) const;
     bool Build_ActorRelativeCameraPose(
         const CINEMATIC_ACTOR_RELATIVE_CAMERA_TRACK& track,
-        int currentFrame,
+        float currentFrameExact,
         CAMERAPOSE& outPose) const;
-    void Apply_ActiveCameraTrackPose(int currentFrame);
+    void Apply_ActiveCameraTrackPose(float currentFrameExact);
     static Vec3 Build_LookAtRotation(const Vec3& fromWorldPos, const Vec3& toWorldPos, const Vec3& fallbackRotation);
 
     struct BindingRuntimeState
@@ -115,17 +122,18 @@ private:
         bool spawnedBySequence,
         CinematicCleanupPolicy cleanupPolicy);
 
-    void Apply_ActorTransformTracks(int currentFrame);
+    void Apply_ActorTransformTracks(float currentFrameExact);
     bool Evaluate_ActorTransformTrack(
         const CINEMATIC_ACTOR_TRANSFORM_TRACK& track,
-        int currentFrame,
+        float currentFrameExact,
         Vec3& outPosition,
         Vec3& outRotation) const;
 
-    void Apply_BoundActorAnimationPreview(int currentFrame);
+    void Apply_BoundActorAnimationPreview(float currentFrameExact);
     void Set_BoundActorAnimationPaused(bool paused);
     void Update_BoundActorAnimations(float timeDelta);
     void Cleanup_Context(bool forceRemoveAllSpawned = false);
+    void Set_GameplayUIHiddenForCinematic(bool hidden) const;
 
 private:
     CINEMATIC_SEQUENCE _sequence{};

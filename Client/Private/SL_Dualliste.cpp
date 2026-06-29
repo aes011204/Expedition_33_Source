@@ -98,7 +98,10 @@ void SL_Dualliste::BeginPlay()
         _cloneSkillManager = SL_DuallisteCloneSkillManager::Create(GetSharedPtr<SL_Dualliste>());
 
     if (!_isCloneVisualOnly && _stateMachineCom)
-        _stateMachineCom->Change_State(SL_MonState::Intro);
+    {
+        _isIntroDone = true; // 진입 컷신에서 검 뽑기/돌진을 이미 보여줬으므로 전투 BT를 바로 열어준다.
+        _stateMachineCom->Change_State(SL_MonState::Idle);
+    }
 
     if (_movementCom)
     {
@@ -122,21 +125,27 @@ void SL_Dualliste::Update(float timeDelta)
     if (CLIENT->Is_BattleActive())
         return;
 
+    if (_cloneSkillManager)
+        _cloneSkillManager->Update(timeDelta);
+
+    if (_isCloneVisualOnly)
+    {
+        _body->Play_Animation(timeDelta);
+
+        if (_effectCom)
+            _effectCom->Update(timeDelta);
+
+        SL_Base::Update(timeDelta);
+        return;
+    }
+
     if (_isCinematicDriven)
     {
-        if (_cloneSkillManager)
-            _cloneSkillManager->Update(timeDelta);
+        if (_effectCom)
+            _effectCom->Update(timeDelta);
 
-        if (_isCloneVisualOnly)
-        {
-            _body->Play_Animation(timeDelta);
-
-            if (_effectCom)
-                _effectCom->Update(timeDelta);
-
-            SL_Base::Update(timeDelta);
-            return;
-        }
+        SL_Base::Update(timeDelta);
+        return;
     }
 
     Update_StunSystem(timeDelta);
@@ -364,6 +373,20 @@ Shared<ModelCom> SL_Dualliste::Get_ModelCom() const
     return _body ? _body->Get_Model() : nullptr;
 }
 
+bool SL_Dualliste::Try_GetSocketWorldPosition(const string& socketName, Vec3& outWorldPosition) const
+{
+    if (_body == nullptr)
+        return false;
+
+    const Matrix* socketMatrix = _body->Get_SocketBoneMatrixPtr(socketName);
+    if (socketMatrix == nullptr)
+        return false;
+
+    const Matrix socketWorldMatrix = *socketMatrix * _body->Get_CombinedWorldMatrix();
+    outWorldPosition = socketWorldMatrix.Translation();
+    return true;
+}
+
 bool SL_Dualliste::Play_Anim(Anim anim, float blendDuration, bool loop)
 {
     if (_body == nullptr)
@@ -562,11 +585,54 @@ void SL_Dualliste::Set_CinematicDriven(bool cinematicDriven)
 
     if (_movementCom)
     {
+        _movementCom->Set_CCTTransformSyncSuppressed(cinematicDriven);
         _movementCom->Clear_FollowMoveCommand();
         _movementCom->Apply_Input({});
         _movementCom->Stop_AllMovement();
         _movementCom->Stop_VerticalMovement();
+
+        if (cinematicDriven)
+        {
+            _restorePhysXCCTAfterCinematic =
+                _movementCom->Get_MoveBackend() == MovementCom::MoveBackend::PhysXCCT;
+            if (_restorePhysXCCTAfterCinematic)
+                _movementCom->Set_MoveBackend(MovementCom::MoveBackend::Sweep); // 시네마틱 transformTrack과 CCT 위치 보정이 싸우지 않게 잠깐 끈다.
+        }
+        else if (_restorePhysXCCTAfterCinematic)
+        {
+            _movementCom->Set_MoveBackend(MovementCom::MoveBackend::PhysXCCT);
+            _restorePhysXCCTAfterCinematic = false;
+        }
+
         _movementCom->Sync_RuntimePositionToTransform();
+    }
+
+    if (_colliderCom)
+    {
+        _colliderCom->Set_IsActive(!cinematicDriven);
+        if (cinematicDriven)
+            _colliderCom->Clear_Overlap();
+    }
+
+    if (_attackCom)
+    {
+        _attackCom->Set_IsActive(!cinematicDriven);
+        if (cinematicDriven)
+            _attackCom->Clear_Overlap();
+    }
+
+    if (_attackRCom)
+    {
+        _attackRCom->Set_IsActive(!cinematicDriven);
+        if (cinematicDriven)
+            _attackRCom->Clear_Overlap();
+    }
+
+    if (_attackLCom)
+    {
+        _attackLCom->Set_IsActive(!cinematicDriven);
+        if (cinematicDriven)
+            _attackLCom->Clear_Overlap();
     }
 
     if (_transformCom)

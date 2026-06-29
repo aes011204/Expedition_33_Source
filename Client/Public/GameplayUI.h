@@ -50,6 +50,8 @@ public:
 
     bool    Is_AnyMenuOpen() const;
     GameplayMenu Get_CurrentMenu() const; // 현재 최상위 메뉴 확인용
+    void    Set_CinematicUIHidden(bool hidden);
+    bool    Is_CinematicUIHidden() const { return _isCinematicUIHidden; }
 
     GameplayUI_World*           Get_WorldUI() const { return _worldUI.get(); }
     Shared<GameplayUI_Battle>   Get_BattleUI() const { return _battleUI; }
@@ -60,6 +62,7 @@ private:
     GameplayUIInputMode Resolve_InputMode() const;
     void                Handle_InputModeChanged(GameplayUIInputMode previousMode, GameplayUIInputMode currentMode);
     void                Rebuild_RuntimeUIEntryCache() const;
+    void                Close_RuntimeUIForCinematic();
 
 private:
     struct RuntimeUIEntryCache
@@ -80,6 +83,7 @@ private:
     GameplayUIInputMode         _lastInputMode = GameplayUIInputMode::World;
     FDelegateHandle             _editorStopHandle{};
     uint64                      _runtimeUIEntryFrameSerial = 0;
+    bool                        _isCinematicUIHidden = false;
     mutable RuntimeUIEntryCache _runtimeUIEntryCache{};
 
 public:

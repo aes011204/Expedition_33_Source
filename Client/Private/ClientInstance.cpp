@@ -17,6 +17,7 @@
 #include "PersistentObjectManager.h"
 #include "Player_WorldBase.h"
 #include "ResourceLoader.h"
+#include "RuntimeRuleStateService.h"
 #include "ScreenFadeTransition.h"
 #include "PreviewShotTable.h"
 #include "UIPreviewManager.h"
@@ -25,6 +26,7 @@
 #include "ClientScreenFxManager.h"
 #include "CinematicCamera.h"
 #include "CinematicSequenceRunner.h"
+#include "MovementCom.h"
 #include "PlayerInventory.h"
 #include "CostumeManager.h"
 #include "DialogueDB.h"
@@ -41,6 +43,7 @@
 #include "BattleFollowupManager.h"
 #include "Client_Constants.h"
 #include "Monster_WorldBase.h"
+#include "NPC_Base.h"
 
 IMPLEMENT_SINGLETON(ClientInstance)
 
@@ -51,8 +54,63 @@ namespace
     bool g_debugDisableGrassInstancedRender = false;
     bool g_debugDisableMapStaticMeshRender = false;
     bool g_debugDisableMapInstancedMeshShadow = false;
+    bool g_debugUseMapInstancedMeshShadowLOD = false;
     bool g_debugDisableGrassInstancedShadow = false;
     bool g_debugDisableMapStaticMeshShadow = false;
+
+    bool Should_CaptureReplayWorldObject(const wstring& layerTag, const Shared<GameObject>& gameObject)
+    {
+        if (gameObject == nullptr)
+            return false;
+
+        const ObjectType objectType = gameObject->Get_ObjectType();
+        if (objectType == ObjectType::FreeCamera ||
+            objectType == ObjectType::TargetCamera ||
+            objectType == ObjectType::Terrain ||
+            objectType == ObjectType::Landscape ||
+            objectType == ObjectType::Sky ||
+            objectType == ObjectType::Water ||
+            objectType == ObjectType::Foliage)
+        {
+            return false;
+        }
+
+        return layerTag != L"Layer_Player" &&
+            layerTag != L"Layer_MapStaticMesh" &&
+            layerTag != L"Layer_Camera" &&
+            layerTag != L"Layer_UI" &&
+            layerTag != L"Layer_Effect";
+    }
+
+    void Clear_EquippedPictosMissingFromInventory(
+        const vector<HeroPartyEntry>& heroEntries,
+        const Shared<PlayerInventory>& inventory)
+    {
+        if (inventory == nullptr)
+            return;
+
+        for (const HeroPartyEntry& entry : heroEntries)
+        {
+            const Shared<Player_WorldBase> hero = entry.hero;
+            if (hero == nullptr)
+                continue;
+
+            const Shared<PlayerStatCom> statCom = hero->Get_Component<PlayerStatCom>();
+            if (statCom == nullptr)
+                continue;
+
+            const auto equippedPictosIds = statCom->Get_EquippedPictosIds();
+            for (size_t slotIndex = 0; slotIndex < equippedPictosIds.size(); ++slotIndex)
+            {
+                const string& pictosId = equippedPictosIds[slotIndex];
+                if (pictosId.empty())
+                    continue;
+
+                if (!inventory->Is_PictosUnlocked(pictosId))
+                    statCom->Set_EquippedPictos(slotIndex, "");
+            }
+        }
+    }
 
     string Get_WeaponCharacterId(HeroId heroId)
     {
@@ -150,7 +208,7 @@ HRESULT ClientInstance::Initialize_Client(const ComPtr<Device>& device, const Co
     CHECK_NULL(_playerInventory, E_FAIL);
 
     // 일반 픽토스 일단은 전부 다 등록. 나중에 몬스터 잡기? 상점? 등에서 뭐 구매하게 만들 수 있으려나
-    _playerInventory->Ensure_DefaultUnlockedPictos(Get_AllPictosIds());
+    //_playerInventory->Ensure_DefaultUnlockedPictos(Get_AllPictosIds());
 
     // 무기 세팅
     vector<PlayerInventory::WeaponInventoryEntry> defaultUnlockedWeapons{};
@@ -226,7 +284,6 @@ HRESULT ClientInstance::Initialize_Client_ForEffectEditor(const ComPtr<Device>& 
 void ClientInstance::Update_Client(float timeDelta)
 {
     Update_FadeTransitions(timeDelta);
-    Capture_ReplayMonsterSnapshotIfNeeded();
 
     if (_heroManager)
         _heroManager->Update_HeroManager(timeDelta);
@@ -324,6 +381,16 @@ bool ClientInstance::Is_DebugDisableMapInstancedMeshShadow()
 void ClientInstance::Set_DebugDisableMapInstancedMeshShadow(bool disabled)
 {
     g_debugDisableMapInstancedMeshShadow = disabled;
+}
+
+bool ClientInstance::Is_DebugUseMapInstancedMeshShadowLOD()
+{
+    return g_debugUseMapInstancedMeshShadowLOD;
+}
+
+void ClientInstance::Set_DebugUseMapInstancedMeshShadowLOD(bool enabled)
+{
+    g_debugUseMapInstancedMeshShadowLOD = enabled;
 }
 
 bool ClientInstance::Is_DebugDisableGrassInstancedShadow()
@@ -756,10 +823,17 @@ void ClientInstance::Reset_CurrentLevelRuntimeState()
         _dialogueManager->EndDialogue(false);
 
     vector<Shared<GameObject>> duplicatePlayers{};
+    vector<Shared<NPC_Base>> replayNpcs{};
 
     GAME->Visit_CurrentLevelObjects(
-        [this, &duplicatePlayers](const wstring&, const Shared<GameObject>& gameObject)
+        [this, &duplicatePlayers, &replayNpcs](const wstring&, const Shared<GameObject>& gameObject)
         {
+            if (const Shared<NPC_Base> npc = dynamic_pointer_cast<NPC_Base>(gameObject))
+            {
+                replayNpcs.push_back(npc);
+                return;
+            }
+
             const Shared<Player_WorldBase> player =
                 dynamic_pointer_cast<Player_WorldBase>(gameObject);
             if (player == nullptr)
@@ -791,91 +865,301 @@ void ClientInstance::Reset_CurrentLevelRuntimeState()
     if (_heroManager)
         _heroManager->Reset_RuntimeToStart();
 
-    Respawn_ReplayMonstersFromSnapshot();
+    Restore_ReplayWorldObjectsFromSnapshot();
+
+    switch (static_cast<LevelType>(GAME->Current_LevelIndex()))
+    {
+    case LevelType::GamePlay:
+        RuntimeRuleStateService::Apply_ToCurrentRuntime(
+            RuntimeRuleStateService::Build_GameplayStartUnlocks(), false);
+        break;
+
+    case LevelType::GestralVillage:
+        RuntimeRuleStateService::Apply_ToCurrentRuntime(
+            RuntimeRuleStateService::Build_GestralVillageStartUnlocks(), false);
+        break;
+
+    default:
+        break;
+    }
+
+    for (const Shared<NPC_Base>& npc : replayNpcs)
+    {
+        if (npc == nullptr)
+            continue;
+
+        npc->Reset_DialogueVisualOffset();
+        npc->Reset_ToDefaultAnimation();
+        npc->Restore_AfterBattleExit();
+    }
 
     GAME->Set_GameplayInputMode(GameplayInputMode::Normal);
     GAME->Set_PlayerInputBlocked(false);
     GAME->Lock_Mouse();
 }
 
-void ClientInstance::Capture_ReplayMonsterSnapshotIfNeeded()
+void ClientInstance::Capture_InitialWorldSnapshot()
+{
+    Clear_ReplayWorldSnapshot();
+    Capture_ReplayWorldSnapshotIfNeeded();
+    Capture_ReplayCameraSnapshot();
+}
+
+void ClientInstance::Capture_ReplayWorldSnapshotIfNeeded()
 {
     const uint32 levelIndex = GAME->Current_LevelIndex();
-    if (_replayMonsterSnapshotLevelIndex != levelIndex)
+    if (_replayWorldSnapshotLevelIndex != levelIndex)
     {
-        _replayMonsterSnapshotLevelIndex = levelIndex;
-        _replayMonsterSpawnObjects.clear();
-        _replayMonsterRuntimeAuthoringLoaded.clear();
-        _replayMonsterSnapshotCaptured = false;
+        _replayWorldSnapshotLevelIndex = levelIndex;
+        _replayWorldSpawnObjects.clear();
+        _replayWorldRuntimeAuthoringLoaded.clear();
+        _replayWorldInventoryJson = json::object();
+        _replayWorldUnlockManagerJson = json::object();
+        _replayWorldSnapshotCaptured = false;
     }
 
-    if (_replayMonsterSnapshotCaptured)
+    if (_replayWorldSnapshotCaptured)
         return;
+
+    if (_playerInventory)
+        _replayWorldInventoryJson = _playerInventory->Create_SaveJson();
+
+    if (_unlockManager)
+        _replayWorldUnlockManagerJson = _unlockManager->Create_SaveJson();
 
     GAME->Visit_CurrentLevelObjects(
         [this](const wstring& layerTag, const Shared<GameObject>& gameObject)
         {
-            if (dynamic_pointer_cast<Monster_WorldBase>(gameObject) == nullptr)
+            if (!Should_CaptureReplayWorldObject(layerTag, gameObject))
                 return;
 
             RuntimeCheckpointIO::WorldObject object{};
             object.layerTag = layerTag;
             object.objectJson = gameObject->To_Json();
-            _replayMonsterSpawnObjects.emplace_back(std::move(object));
-            _replayMonsterRuntimeAuthoringLoaded.emplace_back(gameObject->Is_RuntimeAuthoringLoaded() ? 1 : 0);
+            _replayWorldSpawnObjects.emplace_back(std::move(object));
+            _replayWorldRuntimeAuthoringLoaded.emplace_back(gameObject->Is_RuntimeAuthoringLoaded() ? 1 : 0);
         });
 
-    _replayMonsterSnapshotCaptured = true;
+    _replayWorldSnapshotCaptured = true;
 }
 
-void ClientInstance::Respawn_ReplayMonstersFromSnapshot()
+void ClientInstance::Capture_ReplayCameraSnapshot()
 {
-    Capture_ReplayMonsterSnapshotIfNeeded();
+    _replayCameraSnapshot = {};
 
-    if (_replayMonsterSpawnObjects.empty())
-        return;
+    if (const Shared<Camera> activeCamera = GAME->Get_ActiveCamera())
+        _replayCameraSnapshot.activeType = activeCamera->Get_ObjectType();
+
+    const auto captureCameraTransform =
+        [](ObjectType cameraType, ReplayCameraTransformState& outState)
+        {
+            outState = {};
+
+            const Shared<Camera> camera = GAME->Get_CameraByType(cameraType);
+            const Shared<TransformCom> transform = camera ? camera->Get_Transform() : nullptr;
+            if (camera == nullptr || transform == nullptr)
+                return;
+
+            outState.hasCamera = true;
+            outState.position = transform->Get_WorldPosition();
+            outState.rotation = transform->Get_WorldRotationEuler();
+            outState.yaw = camera->Get_Yaw();
+            outState.pitch = camera->Get_Pitch();
+            outState.fovY = camera->Get_FovY();
+            outState.nearPlane = camera->Get_Near();
+            outState.farPlane = camera->Get_Far();
+        };
+
+    captureCameraTransform(ObjectType::TargetCamera, _replayCameraSnapshot.targetCamera);
+    captureCameraTransform(ObjectType::FreeCamera, _replayCameraSnapshot.freeCamera);
+
+    if (const Shared<TargetCamera> targetCamera =
+        dynamic_pointer_cast<TargetCamera>(GAME->Get_CameraByType(ObjectType::TargetCamera)))
+    {
+        _replayCameraSnapshot.targetMode = targetCamera->Get_CurrentMode();
+    }
+
+    _replayCameraSnapshot.captured = true;
+}
+
+void ClientInstance::Restore_ReplayWorldObjectsFromSnapshot()
+{
+    Capture_ReplayWorldSnapshotIfNeeded();
+
+    if (_playerInventory && _replayWorldInventoryJson.is_object())
+        _playerInventory->Apply_SaveJson(_replayWorldInventoryJson);
+
+    if (_unlockManager && _replayWorldUnlockManagerJson.is_object())
+        _unlockManager->Apply_SaveJson(_replayWorldUnlockManagerJson, false, false);
+
+    Clear_EquippedPictosMissingFromInventory(Get_HeroEntries(), _playerInventory);
+
+    GAME->Flush_RemovedGameObjects();
 
     const uint32 levelIndex = GAME->Current_LevelIndex();
-    vector<Shared<GameObject>> monstersToRemove{};
+    struct CurrentReplayObject
+    {
+        wstring layerTag{};
+        Shared<GameObject> gameObject{};
+        bool consumed = false;
+    };
+
+    vector<CurrentReplayObject> currentObjects{};
 
     GAME->Visit_CurrentLevelObjects(
-        [&monstersToRemove](const wstring&, const Shared<GameObject>& gameObject)
+        [&currentObjects](const wstring& layerTag, const Shared<GameObject>& gameObject)
         {
-            if (dynamic_pointer_cast<Monster_WorldBase>(gameObject) != nullptr)
-                monstersToRemove.emplace_back(gameObject);
+            if (Should_CaptureReplayWorldObject(layerTag, gameObject))
+                currentObjects.push_back(CurrentReplayObject{ layerTag, gameObject, false });
         });
 
-    for (const Shared<GameObject>& monster : monstersToRemove)
-        GAME->Remove_GameObject(levelIndex, monster);
+    const auto matchesSnapshotObject =
+        [](const CurrentReplayObject& currentObject, const RuntimeCheckpointIO::WorldObject& snapshotObject)
+        {
+            if (currentObject.gameObject == nullptr || currentObject.layerTag != snapshotObject.layerTag)
+                return false;
 
-    if (!monstersToRemove.empty())
-        GAME->Flush_RemovedGameObjects();
+            const json& snapshotJson = snapshotObject.objectJson;
+            const string snapshotClass = snapshotJson.value("static_class", string{});
+            const string currentClass = currentObject.gameObject->To_Json().value("static_class", string{});
+            if (snapshotClass.empty() || currentClass != snapshotClass)
+                return false;
 
-    for (size_t index = 0; index < _replayMonsterSpawnObjects.size(); ++index)
+            if (snapshotJson.contains("__runtime_authoring_source") &&
+                snapshotJson["__runtime_authoring_source"].is_object())
+            {
+                if (!currentObject.gameObject->Has_RuntimeAuthoringSource())
+                    return false;
+
+                const json& source = snapshotJson["__runtime_authoring_source"];
+                return String::ToString(currentObject.gameObject->Get_RuntimeAuthoringMapPath()) ==
+                    source.value("map_path", string{}) &&
+                    currentObject.gameObject->Get_RuntimeAuthoringCollectionKey() ==
+                    source.value("collection_key", string{}) &&
+                    currentObject.gameObject->Get_RuntimeAuthoringNodeIndex() ==
+                    source.value("node_index", size_t{});
+            }
+
+            const string snapshotPrefab = snapshotJson.value("source_prefab", string{});
+            if (!snapshotPrefab.empty())
+                return currentObject.gameObject->Get_SourcePrefabName() == snapshotPrefab;
+
+            return true;
+        };
+
+    const auto restoreObjectState =
+        [](const Shared<GameObject>& gameObject, const json& objectJson, bool runtimeAuthoringLoaded)
+        {
+            if (gameObject == nullptr)
+                return;
+
+            gameObject->From_Json(objectJson);
+            gameObject->Set_RuntimeAuthoringLoaded(runtimeAuthoringLoaded);
+            gameObject->Set_MarkDestroy(false);
+            gameObject->Set_Visible(true);
+
+            if (Shared<MovementCom> movement = gameObject->Get_Component<MovementCom>())
+            {
+                movement->Sync_RuntimePositionToTransform();
+                movement->Clear_FollowMoveCommand();
+                movement->Apply_Input({});
+                movement->Stop_AllMovement();
+            }
+
+            if (const Shared<Monster_WorldBase> worldMonster = dynamic_pointer_cast<Monster_WorldBase>(gameObject))
+                worldMonster->Restore_AfterBattleExit();
+        };
+
+    for (size_t index = 0; index < _replayWorldSpawnObjects.size(); ++index)
     {
-        const RuntimeCheckpointIO::WorldObject& object = _replayMonsterSpawnObjects[index];
+        const RuntimeCheckpointIO::WorldObject& object = _replayWorldSpawnObjects[index];
+        const bool runtimeAuthoringLoaded =
+            index < _replayWorldRuntimeAuthoringLoaded.size() &&
+            _replayWorldRuntimeAuthoringLoaded[index] != 0;
+
+        Shared<GameObject> matchedObject{};
+        for (CurrentReplayObject& currentObject : currentObjects)
+        {
+            if (currentObject.consumed || !matchesSnapshotObject(currentObject, object))
+                continue;
+
+            currentObject.consumed = true;
+            matchedObject = currentObject.gameObject;
+            break;
+        }
+
+        if (matchedObject != nullptr)
+        {
+            restoreObjectState(matchedObject, object.objectJson, runtimeAuthoringLoaded);
+            continue;
+        }
+
         Shared<GameObject> gameObject = GAME->Instantiate_GameObjectJson(object.objectJson);
         if (gameObject == nullptr)
             continue;
 
-        const bool runtimeAuthoringLoaded =
-            index < _replayMonsterRuntimeAuthoringLoaded.size() &&
-            _replayMonsterRuntimeAuthoringLoaded[index] != 0;
-        gameObject->Set_RuntimeAuthoringLoaded(runtimeAuthoringLoaded);
-
-        if (const Shared<Monster_WorldBase> worldMonster = dynamic_pointer_cast<Monster_WorldBase>(gameObject))
-            worldMonster->Restore_AfterBattleExit();
-
+        restoreObjectState(gameObject, object.objectJson, runtimeAuthoringLoaded);
         (void)GAME->Add_GameObject(levelIndex, object.layerTag, gameObject);
+    }
+
+    Restore_ReplayCameraSnapshot();
+}
+
+void ClientInstance::Restore_ReplayCameraSnapshot()
+{
+    if (!_replayCameraSnapshot.captured)
+        return;
+
+    const auto restoreCameraTransform =
+        [](ObjectType cameraType, const ReplayCameraTransformState& state)
+        {
+            if (!state.hasCamera)
+                return;
+
+            const Shared<Camera> camera = GAME->Get_CameraByType(cameraType);
+            const Shared<TransformCom> transform = camera ? camera->Get_Transform() : nullptr;
+            if (camera == nullptr || transform == nullptr)
+                return;
+
+            transform->Set_WorldPosition(state.position);
+            transform->Set_WorldRotationEuler(state.rotation);
+            transform->Update_WorldMatrix();
+            camera->Set_Yaw(state.yaw);
+            camera->Set_Pitch(state.pitch);
+            camera->Set_FovY(state.fovY);
+            camera->Set_Near(state.nearPlane);
+            camera->Set_Far(state.farPlane);
+        };
+
+    restoreCameraTransform(ObjectType::FreeCamera, _replayCameraSnapshot.freeCamera);
+
+    if (const Shared<TargetCamera> targetCamera =
+        dynamic_pointer_cast<TargetCamera>(GAME->Get_CameraByType(ObjectType::TargetCamera)))
+    {
+        targetCamera->Change_Mode(_replayCameraSnapshot.targetMode);
+        restoreCameraTransform(ObjectType::TargetCamera, _replayCameraSnapshot.targetCamera);
+        if (_replayCameraSnapshot.targetCamera.hasCamera)
+            targetCamera->Set_OrbitAngles(_replayCameraSnapshot.targetCamera.yaw, _replayCameraSnapshot.targetCamera.pitch);
+        targetCamera->Refresh_TargetTransform();
+        targetCamera->Reset_RuntimeCameraState();
+    }
+
+    if (_replayCameraSnapshot.activeType == ObjectType::TargetCamera ||
+        _replayCameraSnapshot.activeType == ObjectType::FreeCamera)
+    {
+        GAME->Activate_CameraByType(_replayCameraSnapshot.activeType);
     }
 }
 
-void ClientInstance::Clear_ReplayMonsterSnapshot()
+void ClientInstance::Clear_ReplayWorldSnapshot()
 {
-    _replayMonsterSpawnObjects.clear();
-    _replayMonsterRuntimeAuthoringLoaded.clear();
-    _replayMonsterSnapshotLevelIndex = UINT32_MAX;
-    _replayMonsterSnapshotCaptured = false;
+    _replayWorldSpawnObjects.clear();
+    _replayWorldRuntimeAuthoringLoaded.clear();
+    _replayWorldInventoryJson = json::object();
+    _replayWorldUnlockManagerJson = json::object();
+    _replayWorldSnapshotLevelIndex = UINT32_MAX;
+    _replayWorldSnapshotCaptured = false;
+    _replayCameraSnapshot = {};
 }
 
 bool ClientInstance::Is_FadeTransitionPlaying() const
@@ -1082,6 +1366,24 @@ void ClientInstance::Preview_CurrentSequenceFrame(
         forceRebuildContext);
 }
 
+void ClientInstance::Preview_CurrentSequenceFrameExact(
+    float frameExact,
+    bool applyCameraTrack,
+    bool applyEventTrack,
+    bool applyActorTransformTrack,
+    bool forceRebuildContext)
+{
+    if (_cinematicSequenceRunner == nullptr)
+        return;
+
+    _cinematicSequenceRunner->Preview_CurrentFrameExact(
+        frameExact,
+        applyCameraTrack,
+        applyEventTrack,
+        applyActorTransformTrack,
+        forceRebuildContext);
+}
+
 bool ClientInstance::Sync_CinematicPreviewSequence(
     const CINEMATIC_SEQUENCE& sequence,
     int trackIndex)
@@ -1116,6 +1418,14 @@ int ClientInstance::Get_CurrentSequenceFrame() const
         return 0;
 
     return _cinematicSequenceRunner->Get_CurrentFrame();
+}
+
+float ClientInstance::Get_CurrentSequenceFrameExact() const
+{
+    if (_cinematicSequenceRunner == nullptr)
+        return 0.f;
+
+    return _cinematicSequenceRunner->Get_CurrentFrameExact();
 }
 
 Shared<GameObject> ClientInstance::Get_CinematicBoundActor(const string& targetId) const
@@ -1485,6 +1795,14 @@ void ClientInstance::EndDialogue(bool restoreWorldState)
         _dialogueManager->EndDialogue(restoreWorldState);
 }
 
+void ClientInstance::Reset_LastDialogueNpcAnimationToStart()
+{
+    if (_dialogueManager == nullptr)
+        return;
+
+    _dialogueManager->Reset_LastDialogueNpcAnimationToStart();
+}
+
 bool ClientInstance::IsDialogueActive() const
 {
     return _dialogueManager && _dialogueManager->IsActive();
@@ -1504,6 +1822,17 @@ void ClientInstance::RemoveDialogueInteractionOverlap()
 {
     if (_dialogueInteractionOverlapCount > 0)
         --_dialogueInteractionOverlapCount;
+}
+
+void ClientInstance::AddItemInteractionOverlap()
+{
+    ++_itemInteractionOverlapCount;
+}
+
+void ClientInstance::RemoveItemInteractionOverlap()
+{
+    if (_itemInteractionOverlapCount > 0)
+        --_itemInteractionOverlapCount;
 }
 
 HRESULT ClientInstance::Ready_ResourceLoader()
@@ -1554,7 +1883,7 @@ void ClientInstance::Release_Client()
     ReleaseManager(_screenFxManager);
     ReleaseManager(_soulLikeController);
 
-    Clear_ReplayMonsterSnapshot();
+    Clear_ReplayWorldSnapshot();
 
     _context.Reset();
     _device.Reset();

@@ -9,6 +9,7 @@
 #include "UI_BattleVictory.h"
 #include "UI_ReactionResult.h"
 #include "UI_SL_HUD.h"
+#include "UI_SL_LockOn.h"
 #include "UI_Utils.h"
 
 using namespace UI_Utils;
@@ -42,6 +43,7 @@ HRESULT GamePlayUI_SL::Initialize(uint32 levelIndex)
 void GamePlayUI_SL::Update(float timeDelta)
 {
     Update_SLHud(timeDelta);
+    Update_LockOn(timeDelta);
     Update_ReactionResult(timeDelta);
     Update_BattleVictory(timeDelta);
 }
@@ -53,6 +55,9 @@ void GamePlayUI_SL::Handle_EditorStopRuntime()
 
     if (_reactionResult)
         _reactionResult->Close();
+
+    if (_lockOn)
+        _lockOn->Clear_Target();
 
     _isVictoryUiActive = false;
     _isVictoryConfirmPending = false;
@@ -81,6 +86,9 @@ vector<RuntimeUIEntry> GamePlayUI_SL::Get_RuntimeUIEntries() const
 
     if (_slHud)
         _slHud->Append_RuntimeUIEntries(entries, "SoulLike", "SLHUD");
+
+    if (_lockOn)
+        _lockOn->Append_RuntimeUIEntries(entries, "SoulLike", "LockOn");
 
     if (_battleVictory)
         _battleVictory->Append_RuntimeUIEntries(entries, "SoulLike", "BattleVictory");
@@ -116,6 +124,15 @@ bool GamePlayUI_SL::Ensure_ReactionResult()
 
     _reactionResult = UI_ReactionResult::Create(_levelIndex);
     return _reactionResult != nullptr;
+}
+
+bool GamePlayUI_SL::Ensure_LockOn()
+{
+    if (_lockOn)
+        return true;
+
+    _lockOn = UI_SL_LockOn::Create(_levelIndex);
+    return _lockOn != nullptr;
 }
 
 void GamePlayUI_SL::Show_ParryResult(const Vec3& worldPos)
@@ -164,6 +181,7 @@ void GamePlayUI_SL::Update_SLHud(float timeDelta)
     _slHud->Update_PlayerHUD(player);
     _slHud->Set_EstherGaugeRatio(controller ? controller->Get_EstherGaugeRatio() : 0.f);
     _slHud->Update_BossHUD(monster, timeDelta);
+    _slHud->Update(timeDelta);
 }
 
 void GamePlayUI_SL::Update_ReactionResult(float timeDelta)
@@ -178,6 +196,32 @@ void GamePlayUI_SL::Update_ReactionResult(float timeDelta)
     }
 
     _reactionResult->Update(timeDelta);
+}
+
+void GamePlayUI_SL::Update_LockOn(float timeDelta)
+{
+    UNREFERENCED_PARAMETER(timeDelta);
+
+    if (!CLIENT->Is_SoulLikeBattleActive())
+    {
+        if (_lockOn)
+            _lockOn->Clear_Target();
+        return;
+    }
+
+    const Shared<SoulLikeController> controller = CLIENT->Get_SoulLikeController();
+    const Shared<SL_Maelle> player = controller ? controller->Get_Player() : nullptr;
+    if (player == nullptr)
+    {
+        if (_lockOn)
+            _lockOn->Clear_Target();
+        return;
+    }
+
+    if (!Ensure_LockOn())
+        return;
+
+    _lockOn->Update_Target(player);
 }
 
 void GamePlayUI_SL::Update_BattleVictory(float timeDelta)
@@ -258,6 +302,7 @@ vector<UI_BattleVictory::VictoryPlayerStatDesc> GamePlayUI_SL::Build_VictoryPlay
     stat.prevLevel = stat.level;
     stat.prevExp = stat.curExp;
     stat.prevMaxExp = stat.maxExp;
+    stat.equippedPictosIds = playerStat->Get_EquippedPictosIds(); // SoulLike 결과창도 현재 장착 Pictos만 center slot에 표시한다.
 
     if (rewardExp > 0)
     {
@@ -343,6 +388,12 @@ void GamePlayUI_SL::Free()
     {
         _battleVictory->Free();
         _battleVictory.reset();
+    }
+
+    if (_lockOn)
+    {
+        _lockOn->Free();
+        _lockOn.reset();
     }
 
     if (_reactionResult)

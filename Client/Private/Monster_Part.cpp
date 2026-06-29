@@ -7,6 +7,7 @@
 #include "AnimComputeRuntime.h"
 #include "ComputeShaderCom.h"
 #include "EffectCom.h"
+#include "PreviewRimFeature.h"
 #include "SwitchDissolveFeature.h"
 
 #include <filesystem>
@@ -201,7 +202,10 @@ HRESULT Monster_Part::Render()
         return E_FAIL;
 
     CHECK_FAILED_THROTTLED(
-        EffectCom::Bind_DrawFeatures(GetSharedPtr<Monster_Part>(), _shader.get(), DrawFeatureFlagDissolve),
+        EffectCom::Bind_DrawFeatures(
+            GetSharedPtr<Monster_Part>(),
+            _shader.get(),
+            DrawFeatureFlagDissolve | DrawFeatureFlagPreviewRim),
         60,
         E_FAIL
     );

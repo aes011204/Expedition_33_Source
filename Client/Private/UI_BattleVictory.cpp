@@ -16,9 +16,30 @@ namespace
 {
     constexpr wchar_t kBattleVictoryIntroAnimationName[] = L"BattleVictory";
     constexpr wchar_t kBattleVictoryOutroAnimationName[] = L"BattleVictory_Outro";
+    constexpr wchar_t kBattleRewardPictosIntroAnimationName[] = L"BattleReward_Get_Pictos_Intro";
+    constexpr wchar_t kBattleRewardPictosTextLoopAnimationName[] = L"BattleReward_Get_Pictos_Text_Loop";
+    constexpr wchar_t kBattleRewardPictosImageLoopAnimationName[] = L"BattleReward_Get_Pictos_Image_Loop";
+    constexpr wchar_t kBattleRewardPictosIntroAnimPath[] = L"UI/UI_Animations/BattleSystem/BattleReward_Get_Pictos_Intro";
+    constexpr wchar_t kBattleRewardPictosTextLoopAnimPath[] = L"UI/UI_Animations/BattleSystem/BattleReward_Get_Pictos_Text_Loop";
+    constexpr wchar_t kBattleRewardPictosImageLoopAnimPath[] = L"UI/UI_Animations/BattleSystem/BattleReward_Get_Pictos_Image_Loop";
     constexpr wchar_t kBattleVictoryRuntimeMonsterPortraitTag[] = L"BattleVictory_Runtime_DefeatedMonsterPortrait";
     constexpr wchar_t kBattleVictoryPortraitMaskPath[] = L"../Bin/Resources/Textures/UI/Battle/HUD/Frames/T_UI_SquareIconMask.png";
     constexpr float kBattleVictoryMonsterPortraitSpacing = 86.f;
+    constexpr const wchar_t* kBattleVictoryPictosSlotNames[3] =
+    {
+        L"First",
+        L"Second",
+        L"Third",
+    };
+    constexpr const char* kBattleVictoryPictosIds[6] =
+    {
+        "AugmentedAim",
+        "AugmentedAttack",
+        "Roulette",
+        "WarmingUp",
+        "EnergisingTurn",
+        "GlassCannon",
+    };
 
     float Resolve_BattleVictoryIntroDurationSec()
     {
@@ -37,6 +58,26 @@ namespace
         outroAnimation.endFrame = 15;
         return Get_KeyframeAnimationDurationSec(outroAnimation);
     }
+
+    float Resolve_BattleRewardPictosIntroDurationSec()
+    {
+        UI_KeyframeAnimationAsset introAnimation{};
+        introAnimation.fps = 40;
+        introAnimation.startFrame = 0;
+        introAnimation.endFrame = 60;
+        return Get_KeyframeAnimationDurationSec(introAnimation);
+    }
+
+    bool Is_RewardPictosOwnedUIName(const wstring& uiName, const string& pictosId)
+    {
+        const wstring primaryToken = L"BattleReward_Get_" + String::ToWString(pictosId);
+        if (uiName.find(primaryToken) != wstring::npos)
+            return true;
+
+        // AugmentedAttack 마크/설명 일부는 json authoring 이름에 Get이 한 번 더 들어가 있다.
+        const wstring alternateToken = L"BattleReward_Get_Get_" + String::ToWString(pictosId);
+        return uiName.find(alternateToken) != wstring::npos;
+    }
 }
 
 HRESULT UI_BattleVictory::Initialize(uint32 levelIndex)
@@ -48,6 +89,7 @@ HRESULT UI_BattleVictory::Initialize(uint32 levelIndex)
 
     _introDuration = Resolve_BattleVictoryIntroDurationSec();
     _outroDuration = Resolve_BattleVictoryOutroDurationSec();
+    _rewardPictosIntroDuration = Resolve_BattleRewardPictosIntroDurationSec();
 
     Close_Immediately();
 
@@ -65,6 +107,8 @@ void UI_BattleVictory::Update(float timeDelta)
         Update_ExpGauge(timeDelta);
         Update_RewardNumberTweens(timeDelta);
     }
+
+    Update_RewardPictosAnimations(timeDelta);
 
     if (!_isClosingWithOutro)
         return;
@@ -103,6 +147,7 @@ void UI_BattleVictory::Open()
 
     UI_RuntimePanelBase::Open();
     Play_TargetAnimation(kBattleVictoryIntroAnimationName);
+    Restart_RewardPictosAnimations();
 }
 
 void UI_BattleVictory::Close()
@@ -147,6 +192,14 @@ void UI_BattleVictory::Close_Immediately()
         if (portrait)
             portrait->Close();
     }
+
+    for (PlayerSlot& slot : _playerSlots)
+    {
+        for (EquippedPictosSlot& pictosSlot : slot.equippedPictosSlots)
+            Close_EquippedPictosSlot(pictosSlot);
+    }
+
+    Close_RewardPictosPanels();
 }
 
 void UI_BattleVictory::Set_PlayerStatus(const vector<VictoryPlayerStatDesc>& stats)
@@ -157,6 +210,9 @@ void UI_BattleVictory::Set_PlayerStatus(const vector<VictoryPlayerStatDesc>& sta
             slot.root->Close();
 
         slot.isAnimating = false;
+
+        for (EquippedPictosSlot& pictosSlot : slot.equippedPictosSlots)
+            Close_EquippedPictosSlot(pictosSlot);
     }
 
     for (const auto& stat : stats)
@@ -198,6 +254,34 @@ HRESULT UI_BattleVictory::Bind_UI()
         slot.levelText = Find_TypedUI<UI_Text>(_uiByName, L"Text_" + prefix + L"_Level_Value");
         slot.expGauge = Find_TypedUI<UI_Image>(_uiByName, L"Text_" + prefix + L"_EXP_Gauge");
 
+        for (uint32 slotIndex = 0; slotIndex < slot.equippedPictosSlots.size(); ++slotIndex)
+        {
+            const wstring slotName = kBattleVictoryPictosSlotNames[slotIndex];
+            const wstring slotPrefix = L"BattleVictory_Frame_" + prefix + L"_Equiped_" + slotName + L"_Pictos";
+            EquippedPictosSlot& pictosSlot = slot.equippedPictosSlots[slotIndex];
+
+            pictosSlot.root = Find_UI(_uiByName, L"Panel_" + slotPrefix);
+            pictosSlot.markFrame = Find_TypedUI<UI_Image>(_uiByName, L"Image_" + slotPrefix + L"_Mark_Frame");
+            pictosSlot.nameText = Find_TypedUI<UI_Text>(_uiByName, L"Text_" + slotPrefix);
+
+            CHECK_NULL(pictosSlot.root, E_FAIL);
+            CHECK_NULL(pictosSlot.markFrame, E_FAIL);
+            CHECK_NULL(pictosSlot.nameText, E_FAIL);
+
+            pictosSlot.markImagesByPictosId.clear();
+            for (const char* pictosId : kBattleVictoryPictosIds)
+            {
+                Shared<UI_Image> markImage = Find_TypedUI<UI_Image>(
+                    _uiByName,
+                    L"Image_" + slotPrefix + L"_Mark_" + String::ToWString(pictosId));
+                CHECK_NULL(markImage, E_FAIL);
+
+                pictosSlot.markImagesByPictosId[pictosId] = markImage;
+            }
+
+            Close_EquippedPictosSlot(pictosSlot); // authoring visible 기본값을 실제 장착 데이터가 들어오기 전까지 숨긴다.
+        }
+
         CHECK_NULL(slot.root, E_FAIL);
         CHECK_NULL(slot.portrait, E_FAIL);
         CHECK_NULL(slot.nameText, E_FAIL);
@@ -209,6 +293,64 @@ HRESULT UI_BattleVictory::Bind_UI()
         slot.expGauge->Set_UseFillRatio(true);
         slot.expGauge->Set_FillOrigin(UI_Image::FillOrigin::LeftToRight);
     }
+
+    _rewardPictosRoot = Find_UI(_uiByName, L"Panel_BattleReward_Get_Pictos");
+    _rewardPictosFrame = Find_TypedUI<UI_Image>(_uiByName, L"Image_BattleReward_Get_Pictos_Frame");
+    CHECK_NULL(_rewardPictosRoot, E_FAIL);
+    CHECK_NULL(_rewardPictosFrame, E_FAIL);
+
+    _rewardPictosPanelsById.clear();
+    for (const char* pictosId : kBattleVictoryPictosIds)
+    {
+        RewardPictosPanel panel{};
+        panel.pictosId = pictosId;
+
+        const wstring pictosName = String::ToWString(pictosId);
+        panel.root = Find_UI(_uiByName, L"Panel_BattleReward_Get_" + pictosName);
+        panel.nameText = Find_TypedUI<UI_Text>(_uiByName, L"Text_BattleReward_Get_" + pictosName);
+        panel.markImage = Find_TypedUI<UI_Image>(_uiByName, L"Image_BattleReward_Get_" + pictosName + L"_Mark");
+
+        if (panel.markImage == nullptr)
+            panel.markImage = Find_TypedUI<UI_Image>(_uiByName, L"Image_BattleReward_Get_Get_" + pictosName + L"_Mark");
+
+        CHECK_NULL(panel.root, E_FAIL);
+        CHECK_NULL(panel.nameText, E_FAIL);
+        CHECK_NULL(panel.markImage, E_FAIL);
+
+        for (auto& [uiName, ui] : _uiByName)
+        {
+            if (ui == nullptr)
+                continue;
+
+            if (Is_RewardPictosOwnedUIName(uiName, pictosId))
+                panel.ownedUis.push_back(ui);
+        }
+
+        _rewardPictosPanelsById.emplace(pictosId, std::move(panel));
+    }
+
+    UI_KeyframeAnimationAsset rewardPictosIntroAnimation{};
+    UI_KeyframeAnimationAsset rewardPictosTextLoopAnimation{};
+    UI_KeyframeAnimationAsset rewardPictosImageLoopAnimation{};
+    CHECK_TRUE(UI_RuntimeLoader::Load_PublicAnimationAsset(kBattleRewardPictosIntroAnimPath, rewardPictosIntroAnimation), E_FAIL);
+    CHECK_TRUE(UI_RuntimeLoader::Load_PublicAnimationAsset(kBattleRewardPictosTextLoopAnimPath, rewardPictosTextLoopAnimation), E_FAIL);
+    CHECK_TRUE(UI_RuntimeLoader::Load_PublicAnimationAsset(kBattleRewardPictosImageLoopAnimPath, rewardPictosImageLoopAnimation), E_FAIL);
+
+    for (auto& [pictosId, panel] : _rewardPictosPanelsById)
+    {
+        UNREFERENCED_PARAMETER(pictosId);
+
+        if (panel.root)
+            panel.root->Add_UIAnimationAsset(rewardPictosIntroAnimation); // Public_Animation은 animationPaths가 아니라 대상 UI에 직접 붙여야 재생된다.
+
+        if (panel.nameText)
+            panel.nameText->Add_UIAnimationAsset(rewardPictosTextLoopAnimation);
+
+        if (panel.markImage)
+            panel.markImage->Add_UIAnimationAsset(rewardPictosImageLoopAnimation);
+    }
+
+    Close_RewardPictosPanels();
 
     _rewardExpText = Find_TypedUI<UI_Text>(_uiByName, L"Text_EXP_Value");
     _rewardExpBgText = Find_TypedUI<UI_Text>(_uiByName, L"Text_EXP_Value_BG");
@@ -317,6 +459,8 @@ void UI_BattleVictory::Apply_PlayerStat(const VictoryPlayerStatDesc& stat)
         const float startRatio = slot.startExp / max(slot.startMaxExp, 1.f);
         slot.expGauge->Set_FillRatio(clamp(startRatio, 0.f, 1.f));
     }
+
+    Apply_EquippedPictos(slot, stat.equippedPictosIds);
 }
 
 void UI_BattleVictory::Apply_VictorySummary(const VictorySummaryDesc& summary)
@@ -329,7 +473,74 @@ void UI_BattleVictory::Apply_VictorySummary(const VictorySummaryDesc& summary)
     Set_UIntText(_parrySuccessText, summary.parrySuccessCount);
     Set_UIntText(_dodgeSuccessText, summary.dodgeSuccessCount);
     Set_WStringText(_clearTimeText, Format_ClearTime(summary.elapsedSec));
+    Apply_RewardPictosPanels(summary.rewardPictosIds);
     Apply_DefeatedMonsterPortraits(summary.defeatedMonsterPortraitGuids);
+}
+
+void UI_BattleVictory::Apply_EquippedPictos(PlayerSlot& playerSlot, const array<string, 3>& equippedPictosIds)
+{
+    for (size_t i = 0; i < playerSlot.equippedPictosSlots.size(); ++i)
+    {
+        EquippedPictosSlot& slot = playerSlot.equippedPictosSlots[i];
+        Close_EquippedPictosSlot(slot); // 이전 캐릭터/이전 결과창 잔상을 먼저 모두 내린다.
+
+        const string& pictosId = equippedPictosIds[i];
+        if (pictosId.empty())
+            continue;
+
+        const GameDataTable::PictosDesc* pictosDesc = CLIENT->Get_PictosDesc(pictosId);
+        if (pictosDesc == nullptr)
+            continue;
+
+        Show_EquippedPictosSlot(slot, pictosId, pictosDesc->name);
+    }
+}
+
+void UI_BattleVictory::Apply_RewardPictosPanels(const vector<string>& rewardPictosIds)
+{
+    Close_RewardPictosPanels();
+    _activeRewardPictosIds.clear();
+
+    for (const string& pictosId : rewardPictosIds)
+    {
+        auto panelIter = _rewardPictosPanelsById.find(pictosId);
+        if (panelIter == _rewardPictosPanelsById.end())
+            continue;
+
+        const GameDataTable::PictosDesc* pictosDesc = CLIENT->Get_PictosDesc(pictosId);
+        if (pictosDesc == nullptr)
+            continue;
+
+        if (find(_activeRewardPictosIds.begin(), _activeRewardPictosIds.end(), pictosId) != _activeRewardPictosIds.end())
+            continue;
+
+        RewardPictosPanel& panel = panelIter->second;
+        if (panel.nameText)
+            panel.nameText->Set_Text(pictosDesc->name);
+
+        for (const Shared<UI_Base>& ui : panel.ownedUis)
+        {
+            if (ui)
+                ui->Open();
+        }
+
+        _activeRewardPictosIds.push_back(pictosId);
+    }
+
+    if (!_activeRewardPictosIds.empty())
+    {
+        if (_rewardPictosRoot)
+            _rewardPictosRoot->Open();
+
+        if (_rewardPictosFrame)
+            _rewardPictosFrame->Open();
+    }
+
+    _rewardPictosIntroElapsed = 0.f;
+    _rewardPictosLoopStarted = false;
+
+    if (_isOpen && !_activeRewardPictosIds.empty())
+        Restart_RewardPictosAnimations();
 }
 
 void UI_BattleVictory::Start_RewardNumberTween(RewardNumberTween& tween, const Shared<UI_Text>& text, const Shared<UI_Text>& bgText, uint32 targetValue, float duration)
@@ -380,6 +591,92 @@ void UI_BattleVictory::Update_RewardNumberTween(RewardNumberTween& tween, float 
         tween.isAnimating = false;
         Set_UIntText(tween.text, tween.targetValue);
         Set_UIntText(tween.bgText, tween.targetValue);
+    }
+}
+
+void UI_BattleVictory::Close_RewardPictosPanels()
+{
+    if (_rewardPictosRoot)
+    {
+        _rewardPictosRoot->Stop_UIAnimation();
+        _rewardPictosRoot->Close();
+    }
+
+    if (_rewardPictosFrame)
+    {
+        _rewardPictosFrame->Stop_UIAnimation();
+        _rewardPictosFrame->Close();
+    }
+
+    for (auto& [pictosId, panel] : _rewardPictosPanelsById)
+    {
+        UNREFERENCED_PARAMETER(pictosId);
+
+        for (const Shared<UI_Base>& ui : panel.ownedUis)
+        {
+            if (ui)
+            {
+                ui->Stop_UIAnimation();
+                ui->Close();
+            }
+        }
+    }
+
+    _activeRewardPictosIds.clear();
+    _rewardPictosIntroElapsed = 0.f;
+    _rewardPictosLoopStarted = false;
+}
+
+void UI_BattleVictory::Restart_RewardPictosAnimations()
+{
+    if (_activeRewardPictosIds.empty())
+        return;
+
+    _rewardPictosIntroElapsed = 0.f;
+    _rewardPictosLoopStarted = false;
+
+    for (const string& pictosId : _activeRewardPictosIds)
+    {
+        auto panelIter = _rewardPictosPanelsById.find(pictosId);
+        if (panelIter == _rewardPictosPanelsById.end())
+            continue;
+
+        if (panelIter->second.root)
+            panelIter->second.root->Play_UIAnimation(kBattleRewardPictosIntroAnimationName, true);
+    }
+}
+
+void UI_BattleVictory::Update_RewardPictosAnimations(float timeDelta)
+{
+    if (_activeRewardPictosIds.empty() || _rewardPictosLoopStarted)
+        return;
+
+    _rewardPictosIntroElapsed += max(0.f, timeDelta);
+    if (_rewardPictosIntroElapsed < _rewardPictosIntroDuration)
+        return;
+
+    Start_RewardPictosLoop();
+}
+
+void UI_BattleVictory::Start_RewardPictosLoop()
+{
+    if (_rewardPictosLoopStarted)
+        return;
+
+    _rewardPictosLoopStarted = true;
+
+    for (const string& pictosId : _activeRewardPictosIds)
+    {
+        auto panelIter = _rewardPictosPanelsById.find(pictosId);
+        if (panelIter == _rewardPictosPanelsById.end())
+            continue;
+
+        RewardPictosPanel& panel = panelIter->second;
+        if (panel.nameText)
+            panel.nameText->Play_UIAnimation(kBattleRewardPictosTextLoopAnimationName, true);
+
+        if (panel.markImage)
+            panel.markImage->Play_UIAnimation(kBattleRewardPictosImageLoopAnimationName, true);
     }
 }
 
@@ -492,6 +789,47 @@ wstring UI_BattleVictory::Format_ClearTime(float elapsedSec)
     wchar_t buffer[16]{};
     swprintf_s(buffer, L"%02u:%02u", minutes, seconds);
     return buffer;
+}
+
+void UI_BattleVictory::Close_EquippedPictosSlot(EquippedPictosSlot& slot)
+{
+    if (slot.root)
+        slot.root->Close();
+
+    if (slot.markFrame)
+        slot.markFrame->Close();
+
+    if (slot.nameText)
+        slot.nameText->Close();
+
+    for (auto& [pictosId, markImage] : slot.markImagesByPictosId)
+    {
+        UNREFERENCED_PARAMETER(pictosId);
+
+        if (markImage)
+            markImage->Close();
+    }
+}
+
+void UI_BattleVictory::Show_EquippedPictosSlot(EquippedPictosSlot& slot, const string& pictosId, const wstring& displayName)
+{
+    auto markIter = slot.markImagesByPictosId.find(pictosId);
+    if (markIter == slot.markImagesByPictosId.end() || markIter->second == nullptr)
+        return;
+
+    if (slot.nameText)
+        slot.nameText->Set_Text(displayName);
+
+    if (slot.root)
+        slot.root->Open();
+
+    if (slot.markFrame)
+        slot.markFrame->Open();
+
+    if (slot.nameText)
+        slot.nameText->Open();
+
+    markIter->second->Open(); // 장착 ID와 일치하는 정적 마크 이미지만 다시 연다.
 }
 
 void UI_BattleVictory::Update_ExpGauge(float timeDelta)
@@ -622,6 +960,14 @@ void UI_BattleVictory::Free()
         slot.maxExpText.reset();
         slot.levelText.reset();
         slot.expGauge.reset();
+
+        for (EquippedPictosSlot& pictosSlot : slot.equippedPictosSlots)
+        {
+            pictosSlot.root.reset();
+            pictosSlot.markFrame.reset();
+            pictosSlot.nameText.reset();
+            pictosSlot.markImagesByPictosId.clear();
+        }
     }
 
     _rewardExpText.reset();
@@ -637,6 +983,13 @@ void UI_BattleVictory::Free()
     _defeatedMonsterPortraitPanel.reset();
     _defeatedMonsterPortraitTemplate.reset();
     _defeatedMonsterPortraitSlots.clear();
+    _rewardPictosRoot.reset();
+    _rewardPictosFrame.reset();
+    _rewardPictosPanelsById.clear();
+    _activeRewardPictosIds.clear();
+    _rewardPictosIntroElapsed = 0.f;
+    _rewardPictosIntroDuration = 0.f;
+    _rewardPictosLoopStarted = false;
     _defeatedMonsterPortraitBasePosition = Vec2::Zero;
 
     Base::Free();

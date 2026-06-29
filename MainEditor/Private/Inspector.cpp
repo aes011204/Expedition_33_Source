@@ -1,5 +1,5 @@
 ﻿#include "Inspector.h"
-
+#include "Notification_Manager.h"
 #include "Component.h"
 #include "Component_Inspector.h"
 #include "Editor_Context.h"
@@ -13,9 +13,13 @@
 #include "GameplayUI.h"
 #include "GameplayUI_Types.h"
 #include "IRuntimeUI_EditorTarget.h"
+#include "MapAuthoringIO.h"
+#include "MapLoader.h"
 #include "MapStaticMesh.h"
 #include "Monster_WorldBase.h"
+#include "PhysX_Types.h"
 #include "Reflection_Types.h"
+#include "Scene_View.h"
 #include "Shadow.h"
 #include "TransformCom.h"
 #include "UI_Base.h"
@@ -33,6 +37,191 @@ char Inspector::_spawnActorClassSearchBuffer[256]{};
 namespace
 {
 constexpr float CascadePresetLabelWidth = 110.f;
+
+weak_ptr<Client::Monster_WorldBase> g_pendingPatrolPickMonster{};
+int32 g_pendingPatrolPickIndex = -1;
+bool g_showMonsterPatrolPoints = false;
+
+bool Try_MakeViewportRay(const POINT& pixelPos, Vec3& outOrigin, Vec3& outDirection)
+{
+    const uint32 viewportWidth = GAME->Get_ViewportWidth();
+    const uint32 viewportHeight = GAME->Get_ViewportHeight();
+    if (viewportWidth == 0 || viewportHeight == 0)
+        return false;
+
+    const Matrix* viewInverse = GAME->Get_Transform_Inverse(D3DTS::View);
+    const Matrix* projInverse = GAME->Get_Transform_Inverse(D3DTS::Proj);
+    if (viewInverse == nullptr || projInverse == nullptr)
+        return false;
+
+    const float texcoordX = (static_cast<float>(pixelPos.x) + 0.5f) / static_cast<float>(viewportWidth);
+    const float texcoordY = (static_cast<float>(pixelPos.y) + 0.5f) / static_cast<float>(viewportHeight);
+
+    Vec4 nearPoint(texcoordX * 2.f - 1.f, texcoordY * -2.f + 1.f, 0.f, 1.f);
+    Vec4 farPoint(texcoordX * 2.f - 1.f, texcoordY * -2.f + 1.f, 1.f, 1.f);
+
+    nearPoint = Vec4::Transform(nearPoint, *projInverse);
+    farPoint = Vec4::Transform(farPoint, *projInverse);
+    if (nearPoint.w != 0.f)
+        nearPoint /= nearPoint.w;
+    if (farPoint.w != 0.f)
+        farPoint /= farPoint.w;
+
+    nearPoint = Vec4::Transform(nearPoint, *viewInverse);
+    farPoint = Vec4::Transform(farPoint, *viewInverse);
+
+    outOrigin = Vec3(nearPoint.x, nearPoint.y, nearPoint.z);
+    outDirection = Vec3(farPoint.x - nearPoint.x, farPoint.y - nearPoint.y, farPoint.z - nearPoint.z);
+    if (outDirection.LengthSquared() <= 0.f)
+        return false;
+
+    outDirection.Normalize();
+    return true;
+}
+
+bool Try_SamplePatrolPointWorldPos(const POINT& pixelPos, Vec3& outWorldPos)
+{
+    Vec3 rayOrigin = Vec3::Zero;
+    Vec3 rayDirection = Vec3::Zero;
+    if (Try_MakeViewportRay(pixelPos, rayOrigin, rayDirection))
+    {
+        PhysXQueryHit hit{};
+        if (GAME->Raycast_Environment(rayOrigin, rayDirection, 10000.f, hit))
+        {
+            outWorldPos = hit.position;
+            return true;
+        }
+    }
+
+    if (FAILED(GAME->Update_Picking()))
+        return false;
+
+    return GAME->Pick_WorldPosition(pixelPos, outWorldPos);
+}
+
+bool Try_ConsumePendingPatrolPointPick(Vec3& outWorldPos)
+{
+    Shared<Scene_View> sceneView = dynamic_pointer_cast<Scene_View>(EDITOR->Get_Window(L"Scene"));
+    if (sceneView == nullptr || !sceneView->Is_Hovered())
+        return false;
+
+    if (!ImGui::IsMouseClicked(ImGuiMouseButton_Left) || EDITOR->IsPlaying())
+        return false;
+
+    const ImVec2 vpMin = sceneView->Get_ViewportMin();
+    const ImVec2 vpMax = sceneView->Get_ViewportMax();
+    const float vpW = vpMax.x - vpMin.x;
+    const float vpH = vpMax.y - vpMin.y;
+    if (vpW <= 0.f || vpH <= 0.f)
+        return false;
+
+    const ImVec2 mousePos = ImGui::GetIO().MousePos;
+    const float depthW = static_cast<float>(GAME->Get_ViewportWidth());
+    const float depthH = static_cast<float>(GAME->Get_ViewportHeight());
+
+    POINT pixelPos{};
+    pixelPos.x = static_cast<LONG>((mousePos.x - vpMin.x) * (depthW / max(vpW, 1.f)));
+    pixelPos.y = static_cast<LONG>((mousePos.y - vpMin.y) * (depthH / max(vpH, 1.f)));
+
+    return Try_SamplePatrolPointWorldPos(pixelPos, outWorldPos);
+}
+
+bool Try_WorldToScreen(const Vec3& worldPos, const ImVec2& vpMin, const ImVec2& vpMax, ImVec2& outScreen)
+{
+    const Matrix* view = GAME->Get_Transform(D3DTS::View);
+    const Matrix* proj = GAME->Get_Transform(D3DTS::Proj);
+    if (view == nullptr || proj == nullptr)
+        return false;
+
+    const Matrix viewProj = (*view) * (*proj);
+    Vec4 clip = Vec4::Transform(Vec4(worldPos.x, worldPos.y, worldPos.z, 1.f), viewProj);
+    if (clip.w <= 0.f)
+        return false;
+
+    const float ndcX = clip.x / clip.w;
+    const float ndcY = -clip.y / clip.w;
+
+    outScreen.x = vpMin.x + (ndcX * 0.5f + 0.5f) * (vpMax.x - vpMin.x);
+    outScreen.y = vpMin.y + (ndcY * 0.5f + 0.5f) * (vpMax.y - vpMin.y);
+    return true;
+}
+
+void Draw_MonsterPatrolOverlay(const vector<Vec3>& patrolPoints)
+{
+    if (patrolPoints.empty())
+        return;
+
+    Shared<Scene_View> sceneView = dynamic_pointer_cast<Scene_View>(EDITOR->Get_Window(L"Scene"));
+    if (sceneView == nullptr)
+        return;
+
+    const ImVec2 vpMin = sceneView->Get_ViewportMin();
+    const ImVec2 vpMax = sceneView->Get_ViewportMax();
+    if (vpMax.x <= vpMin.x || vpMax.y <= vpMin.y)
+        return;
+
+    ImDrawList* drawList = ImGui::GetForegroundDrawList();
+    const ImU32 lineColor = IM_COL32(60, 220, 255, 255);
+    const ImU32 pointColor = IM_COL32(255, 210, 50, 255);
+    const ImU32 selectedColor = IM_COL32(255, 90, 80, 255);
+
+    vector<ImVec2> screens(patrolPoints.size());
+    vector<bool> visible(patrolPoints.size(), false);
+
+    for (size_t i = 0; i < patrolPoints.size(); ++i)
+        visible[i] = Try_WorldToScreen(patrolPoints[i] + Vec3(0.f, 0.15f, 0.f), vpMin, vpMax, screens[i]);
+
+    if (patrolPoints.size() > 1)
+    {
+        for (size_t i = 0; i < patrolPoints.size(); ++i)
+        {
+            const size_t nextIndex = (i + 1) % patrolPoints.size();
+            if (visible[i] && visible[nextIndex])
+                drawList->AddLine(screens[i], screens[nextIndex], lineColor, 2.f);
+        }
+    }
+
+    for (size_t i = 0; i < patrolPoints.size(); ++i)
+    {
+        if (!visible[i])
+            continue;
+
+        const bool isPendingPick = g_pendingPatrolPickIndex == static_cast<int32>(i);
+        drawList->AddCircleFilled(screens[i], isPendingPick ? 6.f : 5.f, isPendingPick ? selectedColor : pointColor);
+        drawList->AddText(ImVec2(screens[i].x + 7.f, screens[i].y - 7.f), IM_COL32(255, 255, 255, 230), to_string(i).c_str());
+    }
+}
+
+vector<Vec3> Build_RectanglePatrolPoints(const Shared<Client::Monster_WorldBase>& monster)
+{
+    const Shared<TransformCom> transform = monster ? monster->Get_Transform() : nullptr;
+    const Vec3 origin = transform ? transform->Get_WorldPosition() : Vec3::Zero;
+
+    Vec3 right = transform ? transform->Get_WorldRight() : Vec3::Right;
+    Vec3 forward = transform ? transform->Get_WorldForward() : Vec3::Forward;
+
+    right.y = 0.f;
+    if (right.LengthSquared() <= 0.0001f)
+        right = Vec3::Right;
+    else
+        right.Normalize();
+
+    forward.y = 0.f;
+    if (forward.LengthSquared() <= 0.0001f)
+        forward = Vec3::Forward;
+    else
+        forward.Normalize();
+
+    constexpr float halfWidth = 6.f;
+    constexpr float halfDepth = 4.f;
+
+    return {
+        origin + right * -halfWidth + forward * -halfDepth,
+        origin + right * halfWidth + forward * -halfDepth,
+        origin + right * halfWidth + forward * halfDepth,
+        origin + right * -halfWidth + forward * halfDepth,
+    };
+}
 
 const char* Get_RuntimeWorldPlacementHeroLabel(Client::HeroId heroId)
 {
@@ -1164,6 +1353,7 @@ void Inspector::Draw_Components(const Shared<GameObject>& target)
 
     Draw_ComponentOverride(static_pointer_cast<Component>(transform));
     Draw_MonsterBattlePrefabList(target);
+    Draw_MonsterPatrolPointEditor(target, true);
     Draw_ObjectReflection(target);
 
     target->Visit_Components([&](const wstring&, const Shared<Component>& component)
@@ -1340,6 +1530,162 @@ bool Inspector::Draw_MonsterBattlePrefabList(const Shared<GameObject>& target)
     ImGui::Spacing();
 
     return changed;
+}
+
+bool Inspector::Draw_MonsterPatrolPointEditor(const Shared<GameObject>& target, bool showMapSaveButton)
+{
+    Shared<Client::Monster_WorldBase> monster = dynamic_pointer_cast<Client::Monster_WorldBase>(target);
+    if (monster == nullptr)
+        return false;
+
+    if (!ImGui::CollapsingHeader("Monster Patrol Points", ImGuiTreeNodeFlags_DefaultOpen))
+        return false;
+
+    bool changed = false;
+    vector<Vec3> patrolPoints = monster->Get_PatrolPoints();
+
+    ImGui::PushID("MonsterPatrolPoints");
+
+    if (ImGui::Button("Generate Rectangle Patrol Points"))
+    {
+        patrolPoints = Build_RectanglePatrolPoints(monster);
+        monster->Set_PatrolPoints(patrolPoints);
+        changed = true;
+    }
+
+    ImGui::SameLine();
+    if (ImGui::Button("Add Patrol Point From Pick"))
+    {
+        g_pendingPatrolPickMonster = monster; // 다음 Scene 클릭 위치를 authored patrol point로 저장한다.
+        g_pendingPatrolPickIndex = -1;
+    }
+
+    ImGui::SameLine();
+    if (ImGui::Button("Clear Patrol Points"))
+    {
+        patrolPoints.clear();
+        monster->Set_PatrolPoints({});
+        g_pendingPatrolPickMonster.reset();
+        g_pendingPatrolPickIndex = -1;
+        changed = true;
+    }
+
+    ImGui::Checkbox("Show Patrol Points", &g_showMonsterPatrolPoints);
+
+    if (Shared<Client::Monster_WorldBase> pendingMonster = g_pendingPatrolPickMonster.lock())
+    {
+        if (pendingMonster == monster)
+        {
+            if (g_pendingPatrolPickIndex >= 0 && g_pendingPatrolPickIndex < static_cast<int32>(patrolPoints.size()))
+                ImGui::TextDisabled("Click Scene View to replace patrol point %d.", g_pendingPatrolPickIndex);
+            else
+                ImGui::TextDisabled("Click Scene View to add the next patrol point.");
+
+            ImGui::SameLine();
+            if (ImGui::Button("Cancel Pick"))
+            {
+                g_pendingPatrolPickMonster.reset();
+                g_pendingPatrolPickIndex = -1;
+            }
+
+            Vec3 pickedWorldPos = Vec3::Zero;
+            if (Try_ConsumePendingPatrolPointPick(pickedWorldPos))
+            {
+                if (g_pendingPatrolPickIndex >= 0 && g_pendingPatrolPickIndex < static_cast<int32>(patrolPoints.size()))
+                    patrolPoints[g_pendingPatrolPickIndex] = pickedWorldPos;
+                else
+                    patrolPoints.push_back(pickedWorldPos);
+
+                monster->Set_PatrolPoints(patrolPoints);
+                g_pendingPatrolPickMonster.reset();
+                g_pendingPatrolPickIndex = -1;
+                changed = true;
+            }
+        }
+    }
+    else
+    {
+        g_pendingPatrolPickMonster.reset();
+        g_pendingPatrolPickIndex = -1;
+    }
+
+    int32 removeIndex = -1;
+    for (int32 i = 0; i < static_cast<int32>(patrolPoints.size()); ++i)
+    {
+        ImGui::PushID(i);
+
+        Vec3 point = patrolPoints[i];
+        ImGui::Text("Point %d", i);
+        ImGui::SameLine(InspectorLabelWidth);
+        ImGui::SetNextItemWidth(max(80.f, ImGui::GetContentRegionAvail().x - 130.f));
+        if (ImGui::DragFloat3("##PatrolPoint", &point.x, 0.05f))
+        {
+            patrolPoints[i] = point;
+            monster->Set_PatrolPoints(patrolPoints);
+            changed = true;
+        }
+
+        ImGui::SameLine();
+        if (ImGui::Button("Pick", ImVec2(48.f, 0.f)))
+        {
+            g_pendingPatrolPickMonster = monster;
+            g_pendingPatrolPickIndex = i;
+        }
+
+        ImGui::SameLine();
+        if (ImGui::Button("Remove", ImVec2(68.f, 0.f)))
+            removeIndex = i;
+
+        ImGui::PopID();
+    }
+
+    if (removeIndex >= 0 && removeIndex < static_cast<int32>(patrolPoints.size()))
+    {
+        patrolPoints.erase(patrolPoints.begin() + removeIndex);
+        monster->Set_PatrolPoints(patrolPoints);
+        changed = true;
+    }
+
+    if (showMapSaveButton)
+    {
+        ImGui::Separator();
+        if (ImGui::Button("Save", ImVec2(-1.f, 0.f)))
+        {
+            if (Client::MapAuthoringIO::Save_Object_ToSourceMap(monster))
+            {
+                NOTIFY("Patrol Points 저장 완료");
+            }
+            else
+            {
+                const wstring loadedMapInstanceRoot =
+                    MapLoader::Get_LoadedMapInstanceRoot(GAME->Current_LevelIndex());
+                if (!loadedMapInstanceRoot.empty() &&
+                    Client::MapAuthoringIO::Save_PrefabInstances_ToMapInstanceAuthoring(
+                        loadedMapInstanceRoot,
+                        GAME->Current_LevelIndex()))
+                {
+                    NOTIFY("Patrol Points 저장 완료");
+                }
+                else
+                {
+                    NOTIFY("원본 map node와 MapInstance를 찾을 수 없어 Patrol Points 저장 실패");
+                }
+            }
+        }
+    }
+
+    if (g_showMonsterPatrolPoints)
+        Draw_MonsterPatrolOverlay(monster->Get_PatrolPoints());
+
+    ImGui::PopID();
+    ImGui::Spacing();
+
+    return changed;
+}
+
+bool Inspector::Should_DrawMonsterPatrolPoints()
+{
+    return g_showMonsterPatrolPoints;
 }
 
 void Inspector::Draw_ObjectReflection(const Shared<GameObject>& target)

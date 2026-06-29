@@ -18,6 +18,9 @@ IMPLEMENT_REFLECTION(ANS_CollisionEnable)
 
     PROPERTY_STRING("Collider Tag", _colliderTag);
     PROPERTY_ENUM("Hit Reaction", _hitAnimOverride, SL_HitAnimOverride);
+    PROPERTY_WSTRING("Hit Effect", _hitEffectName);
+    PROPERTY_VEC3("Hit Effect Local Offset", _hitEffectLocalOffset);
+    PROPERTY_VEC3("Hit Effect Scale", _hitEffectScale);
 
     return true;
 }
@@ -91,9 +94,15 @@ void ANS_CollisionEnable::Set_ColliderActive(const AnimNotifyContext& context, b
     if (const Shared<SL_Base> slOwner = dynamic_pointer_cast<SL_Base>(owner))
     {
         if (active)
+        {
             slOwner->Set_AttackHitAnimOverride(_colliderTag, _hitAnimOverride);
+            slOwner->Set_AttackHitEffect(_colliderTag, _hitEffectName, _hitEffectLocalOffset, _hitEffectScale);
+        }
         else
+        {
             slOwner->Clear_AttackHitAnimOverride(_colliderTag);
+            slOwner->Clear_AttackHitEffect(_colliderTag);
+        }
     }
 
     collider->Clear_Overlap();

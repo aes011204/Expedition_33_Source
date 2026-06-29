@@ -27,11 +27,14 @@
 #include "Client_Constants.h"
 #include "GameObject.h"
 #include "Spawn_Prefab.h"
+#include "TransformCom.h"
 
 GameplayUI_World::~GameplayUI_World() = default;
 
 namespace
 {
+    constexpr char kSoulLikeMaelleTargetId[] = "SL_Maelle";
+
     template <typename TPanel>
     void Append_RuntimePanelEntry(
         vector<RuntimeUIEntry>& outEntries,
@@ -190,6 +193,8 @@ void GameplayUI_World::Update(float timeDelta)
 
         if (Is_GetWeaponOpen())
             return;
+
+        Try_ShowPendingGetPictos();
 
         if (Is_GetPictosOpen())
             return;
@@ -628,8 +633,48 @@ void GameplayUI_World::Handle_ArenaCharacterSelectAction(UI_ArenaCharacterSelect
 
         Close_AllMenus(true);
 
-        if (!controller->Begin_Battle())
-            LOG_WARN("ArenaCharacterSelect: Maelle selected, but SoulLike battle did not start.");
+        const wstring sequencePath =
+            wstring(Constants::Cinematic::RuntimeJson_Dir) +
+            Constants::Cinematic::Dualliste_Intro;
+
+        Weak<SoulLikeController> weakController = controller;
+
+        CLIENT->Clear_CinematicCompletedCallbacks();
+        CLIENT->Add_CinematicCompletedCallback(
+            [weakController]()
+            {
+                const Shared<SoulLikeController> controller = weakController.lock();
+                if (controller == nullptr)
+                    return;
+
+                const Shared<GameObject> cinematicMaelle = CLIENT->Get_CinematicBoundActor(kSoulLikeMaelleTargetId);
+                const Shared<GameObject> cinematicDualliste = CLIENT->Get_CinematicBoundActor(Constants::Prefab::SL_Dualliste);
+                const Shared<TransformCom> maelleTransform = cinematicMaelle ? cinematicMaelle->Get_Transform() : nullptr;
+                const Shared<TransformCom> duallisteTransform = cinematicDualliste ? cinematicDualliste->Get_Transform() : nullptr;
+                if (maelleTransform != nullptr && duallisteTransform != nullptr)
+                {
+                    controller->Set_BattleSpawnPoseOverride(
+                        maelleTransform->Get_WorldPosition(),
+                        maelleTransform->Get_WorldRotationEuler(),
+                        duallisteTransform->Get_WorldPosition(),
+                        duallisteTransform->Get_WorldRotationEuler());
+                }
+
+                controller->Set_NextMonsterActionDelay(2.f);
+
+                if (!controller->Begin_Battle())
+                    LOG_WARN("ArenaCharacterSelect: Maelle selected, but SoulLike battle did not start.");
+            });
+
+        controller->Start_DuallistePhase1BGM();
+
+        if (!CLIENT->Play_Sequence(sequencePath, 0))
+        {
+            CLIENT->Clear_CinematicCompletedCallbacks();
+
+            if (!controller->Begin_Battle())
+                LOG_WARN("ArenaCharacterSelect: Maelle selected, but SoulLike battle did not start.");
+        }
 
         break;
     }
@@ -649,6 +694,7 @@ void GameplayUI_World::Handle_ReplayAction(UI_Replay::Action action)
     switch (action)
     {
     case UI_Replay::Action::Replay:
+        CLIENT->Reset_LastDialogueNpcAnimationToStart();
         Close_AllMenus(true);
 
         if (!CLIENT->Request_CurrentLevelReplay())
@@ -670,15 +716,15 @@ void GameplayUI_World::Handle_GradientSkillPreviewTestInput()
     if (_gradientSkillPreviewTestPanel == nullptr)
         return;
 
-    if (GAME->KeyDown(KEY_TYPE::KEY_4))
-    {
-        if (_gradientSkillPreviewTestPanel->Is_Open())
-            _gradientSkillPreviewTestPanel->Close();
-        else if (!Is_AnyMenuOpen())
-            _gradientSkillPreviewTestPanel->Open();
-
-        return;
-    }
+    //if (GAME->KeyDown(KEY_TYPE::KEY_4))
+    //{
+    //    if (_gradientSkillPreviewTestPanel->Is_Open())
+    //        _gradientSkillPreviewTestPanel->Close();
+    //    else if (!Is_AnyMenuOpen())
+    //        _gradientSkillPreviewTestPanel->Open();
+    //
+    //    return;
+    //}
 
     if (_gradientSkillPreviewTestPanel->Is_Open() && GAME->KeyDown(KEY_TYPE::ESCAPE))
     {
@@ -968,6 +1014,43 @@ void GameplayUI_World::Try_ShowPendingGetWeapon()
         return;
 
     _getWeaponPanel->Open_ForWeaponIds(pendingWeaponIds);
+}
+
+void GameplayUI_World::Try_ShowPendingGetPictos()
+{
+    if (_getPictosPanel == nullptr || _getPictosPanel->Is_Open())
+        return;
+
+    if (Is_GetCharacterOpen() || Is_GetClothesOpen() || Is_GetWeaponOpen())
+        return;
+
+    if (CLIENT->Is_FadeTransitionPlaying())
+        return;
+
+    if (CLIENT->Is_WorldControlSuspended() || CLIENT->Is_BattleEntering())
+        return;
+
+    if (GAME->Is_WorldGameplayInputBlocked())
+        return;
+
+    if (!_menuStack.empty())
+        return;
+
+    if (_savePointPanel && (_savePointPanel->Is_Open() || _savePointPanel->Is_ClosingWithOutro()))
+        return;
+
+    if (_expeditionStatPanel && _expeditionStatPanel->Is_Open())
+        return;
+
+    Unlock_Manager* unlockManager = CLIENT->Get_UnlockManager();
+    if (unlockManager == nullptr)
+        return;
+
+    vector<string> pendingPictosIds = unlockManager->Consume_GetPictosPresentationIds();
+    if (pendingPictosIds.empty())
+        return;
+
+    _getPictosPanel->Open_ForPictosIds(pendingPictosIds);
 }
 
 bool GameplayUI_World::Is_GetClothesOpen() const

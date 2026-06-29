@@ -92,9 +92,9 @@ void SL_Dodge::ExitInvoke()
 
 bool SL_Dodge::Request_Move(const SL_MoveRequest& request, float timeDelta)
 {
+    UNREFERENCED_PARAMETER(request);
     UNREFERENCED_PARAMETER(timeDelta);
 
-    _request = request;
     return true;
 }
 
