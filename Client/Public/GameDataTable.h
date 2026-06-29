@@ -114,6 +114,20 @@ public:
         uint32  power = 0;
     };
 
+    struct WeaponUpgradeDesc
+    {
+        string characterId;
+        string weaponId;
+        uint32 level = 1;
+        uint32 power = 0;
+        uint32 requiredChromaCatalyst = 0;
+        string vitalityGrade{};
+        string mightGrade{};
+        string agilityGrade{};
+        string defenseGrade{};
+        string luckGrade{};
+    };
+
     enum class PictosEffectType
     {
         None,
@@ -163,6 +177,9 @@ public:
     const umap<string, vector<string>>* Get_SkillTreeRequirementData();
     const WeaponDesc* Get_WeaponDesc(const string& characterId, const string& weaponId) const;
     const vector<WeaponDesc>* Get_WeaponDescs(const string& characterId) const;
+    const WeaponUpgradeDesc* Get_WeaponUpgradeDesc(const string& characterId, const string& weaponId, uint32 level) const;
+    const WeaponUpgradeDesc* Get_NextWeaponUpgradeDesc(const string& characterId, const string& weaponId, uint32 currentLevel) const;
+    const vector<WeaponUpgradeDesc>* Get_WeaponUpgradeDescs(const string& characterId, const string& weaponId) const;
     vector<string> Get_AllSkillIds() const;
     vector<string> Split_String(const string& value, char delimiter);
 
@@ -176,6 +193,7 @@ private:
     HRESULT Load_SkillTreeData(const wstring& jsonRootPath);
     HRESULT Load_SkillTreeRequirementData(const wstring& jsonRootPath);
     HRESULT Load_Weapon(const wstring& jsonRootPath);
+    HRESULT Load_WeaponUpgrade(const wstring& jsonRootPath);
 
     // 스킬
     HRESULT Load_SkillData(const wstring& jsonRootPath);
@@ -197,6 +215,7 @@ private:
     map<string, SkillTreeDesc>  _skillTreeData;
     umap<string, vector<string>> _requirementSkills;
     umap<string, vector<WeaponDesc>> _weaponDataByCharacter;
+    umap<string, vector<WeaponUpgradeDesc>> _weaponUpgradeDataByKey;
 
     // 스킬
     vector<Skill_Data> _skillDefs;

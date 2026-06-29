@@ -210,13 +210,21 @@ HRESULT ClientInstance::Initialize_Client(const ComPtr<Device>& device, const Co
     // 일반 픽토스 일단은 전부 다 등록. 나중에 몬스터 잡기? 상점? 등에서 뭐 구매하게 만들 수 있으려나
     //_playerInventory->Ensure_DefaultUnlockedPictos(Get_AllPictosIds());
 
-    // 무기 세팅
-    vector<PlayerInventory::WeaponInventoryEntry> defaultUnlockedWeapons{};
-    const HeroId defaultWeaponHeroes[] = { HeroId::Gustave, HeroId::Lune, HeroId::Maelle };
-    for (HeroId heroId : defaultWeaponHeroes)
+// 무기 세팅
+vector<PlayerInventory::WeaponInventoryEntry> defaultUnlockedWeapons{};
+const HeroId defaultWeaponHeroes[] = { HeroId::Gustave, HeroId::Lune, HeroId::Maelle };
+
+for (HeroId heroId : defaultWeaponHeroes)
+{
+    const string characterId = Get_WeaponCharacterId(heroId);
+    const string weaponIds[] =
     {
-        const string characterId = Get_WeaponCharacterId(heroId);
-        const string weaponId = Get_DefaultEquippedWeaponId(heroId);
+        Get_DefaultEquippedWeaponId(heroId),
+        "Baguette",
+    };
+
+    for (const string& weaponId : weaponIds)
+    {
         if (characterId.empty() || weaponId.empty())
             continue;
 
@@ -229,7 +237,9 @@ HRESULT ClientInstance::Initialize_Client(const ComPtr<Device>& device, const Co
         entry.enhanceExp = 0;
         defaultUnlockedWeapons.emplace_back(std::move(entry));
     }
-    _playerInventory->Ensure_DefaultUnlockedWeapons(defaultUnlockedWeapons);
+}
+
+_playerInventory->Ensure_DefaultUnlockedWeapons(defaultUnlockedWeapons);
 
     _costumeManager = CostumeManager::Create();
     CHECK_NULL(_costumeManager, E_FAIL);
@@ -472,6 +482,46 @@ const vector<GameDataTable::WeaponDesc>* ClientInstance::Get_WeaponDescs(const s
     return _gameDataTable->Get_WeaponDescs(characterId);
 }
 
+const GameDataTable::WeaponUpgradeDesc* ClientInstance::Get_WeaponUpgradeDesc(
+    const string& characterId,
+    const string& weaponId,
+    uint32 level) const
+{
+    if (_gameDataTable == nullptr)
+        return nullptr;
+
+    return _gameDataTable->Get_WeaponUpgradeDesc(characterId, weaponId, level);
+}
+
+const GameDataTable::WeaponUpgradeDesc* ClientInstance::Get_NextWeaponUpgradeDesc(
+    const string& characterId,
+    const string& weaponId,
+    uint32 currentLevel) const
+{
+    if (_gameDataTable == nullptr)
+        return nullptr;
+
+    return _gameDataTable->Get_NextWeaponUpgradeDesc(characterId, weaponId, currentLevel);
+}
+
+uint32 ClientInstance::Resolve_WeaponEnhanceLevel(const string& characterId, const string& weaponId) const
+{
+    if (_playerInventory == nullptr)
+        return 1;
+
+    return _playerInventory->Get_WeaponEnhanceLevel(characterId, weaponId);
+}
+
+uint32 ClientInstance::Resolve_WeaponPower(const string& characterId, const string& weaponId) const
+{
+    const uint32 enhanceLevel = Resolve_WeaponEnhanceLevel(characterId, weaponId);
+    if (const GameDataTable::WeaponUpgradeDesc* upgradeDesc = Get_WeaponUpgradeDesc(characterId, weaponId, enhanceLevel))
+        return upgradeDesc->power;
+
+    const GameDataTable::WeaponDesc* weaponDesc = Get_WeaponDesc(characterId, weaponId);
+    return weaponDesc ? weaponDesc->power : 0;
+}
+
 const Skill_Data* ClientInstance::Get_Skill(const string& skillId)
 {
     return _gameDataTable->Get_Skill(skillId);
@@ -698,7 +748,7 @@ bool ClientInstance::Ensure_DefaultEquippedWeapon(HeroId heroId)
     if (weaponDesc == nullptr)
         return false;
 
-    statCom->Set_EquippedWeapon(weaponDesc->weaponId, weaponDesc->power);
+    statCom->Set_EquippedWeapon(weaponDesc->weaponId, Resolve_WeaponPower(characterId, weaponDesc->weaponId));
     return true;
 }
 
@@ -729,6 +779,8 @@ HRESULT ClientInstance::Initialize_GameplayUI(uint32 levelIndex)
 
 void ClientInstance::Clear_GameplayUI()
 {
+    Clear_InteractionPrompt(nullptr);
+
     if (_gamePlayUI)
     {
         _gamePlayUI->Free();
@@ -1833,6 +1885,38 @@ void ClientInstance::RemoveItemInteractionOverlap()
 {
     if (_itemInteractionOverlapCount > 0)
         --_itemInteractionOverlapCount;
+
+}
+void ClientInstance::Request_InteractionPrompt(const void* sourceId, const Vec3& worldAnchor)
+{
+    if (sourceId == nullptr)
+        return;
+
+    _interactionPromptSourceId = sourceId;
+    _interactionPromptWorldAnchor = worldAnchor;
+    _hasInteractionPromptRequest = true;
+}
+
+void ClientInstance::Clear_InteractionPrompt(const void* sourceId)
+{
+    if (!_hasInteractionPromptRequest)
+        return;
+
+    if (sourceId != nullptr && _interactionPromptSourceId != sourceId)
+        return;
+
+    _hasInteractionPromptRequest = false;
+    _interactionPromptSourceId = nullptr;
+    _interactionPromptWorldAnchor = Vec3::Zero;
+}
+
+bool ClientInstance::Try_GetInteractionPromptAnchor(Vec3& outWorldAnchor) const
+{
+    if (!_hasInteractionPromptRequest)
+        return false;
+
+    outWorldAnchor = _interactionPromptWorldAnchor;
+    return true;
 }
 
 HRESULT ClientInstance::Ready_ResourceLoader()

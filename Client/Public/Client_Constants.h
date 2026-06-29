@@ -8,8 +8,13 @@ namespace Client::Constants::UI
     inline constexpr wchar_t UI_GameEntry_Path[] = L"UI/UI_Json/Scene/GameEntry/UI_GameEntryScene.json";
     inline constexpr wchar_t UI_CharacterStatus_Path[] = L"UI/UI_Json/Character/UI_CharacterStatus.json";
     inline constexpr wchar_t UI_SavePoint_Path[] = L"UI/UI_Json/CommonSystem/UI_SavePoint.json";
+    inline constexpr wchar_t UI_Interaction_Key_E_Texture_Path[] = L"../Bin/Resources/Textures/UI/Common/Input/Keys/T_Icon_Key_E.png";
     inline constexpr wchar_t UI_ExpeditionStatus_Path[] = L"UI/UI_Json/CommonSystem/UI_ExpeditionStatus.json";
     inline constexpr wchar_t UI_ChangeWeapon_Path[] = L"UI/UI_Json/CommonSystem/UI_ChangeWeapon.json";
+    inline constexpr wchar_t UI_ChangeWeapon_Current_Weapon_Tooltip_Path[] =
+        L"UI/UI_Json/CommonSystem/UI_ChangeWeapon_Current_Weapon_Tooltip.json";
+    inline constexpr wchar_t UI_UpgradeWeapon_Path[] = L"UI/UI_Json/CommonSystem/UI_Upgrade_Weapon.json";
+    inline constexpr wchar_t UI_Merchant_Path[] = L"UI/UI_Json/CommonSystem/UI_Merchant.json";
     inline constexpr wchar_t UI_Replay_Path[] = L"UI/UI_Json/CommonSystem/UI_RePlay.json";
 
     inline constexpr wchar_t UI_SkillTree_BG_Path[] = L"UI/UI_Json/Skill/SkillTree/UI_SkillTree_Test.json";
@@ -208,6 +213,13 @@ namespace Client::Constants::UI
 namespace Client::Constants::UI_Anim
 {
     inline constexpr wchar_t UI_LoadingAnim_Path[] = L"UI/UI_Animations/Scene/Loading";
+
+    inline constexpr wchar_t UI_CharacterSelectLuneAnim_Path[] =
+        L"UI/UI_Animations/Character_Select/CharacterSelect_Lune";
+    inline constexpr wchar_t UI_CharacterSelectGustaveAnim_Path[] =
+        L"UI/UI_Animations/Character_Select/CharacterSelect_Gustave";
+    inline constexpr wchar_t UI_CharacterSelectMaelleAnim_Path[] =
+        L"UI/UI_Animations/Character_Select/CharacterSelect_Maelle";
 
     inline constexpr wchar_t UI_CrossAirReadyAnim_Path[] =
         L"UI/UI_Animations/BattleSystem/CrossAir/Ready_CrossAir";

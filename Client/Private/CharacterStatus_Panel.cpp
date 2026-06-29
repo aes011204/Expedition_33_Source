@@ -46,6 +46,36 @@ namespace
 		return 0;
 	}
 
+	const wchar_t* Resolve_CharacterSelectAnimationName(HeroId heroId)
+	{
+		switch (heroId)
+		{
+		case HeroId::Lune:
+			return L"CharacterSelect_Lune";
+		case HeroId::Maelle:
+			return L"CharacterSelect_Maelle";
+		case HeroId::Gustave:
+		default:
+			return L"CharacterSelect_Gustave";
+		}
+	}
+
+	void Play_CharacterSelectAnimation(
+		const umap<wstring, Shared<UI_Base>>& uiByName,
+		HeroId heroId)
+	{
+		const wchar_t* animationName = Resolve_CharacterSelectAnimationName(heroId);
+		for (auto& [uiName, ui] : uiByName)
+		{
+			UNREFERENCED_PARAMETER(uiName);
+
+			if (ui == nullptr)
+				continue;
+
+			ui->Play_UIAnimation(animationName, true);
+		}
+	}
+
 	size_t To_StatIndex(StatType type)
 	{
 		return static_cast<size_t>(type);
@@ -241,6 +271,12 @@ HRESULT CharacterStatus_Panel::Load_UI(uint32 levelIndex)
 	desc.jsonPath = Constants::UI::UI_CharacterStatus_Path;
 	desc.prototypeTagPrefix = L"CharacterStatus";
 	desc.outUIByName = &_uiByName;
+	desc.animationPaths =
+	{
+		Constants::UI_Anim::UI_CharacterSelectLuneAnim_Path,
+		Constants::UI_Anim::UI_CharacterSelectGustaveAnim_Path,
+		Constants::UI_Anim::UI_CharacterSelectMaelleAnim_Path
+	};
 
 	CHECK_FAILED(UI_RuntimeLoader::Load_Document(desc), E_FAIL);
 
@@ -372,46 +408,9 @@ void CharacterStatus_Panel::Refresh_CombatStats()
 
 void CharacterStatus_Panel::Refresh_CharacterSelectUI()
 {
-	static const Vec2 kSelectedScale = Vec2(1.4f, 1.4f);
-	static const Vec2 kNormalScale = Vec2(1.f, 1.f);
-
-	Shared<UI_Base> buttons[3] =
-	{
-		_selectButton01, _selectButton02, _selectButton03,
-	};
-
-	Shared<UI_Base> frames[3] =
-	{
-		_selectFrame01, _selectFrame02, _selectFrame03,
-	};
-
-	Shared<UI_Base> portraits[3] =
-	{
-		_selectPortrait01, _selectPortrait02, _selectPortrait03,
-	};
-
-	Shared<UI_Base> indicators[3] =
-	{
-		_selectIndicator01, _selectIndicator02, _selectIndicator03,
-	};
-
-	for (uint32 i = 0; i < 3; i++)
-	{
-		const bool isSelected = (i == _selectedHeroIndex);
-		const Vec2 targetScale = isSelected ? kSelectedScale : kNormalScale;
-
-		if (buttons[i] && buttons[i]->Get_Transform())
-			buttons[i]->Get_Transform()->Set_Scale(targetScale);
-
-		if (frames[i] && frames[i]->Get_Transform())
-			frames[i]->Get_Transform()->Set_Scale(targetScale);
-
-		if (portraits[i] && portraits[i]->Get_Transform())
-			portraits[i]->Get_Transform()->Set_Scale(targetScale);
-
-		if (indicators[i] && indicators[i]->Get_Transform())
-			indicators[i]->Get_Transform()->Set_Scale(targetScale);
-	}
+	Play_CharacterSelectAnimation(
+		_uiByName,
+		Get_SelectedCharacterStatusHeroId(_selectedHeroIndex));
 }
 
 bool CharacterStatus_Panel::Adjust_PendingStat(StatType type, int32 value)

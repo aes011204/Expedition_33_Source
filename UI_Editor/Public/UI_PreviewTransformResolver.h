@@ -48,6 +48,7 @@ namespace UIEditor
         const UI_Document* _document = nullptr;
         ImVec2 _canvasSize = ImVec2(0.f, 0.f);
         SampleFunc _sampleFunc = {};
+        unordered_map<ObjectId, const UI_Object*> _objectById = {};
         mutable unordered_map<ObjectId, UI_Object> _previewObjectCache = {};
         mutable unordered_map<ObjectId, ImVec2> _resolvedLocalSizeCache = {};
         mutable unordered_map<ObjectId, ImVec2> _resolvedLocalPositionCache = {};
