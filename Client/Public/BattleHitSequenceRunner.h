@@ -11,11 +11,14 @@ public:
     struct HitEffectDesc
     {
         wstring effectName{};
+        wstring hitSoundCue{};
+
         Vec3 localOffset{ Vec3::Zero };
         Vec3 localRotation{ Vec3::Zero };
         Vec3 scale{ Vec3::One };
 
         bool Is_Valid() const { return !effectName.empty(); }
+        bool Has_HitSound() const {return !hitSoundCue.empty(); }
     };
 
     struct PendingHitSequence
@@ -62,6 +65,8 @@ private:
 private:
     // 예약된 반복 타격이 실제 적용된 직후, 설정된 경우에만 타겟 기준 히트 이펙트를 1회 재생한다.
     void Play_HitEffect(const BattleChar& target, const HitEffectDesc& hitEffect) const;
+
+    void Play_HitSound(const BattleChar& target, const wstring& hitSoundCue) const;
 };
 
 NS_END

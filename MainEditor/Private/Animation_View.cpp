@@ -7,6 +7,7 @@
 #include "ANS_WorldTimeScale.h"
 #include "AnimationModifier.h"
 #include "ChainModifier.h"
+#include "ClientInstance.h"
 #include "PhysicsModifier.h"
 #include "PoseFollowChainModifier.h"
 #include "ContainerObject.h"
@@ -42,6 +43,7 @@
 #include "Monster_Part.h"
 #include <algorithm>
 #include <cctype>
+#include <cstdio>
 #include <cstring>
 
 namespace
@@ -1090,6 +1092,7 @@ void Animation_View::Open_FromAsset(const wstring& modelPath, const string& mode
     Reset_PreviewRootControllerStates();
     Reset_PreviewPlayEffectStates();
     Reset_PreviewScreenFxCueStates();
+    _skillPhaseContext = {};
     Reset_PreviewAnimSpeedStates();
     Reset_PreviewClone();
 
@@ -1134,6 +1137,7 @@ void Animation_View::Open_FromModelComponent(const Shared<ModelCom>& modelCom, c
     Reset_PreviewRootControllerStates();
     Reset_PreviewPlayEffectStates();
     Reset_PreviewScreenFxCueStates();
+    _skillPhaseContext = {};
     Reset_PreviewAnimSpeedStates();
     Reset_PreviewClone();
 
@@ -1192,6 +1196,7 @@ void Animation_View::Clear_LivePreviewBinding(const Shared<GameObject>& previewR
     Reset_PreviewRootControllerStates();
     Reset_PreviewPlayEffectStates();
     Reset_PreviewScreenFxCueStates();
+    _skillPhaseContext = {};
     Reset_PreviewAnimSpeedStates();
     Reset_PreviewClone();
 
@@ -1931,6 +1936,7 @@ void Animation_View::Draw_AnimationSelector()
                     if (ImGui::Selectable(label.c_str(), isSelected))
                     {
                         Cancel_NotifyTrailBonePick();
+                        Clear_SkillPhasePreviewContext();
                         _currentAnimationName = entry.displayName;
                         Find_OrNormalize_NotifyAnimation(_asset, entry);
                         Clear_SelectedNotifySelection();
@@ -2274,6 +2280,8 @@ void Animation_View::Draw_PlaybackToolbar()
         ImGui::SameLine(0.f, 12.f);
         ImGui::Checkbox("Grid", &_showPreviewGrid);
 
+        Draw_SkillPhasePreviewControls();
+
         ImGui::SameLine();
         ImGui::TextDisabled("Time");
         ImGui::SameLine();
@@ -2407,6 +2415,106 @@ void Animation_View::Draw_PlaybackToolbar()
     }
 
     ImGui::PopStyleVar();
+}
+
+void Animation_View::Draw_SkillPhasePreviewControls()
+{
+    if (_sourceMode != SourceMode::LiveModel)
+        return;
+
+    const vector<string> skillIds = CLIENT->Get_AllSkillIds();
+    if (skillIds.empty())
+        return;
+
+    auto makePhaseLabel = [](const Client::BattleActionPhase& phase)
+    {
+        char label[256]{};
+        sprintf_s(
+            label,
+            "P%u %s x%.2f",
+            phase.phaseIndex,
+            phase.animationKey.c_str(),
+            phase.playRate > 0.f ? phase.playRate : 1.f);
+        return string(label);
+    };
+
+    ImGui::SameLine(0.f, 12.f);
+    ImGui::TextDisabled("Skill");
+    ImGui::SameLine();
+
+    const char* skillPreview = _skillPhaseContext.enabled
+        ? _skillPhaseContext.skillKey.c_str()
+        : "Select Skill";
+
+    ImGui::SetNextItemWidth(190.f);
+    if (ImGui::BeginCombo("##SkillPhasePreviewSkill", skillPreview))
+    {
+        for (const string& skillId : skillIds)
+        {
+            const Client::Skill_Data* skillData = CLIENT->Get_Skill(skillId);
+            const bool hasPhases = skillData != nullptr && !skillData->AnimPhases.empty();
+            const bool isSelected = _skillPhaseContext.enabled && _skillPhaseContext.skillKey == skillId;
+
+            if (!hasPhases)
+                ImGui::BeginDisabled();
+
+            if (ImGui::Selectable(skillId.c_str(), isSelected) && hasPhases)
+                Set_SkillPhasePreviewContext(skillId, skillData->AnimPhases.front().phaseIndex);
+
+            if (!hasPhases)
+                ImGui::EndDisabled();
+
+            if (isSelected)
+                ImGui::SetItemDefaultFocus();
+        }
+
+        ImGui::EndCombo();
+    }
+
+    const Client::Skill_Data* selectedSkill = _skillPhaseContext.enabled
+        ? CLIENT->Get_Skill(_skillPhaseContext.skillKey)
+        : nullptr;
+    if (selectedSkill != nullptr && !selectedSkill->AnimPhases.empty())
+    {
+        const Client::BattleActionPhase* selectedPhase = nullptr;
+        for (const Client::BattleActionPhase& phase : selectedSkill->AnimPhases)
+        {
+            if (phase.phaseIndex == _skillPhaseContext.phaseIndex)
+            {
+                selectedPhase = &phase;
+                break;
+            }
+        }
+
+        const string phasePreview = selectedPhase != nullptr
+            ? makePhaseLabel(*selectedPhase)
+            : string("Select Phase");
+
+        ImGui::SameLine();
+        ImGui::SetNextItemWidth(230.f);
+        if (ImGui::BeginCombo("##SkillPhasePreviewPhase", phasePreview.c_str()))
+        {
+            for (const Client::BattleActionPhase& phase : selectedSkill->AnimPhases)
+            {
+                const string phaseLabel = makePhaseLabel(phase);
+                const bool isSelected = _skillPhaseContext.phaseIndex == phase.phaseIndex;
+                if (ImGui::Selectable(phaseLabel.c_str(), isSelected))
+                    Set_SkillPhasePreviewContext(_skillPhaseContext.skillKey, phase.phaseIndex);
+
+                if (isSelected)
+                    ImGui::SetItemDefaultFocus();
+            }
+
+            ImGui::EndCombo();
+        }
+    }
+
+    if (_skillPhaseContext.enabled)
+    {
+        ImGui::SameLine();
+        if (ImGui::Button("Clear##SkillPhasePreview"))
+            Clear_SkillPhasePreviewContext();
+    }
 }
 
 void Animation_View::Draw_PreviewPanel()
@@ -5616,6 +5724,64 @@ Animation_View::PreviewWorldTimeScaleState Animation_View::Resolve_PreviewWorldT
     return result;
 }
 
+void Animation_View::Clear_SkillPhasePreviewContext()
+{
+    if (!_skillPhaseContext.enabled)
+        return;
+
+    _skillPhaseContext = {};
+    Reset_PreviewAnimSpeedStates();
+    Apply_PreviewBaseFrameSpeed();
+}
+
+bool Animation_View::Set_SkillPhasePreviewContext(const string& skillKey, uint32 phaseIndex)
+{
+    const Client::Skill_Data* skillData = CLIENT->Get_Skill(skillKey);
+    if (skillData == nullptr)
+        return false;
+
+    const Client::BattleActionPhase* selectedPhase = nullptr;
+    for (const Client::BattleActionPhase& phase : skillData->AnimPhases)
+    {
+        if (phase.phaseIndex == phaseIndex)
+        {
+            selectedPhase = &phase;
+            break;
+        }
+    }
+
+    if (selectedPhase == nullptr || selectedPhase->animationKey.empty())
+        return false;
+
+    _skillPhaseContext.enabled = true;
+    _skillPhaseContext.skillKey = skillKey;
+    _skillPhaseContext.phaseIndex = selectedPhase->phaseIndex;
+    _skillPhaseContext.animationKey = selectedPhase->animationKey;
+    _skillPhaseContext.playRate = selectedPhase->playRate > 0.f ? selectedPhase->playRate : 1.f;
+
+    _currentAnimationName = selectedPhase->animationKey;
+    Reset_PreviewAnimSpeedStates(); // 이전 ANS_AnimSpeed 복구 상태를 끊고 새 phase base speed로 맞춘다.
+    Sync_PreviewAnimationSelection(false);
+    Apply_PreviewBaseFrameSpeed();
+
+    return true;
+}
+
+float Animation_View::Resolve_PreviewBaseFrameSpeed() const
+{
+    if (_skillPhaseContext.enabled)
+        return _skillPhaseContext.playRate > 0.f ? _skillPhaseContext.playRate : 1.f;
+
+    return 1.f;
+}
+
+void Animation_View::Apply_PreviewBaseFrameSpeed()
+{
+    Shared<ModelCom> playbackModel = Get_PlaybackModel();
+    if (playbackModel != nullptr)
+        playbackModel->Set_FrameSpeed(Resolve_PreviewBaseFrameSpeed());
+}
+
 void Animation_View::Update_PreviewAnimSpeedStates(float timeDelta)
 {
     if (_sourceMode != SourceMode::LiveModel || _previewModelCom == nullptr)
@@ -5718,15 +5884,14 @@ void Animation_View::Update_PreviewAnimSpeedStates(float timeDelta)
     }
 
     if (_previewAnimSpeedStateRuntimes.empty())
-        _previewModelCom->Set_FrameSpeed(1.f);
+        Apply_PreviewBaseFrameSpeed();
 }
 
 void Animation_View::Reset_PreviewAnimSpeedStates()
 {
     if (_previewAnimSpeedStateRuntimes.empty())
     {
-        if (_previewModelCom)
-            _previewModelCom->Set_FrameSpeed(1.f);
+        Apply_PreviewBaseFrameSpeed();
         return;
     }
 
@@ -5746,8 +5911,7 @@ void Animation_View::Reset_PreviewAnimSpeedStates()
 
     _previewAnimSpeedStateRuntimes.clear();
 
-    if (_previewModelCom)
-        _previewModelCom->Set_FrameSpeed(1.f); // preview clone????貫?????깅굵 ???꾩룄?????븐뼚泥???筌먲퐘遊??類ｋ펲.
+    Apply_PreviewBaseFrameSpeed(); // ANS_AnimSpeed 구간이 끝나면 선택된 DT_SkillAction phase 배속으로 복구한다.
 }
 
 void Animation_View::Update_PreviewPlayEffectNotifies(float previousTimeSec, float currentTimeSec, float timeDelta)
@@ -7076,6 +7240,7 @@ void Animation_View::Sync_PreviewAnimationSelection(bool keepCurrentTime)
     playbackModel->Set_AnimationPaused(false);
     playbackModel->Set_CurrentAnimationTimeSec(currentTimeSec);
     playbackModel->Play_Animation(0.f); // preview 애니메이션 교체 직후에도 현재 시점 notify/state를 한 번 즉시 반영한다.
+    Apply_PreviewBaseFrameSpeed();
     _previewPlayEffectIncludeStartEdge = true;
     _sequencerCurrentFrame = static_cast<int32>(std::round(currentTimeSec * static_cast<float>(Get_CurrentAnimationFps())));
 }
