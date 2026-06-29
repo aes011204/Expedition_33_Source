@@ -69,6 +69,7 @@ void SL_Dualliste::BeginPlay()
 {
     SL_Base::BeginPlay();
 
+    Clear_CachedPlayerAnchor();
     _currentPhase = 1;
     _phaseChangeTriggered = false;
     _phaseChangeFinished = false;
@@ -648,6 +649,44 @@ bool SL_Dualliste::Notify_CloneSkillAttack(GameObject* notifyOwner) const
         return false;
 
     return _cloneSkillManager->Notify_Attack(notifyOwner);
+}
+
+void SL_Dualliste::Cache_PlayerAnchor(
+    const Vec3& playerPosition,
+    const Vec3& playerRight,
+    const Vec3& playerUp,
+    const Vec3& playerForward)
+{
+    _cachedPlayerPos = playerPosition;
+    _cachedPlayerRight = playerRight;
+    _cachedPlayerUp = playerUp;
+    _cachedPlayerForward = playerForward;
+    _hasCachedPlayerAnchor = true;
+}
+
+bool SL_Dualliste::Try_GetCachedPlayerAnchor(
+    Vec3& outPlayerPosition,
+    Vec3& outPlayerRight,
+    Vec3& outPlayerUp,
+    Vec3& outPlayerForward) const
+{
+    if (!_hasCachedPlayerAnchor)
+        return false;
+
+    outPlayerPosition = _cachedPlayerPos;
+    outPlayerRight = _cachedPlayerRight;
+    outPlayerUp = _cachedPlayerUp;
+    outPlayerForward = _cachedPlayerForward;
+    return true;
+}
+
+void SL_Dualliste::Clear_CachedPlayerAnchor()
+{
+    _cachedPlayerPos = Vec3::Zero;
+    _cachedPlayerRight = Vec3::Right;
+    _cachedPlayerUp = Vec3::Up;
+    _cachedPlayerForward = Vec3::Look;
+    _hasCachedPlayerAnchor = false;
 }
 
 void SL_Dualliste::Set_CloneVisualOnly(bool isCloneVisualOnly)

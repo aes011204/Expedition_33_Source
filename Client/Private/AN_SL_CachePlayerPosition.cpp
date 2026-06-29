@@ -36,6 +36,12 @@ void AN_SL_CachePlayerPosition::Execute(const AnimNotifyContext& context)
     if (playerTransform == nullptr)
         return;
 
+    owner->Cache_PlayerAnchor(
+        playerTransform->Get_WorldPosition(),
+        playerTransform->Get_WorldRight(),
+        playerTransform->Get_WorldUp(),
+        playerTransform->Get_WorldForward());
+
     const Shared<SL_Mon_StateMachineCom> stateMachine = owner->Get_Component<SL_Mon_StateMachineCom>();
     const Shared<SL_Mon_AttackState> attackState = stateMachine
         ? dynamic_pointer_cast<SL_Mon_AttackState>(stateMachine->Get_CurrentMonState())
