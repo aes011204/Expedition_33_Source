@@ -27,7 +27,7 @@ public:
 
 protected:
     HRESULT Ready_Components() override;
-    HRESULT Ready_PartObjects();
+    HRESULT Ready_PartObjects() override;
 
 private:
     Shared<NPC_Body> _body = {};

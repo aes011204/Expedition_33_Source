@@ -63,6 +63,7 @@ private:
     bool Draw_PlayerBattleWeaponSelector(const Shared<GameObject>& rootObject);
     void Draw_SelectedWeaponTrailAnchorPanel(const Shared<GameObject>& selectedObject);
     bool Draw_MonsterBattlePrefabList(const Shared<GameObject>& selectedObject);
+    bool Draw_MonsterPatrolPointEditor(const Shared<GameObject>& selectedObject);
     bool Draw_MonsterBattleSettings(const Shared<GameObject>& selectedObject);
     void Draw_GameObjectTree(const Shared<GameObject>& gameObject, const wstring& objectKey);
     void Draw_ComponentEntries(const Shared<GameObject>& gameObject, const wstring& objectKey);
@@ -81,6 +82,7 @@ private:
 
     void Draw_PreviewColliders(const Shared<GameObject>& gameObject) const;
     void Draw_PreviewGrid() const;
+    void Draw_MonsterPatrolPointPreview() const;
     void Draw_MonsterBattleSpawnPreview() const;
     void Draw_SelectedWeaponTrailAnchorPreview() const;
     void Draw_SelectedWeaponSourceAnchorPreview() const;

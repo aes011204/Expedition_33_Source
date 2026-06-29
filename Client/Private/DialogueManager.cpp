@@ -66,9 +66,15 @@ void DialogueManager::StartDialogue(const DialogueRequest& request)
     CLIENT->Set_DialogueFocusActive(true);
 
     if (auto npc = dynamic_pointer_cast<NPC_Base>(_dialogueNpcObject))
+    {
         _startAnimationKey = npc->Get_CurrentAnimationKey();
+        _startAnimationOffsetY = npc->Get_DialogueVisualOffsetY();
+    }
     else
+    {
         _startAnimationKey.clear();
+        _startAnimationOffsetY = 0.f;
+    }
 
     AlignDialogueActors();
 
@@ -114,7 +120,18 @@ void DialogueManager::ContinueDialogue()
 
 void DialogueManager::EndDialogue(bool restoreWorldState)
 {
-    LOG_INFO("========��ȭ ����========");
+    if (auto npc = dynamic_pointer_cast<NPC_Base>(_dialogueNpcObject) )
+    {
+        if(_currentDialogueData->restoreToStartAnimation == true)
+        {
+            if (!_startAnimationKey.empty())
+                npc->Set_DialogueAnimation(_startAnimationKey);
+            else
+                npc->Reset_ToDefaultAnimation();
+
+            npc->Set_DialogueVisualOffsetY(_startAnimationOffsetY);
+        }
+    }
 
     _currentDialogueKey.clear();
     _currentDialogueData = nullptr;
@@ -125,14 +142,8 @@ void DialogueManager::EndDialogue(bool restoreWorldState)
     _waitInteractKeyRelease = true;
     CLIENT->Set_DialogueFocusActive(false);
 
-    if (auto npc = dynamic_pointer_cast<NPC_Base>(_dialogueNpcObject))
-    {
-        if (!_startAnimationKey.empty())
-            npc->Set_DialogueAnimation(_startAnimationKey);
-    }
-
     _lastAnimationKey.clear();
-    _startAnimationKey.clear();
+    _lastAnimationOffsetY = 0.f;
 
     GAME->Set_GameplayInputMode(GameplayInputMode::Normal);
 
@@ -162,8 +173,11 @@ void DialogueManager::AlignDialogueActors()
 
     FaceDialogueTarget(_dialoguePlayerObject, npcPos);
 
-    if (dynamic_pointer_cast<NPC_Base>(_dialogueNpcObject) != nullptr)
-        FaceDialogueTarget(_dialogueNpcObject, playerPos);
+    if (auto npc = dynamic_pointer_cast<NPC_Base>(_dialogueNpcObject))
+    {
+        if (npc->Should_FacePlayerOnDialogueStart())
+            FaceDialogueTarget(_dialogueNpcObject, playerPos);
+    }
 }
 
 void DialogueManager::Update()
@@ -297,6 +311,23 @@ void DialogueManager::ApplyChoice()
     MoveToLine(choice.nextLineIndex);
 }
 
+void DialogueManager::Reset_LastDialogueNpcAnimationToStart()
+{
+    auto npc = dynamic_pointer_cast<NPC_Base>(_dialogueNpcObject);
+    if (npc == nullptr)
+        return;
+
+    if (!_startAnimationKey.empty())
+        npc->Set_DialogueAnimation(_startAnimationKey);
+    else
+        npc->Reset_ToDefaultAnimation();
+
+    npc->Set_DialogueVisualOffsetY(_startAnimationOffsetY);
+
+    _lastAnimationKey.clear();
+    _lastAnimationOffsetY = 0.f;
+}
+
 bool DialogueManager::ExecuteLineAction(const string& action)
 {
     if (action.empty())
@@ -370,12 +401,21 @@ void DialogueManager::ApplyCurrentLine()
     }
 
     if (!currentLine->speakerAnimationKey.empty() &&
-        _lastAnimationKey != currentLine->speakerAnimationKey)
+        currentLine->speakerRole == DialogueActorRole::Npc)
     {
         if (auto npc = dynamic_pointer_cast<NPC_Base>(speakerObject))
         {
-            npc->Set_DialogueAnimation(currentLine->speakerAnimationKey);
+            const bool animationChanged = _lastAnimationKey != currentLine->speakerAnimationKey;
+            const bool offsetChanged = fabsf(_lastAnimationOffsetY - currentLine->speakerOffsetY) > 0.0001f;
+
+            if (animationChanged)
+                npc->Set_DialogueAnimation(currentLine->speakerAnimationKey);
+
+            if (animationChanged || offsetChanged)
+                npc->Set_DialogueVisualOffsetY(currentLine->speakerOffsetY);
+
             _lastAnimationKey = currentLine->speakerAnimationKey;
+            _lastAnimationOffsetY = currentLine->speakerOffsetY;
         }
     }
 

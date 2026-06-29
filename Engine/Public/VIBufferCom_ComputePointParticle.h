@@ -30,6 +30,7 @@ public: //## Behavior::ComputeUpdate
         uint32 spawnRequest,
         uint32 spawnSerialBase,
         float lifetimeSamplePhase,
+        float emitterElapsedTime,
         bool killActiveParticles);
     // 같은 instance count 안에서 위치/크기 runtime payload를 갱신한다.
     void Update_RuntimeDesc(const ComputePointParticleDesc& desc);
@@ -83,7 +84,7 @@ private: //## Data::Compute
     Shared<ComputeStructuredBuffer> _lifecycleState{};       // particle별 age/lifetime을 유지하는 compute-only state buffer.
     vector<ParticleLifecycleState> _initialLifecycleState{}; // replay reset 때 재사용하는 초기 lifecycle baseline이다.
     vector<ParticleInstanceVertex> _emptyInstancePayload{};  // replay reset 때 재사용하는 zeroed instance payload다.
-    float _elapsedTime{};                                    // shader에 전달할 누적 시간.
+    float _elapsedTime{};                                    // shader에 전달할 emitter loop-local 시간.
     float _deltaTime{};                                      // 이번 dispatch의 frame delta time.
     float _lifetimeSamplePhase{};                            // 이번 spawn request에 적용할 Lifetime curve phase다.
     uint32 _spawnRequest{};                                  // 이번 dispatch에서 inactive slot을 활성화할 요청 수.

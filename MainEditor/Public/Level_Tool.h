@@ -27,25 +27,22 @@ private:
     void Render_LevelSwitcher();
     void Render_MapLoader();
 
-    void Refresh_MapJsonFiles();
-    std::filesystem::path Resolve_MapSaveJsonDir() const;
-    std::filesystem::path Resolve_SelectedMapJsonPath() const;
+    void Refresh_MapInstanceFolders();
+    std::filesystem::path Resolve_MapInstanceDir() const;
+    std::filesystem::path Resolve_SelectedMapInstancePath() const;
 
     void Load_SelectedMap();
     void Reload_SelectedMap();
-    void Reload_SelectedAuthoredObjects();
-    void Save_SelectedMapState();
+    void Save_SelectedPrefabInstances();
 
     void Remove_CurrentLevelMapObjects();
-    void Remove_CurrentLevelAuthoredObjects();
 
     void Change_To(LevelType targetLevel);
 
 private:
     int _selectedLevelIndex = { 0 };
-    int _selectedJsonIndex = { -1 };
-    vector<string> _jsonFiles = {};
-    vector<Weak<GameObject>> _reloadedMonsterObjects = {};
+    int _selectedMapInstanceIndex = { -1 };
+    vector<string> _mapInstanceFolders = {};
 
 public:
     static Shared<Level_Tool> Create();

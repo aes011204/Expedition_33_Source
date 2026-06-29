@@ -22,6 +22,7 @@ umap<string, Shared<StaticCollisionData>> MapLoader::g_globalCollisionCache;
 umap<string, string> MapLoader::g_globalMaterialSignatureByModel;
 uint32 MapLoader::g_currentLevelIndex = UINT32_MAX;
 vector<LIGHT_DESC> MapLoader::g_cachedLights;
+umap<uint32, wstring> MapLoader::g_loadedMapInstanceRootByLevel;
 
 MapCollisionAdapter::RuntimeContext MapLoader::MakeCollisionRuntimeContext(LoadSession& session)
 {
@@ -34,6 +35,15 @@ MapCollisionAdapter::RuntimeContext MapLoader::MakeCollisionRuntimeContext(LoadS
     context.outBuildDuration = &session.collisionBuildDuration;
     context.outBuildCount = &session.collisionBuildCount;
     return context;
+}
+
+wstring MapLoader::Get_LoadedMapInstanceRoot(uint32 levelIndex)
+{
+    const auto iter = g_loadedMapInstanceRootByLevel.find(levelIndex);
+    if (iter == g_loadedMapInstanceRootByLevel.end())
+        return {};
+
+    return iter->second;
 }
 
 namespace
@@ -357,6 +367,8 @@ HRESULT MapLoader::Try_BeginMapInstanceSession(
     outSession.context = context;
     outSession.levelIndex = levelIndex;
     outSession.layerTag = layerTag;
+    outSession.sourceMapPath = splitData.authoringJson.wstring();
+    g_loadedMapInstanceRootByLevel[levelIndex] = splitData.root.wstring();
     outSession.modelFolder = splitData.modelFolder;
     outSession.modelOverrides = std::move(splitData.modelOverrides);
     outSession.staticMeshes = std::move(splitData.staticMeshes);
@@ -365,6 +377,8 @@ HRESULT MapLoader::Try_BeginMapInstanceSession(
     outSession.shaftVolumes = std::move(splitData.shaftVolumes);
     outSession.waters = std::move(splitData.waters);
     outSession.lights = std::move(splitData.lights);
+    outSession.prefabInstances = std::move(splitData.prefabInstances);
+    outSession.authoredObjects = std::move(splitData.authoredObjects);
     outSession.preloadModelPaths = std::move(splitData.preloadModelPaths);
     outSession.cookedCollisionCache = std::move(splitData.cookedCollisionCache);
     outSession.primitiveCollisionCache = std::move(splitData.primitiveCollisionCache);
@@ -377,13 +391,14 @@ HRESULT MapLoader::Try_BeginMapInstanceSession(
     outSession.shaftVolumesDone = outSession.shaftVolumes.empty();
     outSession.watersDone = outSession.waters.empty();
     outSession.lightsDone = outSession.lights.empty();
-    outSession.prefabInstancesDone = true;
+    outSession.prefabInstancesDone = outSession.prefabInstances.empty();
+    outSession.authoredObjectsDone = outSession.authoredObjects.empty();
 
     outSession.beginSessionDuration =
         chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - sessionBegin);
 
     LOG_DEBUG(
-        "[MapLoader::MapInstance] root='{}' modelFolder='{}' staticMeshes={} instancedMeshes={} postProcessVolumes={} shaftVolumes={} waters={} preloadModels={} modelOverrides={}",
+        "[MapLoader::MapInstance] root='{}' modelFolder='{}' staticMeshes={} instancedMeshes={} postProcessVolumes={} shaftVolumes={} waters={} prefabInstances={} authoredObjects={} preloadModels={} modelOverrides={}",
         splitData.root.generic_string(),
         outSession.modelFolder,
         outSession.staticMeshes.size(),
@@ -391,6 +406,8 @@ HRESULT MapLoader::Try_BeginMapInstanceSession(
         outSession.postProcessVolumes.size(),
         outSession.shaftVolumes.size(),
         outSession.waters.size(),
+        outSession.prefabInstances.size(),
+        outSession.authoredObjects.size(),
         outSession.preloadModelPaths.size(),
         outSession.modelOverrides.size());
 
@@ -1160,15 +1177,18 @@ HRESULT MapLoader::Process_LoadSession(LoadSession& session, size_t maxMeshesPer
             break;
         }
 
+        const size_t sourcePrefabIndex = session.nextPrefabInstanceIndex++;
         json singleMapData = json::object();
         singleMapData["PrefabInstances"] = json::array(
-            { session.prefabInstances[session.nextPrefabInstanceIndex++] });
+            { session.prefabInstances[sourcePrefabIndex] });
 
         const auto prefabBegin = chrono::steady_clock::now();
         if (MapAuthoringIO::Load_PrefabInstances_FromMapData(
             singleMapData,
             session.levelIndex,
-            session.spawnedObjects))
+            session.spawnedObjects,
+            session.sourceMapPath,
+            sourcePrefabIndex))
         {
             ++session.prefabInstanceAddCount;
         }
@@ -1190,15 +1210,19 @@ HRESULT MapLoader::Process_LoadSession(LoadSession& session, size_t maxMeshesPer
             break;
         }
 
+        const size_t sourceAuthoredIndex = session.nextAuthoredObjectIndex++;
         json singleMapData = json::object();
         singleMapData["AuthoredObjects"] = json::array(
-            { session.authoredObjects[session.nextAuthoredObjectIndex++] });
+            { session.authoredObjects[sourceAuthoredIndex] });
 
         const auto authoredBegin = chrono::steady_clock::now();
         if (MapAuthoringIO::Load_AuthoredObjects_FromMapData(
             singleMapData,
             session.levelIndex,
-            session.spawnedObjects))
+            session.spawnedObjects,
+            session.sourceMapPath,
+            0,
+            sourceAuthoredIndex))
         {
             ++session.authoredObjectAddCount;
         }

@@ -1,6 +1,7 @@
 ﻿#pragma once
 #include "Base.h"
 #include "BattleMonsterSpawnDesc.h"
+#include "CameraPresetTypes.h"
 #include "Cinematic_Types.h"
 #include "GameDataTable.h"
 #include "Delegate.h"
@@ -170,7 +171,8 @@ public: /* For.Fade Transition */
     bool Request_LoadedLevelTransition(LevelType TargetLevel, Shared<Level> TargetLevelInstance);
     bool Request_CurrentLevelReplay();
     void Reset_CurrentLevelRuntimeState();
-    void Clear_ReplayMonsterSnapshot();
+    void Capture_InitialWorldSnapshot();
+    void Clear_ReplayWorldSnapshot();
 
     bool Is_FadeTransitionPlaying() const;
 
@@ -228,6 +230,12 @@ public: /*CinematicSequenceRunner*/
         bool applyEventTrack,
         bool applyActorTransformTrack,
         bool forceRebuildContext = false);
+    void Preview_CurrentSequenceFrameExact(
+        float frameExact,
+        bool applyCameraTrack,
+        bool applyEventTrack,
+        bool applyActorTransformTrack,
+        bool forceRebuildContext = false);
     bool Sync_CinematicPreviewSequence(const CINEMATIC_SEQUENCE& sequence, int trackIndex = -1);
     void Set_ActorTransformTrackPreviewSuspended(bool suspended);
     void Stop_Sequence();
@@ -235,6 +243,7 @@ public: /*CinematicSequenceRunner*/
     bool Is_CinematicPlaying() const;
     bool Is_CinematicPaused() const;
     int Get_CurrentSequenceFrame() const;
+    float Get_CurrentSequenceFrameExact() const;
     Shared<GameObject> Get_CinematicBoundActor(const string& targetId) const;
     bool Is_ActorTransformTrackPreviewSuspended() const;
     void Update_CinematicPreview(float timeDelta);
@@ -311,11 +320,15 @@ public:
   public:
     void StartDialogue(const DialogueRequest& request);
     void EndDialogue(bool restoreWorldState = true);
+    void Reset_LastDialogueNpcAnimationToStart();
     bool IsDialogueActive() const;
     bool IsDialogueInteractLocked() const;
     void AddDialogueInteractionOverlap();
     void RemoveDialogueInteractionOverlap();
     bool HasDialogueInteractionOverlap() const { return _dialogueInteractionOverlapCount > 0; }
+    void AddItemInteractionOverlap();
+    void RemoveItemInteractionOverlap();
+    bool HasItemInteractionOverlap() const { return _itemInteractionOverlapCount > 0; }
     
 public: /* Battle Followup Manager */
      BattleFollowupManager* Get_BattleFollowupManager() const { return _battleFollowupManager.get(); }
@@ -324,8 +337,10 @@ public: /* Battle Followup Manager */
 private:
 	HRESULT Ready_ResourceLoader();
     HRESULT Ready_GameDataTables();
-    void Capture_ReplayMonsterSnapshotIfNeeded();
-    void Respawn_ReplayMonstersFromSnapshot();
+    void Capture_ReplayWorldSnapshotIfNeeded();
+    void Restore_ReplayWorldObjectsFromSnapshot();
+    void Capture_ReplayCameraSnapshot();
+    void Restore_ReplayCameraSnapshot();
 
 public:
     FOnFreeAimShotHit OnFreeAimShotHit;
@@ -339,6 +354,7 @@ private:
 	bool         _isInitialized = false;
     bool         _isTargetCameraEditMode = false;
     int          _dialogueInteractionOverlapCount = 0;
+    int          _itemInteractionOverlapCount = 0;
 
 private:
     Shared<CameraDirector>              _cameraDirector;
@@ -365,10 +381,35 @@ private:
 
     Unique<Unlock_Manager>      _unlockManager;
     Unique<BattleFollowupManager>   _battleFollowupManager;
-    vector<RuntimeCheckpointIO::WorldObject> _replayMonsterSpawnObjects;
-    vector<uint8> _replayMonsterRuntimeAuthoringLoaded;
-    uint32 _replayMonsterSnapshotLevelIndex = UINT32_MAX;
-    bool _replayMonsterSnapshotCaptured = false;
+    vector<RuntimeCheckpointIO::WorldObject> _replayWorldSpawnObjects;
+    vector<uint8> _replayWorldRuntimeAuthoringLoaded;
+    json _replayWorldInventoryJson = json::object();
+    json _replayWorldUnlockManagerJson = json::object();
+    uint32 _replayWorldSnapshotLevelIndex = UINT32_MAX;
+    bool _replayWorldSnapshotCaptured = false;
+
+    struct ReplayCameraTransformState
+    {
+        bool hasCamera = false;
+        Vec3 position = Vec3::Zero;
+        Vec3 rotation = Vec3::Zero;
+        float yaw = 0.f;
+        float pitch = 0.f;
+        float fovY = 0.f;
+        float nearPlane = 0.f;
+        float farPlane = 0.f;
+    };
+
+    struct ReplayCameraSnapshot
+    {
+        bool captured = false;
+        ObjectType activeType = ObjectType::None;
+        TargetCameraMode targetMode = TargetCameraMode::NORMAL;
+        ReplayCameraTransformState targetCamera{};
+        ReplayCameraTransformState freeCamera{};
+    };
+
+    ReplayCameraSnapshot _replayCameraSnapshot{};
 
 public:
 	void Free() override;

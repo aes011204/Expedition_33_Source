@@ -37,6 +37,7 @@ public:
     {
         fs::path root = {};
         fs::path sidecarJson = {};
+        fs::path authoringJson = {};
         string modelFolder = {};
 
         unordered_map<string, ModelOverrideEntry> modelOverrides = {};
@@ -46,6 +47,8 @@ public:
         vector<json> shaftVolumes = {};
         vector<json> waters = {};
         vector<json> lights;
+        vector<json> prefabInstances = {};
+        vector<json> authoredObjects = {};
         vector<string> preloadModelPaths = {};
         MapCollisionAdapter::CookedCollisionCache cookedCollisionCache = {};
         MapCollisionAdapter::PrimitiveCollisionCache primitiveCollisionCache = {};

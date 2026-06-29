@@ -1124,6 +1124,14 @@ vector<CurveEditor_View::CurveTarget> CurveEditor_View::Collect_ModuleTargets(
             );
         }
         break;
+    case AuthoringModuleType::SpriteTilt:
+        if (auto* data = get_if<SpriteTiltModuleData>(&module.data))
+            Add_Vector2Target(targets, emitter, module, data->tiltDegrees, "tiltDegrees", "Sprite Tilt", requireActiveCurve);
+        break;
+    case AuthoringModuleType::SpriteTiltOverLife:
+        if (auto* data = get_if<SpriteTiltOverLifeModuleData>(&module.data))
+            Add_Vector2Target(targets, emitter, module, data->tiltOverLife, "tiltOverLife", "Sprite Tilt Over Life", requireActiveCurve);
+        break;
     case AuthoringModuleType::InitialMeshRotation:
         if (auto* data = get_if<InitialMeshRotationModuleData>(&module.data))
             Add_Vector3Target(targets, emitter, module, data->rotationDegrees, "rotationDegrees", "Mesh Rotation", true, requireActiveCurve);
@@ -1166,6 +1174,41 @@ vector<CurveEditor_View::CurveTarget> CurveEditor_View::Collect_ModuleTargets(
     case AuthoringModuleType::SizeByLife:
         if (auto* data = get_if<SizeByLifeModuleData>(&module.data))
             Add_Vector2Target(targets, emitter, module, data->scaleOverLife, "scaleOverLife", "Scale Over Life", requireActiveCurve);
+        break;
+    case AuthoringModuleType::BeamEnvelopeOverLife:
+        if (auto* data = get_if<BeamEnvelopeOverLifeModuleData>(&module.data))
+        {
+            Add_FloatTarget(
+                targets,
+                emitter,
+                module,
+                data->startRatioOverLife,
+                "startRatioOverLife",
+                "Beam Start Ratio",
+                IM_COL32(125, 205, 255, 255),
+                requireActiveCurve
+            );
+            Add_FloatTarget(
+                targets,
+                emitter,
+                module,
+                data->endRatioOverLife,
+                "endRatioOverLife",
+                "Beam End Ratio",
+                IM_COL32(255, 205, 125, 255),
+                requireActiveCurve
+            );
+            Add_FloatTarget(
+                targets,
+                emitter,
+                module,
+                data->widthScaleOverLife,
+                "widthScaleOverLife",
+                "Beam Width Scale",
+                IM_COL32(190, 255, 155, 255),
+                requireActiveCurve
+            );
+        }
         break;
     case AuthoringModuleType::MeshSizeByLife:
         if (auto* data = get_if<MeshSizeByLifeModuleData>(&module.data))

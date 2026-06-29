@@ -171,6 +171,7 @@ BNode::NODE_STATE BT_Patrol::Logic_Update(float deltaTime)
     if (!monster)
         return BNode::NODE_STATE::FAILED;
 
+    const bool hasAuthoredPatrolPoints = !monster->Get_PatrolPoints().empty();
     monster->Set_DesiredAction(Monster_WorldBase::MonsterWorldAnim::Patrol);
 
     Vec3 ownerPos = monster->Get_Transform()->Get_Position();
@@ -217,12 +218,15 @@ BNode::NODE_STATE BT_Patrol::Logic_Update(float deltaTime)
         return BNode::NODE_STATE::RUN;
     }
 
+    if (!Get_Owner()->Has_MoveIntent())
+        requestTarget(currentTarget); // Rotate만 남고 PathFollower intent가 끊긴 경우, 현재 patrol point로 다시 이동을 건다.
+
     Vec3 moved = ownerPos - _lastSamplePos;
     moved.y = 0.f;
 
     const bool blockedAhead = Is_BlockedTowardTarget(monster, currentTarget);
 
-    if (Get_Owner()->Has_MoveIntent() && blockedAhead && moved.LengthSquared() <= kStuckMoveEpsilonSq)
+    if (!hasAuthoredPatrolPoints && Get_Owner()->Has_MoveIntent() && blockedAhead && moved.LengthSquared() <= kStuckMoveEpsilonSq)
         _stuckAccum += deltaTime;
     else
         _stuckAccum = 0.f;

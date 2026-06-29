@@ -703,6 +703,7 @@ void GameplayUI_Battle::Handle_BattleEnded(EBattleEndResult result)
             if (_battleController)
             {
                 summary.rewardExp = _battleController->Get_LastVictoryRewardExp();
+                summary.rewardPictosIds = _battleController->Get_LastVictoryRewardPictosIds();
 
                 if (const Shared<BattleResultRecoder> resultRecoder = _battleController->Get_BattleResultTracker())
                 {
@@ -2669,6 +2670,7 @@ vector<GameplayUI_Battle::VictoryStatDesc> GameplayUI_Battle::Build_BattleVictor
         stat.prevLevel = stat.level;
         stat.prevExp = stat.curExp;
         stat.prevMaxExp = stat.maxExp;
+        stat.equippedPictosIds = playerStat->Get_EquippedPictosIds(); // 결과창은 전투 종료 시점의 장착 상태를 그대로 표시한다.
 
         if (rewardExp > 0)
         {

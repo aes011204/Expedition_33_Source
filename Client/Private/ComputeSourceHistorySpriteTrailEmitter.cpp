@@ -2486,10 +2486,15 @@ Vec3 ComputeSourceHistorySpriteTrailEmitter::Evaluate_AccelerationByLife(const S
     if (!_desc.motion.enabled || !_desc.motion.accelerationCurveEnabled)
         return stamp.acceleration;
 
+    const float activeLoopTime = max(0.f, _loopElapsedTime - Resolve_CurrentLoopDelay());
+    const float curveProgress =
+        _desc.motion.accelerationTimeBasis == PointParticleAccelerationTimeBasis::EmitterNormalizedTime
+        ? clamp(activeLoopTime / Resolve_Duration(), 0.f, 1.f)
+        : lifeProgress;
     const uint32 keyCount = max(1u, min(::Engine::kEffectDistributionCurveMaxKeys, _desc.motion.accelerationCurveKeyCount));
     const Vec3 acceleration{
         Evaluate_CompactCurve(
-            lifeProgress,
+            curveProgress,
             _desc.motion.accelerationCurveTimes,
             _desc.motion.accelerationCurveTimesBlock1,
             _desc.motion.accelerationCurveValuesX,
@@ -2504,7 +2509,7 @@ Vec3 ComputeSourceHistorySpriteTrailEmitter::Evaluate_AccelerationByLife(const S
             stamp.acceleration.x
         ),
         Evaluate_CompactCurve(
-            lifeProgress,
+            curveProgress,
             _desc.motion.accelerationCurveTimes,
             _desc.motion.accelerationCurveTimesBlock1,
             _desc.motion.accelerationCurveValuesY,
@@ -2519,7 +2524,7 @@ Vec3 ComputeSourceHistorySpriteTrailEmitter::Evaluate_AccelerationByLife(const S
             stamp.acceleration.y
         ),
         Evaluate_CompactCurve(
-            lifeProgress,
+            curveProgress,
             _desc.motion.accelerationCurveTimes,
             _desc.motion.accelerationCurveTimesBlock1,
             _desc.motion.accelerationCurveValuesZ,
