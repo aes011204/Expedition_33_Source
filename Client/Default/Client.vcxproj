@@ -193,6 +193,7 @@
     <ClInclude Include="..\Public\AN_SL_DuallisteCloneSkill.h" />
     <ClInclude Include="..\Public\AN_EndTurn.h" />
     <ClInclude Include="..\Public\AN_PlayEffect.h" />
+    <ClInclude Include="..\Public\AN_PlayEffectBattleDir.h" />
     <ClInclude Include="..\Public\AN_SL_SpawnAttColl.h" />
     <ClInclude Include="..\Public\AN_PlaySound.h" />
     <ClInclude Include="..\Public\AN_ReturnBattleIdle.h" />
@@ -678,6 +679,7 @@
     <ClCompile Include="..\Private\AN_Dissolve_Parts.cpp" />
     <ClCompile Include="..\Private\AN_EndTurn.cpp" />
     <ClCompile Include="..\Private\AN_PlayEffect.cpp" />
+    <ClCompile Include="..\Private\AN_PlayEffectBattleDir.cpp" />
     <ClCompile Include="..\Private\AN_SL_SpawnAttColl.cpp" />
     <ClCompile Include="..\Private\AN_PlaySound.cpp" />
     <ClCompile Include="..\Private\AN_ReturnBattleIdle.cpp" />
