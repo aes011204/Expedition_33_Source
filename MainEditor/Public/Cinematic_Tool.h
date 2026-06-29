@@ -58,6 +58,7 @@ private:
     void Render_LoadSequencePopup();
     void Render_SequenceOverwriteWarningPopups();
     void Render_ImSequencer();
+    void Render_CameraShots();
 
     void Ensure_DefaultTrack();
     void Clamp_Selection();
@@ -125,6 +126,7 @@ private:
     int                                  _selectedKeyIndex = -1;
     int                                  _selectedSequenceFileIndex = -1;
     int                                  _selectedEventIndex = -1;
+    int                                  _selectedCameraShotIndex = -1;
     int                                  _selectedActorRelativeCameraTrackIndex = -1;
     int                                  _selectedActorRelativeCameraKeyIndex = -1;
     int                                  _selectedActorTransformTrackIndex = -1;

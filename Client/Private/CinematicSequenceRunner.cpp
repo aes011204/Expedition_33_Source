@@ -1,5 +1,4 @@
 ﻿#include "CinematicSequenceRunner.h"
-
 #include "Cinematic_Player.h"
 #include "Cinematic_SequenceIO.h"
 #include "Cinematic_Utils.h"
@@ -11,6 +10,7 @@
 #include "Helper_String.h"
 #include "ModelCom.h"
 #include "Monster_WorldBase.h"
+#include "Player_WorldBase.h"
 #include "PartObject.h"
 #include "SL_Dualliste.h"
 #include "SL_Maelle.h"
@@ -95,7 +95,7 @@ bool CinematicSequenceRunner::Resolve_CameraTrackSelection(
     int trackIndex,
     CINEMATIC_TRACK*& outWorldTrack,
     CINEMATIC_ACTOR_RELATIVE_CAMERA_TRACK*& outActorRelativeTrack,
-    CameraTrackKind& outKind)
+    CameraTrackKind& outKind) const
 {
     outWorldTrack = nullptr;
     outActorRelativeTrack = nullptr;
@@ -104,7 +104,7 @@ bool CinematicSequenceRunner::Resolve_CameraTrackSelection(
     const int worldTrackCount = static_cast<int>(_sequence.cinematicTracks.size());
     if (trackIndex >= 0 && trackIndex < worldTrackCount)
     {
-        outWorldTrack = &_sequence.cinematicTracks[trackIndex];
+        outWorldTrack = const_cast<CINEMATIC_TRACK*>(&_sequence.cinematicTracks[trackIndex]);
         outKind = CameraTrackKind::World;
         return true;
     }
@@ -113,7 +113,8 @@ bool CinematicSequenceRunner::Resolve_CameraTrackSelection(
     if (actorRelativeTrackIndex >= 0 &&
         actorRelativeTrackIndex < static_cast<int>(_sequence.actorRelativeCameraTracks.size()))
     {
-        outActorRelativeTrack = &_sequence.actorRelativeCameraTracks[actorRelativeTrackIndex];
+        outActorRelativeTrack = const_cast<CINEMATIC_ACTOR_RELATIVE_CAMERA_TRACK*>(
+            &_sequence.actorRelativeCameraTracks[actorRelativeTrackIndex]);
         outKind = CameraTrackKind::ActorRelative;
         return true;
     }
@@ -228,24 +229,94 @@ bool CinematicSequenceRunner::Build_ActorRelativeCameraPose(
     return true;
 }
 
+bool CinematicSequenceRunner::Resolve_ActiveCameraTrackForFrame(
+    float currentFrameExact,
+    CINEMATIC_TRACK*& outWorldTrack,
+    CINEMATIC_ACTOR_RELATIVE_CAMERA_TRACK*& outActorRelativeTrack,
+    CameraTrackKind& outKind,
+    int& outTrackIndex) const
+{
+    outWorldTrack = nullptr;
+    outActorRelativeTrack = nullptr;
+    outKind = CameraTrackKind::None;
+    outTrackIndex = _trackIndex;
+
+    if (Uses_CameraShots())
+    {
+        const int currentFrame = std::clamp(
+            static_cast<int>(std::floor(currentFrameExact)),
+            _sequence.startFrame,
+            _sequence.endFrame);
+
+        for (const auto& shot : _sequence.cameraShots)
+        {
+            if (!shot.enabled)
+                continue;
+
+            if (currentFrame < shot.startFrame || currentFrame > shot.endFrame)
+                continue;
+
+            CINEMATIC_TRACK* shotWorldTrack = nullptr;
+            CINEMATIC_ACTOR_RELATIVE_CAMERA_TRACK* shotActorRelativeTrack = nullptr;
+            CameraTrackKind shotTrackKind = CameraTrackKind::None;
+            if (Resolve_CameraTrackSelection(
+                shot.trackIndex,
+                shotWorldTrack,
+                shotActorRelativeTrack,
+                shotTrackKind))
+            {
+                outWorldTrack = shotWorldTrack;
+                outActorRelativeTrack = shotActorRelativeTrack;
+                outKind = shotTrackKind;
+                outTrackIndex = shot.trackIndex;
+                return true;
+            }
+        }
+    }
+
+    return Resolve_CameraTrackSelection(outTrackIndex, outWorldTrack, outActorRelativeTrack, outKind);
+}
+
+bool CinematicSequenceRunner::Uses_CameraShots() const
+{
+    return !_sequence.cameraShots.empty();
+}
+
 void CinematicSequenceRunner::Apply_ActiveCameraTrackPose(float currentFrameExact)
 {
     if (!_applyCameraTrack || _activeCinematicCamera == nullptr)
         return;
 
-    if (_cameraTrackKind != CameraTrackKind::ActorRelative)
-        return;
-
-    const int actorRelativeTrackIndex = _trackIndex - static_cast<int>(_sequence.cinematicTracks.size());
-    if (actorRelativeTrackIndex < 0 ||
-        actorRelativeTrackIndex >= static_cast<int>(_sequence.actorRelativeCameraTracks.size()))
+    CAMERAPOSE camPose{};
+    CINEMATIC_TRACK* worldTrack = nullptr;
+    CINEMATIC_ACTOR_RELATIVE_CAMERA_TRACK* actorRelativeTrack = nullptr;
+    CameraTrackKind activeTrackKind = CameraTrackKind::None;
+    int activeTrackIndex = _trackIndex;
+    if (!Resolve_ActiveCameraTrackForFrame(
+        currentFrameExact,
+        worldTrack,
+        actorRelativeTrack,
+        activeTrackKind,
+        activeTrackIndex))
     {
         return;
     }
 
-    CAMERAPOSE camPose{};
-    if (!Build_ActorRelativeCameraPose(_sequence.actorRelativeCameraTracks[actorRelativeTrackIndex], currentFrameExact, camPose))
+    if (activeTrackKind == CameraTrackKind::World)
+    {
+        CINEMATIC_KEYFRAME* leftKey = nullptr;
+        CINEMATIC_KEYFRAME* rightKey = nullptr;
+        camPose = Evaluate_CinematicPose(worldTrack, currentFrameExact, leftKey, rightKey);
+    }
+    else if (activeTrackKind == CameraTrackKind::ActorRelative)
+    {
+        if (!Build_ActorRelativeCameraPose(*actorRelativeTrack, currentFrameExact, camPose))
+            return;
+    }
+    else
+    {
         return;
+    }
 
     const Client::CameraModifierSample modifierSample = Evaluate_CinematicModifierSample(_sequence, currentFrameExact);
     const float sequenceTime = Evaluate_CinematicSequenceTime(_sequence, currentFrameExact);
@@ -319,7 +390,8 @@ bool CinematicSequenceRunner::Play_Sequence(
     _applyActorTransformTrack = applyActorTransformTrack;
 
     Set_GameplayUIHiddenForCinematic(true);
-    _player->Ready_CinematicPlayer(&_sequence, cinematicTrack, cinematicCamera, true, applyCameraTrack);
+    const bool playerAppliesCameraTrack = applyCameraTrack && !Uses_CameraShots() && trackKind == CameraTrackKind::World;
+    _player->Ready_CinematicPlayer(&_sequence, cinematicTrack, cinematicCamera, true, playerAppliesCameraTrack);
     Apply_ActiveCameraTrackPose(static_cast<float>(_sequence.startFrame));
     if (_applyEventTrack)
         Execute_EventsUpToFrame(_sequence.startFrame, static_cast<float>(_sequence.startFrame));
@@ -385,8 +457,9 @@ bool CinematicSequenceRunner::Play_Sequence(
     _applyActorTransformTrack = applyActorTransformTrack;
 
     Set_GameplayUIHiddenForCinematic(true);
-    _player->Ready_CinematicPlayer(&_sequence, cinematicTrack, cinematicCamera, true, applyCameraTrack);
-    Apply_ActiveCameraTrackPose(_sequence.startFrame);
+    const bool playerAppliesCameraTrack = applyCameraTrack && !Uses_CameraShots() && trackKind == CameraTrackKind::World;
+    _player->Ready_CinematicPlayer(&_sequence, cinematicTrack, cinematicCamera, true, playerAppliesCameraTrack);
+    Apply_ActiveCameraTrackPose(static_cast<float>(_sequence.startFrame));
     if (_applyEventTrack)
         Execute_EventsUpToFrame(_sequence.startFrame, static_cast<float>(_sequence.startFrame));
     if (_applyEventTrack && _applyActorTransformTrack && !_suspendActorTransformTrackPreview)
@@ -451,7 +524,8 @@ void CinematicSequenceRunner::Resume_Sequence(
     _applyCameraTrack = applyCameraTrack;
     _applyEventTrack = applyEventTrack;
     _applyActorTransformTrack = applyActorTransformTrack;
-    _player->Set_ApplyCameraTrack(applyCameraTrack);
+    const bool playerAppliesCameraTrack = applyCameraTrack && !Uses_CameraShots() && _cameraTrackKind == CameraTrackKind::World;
+    _player->Set_ApplyCameraTrack(playerAppliesCameraTrack);
     Set_BoundActorAnimationPaused(false);
     _player->Resume();
 }
@@ -615,6 +689,8 @@ bool CinematicSequenceRunner::Sync_PreviewSequence(
 
     _cameraTrackKind = trackKind;
     _player->Rebind_Sequence(&_sequence, cinematicTrack);
+    const bool playerAppliesCameraTrack = _applyCameraTrack && !Uses_CameraShots() && trackKind == CameraTrackKind::World;
+    _player->Set_ApplyCameraTrack(playerAppliesCameraTrack);
     return true;
 }
 
@@ -863,6 +939,7 @@ bool CinematicSequenceRunner::Execute_PlayAnimEvent(
 
     model->Set_CurrentAnimationSpeed(std::max(payload.speed, 0.01f));
     model->Play_Animation(0.f);
+    model->Set_AnimationPaused(payload.holdFrame);
 
     if (auto iter = _bindingStates.find(targetId); iter != _bindingStates.end())
     {
@@ -872,7 +949,9 @@ bool CinematicSequenceRunner::Execute_PlayAnimEvent(
         iter->second.hasActivePlayAnim = true;
         iter->second.activePlayAnim = payload;
         iter->second.activePlayAnimEventFrame = eventFrame;
-        iter->second.pendingPlayAnimInitialAdvanceSec = frameOvershoot > 0.f ? frameOvershoot / sequenceFps : -1.f;
+        iter->second.pendingPlayAnimInitialAdvanceSec = payload.holdFrame
+            ? -1.f
+            : (frameOvershoot > 0.f ? frameOvershoot / sequenceFps : -1.f);
     }
       
     LOG_INFO("[CinematicSequenceRunner] PlayAnimEvent success: target='{}' anim='{}' blend={:.2f} loop={} startFrame={:.2f} frame={}",
@@ -1125,6 +1204,9 @@ void CinematicSequenceRunner::Update_BoundActorAnimations(float timeDelta)
         if (model == nullptr)
             continue;
 
+        if (state.activePlayAnim.holdFrame)
+            continue;
+
         float animationDelta = timeDelta;
         if (state.pendingPlayAnimInitialAdvanceSec >= 0.f)
         {
@@ -1231,6 +1313,12 @@ void CinematicSequenceRunner::Apply_CinematicDrivenState(const Shared<GameObject
     if (const auto worldMonster = dynamic_pointer_cast<Monster_WorldBase>(actor))
     {
         worldMonster->Set_CinematicDriven(cinematicDriven);
+        return;
+    }
+    
+    if (const auto worldPlayer = dynamic_pointer_cast<Player_WorldBase>(actor))
+    {
+        worldPlayer->Set_CinematicDriven(cinematicDriven);
         return;
     }
 

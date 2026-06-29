@@ -84,6 +84,9 @@ void Player_WorldBase::Priority_Update(float timeDelta)
 
     __super::Priority_Update(timeDelta);
 
+    if(_isCinematicDriven)
+        return;
+
     // follower도 StateMachine/Controller를 타야 Idle/Run/Sprint 전환과 PhysX 이동이 처리된다.
     _playerControllerCom->Update_InputState();
     _playerStateMachineCom->Update_CurrentState(timeDelta);
@@ -177,6 +180,24 @@ void Player_WorldBase::Post_PhysX_Update(float timeDelta)
 HRESULT Player_WorldBase::Render()
 {
     return S_OK;
+}
+
+void Player_WorldBase::Set_CinematicDriven(bool cinematicDriven)
+{
+    if (_isCinematicDriven == cinematicDriven)
+        return;
+
+    _isCinematicDriven = cinematicDriven;
+
+    if (_movementCom)
+    {
+        _movementCom->Set_CCTTransformSyncSuppressed(cinematicDriven);
+        _movementCom->Clear_FollowMoveCommand();
+        _movementCom->Apply_Input({});
+        _movementCom->Stop_AllMovement();
+        _movementCom->Stop_VerticalMovement();
+        _movementCom->Sync_RuntimePositionToTransform();
+    }
 }
 
 void Player_WorldBase::Set_PartyVisibilityAllowed(bool allowed)

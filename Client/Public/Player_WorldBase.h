@@ -143,6 +143,9 @@ private:
     HRESULT      Add_CostumeHair(const wstring& modelTag, const Head_Player* head);
     HRESULT      Add_CostumeFaceAccessory(const wstring& partTag, const wstring& modelTag, const Head_Player* head);
 
+public:
+    void        Set_CinematicDriven(bool cinematicDriven);
+
 protected:
     Shared<MovementCom>             _movementCom;
     Shared<InputCom>                _inputCom;
@@ -156,6 +159,7 @@ protected:
     string                          _activeCostumePresetId{};
     float                           _fallStateEnterAcc = 0.f; // 점프 입력 없는 짧은 공중 흔들림은 바로 Jump 상태로 소비하지 않기 위한 누적 시간
     bool                            _partyVisibilityAllowed = true; // 파티 해금 전에는 culling이 다시 켜도 월드 렌더를 막는다.
+    bool                            _isCinematicDriven = false;
 
 private:
     Shared<Engine::FacialClip>       _gameMenuFacialClip{};
