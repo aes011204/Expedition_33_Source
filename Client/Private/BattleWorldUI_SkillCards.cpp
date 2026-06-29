@@ -595,7 +595,7 @@ namespace
             {
             case 0: return { "Panel_Spark", "Spark", true };
             case 1: return { "Panel_Percee", "Percee", true };
-            case 2: return { "Panel_FleuretFury", "FleuretFury", true };
+            case 2: return { "Panel_FleureFury", "FleureFury", true };
             case 3: return { "Panel_SwordBallet", "SwordBallet", true };
             case 4: return { "Panel_Stendhal", "Stendhal", true };
             default: break;

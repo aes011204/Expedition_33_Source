@@ -761,6 +761,9 @@ HRESULT Loader::Process_LevelMapLoad(size_t maxMeshesPerFrame, chrono::milliseco
 
     if (!_mapLoadStarted)
     {
+        if (_mapLoadPathIndex == 0)
+            MapLoader::Clear_CachedLights();
+
         LOG_DEBUG(
             "[Loader::MapLoad] begin {}/{} path={}",
             _mapLoadPathIndex + 1,

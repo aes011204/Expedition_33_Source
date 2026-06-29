@@ -501,6 +501,7 @@ Engine/Bin/Engine.dll
 # once tracked files are removed on a branch.
 Client/Bin/Resources/Models/Data/Assets/**
 Client/Bin/Resources/Data/xlsx/*.xlsx
+!Client/Bin/Resources/Data/xlsx/DT_WeaponUpgrade.xlsx
 
 # Repo-local agent instructions
 /AGENTS.md

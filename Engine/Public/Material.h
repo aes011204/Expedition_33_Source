@@ -94,6 +94,7 @@ private:
 
 public:
 	static Shared<Material> Create(const ComPtr<Device>& device, const ComPtr<Context>& context, const char* modelPath, const ModelMaterialData& materialData, const vector<ModelTextureSlot>& slots, uint32 maxTextureTypeSize);
+    static size_t Get_TextureSRVCacheSize();
     static void Clear_TextureSRVCache();
 	void Free() override;
 };

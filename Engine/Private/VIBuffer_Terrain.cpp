@@ -1,5 +1,32 @@
 ﻿#include "VIBuffer_Terrain.h"
 
+namespace
+{
+	class ScopedHandle final
+	{
+	public:
+		explicit ScopedHandle(HANDLE handle)
+			: _handle{ handle }
+		{
+		}
+
+		ScopedHandle(const ScopedHandle&) = delete;
+		ScopedHandle& operator=(const ScopedHandle&) = delete;
+
+		~ScopedHandle()
+		{
+			if (INVALID_HANDLE_VALUE != _handle)
+				CloseHandle(_handle);
+		}
+
+		HANDLE Get() const { return _handle; }
+		bool Is_Valid() const { return INVALID_HANDLE_VALUE != _handle; }
+
+	private:
+		HANDLE _handle = INVALID_HANDLE_VALUE;
+	};
+}
+
 VIBuffer_Terrain::VIBuffer_Terrain(const ComPtr<Device>& device, const ComPtr<Context>& context)
 	: VIBuffer { device, context }
 {
@@ -15,22 +42,22 @@ VIBuffer_Terrain::VIBuffer_Terrain(const VIBuffer_Terrain& prototype)
 HRESULT VIBuffer_Terrain::Initialize_Prototype(const wchar_t* heightMapFilePath)
 {
 	unsigned long byteCount = {};
-	HANDLE hFile = CreateFile(heightMapFilePath, GENERIC_READ, 0, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
-	if (INVALID_HANDLE_VALUE == hFile)
+	ScopedHandle hFile{ CreateFile(heightMapFilePath, GENERIC_READ, 0, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0) };
+	if (!hFile.Is_Valid())
 		return E_FAIL;
 
 	BITMAPFILEHEADER fh{};
-	ReadFile(hFile, &fh, sizeof fh, &byteCount, nullptr);
+	ReadFile(hFile.Get(), &fh, sizeof fh, &byteCount, nullptr);
 
 	BITMAPINFOHEADER ih{};
-	ReadFile(hFile, &ih, sizeof ih, &byteCount, nullptr);
+	ReadFile(hFile.Get(), &ih, sizeof ih, &byteCount, nullptr);
 
 	_numVerticesX = ih.biWidth;
 	_numVerticesZ = ih.biHeight;
 	_numVertices = _numVerticesX * _numVerticesZ;
 
-	uint32* pixels = new uint32[_numVertices];
-	ReadFile(hFile, pixels, sizeof(uint32) * _numVertices, &byteCount, nullptr);
+	vector<uint32> pixels(_numVertices);
+	ReadFile(hFile.Get(), pixels.data(), sizeof(uint32) * _numVertices, &byteCount, nullptr);
 
 	_numVertexBuffers = 1;
 	_vertexStride = sizeof(VTXNORTEX);
@@ -44,7 +71,7 @@ HRESULT VIBuffer_Terrain::Initialize_Prototype(const wchar_t* heightMapFilePath)
 	VertexBufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
 	VertexBufferDesc.StructureByteStride = _vertexStride;
 
-	VTXNORTEX* vertices = new VTXNORTEX[_numVertices];
+	vector<VTXNORTEX> vertices(_numVertices);
 
 	for (size_t i = 0; i < _numVerticesZ; i++)
 	{
@@ -63,7 +90,7 @@ HRESULT VIBuffer_Terrain::Initialize_Prototype(const wchar_t* heightMapFilePath)
 	IndexBufferDesc.BindFlags = D3D11_BIND_INDEX_BUFFER;
 	IndexBufferDesc.StructureByteStride = _indexStride;
 
-	uint32* terrainIndices = new uint32[_numIndices];
+	vector<uint32> terrainIndices(_numIndices);
 	uint32 numIndices = 0;
 
 	for (size_t i = 0; i < _numVerticesZ - 1; i++)
@@ -111,21 +138,16 @@ HRESULT VIBuffer_Terrain::Initialize_Prototype(const wchar_t* heightMapFilePath)
 		XMStoreFloat3(&vertices[i].normal, XMVector3Normalize(XMLoadFloat3(&vertices[i].normal)));
 
 	D3D11_SUBRESOURCE_DATA VertexInitialData{};
-	VertexInitialData.pSysMem = vertices;
+	VertexInitialData.pSysMem = vertices.data();
 
 	if (FAILED(_device->CreateBuffer(&VertexBufferDesc, &VertexInitialData, _vb.GetAddressOf())))
 		return E_FAIL;
 
 	D3D11_SUBRESOURCE_DATA IndexInitialData{};
-	IndexInitialData.pSysMem = terrainIndices;
+	IndexInitialData.pSysMem = terrainIndices.data();
 
 	if (FAILED(_device->CreateBuffer(&IndexBufferDesc, &IndexInitialData, _ib.GetAddressOf())))
 		return E_FAIL;
-
-	Safe_Delete_Array(vertices);
-	Safe_Delete_Array(terrainIndices);
-	Safe_Delete_Array(pixels);
-	CloseHandle(hFile);
 
 	return S_OK;
 }

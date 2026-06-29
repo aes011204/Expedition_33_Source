@@ -50,6 +50,8 @@ public:
 
     bool    Is_AnyMenuOpen() const;
     GameplayMenu Get_CurrentMenu() const; // 현재 최상위 메뉴 확인용
+    bool    Open_MerchantShop();
+    bool    Open_WeaponUpgrade();
     void    Set_CinematicUIHidden(bool hidden);
     bool    Is_CinematicUIHidden() const { return _isCinematicUIHidden; }
 

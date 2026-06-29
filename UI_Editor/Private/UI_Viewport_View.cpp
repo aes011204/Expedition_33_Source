@@ -1,5 +1,6 @@
 #include "pch.h"
 #include "UI_Viewport_View.h"
+#include "Debug_Profile.h"
 #include "UI_Editor_Manager.h"
 #include "UI_Editor_Utils.h"
 #include "UI_PreviewTransformResolver.h"
@@ -35,6 +36,30 @@ namespace UIEditor
             return ImVec2(
                 canvasPos.x + worldPoint.x * displayScale,
                 canvasPos.y + worldPoint.y * displayScale);
+        }
+
+        bool Build_ViewportClipRect(
+            const ImVec2& viewportMin,
+            const ImVec2& viewportMax,
+            const ImVec2& objectMin,
+            const ImVec2& objectMax,
+            D3D11_RECT& outRect)
+        {
+            const ImVec2 clippedMin = ImVec2(max(objectMin.x, viewportMin.x), max(objectMin.y, viewportMin.y));
+            const ImVec2 clippedMax = ImVec2(min(objectMax.x, viewportMax.x), min(objectMax.y, viewportMax.y));
+            return Build_ScreenClipRect(clippedMin, clippedMax, outRect);
+        }
+
+        bool Is_ObjectAabbVisibleInViewport(
+            const ImVec2& viewportMin,
+            const ImVec2& viewportMax,
+            const ImVec2& objectAabbMin,
+            const ImVec2& objectAabbMax)
+        {
+            return objectAabbMax.x >= viewportMin.x &&
+                objectAabbMin.x <= viewportMax.x &&
+                objectAabbMax.y >= viewportMin.y &&
+                objectAabbMin.y <= viewportMax.y;
         }
 
         void Draw_RotatedImageOrQuad(
@@ -83,67 +108,6 @@ namespace UIEditor
             }
         }
 
-        string Make_NormalizedPathKey(const wstring& path)
-        {
-            wstring normalizedPath = path;
-            replace(normalizedPath.begin(), normalizedPath.end(), L'\\', L'/');
-            transform(normalizedPath.begin(), normalizedPath.end(), normalizedPath.begin(), [](wchar_t character)
-                {
-                    return static_cast<wchar_t>(towlower(character));
-                });
-
-            return String::ToString(normalizedPath);
-        }
-
-        bool Try_LoadUIVfxAsset(const string& vfxPath, Client::UISpriteVfxAsset& outAsset)
-        {
-            struct CachedAsset
-            {
-                Client::UISpriteVfxAsset asset{};
-                fs::file_time_type writeTime{};
-                bool loaded{ false };
-            };
-
-            static unordered_map<string, CachedAsset> cache{};
-
-            if (vfxPath.empty())
-                return false;
-
-            const wstring resolvedPath = Resolve_ClientRuntimeResourcePath(vfxPath);
-            if (resolvedPath.empty() || !fs::exists(resolvedPath))
-                return false;
-
-            const string cacheKey = Make_NormalizedPathKey(resolvedPath);
-            fs::file_time_type writeTime{};
-            try
-            {
-                writeTime = fs::last_write_time(resolvedPath);
-            }
-            catch (...)
-            {
-            }
-
-            const auto cachedIter = cache.find(cacheKey);
-            if (cachedIter != cache.end() && cachedIter->second.loaded && cachedIter->second.writeTime == writeTime)
-            {
-                outAsset = cachedIter->second.asset;
-                return true;
-            }
-
-            Client::UISpriteVfxAsset asset{};
-            if (!Client::UISpriteVfxSerializer::Load_FromFile(resolvedPath, asset))
-                return false;
-
-            CachedAsset cachedAsset{};
-            cachedAsset.asset = asset;
-            cachedAsset.writeTime = writeTime;
-            cachedAsset.loaded = true;
-            cache[cacheKey] = cachedAsset;
-
-            outAsset = asset;
-            return true;
-        }
-
         Client::UISpriteVfxAsset Make_ViewportScaledAsset(
             const Client::UISpriteVfxAsset& asset,
             const ImVec2& objectScale)
@@ -169,10 +133,663 @@ namespace UIEditor
     {
     }
 
+    void UI_Viewport_View::Render_Toolbar()
+    {
+        ImGui::SetCursorPosX(8.f);
+        ImGui::AlignTextToFramePadding();
+        ImGui::Text("Zoom: %.0f%%", _zoomFactor * 100.f);
+        ImGui::SameLine();
+        if (ImGui::Checkbox("Preview", &_previewMode))
+            Cancel_InteractionState(true);
+        ImGui::SameLine();
+        ImGui::BeginDisabled(_previewMode);
+        ImGui::Checkbox("Grid", &_showGrid);
+        ImGui::SameLine();
+        ImGui::Checkbox("Anchor", &_showAnchors);
+        ImGui::SameLine();
+        ImGui::Checkbox("Snap", &_snapEnabled);
+        ImGui::SameLine();
+        ImGui::SetNextItemWidth(82.f);
+        ImGui::DragFloat("Grid Size", &_gridSize, 1.f, kMinGridSize, kMaxGridSize, "%.0f");
+        ImGui::EndDisabled();
+        ImGui::Separator();
+    }
+
+    void UI_Viewport_View::Draw_ViewportItems(
+        ImDrawList* drawList,
+        const ImVec2& canvasPos,
+        const ImVec2& canvasMax,
+        float displayScale,
+        const ImVec2& viewportMin,
+        const ImVec2& viewportMax,
+        bool hasBlockingPopup,
+        bool useInteractionTextLod,
+        const UI_PreviewTransformResolver& previewTransformResolver,
+        const vector<UI_EditorViewportItem>& viewportItems,
+        bool& outHasSelectedObjectRect,
+        ImVec2& outSelectedObjectMin,
+        ImVec2& outSelectedObjectMax,
+        bool& outSelectedObjectIsLocked)
+    {
+        ENGINE_PROFILE_SCOPE_DETAIL("UIEditor.Viewport.DrawItems");
+
+        outHasSelectedObjectRect = false;
+        outSelectedObjectMin = ImVec2(0.f, 0.f);
+        outSelectedObjectMax = ImVec2(0.f, 0.f);
+        outSelectedObjectIsLocked = false;
+
+        D3D11_RECT viewportClipRect = {};
+        const bool hasViewportClipRect = Build_ScreenClipRect(viewportMin, viewportMax, viewportClipRect);
+
+        for (const UI_EditorViewportItem& viewportItem : viewportItems)
+        {
+            if (nullptr == viewportItem.sourceObject)
+                continue;
+
+            const UI_Object& object = *viewportItem.sourceObject;
+            const UI_Object& renderObject = viewportItem.renderObject;
+            const ImVec2 resolvedLocalSize = viewportItem.resolvedLocalSize;
+            const ImVec2 objectWorldPivot = viewportItem.worldPivot;
+            const UI_WorldObjectFrame& objectFrame = viewportItem.worldFrame;
+            const ImVec2 objectSize = viewportItem.worldSize;
+            const float objectWorldRotationRadians = viewportItem.worldRotationRadians;
+            const ImVec2 objectMin = Canvas_ToScreen(canvasPos, displayScale, objectFrame.worldBoundsMin);
+            const ImVec2 objectMax = Canvas_ToScreen(canvasPos, displayScale, objectFrame.worldBoundsMax);
+            const ImVec2 objectAabbMin = Canvas_ToScreen(canvasPos, displayScale, objectFrame.worldAabbMin);
+            const ImVec2 objectAabbMax = Canvas_ToScreen(canvasPos, displayScale, objectFrame.worldAabbMax);
+            if (!Is_ObjectAabbVisibleInViewport(viewportMin, viewportMax, objectAabbMin, objectAabbMax))
+                continue;
+
+            ImVec2 objectQuad[4] = {};
+            for (int32 pointIndex = 0; pointIndex < 4; ++pointIndex)
+                objectQuad[pointIndex] = Canvas_ToScreen(canvasPos, displayScale, objectFrame.worldQuad[pointIndex]);
+            const bool isSelected = _editorManager.Is_ObjectSelected(object.id);
+            const bool isPrimarySelected = (_editorManager.Get_SelectedObjectId() == object.id);
+            const bool isEffectivelyLocked = viewportItem.isEffectivelyLocked;
+            const bool shouldDrawAnchorOverlay = !_previewMode && _showAnchors && isSelected;
+
+            if (isPrimarySelected)
+            {
+                outHasSelectedObjectRect = true;
+                outSelectedObjectMin = objectAabbMin;
+                outSelectedObjectMax = objectAabbMax;
+                outSelectedObjectIsLocked = isEffectivelyLocked;
+            }
+
+            const ImU32 fillColor = Is_ContainerObjectType(renderObject.type) ? ImGui::ColorConvertFloat4ToU32(renderObject.color) : Get_ObjectFillColor(renderObject.type);
+            const ImU32 objectBorderColor = isPrimarySelected
+                ? (isEffectivelyLocked ? IM_COL32(255, 167, 38, 255) : IM_COL32(255, 217, 102, 255))
+                : (isSelected ? (isEffectivelyLocked ? IM_COL32(255, 183, 77, 245) : IM_COL32(102, 205, 255, 245)) : IM_COL32(210, 214, 220, 220));
+            const float borderThickness = isPrimarySelected ? 2.5f : (isSelected ? 2.f : 1.5f);
+            const float objectRounding = renderObject.type == UI_ObjectType::Button ? 4.f : 0.f;
+            ID3D11ShaderResourceView* previewSRV = nullptr;
+            bool requiresCompositePreview = false;
+            bool drewUIVfxPreview = false;
+            bool usesMaterialVfxPreview = false;
+
+            if (renderObject.type == UI_ObjectType::Image && (!renderObject.textureGuid.empty() || !renderObject.texturePath.empty()))
+            {
+                if (renderObject.imageRenderMode == UI_ImageRenderMode::MaterialVfx)
+                {
+                    requiresCompositePreview = true;
+                    MaterialVfxPreviewDesc previewDesc = {};
+                    previewDesc.textureGuid = renderObject.textureGuid;
+                    previewDesc.texturePath = renderObject.texturePath;
+                    previewDesc.maskTextureGuid = renderObject.maskTextureGuid;
+                    previewDesc.maskTexturePath = renderObject.maskTexturePath;
+                    previewDesc.renderColor = renderObject.color;
+                    previewDesc.materialVfx = renderObject.materialVfx;
+                    previewSRV = _editorManager.Get_MaterialVfxPreviewSRV(previewDesc);
+                    usesMaterialVfxPreview = true;
+                }
+                else if (renderObject.imageRenderMode == UI_ImageRenderMode::ButtonSheen)
+                {
+                    requiresCompositePreview = true;
+                    ButtonSheenPreviewDesc previewDesc = {};
+                    previewDesc.textureGuid = renderObject.textureGuid;
+                    previewDesc.texturePath = renderObject.texturePath;
+                    previewDesc.maskTextureGuid = renderObject.maskTextureGuid;
+                    previewDesc.maskTexturePath = renderObject.maskTexturePath;
+                    previewDesc.buttonSheen = renderObject.buttonSheen;
+                    previewSRV = _editorManager.Get_ButtonSheenPreviewSRV(previewDesc);
+                }
+                else if (renderObject.imageRenderMode == UI_ImageRenderMode::PatternOverlay)
+                {
+                    requiresCompositePreview = true;
+                    PatternOverlayPreviewDesc previewDesc = {};
+                    previewDesc.textureGuid = renderObject.textureGuid;
+                    previewDesc.texturePath = renderObject.texturePath;
+                    previewDesc.paintMaskTextureGuid = renderObject.maskTextureGuid;
+                    previewDesc.paintMaskTexturePath = renderObject.maskTexturePath;
+                    previewDesc.patternMaskTextureGuid = renderObject.patternMaskTextureGuid;
+                    previewDesc.patternMaskTexturePath = renderObject.patternMaskTexturePath;
+                    previewDesc.patternUvOffset = renderObject.patternUvOffset;
+                    previewDesc.patternUvScale = renderObject.patternUvScale;
+                    previewDesc.useFillRatio = renderObject.useFillRatio;
+                    previewDesc.fillRatio = renderObject.fillRatio;
+                    previewDesc.fillOrigin = renderObject.fillOrigin;
+                    previewSRV = _editorManager.Get_PatternOverlayPreviewSRV(previewDesc);
+                }
+                else if (renderObject.useFillRatio)
+                {
+                    requiresCompositePreview = true;
+                    previewSRV = _editorManager.Get_FillRatioPreviewSRV(
+                        renderObject.textureGuid,
+                        renderObject.texturePath,
+                        renderObject.fillRatio,
+                        renderObject.fillOrigin);
+                }
+                else if (!renderObject.maskTextureGuid.empty() || !renderObject.maskTexturePath.empty())
+                {
+                    requiresCompositePreview = true;
+                    previewSRV = _editorManager.Get_MaskedTexturePreviewSRV(
+                        renderObject.textureGuid,
+                        renderObject.texturePath,
+                        renderObject.maskTextureGuid,
+                        renderObject.maskTexturePath,
+                        renderObject.maskTextureMode);
+                }
+
+                if (nullptr == previewSRV && !requiresCompositePreview)
+                    previewSRV = _editorManager.Get_TexturePreviewSRV(renderObject.textureGuid, renderObject.texturePath);
+            }
+
+            if (renderObject.type == UI_ObjectType::UIVfx && !renderObject.vfxPath.empty())
+            {
+                Client::UISpriteVfxAsset vfxAsset{};
+                if (_previewAssetService.Try_LoadUIVfxAsset(renderObject.vfxPath, vfxAsset))
+                {
+                    const ImVec2 objectScale(
+                        objectSize.x / max(1.f, resolvedLocalSize.x),
+                        objectSize.y / max(1.f, resolvedLocalSize.y));
+                    const Client::UISpriteVfxAsset scaledAsset = Make_ViewportScaledAsset(vfxAsset, objectScale);
+                    ID3D11ShaderResourceView* textureSRV = _editorManager.Get_TexturePreviewSRV(scaledAsset.textureGuid, scaledAsset.texturePath);
+                    const ImTextureID textureId = nullptr != textureSRV ? To_ImTextureID(textureSRV) : ImTextureID{};
+                    const Vec2 origin(objectWorldPivot.x, objectWorldPivot.y);
+                    const float previewTime = static_cast<float>(ImGui::GetTime());
+                    const vector<Client::UISpriteVfxParticlePreview> particles =
+                        Client::UISpriteVfxPreviewSampler::Sample(scaledAsset, previewTime, origin, true);
+                    const float cosAngle = cosf(objectWorldRotationRadians);
+                    const float sinAngle = sinf(objectWorldRotationRadians);
+
+                    drawList->PushClipRect(canvasPos, canvasMax, true);
+                    for (const Client::UISpriteVfxParticlePreview& particle : particles)
+                    {
+                        const Vec2 offset = particle.position - origin;
+                        const Vec2 rotatedPosition(
+                            origin.x + offset.x * cosAngle - offset.y * sinAngle,
+                            origin.y + offset.x * sinAngle + offset.y * cosAngle);
+                        const ImVec2 particleCenter = Canvas_ToScreen(canvasPos, displayScale, ImVec2(rotatedPosition.x, rotatedPosition.y));
+                        const ImVec2 particleSize(
+                            max(0.01f, particle.size.x * displayScale),
+                            max(0.01f, particle.size.y * displayScale));
+                        const ImVec4 color(
+                            min(max(particle.color.x, 0.f), 1.f),
+                            min(max(particle.color.y, 0.f), 1.f),
+                            min(max(particle.color.z, 0.f), 1.f),
+                            min(max(particle.color.w, 0.f), 1.f));
+
+                        Draw_RotatedImageOrQuad(
+                            drawList,
+                            textureId,
+                            particleCenter,
+                            particleSize,
+                            particle.rotationRadians + objectWorldRotationRadians,
+                            ImGui::ColorConvertFloat4ToU32(color));
+                    }
+                    drawList->PopClipRect();
+                    drewUIVfxPreview = true;
+                }
+            }
+
+            const bool hasTextContent = renderObject.type == UI_ObjectType::Text && !renderObject.text.empty();
+            const bool isRotated = fabsf(objectWorldRotationRadians) > kRotationEpsilon;
+
+            if (nullptr != previewSRV)
+            {
+                const ImU32 imageTintColor = usesMaterialVfxPreview
+                    ? IM_COL32(255, 255, 255, 255)
+                    : ImGui::ColorConvertFloat4ToU32(renderObject.color);
+                if (isRotated)
+                {
+                    drawList->AddImageQuad(
+                        To_ImTextureID(previewSRV),
+                        objectQuad[0],
+                        objectQuad[1],
+                        objectQuad[2],
+                        objectQuad[3],
+                        ImVec2(0.f, 0.f),
+                        ImVec2(1.f, 0.f),
+                        ImVec2(1.f, 1.f),
+                        ImVec2(0.f, 1.f),
+                        imageTintColor);
+                }
+                else
+                {
+                    drawList->AddImage(
+                        To_ImTextureID(previewSRV),
+                        objectMin,
+                        objectMax,
+                        ImVec2(0.f, 0.f),
+                        ImVec2(1.f, 1.f),
+                        imageTintColor);
+                }
+            }
+            else if (!drewUIVfxPreview && !hasTextContent && (!_previewMode || renderObject.type != UI_ObjectType::Image))
+            {
+                if (isRotated)
+                    drawList->AddQuadFilled(objectQuad[0], objectQuad[1], objectQuad[2], objectQuad[3], fillColor);
+                else
+                    drawList->AddRectFilled(objectMin, objectMax, fillColor, objectRounding);
+            }
+
+            if (!_previewMode)
+            {
+                if (isRotated)
+                    Draw_QuadOutline(drawList, objectQuad, objectBorderColor, borderThickness);
+                else
+                    drawList->AddRect(objectMin, objectMax, objectBorderColor, objectRounding, 0, borderThickness);
+
+                if (shouldDrawAnchorOverlay)
+                {
+                    const ImVec2 parentReferenceSize = previewTransformResolver.Get_ParentReferenceSize(renderObject);
+                    const ImVec2 anchorMinLocal = ImVec2(
+                        parentReferenceSize.x * renderObject.anchorMin.x,
+                        parentReferenceSize.y * renderObject.anchorMin.y);
+                    const ImVec2 anchorMaxLocal = ImVec2(
+                        parentReferenceSize.x * renderObject.anchorMax.x,
+                        parentReferenceSize.y * renderObject.anchorMax.y);
+                    const ImVec2 anchorMinWorld = previewTransformResolver.Transform_LocalPointToWorld(object.id, anchorMinLocal);
+                    const ImVec2 anchorMaxWorld = previewTransformResolver.Transform_LocalPointToWorld(object.id, anchorMaxLocal);
+                    const ImVec2 anchorMinScreen = ImVec2(
+                        canvasPos.x + anchorMinWorld.x * displayScale,
+                        canvasPos.y + anchorMinWorld.y * displayScale);
+                    const ImVec2 anchorMaxScreen = ImVec2(
+                        canvasPos.x + anchorMaxWorld.x * displayScale,
+                        canvasPos.y + anchorMaxWorld.y * displayScale);
+                    const bool isStretched =
+                        fabsf(renderObject.anchorMax.x - renderObject.anchorMin.x) > 0.0001f ||
+                        fabsf(renderObject.anchorMax.y - renderObject.anchorMin.y) > 0.0001f;
+                    const ImU32 anchorFillColor = isPrimarySelected ? IM_COL32(255, 40, 40, 255) : IM_COL32(255, 40, 40, 210);
+                    const ImU32 anchorOutlineColor = IM_COL32(255, 235, 235, 245);
+                    if (isStretched)
+                    {
+                        const ImVec2 anchorRectMin = ImVec2(min(anchorMinScreen.x, anchorMaxScreen.x), min(anchorMinScreen.y, anchorMaxScreen.y));
+                        const ImVec2 anchorRectMax = ImVec2(max(anchorMinScreen.x, anchorMaxScreen.x), max(anchorMinScreen.y, anchorMaxScreen.y));
+                        drawList->AddRectFilled(anchorRectMin, anchorRectMax, IM_COL32(255, 40, 40, 22), 0.f);
+                        drawList->AddRect(anchorRectMin, anchorRectMax, IM_COL32(255, 70, 70, 190), 0.f, 0, 1.25f);
+                        Draw_AnchorMarker(drawList, anchorMaxScreen, IM_COL32(255, 120, 120, 190), anchorOutlineColor, isPrimarySelected ? 4.5f : 3.5f);
+                    }
+                    Draw_AnchorMarker(drawList, anchorMinScreen, anchorFillColor, anchorOutlineColor, isPrimarySelected ? 5.5f : 4.5f);
+                }
+            }
+
+            bool usesSpriteFontPreview = false;
+            if (!hasBlockingPopup &&
+                !(useInteractionTextLod && !isSelected) &&
+                renderObject.type == UI_ObjectType::Text &&
+                (!renderObject.fontGuid.empty() || !renderObject.fontPath.empty()) &&
+                !renderObject.text.empty())
+            {
+                D3D11_RECT clipRect = {};
+                if (Build_ViewportClipRect(viewportMin, viewportMax, objectAabbMin, objectAabbMax, clipRect))
+                {
+                    const Vec2 fontPivotScreen(
+                        canvasPos.x + objectWorldPivot.x * displayScale,
+                        canvasPos.y + objectWorldPivot.y * displayScale);
+                    const Vec2 fontBoxSize(
+                        objectSize.x * displayScale,
+                        objectSize.y * displayScale);
+                    const Vec2 fontBoxMin(
+                        fontPivotScreen.x - fontBoxSize.x * renderObject.pivot.x,
+                        fontPivotScreen.y - fontBoxSize.y * renderObject.pivot.y);
+
+                    usesSpriteFontPreview = _editorManager.Queue_FontPreview(
+                        renderObject.fontGuid,
+                        renderObject.fontPath,
+                        viewportItem.textPreviewText,
+                        fontBoxMin,
+                        Vec2(fontBoxMin.x + fontBoxSize.x, fontBoxMin.y + fontBoxSize.y),
+                        Vec4(renderObject.color.x, renderObject.color.y, renderObject.color.z, renderObject.color.w),
+                        objectWorldRotationRadians,
+                        fontPivotScreen,
+                        renderObject.textAlign,
+                        max(0.01f, objectSize.x / max(1.f, resolvedLocalSize.x)) * displayScale,
+                        renderObject.textWrap,
+                        clipRect,
+                        hasViewportClipRect ? &viewportClipRect : nullptr,
+                        hasViewportClipRect && !isSelected && !isRotated && !renderObject.textWrap);
+                }
+            }
+
+            if (!usesSpriteFontPreview && nullptr == previewSRV && objectMax.x - objectMin.x > 32.f && objectMax.y - objectMin.y > 18.f)
+            {
+                if (renderObject.type == UI_ObjectType::Text)
+                {
+                    Draw_ImGuiTextPreview(drawList, renderObject, objectMin, objectMax, displayScale);
+                }
+                else if (!_previewMode)
+                {
+                    const ImVec2 textPosition = ImVec2(objectMin.x + 4.f, objectMin.y + 3.f);
+                    drawList->AddText(textPosition, IM_COL32(245, 247, 250, 230), renderObject.name.c_str());
+                }
+
+                if (!_previewMode && renderObject.type == UI_ObjectType::Text && isSelected && !renderObject.fontTag.empty() && objectMax.y - objectMin.y > 34.f)
+                {
+                    const string fontPreviewText = "Font: " + renderObject.fontTag;
+                    drawList->AddText(ImVec2(objectMin.x + 4.f, objectMax.y - 17.f), IM_COL32(255, 217, 102, 240), fontPreviewText.c_str());
+                }
+            }
+
+            if (!_previewMode && isEffectivelyLocked && objectMax.x - objectMin.x > 32.f && objectMax.y - objectMin.y > 18.f)
+                drawList->AddText(ImVec2(objectMax.x - 30.f, objectMin.y + 3.f), IM_COL32(255, 217, 102, 245), "LOCK");
+        }
+    }
+
+    void UI_Viewport_View::Handle_ViewportInteraction(
+        const UI_Document& document,
+        const UI_EditorReadModel& readModel,
+        const vector<UI_EditorViewportItem>& viewportItems,
+        ImDrawList* drawList,
+        const ImVec2& canvasSize,
+        const ImVec2& canvasPos,
+        const ImVec2& canvasMax,
+        float displayScale,
+        const ImVec2& mousePos,
+        const ImVec2& mouseCanvasPos,
+        bool hasBlockingPopup,
+        bool viewportInputAllowed,
+        bool isMouseInViewport,
+        bool isMouseInCanvas,
+        bool isAnimationPreviewActive,
+        UI_ResizeHandle hoveredResizeHandle)
+    {
+        ENGINE_PROFILE_SCOPE_DETAIL("UIEditor.Viewport.Interaction");
+
+        ImGuiIO& io = ImGui::GetIO();
+
+        if (!_previewMode && !isAnimationPreviewActive && viewportInputAllowed && isMouseInViewport && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
+        {
+            if (hoveredResizeHandle != UI_ResizeHandle::None && _editorManager.Get_SelectedObjectId() != 0)
+            {
+                _editorManager.Begin_EditTransaction();
+                _resizingObjectId = _editorManager.Get_SelectedObjectId();
+                _activeResizeHandle = hoveredResizeHandle;
+                _resizeStartMouseCanvasPos = mouseCanvasPos;
+                _resizeStartObjectWorldPosition = document.Get_WorldPosition(_resizingObjectId);
+                _resizeStartObjectWorldSize = document.Get_WorldSize(_resizingObjectId);
+                _draggingObjectId = 0;
+                _draggingObjectIds.clear();
+                _dragStartObjectWorldPositions.clear();
+            }
+            else if (isMouseInCanvas)
+            {
+                ObjectId pickedObjectId = 0;
+                {
+                    ENGINE_PROFILE_SCOPE_DETAIL("UIEditor.Viewport.HitTest");
+                    for (auto iter = viewportItems.rbegin(); iter != viewportItems.rend(); ++iter)
+                    {
+                        if (nullptr == iter->sourceObject)
+                            continue;
+
+                        const UI_Object& object = *iter->sourceObject;
+                        const bool isInsideObject = Is_PointInsideUIWorldObjectFrame(mouseCanvasPos, iter->worldFrame);
+
+                        if (isInsideObject)
+                        {
+                            pickedObjectId = object.id;
+                            break;
+                        }
+                    }
+                }
+
+                if (pickedObjectId != 0)
+                {
+                    const bool wasSelected = _editorManager.Is_ObjectSelected(pickedObjectId);
+
+                    if (io.KeyCtrl)
+                    {
+                        _editorManager.Toggle_Selection(pickedObjectId);
+                    }
+                    else if (io.KeyShift)
+                    {
+                        _editorManager.Add_ToSelection(pickedObjectId);
+                    }
+                    else if (wasSelected && _editorManager.Get_SelectedObjectCount() > 1)
+                    {
+                        _editorManager.Set_SelectedObjectIds(_editorManager.Get_SelectedObjectIds(), pickedObjectId);
+                    }
+                    else
+                    {
+                        _editorManager.Set_SingleSelection(pickedObjectId);
+                    }
+
+                    if (_editorManager.Is_ObjectSelected(pickedObjectId))
+                    {
+                        _draggingObjectId = 0;
+                        _draggingObjectIds.clear();
+                        _dragStartObjectWorldPositions.clear();
+                        _dragStartMouseCanvasPos = mouseCanvasPos;
+
+                        if (!readModel.Is_EffectivelyLocked(pickedObjectId))
+                        {
+                            _draggingObjectId = pickedObjectId;
+                            const vector<ObjectId> rootSelectedObjectIds = _editorManager.Get_RootSelectedObjectIds();
+                            for (ObjectId draggingObjectId : rootSelectedObjectIds)
+                            {
+                                if (readModel.Is_EffectivelyLocked(draggingObjectId))
+                                    continue;
+
+                                _draggingObjectIds.push_back(draggingObjectId);
+                                _dragStartObjectWorldPositions[draggingObjectId] = document.Get_WorldPosition(draggingObjectId);
+                            }
+
+                            if (!_draggingObjectIds.empty())
+                                _editorManager.Begin_EditTransaction();
+                        }
+                    }
+                }
+                else
+                {
+                    if (!io.KeyCtrl && !io.KeyShift)
+                        _editorManager.Clear_Selection();
+
+                    _isBoxSelecting = true;
+                    _boxSelectStartCanvasPos = mouseCanvasPos;
+                    _boxSelectCurrentCanvasPos = mouseCanvasPos;
+                    _draggingObjectId = 0;
+                    _draggingObjectIds.clear();
+                    _dragStartObjectWorldPositions.clear();
+                }
+            }
+        }
+
+        if (!_previewMode && !hasBlockingPopup && !isAnimationPreviewActive && _resizingObjectId != 0 && ImGui::IsMouseDown(ImGuiMouseButton_Left))
+        {
+            const UI_Object* resizingObject = document.Find_Object(_resizingObjectId);
+            if (nullptr != resizingObject)
+            {
+                const bool movesLeft =
+                    _activeResizeHandle == UI_ResizeHandle::West ||
+                    _activeResizeHandle == UI_ResizeHandle::NorthWest ||
+                    _activeResizeHandle == UI_ResizeHandle::SouthWest;
+                const bool movesRight =
+                    _activeResizeHandle == UI_ResizeHandle::East ||
+                    _activeResizeHandle == UI_ResizeHandle::NorthEast ||
+                    _activeResizeHandle == UI_ResizeHandle::SouthEast;
+                const bool movesTop =
+                    _activeResizeHandle == UI_ResizeHandle::North ||
+                    _activeResizeHandle == UI_ResizeHandle::NorthEast ||
+                    _activeResizeHandle == UI_ResizeHandle::NorthWest;
+                const bool movesBottom =
+                    _activeResizeHandle == UI_ResizeHandle::South ||
+                    _activeResizeHandle == UI_ResizeHandle::SouthEast ||
+                    _activeResizeHandle == UI_ResizeHandle::SouthWest;
+
+                const ImVec2 delta = ImVec2(
+                    mouseCanvasPos.x - _resizeStartMouseCanvasPos.x,
+                    mouseCanvasPos.y - _resizeStartMouseCanvasPos.y);
+
+                ImVec2 nextMin = _resizeStartObjectWorldPosition;
+                ImVec2 nextMax = ImVec2(
+                    _resizeStartObjectWorldPosition.x + _resizeStartObjectWorldSize.x,
+                    _resizeStartObjectWorldPosition.y + _resizeStartObjectWorldSize.y);
+
+                if (movesLeft)
+                    nextMin.x += delta.x;
+                if (movesRight)
+                    nextMax.x += delta.x;
+                if (movesTop)
+                    nextMin.y += delta.y;
+                if (movesBottom)
+                    nextMax.y += delta.y;
+
+                if (_snapEnabled)
+                {
+                    const ImVec2 snappedDelta = Snap_Position(delta, _gridSize);
+                    if (movesLeft)
+                        nextMin.x = _resizeStartObjectWorldPosition.x + snappedDelta.x;
+                    if (movesRight)
+                        nextMax.x = _resizeStartObjectWorldPosition.x + _resizeStartObjectWorldSize.x + snappedDelta.x;
+                    if (movesTop)
+                        nextMin.y = _resizeStartObjectWorldPosition.y + snappedDelta.y;
+                    if (movesBottom)
+                        nextMax.y = _resizeStartObjectWorldPosition.y + _resizeStartObjectWorldSize.y + snappedDelta.y;
+                }
+
+                if (nextMax.x - nextMin.x < 1.f)
+                {
+                    if (movesLeft)
+                        nextMin.x = nextMax.x - 1.f;
+                    else
+                        nextMax.x = nextMin.x + 1.f;
+                }
+
+                if (nextMax.y - nextMin.y < 1.f)
+                {
+                    if (movesTop)
+                        nextMin.y = nextMax.y - 1.f;
+                    else
+                        nextMax.y = nextMin.y + 1.f;
+                }
+
+                _editorManager.Set_UIObjectWorldRect(
+                    _resizingObjectId,
+                    nextMin,
+                    ImVec2(nextMax.x - nextMin.x, nextMax.y - nextMin.y));
+            }
+        }
+        else if (!_previewMode && !hasBlockingPopup && !isAnimationPreviewActive && _draggingObjectId != 0 && ImGui::IsMouseDragging(ImGuiMouseButton_Left, 1.f))
+        {
+            const ImVec2 delta = ImVec2(
+                mouseCanvasPos.x - _dragStartMouseCanvasPos.x,
+                mouseCanvasPos.y - _dragStartMouseCanvasPos.y);
+
+            for (ObjectId draggingObjectId : _draggingObjectIds)
+            {
+                const UI_Object* draggingObject = document.Find_Object(draggingObjectId);
+                if (nullptr == draggingObject)
+                    continue;
+
+                const auto startPositionIter = _dragStartObjectWorldPositions.find(draggingObjectId);
+                if (startPositionIter == _dragStartObjectWorldPositions.end())
+                    continue;
+
+                const ImVec2 startWorldPosition = startPositionIter->second;
+                ImVec2 moveDelta = delta;
+                if (_snapEnabled)
+                    moveDelta = Snap_Position(moveDelta, _gridSize);
+
+                const ImVec2 nextWorldPosition = ImVec2(
+                    startWorldPosition.x + moveDelta.x,
+                    startWorldPosition.y + moveDelta.y);
+
+                _editorManager.Set_UIObjectWorldPosition(draggingObjectId, nextWorldPosition);
+            }
+        }
+
+        if (!_previewMode && !hasBlockingPopup && !isAnimationPreviewActive && _isBoxSelecting && ImGui::IsMouseDown(ImGuiMouseButton_Left))
+        {
+            _boxSelectCurrentCanvasPos = ImVec2(
+                min(max(mouseCanvasPos.x, 0.f), canvasSize.x),
+                min(max(mouseCanvasPos.y, 0.f), canvasSize.y));
+
+            const ImVec2 boxCanvasMin = ImVec2(
+                min(_boxSelectStartCanvasPos.x, _boxSelectCurrentCanvasPos.x),
+                min(_boxSelectStartCanvasPos.y, _boxSelectCurrentCanvasPos.y));
+            const ImVec2 boxCanvasMax = ImVec2(
+                max(_boxSelectStartCanvasPos.x, _boxSelectCurrentCanvasPos.x),
+                max(_boxSelectStartCanvasPos.y, _boxSelectCurrentCanvasPos.y));
+            const ImVec2 boxScreenMin = ImVec2(canvasPos.x + boxCanvasMin.x * displayScale, canvasPos.y + boxCanvasMin.y * displayScale);
+            const ImVec2 boxScreenMax = ImVec2(canvasPos.x + boxCanvasMax.x * displayScale, canvasPos.y + boxCanvasMax.y * displayScale);
+
+            drawList->AddRectFilled(boxScreenMin, boxScreenMax, IM_COL32(102, 205, 255, 34));
+            drawList->AddRect(boxScreenMin, boxScreenMax, IM_COL32(102, 205, 255, 220), 0.f, 0, 1.5f);
+        }
+
+        if (!ImGui::IsMouseDown(ImGuiMouseButton_Left))
+        {
+            if (_isBoxSelecting)
+            {
+                const ImVec2 boxCanvasMin = ImVec2(
+                    min(_boxSelectStartCanvasPos.x, _boxSelectCurrentCanvasPos.x),
+                    min(_boxSelectStartCanvasPos.y, _boxSelectCurrentCanvasPos.y));
+                const ImVec2 boxCanvasMax = ImVec2(
+                    max(_boxSelectStartCanvasPos.x, _boxSelectCurrentCanvasPos.x),
+                    max(_boxSelectStartCanvasPos.y, _boxSelectCurrentCanvasPos.y));
+                const float boxWidth = boxCanvasMax.x - boxCanvasMin.x;
+                const float boxHeight = boxCanvasMax.y - boxCanvasMin.y;
+
+                if (boxWidth > 1.f || boxHeight > 1.f)
+                {
+                    vector<ObjectId> nextSelectedObjectIds = _editorManager.Get_SelectedObjectIds();
+                    ObjectId nextPrimaryObjectId = _editorManager.Get_SelectedObjectId();
+                    unordered_set<ObjectId> selectedObjectIdSet(nextSelectedObjectIds.begin(), nextSelectedObjectIds.end());
+
+                    for (const UI_EditorViewportItem& viewportItem : viewportItems)
+                    {
+                        if (nullptr == viewportItem.sourceObject)
+                            continue;
+
+                        const UI_Object& object = *viewportItem.sourceObject;
+                        const UI_WorldObjectFrame& objectFrame = viewportItem.worldFrame;
+                        const bool intersects =
+                            objectFrame.worldAabbMin.x <= boxCanvasMax.x &&
+                            objectFrame.worldAabbMax.x >= boxCanvasMin.x &&
+                            objectFrame.worldAabbMin.y <= boxCanvasMax.y &&
+                            objectFrame.worldAabbMax.y >= boxCanvasMin.y;
+
+                        if (intersects && selectedObjectIdSet.insert(object.id).second)
+                            nextSelectedObjectIds.push_back(object.id);
+
+                        if (intersects)
+                            nextPrimaryObjectId = object.id;
+                    }
+
+                    if (nextPrimaryObjectId != 0)
+                        _editorManager.Set_SelectedObjectIds(nextSelectedObjectIds, nextPrimaryObjectId);
+                }
+
+                _isBoxSelecting = false;
+            }
+
+            if (_draggingObjectId != 0 || _resizingObjectId != 0)
+                _editorManager.Commit_EditTransactionIfChanged();
+
+            _draggingObjectId = 0;
+            _draggingObjectIds.clear();
+            _dragStartObjectWorldPositions.clear();
+            _resizingObjectId = 0;
+            _activeResizeHandle = UI_ResizeHandle::None;
+        }
+    }
+
     void UI_Viewport_View::Render()
     {
         if (!Is_Open())
             return;
+
+        ENGINE_PROFILE_SCOPE_BASIC("UIEditor.Viewport.Render");
 
         bool isOpen = Is_Open();
         ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.f, 0.f));
@@ -181,24 +798,7 @@ namespace UIEditor
             _isFocused = ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows);
             _isHovered = ImGui::IsWindowHovered(ImGuiHoveredFlags_RootAndChildWindows);
 
-            ImGui::SetCursorPosX(8.f);
-            ImGui::AlignTextToFramePadding();
-            ImGui::Text("Zoom: %.0f%%", _zoomFactor * 100.f);
-            ImGui::SameLine();
-            if (ImGui::Checkbox("Preview", &_previewMode))
-                Cancel_InteractionState(true);
-            ImGui::SameLine();
-            ImGui::BeginDisabled(_previewMode);
-            ImGui::Checkbox("Grid", &_showGrid);
-            ImGui::SameLine();
-            ImGui::Checkbox("Anchor", &_showAnchors);
-            ImGui::SameLine();
-            ImGui::Checkbox("Snap", &_snapEnabled);
-            ImGui::SameLine();
-            ImGui::SetNextItemWidth(82.f);
-            ImGui::DragFloat("Grid Size", &_gridSize, 1.f, kMinGridSize, kMaxGridSize, "%.0f");
-            ImGui::EndDisabled();
-            ImGui::Separator();
+            Render_Toolbar();
 
             ImGui::BeginChild("##UIEditorViewportScrollRegion", ImVec2(0.f, 0.f), false, ImGuiWindowFlags_HorizontalScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
             _isFocused = ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows);
@@ -381,12 +981,6 @@ namespace UIEditor
                 mousePos.y >= canvasPos.y && mousePos.y <= canvasMax.y;
 
             const ImVec2 mouseCanvasPos = ImVec2((mousePos.x - canvasPos.x) / displayScale, (mousePos.y - canvasPos.y) / displayScale);
-            auto buildViewportClipRect = [&](const ImVec2& objectMin, const ImVec2& objectMax, D3D11_RECT& outRect) -> bool
-            {
-                const ImVec2 clippedMin = ImVec2(max(objectMin.x, viewportMin.x), max(objectMin.y, viewportMin.y));
-                const ImVec2 clippedMax = ImVec2(min(objectMax.x, viewportMax.x), min(objectMax.y, viewportMax.y));
-                return Build_ScreenClipRect(clippedMin, clippedMax, outRect);
-            };
 
             const bool isAnimationPreviewActive = _editorManager.Is_AnimationPreviewActive();
             if (isAnimationPreviewActive)
@@ -399,332 +993,37 @@ namespace UIEditor
                 _isBoxSelecting = false;
             }
 
-            const vector<UI_Object>& objects = document.Get_Objects();
-            vector<const UI_Object*> sortedObjects;
-            sortedObjects.reserve(objects.size());
-            for (const UI_Object& object : objects)
-                sortedObjects.push_back(&object);
-
-            stable_sort(
-                sortedObjects.begin(),
-                sortedObjects.end(),
-                [](const UI_Object* lhs, const UI_Object* rhs)
-                {
-                    if (lhs->sortOrder != rhs->sortOrder)
-                        return lhs->sortOrder < rhs->sortOrder;
-
-                    return lhs->id < rhs->id;
-                });
-
-            UI_PreviewTransformResolver previewTransformResolver;
-            previewTransformResolver.Reset(
-                document,
-                canvasSize,
-                [this](const UI_Object& object, UI_AnimationPreviewSample& outSample)
-                {
-                    return _editorManager.Sample_AnimationPreview(object, outSample);
-                });
+            const auto& readModel = _editorManager.Get_ReadModel();
+            const auto& layoutCache = _editorManager.Get_LayoutCache();
+            const UI_PreviewTransformResolver& previewTransformResolver = layoutCache.Get_Resolver();
+            const vector<UI_EditorViewportItem>& viewportItems = layoutCache.Get_ViewportItems();
 
             bool hasSelectedObjectRect = false;
             ImVec2 selectedObjectMin = ImVec2(0.f, 0.f);
             ImVec2 selectedObjectMax = ImVec2(0.f, 0.f);
             bool selectedObjectIsLocked = false;
+            const bool useInteractionTextLod =
+                _isPanningViewport ||
+                _draggingObjectId != 0 ||
+                _resizingObjectId != 0 ||
+                _isBoxSelecting ||
+                (viewportInputAllowed && io.MouseWheel != 0.f);
 
-            for (const UI_Object* objectPtr : sortedObjects)
-            {
-                const UI_Object& object = *objectPtr;
-                if (!_editorManager.Is_ObjectEffectivelyVisible(object.id))
-                    continue;
-
-                UI_Object renderObject = previewTransformResolver.Make_PreviewObject(object);
-                renderObject.color = previewTransformResolver.Get_EffectiveRenderColor(object.id, renderObject.color);
-                const ImVec2 resolvedLocalSize = previewTransformResolver.Get_ResolvedLocalSize(object.id);
-                const ImVec2 objectWorldPivot = previewTransformResolver.Get_WorldPivot(object.id);
-                const UI_WorldObjectFrame objectFrame = previewTransformResolver.Get_WorldFrame(object.id);
-                const ImVec2 objectSize = objectFrame.worldSize;
-                const float objectWorldRotationRadians = objectFrame.worldRotationRadians;
-                const ImVec2 objectMin = Canvas_ToScreen(canvasPos, displayScale, objectFrame.worldBoundsMin);
-                const ImVec2 objectMax = Canvas_ToScreen(canvasPos, displayScale, objectFrame.worldBoundsMax);
-                const ImVec2 objectAabbMin = Canvas_ToScreen(canvasPos, displayScale, objectFrame.worldAabbMin);
-                const ImVec2 objectAabbMax = Canvas_ToScreen(canvasPos, displayScale, objectFrame.worldAabbMax);
-                ImVec2 objectQuad[4] = {};
-                for (int32 pointIndex = 0; pointIndex < 4; ++pointIndex)
-                    objectQuad[pointIndex] = Canvas_ToScreen(canvasPos, displayScale, objectFrame.worldQuad[pointIndex]);
-                const bool isSelected = _editorManager.Is_ObjectSelected(object.id);
-                const bool isPrimarySelected = (_editorManager.Get_SelectedObjectId() == object.id);
-                const bool isEffectivelyLocked = _editorManager.Is_ObjectEffectivelyLocked(object.id);
-                const bool shouldDrawAnchorOverlay = !_previewMode && _showAnchors && isSelected;
-
-                if (isPrimarySelected)
-                {
-                    hasSelectedObjectRect = true;
-                    selectedObjectMin = objectAabbMin;
-                    selectedObjectMax = objectAabbMax;
-                    selectedObjectIsLocked = isEffectivelyLocked;
-                }
-
-                const ImU32 fillColor = Is_ContainerObjectType(renderObject.type) ? ImGui::ColorConvertFloat4ToU32(renderObject.color) : Get_ObjectFillColor(renderObject.type);
-                const ImU32 objectBorderColor = isPrimarySelected
-                    ? (isEffectivelyLocked ? IM_COL32(255, 167, 38, 255) : IM_COL32(255, 217, 102, 255))
-                    : (isSelected ? (isEffectivelyLocked ? IM_COL32(255, 183, 77, 245) : IM_COL32(102, 205, 255, 245)) : IM_COL32(210, 214, 220, 220));
-                const float borderThickness = isPrimarySelected ? 2.5f : (isSelected ? 2.f : 1.5f);
-                const float objectRounding = renderObject.type == UI_ObjectType::Button ? 4.f : 0.f;
-                ID3D11ShaderResourceView* previewSRV = nullptr;
-                bool requiresCompositePreview = false;
-                bool drewUIVfxPreview = false;
-                bool usesMaterialVfxPreview = false;
-
-                if (renderObject.type == UI_ObjectType::Image && (!renderObject.textureGuid.empty() || !renderObject.texturePath.empty()))
-                {
-                    if (renderObject.imageRenderMode == UI_ImageRenderMode::MaterialVfx)
-                    {
-                        requiresCompositePreview = true;
-                        MaterialVfxPreviewDesc previewDesc = {};
-                        previewDesc.textureGuid = renderObject.textureGuid;
-                        previewDesc.texturePath = renderObject.texturePath;
-                        previewDesc.maskTextureGuid = renderObject.maskTextureGuid;
-                        previewDesc.maskTexturePath = renderObject.maskTexturePath;
-                        previewDesc.renderColor = renderObject.color;
-                        previewDesc.materialVfx = renderObject.materialVfx;
-                        previewSRV = _editorManager.Get_MaterialVfxPreviewSRV(previewDesc);
-                        usesMaterialVfxPreview = true;
-                    }
-                    else if (renderObject.imageRenderMode == UI_ImageRenderMode::ButtonSheen)
-                    {
-                        requiresCompositePreview = true;
-                        ButtonSheenPreviewDesc previewDesc = {};
-                        previewDesc.textureGuid = renderObject.textureGuid;
-                        previewDesc.texturePath = renderObject.texturePath;
-                        previewDesc.maskTextureGuid = renderObject.maskTextureGuid;
-                        previewDesc.maskTexturePath = renderObject.maskTexturePath;
-                        previewDesc.buttonSheen = renderObject.buttonSheen;
-                        previewSRV = _editorManager.Get_ButtonSheenPreviewSRV(previewDesc);
-                    }
-                    else if (renderObject.imageRenderMode == UI_ImageRenderMode::PatternOverlay)
-                    {
-                        requiresCompositePreview = true;
-                        PatternOverlayPreviewDesc previewDesc = {};
-                        previewDesc.textureGuid = renderObject.textureGuid;
-                        previewDesc.texturePath = renderObject.texturePath;
-                        previewDesc.paintMaskTextureGuid = renderObject.maskTextureGuid;
-                        previewDesc.paintMaskTexturePath = renderObject.maskTexturePath;
-                        previewDesc.patternMaskTextureGuid = renderObject.patternMaskTextureGuid;
-                        previewDesc.patternMaskTexturePath = renderObject.patternMaskTexturePath;
-                        previewDesc.patternUvOffset = renderObject.patternUvOffset;
-                        previewDesc.patternUvScale = renderObject.patternUvScale;
-                        previewDesc.useFillRatio = renderObject.useFillRatio;
-                        previewDesc.fillRatio = renderObject.fillRatio;
-                        previewDesc.fillOrigin = renderObject.fillOrigin;
-                        previewSRV = _editorManager.Get_PatternOverlayPreviewSRV(previewDesc);
-                    }
-                    else if (renderObject.useFillRatio)
-                    {
-                        requiresCompositePreview = true;
-                        previewSRV = _editorManager.Get_FillRatioPreviewSRV(
-                            renderObject.textureGuid,
-                            renderObject.texturePath,
-                            renderObject.fillRatio,
-                            renderObject.fillOrigin);
-                    }
-                    else if (!renderObject.maskTextureGuid.empty() || !renderObject.maskTexturePath.empty())
-                    {
-                        requiresCompositePreview = true;
-                        previewSRV = _editorManager.Get_MaskedTexturePreviewSRV(
-                            renderObject.textureGuid,
-                            renderObject.texturePath,
-                            renderObject.maskTextureGuid,
-                            renderObject.maskTexturePath,
-                            renderObject.maskTextureMode);
-                    }
-
-                    if (nullptr == previewSRV && !requiresCompositePreview)
-                        previewSRV = _editorManager.Get_TexturePreviewSRV(renderObject.textureGuid, renderObject.texturePath);
-                }
-
-                if (renderObject.type == UI_ObjectType::UIVfx && !renderObject.vfxPath.empty())
-                {
-                    Client::UISpriteVfxAsset vfxAsset{};
-                    if (Try_LoadUIVfxAsset(renderObject.vfxPath, vfxAsset))
-                    {
-                        const ImVec2 objectScale(
-                            objectSize.x / max(1.f, resolvedLocalSize.x),
-                            objectSize.y / max(1.f, resolvedLocalSize.y));
-                        const Client::UISpriteVfxAsset scaledAsset = Make_ViewportScaledAsset(vfxAsset, objectScale);
-                        ID3D11ShaderResourceView* textureSRV = _editorManager.Get_TexturePreviewSRV(scaledAsset.textureGuid, scaledAsset.texturePath);
-                        const ImTextureID textureId = nullptr != textureSRV ? To_ImTextureID(textureSRV) : ImTextureID{};
-                        const Vec2 origin(objectWorldPivot.x, objectWorldPivot.y);
-                        const float previewTime = static_cast<float>(ImGui::GetTime());
-                        const vector<Client::UISpriteVfxParticlePreview> particles =
-                            Client::UISpriteVfxPreviewSampler::Sample(scaledAsset, previewTime, origin, true);
-                        const float cosAngle = cosf(objectWorldRotationRadians);
-                        const float sinAngle = sinf(objectWorldRotationRadians);
-
-                        drawList->PushClipRect(canvasPos, canvasMax, true);
-                        for (const Client::UISpriteVfxParticlePreview& particle : particles)
-                        {
-                            const Vec2 offset = particle.position - origin;
-                            const Vec2 rotatedPosition(
-                                origin.x + offset.x * cosAngle - offset.y * sinAngle,
-                                origin.y + offset.x * sinAngle + offset.y * cosAngle);
-                            const ImVec2 particleCenter = Canvas_ToScreen(canvasPos, displayScale, ImVec2(rotatedPosition.x, rotatedPosition.y));
-                            const ImVec2 particleSize(
-                                max(0.01f, particle.size.x * displayScale),
-                                max(0.01f, particle.size.y * displayScale));
-                            const ImVec4 color(
-                                min(max(particle.color.x, 0.f), 1.f),
-                                min(max(particle.color.y, 0.f), 1.f),
-                                min(max(particle.color.z, 0.f), 1.f),
-                                min(max(particle.color.w, 0.f), 1.f));
-
-                            Draw_RotatedImageOrQuad(
-                                drawList,
-                                textureId,
-                                particleCenter,
-                                particleSize,
-                                particle.rotationRadians + objectWorldRotationRadians,
-                                ImGui::ColorConvertFloat4ToU32(color));
-                        }
-                        drawList->PopClipRect();
-                        drewUIVfxPreview = true;
-                    }
-                }
-
-                const bool hasTextContent = renderObject.type == UI_ObjectType::Text && !renderObject.text.empty();
-                const bool isRotated = fabsf(objectWorldRotationRadians) > kRotationEpsilon;
-
-                if (nullptr != previewSRV)
-                {
-                    const ImU32 imageTintColor = usesMaterialVfxPreview
-                        ? IM_COL32(255, 255, 255, 255)
-                        : ImGui::ColorConvertFloat4ToU32(renderObject.color);
-                    if (isRotated)
-                    {
-                        drawList->AddImageQuad(
-                            To_ImTextureID(previewSRV),
-                            objectQuad[0],
-                            objectQuad[1],
-                            objectQuad[2],
-                            objectQuad[3],
-                            ImVec2(0.f, 0.f),
-                            ImVec2(1.f, 0.f),
-                            ImVec2(1.f, 1.f),
-                            ImVec2(0.f, 1.f),
-                            imageTintColor);
-                    }
-                    else
-                    {
-                        drawList->AddImage(
-                            To_ImTextureID(previewSRV),
-                            objectMin,
-                            objectMax,
-                            ImVec2(0.f, 0.f),
-                            ImVec2(1.f, 1.f),
-                            imageTintColor);
-                    }
-                }
-                else if (!drewUIVfxPreview && !hasTextContent && (!_previewMode || renderObject.type != UI_ObjectType::Image))
-                {
-                    if (isRotated)
-                        drawList->AddQuadFilled(objectQuad[0], objectQuad[1], objectQuad[2], objectQuad[3], fillColor);
-                    else
-                        drawList->AddRectFilled(objectMin, objectMax, fillColor, objectRounding);
-                }
-
-                if (!_previewMode)
-                {
-                    if (isRotated)
-                        Draw_QuadOutline(drawList, objectQuad, objectBorderColor, borderThickness);
-                    else
-                        drawList->AddRect(objectMin, objectMax, objectBorderColor, objectRounding, 0, borderThickness);
-
-                    if (shouldDrawAnchorOverlay)
-                    {
-                        const ImVec2 parentReferenceSize = previewTransformResolver.Get_ParentReferenceSize(renderObject);
-                        const ImVec2 anchorMinLocal = ImVec2(
-                            parentReferenceSize.x * renderObject.anchorMin.x,
-                            parentReferenceSize.y * renderObject.anchorMin.y);
-                        const ImVec2 anchorMaxLocal = ImVec2(
-                            parentReferenceSize.x * renderObject.anchorMax.x,
-                            parentReferenceSize.y * renderObject.anchorMax.y);
-                        const ImVec2 anchorMinWorld = previewTransformResolver.Transform_LocalPointToWorld(object.id, anchorMinLocal);
-                        const ImVec2 anchorMaxWorld = previewTransformResolver.Transform_LocalPointToWorld(object.id, anchorMaxLocal);
-                        const ImVec2 anchorMinScreen = ImVec2(
-                            canvasPos.x + anchorMinWorld.x * displayScale,
-                            canvasPos.y + anchorMinWorld.y * displayScale);
-                        const ImVec2 anchorMaxScreen = ImVec2(
-                            canvasPos.x + anchorMaxWorld.x * displayScale,
-                            canvasPos.y + anchorMaxWorld.y * displayScale);
-                        const bool isStretched =
-                            fabsf(renderObject.anchorMax.x - renderObject.anchorMin.x) > 0.0001f ||
-                            fabsf(renderObject.anchorMax.y - renderObject.anchorMin.y) > 0.0001f;
-                        const ImU32 anchorFillColor = isPrimarySelected ? IM_COL32(255, 40, 40, 255) : IM_COL32(255, 40, 40, 210);
-                        const ImU32 anchorOutlineColor = IM_COL32(255, 235, 235, 245);
-                        if (isStretched)
-                        {
-                            const ImVec2 anchorRectMin = ImVec2(min(anchorMinScreen.x, anchorMaxScreen.x), min(anchorMinScreen.y, anchorMaxScreen.y));
-                            const ImVec2 anchorRectMax = ImVec2(max(anchorMinScreen.x, anchorMaxScreen.x), max(anchorMinScreen.y, anchorMaxScreen.y));
-                            drawList->AddRectFilled(anchorRectMin, anchorRectMax, IM_COL32(255, 40, 40, 22), 0.f);
-                            drawList->AddRect(anchorRectMin, anchorRectMax, IM_COL32(255, 70, 70, 190), 0.f, 0, 1.25f);
-                            Draw_AnchorMarker(drawList, anchorMaxScreen, IM_COL32(255, 120, 120, 190), anchorOutlineColor, isPrimarySelected ? 4.5f : 3.5f);
-                        }
-                        Draw_AnchorMarker(drawList, anchorMinScreen, anchorFillColor, anchorOutlineColor, isPrimarySelected ? 5.5f : 4.5f);
-                    }
-                }
-
-                bool usesSpriteFontPreview = false;
-                if (!hasBlockingPopup && renderObject.type == UI_ObjectType::Text && (!renderObject.fontGuid.empty() || !renderObject.fontPath.empty()) && !renderObject.text.empty())
-                {
-                    D3D11_RECT clipRect = {};
-                    if (buildViewportClipRect(objectAabbMin, objectAabbMax, clipRect))
-                    {
-                        const Vec2 fontPivotScreen(
-                            canvasPos.x + objectWorldPivot.x * displayScale,
-                            canvasPos.y + objectWorldPivot.y * displayScale);
-                        const Vec2 fontBoxSize(
-                            objectSize.x * displayScale,
-                            objectSize.y * displayScale);
-                        const Vec2 fontBoxMin(
-                            fontPivotScreen.x - fontBoxSize.x * renderObject.pivot.x,
-                            fontPivotScreen.y - fontBoxSize.y * renderObject.pivot.y);
-
-                        usesSpriteFontPreview = _editorManager.Queue_FontPreview(
-                            renderObject.fontGuid,
-                            renderObject.fontPath,
-                            String::ToWString(renderObject.text),
-                            fontBoxMin,
-                            Vec2(fontBoxMin.x + fontBoxSize.x, fontBoxMin.y + fontBoxSize.y),
-                            Vec4(renderObject.color.x, renderObject.color.y, renderObject.color.z, renderObject.color.w),
-                            objectWorldRotationRadians,
-                            fontPivotScreen,
-                            renderObject.textAlign,
-                            max(0.01f, objectSize.x / max(1.f, resolvedLocalSize.x)) * displayScale,
-                            renderObject.textWrap,
-                            clipRect);
-                    }
-                }
-
-                if (!usesSpriteFontPreview && nullptr == previewSRV && objectMax.x - objectMin.x > 32.f && objectMax.y - objectMin.y > 18.f)
-                {
-                    if (renderObject.type == UI_ObjectType::Text)
-                    {
-                        Draw_ImGuiTextPreview(drawList, renderObject, objectMin, objectMax, displayScale);
-                    }
-                    else if (!_previewMode)
-                    {
-                        const ImVec2 textPosition = ImVec2(objectMin.x + 4.f, objectMin.y + 3.f);
-                        drawList->AddText(textPosition, IM_COL32(245, 247, 250, 230), renderObject.name.c_str());
-                    }
-
-                    if (!_previewMode && renderObject.type == UI_ObjectType::Text && isSelected && !renderObject.fontTag.empty() && objectMax.y - objectMin.y > 34.f)
-                    {
-                        const string fontPreviewText = "Font: " + renderObject.fontTag;
-                        drawList->AddText(ImVec2(objectMin.x + 4.f, objectMax.y - 17.f), IM_COL32(255, 217, 102, 240), fontPreviewText.c_str());
-                    }
-                }
-
-                if (!_previewMode && isEffectivelyLocked && objectMax.x - objectMin.x > 32.f && objectMax.y - objectMin.y > 18.f)
-                    drawList->AddText(ImVec2(objectMax.x - 30.f, objectMin.y + 3.f), IM_COL32(255, 217, 102, 245), "LOCK");
-            }
+            Draw_ViewportItems(
+                drawList,
+                canvasPos,
+                canvasMax,
+                displayScale,
+                viewportMin,
+                viewportMax,
+                hasBlockingPopup,
+                useInteractionTextLod,
+                previewTransformResolver,
+                viewportItems,
+                hasSelectedObjectRect,
+                selectedObjectMin,
+                selectedObjectMax,
+                selectedObjectIsLocked);
 
             UI_ResizeHandle hoveredResizeHandle = UI_ResizeHandle::None;
             if (!_previewMode && hasSelectedObjectRect && !selectedObjectIsLocked)
@@ -735,270 +1034,23 @@ namespace UIEditor
                     Set_ResizeMouseCursor(hoveredResizeHandle);
             }
 
-            if (!_previewMode && !isAnimationPreviewActive && viewportInputAllowed && isMouseInViewport && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
-            {
-                if (hoveredResizeHandle != UI_ResizeHandle::None && _editorManager.Get_SelectedObjectId() != 0)
-                {
-                    _editorManager.Begin_EditTransaction();
-                    _resizingObjectId = _editorManager.Get_SelectedObjectId();
-                    _activeResizeHandle = hoveredResizeHandle;
-                    _resizeStartMouseCanvasPos = mouseCanvasPos;
-                    _resizeStartObjectWorldPosition = document.Get_WorldPosition(_resizingObjectId);
-                    _resizeStartObjectWorldSize = document.Get_WorldSize(_resizingObjectId);
-                    _draggingObjectId = 0;
-                    _draggingObjectIds.clear();
-                    _dragStartObjectWorldPositions.clear();
-                }
-                else if (isMouseInCanvas)
-                {
-                    ObjectId pickedObjectId = 0;
-                    for (auto iter = sortedObjects.rbegin(); iter != sortedObjects.rend(); ++iter)
-                    {
-                        const UI_Object& object = **iter;
-                        if (!_editorManager.Is_ObjectEffectivelyVisible(object.id))
-                            continue;
-
-                        const UI_WorldObjectFrame objectFrame = Build_UIWorldObjectFrame(document, object.id);
-                        const bool isInsideObject = Is_PointInsideUIWorldObjectFrame(mouseCanvasPos, objectFrame);
-
-                        if (isInsideObject)
-                        {
-                            pickedObjectId = object.id;
-                            break;
-                        }
-                    }
-
-                    if (pickedObjectId != 0)
-                    {
-                        const bool wasSelected = _editorManager.Is_ObjectSelected(pickedObjectId);
-
-                        if (io.KeyCtrl)
-                        {
-                            _editorManager.Toggle_Selection(pickedObjectId);
-                        }
-                        else if (io.KeyShift)
-                        {
-                            _editorManager.Add_ToSelection(pickedObjectId);
-                        }
-                        else if (wasSelected && _editorManager.Get_SelectedObjectCount() > 1)
-                        {
-                            _editorManager.Set_SelectedObjectIds(_editorManager.Get_SelectedObjectIds(), pickedObjectId);
-                        }
-                        else
-                        {
-                            _editorManager.Set_SingleSelection(pickedObjectId);
-                        }
-
-                        if (_editorManager.Is_ObjectSelected(pickedObjectId))
-                        {
-                            _draggingObjectId = 0;
-                            _draggingObjectIds.clear();
-                            _dragStartObjectWorldPositions.clear();
-                            _dragStartMouseCanvasPos = mouseCanvasPos;
-
-                            if (!_editorManager.Is_ObjectEffectivelyLocked(pickedObjectId))
-                            {
-                                _draggingObjectId = pickedObjectId;
-                                const vector<ObjectId> rootSelectedObjectIds = _editorManager.Get_RootSelectedObjectIds();
-                                for (ObjectId draggingObjectId : rootSelectedObjectIds)
-                                {
-                                    if (_editorManager.Is_ObjectEffectivelyLocked(draggingObjectId))
-                                        continue;
-
-                                    _draggingObjectIds.push_back(draggingObjectId);
-                                    _dragStartObjectWorldPositions[draggingObjectId] = document.Get_WorldPosition(draggingObjectId);
-                                }
-
-                                if (!_draggingObjectIds.empty())
-                                {
-                                    _editorManager.Begin_EditTransaction();
-                                }
-                            }
-                        }
-                    }
-                    else
-                    {
-                        if (!io.KeyCtrl && !io.KeyShift)
-                            _editorManager.Clear_Selection();
-
-                        _isBoxSelecting = true;
-                        _boxSelectStartCanvasPos = mouseCanvasPos;
-                        _boxSelectCurrentCanvasPos = mouseCanvasPos;
-                        _draggingObjectId = 0;
-                        _draggingObjectIds.clear();
-                        _dragStartObjectWorldPositions.clear();
-                    }
-                }
-            }
-
-            if (!_previewMode && !hasBlockingPopup && !isAnimationPreviewActive && _resizingObjectId != 0 && ImGui::IsMouseDown(ImGuiMouseButton_Left))
-            {
-                const UI_Object* resizingObject = document.Find_Object(_resizingObjectId);
-                if (nullptr != resizingObject)
-                {
-                    const bool movesLeft =
-                        _activeResizeHandle == UI_ResizeHandle::West ||
-                        _activeResizeHandle == UI_ResizeHandle::NorthWest ||
-                        _activeResizeHandle == UI_ResizeHandle::SouthWest;
-                    const bool movesRight =
-                        _activeResizeHandle == UI_ResizeHandle::East ||
-                        _activeResizeHandle == UI_ResizeHandle::NorthEast ||
-                        _activeResizeHandle == UI_ResizeHandle::SouthEast;
-                    const bool movesTop =
-                        _activeResizeHandle == UI_ResizeHandle::North ||
-                        _activeResizeHandle == UI_ResizeHandle::NorthEast ||
-                        _activeResizeHandle == UI_ResizeHandle::NorthWest;
-                    const bool movesBottom =
-                        _activeResizeHandle == UI_ResizeHandle::South ||
-                        _activeResizeHandle == UI_ResizeHandle::SouthEast ||
-                        _activeResizeHandle == UI_ResizeHandle::SouthWest;
-
-                    const ImVec2 delta = ImVec2(
-                        mouseCanvasPos.x - _resizeStartMouseCanvasPos.x,
-                        mouseCanvasPos.y - _resizeStartMouseCanvasPos.y);
-
-                    ImVec2 nextMin = _resizeStartObjectWorldPosition;
-                    ImVec2 nextMax = ImVec2(
-                        _resizeStartObjectWorldPosition.x + _resizeStartObjectWorldSize.x,
-                        _resizeStartObjectWorldPosition.y + _resizeStartObjectWorldSize.y);
-
-                    if (movesLeft)
-                        nextMin.x += delta.x;
-                    if (movesRight)
-                        nextMax.x += delta.x;
-                    if (movesTop)
-                        nextMin.y += delta.y;
-                    if (movesBottom)
-                        nextMax.y += delta.y;
-
-                    if (_snapEnabled)
-                    {
-                        const ImVec2 snappedDelta = Snap_Position(delta, _gridSize);
-                        if (movesLeft)
-                            nextMin.x = _resizeStartObjectWorldPosition.x + snappedDelta.x;
-                        if (movesRight)
-                            nextMax.x = _resizeStartObjectWorldPosition.x + _resizeStartObjectWorldSize.x + snappedDelta.x;
-                        if (movesTop)
-                            nextMin.y = _resizeStartObjectWorldPosition.y + snappedDelta.y;
-                        if (movesBottom)
-                            nextMax.y = _resizeStartObjectWorldPosition.y + _resizeStartObjectWorldSize.y + snappedDelta.y;
-                    }
-
-                    if (nextMax.x - nextMin.x < 1.f)
-                    {
-                        if (movesLeft)
-                            nextMin.x = nextMax.x - 1.f;
-                        else
-                            nextMax.x = nextMin.x + 1.f;
-                    }
-
-                    if (nextMax.y - nextMin.y < 1.f)
-                    {
-                        if (movesTop)
-                            nextMin.y = nextMax.y - 1.f;
-                        else
-                            nextMax.y = nextMin.y + 1.f;
-                    }
-
-                    _editorManager.Set_UIObjectWorldRect(
-                        _resizingObjectId,
-                        nextMin,
-                        ImVec2(nextMax.x - nextMin.x, nextMax.y - nextMin.y));
-                }
-            }
-            else if (!_previewMode && !hasBlockingPopup && !isAnimationPreviewActive && _draggingObjectId != 0 && ImGui::IsMouseDragging(ImGuiMouseButton_Left, 1.f))
-            {
-                const ImVec2 delta = ImVec2(
-                    mouseCanvasPos.x - _dragStartMouseCanvasPos.x,
-                    mouseCanvasPos.y - _dragStartMouseCanvasPos.y);
-
-                for (ObjectId draggingObjectId : _draggingObjectIds)
-                {
-                    const UI_Object* draggingObject = document.Find_Object(draggingObjectId);
-                    if (nullptr == draggingObject)
-                        continue;
-
-                    const auto startPositionIter = _dragStartObjectWorldPositions.find(draggingObjectId);
-                    if (startPositionIter == _dragStartObjectWorldPositions.end())
-                        continue;
-
-                    const ImVec2 startWorldPosition = startPositionIter->second;
-                    ImVec2 moveDelta = delta;
-                    if (_snapEnabled)
-                        moveDelta = Snap_Position(moveDelta, _gridSize);
-
-                    const ImVec2 nextWorldPosition = ImVec2(
-                        startWorldPosition.x + moveDelta.x,
-                        startWorldPosition.y + moveDelta.y);
-
-                    _editorManager.Set_UIObjectWorldPosition(draggingObjectId, nextWorldPosition);
-                }
-            }
-
-            if (!_previewMode && !hasBlockingPopup && !isAnimationPreviewActive && _isBoxSelecting && ImGui::IsMouseDown(ImGuiMouseButton_Left))
-            {
-                _boxSelectCurrentCanvasPos = ImVec2(
-                    min(max(mouseCanvasPos.x, 0.f), canvasSize.x),
-                    min(max(mouseCanvasPos.y, 0.f), canvasSize.y));
-
-                const ImVec2 boxCanvasMin = ImVec2(
-                    min(_boxSelectStartCanvasPos.x, _boxSelectCurrentCanvasPos.x),
-                    min(_boxSelectStartCanvasPos.y, _boxSelectCurrentCanvasPos.y));
-                const ImVec2 boxCanvasMax = ImVec2(
-                    max(_boxSelectStartCanvasPos.x, _boxSelectCurrentCanvasPos.x),
-                    max(_boxSelectStartCanvasPos.y, _boxSelectCurrentCanvasPos.y));
-                const ImVec2 boxScreenMin = ImVec2(canvasPos.x + boxCanvasMin.x * displayScale, canvasPos.y + boxCanvasMin.y * displayScale);
-                const ImVec2 boxScreenMax = ImVec2(canvasPos.x + boxCanvasMax.x * displayScale, canvasPos.y + boxCanvasMax.y * displayScale);
-
-                drawList->AddRectFilled(boxScreenMin, boxScreenMax, IM_COL32(102, 205, 255, 34));
-                drawList->AddRect(boxScreenMin, boxScreenMax, IM_COL32(102, 205, 255, 220), 0.f, 0, 1.5f);
-            }
-
-            if (!ImGui::IsMouseDown(ImGuiMouseButton_Left))
-            {
-                if (_isBoxSelecting)
-                {
-                    const ImVec2 boxCanvasMin = ImVec2(
-                        min(_boxSelectStartCanvasPos.x, _boxSelectCurrentCanvasPos.x),
-                        min(_boxSelectStartCanvasPos.y, _boxSelectCurrentCanvasPos.y));
-                    const ImVec2 boxCanvasMax = ImVec2(
-                        max(_boxSelectStartCanvasPos.x, _boxSelectCurrentCanvasPos.x),
-                        max(_boxSelectStartCanvasPos.y, _boxSelectCurrentCanvasPos.y));
-                    const float boxWidth = boxCanvasMax.x - boxCanvasMin.x;
-                    const float boxHeight = boxCanvasMax.y - boxCanvasMin.y;
-
-                    if (boxWidth > 1.f || boxHeight > 1.f)
-                    {
-                        for (const UI_Object* objectPtr : sortedObjects)
-                        {
-                            const UI_Object& object = *objectPtr;
-                            if (!_editorManager.Is_ObjectEffectivelyVisible(object.id))
-                                continue;
-
-                            const UI_WorldObjectFrame objectFrame = Build_UIWorldObjectFrame(document, object.id);
-                            const bool intersects =
-                                objectFrame.worldAabbMin.x <= boxCanvasMax.x &&
-                                objectFrame.worldAabbMax.x >= boxCanvasMin.x &&
-                                objectFrame.worldAabbMin.y <= boxCanvasMax.y &&
-                                objectFrame.worldAabbMax.y >= boxCanvasMin.y;
-
-                            if (intersects)
-                                _editorManager.Add_ToSelection(object.id);
-                        }
-                    }
-
-                    _isBoxSelecting = false;
-                }
-
-                if (_draggingObjectId != 0 || _resizingObjectId != 0)
-                    _editorManager.Commit_EditTransactionIfChanged();
-
-                _draggingObjectId = 0;
-                _draggingObjectIds.clear();
-                _dragStartObjectWorldPositions.clear();
-                _resizingObjectId = 0;
-                _activeResizeHandle = UI_ResizeHandle::None;
-            }
+            Handle_ViewportInteraction(
+                document,
+                readModel,
+                viewportItems,
+                drawList,
+                canvasSize,
+                canvasPos,
+                canvasMax,
+                displayScale,
+                mousePos,
+                mouseCanvasPos,
+                hasBlockingPopup,
+                viewportInputAllowed,
+                isMouseInViewport,
+                isMouseInCanvas,
+                isAnimationPreviewActive,
+                hoveredResizeHandle);
 
             if (!_previewMode)
                 drawList->AddRect(canvasPos, canvasMax, canvasBoundaryColor, 0.f, 0, 2.f);

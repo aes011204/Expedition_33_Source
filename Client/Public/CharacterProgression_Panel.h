@@ -116,6 +116,7 @@ private:
     HRESULT Load_UI(uint32 levelIndex);
     HRESULT Bind_UI();
 
+    void    Apply_CurrentWeaponThumbnail(const GameDataTable::WeaponDesc& weapon);
     void    Apply_PreviewOverrides();
     void    Restore_PreviewOverrides();
     void    Apply_PreviewRimState();
@@ -157,6 +158,13 @@ private:
         Engine::PostProcessFeature  postProcessFeatures = Engine::PostProcessFeature::None;
         Engine::DeferredLightingCB  deferredLighting{};
         bool                        iblEnabled = false;
+    };
+
+    struct WeaponThumbnailSlotUI
+    {
+        Shared<UI_Base>  root{};
+        Shared<UI_Image> background{};
+        Shared<UI_Image> icon{};
     };
 
 private:
@@ -221,13 +229,7 @@ private:
     Shared<UI_Text> _currentStatCriticalPercentText{};
 
     WeaponSummaryText _currentWeaponText{};
-    Shared<UI_Base> _colimThumbnailPanel{};
-    Shared<UI_Base> _snowimThumbnailPanel{};
-    Shared<UI_Base> _baguetteThumbnailPanel{};
-    Shared<UI_Base> _lanceramThumbnailPanel{};
-    Shared<UI_Base> _candyThumbnailPanel{};
-    Shared<UI_Base> _medalumThumbnailPanel{};
-    Shared<UI_Base> _sekarumThumbnailPanel{};
+    array<WeaponThumbnailSlotUI, 7> _currentWeaponThumbnailSlots{};
 
     array<Shared<UI_Text>, 5> _currentSkillNameTexts{};
     array<Shared<UI_Text>, 5> _currentSkillApTexts{};

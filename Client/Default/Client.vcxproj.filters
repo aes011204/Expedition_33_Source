@@ -382,6 +382,9 @@
     <ClCompile Include="..\Private\AN_SL_CachePlayerPosition.cpp">
       <Filter>95. AnimNotify\00. Notifies</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\AN_SL_PlayCachedPlayerEffect.cpp">
+      <Filter>95. AnimNotify\00. Notifies</Filter>
+    </ClCompile>
     <ClCompile Include="..\Private\AN_SL_DuallisteCloneSkill.cpp">
       <Filter>95. AnimNotify\00. Notifies</Filter>
     </ClCompile>
@@ -590,6 +593,12 @@
     <ClCompile Include="..\private\ChangeWeapon_Panel.cpp">
       <Filter>04. GamePlayUI\Weapon</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\UpgradeWeapon_Panel.cpp">
+      <Filter>04. GamePlayUI\Weapon</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\Merchant_Panel.cpp">
+      <Filter>04. GamePlayUI</Filter>
+    </ClCompile>
     <ClCompile Include="..\private\BT_FinishDecision.cpp">
       <Filter>BehavoirTree\battle</Filter>
     </ClCompile>
@@ -657,6 +666,9 @@
       <Filter>02. GameObject\UI</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\GameplayUI_World.cpp">
+      <Filter>02. GameObject\UI</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\UI_InteractionPrompt.cpp">
       <Filter>02. GameObject\UI</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\MapLandscape.cpp">
@@ -1423,6 +1435,7 @@
     <ClCompile Include="..\Private\Item_Chroma.cpp" />
     <ClCompile Include="..\Private\Item_DailyLog.cpp" />
     <ClCompile Include="..\Private\UI_DailyLog.cpp" />
+    <ClCompile Include="..\Private\ANS_CanAction.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\Public\ANS_AnimSpeed.h">
@@ -1552,6 +1565,7 @@
     <ClInclude Include="..\Public\Item_Chroma.h" />
     <ClInclude Include="..\Public\Item_DailyLog.h" />
     <ClInclude Include="..\Public\UI_DailyLog.h" />
+    <ClInclude Include="..\Public\ANS_CanAction.h" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimAdditive.hlsl">
@@ -1767,6 +1781,9 @@
     <ClInclude Include="..\Public\AN_SL_CachePlayerPosition.h">
       <Filter>95. AnimNotify\00. Notifies</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\AN_SL_PlayCachedPlayerEffect.h">
+      <Filter>95. AnimNotify\00. Notifies</Filter>
+    </ClInclude>
     <ClInclude Include="..\Public\AN_SL_DuallisteCloneSkill.h">
       <Filter>95. AnimNotify\00. Notifies</Filter>
     </ClInclude>
@@ -1931,6 +1948,12 @@
     </ClInclude>
     <ClInclude Include="..\public\ChangeWeapon_Panel.h">
       <Filter>04. GamePlayUI\Weapon</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\UpgradeWeapon_Panel.h">
+      <Filter>04. GamePlayUI\Weapon</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Merchant_Panel.h">
+      <Filter>04. GamePlayUI</Filter>
     </ClInclude>
     <ClInclude Include="..\public\BT_FinishDecision.h">
       <Filter>BehavoirTree\battle</Filter>
@@ -2105,6 +2128,9 @@
       <Filter>02. GameObject\UI</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\GameplayUI_World.h">
+      <Filter>02. GameObject\UI</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\UI_InteractionPrompt.h">
       <Filter>02. GameObject\UI</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\MapLandscape.h">

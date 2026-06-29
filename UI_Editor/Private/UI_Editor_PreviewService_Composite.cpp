@@ -249,8 +249,8 @@ namespace UIEditor
             return nullptr;
 
         const string cacheKey = Make_MaskedTexturePreviewKey(
-            Make_TexturePreviewGuidKey(textureGuid) + "|" + Make_TexturePreviewPathKey(Resolve_ClientRuntimeResourcePath(texturePath)),
-            Make_TexturePreviewGuidKey(maskTextureGuid) + "|" + Make_TexturePreviewPathKey(Resolve_ClientRuntimeResourcePath(maskTexturePath)) + "|" + to_string(static_cast<int32>(maskTextureMode)));
+            Make_TexturePreviewGuidKey(textureGuid) + "|" + Make_TexturePreviewPathKey(Resolve_TexturePreviewPath(texturePath)),
+            Make_TexturePreviewGuidKey(maskTextureGuid) + "|" + Make_TexturePreviewPathKey(Resolve_TexturePreviewPath(maskTexturePath)) + "|" + to_string(static_cast<int32>(maskTextureMode)));
 
         const auto cachedIter = _maskedTexturePreviewCache.find(cacheKey);
         if (cachedIter != _maskedTexturePreviewCache.end())
@@ -283,7 +283,7 @@ namespace UIEditor
 
         const float clampedFillRatio = Clamp_FillRatio(fillRatio);
         const string cacheKey =
-            Make_TexturePreviewGuidKey(textureGuid) + "|" + Make_TexturePreviewPathKey(Resolve_ClientRuntimeResourcePath(texturePath)) + "|" +
+            Make_TexturePreviewGuidKey(textureGuid) + "|" + Make_TexturePreviewPathKey(Resolve_TexturePreviewPath(texturePath)) + "|" +
             to_string(clampedFillRatio) + "|" +
             to_string(static_cast<int32>(fillOrigin));
 
@@ -333,9 +333,9 @@ namespace UIEditor
         }
 
         const string cacheKey =
-            Make_TexturePreviewGuidKey(previewDesc.textureGuid) + "|" + Make_TexturePreviewPathKey(Resolve_ClientRuntimeResourcePath(previewDesc.texturePath)) + "|" +
-            Make_TexturePreviewGuidKey(previewDesc.paintMaskTextureGuid) + "|" + Make_TexturePreviewPathKey(Resolve_ClientRuntimeResourcePath(previewDesc.paintMaskTexturePath)) + "|" +
-            Make_TexturePreviewGuidKey(previewDesc.patternMaskTextureGuid) + "|" + Make_TexturePreviewPathKey(Resolve_ClientRuntimeResourcePath(previewDesc.patternMaskTexturePath)) + "|" +
+            Make_TexturePreviewGuidKey(previewDesc.textureGuid) + "|" + Make_TexturePreviewPathKey(Resolve_TexturePreviewPath(previewDesc.texturePath)) + "|" +
+            Make_TexturePreviewGuidKey(previewDesc.paintMaskTextureGuid) + "|" + Make_TexturePreviewPathKey(Resolve_TexturePreviewPath(previewDesc.paintMaskTexturePath)) + "|" +
+            Make_TexturePreviewGuidKey(previewDesc.patternMaskTextureGuid) + "|" + Make_TexturePreviewPathKey(Resolve_TexturePreviewPath(previewDesc.patternMaskTexturePath)) + "|" +
             to_string(previewDesc.patternUvOffset.x) + "," + to_string(previewDesc.patternUvOffset.y) + "|" +
             to_string(previewDesc.patternUvScale.x) + "," + to_string(previewDesc.patternUvScale.y) + "|" +
             to_string(previewDesc.useFillRatio ? 1 : 0) + "|" +
@@ -389,9 +389,9 @@ namespace UIEditor
 
         const int32 timeFrame = static_cast<int32>(floorf(_materialVfxPreviewTime * 30.f));
         const string cacheKey =
-            Make_TexturePreviewGuidKey(previewDesc.textureGuid) + "|" + Make_TexturePreviewPathKey(Resolve_ClientRuntimeResourcePath(previewDesc.texturePath)) + "|" +
-            Make_TexturePreviewGuidKey(previewDesc.maskTextureGuid) + "|" + Make_TexturePreviewPathKey(Resolve_ClientRuntimeResourcePath(previewDesc.maskTexturePath)) + "|" +
-            Make_TexturePreviewGuidKey(previewDesc.materialVfx.noiseTextureGuid) + "|" + Make_TexturePreviewPathKey(Resolve_ClientRuntimeResourcePath(previewDesc.materialVfx.noiseTexturePath)) + "|" +
+            Make_TexturePreviewGuidKey(previewDesc.textureGuid) + "|" + Make_TexturePreviewPathKey(Resolve_TexturePreviewPath(previewDesc.texturePath)) + "|" +
+            Make_TexturePreviewGuidKey(previewDesc.maskTextureGuid) + "|" + Make_TexturePreviewPathKey(Resolve_TexturePreviewPath(previewDesc.maskTexturePath)) + "|" +
+            Make_TexturePreviewGuidKey(previewDesc.materialVfx.noiseTextureGuid) + "|" + Make_TexturePreviewPathKey(Resolve_TexturePreviewPath(previewDesc.materialVfx.noiseTexturePath)) + "|" +
             to_string(timeFrame) + "|" +
             to_string(static_cast<int32>(previewDesc.materialVfx.mode)) + "|" +
             to_string(previewDesc.renderColor.x) + "," + to_string(previewDesc.renderColor.y) + "," + to_string(previewDesc.renderColor.z) + "," + to_string(previewDesc.renderColor.w) + "|" +
@@ -468,8 +468,8 @@ namespace UIEditor
 
         const int32 timeFrame = static_cast<int32>(floorf(_buttonSheenPreviewTime * 30.f));
         const string cacheKey =
-            Make_TexturePreviewGuidKey(previewDesc.textureGuid) + "|" + Make_TexturePreviewPathKey(Resolve_ClientRuntimeResourcePath(previewDesc.texturePath)) + "|" +
-            Make_TexturePreviewGuidKey(previewDesc.maskTextureGuid) + "|" + Make_TexturePreviewPathKey(Resolve_ClientRuntimeResourcePath(previewDesc.maskTexturePath)) + "|" +
+            Make_TexturePreviewGuidKey(previewDesc.textureGuid) + "|" + Make_TexturePreviewPathKey(Resolve_TexturePreviewPath(previewDesc.texturePath)) + "|" +
+            Make_TexturePreviewGuidKey(previewDesc.maskTextureGuid) + "|" + Make_TexturePreviewPathKey(Resolve_TexturePreviewPath(previewDesc.maskTexturePath)) + "|" +
             to_string(timeFrame) + "|" +
             to_string(previewDesc.buttonSheen.color.x) + "," + to_string(previewDesc.buttonSheen.color.y) + "," + to_string(previewDesc.buttonSheen.color.z) + "," + to_string(previewDesc.buttonSheen.color.w) + "|" +
             to_string(previewDesc.buttonSheen.speed) + "|" +
@@ -604,6 +604,18 @@ namespace UIEditor
         if (passIndex != 4u && nullptr == maskSRV)
             return nullptr;
 
+        constexpr size_t kMaxCompositePreviewCacheEntries = 256;
+        if (cache.size() >= kMaxCompositePreviewCacheEntries)
+        {
+            LOG_INFO(
+                "[UIEditor][PreviewLeakWatch] composite preview cache cap reached. pass={} size={} failedKeys={}",
+                passIndex,
+                cache.size(),
+                failedKeys.size());
+            cache.clear();
+            failedKeys.clear();
+        }
+
         if (!Can_CreateCompositePreviewThisFrame())
             return nullptr;
 
@@ -625,6 +637,24 @@ namespace UIEditor
         uint32 previewWidth = 1;
         uint32 previewHeight = 1;
         Compute_MaskedPreviewSize(sourceDesc, previewWidth, previewHeight);
+
+        const uint64 nextCompositeCreateCount = _totalCompositePreviewCreateCount + 1;
+        if (nextCompositeCreateCount <= 8 || nextCompositeCreateCount % 120 == 0)
+        {
+            string logKey = cacheKey;
+            constexpr size_t kMaxLoggedCompositeKeyLength = 180;
+            if (logKey.size() > kMaxLoggedCompositeKeyLength)
+                logKey = logKey.substr(0, kMaxLoggedCompositeKeyLength) + "...";
+
+            LOG_INFO(
+                "[UIEditor][PreviewLeakWatch] composite preview create. total={} pass={} size={}x{} cacheSize={} key='{}'",
+                nextCompositeCreateCount,
+                passIndex,
+                previewWidth,
+                previewHeight,
+                cache.size(),
+                logKey);
+        }
 
         D3D11_TEXTURE2D_DESC renderTextureDesc = {};
         renderTextureDesc.Width = previewWidth;
@@ -800,7 +830,10 @@ namespace UIEditor
             return nullptr;
         }
 
-        cache.emplace(cacheKey, previewSRV);
-        return cache[cacheKey].Get();
+        auto insertResult = cache.emplace(cacheKey, previewSRV);
+        if (insertResult.second)
+            ++_totalCompositePreviewCreateCount;
+
+        return insertResult.first->second.Get();
     }
 }
