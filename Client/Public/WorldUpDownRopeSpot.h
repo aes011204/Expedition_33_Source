@@ -47,6 +47,15 @@ private:
     HRESULT Ready_ModelComponent();
     HRESULT Ready_EffectComponent();
     void Register_ModelComponent();
+    void Sync_RuntimeTuning();
+    void Sync_EntryCollider(
+        const Shared<ColliderCom>& collider,
+        Vec3& center,
+        Vec3& extents,
+        Vec3& lastSyncedCenter,
+        Vec3& lastSyncedExtents,
+        bool& hasSynced);
+    void Sync_RopeEffectSettings();
     HRESULT Ready_EntryCollider(
         const wstring& componentTag,
         const Vec3& center,
@@ -57,6 +66,7 @@ private:
     void Set_ActiveEntryFromCollider(const Shared<ColliderCom>& self, const Shared<ColliderCom>& other);
     RopeEntry Resolve_EntryFromCollider(const Shared<ColliderCom>& collider) const;
     bool Is_EntryActive() const;
+    Vec3 Build_RopeIdlePoint(float idleY) const;
 
 private:
     Shared<ColliderCom> _topEntryCollider{};
@@ -72,15 +82,24 @@ private:
     Vec3 _ropeEffectOffset = Vec3::Zero;
     Vec3 _ropeEffectRotation = Vec3::Zero;
     Vec3 _ropeEffectScale = Vec3::One;
+    Vec2 _ropeCenterXZ = Vec2::Zero;
 
-    Vec3 _topColliderCenter = Vec3(0.f, 4.f, 0.f);
+    Vec3 _topColliderCenter = Vec3(-2.f, 14.f, -3.5f);
     Vec3 _topColliderExtents = Vec3(0.6f, 0.6f, 0.6f);
+    Vec3 _lastSyncedTopColliderCenter = Vec3::Zero;
+    Vec3 _lastSyncedTopColliderExtents = Vec3::Zero;
+    bool _hasSyncedTopCollider = false;
+    float _topRopeIdleY = 17.f;
     Vec3 _topStartPointOffset = Vec3(0.f, 4.f, 0.f);
     Vec3 _topTargetPointOffset = Vec3(0.f, 0.f, 0.f);
     Vec3 _topRopePointOffset = Vec3(0.f, 4.f, 0.f);
 
     Vec3 _bottomColliderCenter = Vec3(0.f, 0.f, 0.f);
     Vec3 _bottomColliderExtents = Vec3(0.6f, 0.6f, 0.6f);
+    Vec3 _lastSyncedBottomColliderCenter = Vec3::Zero;
+    Vec3 _lastSyncedBottomColliderExtents = Vec3::Zero;
+    bool _hasSyncedBottomCollider = false;
+    float _bottomRopeIdleY = 0.f;
     Vec3 _bottomStartPointOffset = Vec3(0.f, 0.f, 0.f);
     Vec3 _bottomTargetPointOffset = Vec3(0.f, 4.f, 0.f);
     Vec3 _bottomRopePointOffset = Vec3(0.f, 0.f, 0.f);

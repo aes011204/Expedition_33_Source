@@ -413,6 +413,14 @@ HRESULT Level_GestralVillage::Ready_Layer_ETC(const wstring& strLayerTag)
 
     _bssPotatoBag->Set_SpawnerId(Constants::Value::potatoBagBattleStartSpawnerId);
 
+    const Shared<GameObject> upDownRope = Spawn_Prefab::Prefab("ETC/WorldUpDownRopeSpot")
+        .AtLevel(ETOI(LevelType::GestralVillage))
+        .InLayer(strLayerTag)
+        .Position(Vec3(-25.5f, 3.f, 90.5f))
+        .Spawn();
+
+    CHECK_NULL(upDownRope, E_FAIL);
+
     return S_OK;
 }
 

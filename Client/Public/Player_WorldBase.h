@@ -62,6 +62,7 @@ public:
     void    Clear_WorldInteractionCandidate(const GameObject* spot);
     Shared<GameObject> Get_WorldInteractionCandidate() const;
     bool    Begin_WorldInteraction(const Shared<GameObject>& spot, const WorldInteractionSpot::WorldInteractionRequest& request);
+    void    Clear_WorldInteractionRequest(const GameObject* spot);
     void    End_WorldInteraction();
     bool    Is_WorldInteracting() const;
     const WorldInteractionSpot::WorldInteractionRequest& Get_WorldInteractionRequest() const;

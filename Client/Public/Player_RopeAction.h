@@ -38,7 +38,12 @@ private:
     void Update_EndPhase(float timeDelta);
     bool Is_UpDownRopeRequest() const;
     Vec3 Resolve_LandingPoint(const Vec3& targetPoint) const;
-    Vec3 Resolve_FaceDirection() const;
+    Quat Resolve_TargetLookRotation(const Shared<TransformCom>& transform, const Vec3& targetPoint) const;
+    void Apply_LookBlend(
+        const Shared<TransformCom>& transform,
+        const Quat& fromRotation,
+        const Quat& toRotation,
+        float ratio) const;
     void Finish_RopeAction();
 
 private:
@@ -47,12 +52,18 @@ private:
 
     Vec3 _travelStartPos = Vec3::Zero;
     Vec3 _travelEndPos = Vec3::Zero;
+    Vec3 _startAlignFromPos = Vec3::Zero;
     Vec3 _endMoveStartPos = Vec3::Zero;
     Vec3 _endMoveTargetPos = Vec3::Zero;
+    Quat _startLookFromRotation = Quat::Identity;
+    Quat _startLookToRotation = Quat::Identity;
+    Quat _endLookFromRotation = Quat::Identity;
+    Quat _endLookToRotation = Quat::Identity;
 
     float _travelDistance = 0.f;
     float _totalTravelDistance = 0.f;
     float _prevRootMotionRatio = 0.f;
+    float _endLookStartRootMotionRatio = 0.f;
     bool _hasActiveRequest = false;
 };
 

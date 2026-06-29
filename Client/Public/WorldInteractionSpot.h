@@ -39,6 +39,7 @@ public:
         Vec3 targetPoint = Vec3::Zero;
         Vec3 wallPoint = Vec3::Zero;
         Vec3 ropePoint = Vec3::Zero;
+        Vec3 targetRopePoint = Vec3::Zero;
         Vec3 faceDir = Vec3::Look;
 
         float warpEndProgress = 0.9f;

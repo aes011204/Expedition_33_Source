@@ -16,6 +16,14 @@ namespace
     constexpr const wchar_t* kBottomEntryColliderTag = L"Com_RopeBottomEntryCollider";
     constexpr const wchar_t* kRopeModelComponentTag = L"Com_RopeModel";
     constexpr const wchar_t* kDefaultRopeModelPath = L"Map/Level_Main_GestralVillage_V2/SM_Scaffold_Rope.model";
+
+    bool NearlyEqual(const Vec3& lhs, const Vec3& rhs)
+    {
+        constexpr float kEpsilon = 0.0001f;
+        return fabsf(lhs.x - rhs.x) <= kEpsilon &&
+            fabsf(lhs.y - rhs.y) <= kEpsilon &&
+            fabsf(lhs.z - rhs.z) <= kEpsilon;
+    }
 }
 
 IMPLEMENT_REFLECTION(WorldUpDownRopeSpot)
@@ -33,20 +41,22 @@ IMPLEMENT_REFLECTION(WorldUpDownRopeSpot)
     PROPERTY_VEC3("Rope Effect Offset", _ropeEffectOffset);
     PROPERTY_VEC3("Rope Effect Rotation", _ropeEffectRotation);
     PROPERTY_VEC3("Rope Effect Scale", _ropeEffectScale);
+    PROPERTY_VEC2("Rope Center XZ", _ropeCenterXZ);
 
     PROPERTY_VEC3("Top Collider Center", _topColliderCenter);
     PROPERTY_VEC3("Top Collider Extents", _topColliderExtents);
+    PROPERTY_FLOAT("Top Rope Idle Y", _topRopeIdleY);
     PROPERTY_VEC3("Top Start Point Offset", _topStartPointOffset);
     PROPERTY_VEC3("Top Target Point Offset", _topTargetPointOffset);
     PROPERTY_VEC3("Top Rope Point Offset", _topRopePointOffset);
 
     PROPERTY_VEC3("Bottom Collider Center", _bottomColliderCenter);
     PROPERTY_VEC3("Bottom Collider Extents", _bottomColliderExtents);
+    PROPERTY_FLOAT("Bottom Rope Idle Y", _bottomRopeIdleY);
     PROPERTY_VEC3("Bottom Start Point Offset", _bottomStartPointOffset);
     PROPERTY_VEC3("Bottom Target Point Offset", _bottomTargetPointOffset);
     PROPERTY_VEC3("Bottom Rope Point Offset", _bottomRopePointOffset);
 
-    PROPERTY_VEC3("Face Direction", _faceDirection);
     PROPERTY_FLOAT("Warp End Progress", _warpEndProgress, 0.01f, 1.f, 0.01f);
     PROPERTY_WSTRING("Prompt Text", _promptText);
 
@@ -67,13 +77,16 @@ WorldUpDownRopeSpot::WorldUpDownRopeSpot(const WorldUpDownRopeSpot& prototype)
     , _ropeEffectOffset(prototype._ropeEffectOffset)
     , _ropeEffectRotation(prototype._ropeEffectRotation)
     , _ropeEffectScale(prototype._ropeEffectScale)
+    , _ropeCenterXZ(prototype._ropeCenterXZ)
     , _topColliderCenter(prototype._topColliderCenter)
     , _topColliderExtents(prototype._topColliderExtents)
+    , _topRopeIdleY(prototype._topRopeIdleY)
     , _topStartPointOffset(prototype._topStartPointOffset)
     , _topTargetPointOffset(prototype._topTargetPointOffset)
     , _topRopePointOffset(prototype._topRopePointOffset)
     , _bottomColliderCenter(prototype._bottomColliderCenter)
     , _bottomColliderExtents(prototype._bottomColliderExtents)
+    , _bottomRopeIdleY(prototype._bottomRopeIdleY)
     , _bottomStartPointOffset(prototype._bottomStartPointOffset)
     , _bottomTargetPointOffset(prototype._bottomTargetPointOffset)
     , _bottomRopePointOffset(prototype._bottomRopePointOffset)
@@ -109,6 +122,7 @@ void WorldUpDownRopeSpot::Update(float timeDelta)
 void WorldUpDownRopeSpot::Late_Update(float timeDelta)
 {
     __super::Late_Update(timeDelta);
+    Sync_RuntimeTuning();
 
     if (_topEntryCollider != nullptr && _topEntryCollider->Get_IsActive())
     {
@@ -216,20 +230,22 @@ void WorldUpDownRopeSpot::OnEndOverlap(Shared<ColliderCom> self, Shared<Collider
     if (!Is_ActiveHeroCollider(other, &activeHero))
         return;
 
-    if (activeHero == nullptr || activeHero->Is_WorldInteracting())
+    if (activeHero == nullptr)
         return;
 
     if (_topEntryCollider != nullptr && _topEntryCollider->Is_Overlapping(other))
     {
         _activeEntry = RopeEntry::Top;
-        activeHero->Set_WorldInteractionCandidate(GetSharedPtr<GameObject>());
+        if (!activeHero->Is_WorldInteracting())
+            activeHero->Set_WorldInteractionCandidate(GetSharedPtr<GameObject>());
         return;
     }
 
     if (_bottomEntryCollider != nullptr && _bottomEntryCollider->Is_Overlapping(other))
     {
         _activeEntry = RopeEntry::Bottom;
-        activeHero->Set_WorldInteractionCandidate(GetSharedPtr<GameObject>());
+        if (!activeHero->Is_WorldInteracting())
+            activeHero->Set_WorldInteractionCandidate(GetSharedPtr<GameObject>());
         return;
     }
 
@@ -237,6 +253,7 @@ void WorldUpDownRopeSpot::OnEndOverlap(Shared<ColliderCom> self, Shared<Collider
         _activeEntry = RopeEntry::None;
 
     activeHero->Clear_WorldInteractionCandidate(this);
+    activeHero->Clear_WorldInteractionRequest(this);
 }
 
 bool WorldUpDownRopeSpot::Can_Interact(const Shared<Player_WorldBase>& activeHero) const
@@ -253,18 +270,43 @@ bool WorldUpDownRopeSpot::Build_InteractionRequest(const Shared<Player_WorldBase
         return false;
 
     const bool isTopEntry = _activeEntry == RopeEntry::Top;
+    const Vec3 topPoint = Resolve_WorldPoint(_topColliderCenter);
+    const Vec3 bottomPoint = Resolve_WorldPoint(_bottomColliderCenter);
+    const Vec3 topIdlePoint = Build_RopeIdlePoint(_topRopeIdleY);
+    const Vec3 bottomIdlePoint = Build_RopeIdlePoint(_bottomRopeIdleY);
 
     outRequest = {};
     outRequest.type = WorldInteractionType::RopeTouch;
     outRequest.ropeDirection = isTopEntry ? RopeDirection::Down : RopeDirection::Up;
-    outRequest.startPoint = Resolve_WorldPoint(isTopEntry ? _topStartPointOffset : _bottomStartPointOffset);
-    outRequest.targetPoint = Resolve_WorldPoint(isTopEntry ? _topTargetPointOffset : _bottomTargetPointOffset);
+    outRequest.startPoint = isTopEntry ? topPoint : bottomPoint;
+    outRequest.targetPoint = isTopEntry ? bottomPoint : topPoint;
     outRequest.wallPoint = Resolve_WorldPoint(_wallPointOffset);
-    outRequest.ropePoint = Resolve_WorldPoint(isTopEntry ? _topRopePointOffset : _bottomRopePointOffset);
-    outRequest.faceDir = Resolve_WorldDirection(_faceDirection);
+    outRequest.ropePoint = isTopEntry ? topIdlePoint : bottomIdlePoint;
+    outRequest.targetRopePoint = isTopEntry ? bottomIdlePoint : topIdlePoint;
     outRequest.warpEndProgress = std::clamp(_warpEndProgress, 0.01f, 1.f);
 
     return true;
+}
+
+void WorldUpDownRopeSpot::Sync_RuntimeTuning()
+{
+    Sync_EntryCollider(
+        _topEntryCollider,
+        _topColliderCenter,
+        _topColliderExtents,
+        _lastSyncedTopColliderCenter,
+        _lastSyncedTopColliderExtents,
+        _hasSyncedTopCollider);
+
+    Sync_EntryCollider(
+        _bottomEntryCollider,
+        _bottomColliderCenter,
+        _bottomColliderExtents,
+        _lastSyncedBottomColliderCenter,
+        _lastSyncedBottomColliderExtents,
+        _hasSyncedBottomCollider);
+
+    Sync_RopeEffectSettings();
 }
 
 HRESULT WorldUpDownRopeSpot::Ready_Components()
@@ -276,6 +318,70 @@ HRESULT WorldUpDownRopeSpot::Ready_Components()
     CHECK_FAILED(Ready_EntryCollider(kBottomEntryColliderTag, _bottomColliderCenter, _bottomColliderExtents, _bottomEntryCollider), E_FAIL);
 
     return S_OK;
+}
+
+void WorldUpDownRopeSpot::Sync_EntryCollider(
+    const Shared<ColliderCom>& collider,
+    Vec3& center,
+    Vec3& extents,
+    Vec3& lastSyncedCenter,
+    Vec3& lastSyncedExtents,
+    bool& hasSynced)
+{
+    if (collider == nullptr)
+        return;
+
+    ColliderShapeDesc desc = collider->Get_ShapeDesc();
+
+    if (!hasSynced)
+    {
+        lastSyncedCenter = desc.center;
+        lastSyncedExtents = desc.extents;
+        center = desc.center;
+        extents = desc.extents;
+        hasSynced = true;
+        return;
+    }
+
+    const bool colliderChanged =
+        !NearlyEqual(desc.center, lastSyncedCenter) ||
+        !NearlyEqual(desc.extents, lastSyncedExtents);
+    const bool tuningChanged =
+        !NearlyEqual(center, lastSyncedCenter) ||
+        !NearlyEqual(extents, lastSyncedExtents);
+
+    if (colliderChanged && !tuningChanged)
+    {
+        center = desc.center;
+        extents = desc.extents;
+        lastSyncedCenter = desc.center;
+        lastSyncedExtents = desc.extents;
+        return;
+    }
+
+    if (!tuningChanged)
+        return;
+
+    desc.center = center;
+    desc.extents = extents;
+    collider->Set_ShapeDesc(desc);
+    lastSyncedCenter = center;
+    lastSyncedExtents = extents;
+}
+
+void WorldUpDownRopeSpot::Sync_RopeEffectSettings()
+{
+    if (_effectCom == nullptr)
+        return;
+
+    EffectCom::InspectorEffectSettings settings = _effectCom->Get_InspectorEffectSettings();
+    settings.effectName = _ropeEffectName;
+    settings.localOffset = _ropeEffectOffset;
+    settings.localRotation = _ropeEffectRotation;
+    settings.scale = _ropeEffectScale;
+    settings.followTarget = true;
+    settings.requiresManualRelease = true;
+    _effectCom->Set_InspectorEffectSettings(settings);
 }
 
 HRESULT WorldUpDownRopeSpot::Ready_ModelComponent()
@@ -301,14 +407,7 @@ HRESULT WorldUpDownRopeSpot::Ready_EffectComponent()
 {
     CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Com_Effect"), _effectCom), E_FAIL);
 
-    EffectCom::InspectorEffectSettings settings{};
-    settings.effectName = _ropeEffectName;
-    settings.localOffset = _ropeEffectOffset;
-    settings.localRotation = _ropeEffectRotation;
-    settings.scale = _ropeEffectScale;
-    settings.followTarget = true;
-    settings.requiresManualRelease = true;
-    _effectCom->Set_InspectorEffectSettings(settings);
+    Sync_RopeEffectSettings();
 
     return S_OK;
 }
@@ -418,6 +517,11 @@ WorldUpDownRopeSpot::RopeEntry WorldUpDownRopeSpot::Resolve_EntryFromCollider(co
 bool WorldUpDownRopeSpot::Is_EntryActive() const
 {
     return _activeEntry == RopeEntry::Top || _activeEntry == RopeEntry::Bottom;
+}
+
+Vec3 WorldUpDownRopeSpot::Build_RopeIdlePoint(float idleY) const
+{
+    return Resolve_WorldPoint(Vec3(_ropeCenterXZ.x, idleY, _ropeCenterXZ.y));
 }
 
 Shared<WorldUpDownRopeSpot> WorldUpDownRopeSpot::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)

@@ -15,7 +15,8 @@
 namespace
 {
     constexpr float kStartToTravelProgress = 0.8f;
-    constexpr float kUpDownRopeTravelSpeed = 3.5f;
+    constexpr float kRopeActionSpeedScale = 1.5f;
+    constexpr float kUpDownRopeTravelSpeed = 7.0f * kRopeActionSpeedScale;
     constexpr float kFinishDistance = 0.03f;
     constexpr float kAnimationBlendDuration = 0.12f;
     constexpr float kLandingProbeUp = 0.75f;
@@ -52,6 +53,19 @@ namespace
             ? Body_Player::PlayerWorldAnimation::Pl_RopeDownIdle
             : Body_Player::PlayerWorldAnimation::Pl_RopeUpIdle;
     }
+
+    void Apply_RopeAnimationSpeed(const Shared<ModelCom>& model)
+    {
+        if (model == nullptr)
+            return;
+
+        model->Set_AnimationSpeedByState(ETOI(Body_Player::PlayerWorldAnimation::Pl_RopeUp_Start), kRopeActionSpeedScale);
+        model->Set_AnimationSpeedByState(ETOI(Body_Player::PlayerWorldAnimation::Pl_RopeUpIdle), kRopeActionSpeedScale);
+        model->Set_AnimationSpeedByState(ETOI(Body_Player::PlayerWorldAnimation::Pl_RopeUp_End), kRopeActionSpeedScale);
+        model->Set_AnimationSpeedByState(ETOI(Body_Player::PlayerWorldAnimation::Pl_RopeDown_Start), kRopeActionSpeedScale);
+        model->Set_AnimationSpeedByState(ETOI(Body_Player::PlayerWorldAnimation::Pl_RopeDownIdle), kRopeActionSpeedScale);
+        model->Set_AnimationSpeedByState(ETOI(Body_Player::PlayerWorldAnimation::Pl_RopeDown_End), kRopeActionSpeedScale);
+    }
 }
 
 Player_RopeAction::Player_RopeAction(const Shared<Player_WorldBase>& owner)
@@ -85,17 +99,22 @@ bool Player_RopeAction::EnterInvoke()
         return false;
 
     _phase = RopePhase::Start;
-    _travelStartPos = transform->Get_WorldPosition();
-    _travelEndPos = _request.targetPoint;
+    _startAlignFromPos = transform->Get_WorldPosition();
+    _travelStartPos = _request.ropeDirection == WorldInteractionSpot::RopeDirection::Down
+        ? _request.ropePoint
+        : Vec3(_request.ropePoint.x, _startAlignFromPos.y, _request.ropePoint.z);
+    _travelEndPos = _request.targetRopePoint;
     _endMoveStartPos = _travelEndPos;
     _endMoveTargetPos = Resolve_LandingPoint(_request.targetPoint);
     _travelDistance = 0.f;
     _totalTravelDistance = (_travelEndPos - _travelStartPos).Length();
     _prevRootMotionRatio = 0.f;
+    _endLookStartRootMotionRatio = 0.f;
     _hasActiveRequest = true;
+    _startLookFromRotation = transform->Get_WorldRotationQuaternion();
+    _startLookToRotation = Resolve_TargetLookRotation(transform, _travelStartPos);
 
-    const Vec3 faceDir = Resolve_FaceDirection();
-    transform->LookAt(transform->Get_WorldPosition() + faceDir);
+    Apply_RopeAnimationSpeed(_bodyPlayer->Get_Model());
     _movementCom->Sync_RuntimePositionToTransform();
 
     if (_bodyPlayer != nullptr)
@@ -176,6 +195,16 @@ void Player_RopeAction::Enter_TravelPhase()
     _phase = RopePhase::Travel;
     _travelDistance = 0.f;
 
+    if (const Shared<Player_WorldBase> owner = _owner.lock())
+    {
+        if (const Shared<TransformCom> transform = owner->Get_Transform())
+        {
+            transform->Set_WorldPosition(_travelStartPos);
+            Apply_LookBlend(transform, _startLookFromRotation, _startLookToRotation, 1.f);
+            _movementCom->Sync_RuntimePositionToTransform();
+        }
+    }
+
     if (_bodyPlayer != nullptr)
     {
         _bodyPlayer->Set_AnimationSpeed(1.f);
@@ -200,7 +229,8 @@ void Player_RopeAction::Enter_EndPhase()
         {
             _endMoveStartPos = transform->Get_WorldPosition();
             _endMoveTargetPos = Resolve_LandingPoint(_request.targetPoint);
-            transform->LookAt(transform->Get_WorldPosition() + Resolve_FaceDirection());
+            _endLookFromRotation = transform->Get_WorldRotationQuaternion();
+            _endLookToRotation = Resolve_TargetLookRotation(transform, _endMoveTargetPos);
             _movementCom->Sync_RuntimePositionToTransform();
         }
     }
@@ -215,6 +245,7 @@ void Player_RopeAction::Enter_EndPhase()
                 kAnimationBlendDuration,
                 false);
             _prevRootMotionRatio = model->Get_RootMotionTranslationRatio();
+            _endLookStartRootMotionRatio = _prevRootMotionRatio;
         }
         else
         {
@@ -222,6 +253,7 @@ void Player_RopeAction::Enter_EndPhase()
                 ETOI(Get_EndAnimation(_request.ropeDirection)),
                 kAnimationBlendDuration,
                 false);
+            _endLookStartRootMotionRatio = 0.f;
         }
     }
 }
@@ -231,6 +263,21 @@ void Player_RopeAction::Update_StartPhase(float timeDelta)
     UNREFERENCED_PARAMETER(timeDelta);
 
     const float progress = _bodyPlayer != nullptr ? _bodyPlayer->Get_AnimationProgress() : 1.f;
+    const float alignRatio = kStartToTravelProgress <= 0.0001f
+        ? 1.f
+        : std::clamp(progress / kStartToTravelProgress, 0.f, 1.f);
+
+    if (const Shared<Player_WorldBase> owner = _owner.lock())
+    {
+        if (const Shared<TransformCom> transform = owner->Get_Transform())
+        {
+            const Vec3 nextPos = Vec3::Lerp(_startAlignFromPos, _travelStartPos, alignRatio);
+            transform->Set_WorldPosition(nextPos);
+            Apply_LookBlend(transform, _startLookFromRotation, _startLookToRotation, alignRatio);
+            _movementCom->Sync_RuntimePositionToTransform();
+        }
+    }
+
     if (progress >= kStartToTravelProgress || (_bodyPlayer != nullptr && _bodyPlayer->Is_AnimationFinished()))
         Enter_TravelPhase();
 }
@@ -245,17 +292,28 @@ void Player_RopeAction::Update_TravelPhase(float timeDelta)
     if (transform == nullptr)
         return;
 
-    _travelDistance += std::max(0.f, timeDelta) * kUpDownRopeTravelSpeed;
-    const float t = _totalTravelDistance <= 0.0001f
-        ? 1.f
-        : std::clamp(_travelDistance / _totalTravelDistance, 0.f, 1.f);
+    const Vec3 currentPos = transform->Get_WorldPosition();
+    const Vec3 toTarget = _travelEndPos - currentPos;
+    const float remain = toTarget.Length();
 
-    const Vec3 nextPos = Vec3::Lerp(_travelStartPos, _travelEndPos, t);
+    if (remain <= kFinishDistance)
+    {
+        transform->Set_WorldPosition(_travelEndPos);
+        _movementCom->Sync_RuntimePositionToTransform();
+        Enter_EndPhase();
+        return;
+    }
+
+    const float moveDistance = std::max(0.f, timeDelta) * kUpDownRopeTravelSpeed;
+    const Vec3 moveDir = toTarget / remain;
+    const Vec3 nextPos = moveDistance >= remain
+        ? _travelEndPos
+        : currentPos + moveDir * moveDistance;
+
     transform->Set_WorldPosition(nextPos);
-    transform->LookAt(nextPos + Resolve_FaceDirection());
     _movementCom->Sync_RuntimePositionToTransform();
 
-    if (t >= 1.f)
+    if ((nextPos - _travelEndPos).Length() <= kFinishDistance)
         Enter_EndPhase();
 }
 
@@ -276,6 +334,10 @@ void Player_RopeAction::Update_EndPhase(float timeDelta)
     }
 
     const float currentRatio = model->Get_RootMotionTranslationRatio();
+    const float lookRatio = std::clamp(
+        (currentRatio - _endLookStartRootMotionRatio) / std::max(0.0001f, 1.f - _endLookStartRootMotionRatio),
+        0.f,
+        1.f);
     float moveRatio = currentRatio - _prevRootMotionRatio;
     if (moveRatio < 0.f)
         moveRatio = 0.f;
@@ -295,14 +357,19 @@ void Player_RopeAction::Update_EndPhase(float timeDelta)
             moveDelta = toTarget;
 
         transform->Set_WorldPosition(currentPos + moveDelta);
-        transform->LookAt(transform->Get_WorldPosition() + Resolve_FaceDirection());
+        Apply_LookBlend(transform, _endLookFromRotation, _endLookToRotation, lookRatio);
+        _movementCom->Sync_RuntimePositionToTransform();
+    }
+    else
+    {
+        Apply_LookBlend(transform, _endLookFromRotation, _endLookToRotation, lookRatio);
         _movementCom->Sync_RuntimePositionToTransform();
     }
 
     if (_bodyPlayer->Is_AnimationFinished())
     {
         transform->Set_WorldPosition(_endMoveTargetPos);
-        transform->LookAt(_endMoveTargetPos + Resolve_FaceDirection());
+        Apply_LookBlend(transform, _endLookFromRotation, _endLookToRotation, 1.f);
         _movementCom->Force_Land();
         _movementCom->Sync_RuntimePositionToTransform();
         Finish_RopeAction();
@@ -336,16 +403,39 @@ Vec3 Player_RopeAction::Resolve_LandingPoint(const Vec3& targetPoint) const
     return targetPoint;
 }
 
-Vec3 Player_RopeAction::Resolve_FaceDirection() const
+Quat Player_RopeAction::Resolve_TargetLookRotation(const Shared<TransformCom>& transform, const Vec3& targetPoint) const
 {
-    Vec3 faceDir = _request.faceDir;
-    faceDir.y = 0.f;
+    if (transform == nullptr)
+        return Quat::Identity;
 
-    if (faceDir.LengthSquared() <= 0.0001f)
-        faceDir = Vec3::Look;
+    const Quat currentRotation = transform->Get_WorldRotationQuaternion();
+    Vec3 direction = targetPoint - transform->Get_WorldPosition();
+    direction.y = 0.f;
 
-    faceDir.Normalize();
-    return faceDir;
+    if (direction.LengthSquared() <= 0.0001f)
+        return currentRotation;
+
+    direction.Normalize();
+    Quat targetRotation = Quat::CreateFromYawPitchRoll(atan2f(direction.x, direction.z), 0.f, 0.f);
+    targetRotation.Normalize();
+    return targetRotation;
+}
+
+void Player_RopeAction::Apply_LookBlend(
+    const Shared<TransformCom>& transform,
+    const Quat& fromRotation,
+    const Quat& toRotation,
+    float ratio) const
+{
+    if (transform == nullptr)
+        return;
+
+    Quat blendedRotation = Quat::Slerp(fromRotation, toRotation, std::clamp(ratio, 0.f, 1.f));
+    if (blendedRotation.LengthSquared() <= 0.0001f)
+        return;
+
+    blendedRotation.Normalize();
+    transform->Set_WorldRotationQuaternion(blendedRotation);
 }
 
 void Player_RopeAction::Finish_RopeAction()

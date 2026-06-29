@@ -441,6 +441,20 @@ bool Player_WorldBase::Begin_WorldInteraction(const Shared<GameObject>& spot, co
     return true;
 }
 
+void Player_WorldBase::Clear_WorldInteractionRequest(const GameObject* spot)
+{
+    const Shared<GameObject> active = _worldInteractionContext.activeSpot.lock();
+    if (spot != nullptr && active != nullptr && active.get() != spot)
+        return;
+
+    if (spot != nullptr && active == nullptr && !_worldInteractionContext.isInteracting)
+        return;
+
+    _worldInteractionContext.activeSpot.reset();
+    _worldInteractionContext.activeRequest = {};
+    _worldInteractionContext.isInteracting = false;
+}
+
 void Player_WorldBase::End_WorldInteraction()
 {
     _worldInteractionContext.activeSpot.reset();

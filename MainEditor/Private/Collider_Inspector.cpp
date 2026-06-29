@@ -8,8 +8,12 @@ void Collider_Inspector::Draw_Inspector(const Shared<Component>& component)
     if (collider == nullptr)
         return;
 
+    ImGui::PushID(collider.get());
     if (!Draw_Header("Collider"))
+    {
+        ImGui::PopID();
         return;
+    }
 
     bool isActive = collider->Get_IsActive();
     if (ImGui::Checkbox("Render (Is Active)", &isActive))
@@ -98,6 +102,8 @@ void Collider_Inspector::Draw_Inspector(const Shared<Component>& component)
 
     if (changed)
         collider->Set_ShapeDesc(shapeDesc);
+
+    ImGui::PopID();
 }
 
 string Collider_Inspector::Get_ShapeLabel(CollisionShape shape)
