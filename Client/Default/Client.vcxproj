@@ -189,6 +189,7 @@
     <ClInclude Include="..\Public\AN_CounterDamage.h" />
     <ClInclude Include="..\Public\AN_CounterReturnAll.h" />
     <ClInclude Include="..\Public\AN_SL_CachePlayerPosition.h" />
+    <ClInclude Include="..\Public\AN_SL_PlayCachedPlayerEffect.h" />
     <ClInclude Include="..\Public\AN_SL_DuallisteCloneSkill.h" />
     <ClInclude Include="..\Public\AN_EndTurn.h" />
     <ClInclude Include="..\Public\AN_PlayEffect.h" />
@@ -672,6 +673,7 @@
     <ClCompile Include="..\Private\AN_CounterDamage.cpp" />
     <ClCompile Include="..\Private\AN_CounterReturnAll.cpp" />
     <ClCompile Include="..\Private\AN_SL_CachePlayerPosition.cpp" />
+    <ClCompile Include="..\Private\AN_SL_PlayCachedPlayerEffect.cpp" />
     <ClCompile Include="..\Private\AN_SL_DuallisteCloneSkill.cpp" />
     <ClCompile Include="..\Private\AN_Dissolve_Parts.cpp" />
     <ClCompile Include="..\Private\AN_EndTurn.cpp" />
