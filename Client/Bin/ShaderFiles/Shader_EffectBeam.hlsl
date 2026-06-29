@@ -86,7 +86,7 @@ float2 Rotate_MaterialUV(float2 uv, float rotation)
 float2 Build_BeamMaterialUV(float2 rawUV, float4 uvParams, float2 uvOffset, float2 policy, float rotation)
 {
     const float2 rotatedUV = Rotate_MaterialUV(rawUV, rotation);
-    const float2 transformedUV = Apply_BeamMaterialUV(rawUV, uvParams, uvOffset);
+    const float2 transformedUV = Apply_BeamMaterialUV(rotatedUV, uvParams, uvOffset);
     return float2(
         Resolve_BeamAxisUV(rotatedUV.x, transformedUV.x, policy.x),
         Resolve_BeamAxisUV(rotatedUV.y, transformedUV.y, policy.y)

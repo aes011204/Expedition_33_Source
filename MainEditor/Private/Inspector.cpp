@@ -14,6 +14,7 @@
 #include "GameplayUI_Types.h"
 #include "IRuntimeUI_EditorTarget.h"
 #include "MapAuthoringIO.h"
+#include "MapLoader.h"
 #include "MapStaticMesh.h"
 #include "Monster_WorldBase.h"
 #include "PhysX_Types.h"
@@ -1651,9 +1652,25 @@ bool Inspector::Draw_MonsterPatrolPointEditor(const Shared<GameObject>& target, 
         if (ImGui::Button("Save", ImVec2(-1.f, 0.f)))
         {
             if (Client::MapAuthoringIO::Save_Object_ToSourceMap(monster))
+            {
                 NOTIFY("Patrol Points 저장 완료");
+            }
             else
-                NOTIFY("원본 map node를 찾을 수 없어 Patrol Points 저장 실패");
+            {
+                const wstring loadedMapInstanceRoot =
+                    MapLoader::Get_LoadedMapInstanceRoot(GAME->Current_LevelIndex());
+                if (!loadedMapInstanceRoot.empty() &&
+                    Client::MapAuthoringIO::Save_PrefabInstances_ToMapInstanceAuthoring(
+                        loadedMapInstanceRoot,
+                        GAME->Current_LevelIndex()))
+                {
+                    NOTIFY("Patrol Points 저장 완료");
+                }
+                else
+                {
+                    NOTIFY("원본 map node와 MapInstance를 찾을 수 없어 Patrol Points 저장 실패");
+                }
+            }
         }
     }
 

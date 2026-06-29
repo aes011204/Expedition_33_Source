@@ -90,6 +90,8 @@ void Level_GestralVillage::BeginPlay()
 
     _editorPlayRuntimeHandle =
         GAME->Get_DelegateHub().OnEditorPlayRuntime.Add(this, &Level_GestralVillage::Play_MapBGM);
+
+    CLIENT->Capture_InitialWorldSnapshot();
 }
 
 void Level_GestralVillage::Update(float fTimeDelta)
@@ -277,8 +279,9 @@ HRESULT Level_GestralVillage::Ready_Layer_NPC(const wstring& strLayerTag)
     const Shared<GameObject> noco = Spawn_Prefab::Prefab("NPC_Noco")
         .AtLevel(ETOI(LevelType::GestralVillage))
         .InLayer(strLayerTag)
-        .Position(Vec3(9.f, 0.08f, 141.41f))
+        .Position(Vec3(7.29f, 0.42f, 143.f))
         .Rotation(Vec3(0.f, -90.f, 0.f))
+        .Scale(Vec3(0.6f, 0.6f, 0.6f))
         .Spawn();
 
     CHECK_NULL(noco, E_FAIL);
@@ -318,6 +321,16 @@ HRESULT Level_GestralVillage::Ready_Layer_NPC(const wstring& strLayerTag)
     .Spawn();
 
     CHECK_NULL(chad, E_FAIL);
+
+    const Shared<GameObject> dance = Spawn_Prefab::Prefab("NPC_Dance")
+        .AtLevel(ETOI(LevelType::GestralVillage))
+        .InLayer(strLayerTag)
+        .Position(Vec3(-62.24f, -1.59f, 38.08f))
+        .Rotation(Vec3(0.f, 111.6f, 0.f))
+        .Scale(Vec3(1.f, 1.f, 1.f))
+        .Spawn();
+
+    CHECK_NULL(dance, E_FAIL);
 
     return S_OK;
 }

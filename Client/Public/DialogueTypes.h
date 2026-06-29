@@ -23,6 +23,7 @@ struct DialogueLine
     string cameraPresetId;
     DialogueActorRole speakerRole = DialogueActorRole::Npc;
     string speakerAnimationKey;
+    float speakerOffsetY = 0.f;
     string action;
     vector<DialogueChoice> choices;
     int nextLineIndex = -1;
@@ -33,6 +34,7 @@ struct DialogueData
     string dialogueKey;
     string displayName;
     vector<DialogueLine> lines;
+    bool restoreToStartAnimation = false;
 };
 
 struct DialogueRequest

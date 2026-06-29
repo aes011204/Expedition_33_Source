@@ -31,7 +31,7 @@ public:
         float   followTargetRefreshTime = 0.f; // follower ground probe 갱신 주기
         bool    hasFollowTargetCache = false;
 
-        bool    sprintFollow = false;          // 추격 이동 여부
+        bool    sprintFollow = false;          // 목표가 많이 멀 때 sprint로 추격 중인지
         float   sprintFollowHoldTime = 0.f;    // Sprint 유지 시간. Run으로 바로 안바뀌게
     };
 
@@ -148,6 +148,7 @@ private:
     float _followerSideOffset = 1.4f;
 
     float _followStopDistance = 0.25f;
+    float _runFollowDistance = 1.2f;            // 이 거리보다 가까우면 Walk, 멀면 Run으로 따라간다.
 
     float _snapBackDistanceA = 2.0f;
     float _snapBackDistanceB = 3.0f;

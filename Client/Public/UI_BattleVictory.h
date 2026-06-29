@@ -28,6 +28,7 @@ public:
         uint32 visualSlotIndex = UINT_MAX;
         string portraitGuid{};
         wstring displayName{};
+        array<string, 3> equippedPictosIds{}; // Victory 패널에서 실제 장착 슬롯만 노출하기 위한 현재 장착 Pictos ID
     };
 
     struct VictorySummaryDesc
@@ -41,6 +42,15 @@ public:
         uint32 parrySuccessCount = 0;
         uint32 dodgeSuccessCount = 0;
         vector<string> defeatedMonsterPortraitGuids{};
+        vector<string> rewardPictosIds{};
+    };
+
+    struct EquippedPictosSlot
+    {
+        Shared<UI_Base> root{};
+        Shared<UI_Image> markFrame{};
+        Shared<UI_Text> nameText{};
+        umap<string, Shared<UI_Image>> markImagesByPictosId{};
     };
 
     struct PlayerSlot
@@ -52,6 +62,7 @@ public:
         Shared<UI_Text>  maxExpText{};
         Shared<UI_Text>  levelText{};
         Shared<UI_Image> expGauge{};
+        array<EquippedPictosSlot, 3> equippedPictosSlots{};
 
         uint32 startLevel = 1;
         uint32 targetLevel = 1;
@@ -69,6 +80,15 @@ public:
     };
 
 private:
+    struct RewardPictosPanel
+    {
+        string pictosId{};
+        Shared<UI_Base> root{};
+        Shared<UI_Text> nameText{};
+        Shared<UI_Image> markImage{};
+        vector<Shared<UI_Base>> ownedUis{};
+    };
+
     struct RewardNumberTween
     {
         Shared<UI_Text> text{};
@@ -106,12 +126,20 @@ private:
 
     void    Apply_PlayerStat(const VictoryPlayerStatDesc& stat);
     void    Apply_VictorySummary(const VictorySummaryDesc& summary);
+    void    Apply_EquippedPictos(PlayerSlot& playerSlot, const array<string, 3>& equippedPictosIds);
+    void    Apply_RewardPictosPanels(const vector<string>& rewardPictosIds);
     void    Apply_DefeatedMonsterPortraits(const vector<string>& portraitGuids);
     bool    Ensure_DefeatedMonsterPortraitSlot(uint32 slotIndex);
     static uint32 Get_SlotIndex(PlayerCharacterType playerType);
     static void   Set_UIntText(const Shared<UI_Text>& text, uint32 value);
     static void   Set_WStringText(const Shared<UI_Text>& text, const wstring& value);
     static wstring Format_ClearTime(float elapsedSec);
+    static void   Close_EquippedPictosSlot(EquippedPictosSlot& slot);
+    static void   Show_EquippedPictosSlot(EquippedPictosSlot& slot, const string& pictosId, const wstring& displayName);
+    void          Close_RewardPictosPanels();
+    void          Restart_RewardPictosAnimations();
+    void          Update_RewardPictosAnimations(float timeDelta);
+    void          Start_RewardPictosLoop();
 
     void Update_ExpGauge(float timeDelta);
     void Start_RewardNumberTween(RewardNumberTween& tween, const Shared<UI_Text>& text, const Shared<UI_Text>& bgText, uint32 targetValue, float duration);
@@ -133,6 +161,13 @@ private:
     Shared<UI_Base>      _defeatedMonsterPortraitPanel{};
     Shared<UI_Image>     _defeatedMonsterPortraitTemplate{};
     vector<Shared<UI_Image>> _defeatedMonsterPortraitSlots{};
+    Shared<UI_Base>      _rewardPictosRoot{};
+    Shared<UI_Image>     _rewardPictosFrame{};
+    umap<string, RewardPictosPanel> _rewardPictosPanelsById{};
+    vector<string>       _activeRewardPictosIds{};
+    float                _rewardPictosIntroElapsed = 0.f;
+    float                _rewardPictosIntroDuration = 0.f;
+    bool                 _rewardPictosLoopStarted = false;
     Vec2                 _defeatedMonsterPortraitBasePosition{};
     float                _introDuration = 0.f;
     float                _expAnimDelayRemaining = 0.f;

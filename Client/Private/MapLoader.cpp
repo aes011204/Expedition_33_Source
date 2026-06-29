@@ -22,6 +22,7 @@ umap<string, Shared<StaticCollisionData>> MapLoader::g_globalCollisionCache;
 umap<string, string> MapLoader::g_globalMaterialSignatureByModel;
 uint32 MapLoader::g_currentLevelIndex = UINT32_MAX;
 vector<LIGHT_DESC> MapLoader::g_cachedLights;
+umap<uint32, wstring> MapLoader::g_loadedMapInstanceRootByLevel;
 
 MapCollisionAdapter::RuntimeContext MapLoader::MakeCollisionRuntimeContext(LoadSession& session)
 {
@@ -34,6 +35,15 @@ MapCollisionAdapter::RuntimeContext MapLoader::MakeCollisionRuntimeContext(LoadS
     context.outBuildDuration = &session.collisionBuildDuration;
     context.outBuildCount = &session.collisionBuildCount;
     return context;
+}
+
+wstring MapLoader::Get_LoadedMapInstanceRoot(uint32 levelIndex)
+{
+    const auto iter = g_loadedMapInstanceRootByLevel.find(levelIndex);
+    if (iter == g_loadedMapInstanceRootByLevel.end())
+        return {};
+
+    return iter->second;
 }
 
 namespace
@@ -358,6 +368,7 @@ HRESULT MapLoader::Try_BeginMapInstanceSession(
     outSession.levelIndex = levelIndex;
     outSession.layerTag = layerTag;
     outSession.sourceMapPath = splitData.authoringJson.wstring();
+    g_loadedMapInstanceRootByLevel[levelIndex] = splitData.root.wstring();
     outSession.modelFolder = splitData.modelFolder;
     outSession.modelOverrides = std::move(splitData.modelOverrides);
     outSession.staticMeshes = std::move(splitData.staticMeshes);

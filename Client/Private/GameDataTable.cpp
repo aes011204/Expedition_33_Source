@@ -388,6 +388,7 @@ HRESULT GameDataTable::Load_PictosData(const wstring& jsonRootPath)
         desc.critical = item.value("critical", 0);
         desc.buttonUi = item.value("button ui", "");
         desc.tooltipUi = item.value("tooltip ui", "");
+        desc.getItemUi = item.value("get item ui", "");
 
         const size_t index = _pictosDefs.size();
         _pictosDefs.push_back(desc);

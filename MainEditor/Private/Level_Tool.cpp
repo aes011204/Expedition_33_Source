@@ -1,5 +1,6 @@
 ﻿#include "Level_Tool.h"
 
+#include "ClientInstance.h"
 #include "GameInstance.h"
 #include "GameObject.h"
 #include "Helper_String.h"
@@ -70,13 +71,32 @@ void Level_Tool::Render_MapLoader()
 
     const fs::path mapInstanceDir = Resolve_MapInstanceDir();
     const string mapInstanceDirText = mapInstanceDir.string();
+    ImGui::PushTextWrapPos(ImGui::GetCursorPosX() + ImGui::GetContentRegionAvail().x);
     ImGui::TextDisabled("%s", mapInstanceDirText.c_str());
+    ImGui::PopTextWrapPos();
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("%s", mapInstanceDirText.c_str());
+
+    const wstring loadedMapInstanceRootText = MapLoader::Get_LoadedMapInstanceRoot(GAME->Current_LevelIndex());
+    const fs::path loadedMapInstanceRoot = loadedMapInstanceRootText.empty()
+        ? fs::path{}
+        : fs::absolute(fs::path(loadedMapInstanceRootText)).lexically_normal();
 
     for (int i = 0; i < static_cast<int>(_mapInstanceFolders.size()); ++i)
     {
         const bool selected = (_selectedMapInstanceIndex == i);
+        const fs::path itemPath = fs::absolute(
+            mapInstanceDir / String::ToWString(_mapInstanceFolders[i])).lexically_normal();
+        const bool isLoadedMap = !loadedMapInstanceRoot.empty() && itemPath == loadedMapInstanceRoot;
+
+        if (isLoadedMap)
+            ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.f, 0.86f, 0.25f, 1.f));
+
         if (ImGui::Selectable(_mapInstanceFolders[i].c_str(), selected))
             _selectedMapInstanceIndex = i;
+
+        if (isLoadedMap)
+            ImGui::PopStyleColor();
     }
 
     if (_selectedMapInstanceIndex < 0 || _selectedMapInstanceIndex >= static_cast<int>(_mapInstanceFolders.size()))
@@ -93,7 +113,9 @@ void Level_Tool::Render_MapLoader()
     if (ImGui::Button("Save Prefab Instances", ImVec2(-1, 0)))
         Save_SelectedPrefabInstances();
 
+    ImGui::PushTextWrapPos(ImGui::GetCursorPosX() + ImGui::GetContentRegionAvail().x);
     ImGui::TextDisabled("Saved to selected MapInstance/PrefabInstances.json.");
+    ImGui::PopTextWrapPos();
 }
 
 void Level_Tool::Refresh_MapInstanceFolders()
@@ -160,6 +182,7 @@ void Level_Tool::Load_SelectedMap()
         return;
     }
 
+    CLIENT->Capture_InitialWorldSnapshot();
     NOTIFY("Map 로드 완료");
 }
 
@@ -182,6 +205,7 @@ void Level_Tool::Reload_SelectedMap()
         return;
     }
 
+    CLIENT->Capture_InitialWorldSnapshot();
     NOTIFY("Map 리로드 완료");
 }
 
@@ -190,6 +214,8 @@ void Level_Tool::Save_SelectedPrefabInstances()
     const fs::path selectedPath = Resolve_SelectedMapInstancePath();
     if (selectedPath.empty())
         return;
+
+    GAME->Flush_RemovedGameObjects();
 
     const bool saved = Client::MapAuthoringIO::Save_PrefabInstances_ToMapInstanceAuthoring(
         selectedPath.wstring(),

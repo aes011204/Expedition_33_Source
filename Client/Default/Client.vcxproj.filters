@@ -292,6 +292,18 @@
     <Filter Include="02. GameObject\NPC\Sumo">
       <UniqueIdentifier>{28eb853a-06c8-49a5-a5f2-a50edbf6f645}</UniqueIdentifier>
     </Filter>
+    <Filter Include="02. GameObject\NPC\Baby">
+      <UniqueIdentifier>{f31f4f6f-48b0-4c0b-a558-a6a5c2b8b701}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="02. GameObject\NPC\Tall">
+      <UniqueIdentifier>{dc4a2d7a-92f0-4806-ae7e-0a5d7fb28ce3}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="02. GameObject\Map\MapEffect">
+      <UniqueIdentifier>{cc4c3c31-ef8d-4930-8aaf-8abeaf1b9800}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="02. GameObject\NPC\Buff">
+      <UniqueIdentifier>{2fdb7288-f390-490d-a6d9-31f300e8977a}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\Private\ANS_AnimSpeed.cpp">
@@ -1274,8 +1286,14 @@
     <ClCompile Include="..\private\NPC_Base.cpp">
       <Filter>02. GameObject\NPC</Filter>
     </ClCompile>
+    <ClCompile Include="..\private\NPC_Baby.cpp">
+      <Filter>02. GameObject\NPC\Baby</Filter>
+    </ClCompile>
     <ClCompile Include="..\private\NPC_Chad.cpp">
       <Filter>02. GameObject\NPC\Chad</Filter>
+    </ClCompile>
+    <ClCompile Include="..\private\NPC_Buff.cpp">
+      <Filter>02. GameObject\NPC\Buff</Filter>
     </ClCompile>
     <ClCompile Include="..\private\NPC_Golgra.cpp">
       <Filter>02. GameObject\NPC\Golgra</Filter>
@@ -1291,6 +1309,9 @@
     </ClCompile>
     <ClCompile Include="..\private\NPC_Sumo.cpp">
       <Filter>02. GameObject\NPC\Sumo</Filter>
+    </ClCompile>
+    <ClCompile Include="..\private\NPC_Tall.cpp">
+      <Filter>02. GameObject\NPC\Tall</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\Mon_Simon_Weapon.cpp" />
     <ClCompile Include="..\Private\UI_SL_HUD.cpp" />
@@ -1394,13 +1415,17 @@
     <ClCompile Include="..\Private\Trigger_BGMZone.cpp" />
     <ClCompile Include="..\Private\SimonHairRuntime.cpp" />
     <ClCompile Include="..\Private\DamageTrigger.cpp" />
-
     <ClCompile Include="..\Private\UI_Replay.cpp" />
     <ClCompile Include="..\Private\MapAmbientVisibility.cpp" />
     <ClCompile Include="..\Private\Level_ReplayTransition.cpp" />
     <ClCompile Include="..\Private\ANS_CanAction.cpp">
       <Filter>95. AnimNotify\01. NotifyStates</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\Item.cpp" />
+    <ClCompile Include="..\Private\Item_Pictos.cpp" />
+    <ClCompile Include="..\Private\Item_Chroma.cpp" />
+    <ClCompile Include="..\Private\Item_DailyLog.cpp" />
+    <ClCompile Include="..\Private\UI_DailyLog.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\Public\ANS_AnimSpeed.h">
@@ -1451,8 +1476,14 @@
     <ClInclude Include="..\public\NPC_Base.h">
       <Filter>02. GameObject\NPC</Filter>
     </ClInclude>
+    <ClInclude Include="..\public\NPC_Baby.h">
+      <Filter>02. GameObject\NPC\Baby</Filter>
+    </ClInclude>
     <ClInclude Include="..\public\NPC_Chad.h">
       <Filter>02. GameObject\NPC\Chad</Filter>
+    </ClInclude>
+    <ClInclude Include="..\public\NPC_Buff.h">
+      <Filter>02. GameObject\NPC\Buff</Filter>
     </ClInclude>
     <ClInclude Include="..\public\NPC_Golgra.h">
       <Filter>02. GameObject\NPC\Golgra</Filter>
@@ -1468,6 +1499,9 @@
     </ClInclude>
     <ClInclude Include="..\public\NPC_Sumo.h">
       <Filter>02. GameObject\NPC\Sumo</Filter>
+    </ClInclude>
+    <ClInclude Include="..\public\NPC_Tall.h">
+      <Filter>02. GameObject\NPC\Tall</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\Mon_Simon_Weapon.h" />
     <ClInclude Include="..\Public\UI_SL_HUD.h" />
@@ -1510,13 +1544,17 @@
     <ClInclude Include="..\Public\Trigger_BGMZone.h" />
     <ClInclude Include="..\Public\SimonHairRuntime.h" />
     <ClInclude Include="..\Public\DamageTrigger.h" />
-
     <ClInclude Include="..\Public\UI_Replay.h" />
     <ClInclude Include="..\Public\MapAmbientVisibility.h" />
     <ClInclude Include="..\Public\Level_ReplayTransition.h" />
     <ClInclude Include="..\Public\ANS_CanAction.h">
       <Filter>95. AnimNotify\01. NotifyStates</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\Item.h" />
+    <ClInclude Include="..\Public\Item_Pictos.h" />
+    <ClInclude Include="..\Public\Item_Chroma.h" />
+    <ClInclude Include="..\Public\Item_DailyLog.h" />
+    <ClInclude Include="..\Public\UI_DailyLog.h" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimAdditive.hlsl">
@@ -2728,8 +2766,6 @@
     <ClInclude Include="..\Public\ANS_RootController.h" />
     <ClInclude Include="..\Public\SL_Test_Lancelier.h" />
     <ClInclude Include="..\Public\SL_Base.h" />
-  </ItemGroup>
-  <ItemGroup>
   </ItemGroup>
   <ItemGroup>
     <None Include="..\Bin\ShaderFiles\Shader_EffectMaterialScalarModulation.hlsli">
