@@ -882,6 +882,7 @@ void ClientInstance::Reset_CurrentLevelRuntimeState()
     default:
         break;
     }
+
     for (const Shared<NPC_Base>& npc : replayNpcs)
     {
         if (npc == nullptr)
@@ -891,8 +892,6 @@ void ClientInstance::Reset_CurrentLevelRuntimeState()
         npc->Reset_ToDefaultAnimation();
         npc->Restore_AfterBattleExit();
     }
-
-    Respawn_ReplayMonstersFromSnapshot();
 
     GAME->Set_GameplayInputMode(GameplayInputMode::Normal);
     GAME->Set_PlayerInputBlocked(false);
