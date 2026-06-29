@@ -134,6 +134,7 @@ public:
         int32   critical = 0;
         string  buttonUi{};   // UI_Pictos_EnergisingTurn
         string  tooltipUi{};  // UI_EnergisingTurn_Pictos_Tooltip
+        string  getItemUi{};
 
         PictosEffectType effectType = PictosEffectType::None;
         float effectValue = 0.f;

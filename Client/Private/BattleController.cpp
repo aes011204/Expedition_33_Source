@@ -421,6 +421,7 @@ void BattleController::Cancel_BattleEnterPending()
 EBattleEndResult BattleController::OnExitBattleField(EBattleEndResult result)
 {
     _lastVictoryRewardExp = 0;
+    _lastVictoryRewardPictosIds.clear();
 
     if (result == EBattleEndResult::Victory && _battleSpawnRegistry)
     {
@@ -476,7 +477,7 @@ EBattleEndResult BattleController::OnExitBattleField(EBattleEndResult result)
 
         if (Unlock_Manager* unlockManager = CLIENT->Get_UnlockManager())
         {
-            unlockManager->Handle_BattleVictory(
+            _lastVictoryRewardPictosIds = unlockManager->Handle_BattleVictory(
                 defeatedEnemyKeys,
                 _activeBattleFieldID,
                 rewardLevelIndex,

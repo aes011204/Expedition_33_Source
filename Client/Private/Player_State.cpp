@@ -119,6 +119,7 @@ bool Player_State::IsFreeAimShoot() const
 bool Player_State::IsEnterWorldAction() const
 {
     if (CLIENT->HasDialogueInteractionOverlap() ||
+        CLIENT->HasItemInteractionOverlap() ||
         CLIENT->IsDialogueActive() ||
         CLIENT->IsDialogueInteractLocked())
         return false;

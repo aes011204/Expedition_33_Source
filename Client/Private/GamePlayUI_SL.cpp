@@ -302,6 +302,7 @@ vector<UI_BattleVictory::VictoryPlayerStatDesc> GamePlayUI_SL::Build_VictoryPlay
     stat.prevLevel = stat.level;
     stat.prevExp = stat.curExp;
     stat.prevMaxExp = stat.maxExp;
+    stat.equippedPictosIds = playerStat->Get_EquippedPictosIds(); // SoulLike 결과창도 현재 장착 Pictos만 center slot에 표시한다.
 
     if (rewardExp > 0)
     {

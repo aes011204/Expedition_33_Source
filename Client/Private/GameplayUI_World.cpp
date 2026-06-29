@@ -194,6 +194,8 @@ void GameplayUI_World::Update(float timeDelta)
         if (Is_GetWeaponOpen())
             return;
 
+        Try_ShowPendingGetPictos();
+
         if (Is_GetPictosOpen())
             return;
 
@@ -1012,6 +1014,43 @@ void GameplayUI_World::Try_ShowPendingGetWeapon()
         return;
 
     _getWeaponPanel->Open_ForWeaponIds(pendingWeaponIds);
+}
+
+void GameplayUI_World::Try_ShowPendingGetPictos()
+{
+    if (_getPictosPanel == nullptr || _getPictosPanel->Is_Open())
+        return;
+
+    if (Is_GetCharacterOpen() || Is_GetClothesOpen() || Is_GetWeaponOpen())
+        return;
+
+    if (CLIENT->Is_FadeTransitionPlaying())
+        return;
+
+    if (CLIENT->Is_WorldControlSuspended() || CLIENT->Is_BattleEntering())
+        return;
+
+    if (GAME->Is_WorldGameplayInputBlocked())
+        return;
+
+    if (!_menuStack.empty())
+        return;
+
+    if (_savePointPanel && (_savePointPanel->Is_Open() || _savePointPanel->Is_ClosingWithOutro()))
+        return;
+
+    if (_expeditionStatPanel && _expeditionStatPanel->Is_Open())
+        return;
+
+    Unlock_Manager* unlockManager = CLIENT->Get_UnlockManager();
+    if (unlockManager == nullptr)
+        return;
+
+    vector<string> pendingPictosIds = unlockManager->Consume_GetPictosPresentationIds();
+    if (pendingPictosIds.empty())
+        return;
+
+    _getPictosPanel->Open_ForPictosIds(pendingPictosIds);
 }
 
 bool GameplayUI_World::Is_GetClothesOpen() const

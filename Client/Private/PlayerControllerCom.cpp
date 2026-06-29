@@ -89,8 +89,11 @@ void PlayerControllerCom::Update_Movement(float timeDelta)
         if (!_movementCom)
             return;
 
+        MovementCom::MovementInput blockedInput{};
+        blockedInput.smoothStopOnNoMoveInput = true; // UI/상호작용 진입으로 입력만 끊긴 경우, 기존 속도를 짧게 감속시킨다.
+
 		_movementCom->Clear_FollowMoveCommand(); 
-        _movementCom->Apply_Input({});           
+        _movementCom->Apply_Input(blockedInput);
         _movementCom->Update_Movement(timeDelta);
         return;
 	}
@@ -191,7 +194,7 @@ bool PlayerControllerCom::Has_LocomotionIntent() const
 bool PlayerControllerCom::Should_SprintMove() const
 {
     if (_followControl.enabled)
-        return !_followControl.walkFollow && _followControl.sprintFollow; // Walk 추종 중에는 Sprint로 올리지 않는다.
+        return !_followControl.walkFollow && _followControl.sprintFollow; // 가까운 거리 Walk 추종 중에는 Sprint로 올리지 않는다.
 
     return _currentInput.isRunPressed;
 }

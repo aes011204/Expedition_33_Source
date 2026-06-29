@@ -610,13 +610,6 @@ void Hero_Manager::Set_ActiveTrail(float timeDelta)
 void Hero_Manager::Update_Followers(float timeDelta)
 {
     uint32 followerSlot = 0;
-    bool activeWalkFollow = false;
-
-    if (auto active = Get_ActiveHero())
-    {
-        if (auto activeController = active->Get_Component<PlayerControllerCom>())
-            activeWalkFollow = activeController->Should_WalkMove();
-    }
 
     for (uint32 i = 0; i < _heroes.size(); i++)
     {
@@ -703,12 +696,7 @@ void Hero_Manager::Update_Followers(float timeDelta)
 
             runtime.sprintFollowHoldTime = max(0.f, runtime.sprintFollowHoldTime - timeDelta);
 
-            if (activeWalkFollow)
-            {
-                runtime.sprintFollow = false; // active가 Walk면 follower도 Walk 속도를 유지한다.
-                runtime.sprintFollowHoldTime = 0.f;
-            }
-            else if (!runtime.sprintFollow && runtime.lastMoveDistance >= _sprintFollowDistance)
+            if (!runtime.sprintFollow && runtime.lastMoveDistance >= _sprintFollowDistance)
             {
                 runtime.sprintFollow = true;
                 runtime.sprintFollowHoldTime = _sprintFollowMinHoldTime;
@@ -729,7 +717,11 @@ void Hero_Manager::Update_Followers(float timeDelta)
             runtime.sprintFollowHoldTime = 0.f;
         }
 
-        Move_FollowerTo(_heroes[i].hero, i, targetPos, activeWalkFollow, timeDelta);
+        const bool walkFollow =
+            !_followerRuntime[i].sprintFollow &&
+            _followerRuntime[i].lastMoveDistance <= _runFollowDistance; // Active 입력이 아니라 follower와 목표 사이 거리로 Walk/Run을 고른다.
+
+        Move_FollowerTo(_heroes[i].hero, i, targetPos, walkFollow, timeDelta);
 
         ++followerSlot;
     }
@@ -804,6 +796,26 @@ void Hero_Manager::Move_FollowerTo(const Shared<Player_WorldBase>& follower, uin
         follow.worldDir = moveDelta;
         follow.walkFollow = walkFollow;
         follow.sprintFollow = _followerRuntime[followerIndex].sprintFollow;
+    }
+    else
+    {
+        if (auto activeHero = Get_ActiveHero())
+        {
+            if (auto activeTr = activeHero->Get_Transform())
+            {
+                Vec3 activeForward = activeTr->Get_WorldForward();
+                activeForward.y = 0.f;
+
+                if (activeForward.LengthSquared() > 0.f)
+                {
+                    activeForward.Normalize();
+
+                    Vec3 followerRot = tr->Get_WorldRotationEuler();
+                    followerRot.y = XMConvertToDegrees(atan2f(activeForward.x, activeForward.z)); // 도착 후에는 Active Hero와 같은 수평 방향을 바라본다.
+                    tr->Set_WorldRotationEuler(followerRot);
+                }
+            }
+        }
     }
 
     controller->Set_FollowControl(follow);

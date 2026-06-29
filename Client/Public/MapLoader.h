@@ -134,6 +134,7 @@ public:
     static HRESULT Convert_MapInstance_To_Bin(const wstring& mapInstanceRoot);
     static void Clear_GlobalCache();
     static void Reapply_CachedLights();
+    static wstring Get_LoadedMapInstanceRoot(uint32 levelIndex);
 
 private:
     static HRESULT Try_BeginMapInstanceSession(
@@ -175,6 +176,7 @@ private:
     static umap<string, string> g_globalMaterialSignatureByModel;
     static uint32 g_currentLevelIndex;
     static vector<LIGHT_DESC> g_cachedLights;
+    static umap<uint32, wstring> g_loadedMapInstanceRootByLevel;
 };
 
 NS_END

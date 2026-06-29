@@ -105,6 +105,8 @@ void Level_GamePlay::BeginPlay()
 
     GAME->Set_VolumetricLightShaftZoneCullingDistance(40.f);
     GAME->Set_VolumetricLightShaftZones(Build_GamePlayLightShaftZones());
+
+    CLIENT->Capture_InitialWorldSnapshot();
 }
 
 void Level_GamePlay::Update(float fTimeDelta)
@@ -112,6 +114,15 @@ void Level_GamePlay::Update(float fTimeDelta)
     //Update_MapStreaming(fTimeDelta);
     if (GAME->KeyPress(KEY_TYPE::F7))
         Respawn_CinematicTrigger();
+
+    // 주교 앞으로 순간이동
+    if (GAME->KeyDown(KEY_TYPE::KEY_9))
+    {
+        auto active = CLIENT->Get_ActiveHero();
+        CHECK_NULL(active);
+
+        active->Get_Transform()->Set_WorldPosition(Vec3(75.44f, 21.99f, -14.77f));
+    }
 
 }
 
@@ -217,13 +228,13 @@ HRESULT Level_GamePlay::Ready_Layer_Puzzle(const wstring& strLayerTag)
         //CHECK_FAILED(GAME->Add_GameObject(ETOI(LevelType::Static), L"GameObject_EyeTarget", ETOI(LevelType::GamePlay), L"Layer_EyeTarget", object), E_FAIL);
         //if(object != nullptr && object->Get_Transform() != nullptr)
         //    object->Get_Transform()->Set_WorldPosition(Vec3(-109.f + 10.f * static_cast<float>(i), 21.f, -133.5f));
-
+        
         auto eyeTarget = Spawn_Prefab::Prefab(Constants::Prefab::Eye_Target /* L"Eye_Target" */)
             .AtLevel(ETOI(LevelType::GamePlay))
             .InLayer(L"Layer_EyeTarget")
             .Position(Vec3(-109.f + 10.f * static_cast<float>(i), 21.f, -133.5f))
             .Spawn();
-
+    
     }
 
     //퍼즐 컨트롤러
@@ -265,13 +276,30 @@ HRESULT Level_GamePlay::Ready_Layer_Trigger(const wstring& strLayerTag)
 
 HRESULT Level_GamePlay::Ready_Layer_BattleStartSpawner(const wstring& strLayerTag)
 {
-    // 전투 시작 스포너
-    auto battleStart = Spawn_Prefab::Prefab(Constants::Prefab::BattleStartSpawner_Boss)
+    // 튜토리얼 렌서러
+    //auto tutorialStart = Spawn_Prefab::Prefab(Constants::Prefab::BattleStartSpawner_Boss)
+    //    .AtLevel(ETOI(LevelType::GamePlay))
+    //    .InLayer(strLayerTag)
+    //    .Position(kBossBattlePosition)
+    //    .Rotation(kBossBattleRotation)
+    //    .Spawn();
+
+    // 방패병
+    //auto portierStart = Spawn_Prefab::Prefab(Constants::Prefab::BattleStartSpawner_Boss)
+    //    .AtLevel(ETOI(LevelType::GamePlay))
+    //    .InLayer(strLayerTag)
+    //    .Position(kBossBattlePosition)
+    //    .Rotation(kBossBattleRotation)
+    //    .Spawn();
+
+    // 보스 전투 시작 스포너
+    auto bishopStart = Spawn_Prefab::Prefab(Constants::Prefab::BattleStartSpawner_Boss)
         .AtLevel(ETOI(LevelType::GamePlay))
         .InLayer(strLayerTag)
         .Position(kBossBattlePosition)
         .Rotation(kBossBattleRotation)
         .Spawn();
+
 
     return S_OK;
 }
