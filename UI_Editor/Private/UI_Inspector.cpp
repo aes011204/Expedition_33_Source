@@ -1,5 +1,6 @@
 #include "pch.h"
 #include "UI_Inspector.h"
+#include "Debug_Profile.h"
 #include "GameInstance.h"
 #include "UI_Editor_Manager.h"
 #include "UI_Editor_Utils.h"
@@ -33,6 +34,8 @@ namespace UIEditor
         if (!Is_Open())
             return;
 
+        ENGINE_PROFILE_SCOPE_BASIC("UIEditor.Inspector.Render");
+
         bool isOpen = Is_Open();
         const string windowName = String::ToString(Get_WindowName());
 
@@ -41,8 +44,8 @@ namespace UIEditor
             _isFocused = ImGui::IsWindowFocused(ImGuiFocusedFlags_ChildWindows);
             _isHovered = ImGui::IsWindowHovered(ImGuiHoveredFlags_ChildWindows);
 
-            const UI_Document& document = _editorManager.Get_Document();
-            const UI_Object* selectedObject = document.Find_Object(_editorManager.Get_SelectedObjectId());
+            const UI_EditorSession& session = _editorManager.Get_Session();
+            const UI_Object* selectedObject = session.Get_SelectedObject();
             if (nullptr != selectedObject)
             {
                 ObjectId createPatternOverlaySourceId = 0;
@@ -63,7 +66,7 @@ namespace UIEditor
                 if (ImGui::Checkbox("Locked", &locked))
                     _editorManager.Set_ObjectLocked(selectedObject->id, locked);
 
-                const bool isEffectivelyLocked = _editorManager.Is_ObjectEffectivelyLocked(selectedObject->id);
+                const bool isEffectivelyLocked = session.Is_EffectivelyLocked(selectedObject->id);
                 if (isEffectivelyLocked)
                     ImGui::TextDisabled("Editing is locked by this object or one of its parents.");
 
@@ -138,12 +141,7 @@ namespace UIEditor
                 {
                     ImGui::Separator();
 
-                    int32 childCount = 0;
-                    for (const UI_Object& object : _editorManager.Get_Document().Get_Objects())
-                    {
-                        if (object.parentId == selectedObject->id)
-                            ++childCount;
-                    }
+                    const int32 childCount = static_cast<int32>(session.Get_Children(selectedObject->id).size());
 
                     ImGui::Text("Container Children: %d", childCount);
                     if (selectedObject->type == UI_ObjectType::Button || selectedObject->type == UI_ObjectType::Panel)
@@ -233,7 +231,7 @@ namespace UIEditor
                 if (!ImGui::IsAnyItemActive())
                     _editorManager.Commit_EditTransactionIfChanged();
 
-                ImGui::Text("Name: %s", document.Get_CanvasName().c_str());
+                ImGui::Text("Name: %s", session.Get_CanvasName().c_str());
                 ImGui::TextUnformatted("Type: Canvas");
                 ImGui::Separator();
 

@@ -118,6 +118,20 @@ bool CombatStatCom::Try_ConsumeAP(uint32 value)
     return true;
 }
 
+void CombatStatCom::Add_GradientGauge(uint32 value)
+{
+    _gradientGaugeStack = min(_gradientGaugeStack + value, GradientSkill::MaxGaugeStacks);
+}
+
+bool CombatStatCom::Try_ConsumeGradientGauge(uint32 value)
+{
+    if (_gradientGaugeStack < value)
+        return false;
+
+    _gradientGaugeStack -= value;
+    return true;
+}
+
 void CombatStatCom::Add_Shield(int32 value)
 {
     Get_RuntimeStat().CurShield += value;

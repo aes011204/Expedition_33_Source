@@ -855,8 +855,8 @@ void Prefab_View::Draw_Header()
 
     ImGui::SameLine();
 
-    if (ImGui::Button("Close", ImVec2(90.f, 0.f)))
-        Close_Prefab();
+    if (ImGui::Button("Compile", ImVec2(90.f, 0.f)))
+        Compile_PreviewObject();
 
     ImGui::SameLine();
 
@@ -919,6 +919,57 @@ void Prefab_View::Draw_StructurePanel()
     ImGui::EndChild();
 }
 
+void Prefab_View::Compile_PreviewObject()
+{
+    if (_previewObject == nullptr)
+        return;
+
+    json previewJson = _previewObject->To_Json();
+    previewJson["prefab_name"] = _prefabName;
+    previewJson["default_layer_tag"] = String::ToString(_defaultSpawnLayerTag);
+
+    const Shared<GameObject> oldPreviewObject = _previewObject;
+    PreviewObjectHelpers::Stop_AttachedPreviewEffects(oldPreviewObject);
+
+    if (Shared<Animation_View> animationView = dynamic_pointer_cast<Animation_View>(EDITOR->Get_Window(L"Animation")))
+        animationView->Clear_LivePreviewBinding(oldPreviewObject);
+
+    if (Shared<AnimState_View> animStateView = dynamic_pointer_cast<AnimState_View>(EDITOR->Get_Window(L"AnimState")))
+        animStateView->Clear_LivePreviewBinding(oldPreviewObject);
+
+    Shared<GameObject> compiledObject = GAME->Instantiate_GameObjectJson(previewJson);
+    if (compiledObject == nullptr)
+    {
+        _previewObject = oldPreviewObject;
+        if (EDITOR->Get_Notification())
+            EDITOR->Get_Notification()->Add_Notification_With_Type(NotifyType::Warning, "프리펩 Compile 실패: {}", _prefabName);
+        return;
+    }
+
+    _previewObject = compiledObject;
+    _previewHasBegunPlay = false;
+
+    PreviewObjectHelpers::Disable_PreviewAnimNotifyExecution(_previewObject);
+    PreviewObjectHelpers::Disable_PreviewBehaviorTreeExecution(_previewObject);
+    PreviewObjectHelpers::Prime_PreviewObject(_previewObject);
+    _previewHasBegunPlay = true;
+
+    _sourceStaticClass = _previewObject->Get_ReflectionInfo().className;
+    if (_sourceStaticClass.empty())
+        _sourceStaticClass = String::ToString(_previewObject->Get_Name());
+
+    Lock_PreviewObjectToOrigin();
+
+    if (!Find_GameObjectByKey(_previewObject, _selectedObjectKey))
+    {
+        _selectionType = SelectionType::GameObject;
+        _selectedObjectKey = L"Root";
+        _selectedComponentKey.clear();
+    }
+
+    if (EDITOR->Get_Notification())
+        EDITOR->Get_Notification()->Add_Notification("프리펩 Compile: {}", _prefabName);
+}
 
 void Prefab_View::Draw_PreviewPanel()
 {

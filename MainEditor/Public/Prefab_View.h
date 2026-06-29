@@ -69,6 +69,7 @@ private:
     void Draw_ComponentEntries(const Shared<GameObject>& gameObject, const wstring& objectKey);
 
     Shared<GameObject> Find_GameObjectByKey(const Shared<GameObject>& rootObject, const wstring& objectKey) const;
+    void Compile_PreviewObject();
 
 private:
     void Ensure_PreviewRenderTarget(uint32 width, uint32 height);

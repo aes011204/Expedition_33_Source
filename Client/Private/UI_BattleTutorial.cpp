@@ -70,6 +70,7 @@ HRESULT UI_BattleTutorial::Load_UI(uint32 levelIndex)
         TutorialView{ BattleTutorialStep::QTE,          Constants::UI::UI_Tutorial_QTE_Path,          Constants::UI_Anim::UI_Tutorial_QTEAnim_Path,          L"Panel_Tutorial_QTE",          L"Tutorial_QTE",          L"TutorialQTE" },
         TutorialView{ BattleTutorialStep::Counter,      Constants::UI::UI_Tutorial_Counter_Path,      Constants::UI_Anim::UI_Tutorial_CounterAnim_Path,      L"Panel_Tutorial_Counter",      L"Tutorial_Counter",      L"TutorialCounter" },
         TutorialView{ BattleTutorialStep::FreeAim,      Constants::UI::UI_Tutorial_FreeAim_Path,      Constants::UI_Anim::UI_Tutorial_FreeAimAnim_Path,      L"Panel_Tutorial_FreeAim",      L"Tutorial_FreeAim",      L"TutorialFreeAim" },
+        TutorialView{ BattleTutorialStep::Gradient,     Constants::UI::UI_Tutorial_Gradient_Path,     Constants::UI_Anim::UI_Tutorial_GradientAnim_Path,     L"Panel_Tutorial_Gradient",     L"Tutorial_Gradient",     L"TutorialGradient" },
     };
 
     for (TutorialView& view : _views)

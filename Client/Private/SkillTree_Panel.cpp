@@ -50,6 +50,36 @@ namespace
             return HeroId::Gustave;
         return  characterStatusOrder[selectedHeroIndex];
     }
+
+    const wchar_t* Resolve_CharacterSelectAnimationName(HeroId heroId)
+    {
+        switch (heroId)
+        {
+        case HeroId::Lune:
+            return L"CharacterSelect_Lune";
+        case HeroId::Maelle:
+            return L"CharacterSelect_Maelle";
+        case HeroId::Gustave:
+        default:
+            return L"CharacterSelect_Gustave";
+        }
+    }
+
+    void Play_CharacterSelectAnimation(
+        const umap<wstring, Shared<UI_Base>>& uiByName,
+        HeroId heroId)
+    {
+        const wchar_t* animationName = Resolve_CharacterSelectAnimationName(heroId);
+        for (auto& [uiName, ui] : uiByName)
+        {
+            UNREFERENCED_PARAMETER(uiName);
+
+            if (ui == nullptr)
+                continue;
+
+            ui->Play_UIAnimation(animationName, true);
+        }
+    }
 }
 
 SkillTree_Panel::SkillTree_Panel()
@@ -120,8 +150,7 @@ void SkillTree_Panel::Open()
     if(_backgroundUI)
         _backgroundUI->Open();
 
-    //선택된 캐릭터 ui 확대
-    _currentView->characterSelectUI->Get_Transform()->Set_Scale(_hoveredSize);
+    Refresh_CharacterSelectUI();
 
     CLIENT->Begin_Preview(PreviewShotPanel::SkillTree);
 
@@ -235,6 +264,12 @@ HRESULT SkillTree_Panel::Load_Background_UI(uint32 levelIndex)
     desc.jsonPath = Constants::UI::UI_SkillTree_BG_Path;
     desc.prototypeTagPrefix = L"SkillTree_BG";
     desc.outUIByName = &_backgroundUIs;
+    desc.animationPaths =
+    {
+        Constants::UI_Anim::UI_CharacterSelectLuneAnim_Path,
+        Constants::UI_Anim::UI_CharacterSelectGustaveAnim_Path,
+        Constants::UI_Anim::UI_CharacterSelectMaelleAnim_Path
+    };
 
     CHECK_FAILED(UI_RuntimeLoader::Load_Document(desc), E_FAIL);
 
@@ -675,21 +710,9 @@ void SkillTree_Panel::Update_UI()
 
 void SkillTree_Panel::Refresh_CharacterSelectUI()
 {
-    static const Vec2 selectedScale = Vec2(1.4f, 1.4f);
-    static const Vec2 normalScale = Vec2(1.f, 1.f);
-
-    for(auto i = 0 ; i < static_cast<int>(HeroId::END) ; i++)
-    {
-        HeroId heroId = characterStatusOrder[i];
-        const auto& selectedUI = _viewByPlayerId[heroId].characterSelectUI;
-        const bool isSelected = (i == _selectedHeroIndex);
-        const Vec2 targetScale = isSelected ? selectedScale : normalScale;
-
-        if(selectedUI->Get_Transform() != nullptr)
-        {
-            selectedUI->Get_Transform()->Set_Scale(targetScale);
-        }
-    }
+    Play_CharacterSelectAnimation(
+        _backgroundUIs,
+        Get_SelectedCharacterStatusHeroId(_selectedHeroIndex));
 }
 
 void SkillTree_Panel::Refresh_CombatStats()

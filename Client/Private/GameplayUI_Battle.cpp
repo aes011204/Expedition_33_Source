@@ -47,6 +47,7 @@
 #include "UI_BattleJumpReaction.h"
 #include "UI_QTE.h"
 #include "UI_MarkEffect.h"
+#include "UI_BattleGradientGauge.h"
 #include "MonsterStatCom.h"
 #include "UI_BattleTutorial.h"
 #include "BattleTutorialController.h"
@@ -166,6 +167,7 @@ HRESULT GameplayUI_Battle::Initialize(uint32 levelIndex)
     CHECK_FAILED(Create_UI(_qte, UI_QTE::Create), E_FAIL);
     CHECK_FAILED(Create_UI(_markEffect, UI_MarkEffect::Create), E_FAIL);
     CHECK_FAILED(Create_UI(_battleTutorial, UI_BattleTutorial::Create), E_FAIL);
+    CHECK_FAILED(Create_UI(_battleGradientGauge, UI_BattleGradientGauge::Create), E_FAIL);
     CHECK_FAILED(Create_UI(_battleJumpReaction, UI_BattleJumpReaction::Create), E_FAIL);
 
     // 데미지 폰트 최대 8개
@@ -225,6 +227,7 @@ void GameplayUI_Battle::Update(float timeDelta)
 {
     Update_BattleCommandHUD(timeDelta); // 플레이어 전투 입력 허드
     Update_BattleSystemHUD(timeDelta);  // 파티 portrait HP/AP HUD
+    Update_BattleGradientGauge(timeDelta); // Gradient 해금 후 현재 턴 actor의 게이지 스택
     Update_BattlePictos(timeDelta);     // 픽토스 활성화 알림은 portrait 위치를 기준으로 쌓는다.
     Update_BattleSystemIntroState(timeDelta);
     Update_MonsterHpBar(timeDelta);     // 몬스터 체력
@@ -310,6 +313,7 @@ vector<RuntimeUIEntry> GameplayUI_Battle::Get_RuntimeUIEntries() const
     Append_RuntimePanelEntry(entries, "QTE", _qte.get());
     Append_RuntimePanelEntry(entries, "MarkEffect", _markEffect.get());
     Append_RuntimePanelEntry(entries, "BattleTutorial", _battleTutorial.get());
+    Append_RuntimePanelEntry(entries, "BattleGradientGauge", _battleGradientGauge.get());
     Append_RuntimePanelEntry(entries, "BattleJumpReaction", _battleJumpReaction.get());
 
     for (uint32 i = 0; i < _damageFonts.size(); ++i)
@@ -2055,6 +2059,22 @@ void GameplayUI_Battle::Update_BattleJumpReaction(float timeDelta)
     _battleJumpReaction->Update(timeDelta);
 }
 
+void GameplayUI_Battle::Update_BattleGradientGauge(float timeDelta)
+{
+    UNREFERENCED_PARAMETER(timeDelta);
+
+    if (_battleGradientGauge == nullptr)
+        return;
+
+    if (!_isBattleUiActive || !_isPlayerTurnUiActive || !_hasCurrentPlayerTurnActor)
+    {
+        _battleGradientGauge->Close();
+        return;
+    }
+
+    _battleGradientGauge->Update_ForActor(_currentPlayerTurnActor);
+}
+
 void GameplayUI_Battle::Update_BattleVictory(float timeDelta)
 {
     UNREFERENCED_PARAMETER(timeDelta); // 월드 timeDelta 말고, 배속 적용 전 Unscaled Time 써야함
@@ -2774,6 +2794,7 @@ void GameplayUI_Battle::Reset_BattleUiRuntimeState(bool closeVictoryUi)
         _qte.get(),
         _markEffect.get(),
         _battleTutorial.get(),
+        _battleGradientGauge.get(),
         _battleJumpReaction.get(),
     };
 
@@ -2912,6 +2933,7 @@ void GameplayUI_Battle::Free()
     Release_UI(_qte);
     Release_UI(_markEffect);
     Release_UI(_battleTutorial);
+    Release_UI(_battleGradientGauge);
     Release_UI(_battleJumpReaction);
 
     for (auto& damageFont : _damageFonts)

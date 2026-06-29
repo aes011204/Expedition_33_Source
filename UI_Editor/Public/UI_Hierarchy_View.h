@@ -2,6 +2,7 @@
 
 #include "UI_Editor_Window.h"
 #include "UI_Document.h"
+#include "UI_EditorReadModel.h"
 
 namespace UIEditor
 {
@@ -17,7 +18,9 @@ namespace UIEditor
         void Render() override;
 
     private:
-        void Render_Children(ObjectId parentId);
+        void Expand_SelectedParentPath();
+        void Render_HierarchyRows();
+        void Render_ObjectRow(const UI_HierarchyRow& row);
         void Render_ContextMenu(ObjectId objectId);
         void Render_CreateMenu();
         void Render_RenamePopup();
@@ -36,5 +39,7 @@ namespace UIEditor
         bool _hasPendingCreateObject = false;
         ObjectId _pendingDuplicateObjectId = 0;
         ObjectId _pendingDeleteObjectId = 0;
+        unordered_set<ObjectId> _expandedObjectIds = {};
+        uint64 _hierarchyRowsRevision = 1;
     };
 }

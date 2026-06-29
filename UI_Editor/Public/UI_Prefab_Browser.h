@@ -7,6 +7,12 @@ namespace UIEditor
 {
     class UI_Editor_Manager;
 
+    struct UI_PrefabBrowserEntry
+    {
+        UI_PrefabFileEntry prefabEntry = {};
+        string searchHaystackLower = "";
+    };
+
     class UI_Prefab_Browser final : public UI_Editor_Window
     {
     public:
@@ -37,7 +43,7 @@ namespace UIEditor
         UI_Editor_Manager& _editorManager;
         UI_PrefabService _prefabService = {};
         wstring _selectedDirectory = {};
-        vector<UI_PrefabFileEntry> _prefabEntries = {};
+        vector<UI_PrefabBrowserEntry> _prefabEntries = {};
         bool _needsRefresh = true;
         bool _rootDirectoryReady = false;
         unordered_map<wstring, vector<fs::path>> _childDirectoryCache = {};

@@ -3,6 +3,7 @@
 #include "Battle_Enum.h"
 #include "Client_Defines.h"
 #include "Component.h"
+#include "GradientSkill.h"
 
 NS_BEGIN(Client)
 
@@ -126,9 +127,16 @@ public: /* AP */
     void Add_AP(uint32 value);          // AP 즉시 회복
     bool Try_ConsumeAP(uint32 value);   // AP 즉시 소모 부족하면 false
 
+public: /* Gradient Gauge */
+    uint32 Get_GradientGaugeStack() const { return _gradientGaugeStack; }
+    bool   Can_UseGradientGauge() const { return _gradientGaugeStack >= GradientSkill::GaugeCostPerUse; }
+    void   Add_GradientGauge(uint32 value);
+    bool   Try_ConsumeGradientGauge(uint32 value);
+
 protected:
     vector<Shared<Buff>> _buff;// 상태이상
     vector<string> _skillKeys;
+    uint32 _gradientGaugeStack = 0; // 전투 중 해당 actor의 Gradient 사용 가능 스택
     bool _reviveBlocked = false;
 
     bool _isPlayer = { false };

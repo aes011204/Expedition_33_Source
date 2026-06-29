@@ -10,6 +10,7 @@
 #include "Spawn_Prefab.h"
 #include "TargetCamera.h"
 #include "Trigger_Cinematic.h"
+#include "RuntimeRuleStateService.h"
 
 namespace
 {
@@ -59,6 +60,9 @@ HRESULT Level_GamePlay::Initialize()
 
     if (FAILED(Ready_Layer_Player(TEXT("Layer_Player"))))
         return E_FAIL;
+
+    RuntimeRuleStateService::Apply_ToCurrentRuntime(
+        RuntimeRuleStateService::Build_GameplayStartUnlocks(), false);
 
     //if (FAILED(Ready_Layer_Effect(TEXT("Layer_Effect"))))
     //    return E_FAIL;

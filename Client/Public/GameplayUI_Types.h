@@ -65,6 +65,7 @@ enum class GameplayMenu
     CharacterStatus,
     SkillTree,
     WeaponUpgrade,
+    Merchant,
     CharacterProgression,   // Tab 루트 메뉴
     ChangeSkill,            // 스킬 변경
     Wardrobe,               // 옷장

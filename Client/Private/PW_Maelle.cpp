@@ -43,8 +43,8 @@ HRESULT PW_Maelle::Initialize(void* arg)
 	auto skilltreeCom = Get_Component<SkillTreeCom>();
 
     // 공격전환 -> 불꽃으로 변경
-	skilltreeCom->TryUnlock("Spark");
-	skilltreeCom->TryUnlock("Percee");
+	skilltreeCom->ForceUnlock("Spark");
+	skilltreeCom->ForceUnlock("Percee");
     skilltreeCom->ForceUnlock("FleureFury");
 
 	//skilltreeCom->ForceUnlock("FireRise");
