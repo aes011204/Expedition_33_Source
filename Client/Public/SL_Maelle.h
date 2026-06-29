@@ -47,7 +47,11 @@ public:
     Shared<ColliderCom> Get_AttackCollider() const;
     bool    Is_Dead() const override;
     bool    Is_DamageBlocked() const override { return Is_Invincible(); }
+
     void    Apply_Damage(const SL_DamageInfo& damageInfo) override;
+    void    Set_AttackHitEffect(const string& colliderTag, const wstring& effectName, const Vec3& localOffset, const Vec3& scale) override;
+    void    Clear_AttackHitEffect(const string& colliderTag) override;
+
 
 public:
     void    Apply_MoveInput(const SL_MoveRequest& request, float timeDelta);
@@ -120,6 +124,9 @@ private:
     bool  _isCinematicDriven = false;
 
     SL_HitAnimOverride _pendingHitAnimOverride = SL_HitAnimOverride::Hit_Light;
+    wstring            _activeAttackHitEffectName{};
+    Vec3               _activeAttackHitEffectLocalOffset = Vec3::Zero;
+    Vec3               _activeAttackHitEffectScale = Vec3::One;
 
 private: /* 피격 밀림 */
     Vec3  _hitPushDir = Vec3::Zero;

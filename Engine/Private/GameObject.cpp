@@ -2,6 +2,14 @@
 #include "GameInstance.h"
 #include "Reflection_JsonUtil.h"
 
+namespace
+{
+    constexpr const char* kRuntimeAuthoringSourceKey = "__runtime_authoring_source";
+    constexpr const char* kRuntimeAuthoringMapPathKey = "map_path";
+    constexpr const char* kRuntimeAuthoringCollectionKey = "collection_key";
+    constexpr const char* kRuntimeAuthoringNodeIndexKey = "node_index";
+}
+
 GameObject::GameObject(const ComPtr<Device>& device, const ComPtr<Context>& context)
     : _device { device }
     , _context { context }
@@ -12,6 +20,9 @@ GameObject::GameObject(const GameObject& prototype)
     : _device{ prototype._device }
     , _context{ prototype._context }
     , _hasBegunPlay(false)
+    , _runtimeAuthoringMapPath{ prototype._runtimeAuthoringMapPath }
+    , _runtimeAuthoringCollectionKey{ prototype._runtimeAuthoringCollectionKey }
+    , _runtimeAuthoringNodeIndex{ prototype._runtimeAuthoringNodeIndex }
 {
 }
 
@@ -94,6 +105,15 @@ json GameObject::To_Json() const
     if (!_sourcePrefabName.empty())
         j["source_prefab"] = _sourcePrefabName;
 
+    if (Has_RuntimeAuthoringSource())
+    {
+        j[kRuntimeAuthoringSourceKey] = json::object({
+            { kRuntimeAuthoringMapPathKey, String::ToString(_runtimeAuthoringMapPath) },
+            { kRuntimeAuthoringCollectionKey, _runtimeAuthoringCollectionKey },
+            { kRuntimeAuthoringNodeIndexKey, _runtimeAuthoringNodeIndex }
+        });
+    }
+
     const char* basePtr = reinterpret_cast<const char*>(this);
 
     for (const auto& prop : info.properties)
@@ -121,6 +141,15 @@ json GameObject::To_Json() const
 void GameObject::From_Json(const json& data)
 {
     Set_SourcePrefabName(data.value("source_prefab", string{}));
+
+    if (data.contains(kRuntimeAuthoringSourceKey) && data[kRuntimeAuthoringSourceKey].is_object())
+    {
+        const json& source = data[kRuntimeAuthoringSourceKey];
+        Set_RuntimeAuthoringSource(
+            String::ToWString(source.value(kRuntimeAuthoringMapPathKey, string{})),
+            source.value(kRuntimeAuthoringCollectionKey, string{}),
+            source.value(kRuntimeAuthoringNodeIndexKey, size_t{}));
+    }
 
     auto& info = Get_ReflectionInfo();
 

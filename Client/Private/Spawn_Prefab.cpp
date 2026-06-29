@@ -85,6 +85,9 @@ void Refresh_MonsterBodyAnimMapping(const Shared<GameObject>& gameObject)
 
 string Resolve_CanonicalPrefabName(const string& requestedPrefabName, const fs::path& prefabPath)
 {
+    if (requestedPrefabName.find('/') != string::npos || requestedPrefabName.find('\\') != string::npos)
+        return requestedPrefabName; // ETC/EyeTarget처럼 하위 폴더 prefab은 저장/로드 이름에도 폴더를 보존한다.
+
     string stem = String::ToString(prefabPath.stem().wstring());
     constexpr string_view prefabSuffix = ".prefab";
     if (stem.ends_with(prefabSuffix))
@@ -223,6 +226,9 @@ fs::path Spawn_Prefab::Resolve_PrefabPath(const string& prefabName)
     if (prefabName.starts_with("NPC_"))
         return assetRoot / Constants::Prefab::NPC_Dir / fileName; // NPC 프리팹은 전용 NPC 폴더에서 찾는다.
 
+    if (prefabName.starts_with("Item_"))
+        return assetRoot / Constants::Prefab::Item_Dir / fileName; // 아이템 프리팹은 Item 하위 폴더에서 찾는다.
+
     if (prefabName.starts_with("MW_") || prefabName.starts_with("MB_") || prefabName.starts_with("TW_"))
         return assetRoot / Constants::Prefab::Monster_Dir / fileName; // 튜토리얼 월드 몬스터도 Monster 폴더로 정규화한다.
 
@@ -232,7 +238,18 @@ fs::path Spawn_Prefab::Resolve_PrefabPath(const string& prefabName)
     if (prefabName.starts_with("BSS_"))
         return assetRoot / Constants::Prefab::BattleStartSpawner_Dir / fileName; // BattleStartSpawner는 전용 폴더를 쓴다.
 
-    return assetRoot / Constants::Prefab::Root_Dir / fileName; // 분류 규칙이 없는 기존 프리펩만 루트 fallback을 쓴다.
+    const fs::path rootFallback = assetRoot / Constants::Prefab::Root_Dir / fileName;
+    if (fs::exists(rootFallback))
+        return rootFallback; // 분류 규칙이 없는 기존 프리팹만 루트 fallback을 쓴다.
+
+    const fs::path recursiveRoot = assetRoot / Constants::Prefab::Root_Dir;
+    for (const auto& entry : fs::recursive_directory_iterator(recursiveRoot))
+    {
+        if (entry.is_regular_file() && entry.path().filename() == fileName)
+            return entry.path(); // 기존 저장본의 "EyeTarget"처럼 폴더가 빠진 이름도 복원한다.
+    }
+
+    return rootFallback;
 }
 
 void Spawn_Prefab::Apply_Overrides(const Shared<GameObject>& gameObject, const json& overrides)

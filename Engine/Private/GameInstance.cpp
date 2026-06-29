@@ -3201,12 +3201,26 @@ Shared<GameObject> GameInstance::Instantiate_GameObjectJson(const fs::path& path
 HRESULT GameInstance::Create_PrefabAsset(const fs::path& path, const string& staticClass, const string& prefabName)
 {
     if (staticClass.empty() || prefabName.empty())
+    {
+        LOG_ERROR("Create_PrefabAsset failed: empty input. staticClass='{}', prefabName='{}'",
+            staticClass.c_str(), prefabName.c_str());
         return E_FAIL;
+    }
 
     const Shared<GameObject> gameObject = Create_GameObjectPrototype(staticClass);
-    CHECK_NULL(gameObject, E_FAIL);
+    if (gameObject == nullptr)
+    {
+        LOG_ERROR("Create_PrefabAsset failed: Create_GameObjectPrototype returned null. staticClass='{}'",
+            staticClass.c_str());
+        return E_FAIL;
+    }
 
-    CHECK_FAILED(gameObject->Initialize(nullptr), E_FAIL);
+    if (FAILED(gameObject->Initialize(nullptr)))
+    {
+        LOG_ERROR("Create_PrefabAsset failed: Initialize returned failure. staticClass='{}', prefabName='{}'",
+            staticClass.c_str(), prefabName.c_str());
+        return E_FAIL;
+    }
 
     json root = gameObject->To_Json();
     root["prefab_name"] = prefabName;
@@ -3214,13 +3228,26 @@ HRESULT GameInstance::Create_PrefabAsset(const fs::path& path, const string& sta
 
     std::error_code ec;
     fs::create_directories(path.parent_path(), ec);
+    if (ec)
+    {
+        LOG_ERROR("Create_PrefabAsset failed: create_directories error. path='{}', message='{}'",
+            String::ToString(path.wstring()).c_str(), ec.message().c_str());
+        return E_FAIL;
+    }
 
     std::ofstream file(path);
     if (!file.is_open())
+    {
+        LOG_ERROR("Create_PrefabAsset failed: file open failed. path='{}'",
+            String::ToString(path.wstring()).c_str());
         return E_FAIL;
+    }
 
     file << root.dump(4);
     file.close();
+
+    LOG_INFO("Create_PrefabAsset succeeded. staticClass='{}', prefabName='{}', path='{}'",
+        staticClass.c_str(), prefabName.c_str(), String::ToString(path.wstring()).c_str());
 
     return S_OK;
 }

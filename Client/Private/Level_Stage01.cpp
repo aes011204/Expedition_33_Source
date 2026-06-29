@@ -35,6 +35,7 @@ void Level_Stage01::BeginPlay()
     desc.scale = Vec3(30.f, 30.f, 30.f);
 
     CLIENT->Play_Effect(desc);
+    CLIENT->Capture_InitialWorldSnapshot();
 }
 
 void Level_Stage01::Update(float fTimeDelta)

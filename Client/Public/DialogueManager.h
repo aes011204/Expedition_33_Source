@@ -19,6 +19,7 @@ public:
     void EndDialogue(bool restoreWorldState = true);
     void MoveToLine(int lineIndex);
     void Update();
+    void Reset_LastDialogueNpcAnimationToStart();
     bool IsActive() const { return _isActive; }
     bool IsInteractLocked() const { return _waitInteractKeyRelease; }
 
@@ -44,7 +45,9 @@ private:
     Unique<UI_Dialogue> _uiDialogue = {};
 
     string              _lastAnimationKey;
+    float               _lastAnimationOffsetY = 0.f;
     string              _startAnimationKey;
+    float               _startAnimationOffsetY = 0.f;
 
 public:
     static Unique<DialogueManager> Create();

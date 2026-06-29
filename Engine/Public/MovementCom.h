@@ -38,6 +38,7 @@ public:
         bool isMouseRPress{ false };
         bool isMouseRUp{ false };
 
+        bool smoothStopOnNoMoveInput = false;
         
     };
 
@@ -104,6 +105,8 @@ public:
 
     MoveBackend Get_MoveBackend() const { return _moveDesc.backend; }
     void Set_MoveBackend(MoveBackend backend);
+    void Set_CCTTransformSyncSuppressed(bool suppressed) { _suppressCCTTransformSync = suppressed; }
+    bool Is_CCTTransformSyncSuppressed() const { return _suppressCCTTransformSync; }
 
     void Set_Transform(const Shared<TransformCom> transform)
     {
@@ -155,7 +158,7 @@ private:
     void Start_Jump();
 
     void Update_Rotation(float timeDelta);
-    void Update_HorizontalVelocity();
+    void Update_HorizontalVelocity(float timeDelta = 0.f);
     void Update_VerticalVelocity(float timeDelta);
 
     void Apply_Velocity(float timeDelta);
@@ -210,6 +213,7 @@ private:
 
     Shared<ColliderCom> _colliderCom;
     Shared<PhysicsCharacterController> _characterController;
+    bool _suppressCCTTransformSync = false;
 
 public:
     static Shared<MovementCom> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);

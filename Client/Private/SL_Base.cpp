@@ -20,3 +20,16 @@ void SL_Base::Clear_AttackHitAnimOverride(const string& colliderTag)
 {
     UNREFERENCED_PARAMETER(colliderTag);
 }
+
+void SL_Base::Set_AttackHitEffect(const string& colliderTag, const wstring& effectName, const Vec3& localOffset, const Vec3& scale)
+{
+    UNREFERENCED_PARAMETER(colliderTag);
+    UNREFERENCED_PARAMETER(effectName);
+    UNREFERENCED_PARAMETER(localOffset);
+    UNREFERENCED_PARAMETER(scale);
+}
+
+void SL_Base::Clear_AttackHitEffect(const string& colliderTag)
+{
+    UNREFERENCED_PARAMETER(colliderTag);
+}

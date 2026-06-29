@@ -29,6 +29,9 @@ public:
     virtual void Set_AttackHitAnimOverride(const string& colliderTag, SL_HitAnimOverride hitAnimOverride);
     virtual void Clear_AttackHitAnimOverride(const string& colliderTag);
 
+    virtual void Set_AttackHitEffect(const string& colliderTag, const wstring& effectName, const Vec3& localOffset, const Vec3& scale);
+    virtual void Clear_AttackHitEffect(const string& colliderTag);
+
     virtual bool Is_Dead() const = 0;
     virtual void Apply_Damage(const SL_DamageInfo& damageInfo) = 0;
 

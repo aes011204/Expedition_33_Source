@@ -27,6 +27,12 @@ namespace
     constexpr wchar_t kWorldActionDistortionEffect[] =
         L"Effects\\Assets\\Distortion\\DIstortion_SuddenAttack.effect.json";
 
+    constexpr char kDefaultWorldMonsterBehaviorTree[] =
+        "../../../Client/Bin/Resources/Data/json/BT/BT_WorldBase.json";
+
+    constexpr float kWorldPatrolFallbackMoveSpeed = 2.0f;
+    constexpr float kWorldChaseFallbackMoveSpeed = 2.0f;
+
     json Vec3_ToJson(const Vec3& value)
     {
         return json::array({ value.x, value.y, value.z });
@@ -264,12 +270,21 @@ void Monster_WorldBase::Update(float timeDelta)
         bodyPart->Play_Animation(timeDelta);
 
         const auto rootVelocity = bodyPart->Get_RootTransformVelocity();
-        _transformCom->Set_SpeedPerSec(rootVelocity.position.z * _worldMoveSpeedScale);
+        _transformCom->Set_SpeedPerSec(fabsf(rootVelocity.position.z) * _worldMoveSpeedScale);
     }
 
     if (_movementCom)
     {
-        const float moveSpeed = max(_transformCom->Get_SpeedPerSec(), 0.f);
+        float moveSpeed = max(_transformCom->Get_SpeedPerSec(), 0.f);
+        if (_aiCtrl && _aiCtrl->Has_MoveIntent() && moveSpeed <= 0.01f)
+        {
+            if (_currentAction == MonsterWorldAnim::Patrol)
+                moveSpeed = kWorldPatrolFallbackMoveSpeed; // Portier Walk처럼 root 이동이 없는 순찰 애니메이션도 실제 이동은 유지한다.
+            else if (_currentAction == MonsterWorldAnim::Chase)
+                moveSpeed = kWorldChaseFallbackMoveSpeed;
+        }
+        _transformCom->Set_SpeedPerSec(moveSpeed);
+
         _movementCom->Set_WalkSpeed(moveSpeed);
         _movementCom->Set_RunSpeed(moveSpeed);
         _movementCom->Set_SprintSpeed(moveSpeed);
@@ -356,12 +371,16 @@ void Monster_WorldBase::Set_CinematicDriven(bool cinematicDriven)
 
     if (_movementCom)
     {
+        _movementCom->Set_CCTTransformSyncSuppressed(cinematicDriven);
         _movementCom->Clear_FollowMoveCommand();
         _movementCom->Apply_Input({});
         _movementCom->Stop_AllMovement();
         _movementCom->Stop_VerticalMovement();
         _movementCom->Sync_RuntimePositionToTransform();
     }
+
+    if (_colliderCom)
+        _colliderCom->Set_IsActive(!cinematicDriven);
 
     if (_transformCom)
         _transformCom->Set_SpeedPerSec(0.f);
@@ -394,6 +413,13 @@ void Monster_WorldBase::Late_Update(float timeDelta)
     if (weakPoint && !weakPoint->Is_Visible())
         weakPoint->Restore_WorldWeakPointAfterBattle();
 
+    if (_isCinematicDriven)
+    {
+        Character::Late_Update(timeDelta);
+        Update_Culling(Vec3(1.5f, 4.f, 1.5f));
+        return;
+    }
+
     Character_WorldBase::Late_Update(timeDelta);
     Update_Culling(Vec3(1.5f, 4.f, 1.5f));
 }
@@ -425,6 +451,12 @@ json Monster_WorldBase::To_Json() const
     for (const BattleMonsterSpawnDesc& spawnDesc : _battleMonsterSpawnDescs)
         battleMonsterSpawns.push_back(BattleMonsterSpawnDesc_ToJson(spawnDesc));
 
+    json& patrolPoints = customProperties["patrol_points"];
+    patrolPoints = json::array();
+
+    for (const Vec3& patrolPoint : _PatrolPoints)
+        patrolPoints.push_back(Vec3_ToJson(patrolPoint));
+
     return data;
 }
 
@@ -442,6 +474,8 @@ void Monster_WorldBase::From_Json(const json& data)
     _startIdleUntilPlayerInRange = false;
     _hasReleasedStartIdle = false;
     _startIdleReleaseDistance = 0.f;
+    _PatrolPoints.clear();
+    _defaultPatrolPoints.clear();
 
     if (_colliderCom)
     {
@@ -471,6 +505,30 @@ void Monster_WorldBase::From_Json(const json& data)
     _startIdleReleaseDistance = customProperties.value("start_idle_release_distance", 0.f);
     if (customProperties.contains("battle_start_offset"))
         (void)Json_ToVec3(customProperties["battle_start_offset"], _battleStartOffset);
+
+    if (customProperties.contains("patrol_points") && customProperties["patrol_points"].is_array())
+    {
+        for (const json& patrolPointNode : customProperties["patrol_points"])
+        {
+            Vec3 patrolPoint = Vec3::Zero;
+            if (Json_ToVec3(patrolPointNode, patrolPoint))
+                _PatrolPoints.push_back(patrolPoint);
+        }
+
+        if (!_PatrolPoints.empty())
+        {
+            _startIdleUntilPlayerInRange = false; // authored patrol point가 있으면 시작 대기 게이트보다 순찰 의도를 우선한다.
+            _hasReleasedStartIdle = true;
+
+            if (_aiCtrl != nullptr && _aiCtrl->Get_BehaviorTree() == nullptr)
+            {
+                if (_aiCtrl->Get_BehaviorTreeAssetPath().empty())
+                    _aiCtrl->Set_BehaviorTreeAssetPath(kDefaultWorldMonsterBehaviorTree);
+
+                (void)_aiCtrl->Load_BehaviorTreeAsset(); // 저장본의 AIController path가 비어도 Monster_WorldBase 순찰 BT를 보장한다.
+            }
+        }
+    }
 
     if (customProperties.contains("battle_monster_spawns") && customProperties["battle_monster_spawns"].is_array())
     {

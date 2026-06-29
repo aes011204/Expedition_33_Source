@@ -213,7 +213,9 @@ static const Collision_Preset_Data g_CollisionPresets[ETOI(
     },
 
     { Collision_Channel::Item,
-    /* overlapMask */ ETOI(Collision_Channel::Player),
+    /* overlapMask */ ETOI(Collision_Channel::Player) |
+                      ETOI(Collision_Channel::Player_Body) |
+                      ETOI(Collision_Channel::Player_WorldBody),
     /* blockMask   */ 0
     },
 

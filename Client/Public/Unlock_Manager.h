@@ -18,6 +18,8 @@ public:
         UnlockSkill,
         SpawnWorldObject,
         UnlockHero,
+        UnlockPictos,
+        UnlockWeapon,
     };
 
     struct UnlockReward
@@ -30,6 +32,13 @@ public:
 
         // 스킬 해금용 - 그래디언트
         string      skillId{};
+
+        // 픽토스 해금용
+        string      pictosId{};
+
+        // 무기 해금용
+        string      characterId{};
+        string      weaponId{};
 
         // 월드 오브젝트 스폰용. 이거 필요할지?
         LevelType   targetLevel = LevelType::MapTest;
@@ -55,7 +64,7 @@ public:
     HRESULT Initialize();
 
     // 전투 승리 후 넘겨준 적 prefab 키 목록 기준으로 해금 처리
-    void Handle_BattleVictory(
+    vector<string> Handle_BattleVictory(
         const vector<string>& enemyKeys,
         uint32 battleFieldId,
         uint32 rewardLevelIndex = UINT32_MAX,
@@ -76,9 +85,12 @@ public:
     // 체크포인트 복원 시에는 완료 상태만 되살리고, 포탈같은건 worldObjects 쪽으로
     bool Apply_SaveJson(const json& data, bool replayWorldRewards, bool queuePresentation = true);
 
+    vector<string> Consume_GetPictosPresentationIds();
+    void Queue_GetPictosPresentation(const string& pictosId);
+
 private:
     void Register_DefaultRules();
-    void Try_CompleteRule(const UnlockRule& rule, uint32 rewardLevelIndex, const Vec3* rewardOrigin);
+    void Try_CompleteRule(const UnlockRule& rule, uint32 rewardLevelIndex, const Vec3* rewardOrigin, vector<string>* outPresentedPictosIds = nullptr);
 
     void Reset_DefaultHeroUnlocks();
     void Queue_GetClothesPresentation(const string& presetId);
@@ -99,6 +111,7 @@ private:
     vector<HeroId> _pendingGetCharacterHeroes{};
     vector<string> _pendingGetClothesPresetIds{};
     vector<string> _pendingGetWeaponPresentationIds{};
+    vector<string> _pendingGetPictosPresentationIds{};
 
 public:
     static Unique<Unlock_Manager> Create();

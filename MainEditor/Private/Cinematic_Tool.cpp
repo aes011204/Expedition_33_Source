@@ -1981,6 +1981,9 @@ void Cinematic_Tool::Render_ImSequencer()
 
     if (previousFrame != _currentFrame)
     {
+        _currentFrameExact = static_cast<float>(_currentFrame);
+        _useExactFramePreview = false;
+
         if (!CLIENT->Is_CinematicPlaying() || CLIENT->Is_CinematicPaused())
             Enter_FreeCameraEditPreview(false);
         else
@@ -3003,6 +3006,27 @@ void Cinematic_Tool::Render_PreviewState()
     if (ImGui::DragInt("current frame", &_currentFrame, 1.f, _sequence.startFrame, _sequence.endFrame))
     {
         _currentFrame = std::clamp(_currentFrame, _sequence.startFrame, _sequence.endFrame);
+        _currentFrameExact = static_cast<float>(_currentFrame);
+        _useExactFramePreview = false;
+        if (!isPlaying || isPaused)
+            Enter_FreeCameraEditPreview(false);
+        else
+            Request_CinematicPreviewRefresh(false);
+    }
+
+    ImGui::SetNextItemWidth(140.f);
+    if (ImGui::DragFloat("current frame exact", &_currentFrameExact, 0.05f, static_cast<float>(_sequence.startFrame), static_cast<float>(_sequence.endFrame)))
+    {
+        _currentFrameExact = std::clamp(
+            _currentFrameExact,
+            static_cast<float>(_sequence.startFrame),
+            static_cast<float>(_sequence.endFrame));
+        _currentFrame = std::clamp(
+            static_cast<int>(std::floor(_currentFrameExact)),
+            _sequence.startFrame,
+            _sequence.endFrame);
+        _useExactFramePreview = true;
+
         if (!isPlaying || isPaused)
             Enter_FreeCameraEditPreview(false);
         else
@@ -3622,6 +3646,8 @@ void Cinematic_Tool::Reset_ToNewSequence()
     _selectedActorTransformTrackIndex = -1;
     _selectedActorTransformKeyIndex = -1;
     _currentFrame = std::clamp(_sequence.startFrame, _sequence.startFrame, _sequence.endFrame);
+    _currentFrameExact = static_cast<float>(_currentFrame);
+    _useExactFramePreview = false;
     _lastPreviewFrame = -1;
     _lastPreviewTrackIndex = -1;
     _lastPreviewKeyIndex = -1;
@@ -3693,12 +3719,24 @@ void Cinematic_Tool::Apply_CurrentFramePose()
             {
                 if (Sync_PreviewSequenceToRunner())
                 {
-                    CLIENT->Preview_CurrentSequenceFrame(
-                        _currentFrame,
-                        false,
-                        _previewApplyEventTrack,
-                        _previewApplyActorTransformTrack,
-                        false);
+                    if (_useExactFramePreview)
+                    {
+                        CLIENT->Preview_CurrentSequenceFrameExact(
+                            _currentFrameExact,
+                            false,
+                            _previewApplyEventTrack,
+                            _previewApplyActorTransformTrack,
+                            false);
+                    }
+                    else
+                    {
+                        CLIENT->Preview_CurrentSequenceFrame(
+                            _currentFrame,
+                            false,
+                            _previewApplyEventTrack,
+                            _previewApplyActorTransformTrack,
+                            false);
+                    }
                 }
 
                 return;
@@ -3710,12 +3748,24 @@ void Cinematic_Tool::Apply_CurrentFramePose()
 
             if (Sync_PreviewSequenceToRunner())
             {
-                CLIENT->Preview_CurrentSequenceFrame(
-                    _currentFrame,
-                    _previewApplyCameraTrack,
-                    _previewApplyEventTrack,
-                    _previewApplyActorTransformTrack,
-                    false);
+                if (_useExactFramePreview)
+                {
+                    CLIENT->Preview_CurrentSequenceFrameExact(
+                        _currentFrameExact,
+                        _previewApplyCameraTrack,
+                        _previewApplyEventTrack,
+                        _previewApplyActorTransformTrack,
+                        false);
+                }
+                else
+                {
+                    CLIENT->Preview_CurrentSequenceFrame(
+                        _currentFrame,
+                        _previewApplyCameraTrack,
+                        _previewApplyEventTrack,
+                        _previewApplyActorTransformTrack,
+                        false);
+                }
 
                 if (useStoppedEditFreeCameraPreview)
                 {
@@ -3825,12 +3875,24 @@ void Cinematic_Tool::Request_CinematicPreviewRefresh(bool rebuildContext)
     if (!Sync_PreviewSequenceToRunner())
         return;
 
-    CLIENT->Preview_CurrentSequenceFrame(
-        _currentFrame,
-        _previewApplyCameraTrack,
-        _previewApplyEventTrack,
-        _previewApplyActorTransformTrack,
-        rebuildContext);
+    if (_useExactFramePreview)
+    {
+        CLIENT->Preview_CurrentSequenceFrameExact(
+            _currentFrameExact,
+            _previewApplyCameraTrack,
+            _previewApplyEventTrack,
+            _previewApplyActorTransformTrack,
+            rebuildContext);
+    }
+    else
+    {
+        CLIENT->Preview_CurrentSequenceFrame(
+            _currentFrame,
+            _previewApplyCameraTrack,
+            _previewApplyEventTrack,
+            _previewApplyActorTransformTrack,
+            rebuildContext);
+    }
 }
 
 void Cinematic_Tool::Enter_FreeCameraEditPreview(bool requestViewportFocus)

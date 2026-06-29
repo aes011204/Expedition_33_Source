@@ -15,6 +15,7 @@ namespace
     constexpr float kCCTGroundDetachGraceSec = 0.12f;
     constexpr float kCCTGroundDetachFallSpeed = -3.5f;
     constexpr float kCCTGroundStickSpeed = 6.f;
+    constexpr float kInputBlockedStopDamping = 14.f;
     constexpr float kStillGroundJitterSpeedSq = 0.01f;
     constexpr float kStillGroundXZDeadZone = 0.02f;
     constexpr float kStillGroundYDeadZone = 0.06f;
@@ -99,6 +100,7 @@ HRESULT MovementCom::Initialize(void* arg)
     _isJumping = false;
     _didInputJumpStart = false;
     _jumpStartHorizontalVelocity = Vec3::Zero;
+    _suppressCCTTransformSync = false;
 
     return S_OK;
 }
@@ -222,7 +224,8 @@ void MovementCom::Move_ExternalDisplacement(const Vec3& displacement, float time
                 _characterController->Move(displacement, dt);
 
             const bool smoothGrounding = moveResult.collisionDown;
-            Sync_Transform_FromCCT(moveResult.footPosition, dt, smoothGrounding, false);
+            if (!_suppressCCTTransformSync)
+                Sync_Transform_FromCCT(moveResult.footPosition, dt, smoothGrounding, false);
 
             if (moveResult.collisionDown)
             {
@@ -451,7 +454,7 @@ void MovementCom::Update_Rotation(float timeDelta)
     _transformCom->Add_WorldRotationQuaternion(deltaRotation);
 }
 
-void MovementCom::Update_HorizontalVelocity()
+void MovementCom::Update_HorizontalVelocity(float timeDelta)
 {
     if (_isJumping)
     {
@@ -479,6 +482,23 @@ void MovementCom::Update_HorizontalVelocity()
     Vec3 desiredDir = Vec3::Zero;
     if (!Resolve_MoveDirection(desiredDir))
     {
+        if (_input.smoothStopOnNoMoveInput)
+        {
+            Vec3 horizontalVelocity(_velocity.x, 0.f, _velocity.z);
+            horizontalVelocity = Engine::Math::Lerp_Damp(
+                horizontalVelocity,
+                Vec3::Zero,
+                kInputBlockedStopDamping,
+                timeDelta);
+
+            if (horizontalVelocity.LengthSquared() <= kStillGroundJitterSpeedSq)
+                horizontalVelocity = Vec3::Zero;
+
+            _velocity.x = horizontalVelocity.x;
+            _velocity.z = horizontalVelocity.z;
+            return;
+        }
+
         _velocity.x = 0.f;
         _velocity.z = 0.f;
         return;
@@ -515,7 +535,7 @@ void MovementCom::Apply_Velocity(float timeDelta)
 {
     ENGINE_PROFILE_SCOPE_DETAIL("Movement::ApplyVelocity");
 
-    Update_HorizontalVelocity();
+    Update_HorizontalVelocity(timeDelta);
     Update_VerticalVelocity(timeDelta);
 
     Vec3 displacement = _velocity * timeDelta;
@@ -566,7 +586,8 @@ void MovementCom::Apply_Velocity(float timeDelta)
             smoothGrounding &&
             horizontalVelocity.LengthSquared() <= kStillGroundJitterSpeedSq;
 
-        Sync_Transform_FromCCT(resolvedFootPosition, timeDelta, smoothGrounding, suppressSmallGroundAdjust);
+        if (!_suppressCCTTransformSync)
+            Sync_Transform_FromCCT(resolvedFootPosition, timeDelta, smoothGrounding, suppressSmallGroundAdjust);
 
         const bool hitWalkableDown = groundedAfterMove && _velocity.y <= 0.f;
         const bool canUseDetachGrace =

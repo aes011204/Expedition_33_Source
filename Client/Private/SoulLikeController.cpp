@@ -608,7 +608,18 @@ void SoulLikeController::Request_SoulLikeCamera(bool alignBehindPlayer)
     if (soulLikeCamera == nullptr)
         return;
 
-    soulLikeCamera->SetTargetTransform(player->Get_Transform());
+    Shared<Character> lockedTarget = nullptr;
+    if (const Shared<SL_TargetCom> targetCom = player->Get_Component<SL_TargetCom>())
+    {
+        if (targetCom->Is_LockOn())
+            lockedTarget = targetCom->Get_LockedTarget();
+    }
+
+    if (lockedTarget != nullptr && lockedTarget->Get_Transform() != nullptr)
+        soulLikeCamera->SetCombatFocusTransforms(player->Get_Transform(), lockedTarget->Get_Transform());
+    else
+        soulLikeCamera->SetTargetTransform(player->Get_Transform());
+
     if (alignBehindPlayer)
         soulLikeCamera->Align_BehindTarget(); // 전투 진입 첫 프레임만 플레이어 등 뒤 기준으로 카메라를 세운다.
 

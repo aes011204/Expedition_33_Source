@@ -286,6 +286,7 @@ bool Player_State::Try_BuildWorldInteractionRequest(WorldInteractionSpot::WorldI
 bool Player_State::IsEnterWorldAction() const
 {
     if (CLIENT->HasDialogueInteractionOverlap() ||
+        CLIENT->HasItemInteractionOverlap() ||
         CLIENT->IsDialogueActive() ||
         CLIENT->IsDialogueInteractLocked())
         return false;
