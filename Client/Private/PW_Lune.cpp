@@ -43,9 +43,9 @@ HRESULT PW_Lune::Initialize(void* arg)
 
     auto skilltreeCom = Get_Component<SkillTreeCom>();
 
-    skilltreeCom->TryUnlock("Immolation");
-    skilltreeCom->TryUnlock("IceGust");
-    skilltreeCom->TryUnlock("Thunderfall");
+    skilltreeCom->ForceUnlock("Immolation");
+    skilltreeCom->ForceUnlock("IceGust");
+    skilltreeCom->ForceUnlock("Thunderfall");
 
     //skilltreeCom->ForceUnlock("TerraQuake");
     //skilltreeCom->ForceUnlock("CripplingTsunami");

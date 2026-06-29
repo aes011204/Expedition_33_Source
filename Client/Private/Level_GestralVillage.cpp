@@ -436,8 +436,8 @@ HRESULT Level_GestralVillage::Ready_Layer_ETC(const wstring& strLayerTag)
     auto potatobag = Spawn_Prefab::Prefab(Constants::Prefab::BSS_Gestral_PotatoBag)
         .AtLevel(ETOI(LevelType::GestralVillage))
         .InLayer(L"Layer_BattleStartSpawner")
-        .Position(Vec3(0.69f, 3.68f, 55.6f))
-        .Rotation(Vec3(0.f, -22.6f, 0.f))
+        .Position(Vec3(1.1f, 3.68f, 53.87f))
+        .Rotation(Vec3(0.f, -14.4f, 0.f))
         .Spawn();
 
     _bssPotatoBag = dynamic_pointer_cast<BattleStartSpawner>(potatobag);

@@ -573,6 +573,7 @@
     <ClInclude Include="..\Public\UI_BattleFloatingTextBase.h" />
     <ClInclude Include="..\Public\UI_BattleItemPanel.h" />
     <ClInclude Include="..\Public\UI_BattleMechanism.h" />
+    <ClInclude Include="..\Public\UI_BattleGradientGauge.h" />
     <ClInclude Include="..\Public\UI_BattlePictos.h" />
     <ClInclude Include="..\Public\UI_BattleTutorial.h" />
     <ClInclude Include="..\Public\UI_BattleJumpReaction.h" />
@@ -1043,6 +1044,7 @@
     <ClCompile Include="..\Private\UI_BattleFloatingTextBase.cpp" />
     <ClCompile Include="..\Private\UI_BattleItemPanel.cpp" />
     <ClCompile Include="..\Private\UI_BattleMechanism.cpp" />
+    <ClCompile Include="..\Private\UI_BattleGradientGauge.cpp" />
     <ClCompile Include="..\Private\UI_BattlePictos.cpp" />
     <ClCompile Include="..\Private\UI_BattleTutorial.cpp" />
     <ClCompile Include="..\Private\UI_BattleJumpReaction.cpp" />
