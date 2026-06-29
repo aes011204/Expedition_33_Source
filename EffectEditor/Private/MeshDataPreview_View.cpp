@@ -430,6 +430,7 @@ struct MeshDataPreview_View::PreviewRenderer
                     Build_MaterialVec2ModulationRuntimeDesc(*modulation),
                     Build_MaterialScalarModulationRuntimeDesc(*modulation),
                     previewTime.phase,
+                    0u,
                     false
                 );
             effectMaterial = previewMaterial.material;

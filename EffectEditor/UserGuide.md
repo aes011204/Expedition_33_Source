@@ -914,10 +914,10 @@ Sprite Trail에서도 frame 선택, random frame, frame over life 정책은 Type
 | `대상` | 변조할 material field다. | scalar, `Core Color RGB`, Main/Noise/Mask/Flow UV Offset, Main/Noise/Mask/Flow UV Scroll Speed Scale 중 선택한다. | combo | category를 바꾸면 row 종류가 바뀌고 분포 값은 새 기본값으로 초기화된다. |
 | `연산` | scalar 값을 material 값에 적용하는 방식이다. | 현재 UI는 label만 표시하고 reset할 수 있다. | read-only/action | 확정 동작은 runtime material lowering 기준으로 확인한다. |
 | `시간 축` | 변조 분포를 평가할 시간 기준이다. | `EmitterTime` 또는 지원되는 경우 `ParticleLife`다. | combo | `ParticleLife`는 Sprite material scalar에서만 지원된다. Scroll Speed Scale은 EmitterTime으로 보정된다. |
-| `분포` | 시간에 따른 변조 값이다. | scalar row는 float, Core Color RGB row는 Vec3, Vec2 row는 X/Y channel이다. | float/Vec3/Vec2 분포 | Beam은 EmitterTime 기준으로 보는 것이 안전하다. |
+| `분포` | 시간에 따른 변조 값이다. | scalar row는 float, Core Color RGB row는 적용할 RGB Vec3, Vec2 row는 X/Y channel이다. Core Color RGB의 `Uniform`은 min/max 범위에서 한 색을 샘플한다. | float/Vec3/Vec2 분포 | Beam은 EmitterTime 기준으로 보는 것이 안전하다. |
 | `삭제` | 해당 modulator row를 제거한다. | row 구조를 바꾼다. | editor action | 삭제 후 같은 parameter 변조가 사라진다. |
 
-Material Instance View에서 기본 parameter를 정하고, `머티리얼 변조` Module에서 시간 변화 규칙을 얹는다고 이해하면 된다. UV Offset target은 base offset에 Vec2 값을 더하고, UV Scroll Speed Scale target은 Material Instance의 base scroll speed에 scalar 값을 곱한다. Scroll Speed Scale은 `1.0`이면 원래 속도, `0.0`이면 정지, `-1.0`이면 반대 방향이며, shader가 `scrollSpeed * materialTime`으로 UV를 만들기 때문에 급격한 scale 변화는 누적 감속이 아니라 phase jump처럼 보일 수 있다.
+Material Instance View에서 기본 parameter를 정하고, `머티리얼 변조` Module에서 시간 변화 규칙을 얹는다고 이해하면 된다. `Core Color RGB` row는 core color RGB 값을 적용하거나 시간에 따라 바꾸는 color row이고, 밝기 배율처럼 기존 core color에 곱할 값은 scalar target인 `CoreColor Multiplier`로 다룬다. UV Offset target은 base offset에 Vec2 값을 더하고, UV Scroll Speed Scale target은 Material Instance의 base scroll speed에 scalar 값을 곱한다. Scroll Speed Scale은 `1.0`이면 원래 속도, `0.0`이면 정지, `-1.0`이면 반대 방향이며, shader가 `scrollSpeed * materialTime`으로 UV를 만들기 때문에 급격한 scale 변화는 누적 감속이 아니라 phase jump처럼 보일 수 있다.
 
 Material Instance Preview는 emitter 문맥이 있으면 `Required.duration` 기준으로 material time과 변조 phase를 반복한다. standalone material preset preview처럼 emitter 문맥이 없는 경우에는 1초 주기 fallback으로 보여준다. 이 preview는 material surface 확인용이므로 particle lifetime, spawn, loop module 전체를 재현하는 정본은 Scene View preview로 본다.
 

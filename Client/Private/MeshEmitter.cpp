@@ -978,7 +978,7 @@ HRESULT MeshEmitter::Bind_EffectMaterialResources()
 {
     const float emitterPhase = Compute_MaterialScalarModulationPhase(_emitterElapsedTime, _desc.playback.duration);
     const EffectRequiredMaterialRuntimeDesc material =
-        Resolve_EmitterTimeMaterialParameterModulation(_desc.material, emitterPhase);
+        Resolve_EmitterTimeMaterialParameterModulation(_desc.material, emitterPhase, _effectPlaybackSeed);
 
     CHECK_NULL(_texture, E_FAIL);
 
@@ -1092,7 +1092,7 @@ HRESULT MeshEmitter::Bind_DistortionResources()
 {
     const float emitterPhase = Compute_MaterialScalarModulationPhase(_emitterElapsedTime, _desc.playback.duration);
     const EffectRequiredMaterialRuntimeDesc material =
-        Resolve_EmitterTimeMaterialParameterModulation(_desc.material, emitterPhase);
+        Resolve_EmitterTimeMaterialParameterModulation(_desc.material, emitterPhase, _effectPlaybackSeed);
 
     if (nullptr != _flowTexture)
         CHECK_FAILED_THROTTLED(_flowTexture->Bind_ShaderResourceView(_shader.get(), "g_FlowTexture", 0), 60, E_FAIL);

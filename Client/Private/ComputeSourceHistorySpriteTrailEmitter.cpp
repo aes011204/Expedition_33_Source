@@ -1605,7 +1605,7 @@ HRESULT ComputeSourceHistorySpriteTrailEmitter::Bind_ShaderResources()
 
     const float emitterPhase = max(0.f, _materialElapsedTime) / max(0.0001f, _desc.playback.duration);
     const EffectRequiredMaterialRuntimeDesc material =
-        Resolve_EmitterTimeMaterialUniformParameterModulation(_desc.material, emitterPhase - floorf(emitterPhase));
+        Resolve_EmitterTimeMaterialUniformParameterModulation(_desc.material, emitterPhase - floorf(emitterPhase), _effectPlaybackSeed);
 
     const Vec4 effectSpriteParams = Vec4(
         material.intensity,

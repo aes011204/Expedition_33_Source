@@ -817,7 +817,7 @@ HRESULT ComputeSpriteEmitter::Bind_MaterialResources()
 {
     const float emitterPhase = Resolve_MaterialScalarEmitterPhase();
     const EffectRequiredMaterialRuntimeDesc material =
-        Resolve_EmitterTimeMaterialUniformParameterModulation(_desc.required.material, emitterPhase);
+        Resolve_EmitterTimeMaterialUniformParameterModulation(_desc.required.material, emitterPhase, _effectPlaybackSeed);
 
     if (nullptr != _noiseTexture)
         CHECK_FAILED_ONCE(_noiseTexture->Bind_ShaderResourceView(_shader.get(), "g_NoiseTexture", 0), E_FAIL);
@@ -967,7 +967,7 @@ HRESULT ComputeSpriteEmitter::Bind_DistortionResources()
 {
     const float emitterPhase = Resolve_MaterialScalarEmitterPhase();
     const EffectRequiredMaterialRuntimeDesc material =
-        Resolve_EmitterTimeMaterialUniformParameterModulation(_desc.required.material, emitterPhase);
+        Resolve_EmitterTimeMaterialUniformParameterModulation(_desc.required.material, emitterPhase, _effectPlaybackSeed);
 
     if (nullptr != _flowTexture)
         CHECK_FAILED_ONCE(_flowTexture->Bind_ShaderResourceView(_shader.get(), "g_FlowTexture", 0), E_FAIL);

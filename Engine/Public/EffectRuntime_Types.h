@@ -179,6 +179,10 @@ struct EffectMaterialScalarModulationRuntimeDesc
 struct EffectMaterialCoreColorRgbModulationCurveDesc
 {
     bool enabled{ false };
+    bool uniformEnabled{ false }; // Uniform 분포일 때 emitter/material instance 단위 RGB sample payload를 사용한다.
+    Vec3 uniformMin{ 1.f, 0.85f, 0.45f };
+    Vec3 uniformMax{ 1.f, 0.85f, 0.45f };
+    PointParticleRandomSeedRuntimeDesc uniformSeed{};
     uint32 keyCount{ 2 };
     Vec4 keyTimes{ 0.f, 1.f, 0.f, 0.f };
     Vec4 keyTimesBlock1{};

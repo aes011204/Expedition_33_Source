@@ -4680,7 +4680,7 @@ bool MaterialScalarModulationModuleDetail::Draw(
                             true,
                             false,
                             nullptr,
-                            "선택한 시간 축을 입력으로 Core Color RGB에 곱할 값을 평가합니다."
+                            "선택한 시간 축을 입력으로 Core Color RGB에 적용할 RGB 색 값을 평가합니다."
                         );
 
                         if (ImGui::Button("삭제"))

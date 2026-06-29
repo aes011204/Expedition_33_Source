@@ -1052,7 +1052,7 @@ HRESULT ComputeTrailEmitter::Bind_ShaderResources()
 
     const float emitterPhase = Client::Compute_MaterialScalarModulationPhase(_materialElapsedTime, _desc.playback.duration);
     const EffectRequiredMaterialRuntimeDesc material =
-        Resolve_EmitterTimeMaterialUniformParameterModulation(_desc.material, emitterPhase);
+        Resolve_EmitterTimeMaterialUniformParameterModulation(_desc.material, emitterPhase, _effectPlaybackSeed);
 
     CHECK_FAILED(_shader->Bind_RawValue("g_Tint", &material.tint, sizeof(Vec4)), E_FAIL);
 
@@ -1192,7 +1192,7 @@ HRESULT ComputeTrailEmitter::Bind_DistortionResources()
 {
     const float emitterPhase = Client::Compute_MaterialScalarModulationPhase(_materialElapsedTime, _desc.playback.duration);
     const EffectRequiredMaterialRuntimeDesc material =
-        Resolve_EmitterTimeMaterialUniformParameterModulation(_desc.material, emitterPhase);
+        Resolve_EmitterTimeMaterialUniformParameterModulation(_desc.material, emitterPhase, _effectPlaybackSeed);
 
     if (nullptr != _flowTexture)
         CHECK_FAILED(_flowTexture->Bind_ShaderResourceView(_shader.get(), "g_FlowTexture", 0), E_FAIL);

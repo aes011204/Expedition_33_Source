@@ -35,6 +35,31 @@ inline float Compute_MaterialScalarModulationPhase(float elapsedTime, float dura
     return normalizedTime - floor(normalizedTime);
 }
 
+inline uint32 Resolve_MaterialModulationSeedSalt(const PointParticleRandomSeedRuntimeDesc& seed, uint32 effectPlaybackSeed)
+{
+    uint32 salt = seed.manualSeedEnabled ? seed.seed : 0u;
+    if (seed.useInstanceSeed)
+        salt += effectPlaybackSeed;
+    return salt;
+}
+
+inline float Hash_MaterialModulation01(uint32 seed)
+{
+    seed ^= 2747636419u;
+    seed *= 2654435769u;
+    seed ^= seed >> 16;
+    seed *= 2654435769u;
+    seed ^= seed >> 16;
+    return static_cast<float>(seed & 0x00FFFFFFu) / 16777215.f;
+}
+
+inline float Sample_MaterialModulationRange(float minValue, float maxValue, uint32 seed)
+{
+    const float lower = min(minValue, maxValue);
+    const float upper = max(minValue, maxValue);
+    return lower + (upper - lower) * Hash_MaterialModulation01(seed);
+}
+
 inline float Read_MaterialScalarModulationComponent(const Vec4& values, uint32 index)
 {
     switch (index)
@@ -164,8 +189,19 @@ inline float Evaluate_CoreColorRgbModulationComponent(
 inline Vec3 Evaluate_CoreColorRgbModulationCurve(
     const EffectMaterialCoreColorRgbModulationCurveDesc& curve,
     float phase,
-    const Vec3& fallbackValue)
+    const Vec3& fallbackValue,
+    uint32 effectPlaybackSeed)
 {
+    if (curve.enabled && curve.uniformEnabled)
+    {
+        const uint32 seed = Resolve_MaterialModulationSeedSalt(curve.uniformSeed, effectPlaybackSeed);
+        return Vec3{
+            Sample_MaterialModulationRange(curve.uniformMin.x, curve.uniformMax.x, seed + 1u),
+            Sample_MaterialModulationRange(curve.uniformMin.y, curve.uniformMax.y, seed + 2u),
+            Sample_MaterialModulationRange(curve.uniformMin.z, curve.uniformMax.z, seed + 3u)
+        };
+    }
+
     return Vec3{
         Evaluate_CoreColorRgbModulationComponent(
             curve,
@@ -374,7 +410,8 @@ inline void Apply_MaterialVec2ModulationAdd(
 
 inline EffectRequiredMaterialRuntimeDesc Resolve_EmitterTimeMaterialParameterModulation(
     const EffectRequiredMaterialRuntimeDesc& baseMaterial,
-    float emitterPhase)
+    float emitterPhase,
+    uint32 effectPlaybackSeed)
 {
     EffectRequiredMaterialRuntimeDesc material = baseMaterial;
     const auto& coreColorRgbModulation = baseMaterial.coreColorRgbModulation;
@@ -391,7 +428,7 @@ inline EffectRequiredMaterialRuntimeDesc Resolve_EmitterTimeMaterialParameterMod
             material.coreEmissive.coreColor.y,
             material.coreEmissive.coreColor.z
         };
-        const Vec3 coreColorRgb = Evaluate_CoreColorRgbModulationCurve(modulator.curve, emitterPhase, fallbackValue);
+        const Vec3 coreColorRgb = Evaluate_CoreColorRgbModulationCurve(modulator.curve, emitterPhase, fallbackValue, effectPlaybackSeed);
         material.coreEmissive.coreColor.x = coreColorRgb.x;
         material.coreEmissive.coreColor.y = coreColorRgb.y;
         material.coreEmissive.coreColor.z = coreColorRgb.z;
@@ -428,7 +465,8 @@ inline EffectRequiredMaterialRuntimeDesc Resolve_EmitterTimeMaterialParameterMod
 
 inline EffectRequiredMaterialRuntimeDesc Resolve_EmitterTimeMaterialUniformParameterModulation(
     const EffectRequiredMaterialRuntimeDesc& baseMaterial,
-    float emitterPhase)
+    float emitterPhase,
+    uint32 effectPlaybackSeed)
 {
     EffectRequiredMaterialRuntimeDesc material = baseMaterial;
     const auto& coreColorRgbModulation = baseMaterial.coreColorRgbModulation;
@@ -445,7 +483,7 @@ inline EffectRequiredMaterialRuntimeDesc Resolve_EmitterTimeMaterialUniformParam
             material.coreEmissive.coreColor.y,
             material.coreEmissive.coreColor.z
         };
-        const Vec3 coreColorRgb = Evaluate_CoreColorRgbModulationCurve(modulator.curve, emitterPhase, fallbackValue);
+        const Vec3 coreColorRgb = Evaluate_CoreColorRgbModulationCurve(modulator.curve, emitterPhase, fallbackValue, effectPlaybackSeed);
         material.coreEmissive.coreColor.x = coreColorRgb.x;
         material.coreEmissive.coreColor.y = coreColorRgb.y;
         material.coreEmissive.coreColor.z = coreColorRgb.z;
