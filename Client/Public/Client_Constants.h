@@ -49,6 +49,7 @@ namespace Client::Constants::UI
     inline constexpr wchar_t UI_Monster_Hp_Path[] = L"UI/UI_Json/BattleSystem/UI_Monster_HP_Bar.json";
     inline constexpr wchar_t UI_Boss_Hp_Path[] = L"UI/UI_Json/BattleSystem/UI_Boss_HP_Bar.json";
     inline constexpr wchar_t UI_Player_Hp_Path[] = L"UI/UI_Json/BattleSystem/UI_Player_HP_Bar.json";
+    inline constexpr wchar_t UI_BattleSystem_Gradient_Gauge_Path[] = L"UI/UI_Json/BattleSystem/UI_BattleSystem_Gradient_Gauge.json";
 
     inline constexpr wchar_t UI_Target_Monster_Path[] = L"UI/UI_Json/BattleSystem/UI_Target_Monster.json";
 
@@ -104,6 +105,7 @@ namespace Client::Constants::UI
     inline constexpr wchar_t UI_Tutorial_QTE_Path[]          = L"UI/UI_Json/BattleSystem/Tutorial/UI_Tutorial_QTE.json";
     inline constexpr wchar_t UI_Tutorial_Counter_Path[]      = L"UI/UI_Json/BattleSystem/Tutorial/UI_Tutorial_Counter.json";
     inline constexpr wchar_t UI_Tutorial_FreeAim_Path[]      = L"UI/UI_Json/BattleSystem/Tutorial/UI_Tutorial_FreeAim.json";
+    inline constexpr wchar_t UI_Tutorial_Gradient_Path[]     = L"UI/UI_Json/BattleSystem/Tutorial/UI_Tutorial_Gradient.json";
 
 #pragma endregion
 
@@ -314,6 +316,7 @@ namespace Client::Constants::UI_Anim
     inline constexpr wchar_t UI_Tutorial_QTEAnim_Path[]          = L"UI/UI_Animations/Tutorial/Tutorial_QTE";
     inline constexpr wchar_t UI_Tutorial_CounterAnim_Path[]      = L"UI/UI_Animations/Tutorial/Tutorial_Counter";
     inline constexpr wchar_t UI_Tutorial_FreeAimAnim_Path[]      = L"UI/UI_Animations/Tutorial/Tutorial_FreeAim";
+    inline constexpr wchar_t UI_Tutorial_GradientAnim_Path[]     = L"UI/UI_Animations/Tutorial/Tutorial_Gradient";
 #pragma endregion
 
 #pragma region 해금 시스템

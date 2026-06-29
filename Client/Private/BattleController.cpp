@@ -1618,7 +1618,11 @@ void BattleController::Execute_Skill()
         ? static_cast<uint32>(action.GetSkillData().apCost)
         : 0u;
 
-    if (apCost > 0 && !actor.statCom->Try_ConsumeAP(apCost))
+    const bool isGradientSkill =
+        actor.statCom->Is_Player() &&
+        GradientSkill::Is_GradientSkill(actor.heroId, action.GetSkillData().skillKey);
+
+    if (apCost > 0 && actor.statCom->Get_CurAP() < apCost)
     {
         LOG_DEBUG("Execute_Skill: not enough AP. skill={}, curAP={}, cost={}",
             action.GetSkillData().skillKey.c_str(),
@@ -1628,15 +1632,35 @@ void BattleController::Execute_Skill()
         Clear_CurrentScript();
 
         if (actor.statCom->Is_Player() && _battleFSM)
-            _battleFSM->Change_State(BattleTurnState::ChooseSkill); // 플레이어는 다시 스킬을 고를 수 있게 되돌린다.
+            _battleFSM->Change_State(BattleTurnState::ChooseSkill); // 기존 AP 부족 복귀 흐름 유지
         else
             EndTurn();
 
         return;
     }
 
-    action.InitActionDirection();
+    if (isGradientSkill && !actor.statCom->Can_UseGradientGauge())
+    {
+        LOG_DEBUG("Execute_Skill: gradient gauge is empty. skill={}",
+            action.GetSkillData().skillKey.c_str());
 
+        Clear_CurrentScript();
+
+        if (_battleFSM)
+            _battleFSM->Change_State(BattleTurnState::ChooseGradient); // Gradient 선택 상태로 되돌린다.
+        else
+            EndTurn();
+
+        return;
+    }
+
+    if (apCost > 0)
+        actor.statCom->Try_ConsumeAP(apCost);
+
+    if (isGradientSkill)
+        actor.statCom->Try_ConsumeGradientGauge(GradientSkill::GaugeCostPerUse);
+
+    action.InitActionDirection();
 
     _isActionExecuting = true;
     _battleActionExe->BeginAction(action);
@@ -3025,6 +3049,12 @@ void BattleController::Continue_StartTurnAfterStatusEffects()
             OnBattleApChanged.Broadcast(actor, gainedAp, EAPChangeReason::TurnStart);
         }
 
+        string gradientSkillKey{};
+        if (actor.statCom->Try_GetSkillKeyBySlot(GradientSkill::SlotIndex, gradientSkillKey))
+        {
+            actor.statCom->Add_GradientGauge(GradientSkill::GaugeGainPerTurn);
+        }
+
         _battleFSM->Change_State(BattleTurnState::ChooseAction);
 
         if (_currentTurnActor.ModelCom)
@@ -3067,6 +3097,8 @@ void BattleController::Continue_StartTurnAfterStatusEffects()
 
     if (_battleTutorialController && _battleTutorialController->Should_DeferEnemyTurnStart())
     {
+        Request_WidePresentationMode(); // Gradient 튜토리얼로 적 행동을 미뤄도 구조물에 카메라가 붙지 않게 기본 전투 구도로 고정한다.
+
         _hasPendingTutorialEnemyTurn = true;
         return;
     }

@@ -1110,6 +1110,9 @@
     <ClCompile Include="..\Private\UI_BattleMechanism.cpp">
       <Filter>02. GameObject\UI</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\UI_BattleGradientGauge.cpp">
+      <Filter>02. GameObject\UI</Filter>
+    </ClCompile>
     <ClCompile Include="..\Private\UI_BattleTutorial.cpp">
       <Filter>02. GameObject\UI</Filter>
     </ClCompile>
@@ -2551,6 +2554,9 @@
       <Filter>02. GameObject\UI</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\UI_BattleMechanism.h">
+      <Filter>02. GameObject\UI</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\UI_BattleGradientGauge.h">
       <Filter>02. GameObject\UI</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\UI_BattleTutorial.h">
