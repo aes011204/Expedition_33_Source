@@ -8,6 +8,8 @@ NS_END
 
 NS_BEGIN(Client)
 
+class EffectCom;
+
 class Item abstract : public GameObject
 {
 public:
@@ -20,6 +22,7 @@ public:
     HRESULT Initialize(void* arg) override;
     void    Update(float timeDelta) override;
     void    Late_Update(float timeDelta) override;
+
     void    OnBeginOverlap(Shared<ColliderCom> self, Shared<ColliderCom> other) override;
     void    OnStayOverlap(Shared<ColliderCom> self, Shared<ColliderCom> other) override;
     void    OnEndOverlap(Shared<ColliderCom> self, Shared<ColliderCom> other) override;
@@ -37,6 +40,8 @@ private:
 
 protected:
     Shared<ColliderCom> _colliderCom{};
+    Shared<EffectCom>   _effectCom{};
+
     string              _itemId{};
     string              _displayName{};
     uint32              _amount = 1;

@@ -203,43 +203,43 @@ HRESULT ClientInstance::Initialize_Client(const ComPtr<Device>& device, const Co
 
     _cinematicSequenceRunner = CinematicSequenceRunner::Create();
     CHECK_NULL(_cinematicSequenceRunner, E_FAIL);
-    
+
     _playerInventory = PlayerInventory::Create();
     CHECK_NULL(_playerInventory, E_FAIL);
 
     // 일반 픽토스 일단은 전부 다 등록. 나중에 몬스터 잡기? 상점? 등에서 뭐 구매하게 만들 수 있으려나
     //_playerInventory->Ensure_DefaultUnlockedPictos(Get_AllPictosIds());
 
-// 무기 세팅
-vector<PlayerInventory::WeaponInventoryEntry> defaultUnlockedWeapons{};
-const HeroId defaultWeaponHeroes[] = { HeroId::Gustave, HeroId::Lune, HeroId::Maelle };
+    // 무기 세팅
+    vector<PlayerInventory::WeaponInventoryEntry> defaultUnlockedWeapons{};
+    const HeroId defaultWeaponHeroes[] = { HeroId::Gustave, HeroId::Lune, HeroId::Maelle };
 
-for (HeroId heroId : defaultWeaponHeroes)
-{
-    const string characterId = Get_WeaponCharacterId(heroId);
-    const string weaponIds[] =
+    for (HeroId heroId : defaultWeaponHeroes)
     {
-        Get_DefaultEquippedWeaponId(heroId),
-        "Baguette",
-    };
+        const string characterId = Get_WeaponCharacterId(heroId);
+        const string weaponIds[] =
+        {
+            Get_DefaultEquippedWeaponId(heroId),
+            "Baguette",
+        };
 
-    for (const string& weaponId : weaponIds)
-    {
-        if (characterId.empty() || weaponId.empty())
-            continue;
+        for (const string& weaponId : weaponIds)
+        {
+            if (characterId.empty() || weaponId.empty())
+                continue;
 
-        const GameDataTable::WeaponDesc* weapon = Get_WeaponDesc(characterId, weaponId);
+            const GameDataTable::WeaponDesc* weapon = Get_WeaponDesc(characterId, weaponId);
 
-        PlayerInventory::WeaponInventoryEntry entry{};
-        entry.characterId = weapon ? weapon->characterId : characterId;
-        entry.weaponId = weapon ? weapon->weaponId : weaponId;
-        entry.enhanceLevel = weapon ? weapon->level : 1;
-        entry.enhanceExp = 0;
-        defaultUnlockedWeapons.emplace_back(std::move(entry));
+            PlayerInventory::WeaponInventoryEntry entry{};
+            entry.characterId = weapon ? weapon->characterId : characterId;
+            entry.weaponId = weapon ? weapon->weaponId : weaponId;
+            entry.enhanceLevel = weapon ? weapon->level : 1;
+            entry.enhanceExp = 0;
+            defaultUnlockedWeapons.emplace_back(std::move(entry));
+        }
     }
-}
 
-_playerInventory->Ensure_DefaultUnlockedWeapons(defaultUnlockedWeapons);
+    _playerInventory->Ensure_DefaultUnlockedWeapons(defaultUnlockedWeapons);
 
     _costumeManager = CostumeManager::Create();
     CHECK_NULL(_costumeManager, E_FAIL);
@@ -250,17 +250,17 @@ _playerInventory->Ensure_DefaultUnlockedWeapons(defaultUnlockedWeapons);
     _dialogueDB = DialogueDB::Create();
     CHECK_NULL(_dialogueDB, E_FAIL);
 
-   _dialogueDB->LoadFromFile(String::ToString(Client::Constants::Dialogue::Dialogue_Dir));
+    _dialogueDB->LoadFromFile(String::ToString(Client::Constants::Dialogue::Dialogue_Dir));
 
-   _dialogueManager = DialogueManager::Create();
+    _dialogueManager = DialogueManager::Create();
     CHECK_NULL(_dialogueManager, E_FAIL);
-    
+
     _battleFollowupManager = BattleFollowupManager::Create();
     CHECK_NULL(_battleFollowupManager, E_FAIL);
 
-	_isInitialized = true;
+    _isInitialized = true;
 
-	return S_OK;
+    return S_OK;
 }
 
 HRESULT ClientInstance::Initialize_Client_ForEffectEditor(const ComPtr<Device>& device, const ComPtr<Context>& context)
@@ -310,7 +310,7 @@ void ClientInstance::Update_Client(float timeDelta)
     if (_effectInstancePool)
         _effectInstancePool->Release_Finished();
 
-    if(_cinematicSequenceRunner)
+    if (_cinematicSequenceRunner)
         _cinematicSequenceRunner->Update(timeDelta, true);
 
     if (_dialogueManager)
@@ -461,7 +461,7 @@ GameDataTable::SkillTreeDesc* ClientInstance::Get_SkillTreeDesc(const string& sk
     return _gameDataTable->Get_SkillTreeDesc(skillName);
 }
 
-const umap<string, vector<string>>*  ClientInstance::Get_SkillTreeRequirementData()
+const umap<string, vector<string>>* ClientInstance::Get_SkillTreeRequirementData()
 {
     return _gameDataTable->Get_SkillTreeRequirementData();
 }
@@ -580,7 +580,7 @@ const Item_Data* ClientInstance::Get_Item(const string& itemId)
 
 const Item_Data* ClientInstance::Get_Item(BattleItemType itemType)
 {
-     if (!_gameDataTable)
+    if (!_gameDataTable)
         return nullptr;
 
     return _gameDataTable->Get_Item(itemType);
@@ -1223,8 +1223,8 @@ bool ClientInstance::Is_FadeTransitionPlaying() const
 }
 
 void ClientInstance::OnEnterBattleField(uint32 FieldID, bool isPlayerAdvantage, const vector<HeroId>& heroIds,
-                                        const vector<BattleMonsterSpawnDesc>& battleMonsterSpawnDescs, const Shared<GameObject>& sourceObject,
-                                        bool completeImmediately, int32 battleStartSpawnerId, const Vec3& battleStartOffset)
+    const vector<BattleMonsterSpawnDesc>& battleMonsterSpawnDescs, const Shared<GameObject>& sourceObject,
+    bool completeImmediately, int32 battleStartSpawnerId, const Vec3& battleStartOffset)
 {
     if (_dialogueManager && _dialogueManager->IsActive())
         _dialogueManager->EndDialogue(false);
@@ -1514,14 +1514,14 @@ void ClientInstance::Clear_CinematicCompletedCallbacks()
     if (_cinematicSequenceRunner == nullptr)
         return;
 
-    _cinematicSequenceRunner->Clear_CompletedCallbacks(); 
+    _cinematicSequenceRunner->Clear_CompletedCallbacks();
 }
 
 Shared<CinematicCamera> ClientInstance::Ensure_CinematicCamera()
 {
-    if(auto camera = dynamic_pointer_cast<CinematicCamera>(GAME->Get_CameraByType(ObjectType::CinematicCamera)))
+    if (auto camera = dynamic_pointer_cast<CinematicCamera>(GAME->Get_CameraByType(ObjectType::CinematicCamera)))
     {
-        return camera;  
+        return camera;
     }
 
     Shared<GameObject> gameObject;
@@ -1536,14 +1536,14 @@ Shared<CinematicCamera> ClientInstance::Ensure_CinematicCamera()
     desc.farPlane = 500.f;
     desc.mouseSensor = 0.05f;
 
-    if(FAILED(GAME->Add_GameObject(ETOI(LevelType::Static), L"GameObject_CinematicCamera", ETOI(LevelType::Static), L"Layer_Camera", gameObject, &desc)))
+    if (FAILED(GAME->Add_GameObject(ETOI(LevelType::Static), L"GameObject_CinematicCamera", ETOI(LevelType::Static), L"Layer_Camera", gameObject, &desc)))
     {
         return nullptr;
     }
 
     Shared<CinematicCamera> cinematicCamera = dynamic_pointer_cast<CinematicCamera>(gameObject);
 
-    if(cinematicCamera == nullptr)
+    if (cinematicCamera == nullptr)
         return nullptr;
 
     GAME->Add_Camera(cinematicCamera);
@@ -1552,9 +1552,9 @@ Shared<CinematicCamera> ClientInstance::Ensure_CinematicCamera()
 
 Shared<DialogueCamera> ClientInstance::Ensure_DialogueCamera()
 {
-    if(auto camera = dynamic_pointer_cast<DialogueCamera>(GAME->Get_CameraByType(ObjectType::DialogueCamera)))
+    if (auto camera = dynamic_pointer_cast<DialogueCamera>(GAME->Get_CameraByType(ObjectType::DialogueCamera)))
     {
-        return camera;  
+        return camera;
     }
 
     Shared<GameObject> gameObject;
@@ -1569,14 +1569,14 @@ Shared<DialogueCamera> ClientInstance::Ensure_DialogueCamera()
     desc.farPlane = 500.f;
     desc.mouseSensor = 0.05f;
 
-    if(FAILED(GAME->Add_GameObject(ETOI(LevelType::Static), L"GameObject_DialogueCamera", ETOI(LevelType::Static), L"Layer_Camera", gameObject, &desc)))
+    if (FAILED(GAME->Add_GameObject(ETOI(LevelType::Static), L"GameObject_DialogueCamera", ETOI(LevelType::Static), L"Layer_Camera", gameObject, &desc)))
     {
         return nullptr;
     }
 
     Shared<DialogueCamera> dialogueCamera = dynamic_pointer_cast<DialogueCamera>(gameObject);
 
-    if(dialogueCamera == nullptr)
+    if (dialogueCamera == nullptr)
         return nullptr;
 
     GAME->Add_Camera(dialogueCamera);
@@ -1943,13 +1943,13 @@ void ClientInstance::Release_Client()
     MapLoader::Clear_GlobalCache();
 
     auto ReleaseManager = [](auto& manager)
-    {
-        if (manager)
         {
-            manager->Free();
-            manager.reset();
-        }
-    };
+            if (manager)
+            {
+                manager->Free();
+                manager.reset();
+            }
+        };
 
     ReleaseManager(_gameDataTable);
     ReleaseManager(_previewShotTable);
