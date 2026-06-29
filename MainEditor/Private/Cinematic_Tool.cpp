@@ -74,6 +74,9 @@ const char* Get_CinematicEventTypeLabel(const CINEMATIC_EVENT& event)
     if (get_if<CinematicPartVisibilityEventData>(&event.payload) != nullptr)
         return "PartVisibility";
 
+    if (get_if<CinematicWorldTimeScaleEventData>(&event.payload) != nullptr)
+        return "WorldTimeScale";
+
     return "Unknown";
 }
 
@@ -1119,13 +1122,39 @@ void Cinematic_Tool::Render_RightPanel()
 {
     Render_PreviewState();
     Render_SelectedKeyframePopup();
-    Render_SequenceSettings();
-    Render_CameraShots();
-    Render_EventTrack();
-    Render_ActorRelativeCameraTracks();
-    Render_ActorTransformTracks();
-    Render_TrackList();
-    Render_KeyframeList();
+
+    if (ImGui::BeginTabBar("##CinematicRightPanelTabs"))
+    {
+        if (ImGui::BeginTabItem("Sequence"))
+        {
+            Render_SequenceSettings();
+            Render_CameraShots();
+            ImGui::EndTabItem();
+        }
+
+        if (ImGui::BeginTabItem("Events"))
+        {
+            Render_EventTrack();
+            ImGui::EndTabItem();
+        }
+
+        if (ImGui::BeginTabItem("Tracks"))
+        {
+            Render_TrackList();
+            Render_ActorRelativeCameraTracks();
+            Render_ActorTransformTracks();
+            ImGui::EndTabItem();
+        }
+
+        if (ImGui::BeginTabItem("Selection"))
+        {
+            Render_KeyframeList();
+            ImGui::EndTabItem();
+        }
+
+        ImGui::EndTabBar();
+    }
+
     Render_LoadSequencePopup();
     Render_SequenceOverwriteWarningPopups();
     Render_RemoveKeyframePopup();
@@ -1203,70 +1232,86 @@ void Cinematic_Tool::Render_EventTrack()
 {
     Draw_SectionHeader("Event Track");
 
-    if (ImGui::Button("Add Spawn Event"))
-    {
-        CINEMATIC_EVENT event{};
-        event.frame = _currentFrame;
-        event.payload = CinematicSpawnEventData{};
-        _sequence.eventTrack.push_back(event);
-        _selectedEventIndex = static_cast<int>(_sequence.eventTrack.size()) - 1;
-    }
-
-    ImGui::SameLine();
-    if (ImGui::Button("Add PlayAnim Event"))
-    {
-        CINEMATIC_EVENT event{};
-        event.frame = _currentFrame;
-        event.payload = CinematicPlayAnimEventData{};
-        _sequence.eventTrack.push_back(event);
-        _selectedEventIndex = static_cast<int>(_sequence.eventTrack.size()) - 1;
-    }
-
-    ImGui::SameLine();
-    if (ImGui::Button("Add Despawn Event"))
-    {
-        CINEMATIC_EVENT event{};
-        event.frame = _currentFrame;
-        event.payload = CinematicDespawnEventData{};
-        _sequence.eventTrack.push_back(event);
-        _selectedEventIndex = static_cast<int>(_sequence.eventTrack.size()) - 1;
-        Request_CinematicPreviewRefresh(true);
-    }
-
-    ImGui::SameLine();
-    if (ImGui::Button("Add PartVisibility Event"))
-    {
-        CINEMATIC_EVENT event{};
-        event.frame = _currentFrame;
-        CinematicPartVisibilityEventData payload{};
-        payload.partTag = "Part_Sword_L";
-        event.payload = payload;
-        _sequence.eventTrack.push_back(event);
-        _selectedEventIndex = static_cast<int>(_sequence.eventTrack.size()) - 1;
-        Request_CinematicPreviewRefresh(true);
-    }
-
-    ImGui::SameLine();
     const bool canRemoveEvent =
         _selectedEventIndex >= 0 &&
         _selectedEventIndex < static_cast<int>(_sequence.eventTrack.size());
-    if (!canRemoveEvent)
-        ImGui::BeginDisabled();
 
-    if (ImGui::Button("Remove Event"))
+    auto addEvent = [&](CinematicEventPayload payload, bool refreshPreview)
     {
-        _sequence.eventTrack.erase(_sequence.eventTrack.begin() + _selectedEventIndex);
-        _selectedEventIndex = std::clamp(
-            _selectedEventIndex,
-            -1,
-            static_cast<int>(_sequence.eventTrack.size()) - 1);
-        Request_CinematicPreviewRefresh(true);
+        CINEMATIC_EVENT event{};
+        event.frame = _currentFrame;
+        event.payload = payload;
+        _sequence.eventTrack.push_back(event);
+        _selectedEventIndex = static_cast<int>(_sequence.eventTrack.size()) - 1;
+        std::sort(_sequence.eventTrack.begin(), _sequence.eventTrack.end(),
+            [](const CINEMATIC_EVENT& lhs, const CINEMATIC_EVENT& rhs)
+            {
+                return lhs.frame < rhs.frame;
+            });
+
+        if (refreshPreview)
+            Request_CinematicPreviewRefresh(true);
+    };
+
+    ImGui::TextDisabled("Current frame %d", _currentFrame);
+    ImGui::SameLine();
+    ImGui::TextDisabled("Events %d", static_cast<int>(_sequence.eventTrack.size()));
+
+    if (ImGui::BeginTable("##EventTrackButtons", 2, ImGuiTableFlags_SizingStretchSame))
+    {
+        ImGui::TableNextRow();
+        ImGui::TableNextColumn();
+        if (ImGui::Button("Add Spawn", ImVec2(-FLT_MIN, 0.f)))
+            addEvent(CinematicSpawnEventData{}, false);
+
+        ImGui::TableNextColumn();
+        if (ImGui::Button("Add PlayAnim", ImVec2(-FLT_MIN, 0.f)))
+            addEvent(CinematicPlayAnimEventData{}, false);
+
+        ImGui::TableNextRow();
+        ImGui::TableNextColumn();
+        if (ImGui::Button("Add Despawn", ImVec2(-FLT_MIN, 0.f)))
+            addEvent(CinematicDespawnEventData{}, true);
+
+        ImGui::TableNextColumn();
+        if (ImGui::Button("Add PartVisibility", ImVec2(-FLT_MIN, 0.f)))
+        {
+            CinematicPartVisibilityEventData payload{};
+            payload.partTag = "Part_Sword_L";
+            addEvent(payload, true);
+        }
+
+        ImGui::TableNextRow();
+        ImGui::TableNextColumn();
+        if (ImGui::Button("Add WorldTimeScale", ImVec2(-FLT_MIN, 0.f)))
+            addEvent(CinematicWorldTimeScaleEventData{}, true);
+
+        ImGui::TableNextColumn();
+        if (!canRemoveEvent)
+            ImGui::BeginDisabled();
+        if (ImGui::Button("Remove Selected", ImVec2(-FLT_MIN, 0.f)))
+        {
+            _sequence.eventTrack.erase(_sequence.eventTrack.begin() + _selectedEventIndex);
+            _selectedEventIndex = std::clamp(
+                _selectedEventIndex,
+                -1,
+                static_cast<int>(_sequence.eventTrack.size()) - 1);
+            Request_CinematicPreviewRefresh(true);
+        }
+        if (!canRemoveEvent)
+            ImGui::EndDisabled();
+
+        ImGui::EndTable();
     }
 
-    if (!canRemoveEvent)
-        ImGui::EndDisabled();
+    const bool canEditEvent =
+        _selectedEventIndex >= 0 &&
+        _selectedEventIndex < static_cast<int>(_sequence.eventTrack.size());
 
-    if (ImGui::BeginListBox("##EventTrackList", ImVec2(-FLT_MIN, 120.f)))
+    if (!canEditEvent)
+        ImGui::TextDisabled("Select an event to edit its details.");
+
+    if (ImGui::BeginListBox("##EventTrackList", ImVec2(-FLT_MIN, 180.f)))
     {
         for (int i = 0; i < static_cast<int>(_sequence.eventTrack.size()); ++i)
         {
@@ -1287,8 +1332,11 @@ void Cinematic_Tool::Render_EventTrack()
         ImGui::EndListBox();
     }
 
-    if (!canRemoveEvent)
+    if (!canEditEvent)
         return;
+
+    ImGui::Separator();
+    ImGui::TextDisabled("Selected Event");
 
     CINEMATIC_EVENT& event = _sequence.eventTrack[_selectedEventIndex];
     bool eventEdited = false;
@@ -1347,6 +1395,15 @@ void Cinematic_Tool::Render_EventTrack()
             eventEdited = true;
         }
         if (isPartVisibility)
+            ImGui::SetItemDefaultFocus();
+
+        const bool isWorldTimeScale = get_if<CinematicWorldTimeScaleEventData>(&event.payload) != nullptr;
+        if (ImGui::Selectable("WorldTimeScale", isWorldTimeScale))
+        {
+            event.payload = CinematicWorldTimeScaleEventData{};
+            eventEdited = true;
+        }
+        if (isWorldTimeScale)
             ImGui::SetItemDefaultFocus();
 
         ImGui::EndCombo();
@@ -1442,6 +1499,15 @@ void Cinematic_Tool::Render_EventTrack()
         if (ImGui::Checkbox("visible", &partVisibility->visible))
             eventEdited = true;
         ImGui::TextDisabled("Target should be a bound ContainerObject actor id.");
+    }
+    else if (auto* worldTimeScale = get_if<CinematicWorldTimeScaleEventData>(&event.payload))
+    {
+        if (ImGui::DragFloat("world time scale", &worldTimeScale->worldTimeScale, 0.01f, 0.f, 8.f, "%.2f"))
+        {
+            worldTimeScale->worldTimeScale = std::clamp(worldTimeScale->worldTimeScale, 0.f, 8.f);
+            eventEdited = true;
+        }
+        ImGui::TextDisabled("Add another WorldTimeScale event later in the sequence to restore to 1.0 or a new value.");
     }
 
     const string selectedTargetId = event.targetId;

@@ -129,11 +129,17 @@ struct CinematicPartVisibilityEventData
     bool visible = true;
 };
 
+struct CinematicWorldTimeScaleEventData
+{
+    float worldTimeScale = 1.f;
+};
+
 using CinematicEventPayload = variant<
     CinematicSpawnEventData,
     CinematicPlayAnimEventData,
     CinematicDespawnEventData,
-    CinematicPartVisibilityEventData>;
+    CinematicPartVisibilityEventData,
+    CinematicWorldTimeScaleEventData>;
 
 typedef struct CinematicEvent
 {

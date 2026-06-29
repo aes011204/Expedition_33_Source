@@ -500,6 +500,12 @@ void CinematicSequenceRunner::Stop_SequenceKeepContext()
         return;
 
     _player->Stop();
+    if (_hasWorldTimeScaleOverride)
+    {
+        GAME->Set_WorldTimeScale(_restoreWorldTimeScale);
+        _hasWorldTimeScaleOverride = false;
+        _restoreWorldTimeScale = 1.f;
+    }
     Set_GameplayUIHiddenForCinematic(false);
     GAME->Set_LetterboxEnabled(false);
 }
@@ -817,6 +823,10 @@ void CinematicSequenceRunner::Execute_Event(const CINEMATIC_EVENT& event, float 
     {
         Execute_PartVisibilityEvent(event.targetId, *partVisibility);
     }
+    else if (const auto* worldTimeScale = get_if<CinematicWorldTimeScaleEventData>(&event.payload))
+    {
+        Execute_WorldTimeScaleEvent(*worldTimeScale);
+    }
 }
 
 bool CinematicSequenceRunner::Execute_SpawnEvent(const string& targetId, const CinematicSpawnEventData& payload)
@@ -1060,6 +1070,24 @@ bool CinematicSequenceRunner::Execute_PartVisibilityEvent(
     return true;
 }
 
+bool CinematicSequenceRunner::Execute_WorldTimeScaleEvent(const CinematicWorldTimeScaleEventData& payload)
+{
+    if (!_hasWorldTimeScaleOverride)
+    {
+        _restoreWorldTimeScale = GAME->Get_WorldTimeScale();
+        _hasWorldTimeScaleOverride = true;
+    }
+
+    const float clampedWorldTimeScale = std::clamp(payload.worldTimeScale, 0.f, 8.f);
+    GAME->Set_WorldTimeScale(clampedWorldTimeScale);
+
+    LOG_INFO(
+        "[CinematicSequenceRunner] WorldTimeScaleEvent success: scale={:.3f} frame={}",
+        clampedWorldTimeScale,
+        Get_CurrentFrame());
+    return true;
+}
+
 void CinematicSequenceRunner::Apply_ActorTransformTracks(float currentFrameExact)
 {
     for (const auto& track : _sequence.actorTransformTracks)
@@ -1223,6 +1251,13 @@ void CinematicSequenceRunner::Update_BoundActorAnimations(float timeDelta)
 
 void CinematicSequenceRunner::Cleanup_Context(bool forceRemoveAllSpawned)
 {
+    if (_hasWorldTimeScaleOverride)
+    {
+        GAME->Set_WorldTimeScale(_restoreWorldTimeScale);
+        _hasWorldTimeScaleOverride = false;
+        _restoreWorldTimeScale = 1.f;
+    }
+
     for (const auto& [targetId, state] : _bindingStates)
     {
         UNREFERENCED_PARAMETER(targetId);

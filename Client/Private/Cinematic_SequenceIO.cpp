@@ -311,6 +311,11 @@ json SerializeEvent(const CINEMATIC_EVENT& event)
         eventJson["partTag"] = partVisibility->partTag;
         eventJson["visible"] = partVisibility->visible;
     }
+    else if (const auto* worldTimeScale = get_if<CinematicWorldTimeScaleEventData>(&event.payload))
+    {
+        eventJson["type"] = "world_time_scale";
+        eventJson["worldTimeScale"] = worldTimeScale->worldTimeScale;
+    }
 
     return eventJson;
 }
@@ -341,6 +346,12 @@ void DeserializeEvent(const json& eventJson, CINEMATIC_EVENT& outEvent)
         CinematicPartVisibilityEventData payload{};
         payload.partTag = eventJson.value("partTag", payload.partTag);
         payload.visible = eventJson.value("visible", payload.visible);
+        outEvent.payload = payload;
+    }
+    else if (type == "world_time_scale")
+    {
+        CinematicWorldTimeScaleEventData payload{};
+        payload.worldTimeScale = eventJson.value("worldTimeScale", payload.worldTimeScale);
         outEvent.payload = payload;
     }
     else if (type == "dualliste_left_sword")
