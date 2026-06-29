@@ -106,7 +106,6 @@ private:
     bool _castShadow = true;
     float _cullDist = 125.f;
 
-    // test
     uint32 _maxShadowCascade = 3u;
 
 private:
