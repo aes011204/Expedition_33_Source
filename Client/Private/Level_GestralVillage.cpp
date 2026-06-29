@@ -136,8 +136,9 @@ HRESULT Level_GestralVillage::Ready_Lights()
         ShadowDesc.zPadding = 20.f;
 
         // Shadow map 해상도. 4096 * 4096 * 4 * 4byte = 256mb
-        ShadowDesc.shadowMapWidth = 4096;
-        ShadowDesc.shadowMapHeight = 4096;
+        // fix 4096 -> 2048
+        ShadowDesc.shadowMapWidth = 2048;
+        ShadowDesc.shadowMapHeight = 2048;
 
         ShadowDesc.cascadeSplitLambda = 0.8f;
         ShadowDesc.bias = 0.0002f;
