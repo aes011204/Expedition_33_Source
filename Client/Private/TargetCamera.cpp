@@ -476,6 +476,23 @@ void TargetCamera::Set_OrbitAngles(float yaw, float pitch)
     _pitch = std::clamp(pitch, _currentSettings.pitchMin, _currentSettings.pitchMax);
 }
 
+void TargetCamera::Reset_RuntimeCameraState()
+{
+    _battleEnterAcc = 0.f;
+    _collisionQueryAccum = 0.f;
+    _hasCollisionQueryCache = false;
+    _collisionDistance = -1.f;
+    Reset_RuntimeShake();
+
+    Shared<TransformCom> targetTransformCom;
+    if (Try_GetTargetTransform(targetTransformCom))
+    {
+        const Vec3 targetPos = targetTransformCom->Get_WorldPosition();
+        _prevTargetPos = targetPos;
+        _smoothedTargetPos = targetPos;
+    }
+}
+
 Vec3 TargetCamera::Get_FreeAimQueryOrigin() const
 {
     CHECK_NULL(_transformCom, Vec3::Zero);

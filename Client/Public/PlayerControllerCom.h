@@ -31,7 +31,7 @@ public:
     {
         bool enabled = false;       // follower 제어 모드인지
         bool hasMoveIntent = false;
-        bool walkFollow = false;    // active hero가 Walk 중이면 follower도 Walk로 따라간다.
+        bool walkFollow = false;    // 목표까지 가까우면 Walk 속도로 따라간다.
         bool sprintFollow  = false; // 너무 멀어져 sprint 추격 중인지
         bool blocked = false;       // 직전 이동 시 실제로 못 움직였는지
         Vec3 worldDir = Vec3::Zero; // follower가 이동해야 할 월드 방향

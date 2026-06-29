@@ -54,12 +54,16 @@ void PuzzleController::BeginPlay()
 
             if(_destroyedCount >= static_cast<int>(_eyeTargets.size()))
             {
-               _bridgeStartPos = _bridgeObject->Get_Transform()->Get_WorldPosition();
-               _bridgeStartRot = _bridgeObject->Get_Transform()->Get_WorldRotationEuler();
-               _bridgeTargetPos = Vec3(47.08f, 8.42f, -22.46f);
-               _bridgeTargetRot = Vec3(-3.5f, -15.3f, 2.1f);
-               _bridgeMoveElapsed = 0.f;
-               _isBridgeMoving = true;
+                if(_bridgeObject != nullptr && _bridgeObject->Get_Transform() != nullptr)
+                {
+                    _bridgeStartPos = _bridgeObject->Get_Transform()->Get_WorldPosition();
+                    _bridgeStartRot = _bridgeObject->Get_Transform()->Get_WorldRotationEuler();
+                    _bridgeTargetPos = Vec3(47.08f, 8.42f, -22.46f);
+                    _bridgeTargetRot = Vec3(-3.5f, -15.3f, 2.1f);
+                    _bridgeMoveElapsed = 0.f;
+                    _isBridgeMoving = true;
+                }
+
                 CLIENT->Play_Sequence(Constants::Cinematic::BridgeCinematic, 0);
             }
         });
@@ -74,7 +78,7 @@ void PuzzleController::Update(float timeDelta)
         Reset_Puzzle();
 
     if(!_isBridgeMoving)
-    return;
+        return;
 
     BridgeMoving(timeDelta);
 }
@@ -92,7 +96,7 @@ void PuzzleController::Collect_EyeTargets()
         GAME->Current_LevelIndex(),
         [&](const wstring& layerTag, const Shared<GameObject>& gameObject)
         {
-            if (layerTag != TEXT("Layer_EyeTarget"))
+            if(layerTag != TEXT("Layer_EyeTarget"))
                 return;
 
             Shared<EyeTarget> eyeTarget = dynamic_pointer_cast<EyeTarget>(gameObject);
@@ -102,7 +106,19 @@ void PuzzleController::Collect_EyeTargets()
             _eyeTargets.push_back(eyeTarget);
         });
 
-    LOG_DEBUG("PuzzleController collected EyeTargets: {}", static_cast<int>(_eyeTargets.size()));
+    if(!_eyeTargets.empty())
+        return;
+
+    GAME->Visit_LevelObjects(
+        GAME->Current_LevelIndex(),
+        [&](const wstring&, const Shared<GameObject>& gameObject)
+        {
+            Shared<EyeTarget> eyeTarget = dynamic_pointer_cast<EyeTarget>(gameObject);
+            if (eyeTarget == nullptr)
+                return;
+
+            _eyeTargets.push_back(eyeTarget);
+        });
 }
 
 void PuzzleController::Collect_BridgeObject()
@@ -134,6 +150,9 @@ void PuzzleController::Collect_BridgeObject()
 
 void PuzzleController::BridgeMoving(float timeDelta)
 {
+    if(_bridgeObject == nullptr || _bridgeObject->Get_Transform() == nullptr)
+        return;
+
     _bridgeMoveElapsed += timeDelta;
 
     float t = _bridgeMoveElapsed / _bridgeMoveDuration;
@@ -156,8 +175,13 @@ void PuzzleController::Reset_Puzzle()
 {
     _destroyedCount = 0;
     _bridgeMoveElapsed = 0;
-    _bridgeObject->Get_Transform()->Set_WorldPosition(_bridgeStartPos);
-    _bridgeObject->Get_Transform()->Set_WorldRotationEuler(_bridgeStartRot);
+
+    if(_bridgeObject != nullptr && _bridgeObject->Get_Transform() != nullptr)
+    {
+        _bridgeObject->Get_Transform()->Set_WorldPosition(_bridgeStartPos);
+        _bridgeObject->Get_Transform()->Set_WorldRotationEuler(_bridgeStartRot);
+    }
+
     for(size_t i = 0;  i < _eyeTargets.size() ; i++)
     {
         _eyeTargets[i]->Reset_Target();

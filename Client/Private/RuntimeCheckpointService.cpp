@@ -163,11 +163,20 @@ bool RuntimeCheckpointService::Should_CaptureWorldObject(const wstring& layerTag
     if (gameObject == nullptr)
         return false;
 
-    if (!gameObject->Is_RuntimeAuthoringLoaded())
+    const bool isRuntimeAuthoringItem =
+        gameObject->Get_ObjectType() == ObjectType::Item &&
+        !gameObject->Get_SourcePrefabName().empty();
+    if (!isRuntimeAuthoringItem && !gameObject->Is_RuntimeAuthoringLoaded())
         return false;
 
-    if (gameObject->Get_ObjectType() == ObjectType::FreeCamera ||
-        gameObject->Get_ObjectType() == ObjectType::TargetCamera)
+    const ObjectType objectType = gameObject->Get_ObjectType();
+    if (objectType == ObjectType::FreeCamera ||
+        objectType == ObjectType::TargetCamera ||
+        objectType == ObjectType::Terrain ||
+        objectType == ObjectType::Landscape ||
+        objectType == ObjectType::Sky ||
+        objectType == ObjectType::Water ||
+        objectType == ObjectType::Foliage)
     {
         return false;
     }

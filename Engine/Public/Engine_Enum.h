@@ -91,6 +91,8 @@ namespace Engine
         SoulLikeController,
         Trigger_Cinematic,
         Trigger_Interaction,
+
+        Item,
     };
 
     enum class DeferredPass : uint8

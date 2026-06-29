@@ -1412,13 +1412,17 @@
     <ClCompile Include="..\Private\Trigger_BGMZone.cpp" />
     <ClCompile Include="..\Private\SimonHairRuntime.cpp" />
     <ClCompile Include="..\Private\DamageTrigger.cpp" />
-
     <ClCompile Include="..\Private\UI_Replay.cpp" />
     <ClCompile Include="..\Private\MapAmbientVisibility.cpp" />
     <ClCompile Include="..\Private\Level_ReplayTransition.cpp" />
     <ClCompile Include="..\Private\ANS_CanAction.cpp">
       <Filter>95. AnimNotify\01. NotifyStates</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\Item.cpp" />
+    <ClCompile Include="..\Private\Item_Pictos.cpp" />
+    <ClCompile Include="..\Private\Item_Chroma.cpp" />
+    <ClCompile Include="..\Private\Item_DailyLog.cpp" />
+    <ClCompile Include="..\Private\UI_DailyLog.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\Public\ANS_AnimSpeed.h">
@@ -1537,13 +1541,17 @@
     <ClInclude Include="..\Public\Trigger_BGMZone.h" />
     <ClInclude Include="..\Public\SimonHairRuntime.h" />
     <ClInclude Include="..\Public\DamageTrigger.h" />
-
     <ClInclude Include="..\Public\UI_Replay.h" />
     <ClInclude Include="..\Public\MapAmbientVisibility.h" />
     <ClInclude Include="..\Public\Level_ReplayTransition.h" />
     <ClInclude Include="..\Public\ANS_CanAction.h">
       <Filter>95. AnimNotify\01. NotifyStates</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\Item.h" />
+    <ClInclude Include="..\Public\Item_Pictos.h" />
+    <ClInclude Include="..\Public\Item_Chroma.h" />
+    <ClInclude Include="..\Public\Item_DailyLog.h" />
+    <ClInclude Include="..\Public\UI_DailyLog.h" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimAdditive.hlsl">
@@ -2752,8 +2760,6 @@
     <ClInclude Include="..\Public\ANS_RootController.h" />
     <ClInclude Include="..\Public\SL_Test_Lancelier.h" />
     <ClInclude Include="..\Public\SL_Base.h" />
-  </ItemGroup>
-  <ItemGroup>
   </ItemGroup>
   <ItemGroup>
     <None Include="..\Bin\ShaderFiles\Shader_EffectMaterialScalarModulation.hlsli">
