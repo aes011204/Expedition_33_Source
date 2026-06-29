@@ -214,6 +214,13 @@ namespace Client::Constants::UI_Anim
 {
     inline constexpr wchar_t UI_LoadingAnim_Path[] = L"UI/UI_Animations/Scene/Loading";
 
+    inline constexpr wchar_t UI_CharacterSelectLuneAnim_Path[] =
+        L"UI/UI_Animations/Character_Select/CharacterSelect_Lune";
+    inline constexpr wchar_t UI_CharacterSelectGustaveAnim_Path[] =
+        L"UI/UI_Animations/Character_Select/CharacterSelect_Gustave";
+    inline constexpr wchar_t UI_CharacterSelectMaelleAnim_Path[] =
+        L"UI/UI_Animations/Character_Select/CharacterSelect_Maelle";
+
     inline constexpr wchar_t UI_CrossAirReadyAnim_Path[] =
         L"UI/UI_Animations/BattleSystem/CrossAir/Ready_CrossAir";
 

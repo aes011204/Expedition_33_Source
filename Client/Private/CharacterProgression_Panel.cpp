@@ -44,6 +44,36 @@ namespace
         HeroId::Maelle,
     };
 
+    const wchar_t* Resolve_CharacterSelectAnimationName(HeroId heroId)
+    {
+        switch (heroId)
+        {
+        case HeroId::Lune:
+            return L"CharacterSelect_Lune";
+        case HeroId::Maelle:
+            return L"CharacterSelect_Maelle";
+        case HeroId::Gustave:
+        default:
+            return L"CharacterSelect_Gustave";
+        }
+    }
+
+    void Play_CharacterSelectAnimation(
+        const umap<wstring, Shared<UI_Base>>& uiByName,
+        HeroId heroId)
+    {
+        const wchar_t* animationName = Resolve_CharacterSelectAnimationName(heroId);
+        for (auto& [uiName, ui] : uiByName)
+        {
+            UNREFERENCED_PARAMETER(uiName);
+
+            if (ui == nullptr)
+                continue;
+
+            ui->Play_UIAnimation(animationName, true);
+        }
+    }
+
     struct WeaponThumbnailBinding
     {
         const wchar_t* rootName = L"";
@@ -953,6 +983,8 @@ void CharacterProgression_Panel::Refresh_CharacterSelectUI()
         else
             _characterStains[i]->Close();
     }
+
+    Play_CharacterSelectAnimation(_uiByName, _selectedHeroId);
 }
 
 void CharacterProgression_Panel::Refresh_UnlockedSkills()
@@ -1576,6 +1608,12 @@ HRESULT CharacterProgression_Panel::Load_UI(uint32 levelIndex)
     desc.jsonPath = Constants::UI::UI_Character_Progression_Path;
     desc.prototypeTagPrefix = L"CharacterProgression";
     desc.outUIByName = &_uiByName;
+    desc.animationPaths =
+    {
+        Constants::UI_Anim::UI_CharacterSelectLuneAnim_Path,
+        Constants::UI_Anim::UI_CharacterSelectGustaveAnim_Path,
+        Constants::UI_Anim::UI_CharacterSelectMaelleAnim_Path
+    };
 
     CHECK_FAILED(UI_RuntimeLoader::Load_Document(desc), E_FAIL);
 
