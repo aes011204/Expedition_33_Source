@@ -232,7 +232,7 @@ fs::path Spawn_Prefab::Resolve_PrefabPath(const string& prefabName)
     if (prefabName.starts_with("BSS_"))
         return assetRoot / Constants::Prefab::BattleStartSpawner_Dir / fileName; // BattleStartSpawner는 전용 폴더를 쓴다.
 
-    return assetRoot / Constants::Prefab::Root_Dir / fileName; // 분류 규칙이 없는 기존 프리팹만 루트 fallback을 쓴다.
+    return assetRoot / Constants::Prefab::Root_Dir / fileName; // 분류 규칙이 없는 기존 프리펩만 루트 fallback을 쓴다.
 }
 
 void Spawn_Prefab::Apply_Overrides(const Shared<GameObject>& gameObject, const json& overrides)

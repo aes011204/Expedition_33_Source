@@ -4,14 +4,14 @@
 
 NS_BEGIN(Client)
 
-class WorldRopeSpot final : public WorldInteractionSpot
+class WorldGrapplingRopeSpot final : public WorldInteractionSpot
 {
-    GENERATED_GAMEOBJECT(WorldRopeSpot, ObjectType::Trigger)
+    GENERATED_GAMEOBJECT(WorldGrapplingRopeSpot, ObjectType::Trigger)
 
 public:
-    WorldRopeSpot(const ComPtr<Device>& device, const ComPtr<Context>& context);
-    WorldRopeSpot(const WorldRopeSpot& prototype);
-    ~WorldRopeSpot() override = default;
+    WorldGrapplingRopeSpot(const ComPtr<Device>& device, const ComPtr<Context>& context);
+    WorldGrapplingRopeSpot(const WorldGrapplingRopeSpot& prototype);
+    ~WorldGrapplingRopeSpot() override = default;
 
 public:
     HRESULT Initialize(void* arg) override;
@@ -52,7 +52,7 @@ private:
     float _maxLockRayDistance = 12.f;
 
 public:
-    static Shared<WorldRopeSpot> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);
+    static Shared<WorldGrapplingRopeSpot> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);
     Shared<GameObject> Clone(void* arg) override;
     void Free() override;
 };

@@ -18,6 +18,7 @@ namespace
     constexpr float kParkourTopProbeDownDistance = 0.95f;
     constexpr float kParkourProbeDistance = 0.75f;
     constexpr float kParkourLowProbeHeight = 1.00f;
+    constexpr float kLowParkourMaxTargetHeight = 1.15f;
     constexpr float kParkourHighProbeHeight = 2.00f;
 
     Vec3 Normalize_ParkourLook(Vec3 look)
@@ -51,7 +52,13 @@ namespace
         GAME->Draw_DebugLine(desc);
     }
 
-    void Draw_ParkourProbeDebug(const Vec3& frontOrigin, const Vec3& look, float frontDistance, const Color& missColor)
+    void Draw_ParkourProbeDebug(
+        const Vec3& actorPosition,
+        const Vec3& frontOrigin,
+        const Vec3& look,
+        float frontDistance,
+        const Color& missColor,
+        float maxTargetHeight = FLT_MAX)
     {
         PhysXQueryHit frontHit{};
         const bool hasFrontHit =
@@ -74,7 +81,8 @@ namespace
             if (hasTopHit)
             {
                 const float yDiff = fabsf(topHit.position.y - frontOrigin.y);
-                frontColor = yDiff <= kParkourGroundYTolerance
+                const float targetHeight = topHit.position.y - actorPosition.y;
+                frontColor = targetHeight <= maxTargetHeight && yDiff <= kParkourGroundYTolerance
                     ? Color(0.2f, 1.f, 0.35f, 1.f)
                     : Color(1.f, 0.25f, 0.2f, 1.f);
             }
@@ -239,12 +247,13 @@ void Player_State::Draw_ParkourDebugRays() const
         return;
 
     const Matrix worldMatrix = transform->Get_WorldMatrix();
+    const Vec3 actorPosition = transform->Get_WorldPosition();
     const Vec3 highStart = Vec3::Transform(Vec3(0.f, kParkourHighProbeHeight, 0.f), worldMatrix);
     const Vec3 lowStart = Vec3::Transform(Vec3(0.f, kParkourLowProbeHeight, 0.f), worldMatrix);
     const Vec3 look = Normalize_ParkourLook(transform->Get_WorldForward());
 
-    Draw_ParkourProbeDebug(highStart, look, kParkourProbeDistance, Color(1.f, 0.55f, 1.f, 1.f));
-    Draw_ParkourProbeDebug(lowStart, look, kParkourProbeDistance, Color(0.45f, 0.75f, 1.f, 1.f));
+    Draw_ParkourProbeDebug(actorPosition, highStart, look, kParkourProbeDistance, Color(1.f, 0.55f, 1.f, 1.f));
+    Draw_ParkourProbeDebug(actorPosition, lowStart, look, kParkourProbeDistance, Color(0.45f, 0.75f, 1.f, 1.f), kLowParkourMaxTargetHeight);
 }
 
 bool Player_State::Try_BuildWorldInteractionRequest(WorldInteractionSpot::WorldInteractionRequest& outRequest, Shared<GameObject>& outSpot) const

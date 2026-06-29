@@ -556,7 +556,7 @@
     <ClInclude Include="..\Public\Trigger_WorldAction.h" />
     <ClInclude Include="..\Public\WorldLedgeSpot.h" />
     <ClInclude Include="..\Public\WorldInteractionSpot.h" />
-    <ClInclude Include="..\Public\WorldRopeSpot.h" />
+    <ClInclude Include="..\Public\WorldGrapplingRopeSpot.h" />
     <ClInclude Include="..\Public\WorldUpDownRopeSpot.h" />
     <ClInclude Include="..\public\UIPreviewManager.h" />
     <ClInclude Include="..\Public\UI_AddAP.h" />
@@ -1019,7 +1019,7 @@
     <ClCompile Include="..\Private\Trigger_WorldAction.cpp" />
     <ClCompile Include="..\Private\WorldLedgeSpot.cpp" />
     <ClCompile Include="..\Private\WorldInteractionSpot.cpp" />
-    <ClCompile Include="..\Private\WorldRopeSpot.cpp" />
+    <ClCompile Include="..\Private\WorldGrapplingRopeSpot.cpp" />
     <ClCompile Include="..\Private\WorldUpDownRopeSpot.cpp" />
     <ClCompile Include="..\private\UIPreviewManager.cpp" />
     <ClCompile Include="..\Private\UI_AddAP.cpp" />

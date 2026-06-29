@@ -20,6 +20,7 @@ namespace
     constexpr float kParkourTopProbeDownDistance = 0.95f;
     constexpr float kParkourProbeDistance = 0.75f;
     constexpr float kParkourLowProbeHeight = 1.00f;
+    constexpr float kLowParkourMaxTargetHeight = 1.15f;
     constexpr float kParkourHighProbeHeight = 2.00f;
     constexpr float kParkourFinishDistance = 0.03f;
     constexpr float kParkourAnimationBlendDuration = 0.1f;
@@ -336,16 +337,29 @@ bool Player_ParkourAction::Build_ParkourRequestFromProbe(
     }
 
     const float yDiff = fabsf(topHit.position.y - frontOrigin.y);
+    const float targetHeight = topHit.position.y - start.y;
+    if (actionType == ParkourActionType::LowMantle && targetHeight > kLowParkourMaxTargetHeight)
+    {
+        LOG_WARN("[Parkour] Reject {}: target too high for Low. height={:.2f}, max={:.2f}, target=({:.2f},{:.2f},{:.2f})",
+            actionName,
+            targetHeight,
+            kLowParkourMaxTargetHeight,
+            topHit.position.x,
+            topHit.position.y,
+            topHit.position.z);
+        return false;
+    }
 
     outRequest.startPoint = start;
     outRequest.targetPoint = topHit.position;
     outRequest.faceDir = forward;
     outRequest.actionType = actionType;
 
-    LOG_WARN("[Parkour] Accept {}: start=({:.2f},{:.2f},{:.2f}) target=({:.2f},{:.2f},{:.2f}) rayY={:.2f} diff={:.2f} tolerance={:.2f}",
+    LOG_WARN("[Parkour] Accept {}: start=({:.2f},{:.2f},{:.2f}) target=({:.2f},{:.2f},{:.2f}) height={:.2f} rayY={:.2f} diff={:.2f} tolerance={:.2f}",
         actionName,
         outRequest.startPoint.x, outRequest.startPoint.y, outRequest.startPoint.z,
         outRequest.targetPoint.x, outRequest.targetPoint.y, outRequest.targetPoint.z,
+        targetHeight,
         frontOrigin.y,
         yDiff,
         kParkourGroundYTolerance);

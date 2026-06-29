@@ -1043,6 +1043,7 @@ void Content_Browser::Draw_CreatePrefabPopup()
 
         if (SUCCEEDED(GAME->Create_PrefabAsset(targetPath, _selectedPrefabClass, prefabName)))
         {
+            (void)GAME->Refresh_AssetRegistryDirectory(_createPrefabTargetFolder, _createPrefabTargetFolder);
             Refresh_Resources();
 
             FFolderNode* found = Find_FolderNode(_rootFolder, _createPrefabTargetFolder);

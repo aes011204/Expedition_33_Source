@@ -9,6 +9,8 @@ NS_END
 
 NS_BEGIN(Client)
 
+class EffectCom;
+
 class WorldUpDownRopeSpot final : public WorldInteractionSpot
 {
     GENERATED_GAMEOBJECT(WorldUpDownRopeSpot, ObjectType::Trigger)
@@ -20,6 +22,8 @@ public:
 
 public:
     HRESULT Initialize(void* arg) override;
+    void BeginPlay() override;
+    void Update(float timeDelta) override;
     void Late_Update(float timeDelta) override;
     HRESULT Render() override;
     HRESULT Render_Shadow() override;
@@ -41,6 +45,7 @@ private:
 private:
     HRESULT Ready_Components();
     HRESULT Ready_ModelComponent();
+    HRESULT Ready_EffectComponent();
     void Register_ModelComponent();
     HRESULT Ready_EntryCollider(
         const wstring& componentTag,
@@ -48,6 +53,7 @@ private:
         const Vec3& extents,
         Shared<ColliderCom>& outCollider);
     HRESULT Bind_ShaderResources();
+    void Play_RopeEffect();
     void Set_ActiveEntryFromCollider(const Shared<ColliderCom>& self, const Shared<ColliderCom>& other);
     RopeEntry Resolve_EntryFromCollider(const Shared<ColliderCom>& collider) const;
     bool Is_EntryActive() const;
@@ -57,8 +63,15 @@ private:
     Shared<ColliderCom> _bottomEntryCollider{};
     Shared<ModelCom> _model{};
     Shared<ShaderCom> _shader{};
+    Shared<EffectCom> _effectCom{};
 
     RopeEntry _activeEntry = RopeEntry::None;
+
+    bool _ropeEffectAutoPlay = true;
+    wstring _ropeEffectName = L"Effects\\Assets\\Map\\FX_VerticalRope.effect.json";
+    Vec3 _ropeEffectOffset = Vec3::Zero;
+    Vec3 _ropeEffectRotation = Vec3::Zero;
+    Vec3 _ropeEffectScale = Vec3::One;
 
     Vec3 _topColliderCenter = Vec3(0.f, 4.f, 0.f);
     Vec3 _topColliderExtents = Vec3(0.6f, 0.6f, 0.6f);

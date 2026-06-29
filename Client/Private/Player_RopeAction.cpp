@@ -1,4 +1,4 @@
-#include "pch.h"
+﻿#include "pch.h"
 #include "Player_RopeAction.h"
 
 #include "Body_Player.h"
@@ -32,11 +32,25 @@ namespace
         return hit.staticHandle.Is_Valid();
     }
 
-    Body_Player::PlayerWorldAnimation Get_TravelAnimation(WorldInteractionSpot::RopeDirection direction)
+    Body_Player::PlayerWorldAnimation Get_StartAnimation(WorldInteractionSpot::RopeDirection direction)
     {
         return direction == WorldInteractionSpot::RopeDirection::Down
-            ? Body_Player::PlayerWorldAnimation::Pl_Rope_Down
-            : Body_Player::PlayerWorldAnimation::Pl_Rope_Up;
+            ? Body_Player::PlayerWorldAnimation::Pl_RopeDown_Start
+            : Body_Player::PlayerWorldAnimation::Pl_RopeUp_Start;
+    }
+
+    Body_Player::PlayerWorldAnimation Get_EndAnimation(WorldInteractionSpot::RopeDirection direction)
+    {
+        return direction == WorldInteractionSpot::RopeDirection::Down
+            ? Body_Player::PlayerWorldAnimation::Pl_RopeDown_End
+            : Body_Player::PlayerWorldAnimation::Pl_RopeUp_End;
+    }
+
+    Body_Player::PlayerWorldAnimation Get_IdleAnimation(WorldInteractionSpot::RopeDirection direction)
+    {
+        return direction == WorldInteractionSpot::RopeDirection::Down
+            ? Body_Player::PlayerWorldAnimation::Pl_RopeDownIdle
+            : Body_Player::PlayerWorldAnimation::Pl_RopeUpIdle;
     }
 }
 
@@ -88,7 +102,7 @@ bool Player_RopeAction::EnterInvoke()
     {
         _bodyPlayer->Set_AnimationSpeed(1.f);
         _bodyPlayer->Set_AnimationByState(
-            ETOI(Body_Player::PlayerWorldAnimation::Pl_Rope_Start),
+            ETOI(Get_StartAnimation(_request.ropeDirection)),
             kAnimationBlendDuration,
             false);
     }
@@ -166,7 +180,7 @@ void Player_RopeAction::Enter_TravelPhase()
     {
         _bodyPlayer->Set_AnimationSpeed(1.f);
         _bodyPlayer->Set_AnimationByState(
-            ETOI(Get_TravelAnimation(_request.ropeDirection)),
+            ETOI(Get_IdleAnimation(_request.ropeDirection)),
             kAnimationBlendDuration,
             true);
     }
@@ -197,7 +211,7 @@ void Player_RopeAction::Enter_EndPhase()
         if (const Shared<ModelCom> model = _bodyPlayer->Get_Model())
         {
             model->Set_AnimationByState(
-                ETOI(Body_Player::PlayerWorldAnimation::Pl_Rope_End),
+                ETOI(Get_EndAnimation(_request.ropeDirection)),
                 kAnimationBlendDuration,
                 false);
             _prevRootMotionRatio = model->Get_RootMotionTranslationRatio();
@@ -205,7 +219,7 @@ void Player_RopeAction::Enter_EndPhase()
         else
         {
             _bodyPlayer->Set_AnimationByState(
-                ETOI(Body_Player::PlayerWorldAnimation::Pl_Rope_End),
+                ETOI(Get_EndAnimation(_request.ropeDirection)),
                 kAnimationBlendDuration,
                 false);
         }

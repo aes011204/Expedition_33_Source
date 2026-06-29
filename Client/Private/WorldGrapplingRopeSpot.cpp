@@ -1,4 +1,4 @@
-﻿#include "WorldRopeSpot.h"
+﻿#include "WorldGrapplingRopeSpot.h"
 
 #include "Bounding_AABB.h"
 #include "Camera.h"
@@ -15,7 +15,7 @@ namespace
     constexpr const wchar_t* kGrapplePointColliderTag = L"Com_RopeGrapplePointCollider";
 }
 
-IMPLEMENT_REFLECTION(WorldRopeSpot)
+IMPLEMENT_REFLECTION(WorldGrapplingRopeSpot)
 {
     auto& info = GetStaticReflectionInfo();
     info.properties.clear();
@@ -43,7 +43,7 @@ IMPLEMENT_REFLECTION(WorldRopeSpot)
     return true;
 }
 
-WorldRopeSpot::WorldRopeSpot(const ComPtr<Device>& device, const ComPtr<Context>& context)
+WorldGrapplingRopeSpot::WorldGrapplingRopeSpot(const ComPtr<Device>& device, const ComPtr<Context>& context)
     : WorldInteractionSpot(device, context)
 {
     _startPointOffset = Vec3(0.f, 0.f, 0.f);
@@ -53,7 +53,7 @@ WorldRopeSpot::WorldRopeSpot(const ComPtr<Device>& device, const ComPtr<Context>
     _promptText = L"Rope";
 }
 
-WorldRopeSpot::WorldRopeSpot(const WorldRopeSpot& prototype)
+WorldGrapplingRopeSpot::WorldGrapplingRopeSpot(const WorldGrapplingRopeSpot& prototype)
     : WorldInteractionSpot(prototype)
     , _gateColliderCenter(prototype._gateColliderCenter)
     , _gateColliderExtents(prototype._gateColliderExtents)
@@ -63,7 +63,7 @@ WorldRopeSpot::WorldRopeSpot(const WorldRopeSpot& prototype)
 {
 }
 
-HRESULT WorldRopeSpot::Initialize(void* arg)
+HRESULT WorldGrapplingRopeSpot::Initialize(void* arg)
 {
     CHECK_FAILED(__super::Initialize(arg), E_FAIL);
     CHECK_FAILED(Ready_Components(), E_FAIL);
@@ -73,7 +73,7 @@ HRESULT WorldRopeSpot::Initialize(void* arg)
     return S_OK;
 }
 
-void WorldRopeSpot::Update(float timeDelta)
+void WorldGrapplingRopeSpot::Update(float timeDelta)
 {
     __super::Update(timeDelta);
 
@@ -81,7 +81,7 @@ void WorldRopeSpot::Update(float timeDelta)
     Refresh_CandidateFromLockRay(activeHero);
 }
 
-void WorldRopeSpot::Late_Update(float timeDelta)
+void WorldGrapplingRopeSpot::Late_Update(float timeDelta)
 {
     __super::Late_Update(timeDelta);
 
@@ -98,22 +98,22 @@ void WorldRopeSpot::Late_Update(float timeDelta)
     }
 }
 
-HRESULT WorldRopeSpot::Render()
+HRESULT WorldGrapplingRopeSpot::Render()
 {
     return S_OK;
 }
 
-HRESULT WorldRopeSpot::Render_Shadow()
+HRESULT WorldGrapplingRopeSpot::Render_Shadow()
 {
     return S_OK;
 }
 
-bool WorldRopeSpot::Try_Get_ShadowWorldBounds(BoundingBox& outWorldBounds) const
+bool WorldGrapplingRopeSpot::Try_Get_ShadowWorldBounds(BoundingBox& outWorldBounds) const
 {
     return false;
 }
 
-void WorldRopeSpot::OnBeginOverlap(Shared<ColliderCom> self, Shared<ColliderCom> other)
+void WorldGrapplingRopeSpot::OnBeginOverlap(Shared<ColliderCom> self, Shared<ColliderCom> other)
 {
     __super::OnBeginOverlap(self, other);
 
@@ -128,7 +128,7 @@ void WorldRopeSpot::OnBeginOverlap(Shared<ColliderCom> self, Shared<ColliderCom>
     Refresh_CandidateFromLockRay(activeHero);
 }
 
-void WorldRopeSpot::OnStayOverlap(Shared<ColliderCom> self, Shared<ColliderCom> other)
+void WorldGrapplingRopeSpot::OnStayOverlap(Shared<ColliderCom> self, Shared<ColliderCom> other)
 {
     __super::OnStayOverlap(self, other);
 
@@ -143,7 +143,7 @@ void WorldRopeSpot::OnStayOverlap(Shared<ColliderCom> self, Shared<ColliderCom> 
     Refresh_CandidateFromLockRay(activeHero);
 }
 
-void WorldRopeSpot::OnEndOverlap(Shared<ColliderCom> self, Shared<ColliderCom> other)
+void WorldGrapplingRopeSpot::OnEndOverlap(Shared<ColliderCom> self, Shared<ColliderCom> other)
 {
     __super::OnEndOverlap(self, other);
 
@@ -161,7 +161,7 @@ void WorldRopeSpot::OnEndOverlap(Shared<ColliderCom> self, Shared<ColliderCom> o
     activeHero->Clear_WorldInteractionCandidate(this);
 }
 
-bool WorldRopeSpot::Can_Interact(const Shared<Player_WorldBase>& activeHero) const
+bool WorldGrapplingRopeSpot::Can_Interact(const Shared<Player_WorldBase>& activeHero) const
 {
     if (!__super::Can_Interact(activeHero))
         return false;
@@ -169,7 +169,7 @@ bool WorldRopeSpot::Can_Interact(const Shared<Player_WorldBase>& activeHero) con
     return _hasActiveHeroOverlap && Is_CameraLockRayHittingGrapplePoint();
 }
 
-bool WorldRopeSpot::Build_InteractionRequest(const Shared<Player_WorldBase>& activeHero, WorldInteractionRequest& outRequest) const
+bool WorldGrapplingRopeSpot::Build_InteractionRequest(const Shared<Player_WorldBase>& activeHero, WorldInteractionRequest& outRequest) const
 {
     if (!Can_Interact(activeHero))
         return false;
@@ -182,7 +182,7 @@ bool WorldRopeSpot::Build_InteractionRequest(const Shared<Player_WorldBase>& act
     return true;
 }
 
-HRESULT WorldRopeSpot::Ready_Components()
+HRESULT WorldGrapplingRopeSpot::Ready_Components()
 {
     CHECK_FAILED(Ready_AABBCollider(kGateColliderTag, _gateColliderCenter, _gateColliderExtents, _gateCollider), E_FAIL);
     CHECK_FAILED(Ready_AABBCollider(kGrapplePointColliderTag, _grapplePointColliderCenter, _grapplePointColliderExtents, _grapplePointCollider), E_FAIL);
@@ -190,7 +190,7 @@ HRESULT WorldRopeSpot::Ready_Components()
     return S_OK;
 }
 
-HRESULT WorldRopeSpot::Ready_AABBCollider(
+HRESULT WorldGrapplingRopeSpot::Ready_AABBCollider(
     const wstring& componentTag,
     const Vec3& center,
     const Vec3& extents,
@@ -210,7 +210,7 @@ HRESULT WorldRopeSpot::Ready_AABBCollider(
 }
 
 
-void WorldRopeSpot::Refresh_CandidateFromLockRay(const Shared<Player_WorldBase>& activeHero)
+void WorldGrapplingRopeSpot::Refresh_CandidateFromLockRay(const Shared<Player_WorldBase>& activeHero)
 {
     if (activeHero == nullptr || activeHero->Is_WorldInteracting())
         return;
@@ -221,12 +221,12 @@ void WorldRopeSpot::Refresh_CandidateFromLockRay(const Shared<Player_WorldBase>&
         activeHero->Clear_WorldInteractionCandidate(this);
 }
 
-bool WorldRopeSpot::Is_GateCollider(const Shared<ColliderCom>& collider) const
+bool WorldGrapplingRopeSpot::Is_GateCollider(const Shared<ColliderCom>& collider) const
 {
     return collider != nullptr && collider.get() == _gateCollider.get();
 }
 
-bool WorldRopeSpot::Is_CameraLockRayHittingGrapplePoint() const
+bool WorldGrapplingRopeSpot::Is_CameraLockRayHittingGrapplePoint() const
 {
     if (_grapplePointCollider == nullptr)
         return false;
@@ -248,7 +248,7 @@ bool WorldRopeSpot::Is_CameraLockRayHittingGrapplePoint() const
     return hitDistance <= _maxLockRayDistance;
 }
 
-bool WorldRopeSpot::Try_GetCameraLockRay(Vec3& outOrigin, Vec3& outDirection) const
+bool WorldGrapplingRopeSpot::Try_GetCameraLockRay(Vec3& outOrigin, Vec3& outDirection) const
 {
     const Shared<Camera> camera = GAME->Get_ActiveCamera();
     if (camera == nullptr)
@@ -275,9 +275,9 @@ bool WorldRopeSpot::Try_GetCameraLockRay(Vec3& outOrigin, Vec3& outDirection) co
     return true;
 }
 
-Shared<WorldRopeSpot> WorldRopeSpot::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)
+Shared<WorldGrapplingRopeSpot> WorldGrapplingRopeSpot::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)
 {
-    auto instance = make_shared<WorldRopeSpot>(device, context);
+    auto instance = make_shared<WorldGrapplingRopeSpot>(device, context);
 
     if (FAILED(instance->Initialize_Prototype()))
     {
@@ -288,9 +288,9 @@ Shared<WorldRopeSpot> WorldRopeSpot::Create(const ComPtr<Device>& device, const 
     return instance;
 }
 
-Shared<GameObject> WorldRopeSpot::Clone(void* arg)
+Shared<GameObject> WorldGrapplingRopeSpot::Clone(void* arg)
 {
-    auto clone = make_shared<WorldRopeSpot>(*this);
+    auto clone = make_shared<WorldGrapplingRopeSpot>(*this);
 
     if (FAILED(clone->Initialize(arg)))
     {
@@ -301,7 +301,7 @@ Shared<GameObject> WorldRopeSpot::Clone(void* arg)
     return clone;
 }
 
-void WorldRopeSpot::Free()
+void WorldGrapplingRopeSpot::Free()
 {
     WorldInteractionSpot::Free();
 }

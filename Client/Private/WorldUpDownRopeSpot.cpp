@@ -2,6 +2,7 @@
 
 #include "Bounding_AABB.h"
 #include "ColliderCom.h"
+#include "EffectCom.h"
 #include "GameInstance.h"
 #include "Material.h"
 #include "ModelCom.h"
@@ -26,6 +27,12 @@ IMPLEMENT_REFLECTION(WorldUpDownRopeSpot)
     info.category = "Trigger";
 
     PROPERTY_INT("Priority", _priority);
+
+    PROPERTY_BOOL("Rope Effect Auto Play", _ropeEffectAutoPlay);
+    PROPERTY_WSTRING("Rope Effect Name", _ropeEffectName);
+    PROPERTY_VEC3("Rope Effect Offset", _ropeEffectOffset);
+    PROPERTY_VEC3("Rope Effect Rotation", _ropeEffectRotation);
+    PROPERTY_VEC3("Rope Effect Scale", _ropeEffectScale);
 
     PROPERTY_VEC3("Top Collider Center", _topColliderCenter);
     PROPERTY_VEC3("Top Collider Extents", _topColliderExtents);
@@ -55,6 +62,11 @@ WorldUpDownRopeSpot::WorldUpDownRopeSpot(const ComPtr<Device>& device, const Com
 
 WorldUpDownRopeSpot::WorldUpDownRopeSpot(const WorldUpDownRopeSpot& prototype)
     : WorldInteractionSpot(prototype)
+    , _ropeEffectAutoPlay(prototype._ropeEffectAutoPlay)
+    , _ropeEffectName(prototype._ropeEffectName)
+    , _ropeEffectOffset(prototype._ropeEffectOffset)
+    , _ropeEffectRotation(prototype._ropeEffectRotation)
+    , _ropeEffectScale(prototype._ropeEffectScale)
     , _topColliderCenter(prototype._topColliderCenter)
     , _topColliderExtents(prototype._topColliderExtents)
     , _topStartPointOffset(prototype._topStartPointOffset)
@@ -76,6 +88,22 @@ HRESULT WorldUpDownRopeSpot::Initialize(void* arg)
     Set_ShadowCasterType(ShadowCasterType::Dynamic);
 
     return S_OK;
+}
+
+void WorldUpDownRopeSpot::BeginPlay()
+{
+    __super::BeginPlay();
+
+    if (_ropeEffectAutoPlay)
+        Play_RopeEffect();
+}
+
+void WorldUpDownRopeSpot::Update(float timeDelta)
+{
+    __super::Update(timeDelta);
+
+    if (_effectCom != nullptr)
+        _effectCom->Update(timeDelta);
 }
 
 void WorldUpDownRopeSpot::Late_Update(float timeDelta)
@@ -243,6 +271,7 @@ HRESULT WorldUpDownRopeSpot::Ready_Components()
 {
     CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Shader_VtxMesh"), _shader), E_FAIL);
     CHECK_FAILED(Ready_ModelComponent(), E_FAIL);
+    CHECK_FAILED(Ready_EffectComponent(), E_FAIL);
     CHECK_FAILED(Ready_EntryCollider(kTopEntryColliderTag, _topColliderCenter, _topColliderExtents, _topEntryCollider), E_FAIL);
     CHECK_FAILED(Ready_EntryCollider(kBottomEntryColliderTag, _bottomColliderCenter, _bottomColliderExtents, _bottomEntryCollider), E_FAIL);
 
@@ -264,6 +293,22 @@ HRESULT WorldUpDownRopeSpot::Ready_ModelComponent()
     CHECK_NULL(_model, E_FAIL);
 
     Register_ModelComponent();
+
+    return S_OK;
+}
+
+HRESULT WorldUpDownRopeSpot::Ready_EffectComponent()
+{
+    CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Com_Effect"), _effectCom), E_FAIL);
+
+    EffectCom::InspectorEffectSettings settings{};
+    settings.effectName = _ropeEffectName;
+    settings.localOffset = _ropeEffectOffset;
+    settings.localRotation = _ropeEffectRotation;
+    settings.scale = _ropeEffectScale;
+    settings.followTarget = true;
+    settings.requiresManualRelease = true;
+    _effectCom->Set_InspectorEffectSettings(settings);
 
     return S_OK;
 }
@@ -304,6 +349,39 @@ HRESULT WorldUpDownRopeSpot::Bind_ShaderResources()
     CHECK_FAILED(GAME->Bind_CameraCB(_shader), E_FAIL);
 
     return S_OK;
+}
+
+void WorldUpDownRopeSpot::Play_RopeEffect()
+{
+    if (_effectCom == nullptr)
+        return;
+
+    if (_ropeEffectName.empty())
+        return;
+
+    EffectCom::InspectorEffectSettings settings = _effectCom->Get_InspectorEffectSettings();
+    settings.effectName = _ropeEffectName;
+    settings.localOffset = _ropeEffectOffset;
+    settings.localRotation = _ropeEffectRotation;
+    settings.scale = _ropeEffectScale;
+    settings.followTarget = true;
+    settings.requiresManualRelease = true;
+    _effectCom->Set_InspectorEffectSettings(settings);
+
+    _effectCom->Stop_AllAttachedEffects();
+
+    EffectCom::EffectPlayDesc desc{};
+    desc.levelIndex = GAME->Current_LevelIndex();
+    desc.effectName = _ropeEffectName;
+    desc.target = EffectCom::EffectPlayTarget::OwnerRoot;
+    desc.layerTag = L"Layer_Effect";
+    desc.localOffset = _ropeEffectOffset;
+    desc.localRotation = _ropeEffectRotation;
+    desc.scale = _ropeEffectScale;
+    desc.followTarget = true;
+    desc.requiresManualRelease = true;
+
+    _effectCom->Play_Effect(desc);
 }
 
 void WorldUpDownRopeSpot::Set_ActiveEntryFromCollider(const Shared<ColliderCom>& self, const Shared<ColliderCom>& other)
