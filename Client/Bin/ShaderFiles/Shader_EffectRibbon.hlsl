@@ -40,6 +40,33 @@ cbuffer cbEffectRibbonMaterial : register(b2)
     float4 g_EffectMaterialScalarModulationKeyLeaveTangentsBlock1[8];
     float4 g_EffectMaterialScalarModulationKeyModes[8];
     float4 g_EffectMaterialScalarModulationKeyModesBlock1[8];
+    float4 g_EffectMaterialCoreColorRgbModulationParams = { 0.f, 0.f, 0.f, 0.f };
+    float4 g_EffectMaterialCoreColorRgbModulationMeta[8];
+    float4 g_EffectMaterialCoreColorRgbModulationUniformMin[8];
+    float4 g_EffectMaterialCoreColorRgbModulationUniformMax[8];
+    float4 g_EffectMaterialCoreColorRgbModulationUniformSeed[8];
+    float4 g_EffectMaterialCoreColorRgbModulationKeyTimes[8];
+    float4 g_EffectMaterialCoreColorRgbModulationKeyTimesBlock1[8];
+    float4 g_EffectMaterialCoreColorRgbModulationKeyValuesR[8];
+    float4 g_EffectMaterialCoreColorRgbModulationKeyValuesRBlock1[8];
+    float4 g_EffectMaterialCoreColorRgbModulationKeyValuesG[8];
+    float4 g_EffectMaterialCoreColorRgbModulationKeyValuesGBlock1[8];
+    float4 g_EffectMaterialCoreColorRgbModulationKeyValuesB[8];
+    float4 g_EffectMaterialCoreColorRgbModulationKeyValuesBBlock1[8];
+    float4 g_EffectMaterialCoreColorRgbModulationKeyArriveTangentsR[8];
+    float4 g_EffectMaterialCoreColorRgbModulationKeyArriveTangentsRBlock1[8];
+    float4 g_EffectMaterialCoreColorRgbModulationKeyArriveTangentsG[8];
+    float4 g_EffectMaterialCoreColorRgbModulationKeyArriveTangentsGBlock1[8];
+    float4 g_EffectMaterialCoreColorRgbModulationKeyArriveTangentsB[8];
+    float4 g_EffectMaterialCoreColorRgbModulationKeyArriveTangentsBBlock1[8];
+    float4 g_EffectMaterialCoreColorRgbModulationKeyLeaveTangentsR[8];
+    float4 g_EffectMaterialCoreColorRgbModulationKeyLeaveTangentsRBlock1[8];
+    float4 g_EffectMaterialCoreColorRgbModulationKeyLeaveTangentsG[8];
+    float4 g_EffectMaterialCoreColorRgbModulationKeyLeaveTangentsGBlock1[8];
+    float4 g_EffectMaterialCoreColorRgbModulationKeyLeaveTangentsB[8];
+    float4 g_EffectMaterialCoreColorRgbModulationKeyLeaveTangentsBBlock1[8];
+    float4 g_EffectMaterialCoreColorRgbModulationKeyModes[8];
+    float4 g_EffectMaterialCoreColorRgbModulationKeyModesBlock1[8];
     int g_OpacitySource = 0;
     float g_EffectRibbonMaterialTime = 0.f;
     float2 g_EffectRibbonPadding;
@@ -139,6 +166,7 @@ struct VS_IN
     float4 endColor : COLOR1;
     float4 subUVRect : TEXCOORD1;
     float4 segmentParams : TEXCOORD2; // x: life progress, y: current width, z: next width, w: alpha scale
+    float4 coreColorRgb : TEXCOORD6;
 };
 
 struct VS_OUT
@@ -152,6 +180,7 @@ struct VS_OUT
     float4 endColor : COLOR1;
     float4 subUVRect : TEXCOORD4;
     float4 segmentParams : TEXCOORD5;
+    float4 coreColorRgb : TEXCOORD6;
 };
 
 struct GS_IN
@@ -165,6 +194,7 @@ struct GS_IN
     float4 endColor : COLOR1;
     float4 subUVRect : TEXCOORD4;
     float4 segmentParams : TEXCOORD5;
+    float4 coreColorRgb : TEXCOORD6;
 };
 
 struct GS_OUT
@@ -175,6 +205,7 @@ struct GS_OUT
     float2 edgeCoord : TEXCOORD2;
     float4 color : COLOR0;
     float4 segmentParams : TEXCOORD3;
+    float4 coreColorRgb : TEXCOORD4;
 };
 
 struct PS_IN
@@ -185,6 +216,7 @@ struct PS_IN
     float2 edgeCoord : TEXCOORD2;
     float4 color : COLOR0;
     float4 segmentParams : TEXCOORD3;
+    float4 coreColorRgb : TEXCOORD4;
 };
 
 struct PS_OUT
@@ -260,6 +292,7 @@ VS_OUT VS_MAIN(VS_IN In)
     Out.endColor = In.endColor;
     Out.subUVRect = In.subUVRect;
     Out.segmentParams = In.segmentParams;
+    Out.coreColorRgb = In.coreColorRgb;
 
     return Out;
 }
@@ -279,6 +312,7 @@ GS_OUT Build_RibbonVertex(
     Out.edgeCoord = edgeCoord;
     Out.color = lerp(input.startColor, input.endColor, saturate(edgeCoord.x));
     Out.segmentParams = input.segmentParams;
+    Out.coreColorRgb = input.coreColorRgb;
     return Out;
 }
 
@@ -350,6 +384,8 @@ EffectMaterialSurface Resolve_EffectRibbonMaterialSurface(PS_IN In)
                                          * EffectMaterialScalar_ResolveMultiplier(EFFECT_MATERIAL_SCALAR_TARGET_OUTER_INTENSITY, lifeProgress);
     const float resolvedCoreColorMultiplier =
         EffectMaterialScalar_ResolveMultiplier(EFFECT_MATERIAL_SCALAR_TARGET_CORE_COLOR, lifeProgress);
+    const float3 resolvedCoreColorRgb =
+        EffectMaterialCoreColor_ResolveRgb(g_EffectRibbonCoreEmissiveColor.rgb, lifeProgress, In.coreColorRgb.rgb);
     const float opacityPower = max(resolvedOpacityPower, 0.0001f);
     const float alphaCutoff = saturate(resolvedAlphaCutoff);
     const float alphaErosion = saturate(resolvedAlphaErosion);
@@ -361,7 +397,7 @@ EffectMaterialSurface Resolve_EffectRibbonMaterialSurface(PS_IN In)
         g_EffectRibbonCoreEmissiveParams.w
     );
     const float4 resolvedCoreEmissiveColor = float4(
-        g_EffectRibbonCoreEmissiveColor.rgb * resolvedCoreColorMultiplier,
+        resolvedCoreColorRgb * resolvedCoreColorMultiplier,
         resolvedOuterIntensity
     );
     float noiseRaw = 1.f;
@@ -455,6 +491,8 @@ PS_OUT PS_ADDITIVE(PS_IN In)
                                          * EffectMaterialScalar_ResolveMultiplier(EFFECT_MATERIAL_SCALAR_TARGET_OUTER_INTENSITY, lifeProgress);
     const float resolvedCoreColorMultiplier =
         EffectMaterialScalar_ResolveMultiplier(EFFECT_MATERIAL_SCALAR_TARGET_CORE_COLOR, lifeProgress);
+    const float3 resolvedCoreColorRgb =
+        EffectMaterialCoreColor_ResolveRgb(g_EffectRibbonCoreEmissiveColor.rgb, lifeProgress, In.coreColorRgb.rgb);
     const float resolvedIntensity = g_EffectRibbonParams.x
                                     * EffectMaterialScalar_ResolveMultiplier(EFFECT_MATERIAL_SCALAR_TARGET_INTENSITY, lifeProgress);
     const float alphaCutoff = saturate(resolvedAlphaCutoff);
@@ -466,7 +504,7 @@ PS_OUT PS_ADDITIVE(PS_IN In)
         g_EffectRibbonCoreEmissiveParams.w
     );
     const float4 resolvedCoreEmissiveColor = float4(
-        g_EffectRibbonCoreEmissiveColor.rgb * resolvedCoreColorMultiplier,
+        resolvedCoreColorRgb * resolvedCoreColorMultiplier,
         resolvedOuterIntensity
     );
     float noiseRaw = 1.f;

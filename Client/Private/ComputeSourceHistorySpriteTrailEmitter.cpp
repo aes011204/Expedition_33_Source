@@ -1394,6 +1394,16 @@ void ComputeSourceHistorySpriteTrailEmitter::Push_Stamp(
         stampSerial,
         149u
     ).x;
+    stamp.coreColorRgb = Sample_ParticleLifeCoreColorRgbUniformModulation(
+        _desc.material.coreColorRgbModulation,
+        Vec3{
+            _desc.material.coreEmissive.coreColor.x,
+            _desc.material.coreEmissive.coreColor.y,
+            _desc.material.coreEmissive.coreColor.z
+        },
+        _effectPlaybackSeed,
+        stampSerial
+    );
     stamp.frameIndex = Evaluate_SubUVFrameIndex(stamp);
     const Vec2 initialSize = Sample_InitialSize(stampSerial);
     stamp.widthScale = max(0.f, widthScale * initialSize.x);
@@ -1582,7 +1592,8 @@ HRESULT ComputeSourceHistorySpriteTrailEmitter::Append_StampInstances(const vect
                 .startColor = color,
                 .endColor = color,
                 .subUVRect = Resolve_SubUVRect(frameIndex),
-                .rotationAndTilt = Vec4{ rotationRadians, spriteTiltDegrees.x, spriteTiltDegrees.y, 0.f }
+                .rotationAndTilt = Vec4{ rotationRadians, spriteTiltDegrees.x, spriteTiltDegrees.y, 0.f },
+                .coreColorRgb = Vec4{ stamp.coreColorRgb.x, stamp.coreColorRgb.y, stamp.coreColorRgb.z, 0.f }
             }
         );
     }
@@ -1703,6 +1714,15 @@ HRESULT ComputeSourceHistorySpriteTrailEmitter::Bind_ShaderResources()
     CHECK_FAILED(_shader->Bind_RawValue("g_EffectSpriteSourceParams", &effectSpriteSourceParams, sizeof(effectSpriteSourceParams)), E_FAIL);
     CHECK_FAILED(_shader->Bind_RawValue("g_EffectSpriteMaterialTime", &_materialElapsedTime, sizeof(_materialElapsedTime)), E_FAIL);
     CHECK_FAILED(Internal::Bind_MaterialScalarModulationPayload(_shader.get(), material.scalarModulation, emitterPhase - floorf(emitterPhase)), E_FAIL);
+    CHECK_FAILED(
+        Bind_CoreColorRgbModulationShaderPayload(
+            _shader.get(),
+            material.coreColorRgbModulation,
+            emitterPhase - floorf(emitterPhase),
+            _effectPlaybackSeed
+        ),
+        E_FAIL
+    );
     CHECK_FAILED(_shader->Bind_RawValue("g_EffectSpriteAdditiveParams", &effectSpriteAdditiveParams, sizeof(effectSpriteAdditiveParams)), E_FAIL);
     CHECK_FAILED(_shader->Bind_RawValue("g_EffectSpriteAdditiveEmissiveColor", &additive.emissiveColor, sizeof(additive.emissiveColor)), E_FAIL);
     CHECK_FAILED(_shader->Bind_RawValue("g_EffectSpriteAdditiveConstantColor", &additive.constantColor, sizeof(additive.constantColor)), E_FAIL);

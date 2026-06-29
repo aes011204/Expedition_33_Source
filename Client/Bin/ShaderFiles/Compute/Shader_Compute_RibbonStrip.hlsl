@@ -9,6 +9,7 @@ struct RibbonSegmentPayload
     float4 startColor;
     float4 endColor;
     float4 subUVRect;
+    float4 coreColorRgb;
 };
 
 struct RibbonInstanceVertex
@@ -22,6 +23,7 @@ struct RibbonInstanceVertex
     float4 endColor;
     float4 subUVRect;
     float4 segmentParams;
+    float4 coreColorRgb;
 };
 
 struct DrawIndexedInstancedIndirectArgs
@@ -94,5 +96,6 @@ void CS_Main(uint3 dispatchThreadId : SV_DispatchThreadID)
         max(segment.nextSampleParams.w, 0.001f),
         1.0f
     );
+    output.coreColorRgb = segment.coreColorRgb;
     OutputData[index] = output;
 }

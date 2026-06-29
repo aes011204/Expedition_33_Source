@@ -52,6 +52,7 @@ private: //## Types::PlaybackRuntime
         Vec3 position{};
         float age{};
         float distance{};
+        uint32 serial{};
     };
 
     struct RenderSample
@@ -71,6 +72,7 @@ private: //## Types::PlaybackRuntime
         Vec4 startColor{};
         Vec4 endColor{};
         Vec4 subUVRect{ 0.f, 0.f, 1.f, 1.f };
+        Vec4 coreColorRgb{ 1.f, 0.85f, 0.45f, 0.f };
     };
 
     struct HistoryLane
@@ -114,6 +116,7 @@ private: //## Types::PlaybackRuntime
         Vec4 endColor{};
         Vec4 subUVRect{};
         Vec4 segmentParams{};    // x: lifeProgress, y: currentWidth, z: nextWidth, w: alphaScale.
+        Vec4 coreColorRgb{ 1.f, 0.85f, 0.45f, 0.f };
     };
 
     struct DrawIndexedInstancedIndirectArgs
@@ -156,6 +159,7 @@ private: //## Data::PlaybackRuntime
     float _visibleRibbonLength{ 1.f };
     uint32 _drawSegmentCount{};
     uint32 _randomSubUVFrameIndex{};
+    uint32 _sampleSerialCounter{};
 
 private: //## Data::Components
     Shared<ShaderCom> _shader{};

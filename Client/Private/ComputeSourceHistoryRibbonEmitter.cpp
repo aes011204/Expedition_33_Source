@@ -360,6 +360,7 @@ HRESULT ComputeSourceHistoryRibbonEmitter::Reset_ForEffectReplay()
     _materialElapsedTime = 0.f;
     _visibleRibbonLength = 1.f;
     _drawSegmentCount = 0u;
+    _sampleSerialCounter = 0u;
 
     if (nullptr != _computeArgsOutput)
         CHECK_FAILED(Reset_IndirectArgs(), E_FAIL);
@@ -643,7 +644,7 @@ void ComputeSourceHistoryRibbonEmitter::Insert_HistorySample(
     float& sampleIntervalAccumulator,
     const Vec3& sourcePosition)
 {
-    history.insert(history.begin(), HistorySample{ .position = sourcePosition, .age = 0.f, .distance = 0.f });
+    history.insert(history.begin(), HistorySample{ .position = sourcePosition, .age = 0.f, .distance = 0.f, .serial = _sampleSerialCounter++ });
     sampleIntervalAccumulator = 0.f;
 
     while (static_cast<uint32>(history.size()) > _desc.maxSampleCount)
@@ -699,7 +700,12 @@ void ComputeSourceHistoryRibbonEmitter::Build_RenderSamples(
     vector<HistorySample> sourceSamples{};
     sourceSamples.reserve(history.size() + (currentSourcePosition != nullptr ? 1u : 0u));
     if (currentSourcePosition != nullptr)
-        sourceSamples.push_back(HistorySample{ .position = *currentSourcePosition });
+        sourceSamples.push_back(
+            HistorySample{
+                .position = *currentSourcePosition,
+                .serial = !history.empty() ? history.front().serial : _sampleSerialCounter
+            }
+        );
     sourceSamples.insert(sourceSamples.end(), history.begin(), history.end());
 
     if (sourceSamples.empty())
@@ -786,6 +792,7 @@ void ComputeSourceHistoryRibbonEmitter::Build_RenderSamples(
             HistorySample sample{};
             sample.position = EffectAssetRuntimeLoad::Catmull_Rom(p0.position, p1.position, p2.position, p3.position, sampleRatio);
             sample.age = currentSample.age + (targetSample.age - currentSample.age) * sampleRatio;
+            sample.serial = currentSample.serial;
             outSamples.push_back(RenderSample{ .sample = sample });
 
             if (trimRatio < 1.f && ratio >= trimRatio)
@@ -901,7 +908,14 @@ void ComputeSourceHistoryRibbonEmitter::Retire_HistoryStroke(
     {
         if (history.empty() ||
             (history.front().position - *currentSourcePosition).Length() > kMinRenderableRibbonLength)
-            history.insert(history.begin(), HistorySample{ .position = *currentSourcePosition, .age = 0.f });
+            history.insert(
+                history.begin(),
+                HistorySample{
+                    .position = *currentSourcePosition,
+                    .age = 0.f,
+                    .serial = !history.empty() ? history.front().serial : _sampleSerialCounter++
+                }
+            );
         else
         {
             history.front().position = *currentSourcePosition;
@@ -1236,6 +1250,17 @@ HRESULT ComputeSourceHistoryRibbonEmitter::Append_SegmentPayloads(
         payload.startColor = currentColor;
         payload.endColor = nextColor;
         payload.subUVRect = subUVRect;
+        const Vec3 coreColorRgb = Sample_ParticleLifeCoreColorRgbUniformModulation(
+            _desc.material.coreColorRgbModulation,
+            Vec3{
+                _desc.material.coreEmissive.coreColor.x,
+                _desc.material.coreEmissive.coreColor.y,
+                _desc.material.coreEmissive.coreColor.z
+            },
+            _effectPlaybackSeed,
+            current.sample.serial
+        );
+        payload.coreColorRgb = Vec4(coreColorRgb.x, coreColorRgb.y, coreColorRgb.z, 0.f);
         outPayloads.push_back(payload);
     }
 
@@ -1411,6 +1436,7 @@ HRESULT ComputeSourceHistoryRibbonEmitter::Bind_MaterialResources()
     CHECK_FAILED(_shader->Bind_RawValue("g_EffectRibbonFallbackAxis", &effectRibbonFallbackAxis, sizeof(effectRibbonFallbackAxis)), E_FAIL);
     CHECK_FAILED(_shader->Bind_RawValue("g_EffectRibbonMaterialTime", &_materialElapsedTime, sizeof(_materialElapsedTime)), E_FAIL);
     CHECK_FAILED(EffectAssetRuntimeLoad::Bind_MaterialScalarModulationPayload(_shader.get(), _desc.material.scalarModulation, emitterPhase), E_FAIL);
+    CHECK_FAILED(Bind_CoreColorRgbModulationShaderPayload(_shader.get(), _desc.material.coreColorRgbModulation, emitterPhase, _effectPlaybackSeed), E_FAIL);
     CHECK_FAILED(_shader->Bind_RawValue("g_OpacitySource", &opacitySourceIndex, sizeof(opacitySourceIndex)), E_FAIL);
     return S_OK;
 }
@@ -1452,6 +1478,7 @@ HRESULT ComputeSourceHistoryRibbonEmitter::Bind_DistortionResources()
     CHECK_FAILED(_shader->Bind_RawValue("g_FlowUVScrollSpeed", &material.flowUVScrollSpeed, sizeof(material.flowUVScrollSpeed)), E_FAIL);
     CHECK_FAILED(_shader->Bind_RawValue("g_FlowUVTilingMode", &flowUVTilingMode, sizeof(flowUVTilingMode)), E_FAIL);
     CHECK_FAILED(_shader->Bind_RawValue("g_FlowUVRotation", &flowUVRotation, sizeof(flowUVRotation)), E_FAIL);
+    CHECK_FAILED(EffectAssetRuntimeLoad::Bind_MaterialScalarModulationPayload(_shader.get(), material.scalarModulation, emitterPhase), E_FAIL);
     return S_OK;
 }
 
@@ -1509,6 +1536,7 @@ void ComputeSourceHistoryRibbonEmitter::Start_NextLoop()
     _selfRootCollapseLength = -1.f;
     Clear_ParticleFollowerHistory();
     _drawSegmentCount = 0u;
+    _sampleSerialCounter = 0u;
     Resample_RandomSubUVFrameIndex();
 }
 

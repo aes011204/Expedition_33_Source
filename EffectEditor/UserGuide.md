@@ -905,7 +905,7 @@ Sprite Trail에서도 frame 선택, random frame, frame over life 정책은 Type
 
 ![Material scalar modulation module](UserGuide_Img/detail_material_scalar_modulation_module.png)
 
-주로 쓰는 TypeData: Sprite, Mesh, Trail, Ribbon, Beam. 다만 `ParticleLife` 시간 축은 기존 Sprite material scalar target 중심으로 지원한다. `Refraction Intensity`, `Core Color RGB`, Vec2 UV offset target, UV Scroll Speed Scale target은 `EmitterTime` 기준으로 쓰는 것이 현재 구현과 맞다.
+주로 쓰는 TypeData: Sprite, Mesh, Trail, Ribbon, Beam. `ParticleLife` 시간 축은 Sprite, SourceHistorySpriteTrail, Trail, Ribbon, Beam, Mesh의 scalar target과 `Core Color RGB`에서 지원한다. Vec2 UV offset target과 UV Scroll Speed Scale target은 `EmitterTime` 기준으로 쓴다.
 
 | UI 이름 | 의미 | 값 해석 | 분포/시간축 | 주의점 |
 | --- | --- | --- | --- | --- |
@@ -913,8 +913,8 @@ Sprite Trail에서도 frame 선택, random frame, frame over life 정책은 Type
 | `변조 사용` | 해당 modulator 적용 여부다. | 꺼진 row는 변조하지 않는다. | bool | Module row enabled와 별개다. |
 | `대상` | 변조할 material field다. | scalar, `Core Color RGB`, Main/Noise/Mask/Flow UV Offset, Main/Noise/Mask/Flow UV Scroll Speed Scale 중 선택한다. | combo | category를 바꾸면 row 종류가 바뀌고 분포 값은 새 기본값으로 초기화된다. |
 | `연산` | scalar 값을 material 값에 적용하는 방식이다. | 현재 UI는 label만 표시하고 reset할 수 있다. | read-only/action | 확정 동작은 runtime material lowering 기준으로 확인한다. |
-| `시간 축` | 변조 분포를 평가할 시간 기준이다. | `EmitterTime` 또는 지원되는 경우 `ParticleLife`다. | combo | `ParticleLife`는 Sprite material scalar에서만 지원된다. Scroll Speed Scale은 EmitterTime으로 보정된다. |
-| `분포` | 시간에 따른 변조 값이다. | scalar row는 float, Core Color RGB row는 적용할 RGB Vec3, Vec2 row는 X/Y channel이다. Core Color RGB의 `Uniform`은 min/max 범위에서 한 색을 샘플한다. | float/Vec3/Vec2 분포 | Beam은 EmitterTime 기준으로 보는 것이 안전하다. |
+| `시간 축` | 변조 분포를 평가할 시간 기준이다. | `EmitterTime` 또는 지원되는 경우 `ParticleLife`다. | combo | `ParticleLife`는 허용 scalar target과 `Core Color RGB`에서 particle/stamp/sample/segment/instance life 기준으로 평가된다. Scroll Speed Scale은 EmitterTime으로 보정된다. |
+| `분포` | 시간에 따른 변조 값이다. | scalar row는 float, Core Color RGB row는 적용할 RGB Vec3, Vec2 row는 X/Y channel이다. Core Color RGB의 `Uniform + ParticleLife`는 개체 생성 시점에 min/max 범위에서 한 색을 샘플하고 life 동안 유지한다. `ConstantCurve + ParticleLife`는 life 진행도에 따라 색을 평가한다. | float/Vec3/Vec2 분포 | Beam은 EmitterTime 기준으로 보는 것이 안전하다. |
 | `삭제` | 해당 modulator row를 제거한다. | row 구조를 바꾼다. | editor action | 삭제 후 같은 parameter 변조가 사라진다. |
 
 Material Instance View에서 기본 parameter를 정하고, `머티리얼 변조` Module에서 시간 변화 규칙을 얹는다고 이해하면 된다. `Core Color RGB` row는 core color RGB 값을 적용하거나 시간에 따라 바꾸는 color row이고, 밝기 배율처럼 기존 core color에 곱할 값은 scalar target인 `CoreColor Multiplier`로 다룬다. UV Offset target은 base offset에 Vec2 값을 더하고, UV Scroll Speed Scale target은 Material Instance의 base scroll speed에 scalar 값을 곱한다. Scroll Speed Scale은 `1.0`이면 원래 속도, `0.0`이면 정지, `-1.0`이면 반대 방향이며, shader가 `scrollSpeed * materialTime`으로 UV를 만들기 때문에 급격한 scale 변화는 누적 감속이 아니라 phase jump처럼 보일 수 있다.
@@ -1194,7 +1194,7 @@ Curve Editor의 graph X축은 key의 `In 값`이며 현재 UI에서는 0~1 범�
 | `수명` Module의 ConstantCurve | particle 생애 중간 변화가 아니라 spawn/loop 시점에 최대 수명을 샘플하는 용도다. |
 | Beam `수명` | 전체 반복 순서 진행률로 각 loop의 visual life를 한 번 샘플한다. |
 | `머티리얼 변조` + `EmitterTime` | Emitter time 기준으로 분포를 평가한다. |
-| `머티리얼 변조` + `ParticleLife` | Sprite material scalar에서만 선택 가능하며 particle lifetime 기준으로 평가한다. |
+| `머티리얼 변조` + `ParticleLife` | 허용 scalar target과 `Core Color RGB`를 particle/stamp/sample/segment/instance lifetime 기준으로 평가한다. `Core Color RGB Uniform`은 생성 시점 개체별 랜덤 색으로 고정되고, `ConstantCurve`는 life 동안 변화한다. |
 | Trail/Ribbon source history 계열 | curve만이 아니라 source sample이 어떻게 쌓이는지도 결과에 영향을 준다. |
 | Sprite Trail stamp 계열 | stamp age/lifetime 기준 변화와 source history path sampling을 구분해서 본다. |
 | Sprite Trail `수명` ConstantCurve | stamp 생성 시점의 emitter loop 진행률로 stamp lifetime을 한 번 샘플한다. |

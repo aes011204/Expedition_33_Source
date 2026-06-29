@@ -17,7 +17,10 @@ cbuffer cbEffectTrailDistortion : register(b2)
     float g_FlowUVTilingMode = 0.f;
     float g_FlowUVRotation = 0.f;
     float g_TrailDistortionPadding = 0.f;
+#include "Shader_EffectMaterialModulationPayloadGlobals.hlsli"
 };
+
+#include "Shader_EffectMaterialScalarModulation.hlsli"
 
 Texture2D g_FlowTexture : register(t3);
 
@@ -51,6 +54,7 @@ struct VS_IN
     float4 endColor : COLOR1;
     float4 subUVRect : TEXCOORD1;
     float4 segmentParams : TEXCOORD2; // x: 수명 진행률, y: reserved, z: 알파 배율, w: side fade
+    float4 coreColorRgb : TEXCOORD6;
 };
 
 struct VS_OUT
@@ -173,7 +177,9 @@ PS_OUT PS_MAIN(PS_IN In)
                         : float2(0.f, 0.f);
 
     const float lensCoverage = EffectDistortion_ComputeLensCoverage(trailCoverage, 1.f, g_EffectDistortionParams.y);
-    const float2 offset = EffectDistortion_ComputeScreenOffset(flow, g_EffectDistortionParams.x);
+    const float refractionIntensity =
+        g_EffectDistortionParams.x * EffectMaterialScalar_ResolveMultiplier(EFFECT_MATERIAL_SCALAR_TARGET_REFRACTION_INTENSITY, lifeProgress);
+    const float2 offset = EffectDistortion_ComputeScreenOffset(flow, refractionIntensity);
     Out.color = EffectDistortion_PackField(offset, lensCoverage);
     return Out;
 }

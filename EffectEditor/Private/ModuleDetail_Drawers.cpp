@@ -595,9 +595,18 @@ namespace Internal
         }
     }
 
-    static bool Is_SpriteMaterialScalarParticleLifeSupported(const AuthoringEmitter& emitter)
+    static bool Is_MaterialScalarParticleLifeSupported(const AuthoringEmitter& emitter)
     {
-        return emitter.typeData.kind == AuthoringTypeDataKind::None && emitter.rendererType == "Sprite";
+        return emitter.rendererType == "Sprite" ||
+               emitter.rendererType == "Trail" ||
+               emitter.rendererType == "Ribbon" ||
+               emitter.rendererType == "Beam" ||
+               emitter.rendererType == "Mesh" ||
+               emitter.typeData.kind == AuthoringTypeDataKind::SourceHistorySpriteTrail ||
+               emitter.typeData.kind == AuthoringTypeDataKind::Trail ||
+               emitter.typeData.kind == AuthoringTypeDataKind::Ribbon ||
+               emitter.typeData.kind == AuthoringTypeDataKind::Beam ||
+               emitter.typeData.kind == AuthoringTypeDataKind::Mesh;
     }
 
     static bool Is_MaterialScalarTimeSourceSelectable(
@@ -1926,7 +1935,7 @@ namespace Internal
         ShaderResourceView* previewSrv = nullptr;
         if (materialSlotPreview != nullptr)
         {
-            const bool allowScalarParticleLife = Is_SpriteMaterialScalarParticleLifeSupported(emitter);
+            const bool allowScalarParticleLife = Is_MaterialScalarParticleLifeSupported(emitter);
             materialSlotPreview->Update_MaterialTime(timeDelta);
             if (const MaterialScalarModulationModuleData* modulation = Find_MaterialScalarModulationModuleData(emitter))
             {
@@ -4524,7 +4533,7 @@ bool MaterialScalarModulationModuleDetail::Draw(
     DetailPropertyContext& detailContext)
 {
     bool changed = false;
-    const bool allowScalarParticleLife = Internal::Is_SpriteMaterialScalarParticleLifeSupported(emitter);
+    const bool allowScalarParticleLife = Internal::Is_MaterialScalarParticleLifeSupported(emitter);
 
     if (ImGui::CollapsingHeader("머티리얼 변조", ImGuiTreeNodeFlags_DefaultOpen))
     {
@@ -4653,18 +4662,12 @@ bool MaterialScalarModulationModuleDetail::Draw(
 
                         if (!structureChanged)
                         {
-                            if (modulator.timeSource == MaterialScalarModulationTimeSource::ParticleLife)
-                            {
-                                modulator.timeSource = MaterialScalarModulationTimeSource::EmitterTime;
-                                changed = true;
-                            }
-
                             changed |= Internal::Draw_MaterialScalarTimeSourceProperty(
                                 detailContext,
                                 "시간 축",
                                 modulator.timeSource,
                                 defaultData.timeSource,
-                                false
+                                allowScalarParticleLife
                             );
                         }
                         detailContext.End_PropertyTable();
@@ -4731,7 +4734,7 @@ bool MaterialScalarModulationModuleDetail::Draw(
                             {
                                 MaterialCoreColorRgbModulatorData coreColorRgbModulator = Internal::Make_CoreColorRgbModulator(emitter);
                                 coreColorRgbModulator.enabled = modulator.enabled;
-                                coreColorRgbModulator.timeSource = MaterialScalarModulationTimeSource::EmitterTime;
+                                coreColorRgbModulator.timeSource = modulator.timeSource;
                                 data.coreColorRgbModulators.push_back(coreColorRgbModulator);
                                 data.vec2Modulators.erase(data.vec2Modulators.begin() + static_cast<ptrdiff_t>(row.index));
                                 structureChanged = true;
@@ -4804,10 +4807,7 @@ bool MaterialScalarModulationModuleDetail::Draw(
                             {
                                 MaterialCoreColorRgbModulatorData coreColorRgbModulator = Internal::Make_CoreColorRgbModulator(emitter);
                                 coreColorRgbModulator.enabled = modulator.enabled;
-                                coreColorRgbModulator.timeSource =
-                                    modulator.timeSource == MaterialScalarModulationTimeSource::ParticleLife
-                                    ? MaterialScalarModulationTimeSource::EmitterTime
-                                    : modulator.timeSource;
+                                coreColorRgbModulator.timeSource = modulator.timeSource;
                                 data.coreColorRgbModulators.push_back(coreColorRgbModulator);
                                 data.modulators.erase(data.modulators.begin() + static_cast<ptrdiff_t>(row.index));
                                 structureChanged = true;

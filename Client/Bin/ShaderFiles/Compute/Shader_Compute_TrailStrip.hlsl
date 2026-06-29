@@ -3,6 +3,7 @@ struct TrailSamplePayload
     float4 baseWorldPosition;
     float4 tipWorldPosition;
     float4 sampleParams; // x: 수명, y: head 기준 누적 거리
+    float4 coreColorRgb;
 };
 
 struct TrailInstanceVertex
@@ -16,6 +17,7 @@ struct TrailInstanceVertex
     float4 endColor;
     float4 subUVRect;
     float4 segmentParams; // x: 수명 진행률, y: 폭 배율, z: 알파 배율, w: 예비
+    float4 coreColorRgb;
 };
 
 struct DrawIndexedInstancedIndirectArgs
@@ -359,6 +361,7 @@ void CS_Main(uint3 dispatchThreadId : SV_DispatchThreadID)
     output.subUVRect = float4(0.0f, currentDistance, 1.0f, nextDistance);
     const float visualAgeAlpha = g_LengthParams.z != 0.0f ? ageAlpha : 1.0f;
     output.segmentParams = float4(lifeProgress, 0.0f, visualAgeAlpha * lengthAlpha, g_SideFade); // x: 수명 진행률, y: reserved, z: 알파 배율, w: 가장자리 페이드
+    output.coreColorRgb = current.coreColorRgb;
 
     OutputData[index] = output;
 }

@@ -888,6 +888,17 @@ HRESULT ComputeGeneratedBeamEmitter::Append_SegmentPayloads(vector<SegmentPayloa
             payload.startColor = color;
             payload.endColor = color;
             payload.subUVRect = subUVRect;
+            const Vec3 coreColorRgb = Sample_ParticleLifeCoreColorRgbUniformModulation(
+                _desc.material.coreColorRgbModulation,
+                Vec3{
+                    _desc.material.coreEmissive.coreColor.x,
+                    _desc.material.coreEmissive.coreColor.y,
+                    _desc.material.coreEmissive.coreColor.z
+                },
+                _effectPlaybackSeed,
+                pathEntry.stripIndex * 4099u + index
+            );
+            payload.coreColorRgb = Vec4(coreColorRgb.x, coreColorRgb.y, coreColorRgb.z, 0.f);
             outPayloads.push_back(payload);
 
             if (clippedSegmentEnd)
@@ -1258,6 +1269,7 @@ HRESULT ComputeGeneratedBeamEmitter::Bind_MaterialResources()
     CHECK_FAILED(_shader->Bind_RawValue("g_EffectBeamFallbackAxis", &effectBeamFallbackAxis, sizeof(effectBeamFallbackAxis)), E_FAIL);
     CHECK_FAILED(_shader->Bind_RawValue("g_EffectBeamMaterialTime", &_materialElapsedTime, sizeof(_materialElapsedTime)), E_FAIL);
     CHECK_FAILED(EffectBeamRuntime::Bind_MaterialScalarModulationPayload(_shader.get(), _desc.material.scalarModulation, emitterPhase), E_FAIL);
+    CHECK_FAILED(Bind_CoreColorRgbModulationShaderPayload(_shader.get(), _desc.material.coreColorRgbModulation, emitterPhase, _effectPlaybackSeed), E_FAIL);
     CHECK_FAILED(_shader->Bind_RawValue("g_OpacitySource", &opacitySourceIndex, sizeof(opacitySourceIndex)), E_FAIL);
     return S_OK;
 }
@@ -1355,6 +1367,7 @@ HRESULT ComputeGeneratedBeamEmitter::Bind_DistortionResources()
     CHECK_FAILED(_shader->Bind_RawValue("g_FlowUVScrollSpeed", &material.flowUVScrollSpeed, sizeof(material.flowUVScrollSpeed)), E_FAIL);
     CHECK_FAILED(_shader->Bind_RawValue("g_FlowUVTilingMode", &flowUVTilingMode, sizeof(flowUVTilingMode)), E_FAIL);
     CHECK_FAILED(_shader->Bind_RawValue("g_FlowUVRotation", &flowUVRotation, sizeof(flowUVRotation)), E_FAIL);
+    CHECK_FAILED(EffectBeamRuntime::Bind_MaterialScalarModulationPayload(_shader.get(), material.scalarModulation, emitterPhase), E_FAIL);
     return S_OK;
 }
 

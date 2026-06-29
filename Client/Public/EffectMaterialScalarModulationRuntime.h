@@ -27,6 +27,39 @@ struct EffectMaterialScalarModulationShaderPayload
     array<Vec4, maxModulators> keyModesBlock1{};
 };
 
+struct EffectMaterialCoreColorRgbModulationShaderPayload
+{
+    static constexpr uint32 maxModulators{ EffectMaterialCoreColorRgbModulationRuntimeDesc::kMaxModulators };
+
+    Vec4 params{};                     // x: count, y: emitter phase, zw: reserved.
+    array<Vec4, maxModulators> meta{}; // x: enabled, y: time source, z: key count, w: uniform enabled.
+    array<Vec4, maxModulators> uniformMin{};
+    array<Vec4, maxModulators> uniformMax{};
+    array<Vec4, maxModulators> uniformSeed{}; // x: seed salt after playback-seed resolution.
+    array<Vec4, maxModulators> keyTimes{};
+    array<Vec4, maxModulators> keyTimesBlock1{};
+    array<Vec4, maxModulators> keyValuesR{};
+    array<Vec4, maxModulators> keyValuesRBlock1{};
+    array<Vec4, maxModulators> keyValuesG{};
+    array<Vec4, maxModulators> keyValuesGBlock1{};
+    array<Vec4, maxModulators> keyValuesB{};
+    array<Vec4, maxModulators> keyValuesBBlock1{};
+    array<Vec4, maxModulators> keyArriveTangentsR{};
+    array<Vec4, maxModulators> keyArriveTangentsRBlock1{};
+    array<Vec4, maxModulators> keyArriveTangentsG{};
+    array<Vec4, maxModulators> keyArriveTangentsGBlock1{};
+    array<Vec4, maxModulators> keyArriveTangentsB{};
+    array<Vec4, maxModulators> keyArriveTangentsBBlock1{};
+    array<Vec4, maxModulators> keyLeaveTangentsR{};
+    array<Vec4, maxModulators> keyLeaveTangentsRBlock1{};
+    array<Vec4, maxModulators> keyLeaveTangentsG{};
+    array<Vec4, maxModulators> keyLeaveTangentsGBlock1{};
+    array<Vec4, maxModulators> keyLeaveTangentsB{};
+    array<Vec4, maxModulators> keyLeaveTangentsBBlock1{};
+    array<Vec4, maxModulators> keyModes{};
+    array<Vec4, maxModulators> keyModesBlock1{};
+};
+
 //## Helper::CurveEvaluation
 inline float Compute_MaterialScalarModulationPhase(float elapsedTime, float duration)
 {
@@ -237,6 +270,82 @@ inline Vec3 Evaluate_CoreColorRgbModulationCurve(
             fallbackValue.z
         )
     };
+}
+
+inline bool Has_ParticleLifeCoreColorRgbUniformModulation(const EffectMaterialCoreColorRgbModulationRuntimeDesc& modulation)
+{
+    const uint32 count = min(EffectMaterialCoreColorRgbModulationRuntimeDesc::kMaxModulators, modulation.count);
+    for (uint32 index = 0; index < count; ++index)
+    {
+        const EffectMaterialCoreColorRgbModulatorRuntimeDesc& modulator = modulation.modulators[index];
+        if (modulator.enabled &&
+            modulator.timeSource == EffectMaterialScalarModulationTimeSource::ParticleLife &&
+            modulator.curve.enabled &&
+            modulator.curve.uniformEnabled)
+            return true;
+    }
+
+    return false;
+}
+
+inline bool Resolve_ParticleLifeCoreColorRgbUniformSampleDesc(
+    const EffectMaterialCoreColorRgbModulationRuntimeDesc& modulation,
+    uint32 effectPlaybackSeed,
+    Vec3& outMin,
+    Vec3& outMax,
+    uint32& outSeedSalt)
+{
+    bool found = false;
+    const uint32 count = min(EffectMaterialCoreColorRgbModulationRuntimeDesc::kMaxModulators, modulation.count);
+
+    for (uint32 index = 0; index < count; ++index)
+    {
+        const EffectMaterialCoreColorRgbModulatorRuntimeDesc& modulator = modulation.modulators[index];
+        if (!modulator.enabled ||
+            modulator.timeSource != EffectMaterialScalarModulationTimeSource::ParticleLife ||
+            !modulator.curve.enabled ||
+            !modulator.curve.uniformEnabled)
+            continue;
+
+        outMin = modulator.curve.uniformMin;
+        outMax = modulator.curve.uniformMax;
+        outSeedSalt = Resolve_MaterialModulationSeedSalt(modulator.curve.uniformSeed, effectPlaybackSeed) + index * 1013u;
+        found = true;
+    }
+
+    return found;
+}
+
+inline Vec3 Sample_ParticleLifeCoreColorRgbUniformModulation(
+    const EffectMaterialCoreColorRgbModulationRuntimeDesc& modulation,
+    const Vec3& fallbackValue,
+    uint32 effectPlaybackSeed,
+    uint32 stableElementSeed)
+{
+    Vec3 result = fallbackValue;
+    const uint32 count = min(EffectMaterialCoreColorRgbModulationRuntimeDesc::kMaxModulators, modulation.count);
+
+    for (uint32 index = 0; index < count; ++index)
+    {
+        const EffectMaterialCoreColorRgbModulatorRuntimeDesc& modulator = modulation.modulators[index];
+        if (!modulator.enabled ||
+            modulator.timeSource != EffectMaterialScalarModulationTimeSource::ParticleLife ||
+            !modulator.curve.enabled ||
+            !modulator.curve.uniformEnabled)
+            continue;
+
+        const EffectMaterialCoreColorRgbModulationCurveDesc& curve = modulator.curve;
+        const uint32 seed = Resolve_MaterialModulationSeedSalt(curve.uniformSeed, effectPlaybackSeed) +
+                            stableElementSeed * 3571u +
+                            index * 1013u;
+        result = Vec3{
+            Sample_MaterialModulationRange(curve.uniformMin.x, curve.uniformMax.x, seed + 1u),
+            Sample_MaterialModulationRange(curve.uniformMin.y, curve.uniformMax.y, seed + 2u),
+            Sample_MaterialModulationRange(curve.uniformMin.z, curve.uniformMax.z, seed + 3u)
+        };
+    }
+
+    return result;
 }
 
 inline float Evaluate_MaterialVec2ModulationComponent(
@@ -559,6 +668,236 @@ inline EffectMaterialScalarModulationShaderPayload Build_MaterialScalarModulatio
     }
 
     return payload;
+}
+
+template <typename ShaderT>
+inline HRESULT Bind_MaterialScalarModulationShaderPayloadToShader(
+    ShaderT* shader,
+    const EffectMaterialScalarModulationRuntimeDesc& modulation,
+    float emitterPhase)
+{
+    CHECK_NULL(shader, E_FAIL);
+
+    const EffectMaterialScalarModulationShaderPayload payload =
+        Build_MaterialScalarModulationShaderPayload(modulation, emitterPhase);
+
+    CHECK_FAILED(shader->Bind_RawValue("g_EffectMaterialScalarModulationParams", &payload.params, sizeof(payload.params)), E_FAIL);
+    CHECK_FAILED(shader->Bind_RawValue("g_EffectMaterialScalarModulationMeta", payload.meta.data(), sizeof(payload.meta)), E_FAIL);
+    CHECK_FAILED(shader->Bind_RawValue("g_EffectMaterialScalarModulationKeyTimes", payload.keyTimes.data(), sizeof(payload.keyTimes)), E_FAIL);
+    CHECK_FAILED(
+        shader->Bind_RawValue("g_EffectMaterialScalarModulationKeyTimesBlock1", payload.keyTimesBlock1.data(), sizeof(payload.keyTimesBlock1)),
+        E_FAIL
+    );
+    CHECK_FAILED(shader->Bind_RawValue("g_EffectMaterialScalarModulationKeyValues", payload.keyValues.data(), sizeof(payload.keyValues)), E_FAIL);
+    CHECK_FAILED(
+        shader->Bind_RawValue("g_EffectMaterialScalarModulationKeyValuesBlock1", payload.keyValuesBlock1.data(), sizeof(payload.keyValuesBlock1)),
+        E_FAIL
+    );
+    CHECK_FAILED(
+        shader->Bind_RawValue("g_EffectMaterialScalarModulationKeyArriveTangents", payload.keyArriveTangents.data(), sizeof(payload.keyArriveTangents)),
+        E_FAIL
+    );
+    CHECK_FAILED(
+        shader->Bind_RawValue(
+            "g_EffectMaterialScalarModulationKeyArriveTangentsBlock1",
+            payload.keyArriveTangentsBlock1.data(),
+            sizeof(payload.keyArriveTangentsBlock1)
+        ),
+        E_FAIL
+    );
+    CHECK_FAILED(
+        shader->Bind_RawValue("g_EffectMaterialScalarModulationKeyLeaveTangents", payload.keyLeaveTangents.data(), sizeof(payload.keyLeaveTangents)),
+        E_FAIL
+    );
+    CHECK_FAILED(
+        shader->Bind_RawValue(
+            "g_EffectMaterialScalarModulationKeyLeaveTangentsBlock1",
+            payload.keyLeaveTangentsBlock1.data(),
+            sizeof(payload.keyLeaveTangentsBlock1)
+        ),
+        E_FAIL
+    );
+    CHECK_FAILED(shader->Bind_RawValue("g_EffectMaterialScalarModulationKeyModes", payload.keyModes.data(), sizeof(payload.keyModes)), E_FAIL);
+    CHECK_FAILED(
+        shader->Bind_RawValue("g_EffectMaterialScalarModulationKeyModesBlock1", payload.keyModesBlock1.data(), sizeof(payload.keyModesBlock1)),
+        E_FAIL
+    );
+
+    return S_OK;
+}
+
+inline EffectMaterialCoreColorRgbModulationShaderPayload Build_CoreColorRgbModulationShaderPayload(
+    const EffectMaterialCoreColorRgbModulationRuntimeDesc& modulation,
+    float emitterPhase,
+    uint32 effectPlaybackSeed)
+{
+    EffectMaterialCoreColorRgbModulationShaderPayload payload{};
+    const uint32 sourceCount = min(EffectMaterialCoreColorRgbModulationRuntimeDesc::kMaxModulators, modulation.count);
+    uint32 payloadCount = 0;
+
+    for (uint32 sourceIndex = 0; sourceIndex < sourceCount && payloadCount < EffectMaterialCoreColorRgbModulationShaderPayload::maxModulators; ++sourceIndex)
+    {
+        const EffectMaterialCoreColorRgbModulatorRuntimeDesc& modulator = modulation.modulators[sourceIndex];
+        if (modulator.timeSource != EffectMaterialScalarModulationTimeSource::ParticleLife)
+            continue;
+
+        const EffectMaterialCoreColorRgbModulationCurveDesc& curve = modulator.curve;
+        const uint32 keyCount = curve.enabled ? min(kEffectDistributionCurveMaxKeys, curve.keyCount) : 0u;
+        const uint32 index = payloadCount++;
+
+        payload.meta[index] = Vec4(
+            modulator.enabled ? 1.f : 0.f,
+            static_cast<float>(static_cast<uint32>(modulator.timeSource)),
+            static_cast<float>(keyCount),
+            curve.uniformEnabled ? 1.f : 0.f
+        );
+        payload.uniformMin[index] = Vec4(curve.uniformMin.x, curve.uniformMin.y, curve.uniformMin.z, 0.f);
+        payload.uniformMax[index] = Vec4(curve.uniformMax.x, curve.uniformMax.y, curve.uniformMax.z, 0.f);
+        payload.uniformSeed[index] = Vec4(static_cast<float>(Resolve_MaterialModulationSeedSalt(curve.uniformSeed, effectPlaybackSeed)), 0.f, 0.f, 0.f);
+        payload.keyTimes[index] = curve.keyTimes;
+        payload.keyTimesBlock1[index] = curve.keyTimesBlock1;
+        payload.keyValuesR[index] = curve.keyValuesR;
+        payload.keyValuesRBlock1[index] = curve.keyValuesRBlock1;
+        payload.keyValuesG[index] = curve.keyValuesG;
+        payload.keyValuesGBlock1[index] = curve.keyValuesGBlock1;
+        payload.keyValuesB[index] = curve.keyValuesB;
+        payload.keyValuesBBlock1[index] = curve.keyValuesBBlock1;
+        payload.keyArriveTangentsR[index] = curve.keyArriveTangentsR;
+        payload.keyArriveTangentsRBlock1[index] = curve.keyArriveTangentsRBlock1;
+        payload.keyArriveTangentsG[index] = curve.keyArriveTangentsG;
+        payload.keyArriveTangentsGBlock1[index] = curve.keyArriveTangentsGBlock1;
+        payload.keyArriveTangentsB[index] = curve.keyArriveTangentsB;
+        payload.keyArriveTangentsBBlock1[index] = curve.keyArriveTangentsBBlock1;
+        payload.keyLeaveTangentsR[index] = curve.keyLeaveTangentsR;
+        payload.keyLeaveTangentsRBlock1[index] = curve.keyLeaveTangentsRBlock1;
+        payload.keyLeaveTangentsG[index] = curve.keyLeaveTangentsG;
+        payload.keyLeaveTangentsGBlock1[index] = curve.keyLeaveTangentsGBlock1;
+        payload.keyLeaveTangentsB[index] = curve.keyLeaveTangentsB;
+        payload.keyLeaveTangentsBBlock1[index] = curve.keyLeaveTangentsBBlock1;
+        payload.keyModes[index] = curve.keyModes;
+        payload.keyModesBlock1[index] = curve.keyModesBlock1;
+    }
+
+    payload.params = Vec4(static_cast<float>(payloadCount), emitterPhase, 0.f, 0.f);
+    return payload;
+}
+
+template <typename ShaderT>
+inline HRESULT Bind_CoreColorRgbModulationShaderPayload(
+    ShaderT* shader,
+    const EffectMaterialCoreColorRgbModulationRuntimeDesc& modulation,
+    float emitterPhase,
+    uint32 effectPlaybackSeed)
+{
+    CHECK_NULL(shader, E_FAIL);
+
+    const EffectMaterialCoreColorRgbModulationShaderPayload payload =
+        Build_CoreColorRgbModulationShaderPayload(modulation, emitterPhase, effectPlaybackSeed);
+
+    CHECK_FAILED(shader->Bind_RawValue("g_EffectMaterialCoreColorRgbModulationParams", &payload.params, sizeof(payload.params)), E_FAIL);
+    CHECK_FAILED(shader->Bind_RawValue("g_EffectMaterialCoreColorRgbModulationMeta", payload.meta.data(), sizeof(payload.meta)), E_FAIL);
+    CHECK_FAILED(shader->Bind_RawValue("g_EffectMaterialCoreColorRgbModulationUniformMin", payload.uniformMin.data(), sizeof(payload.uniformMin)), E_FAIL);
+    CHECK_FAILED(shader->Bind_RawValue("g_EffectMaterialCoreColorRgbModulationUniformMax", payload.uniformMax.data(), sizeof(payload.uniformMax)), E_FAIL);
+    CHECK_FAILED(shader->Bind_RawValue("g_EffectMaterialCoreColorRgbModulationUniformSeed", payload.uniformSeed.data(), sizeof(payload.uniformSeed)), E_FAIL);
+    CHECK_FAILED(shader->Bind_RawValue("g_EffectMaterialCoreColorRgbModulationKeyTimes", payload.keyTimes.data(), sizeof(payload.keyTimes)), E_FAIL);
+    CHECK_FAILED(
+        shader->Bind_RawValue("g_EffectMaterialCoreColorRgbModulationKeyTimesBlock1", payload.keyTimesBlock1.data(), sizeof(payload.keyTimesBlock1)),
+        E_FAIL
+    );
+    CHECK_FAILED(shader->Bind_RawValue("g_EffectMaterialCoreColorRgbModulationKeyValuesR", payload.keyValuesR.data(), sizeof(payload.keyValuesR)), E_FAIL);
+    CHECK_FAILED(
+        shader->Bind_RawValue("g_EffectMaterialCoreColorRgbModulationKeyValuesRBlock1", payload.keyValuesRBlock1.data(), sizeof(payload.keyValuesRBlock1)),
+        E_FAIL
+    );
+    CHECK_FAILED(shader->Bind_RawValue("g_EffectMaterialCoreColorRgbModulationKeyValuesG", payload.keyValuesG.data(), sizeof(payload.keyValuesG)), E_FAIL);
+    CHECK_FAILED(
+        shader->Bind_RawValue("g_EffectMaterialCoreColorRgbModulationKeyValuesGBlock1", payload.keyValuesGBlock1.data(), sizeof(payload.keyValuesGBlock1)),
+        E_FAIL
+    );
+    CHECK_FAILED(shader->Bind_RawValue("g_EffectMaterialCoreColorRgbModulationKeyValuesB", payload.keyValuesB.data(), sizeof(payload.keyValuesB)), E_FAIL);
+    CHECK_FAILED(
+        shader->Bind_RawValue("g_EffectMaterialCoreColorRgbModulationKeyValuesBBlock1", payload.keyValuesBBlock1.data(), sizeof(payload.keyValuesBBlock1)),
+        E_FAIL
+    );
+    CHECK_FAILED(
+        shader->Bind_RawValue("g_EffectMaterialCoreColorRgbModulationKeyArriveTangentsR", payload.keyArriveTangentsR.data(), sizeof(payload.keyArriveTangentsR)),
+        E_FAIL
+    );
+    CHECK_FAILED(
+        shader->Bind_RawValue(
+            "g_EffectMaterialCoreColorRgbModulationKeyArriveTangentsRBlock1",
+            payload.keyArriveTangentsRBlock1.data(),
+            sizeof(payload.keyArriveTangentsRBlock1)
+        ),
+        E_FAIL
+    );
+    CHECK_FAILED(
+        shader->Bind_RawValue("g_EffectMaterialCoreColorRgbModulationKeyArriveTangentsG", payload.keyArriveTangentsG.data(), sizeof(payload.keyArriveTangentsG)),
+        E_FAIL
+    );
+    CHECK_FAILED(
+        shader->Bind_RawValue(
+            "g_EffectMaterialCoreColorRgbModulationKeyArriveTangentsGBlock1",
+            payload.keyArriveTangentsGBlock1.data(),
+            sizeof(payload.keyArriveTangentsGBlock1)
+        ),
+        E_FAIL
+    );
+    CHECK_FAILED(
+        shader->Bind_RawValue("g_EffectMaterialCoreColorRgbModulationKeyArriveTangentsB", payload.keyArriveTangentsB.data(), sizeof(payload.keyArriveTangentsB)),
+        E_FAIL
+    );
+    CHECK_FAILED(
+        shader->Bind_RawValue(
+            "g_EffectMaterialCoreColorRgbModulationKeyArriveTangentsBBlock1",
+            payload.keyArriveTangentsBBlock1.data(),
+            sizeof(payload.keyArriveTangentsBBlock1)
+        ),
+        E_FAIL
+    );
+    CHECK_FAILED(
+        shader->Bind_RawValue("g_EffectMaterialCoreColorRgbModulationKeyLeaveTangentsR", payload.keyLeaveTangentsR.data(), sizeof(payload.keyLeaveTangentsR)),
+        E_FAIL
+    );
+    CHECK_FAILED(
+        shader->Bind_RawValue(
+            "g_EffectMaterialCoreColorRgbModulationKeyLeaveTangentsRBlock1",
+            payload.keyLeaveTangentsRBlock1.data(),
+            sizeof(payload.keyLeaveTangentsRBlock1)
+        ),
+        E_FAIL
+    );
+    CHECK_FAILED(
+        shader->Bind_RawValue("g_EffectMaterialCoreColorRgbModulationKeyLeaveTangentsG", payload.keyLeaveTangentsG.data(), sizeof(payload.keyLeaveTangentsG)),
+        E_FAIL
+    );
+    CHECK_FAILED(
+        shader->Bind_RawValue(
+            "g_EffectMaterialCoreColorRgbModulationKeyLeaveTangentsGBlock1",
+            payload.keyLeaveTangentsGBlock1.data(),
+            sizeof(payload.keyLeaveTangentsGBlock1)
+        ),
+        E_FAIL
+    );
+    CHECK_FAILED(
+        shader->Bind_RawValue("g_EffectMaterialCoreColorRgbModulationKeyLeaveTangentsB", payload.keyLeaveTangentsB.data(), sizeof(payload.keyLeaveTangentsB)),
+        E_FAIL
+    );
+    CHECK_FAILED(
+        shader->Bind_RawValue(
+            "g_EffectMaterialCoreColorRgbModulationKeyLeaveTangentsBBlock1",
+            payload.keyLeaveTangentsBBlock1.data(),
+            sizeof(payload.keyLeaveTangentsBBlock1)
+        ),
+        E_FAIL
+    );
+    CHECK_FAILED(shader->Bind_RawValue("g_EffectMaterialCoreColorRgbModulationKeyModes", payload.keyModes.data(), sizeof(payload.keyModes)), E_FAIL);
+    CHECK_FAILED(
+        shader->Bind_RawValue("g_EffectMaterialCoreColorRgbModulationKeyModesBlock1", payload.keyModesBlock1.data(), sizeof(payload.keyModesBlock1)),
+        E_FAIL
+    );
+
+    return S_OK;
 }
 
 NS_END
