@@ -1936,9 +1936,10 @@ void Animation_View::Draw_AnimationSelector()
                     if (ImGui::Selectable(label.c_str(), isSelected))
                     {
                         Cancel_NotifyTrailBonePick();
-                        Clear_SkillPhasePreviewContext();
                         _currentAnimationName = entry.displayName;
                         Find_OrNormalize_NotifyAnimation(_asset, entry);
+                        if (!Sync_SkillPhasePreviewContextForAnimation(entry))
+                            Clear_SkillPhasePreviewContext();
                         Clear_SelectedNotifySelection();
                         Clear_SelectedStateSelection();
                         _selectedNotifyTrackIndex = 0;
@@ -5732,6 +5733,43 @@ void Animation_View::Clear_SkillPhasePreviewContext()
     _skillPhaseContext = {};
     Reset_PreviewAnimSpeedStates();
     Apply_PreviewBaseFrameSpeed();
+}
+
+bool Animation_View::Sync_SkillPhasePreviewContextForAnimation(const AnimationEntry& entry)
+{
+    if (_sourceMode != SourceMode::LiveModel)
+        return false;
+
+    const vector<string> skillIds = CLIENT->Get_AllSkillIds();
+    for (const string& skillId : skillIds)
+    {
+        const Client::Skill_Data* skillData = CLIENT->Get_Skill(skillId);
+        if (skillData == nullptr)
+            continue;
+
+        for (const Client::BattleActionPhase& phase : skillData->AnimPhases)
+        {
+            if (phase.animationKey.empty())
+                continue;
+
+            const bool matchesAnimation =
+                phase.animationKey == entry.displayName ||
+                phase.animationKey == entry.name ||
+                phase.animationKey == entry.playbackName;
+            if (!matchesAnimation)
+                continue;
+
+            _skillPhaseContext.enabled = true;
+            _skillPhaseContext.skillKey = skillId;
+            _skillPhaseContext.phaseIndex = phase.phaseIndex;
+            _skillPhaseContext.animationKey = phase.animationKey;
+            _skillPhaseContext.playRate = phase.playRate > 0.f ? phase.playRate : 1.f;
+            Reset_PreviewAnimSpeedStates(); // 직접 클립 선택도 DT_SkillAction phase 배속을 base speed로 삼는다.
+            return true;
+        }
+    }
+
+    return false;
 }
 
 bool Animation_View::Set_SkillPhasePreviewContext(const string& skillKey, uint32 phaseIndex)

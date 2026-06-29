@@ -360,6 +360,7 @@ private:
     void Update_PreviewAnimSpeedStates(float timeDelta);
     void Reset_PreviewAnimSpeedStates();
     void Clear_SkillPhasePreviewContext();
+    bool Sync_SkillPhasePreviewContextForAnimation(const AnimationEntry& entry);
     bool Set_SkillPhasePreviewContext(const string& skillKey, uint32 phaseIndex);
     float Resolve_PreviewBaseFrameSpeed() const;
     void Apply_PreviewBaseFrameSpeed();
