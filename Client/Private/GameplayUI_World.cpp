@@ -1127,9 +1127,6 @@ void GameplayUI_World::Try_ShowPendingGetPictos()
     if (_getPictosPanel == nullptr || _getPictosPanel->Is_Open())
         return;
 
-    if (_pendingGetPictosIds.empty())
-        return;
-
     if (Is_GetCharacterOpen() || Is_GetClothesOpen() || Is_GetWeaponOpen())
         return;
 
@@ -1151,11 +1148,18 @@ void GameplayUI_World::Try_ShowPendingGetPictos()
     if (_expeditionStatPanel && _expeditionStatPanel->Is_Open())
         return;
 
-    Unlock_Manager* unlockManager = CLIENT->Get_UnlockManager();
-    if (unlockManager == nullptr)
-        return;
+    vector<string> pendingPictosIds = std::move(_pendingGetPictosIds);
+    _pendingGetPictosIds.clear();
 
-    vector<string> pendingPictosIds = unlockManager->Consume_GetPictosPresentationIds();
+    if (Unlock_Manager* unlockManager = CLIENT->Get_UnlockManager())
+    {
+        vector<string> queuedPictosIds = unlockManager->Consume_GetPictosPresentationIds();
+        pendingPictosIds.insert(
+            pendingPictosIds.end(),
+            queuedPictosIds.begin(),
+            queuedPictosIds.end());
+    }
+
     if (pendingPictosIds.empty())
         return;
 
