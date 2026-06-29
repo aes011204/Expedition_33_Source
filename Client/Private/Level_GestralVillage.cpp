@@ -35,6 +35,27 @@ namespace
 
         return lightShaftZoneCB;
     }
+
+    constexpr wchar_t kFlameEffectName[] = L"Effects/Assets/Map/FX_Brazier_Fire.effect.json";
+
+    constexpr Vec3 kCasinoLightPositions[] = {
+        Vec3(118.12f, -3.23f, 19.45f),
+        Vec3(123.58f, -3.23f, 17.01f),
+        Vec3(130.79f, -3.23f, 13.69f),
+        Vec3(138.57f, -3.23f, 10.15f),
+        Vec3(146.17f, -3.23f, 6.77f),
+        Vec3(153.71f, -3.23f, 3.37f),
+        Vec3(162.12f, -3.23f, -0.44f),
+        Vec3(169.83f, -3.23f, -4.09f),
+        Vec3(161.36f, -3.23f, -22.58f),
+        Vec3(153.53f, -3.23f, -18.87f),
+        Vec3(144.43f, -3.23f, -15.01f),
+        Vec3(137.51f, -3.23f, -11.88f),
+        Vec3(129.94f, -3.23f, -8.20f),
+        Vec3(121.95f, -3.23f, -4.96f),
+        Vec3(114.97f, -3.23f, -1.60f),
+        Vec3(109.85f, -3.23f, 0.82f),
+    };
 }
 
 Level_GestralVillage::Level_GestralVillage(const ComPtr<Device>& device, const ComPtr<Context>& context)
@@ -92,6 +113,17 @@ void Level_GestralVillage::BeginPlay()
         GAME->Get_DelegateHub().OnEditorPlayRuntime.Add(this, &Level_GestralVillage::Play_MapBGM);
 
     CLIENT->Capture_InitialWorldSnapshot();
+
+    // flame
+    PlayEffectDesc desc{};
+    desc.effectName = kFlameEffectName;
+    desc.scale = Vec3(1.f, 1.f, 1.f);
+
+    for (const auto& pos : kCasinoLightPositions)
+    {
+        desc.worldPosition = pos;
+        CLIENT->Play_Effect(desc);
+    }
 }
 
 void Level_GestralVillage::Update(float fTimeDelta)
@@ -344,7 +376,6 @@ HRESULT Level_GestralVillage::Ready_Layer_Monster(const wstring& strLayerTag)
 
 HRESULT Level_GestralVillage::Ready_Layer_Effect(const wstring& strLayerTag)
 {
-
     return S_OK;
 }
 
