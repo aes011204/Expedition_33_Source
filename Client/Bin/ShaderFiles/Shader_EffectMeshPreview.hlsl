@@ -146,11 +146,11 @@ EffectMaterialSurface Resolve_EffectMeshSurface(VS_OUT In)
     const float2 maskUV = Build_EffectMeshUV(In.vTexcoord, g_EffectMeshMaskUVParams, g_EffectMeshMaskUVOffsetParams.xy, maskUVPolicy, g_EffectMeshUVRotationParams.z);
     const float4 symbol = Sample_EffectMeshMainTexture(mainUV, mainUVPolicy);
     const float4 noiseTexel =
-        (0 != g_EffectMeshParams.w && g_EffectMeshParams.z > 0.f)
+        0 != g_EffectMeshParams.w && g_EffectMeshParams.z > 0.f
         ? Sample_EffectMeshNoiseTexture(noiseUV, noiseUVPolicy)
         : float4(1.f, 1.f, 1.f, 1.f);
     const float4 maskTexel =
-        (0 != g_EffectMeshAlphaParams.z)
+        0 != g_EffectMeshAlphaParams.z
         ? Sample_EffectMeshMaskTexture(maskUV, maskUVPolicy)
         : float4(1.f, 1.f, 1.f, 1.f);
 
@@ -198,11 +198,11 @@ PS_OUT PS_ADDITIVE(VS_OUT In)
     const float2 maskUV = Build_EffectMeshUV(In.vTexcoord, g_EffectMeshMaskUVParams, g_EffectMeshMaskUVOffsetParams.xy, maskUVPolicy, g_EffectMeshUVRotationParams.z);
     const float4 symbol = Sample_EffectMeshMainTexture(mainUV, mainUVPolicy);
     const float4 noiseTexel =
-        (0 != g_EffectMeshParams.w && g_EffectMeshParams.z > 0.f)
+        0 != g_EffectMeshParams.w && g_EffectMeshParams.z > 0.f
         ? Sample_EffectMeshNoiseTexture(noiseUV, noiseUVPolicy)
         : float4(1.f, 1.f, 1.f, 1.f);
     const float4 maskTexel =
-        (0 != g_EffectMeshAlphaParams.z)
+        0 != g_EffectMeshAlphaParams.z
         ? Sample_EffectMeshMaskTexture(maskUV, maskUVPolicy)
         : float4(1.f, 1.f, 1.f, 1.f);
 

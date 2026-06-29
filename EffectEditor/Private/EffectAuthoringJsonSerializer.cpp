@@ -2749,10 +2749,12 @@ namespace Internal
             return FloatDistributionData::Make_Constant(useY ? constant->value.y : constant->value.x);
 
         if (const auto* uniform = get_if<UniformVector2DistributionData>(&data.payload))
+        {
             return FloatDistributionData::Make_Uniform(
                 useY ? uniform->minValue.y : uniform->minValue.x,
                 useY ? uniform->maxValue.y : uniform->maxValue.x
             );
+        }
 
         if (const auto* curve = get_if<ConstantCurveVector2DistributionData>(&data.payload))
         {
