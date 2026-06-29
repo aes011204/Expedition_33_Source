@@ -188,13 +188,9 @@ void ResolveTrailBasis(float3 center, float3 tangent, out float3 rightDir, out f
     const int screenAlignment = (int)g_SourceHistorySpriteTrailParams.x;
     const float3 pathAxis = NormalizeOrFallback(tangent, float3(0.f, 1.f, 0.f));
     if (screenAlignment == 0)
-    {
         ResolveLookAlignedBasis(ResolveFacingLookDirection(center), rightDir, upDir);
-    }
     else if (screenAlignment == 1 || screenAlignment == 7)
-    {
         ResolveWorldUpRectangleBasis(center, rightDir, upDir);
-    }
     else if (screenAlignment == 4)
     {
         if (g_DirectionalAlignmentMode == 1)

@@ -185,11 +185,11 @@ EffectMaterialSurface Resolve_EffectMaterialSurface(PS_IN In)
         g_EffectMaterialPreviewUVRotationParams.z);
     const float4 symbol = Sample_PreviewMainTexture(mainUV, mainUVPolicy);
     const float4 noiseTexel =
-        (0 != g_EffectMaterialPreviewParams.w && g_EffectMaterialPreviewParams.z > 0.f)
+        0 != g_EffectMaterialPreviewParams.w && g_EffectMaterialPreviewParams.z > 0.f
         ? Sample_PreviewNoiseTexture(noiseUV, noiseUVPolicy)
         : float4(1.f, 1.f, 1.f, 1.f);
     const float4 maskTexel =
-        (0 != g_EffectMaterialPreviewAlphaParams.z)
+        0 != g_EffectMaterialPreviewAlphaParams.z
         ? Sample_PreviewMaskTexture(maskUV, maskUVPolicy)
         : float4(1.f, 1.f, 1.f, 1.f);
 
@@ -238,11 +238,11 @@ PS_OUT PS_ADDITIVE(PS_IN In)
         g_EffectMaterialPreviewUVRotationParams.z);
     const float4 symbol = Sample_PreviewMainTexture(mainUV, mainUVPolicy);
     const float4 noiseTexel =
-        (0 != g_EffectMaterialPreviewParams.w && g_EffectMaterialPreviewParams.z > 0.f)
+        0 != g_EffectMaterialPreviewParams.w && g_EffectMaterialPreviewParams.z > 0.f
         ? Sample_PreviewNoiseTexture(noiseUV, noiseUVPolicy)
         : float4(1.f, 1.f, 1.f, 1.f);
     const float4 maskTexel =
-        (0 != g_EffectMaterialPreviewAlphaParams.z)
+        0 != g_EffectMaterialPreviewAlphaParams.z
         ? Sample_PreviewMaskTexture(maskUV, maskUVPolicy)
         : float4(1.f, 1.f, 1.f, 1.f);
 
