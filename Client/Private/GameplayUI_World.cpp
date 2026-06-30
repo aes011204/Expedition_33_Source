@@ -343,7 +343,8 @@ vector<RuntimeUIEntry> GameplayUI_World::Get_RuntimeUIEntries() const
     if (_replayPanel)
         _replayPanel->Append_RuntimeUIEntries(entries, "World", "ReplayPanel");
 
-    Append_RuntimePanelEntry(entries, "World", "CrossHair", _crossHair.get());
+    if (_crossHair)
+        _crossHair->Append_RuntimeUIEntries(entries, "World", "CrossHair");
     Append_RuntimePanelEntry(entries, "World", "InteractionPrompt", _interactionPrompt.get());
     Append_RuntimePanelEntry(entries, "World", "GradientSkillPreviewTest", _gradientSkillPreviewTestPanel.get());
 
