@@ -481,7 +481,7 @@ HRESULT Level_GamePlay::Ready_Layer_Monster(const wstring& strLayerTag)
 
 HRESULT Level_GamePlay::Ready_Layer_Player(const wstring& strLayerTag)
 {
-    //Vec3 startPos = Vec3(-465.f, 50.f, 65.f);
+    // 플레이어 시작 위치만 지정
     Vec3 startPos = Vec3(-87.f, 19.47f, -132.94f);
     CHECK_FAILED(CLIENT->Initialize_Hero(ETOI(LevelType::GamePlay), strLayerTag, startPos), E_FAIL);
 

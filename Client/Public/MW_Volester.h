@@ -4,6 +4,7 @@
 NS_BEGIN(Client)
 
 class Mon_Volester_Body;
+class Mon_WeakPoint;
 
 class MW_Volester :
     public Monster_WorldBase
@@ -32,6 +33,7 @@ protected:
 
 private:
     Shared<Mon_Volester_Body>      _body = {};
+    Shared<Mon_WeakPoint>          _weak = {};
 
     //MonsterWorldAnim _currentAction = MonsterWorldAnim::Idle;
     //MonsterWorldAnim _previousAction = MonsterWorldAnim::Idle;

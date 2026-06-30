@@ -651,6 +651,9 @@ void Prefab_View::Close_Prefab()
     if (animStateView != nullptr)
         animStateView->Clear_LivePreviewBinding(_previewObject);
 
+    if (_previewObject != nullptr)
+        _previewObject->Free(); // 프리뷰 CCT/컴포넌트를 명시 해제해서 월드 플레이 시작 후 PhysX에 남지 않게 한다.
+
     _prefabName.clear();
     _prefabPath.clear();
     _sourceStaticClass.clear();
@@ -947,6 +950,8 @@ void Prefab_View::Compile_PreviewObject()
             EDITOR->Get_Notification()->Add_Notification_With_Type(NotifyType::Warning, "프리펩 Compile 실패: {}", _prefabName);
         return;
     }
+
+    oldPreviewObject->Free(); // Compile로 버리는 이전 프리뷰의 CCT를 PhysX controller manager에서 제거한다.
 
     _previewObject = compiledObject;
     _previewHasBegunPlay = false;

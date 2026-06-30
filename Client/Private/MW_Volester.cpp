@@ -1,6 +1,9 @@
 ﻿#include "MW_Volester.h"
+#include "AIController.h"
 #include "ClientInstance.h"
+#include "MovementCom.h"
 #include "Mon_Volester_Body.h"
+#include "Mon_WeakPoint.h"
 
 IMPLEMENT_REFLECTION(MW_Volester)
 {
@@ -46,7 +49,33 @@ void MW_Volester::Update(float timeDelta)
     if (CLIENT->Is_BattleActive())
         return;
 
+    Set_DesiredAction(MonsterWorldAnim::Idle);
+    Set_CurrentAction(MonsterWorldAnim::Idle);
+
+    if (_aiCtrl)
+        _aiCtrl->Stop_Move();
+
+    if (_movementCom)
+    {
+        _movementCom->Clear_FollowMoveCommand();
+        _movementCom->Apply_Input({});
+        _movementCom->Stop_HorizontalMovement();
+    }
+
     Monster_WorldBase::Update(timeDelta);
+
+    Set_DesiredAction(MonsterWorldAnim::Idle);
+    Set_CurrentAction(MonsterWorldAnim::Idle);
+
+    if (_aiCtrl)
+        _aiCtrl->Stop_Move();
+
+    if (_movementCom)
+    {
+        _movementCom->Clear_FollowMoveCommand();
+        _movementCom->Apply_Input({});
+        _movementCom->Stop_HorizontalMovement();
+    }
 }
 
 HRESULT MW_Volester::Render()
@@ -81,6 +110,17 @@ HRESULT MW_Volester::Ready_PartObjects()
 
     _body = dynamic_pointer_cast<Mon_Volester_Body>(_partObjects[TEXT("Part_Body")]);
     CHECK_NULL(_body, E_FAIL);
+
+    Mon_WeakPoint::WEAK_DESC weakDesc{};
+    weakDesc.parentMatrix = &_body->Get_CombinedWorldMatrix();
+    weakDesc.allowMissingModel = true;
+    weakDesc.socketName = "Volester_Head_Jewel";
+    weakDesc.socketMatrix = _body->Get_SocketBoneMatrixPtr("Volester_Head_Jewel");
+
+    CHECK_FAILED(Add_PartObject(ETOI(LevelType::Static), TEXT("GameObject_MonsterWeak"), TEXT("Part_Weak"), &weakDesc), E_FAIL);
+
+    _weak = dynamic_pointer_cast<Mon_WeakPoint>(_partObjects[TEXT("Part_Weak")]);
+    CHECK_NULL(_weak, E_FAIL);
 
     return S_OK;
 }

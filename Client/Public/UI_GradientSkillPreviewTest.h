@@ -83,7 +83,7 @@ private:
     Shared<Character_BattleBase> _previewBattleHero{};
     Shared<Monster_BattleBase> _previewPotatoBag{};
     HeroId _previewHeroId = HeroId::Maelle;
-    string _previewSkillKey = "Pyrolyse";
+    string _previewSkillKey = "Stendhal";
     vector<string> _previewSkillKeys{};
     size_t _previewSkillPhaseIndex = 0;
     float _previewSkillTimer = 0.f;
