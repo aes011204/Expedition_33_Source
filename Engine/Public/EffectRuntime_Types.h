@@ -179,6 +179,10 @@ struct EffectMaterialScalarModulationRuntimeDesc
 struct EffectMaterialCoreColorRgbModulationCurveDesc
 {
     bool enabled{ false };
+    bool uniformEnabled{ false }; // Uniform 분포일 때 emitter/material instance 단위 RGB sample payload를 사용한다.
+    Vec3 uniformMin{ 1.f, 0.85f, 0.45f };
+    Vec3 uniformMax{ 1.f, 0.85f, 0.45f };
+    PointParticleRandomSeedRuntimeDesc uniformSeed{};
     uint32 keyCount{ 2 };
     Vec4 keyTimes{ 0.f, 1.f, 0.f, 0.f };
     Vec4 keyTimesBlock1{};
@@ -517,6 +521,17 @@ enum class EffectRibbonRenderAxis : uint8
     CameraUp,
     ViewUp,
     WorldUp,
+    SourceUp,
+    SourceRight,
+};
+
+enum class EffectRibbonSpreadBasis : uint8
+{
+    CameraFacing,
+    ViewUp,
+    WorldUp,
+    SourceUp,
+    SourceRight,
 };
 
 // Beam path를 어떤 authored 입력으로 만들지 결정한다.
@@ -630,6 +645,8 @@ struct ComputeRibbonEmitterDesc : public GameObject::GAMEOBJECT_DESC
     EffectColorOverLifeRuntimeDesc colorOverLife{};                     // ColorOverLife 모듈에서 sample age 기준 색/알파로 소비하는 값이다.
     PointParticleSubUVFrameOverLifeDesc subUVFrameOverLife{};           // 수명 진행률 기준 SubUV frame 규칙이다.
     PointParticleSizeByLifeDesc sizeByLife{};                           // SizeByLife 모듈에서 source history strip 폭 배율로 소비하는 값이다.
+    PointParticleInitialLocationDesc headOffset{};                      // InitialLocation 모듈에서 source history Head 위치 보정으로 소비하는 offset이다.
+    PointParticleRandomSeedRuntimeDesc headOffsetSeed{};                // Head offset random sample seed salt다.
     PointParticleRandomSeedRuntimeDesc subUVRandomFrameSeed{};          // SubUV RandomFrame replay 단위 seed salt다.
 
     EffectSourceHistoryRibbonSourceMode sourceMode{
@@ -655,6 +672,11 @@ struct ComputeRibbonEmitterDesc : public GameObject::GAMEOBJECT_DESC
     bool autoLifeFade{ false };                                         // sample age 기준 alpha fade를 적용해 기존 tail이 사라지는 과정을 보이게 할지 결정한다.
     bool tailCollapseOnIdle{ true };                                    // source가 느리거나 멈췄을 때 history sample을 source 쪽으로 당길지 결정한다.
     float tailCollapseSpeed{ 10.f };                                    // idle tail collapse 보간 속도다.
+    EffectRibbonSpreadBasis spreadBasis{
+        EffectRibbonSpreadBasis::CameraFacing };                        // RibbonOrientation 모듈에서 선택한 폭 방향 기준축이다.
+    float spreadAngleDegrees{ 0.f };                                    // 선택 기준축에서 tangent 기준으로 추가 회전하는 펼침 각도다.
+    bool useManualRoll{ false };                                        // true면 shader에서 tangent 기준 ribbon 펼침 방향을 추가 회전한다.
+    float manualRollDegrees{ 0.f };                                     // useManualRoll일 때 적용할 tangent 기준 펼침 각도다.
 
     Weak<IEffectSourcePointSampleProvider> sourcePointSampleProvider{}; // attachment 계산 owner가 공급하는 단일 source sample이다.
 };

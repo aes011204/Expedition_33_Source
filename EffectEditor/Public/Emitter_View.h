@@ -230,6 +230,7 @@ private: //## Helper::AuthoringFactory
     AuthoringModule Make_SpawnPerUnitModule();
     AuthoringModule Make_SourceHistorySpriteTrailPathFollowModule();
     AuthoringModule Make_SourceHistorySpriteTrailPathReplayModule();
+    AuthoringModule Make_RibbonOrientationModule();
     AuthoringModule Make_MaterialScalarModulationModule();
 
 private: //## Helper::ModulePolicy

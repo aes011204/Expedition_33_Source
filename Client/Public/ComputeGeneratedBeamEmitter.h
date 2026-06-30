@@ -76,6 +76,7 @@ private: //## Types::PlaybackRuntime
         Vec4 startColor{};                    // segment 시작 색이다.
         Vec4 endColor{};                      // segment 끝 색이다.
         Vec4 subUVRect{ 0.f, 0.f, 1.f, 1.f }; // 현재 SubUV rect다.
+        Vec4 coreColorRgb{ 1.f, 0.85f, 0.45f, 0.f };
     };
 
     struct BeamInstanceVertex
@@ -89,6 +90,7 @@ private: //## Types::PlaybackRuntime
         Vec4 endColor{};
         Vec4 subUVRect{};
         Vec4 segmentParams{};
+        Vec4 coreColorRgb{ 1.f, 0.85f, 0.45f, 0.f };
     };
 
     struct BeamComputeParams

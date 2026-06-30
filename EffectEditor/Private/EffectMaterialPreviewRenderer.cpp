@@ -197,6 +197,7 @@ void EffectMaterialPreviewRenderer::Render_Material(
             vec2Modulation,
             modulation,
             previewTime.phase,
+            0u,
             evaluateParticleLife
         );
     const EffectMaterialInstanceData& previewMaterial = modulationResult.material;

@@ -817,7 +817,7 @@ HRESULT ComputeSpriteEmitter::Bind_MaterialResources()
 {
     const float emitterPhase = Resolve_MaterialScalarEmitterPhase();
     const EffectRequiredMaterialRuntimeDesc material =
-        Resolve_EmitterTimeMaterialUniformParameterModulation(_desc.required.material, emitterPhase);
+        Resolve_EmitterTimeMaterialUniformParameterModulation(_desc.required.material, emitterPhase, _effectPlaybackSeed);
 
     if (nullptr != _noiseTexture)
         CHECK_FAILED_ONCE(_noiseTexture->Bind_ShaderResourceView(_shader.get(), "g_NoiseTexture", 0), E_FAIL);
@@ -912,6 +912,10 @@ HRESULT ComputeSpriteEmitter::Bind_MaterialResources()
         EffectAssetRuntimeLoad::Bind_MaterialScalarModulationPayload(_shader.get(), _desc.required.material.scalarModulation, emitterPhase),
         E_FAIL
     );
+    CHECK_FAILED_ONCE(
+        Bind_CoreColorRgbModulationShaderPayload(_shader.get(), _desc.required.material.coreColorRgbModulation, emitterPhase, _effectPlaybackSeed),
+        E_FAIL
+    );
 
     const Vec4 effectInfluenceDebugParams = Vec4(
         _isInfluenceOutlineDebugEnabled ? 1.f : 0.f,
@@ -967,7 +971,7 @@ HRESULT ComputeSpriteEmitter::Bind_DistortionResources()
 {
     const float emitterPhase = Resolve_MaterialScalarEmitterPhase();
     const EffectRequiredMaterialRuntimeDesc material =
-        Resolve_EmitterTimeMaterialUniformParameterModulation(_desc.required.material, emitterPhase);
+        Resolve_EmitterTimeMaterialUniformParameterModulation(_desc.required.material, emitterPhase, _effectPlaybackSeed);
 
     if (nullptr != _flowTexture)
         CHECK_FAILED_ONCE(_flowTexture->Bind_ShaderResourceView(_shader.get(), "g_FlowTexture", 0), E_FAIL);
@@ -1140,6 +1144,22 @@ ComputePointParticleDesc ComputeSpriteEmitter::Make_ComputePointParticleDesc() c
     desc.colorOverLifeSeed = _desc.colorOverLife.colorSeed;
     desc.alphaOverLifeSeed = _desc.colorOverLife.alphaSeed;
     desc.colorOverLifeCurve = _desc.colorOverLife.curve;
+    Vec3 coreColorRgbUniformMin{};
+    Vec3 coreColorRgbUniformMax{};
+    uint32 coreColorRgbUniformSeed{};
+    if (Resolve_ParticleLifeCoreColorRgbUniformSampleDesc(
+        _desc.required.material.coreColorRgbModulation,
+        _effectPlaybackSeed,
+        coreColorRgbUniformMin,
+        coreColorRgbUniformMax,
+        coreColorRgbUniformSeed
+    ))
+    {
+        desc.coreColorRgbParticleLifeUniformParams = Vec4{ 1.f, 0.f, 0.f, 0.f };
+        desc.coreColorRgbParticleLifeUniformMin = Vec4{ coreColorRgbUniformMin.x, coreColorRgbUniformMin.y, coreColorRgbUniformMin.z, 0.f };
+        desc.coreColorRgbParticleLifeUniformMax = Vec4{ coreColorRgbUniformMax.x, coreColorRgbUniformMax.y, coreColorRgbUniformMax.z, 0.f };
+        desc.coreColorRgbParticleLifeUniformSeed = XMUINT4{ coreColorRgbUniformSeed, 0u, 0u, 0u };
+    }
     desc.subUVRows = max(1u, _desc.required.material.subUVRows);
     desc.subUVCols = max(1u, _desc.required.material.subUVCols);
     desc.subUvFrameOverLife = _desc.subUVFrameOverLife;

@@ -52,6 +52,7 @@ private: //## Types::PlaybackRuntime
         Vec3 position{};
         float age{};
         float distance{};
+        uint32 serial{};
     };
 
     struct RenderSample
@@ -71,6 +72,7 @@ private: //## Types::PlaybackRuntime
         Vec4 startColor{};
         Vec4 endColor{};
         Vec4 subUVRect{ 0.f, 0.f, 1.f, 1.f };
+        Vec4 coreColorRgb{ 1.f, 0.85f, 0.45f, 0.f };
     };
 
     struct HistoryLane
@@ -83,6 +85,7 @@ private: //## Types::PlaybackRuntime
         float collapseLength{ -1.f };
         float age{};
         float missingTime{};
+        Vec3 headOffset{};
         bool activeThisFrame{};
         bool hasPreviousSourcePosition{};
     };
@@ -114,6 +117,7 @@ private: //## Types::PlaybackRuntime
         Vec4 endColor{};
         Vec4 subUVRect{};
         Vec4 segmentParams{};    // x: lifeProgress, y: currentWidth, z: nextWidth, w: alphaScale.
+        Vec4 coreColorRgb{ 1.f, 0.85f, 0.45f, 0.f };
     };
 
     struct DrawIndexedInstancedIndirectArgs
@@ -149,6 +153,7 @@ private: //## Data::PlaybackRuntime
     float _selfRootCollapseLength{ -1.f };
     Vec3 _selfRootSourcePosition{};
     Vec3 _selfRootPreviousSourcePosition{};
+    Vec3 _selfRootHeadOffset{};
     bool _hasSelfRootPreviousSourcePosition{};
     vector<HistoryLane> _sourceLanes{};
     vector<RetiredLoopStroke> _retiredLoopStrokes{};
@@ -156,6 +161,7 @@ private: //## Data::PlaybackRuntime
     float _visibleRibbonLength{ 1.f };
     uint32 _drawSegmentCount{};
     uint32 _randomSubUVFrameIndex{};
+    uint32 _sampleSerialCounter{};
 
 private: //## Data::Components
     Shared<ShaderCom> _shader{};
@@ -220,6 +226,9 @@ private: //## Helper::Render
     HRESULT Bind_ShaderResources();
     HRESULT Bind_MaterialResources();
     HRESULT Bind_DistortionResources();
+    EffectRibbonRenderAxis Resolve_RibbonRenderAxis() const;
+    Vec4 Resolve_RibbonFallbackAxis() const;
+    Vec3 Resolve_SourceBasisAxis() const;
     bool Can_SubmitRender() const;
     uint32 Compute_MaxLaneRenderSegmentCount() const;
     uint32 Compute_MaxRenderSegmentCount() const;
@@ -234,6 +243,9 @@ private: //## Helper::Render
     const wchar_t* Resolve_ShaderId() const;
     uint32 Resolve_ShaderPassIndex() const;
     int Resolve_OpacitySourceIndex() const;
+    Vec3 Sample_HeadOffset(uint32 seed) const;
+    Vec3 Resolve_HeadOffsetWorld(const Vec3& localOffset) const;
+    Vec3 Apply_HeadOffset(const Vec3& sourcePosition, const Vec3& localOffset) const;
     bool Try_Resolve_SourcePosition(Vec3& outPosition) const;
     Vec3 Resolve_SourcePosition() const;
     Vec4 Evaluate_ColorOverLife(float lifeProgress) const;

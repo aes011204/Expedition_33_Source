@@ -46,6 +46,7 @@ enum class AuthoringModuleType : uint8
     SpawnPerUnit,
     SourceHistorySpriteTrailPathFollow,
     SourceHistorySpriteTrailPathReplay,
+    RibbonOrientation,
     MaterialScalarModulation,
 };
 
@@ -629,6 +630,8 @@ struct RibbonTypeData
     bool autoLifeFade{ false };                                   // sample age 기준 alpha fade를 적용해 기존 tail이 사라지는 과정을 보이게 할지 결정한다.
     bool tailCollapseOnIdle{ true };                              // source가 느리거나 멈췄을 때 history sample을 source 쪽으로 당길지 결정한다.
     float tailCollapseSpeed{ 10.f };                              // idle tail collapse 보간 속도다.
+    bool useManualRoll{ false };                                  // true면 tangent 기준으로 ribbon 펼침 방향을 추가 회전한다.
+    float manualRollDegrees{ 0.f };                               // useManualRoll일 때 적용할 tangent 기준 펼침 각도다.
 };
 
 // Source history path 위에 짧은 sprite/card stamp를 찍는 editor 저장 payload다.
@@ -765,6 +768,21 @@ struct LifetimeModuleData
 struct InitialLocationModuleData
 {
     Vector3DistributionData location{ Vector3DistributionData::Make_Constant(Vec3{ 0.f, 0.f, 0.f }) };
+};
+
+enum class RibbonSpreadBasis : uint8
+{
+    CameraFacing,
+    ViewUp,
+    WorldUp,
+    SourceUp,
+    SourceRight,
+};
+
+struct RibbonOrientationModuleData
+{
+    RibbonSpreadBasis spreadBasis{ RibbonSpreadBasis::CameraFacing };
+    float spreadAngleDegrees{ 0.f };
 };
 
 enum class SphereLocationSpawnMode : uint8
@@ -1304,6 +1322,7 @@ using AuthoringModuleData = variant<
     SpawnPerUnitModuleData,
     SourceHistorySpriteTrailPathFollowModuleData,
     SourceHistorySpriteTrailPathReplayModuleData,
+    RibbonOrientationModuleData,
     MaterialScalarModulationModuleData>;
 
 struct AuthoringModule
