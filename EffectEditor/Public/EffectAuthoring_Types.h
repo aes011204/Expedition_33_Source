@@ -1022,9 +1022,32 @@ struct DragModuleData
     FloatDistributionData drag{ FloatDistributionData::Make_Constant(0.f) };
 };
 
+enum class VelocityOverLifeApplyChannel : uint8
+{
+    InitialVelocity,
+    InitialRadialVelocity,
+    VelocityCone,
+    SourceMotionVelocity,
+    AccelerationIntegratedVelocity,
+};
+
+inline constexpr uint32 kVelocityOverLifeApplyChannelInitialVelocityMask{ 1u << 0 };
+inline constexpr uint32 kVelocityOverLifeApplyChannelInitialRadialVelocityMask{ 1u << 1 };
+inline constexpr uint32 kVelocityOverLifeApplyChannelVelocityConeMask{ 1u << 2 };
+inline constexpr uint32 kVelocityOverLifeApplyChannelSourceMotionVelocityMask{ 1u << 3 };
+inline constexpr uint32 kVelocityOverLifeApplyChannelAccelerationIntegratedVelocityMask{ 1u << 4 };
+inline constexpr uint32 kVelocityOverLifeApplyChannelAllMask{
+    kVelocityOverLifeApplyChannelInitialVelocityMask |
+    kVelocityOverLifeApplyChannelInitialRadialVelocityMask |
+    kVelocityOverLifeApplyChannelVelocityConeMask |
+    kVelocityOverLifeApplyChannelSourceMotionVelocityMask |
+    kVelocityOverLifeApplyChannelAccelerationIntegratedVelocityMask
+};
+
 struct VelocityOverLifeModuleData
 {
     FloatDistributionData scaleOverLife{ FloatDistributionData::Make_ConstantCurve(1.f, 1.f) };
+    uint32 applyChannelMask{ kVelocityOverLifeApplyChannelAllMask };
 };
 
 enum class EffectOrbitPivotMode : uint8

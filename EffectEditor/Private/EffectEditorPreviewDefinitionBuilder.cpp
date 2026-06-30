@@ -1823,6 +1823,135 @@ namespace Internal
         }
     }
 
+    void Fill_VelocityScaleByLifeChannelPayload(PointParticleFloatCurveRuntimeDesc& desc, const FloatDistributionData& data)
+    {
+        const float startValue = Evaluate_FloatDistributionMin(data, 1.f);
+        const float endValue = Evaluate_FloatDistributionMax(data, 1.f);
+        desc.enabled = true;
+        desc.curveKeyCount = 2u;
+        desc.curveKeyTimes = Vec4{ 0.f, 1.f, 0.f, 0.f };
+        desc.curveKeyTimesBlock1 = Vec4{};
+        desc.curveKeyValues = Vec4{ startValue, endValue, 0.f, 0.f };
+        desc.curveKeyValuesBlock1 = Vec4{};
+        desc.curveKeyArriveTangents = Vec4{};
+        desc.curveKeyArriveTangentsBlock1 = Vec4{};
+        desc.curveKeyLeaveTangents = Vec4{};
+        desc.curveKeyLeaveTangentsBlock1 = Vec4{};
+        desc.curveKeyModes = Vec4{ 1.f, 1.f, 0.f, 0.f };
+        desc.curveKeyModesBlock1 = Vec4{};
+
+        const auto* curve = get_if<ConstantCurveFloatDistributionData>(&data.payload);
+        if (curve == nullptr)
+            return;
+
+        vector<FloatCurveKeyData> keys = curve->keys;
+        ranges::sort(keys, {}, &FloatCurveKeyData::time);
+        const uint32 keyCount = min(kEffectDistributionCurveMaxKeys, static_cast<uint32>(keys.size()));
+        if (keyCount == 0u)
+            return;
+
+        desc.curveKeyCount = keyCount;
+        desc.curveKeyTimes = Vec4{};
+        desc.curveKeyTimesBlock1 = Vec4{};
+        desc.curveKeyValues = Vec4{};
+        desc.curveKeyValuesBlock1 = Vec4{};
+        desc.curveKeyArriveTangents = Vec4{};
+        desc.curveKeyArriveTangentsBlock1 = Vec4{};
+        desc.curveKeyLeaveTangents = Vec4{};
+        desc.curveKeyLeaveTangentsBlock1 = Vec4{};
+        desc.curveKeyModes = Vec4{};
+        desc.curveKeyModesBlock1 = Vec4{};
+
+        for (uint32 index = 0; index < keyCount; ++index)
+        {
+            const FloatCurveKeyData& key = keys[index];
+            Set_CurveComponent(desc.curveKeyTimes, desc.curveKeyTimesBlock1, index, clamp(key.time, 0.f, 1.f));
+            Set_CurveComponent(desc.curveKeyValues, desc.curveKeyValuesBlock1, index, key.value);
+            Set_CurveComponent(desc.curveKeyArriveTangents, desc.curveKeyArriveTangentsBlock1, index, key.arriveTangent);
+            Set_CurveComponent(desc.curveKeyLeaveTangents, desc.curveKeyLeaveTangentsBlock1, index, key.leaveTangent);
+            Set_CurveComponent(desc.curveKeyModes, desc.curveKeyModesBlock1, index, To_RuntimeCurveInterpolationMode(key.interpolationMode));
+        }
+    }
+
+    PointParticleFloatCurveRuntimeDesc& Resolve_VelocityScaleChannelPayload(
+        PointParticleMotionDesc& desc,
+        VelocityOverLifeApplyChannel channel)
+    {
+        switch (channel)
+        {
+        case VelocityOverLifeApplyChannel::InitialVelocity:
+            return desc.initialVelocityScaleByLife;
+        case VelocityOverLifeApplyChannel::InitialRadialVelocity:
+            return desc.initialRadialVelocityScaleByLife;
+        case VelocityOverLifeApplyChannel::VelocityCone:
+            return desc.velocityConeScaleByLife;
+        case VelocityOverLifeApplyChannel::SourceMotionVelocity:
+            return desc.sourceMotionVelocityScaleByLife;
+        case VelocityOverLifeApplyChannel::AccelerationIntegratedVelocity:
+        default:
+            return desc.accelerationIntegratedVelocityScaleByLife;
+        }
+    }
+
+    void Apply_VelocityOverLifeOwnership(PointParticleMotionDesc& desc, const AuthoringEmitter& emitter)
+    {
+        const VelocityOverLifeApplyChannel channels[] = {
+            VelocityOverLifeApplyChannel::InitialVelocity,
+            VelocityOverLifeApplyChannel::InitialRadialVelocity,
+            VelocityOverLifeApplyChannel::VelocityCone,
+            VelocityOverLifeApplyChannel::SourceMotionVelocity,
+            VelocityOverLifeApplyChannel::AccelerationIntegratedVelocity,
+        };
+        const uint32 channelMasks[] = {
+            kVelocityOverLifeApplyChannelInitialVelocityMask,
+            kVelocityOverLifeApplyChannelInitialRadialVelocityMask,
+            kVelocityOverLifeApplyChannelVelocityConeMask,
+            kVelocityOverLifeApplyChannelSourceMotionVelocityMask,
+            kVelocityOverLifeApplyChannelAccelerationIntegratedVelocityMask,
+        };
+        const VelocityOverLifeModuleData* owners[5]{};
+
+        for (const AuthoringModule& module : emitter.modules)
+        {
+            if (module.type != AuthoringModuleType::VelocityOverLife || !module.enabled)
+                continue;
+
+            const auto* data = get_if<VelocityOverLifeModuleData>(&module.data);
+            if (data == nullptr)
+                continue;
+
+            const uint32 mask = data->applyChannelMask != 0u ? data->applyChannelMask : kVelocityOverLifeApplyChannelAllMask;
+            for (uint32 index = 0u; index < 5u; ++index)
+            {
+                if ((mask & channelMasks[index]) != 0u && owners[index] == nullptr)
+                    owners[index] = data;
+            }
+        }
+
+        const VelocityOverLifeModuleData* sharedOwner = owners[0];
+        bool hasAnyOwner = sharedOwner != nullptr;
+        bool hasSingleOwnerForAllChannels = sharedOwner != nullptr;
+        for (uint32 index = 0u; index < 5u; ++index)
+        {
+            if (owners[index] != nullptr)
+            {
+                hasAnyOwner = true;
+                Fill_VelocityScaleByLifeChannelPayload(
+                    Resolve_VelocityScaleChannelPayload(desc, channels[index]),
+                    owners[index]->scaleOverLife
+                );
+            }
+
+            if (owners[index] != sharedOwner)
+                hasSingleOwnerForAllChannels = false;
+        }
+
+        if (hasAnyOwner)
+            desc.enabled = true;
+        if (hasSingleOwnerForAllChannels)
+            Fill_VelocityScaleByLifePayload(desc, sharedOwner->scaleOverLife);
+    }
+
     void Fill_VelocityConePayload(PointParticleMotionDesc& desc, const VelocityConeModuleData& data)
     {
         desc.enabled = true;
@@ -2318,11 +2447,7 @@ EffectEmitterDefinition Build_PreviewEmitterDefinition(const AuthoringEmitter& e
         desc.motion.dragSeed = Internal::Build_RandomSeedDesc(drag->drag);
     }
 
-    if (const auto* velocityOverLife = Internal::Find_ModuleData<VelocityOverLifeModuleData>(emitter, AuthoringModuleType::VelocityOverLife))
-    {
-        desc.motion.enabled = true;
-        Internal::Fill_VelocityScaleByLifePayload(desc.motion, velocityOverLife->scaleOverLife);
-    }
+    Internal::Apply_VelocityOverLifeOwnership(desc.motion, emitter);
 
     if (const auto* orbitOverLife = Internal::Find_ModuleData<OrbitOverLifeModuleData>(emitter, AuthoringModuleType::OrbitOverLife))
         desc.orbitOverLife = Internal::Build_OrbitOverLifeDesc(*orbitOverLife);
@@ -3067,11 +3192,7 @@ EffectEmitterDefinition Build_PreviewSourceHistorySpriteTrailEmitterDefinition(c
         emitterDesc.motion.dragSeed = Internal::Build_RandomSeedDesc(drag->drag);
     }
 
-    if (const auto* velocityOverLife = Internal::Find_ModuleData<VelocityOverLifeModuleData>(emitter, AuthoringModuleType::VelocityOverLife))
-    {
-        emitterDesc.motion.enabled = true;
-        Internal::Fill_VelocityScaleByLifePayload(emitterDesc.motion, velocityOverLife->scaleOverLife);
-    }
+    Internal::Apply_VelocityOverLifeOwnership(emitterDesc.motion, emitter);
 
     if (const auto* initialRotation = Internal::Find_ModuleData<InitialRotationModuleData>(emitter, AuthoringModuleType::InitialRotation))
     {
@@ -3679,11 +3800,7 @@ EffectEmitterDefinition Build_PreviewMeshEmitterDefinition(const AuthoringEmitte
         emitterDesc.motion.dragSeed = Internal::Build_RandomSeedDesc(drag->drag);
     }
 
-    if (const auto* velocityOverLife = Internal::Find_ModuleData<VelocityOverLifeModuleData>(emitter, AuthoringModuleType::VelocityOverLife))
-    {
-        emitterDesc.motion.enabled = true;
-        Internal::Fill_VelocityScaleByLifePayload(emitterDesc.motion, velocityOverLife->scaleOverLife);
-    }
+    Internal::Apply_VelocityOverLifeOwnership(emitterDesc.motion, emitter);
 
     if (const auto* orbitOverLife = Internal::Find_ModuleData<OrbitOverLifeModuleData>(emitter, AuthoringModuleType::OrbitOverLife))
         emitterDesc.orbitOverLife = Internal::Build_OrbitOverLifeDesc(*orbitOverLife);

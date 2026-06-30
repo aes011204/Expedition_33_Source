@@ -32,6 +32,62 @@ namespace Internal
         return true;
     }
 
+    uint32 To_VelocityOverLifeApplyChannelMask(VelocityOverLifeApplyChannel channel)
+    {
+        switch (channel)
+        {
+        case VelocityOverLifeApplyChannel::InitialVelocity:
+            return kVelocityOverLifeApplyChannelInitialVelocityMask;
+        case VelocityOverLifeApplyChannel::InitialRadialVelocity:
+            return kVelocityOverLifeApplyChannelInitialRadialVelocityMask;
+        case VelocityOverLifeApplyChannel::VelocityCone:
+            return kVelocityOverLifeApplyChannelVelocityConeMask;
+        case VelocityOverLifeApplyChannel::SourceMotionVelocity:
+            return kVelocityOverLifeApplyChannelSourceMotionVelocityMask;
+        case VelocityOverLifeApplyChannel::AccelerationIntegratedVelocity:
+            return kVelocityOverLifeApplyChannelAccelerationIntegratedVelocityMask;
+        default:
+            return 0u;
+        }
+    }
+
+    json To_JsonVelocityOverLifeApplyChannels(uint32 mask)
+    {
+        json channels = json::array();
+        const VelocityOverLifeApplyChannel candidates[] = {
+            VelocityOverLifeApplyChannel::InitialVelocity,
+            VelocityOverLifeApplyChannel::InitialRadialVelocity,
+            VelocityOverLifeApplyChannel::VelocityCone,
+            VelocityOverLifeApplyChannel::SourceMotionVelocity,
+            VelocityOverLifeApplyChannel::AccelerationIntegratedVelocity,
+        };
+
+        for (const VelocityOverLifeApplyChannel channel : candidates)
+        {
+            if ((mask & To_VelocityOverLifeApplyChannelMask(channel)) != 0u)
+                channels.push_back(To_EnumToken(channel));
+        }
+
+        return channels;
+    }
+
+    uint32 Read_VelocityOverLifeApplyChannelMask(const json& root)
+    {
+        const auto iter = root.find("applyChannels");
+        if (iter == root.end() || !iter->is_array())
+            return kVelocityOverLifeApplyChannelAllMask;
+
+        uint32 mask = 0u;
+        for (const json& channelNode : *iter)
+        {
+            VelocityOverLifeApplyChannel channel{};
+            if (Try_ReadEnumToken(channelNode, channel))
+                mask |= To_VelocityOverLifeApplyChannelMask(channel);
+        }
+
+        return mask != 0u ? mask : kVelocityOverLifeApplyChannelAllMask;
+    }
+
     EffectTextureUVTilingMode Resolve_CompatibleUVTilingMode(const EffectMaterialUVAxisPolicy& policy)
     {
         return policy.uPolicy == policy.vPolicy ? policy.uPolicy : EffectTextureUVTilingMode::Wrap;
@@ -2370,6 +2426,7 @@ namespace Internal
     {
         json root = json::object();
         root["scaleOverLife"] = To_Json(data.scaleOverLife);
+        root["applyChannels"] = To_JsonVelocityOverLifeApplyChannels(data.applyChannelMask);
         return root;
     }
 
@@ -2382,14 +2439,17 @@ namespace Internal
         if (scaleOverLifeIter != root.end())
         {
             From_Json(*scaleOverLifeIter, outData.scaleOverLife);
-            return;
+        }
+        else
+        {
+            float scaleStart{ 1.f };
+            float scaleEnd{ 1.f };
+            Read_NumberField(root, "scaleStart", scaleStart);
+            Read_NumberField(root, "scaleEnd", scaleEnd);
+            outData.scaleOverLife = FloatDistributionData::Make_ConstantCurve(scaleStart, scaleEnd);
         }
 
-        float scaleStart{ 1.f };
-        float scaleEnd{ 1.f };
-        Read_NumberField(root, "scaleStart", scaleStart);
-        Read_NumberField(root, "scaleEnd", scaleEnd);
-        outData.scaleOverLife = FloatDistributionData::Make_ConstantCurve(scaleStart, scaleEnd);
+        outData.applyChannelMask = Read_VelocityOverLifeApplyChannelMask(root);
     }
 
     json To_Json(const OrbitOverLifeModuleData& data)

@@ -1334,6 +1334,121 @@ namespace Internal
         return changed;
     }
 
+    static const char* Get_VelocityOverLifeApplyChannelLabel(VelocityOverLifeApplyChannel channel)
+    {
+        switch (channel)
+        {
+        case VelocityOverLifeApplyChannel::InitialVelocity:
+            return "Initial Velocity";
+        case VelocityOverLifeApplyChannel::InitialRadialVelocity:
+            return "Initial Radial Velocity";
+        case VelocityOverLifeApplyChannel::VelocityCone:
+            return "Velocity Cone";
+        case VelocityOverLifeApplyChannel::SourceMotionVelocity:
+            return "Source Motion Velocity";
+        case VelocityOverLifeApplyChannel::AccelerationIntegratedVelocity:
+            return "Acceleration Integrated Velocity";
+        default:
+            return "Initial Velocity";
+        }
+    }
+
+    static uint32 To_VelocityOverLifeApplyChannelMask(VelocityOverLifeApplyChannel channel)
+    {
+        switch (channel)
+        {
+        case VelocityOverLifeApplyChannel::InitialVelocity:
+            return kVelocityOverLifeApplyChannelInitialVelocityMask;
+        case VelocityOverLifeApplyChannel::InitialRadialVelocity:
+            return kVelocityOverLifeApplyChannelInitialRadialVelocityMask;
+        case VelocityOverLifeApplyChannel::VelocityCone:
+            return kVelocityOverLifeApplyChannelVelocityConeMask;
+        case VelocityOverLifeApplyChannel::SourceMotionVelocity:
+            return kVelocityOverLifeApplyChannelSourceMotionVelocityMask;
+        case VelocityOverLifeApplyChannel::AccelerationIntegratedVelocity:
+            return kVelocityOverLifeApplyChannelAccelerationIntegratedVelocityMask;
+        default:
+            return 0u;
+        }
+    }
+
+    static bool Has_VelocityOverLifeChannelConflict(
+        const AuthoringEmitter& emitter,
+        const AuthoringModule& currentModule,
+        const VelocityOverLifeModuleData& currentData)
+    {
+        if (!currentModule.enabled)
+            return false;
+
+        const uint32 currentMask = currentData.applyChannelMask != 0u
+                                   ? currentData.applyChannelMask
+                                   : kVelocityOverLifeApplyChannelAllMask;
+        for (const AuthoringModule& module : emitter.modules)
+        {
+            if (module.id == currentModule.id || module.type != AuthoringModuleType::VelocityOverLife || !module.enabled)
+                continue;
+
+            const auto* data = get_if<VelocityOverLifeModuleData>(&module.data);
+            if (data == nullptr)
+                continue;
+
+            const uint32 otherMask = data->applyChannelMask != 0u
+                                     ? data->applyChannelMask
+                                     : kVelocityOverLifeApplyChannelAllMask;
+            if ((currentMask & otherMask) != 0u)
+                return true;
+        }
+
+        return false;
+    }
+
+    static bool Draw_VelocityOverLifeApplyChannelMaskProperty(
+        DetailPropertyContext& detailContext,
+        uint32& mask,
+        uint32 defaultMask)
+    {
+        bool changed = false;
+        if (mask == 0u)
+            mask = kVelocityOverLifeApplyChannelAllMask;
+
+        ImGui::PushID("VelocityOverLifeApplyChannels");
+        detailContext.Draw_PropertyLabel(
+            "적용 대상",
+            "VelocityOverLife 배율을 적용할 velocity channel입니다. 겹친 channel은 모듈 목록 위쪽 항목이 우선합니다."
+        );
+
+        const VelocityOverLifeApplyChannel channels[] = {
+            VelocityOverLifeApplyChannel::InitialVelocity,
+            VelocityOverLifeApplyChannel::InitialRadialVelocity,
+            VelocityOverLifeApplyChannel::VelocityCone,
+            VelocityOverLifeApplyChannel::SourceMotionVelocity,
+            VelocityOverLifeApplyChannel::AccelerationIntegratedVelocity,
+        };
+        for (const VelocityOverLifeApplyChannel channel : channels)
+        {
+            const uint32 channelMask = To_VelocityOverLifeApplyChannelMask(channel);
+            bool enabled = (mask & channelMask) != 0u;
+            if (ImGui::Checkbox(Get_VelocityOverLifeApplyChannelLabel(channel), &enabled))
+            {
+                const uint32 nextMask = enabled ? (mask | channelMask) : (mask & ~channelMask);
+                if (nextMask != 0u)
+                {
+                    mask = nextMask;
+                    changed = true;
+                }
+            }
+        }
+
+        if (detailContext.Draw_ResetButton(mask != defaultMask))
+        {
+            mask = defaultMask;
+            changed = true;
+        }
+        ImGui::PopID();
+
+        return changed;
+    }
+
     static bool Draw_PlaneRadialOrientationModeProperty(
         DetailPropertyContext& detailContext,
         const char* label,
@@ -3669,7 +3784,7 @@ bool DragModuleDetail::Draw(AuthoringEmitter&, const AuthoringModule& module, Dr
     return changed;
 }
 
-bool VelocityOverLifeModuleDetail::Draw(AuthoringEmitter&, AuthoringModule&, VelocityOverLifeModuleData& data, DetailPropertyContext& detailContext)
+bool VelocityOverLifeModuleDetail::Draw(AuthoringEmitter& emitter, AuthoringModule& module, VelocityOverLifeModuleData& data, DetailPropertyContext& detailContext)
 {
     const VelocityOverLifeModuleData defaultData{};
     bool changed = false;
@@ -3686,6 +3801,26 @@ bool VelocityOverLifeModuleDetail::Draw(AuthoringEmitter&, AuthoringModule&, Vel
             nullptr,
             "생존 중 normalized life(0->1) 기준으로 현재 속도에 곱하는 배율입니다."
         );
+
+        if (ImGui::CollapsingHeader("고급 적용 대상"))
+        {
+            if (detailContext.Begin_PropertyTable("VelocityOverLifeApplyChannels"))
+            {
+                changed |= Internal::Draw_VelocityOverLifeApplyChannelMaskProperty(
+                    detailContext,
+                    data.applyChannelMask,
+                    defaultData.applyChannelMask
+                );
+                detailContext.End_PropertyTable();
+            }
+        }
+
+        if (Internal::Has_VelocityOverLifeChannelConflict(emitter, module, data))
+        {
+            ImGui::PushStyleColor(ImGuiCol_Text, ImVec4{ 1.f, 0.78f, 0.28f, 1.f });
+            ImGui::TextWrapped("겹친 대상은 위쪽 VelocityOverLife가 우선 적용됩니다.");
+            ImGui::PopStyleColor();
+        }
     }
 
     return changed;

@@ -41,6 +41,145 @@ namespace EffectAssetRuntimeLoad::Emitters
         return nullptr;
     }
 
+    constexpr uint32 kVelocityOverLifeApplyChannelInitialVelocityMask{ 1u << 0 };
+    constexpr uint32 kVelocityOverLifeApplyChannelInitialRadialVelocityMask{ 1u << 1 };
+    constexpr uint32 kVelocityOverLifeApplyChannelVelocityConeMask{ 1u << 2 };
+    constexpr uint32 kVelocityOverLifeApplyChannelSourceMotionVelocityMask{ 1u << 3 };
+    constexpr uint32 kVelocityOverLifeApplyChannelAccelerationIntegratedVelocityMask{ 1u << 4 };
+    constexpr uint32 kVelocityOverLifeApplyChannelAllMask{
+        kVelocityOverLifeApplyChannelInitialVelocityMask |
+        kVelocityOverLifeApplyChannelInitialRadialVelocityMask |
+        kVelocityOverLifeApplyChannelVelocityConeMask |
+        kVelocityOverLifeApplyChannelSourceMotionVelocityMask |
+        kVelocityOverLifeApplyChannelAccelerationIntegratedVelocityMask
+    };
+
+    uint32 To_VelocityOverLifeApplyChannelMask(PointParticleVelocityScaleChannel channel)
+    {
+        switch (channel)
+        {
+        case PointParticleVelocityScaleChannel::InitialVelocity:
+            return kVelocityOverLifeApplyChannelInitialVelocityMask;
+        case PointParticleVelocityScaleChannel::InitialRadialVelocity:
+            return kVelocityOverLifeApplyChannelInitialRadialVelocityMask;
+        case PointParticleVelocityScaleChannel::VelocityCone:
+            return kVelocityOverLifeApplyChannelVelocityConeMask;
+        case PointParticleVelocityScaleChannel::SourceMotionVelocity:
+            return kVelocityOverLifeApplyChannelSourceMotionVelocityMask;
+        case PointParticleVelocityScaleChannel::AccelerationIntegratedVelocity:
+            return kVelocityOverLifeApplyChannelAccelerationIntegratedVelocityMask;
+        default:
+            return 0u;
+        }
+    }
+
+    uint32 Read_VelocityOverLifeApplyChannelMask(const json& velocityOverLife)
+    {
+        const auto iter = velocityOverLife.find("applyChannels");
+        if (iter == velocityOverLife.end() || !iter->is_array())
+            return kVelocityOverLifeApplyChannelAllMask;
+
+        uint32 mask = 0u;
+        for (const json& channelNode : *iter)
+        {
+            if (!channelNode.is_string())
+                continue;
+
+            const optional<PointParticleVelocityScaleChannel> parsed =
+                magic_enum::enum_cast<PointParticleVelocityScaleChannel>(channelNode.get<string>());
+            if (parsed.has_value())
+                mask |= To_VelocityOverLifeApplyChannelMask(parsed.value());
+        }
+
+        return mask != 0u ? mask : kVelocityOverLifeApplyChannelAllMask;
+    }
+
+    PointParticleFloatCurveRuntimeDesc& Resolve_VelocityScaleChannelPayload(
+        PointParticleMotionDesc& desc,
+        PointParticleVelocityScaleChannel channel)
+    {
+        switch (channel)
+        {
+        case PointParticleVelocityScaleChannel::InitialVelocity:
+            return desc.initialVelocityScaleByLife;
+        case PointParticleVelocityScaleChannel::InitialRadialVelocity:
+            return desc.initialRadialVelocityScaleByLife;
+        case PointParticleVelocityScaleChannel::VelocityCone:
+            return desc.velocityConeScaleByLife;
+        case PointParticleVelocityScaleChannel::SourceMotionVelocity:
+            return desc.sourceMotionVelocityScaleByLife;
+        case PointParticleVelocityScaleChannel::AccelerationIntegratedVelocity:
+        default:
+            return desc.accelerationIntegratedVelocityScaleByLife;
+        }
+    }
+
+    void Apply_VelocityOverLifeOwnership(PointParticleMotionDesc& desc, const json& emitter)
+    {
+        const auto modulesIter = emitter.find("modules");
+        if (modulesIter == emitter.end() || !modulesIter->is_array())
+            return;
+
+        const PointParticleVelocityScaleChannel channels[] = {
+            PointParticleVelocityScaleChannel::InitialVelocity,
+            PointParticleVelocityScaleChannel::InitialRadialVelocity,
+            PointParticleVelocityScaleChannel::VelocityCone,
+            PointParticleVelocityScaleChannel::SourceMotionVelocity,
+            PointParticleVelocityScaleChannel::AccelerationIntegratedVelocity,
+        };
+        const uint32 channelMasks[] = {
+            kVelocityOverLifeApplyChannelInitialVelocityMask,
+            kVelocityOverLifeApplyChannelInitialRadialVelocityMask,
+            kVelocityOverLifeApplyChannelVelocityConeMask,
+            kVelocityOverLifeApplyChannelSourceMotionVelocityMask,
+            kVelocityOverLifeApplyChannelAccelerationIntegratedVelocityMask,
+        };
+        const json* owners[5]{};
+
+        for (const json& module : *modulesIter)
+        {
+            if (!module.is_object() || !Read_Bool(module, "enabled", true))
+                continue;
+            if (Read_String(module, "type") != "VelocityOverLife")
+                continue;
+
+            const auto dataIter = module.find("data");
+            if (dataIter == module.end() || !dataIter->is_object())
+                continue;
+
+            const json& velocityOverLife = *dataIter;
+            const uint32 mask = Read_VelocityOverLifeApplyChannelMask(velocityOverLife);
+            for (uint32 index = 0u; index < 5u; ++index)
+            {
+                if ((mask & channelMasks[index]) != 0u && owners[index] == nullptr)
+                    owners[index] = &velocityOverLife;
+            }
+        }
+
+        const json* sharedOwner = owners[0];
+        bool hasAnyOwner = sharedOwner != nullptr;
+        bool hasSingleOwnerForAllChannels = sharedOwner != nullptr;
+        for (uint32 index = 0u; index < 5u; ++index)
+        {
+            if (owners[index] != nullptr)
+            {
+                hasAnyOwner = true;
+                Fill_VelocityScaleByLifeChannelPayload(
+                    Resolve_VelocityScaleChannelPayload(desc, channels[index]),
+                    *owners[index]
+                );
+            }
+
+            if (owners[index] != sharedOwner)
+                hasSingleOwnerForAllChannels = false;
+        }
+
+        if (hasAnyOwner)
+            desc.enabled = true;
+        if (hasSingleOwnerForAllChannels)
+            Fill_VelocityScaleByLifePayload(desc, *sharedOwner);
+    }
+
     void Fill_SourceMotionVelocityPayload(PointParticleMotionDesc& desc, const json& sourceMotionVelocity)
     {
         desc.enabled = true;
@@ -740,11 +879,7 @@ namespace EffectAssetRuntimeLoad::Emitters
                 desc.motion.dragSeed = Read_DistributionRandomSeedDesc(*dragIter, drag);
         }
 
-        if (const json* velocityOverLife = Find_ModuleData(emitter, "VelocityOverLife"))
-        {
-            desc.motion.enabled = true;
-            Fill_VelocityScaleByLifePayload(desc.motion, *velocityOverLife);
-        }
+        Apply_VelocityOverLifeOwnership(desc.motion, emitter);
 
         if (const json* orbitOverLife = Find_ModuleData(emitter, "OrbitOverLife"))
             Fill_OrbitOverLifePayload(desc.orbitOverLife, *orbitOverLife);
@@ -1428,11 +1563,7 @@ namespace EffectAssetRuntimeLoad::Emitters
             }
         }
 
-        if (const json* velocityOverLife = Find_ModuleData(emitter, "VelocityOverLife"))
-        {
-            desc.motion.enabled = true;
-            Fill_VelocityScaleByLifePayload(desc.motion, *velocityOverLife);
-        }
+        Apply_VelocityOverLifeOwnership(desc.motion, emitter);
 
         if (const json* initialRotation = Find_ModuleData(emitter, "InitialRotation"))
         {
@@ -2022,11 +2153,7 @@ namespace EffectAssetRuntimeLoad::Emitters
             }
         }
 
-        if (const json* velocityOverLife = Find_ModuleData(emitter, "VelocityOverLife"))
-        {
-            desc.motion.enabled = true;
-            Fill_VelocityScaleByLifePayload(desc.motion, *velocityOverLife);
-        }
+        Apply_VelocityOverLifeOwnership(desc.motion, emitter);
 
         if (const json* orbitOverLife = Find_ModuleData(emitter, "OrbitOverLife"))
             Fill_OrbitOverLifePayload(desc.orbitOverLife, *orbitOverLife);

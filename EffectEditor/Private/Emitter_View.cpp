@@ -1490,6 +1490,8 @@ bool Emitter_View::Can_AddModuleType(const AuthoringEmitter& emitter, AuthoringM
     case AuthoringModuleType::SourceHistorySpriteTrailPathReplay:
     case AuthoringModuleType::RibbonOrientation:
     case AuthoringModuleType::MaterialScalarModulation:
+        if (type == AuthoringModuleType::VelocityOverLife)
+            return Is_ModuleCompatibleWithEmitter(emitter, type);
         if (type == AuthoringModuleType::SourceHistorySpriteTrailPathFollow &&
             Has_ModuleType(emitter, AuthoringModuleType::SourceHistorySpriteTrailPathReplay))
             return false;

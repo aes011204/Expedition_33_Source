@@ -1609,7 +1609,7 @@ void MeshEmitter::Activate_Particle(MeshParticleState& particle, uint32 seed, ui
         .tangent = _sourceMotionTangent,
         .sourceVelocityValid = _sourceMotionVelocityValid
     };
-    particle.velocity = Sample_InitialVelocity(spawnPosition, planeRadialSample, sourceMotionContext, seed + 23u);
+    Sample_InitialVelocityChannels(particle, spawnPosition, planeRadialSample, sourceMotionContext, seed + 23u);
     particle.acceleration = Sample_Acceleration(seed + 29u);
     particle.drag = Sample_Drag(seed + 31u);
     particle.baseScale = _desc.previewScale * Sample_InitialScale(seed + 37u);
@@ -1679,14 +1679,25 @@ void MeshEmitter::Update_Particles(float timeDelta)
         }
 
         const float lifeProgress = clamp(particle.age / max(0.0001f, particle.lifeMax), 0.f, 1.f);
-        const float velocityScale = Evaluate_VelocityScaleByLife(lifeProgress);
-        const Vec3 acceleration = Evaluate_AccelerationByLife(particle, lifeProgress) * velocityScale;
-        particle.velocity += acceleration * safeDeltaTime;
+        const float accelerationScale = Evaluate_VelocityScaleByLifeChannel(
+            _desc.motion.accelerationIntegratedVelocityScaleByLife,
+            lifeProgress
+        );
+        const Vec3 acceleration = Evaluate_AccelerationByLife(particle, lifeProgress) * accelerationScale;
+        particle.accelerationIntegratedVelocity += acceleration * safeDeltaTime;
 
         if (particle.drag > 0.f)
-            particle.velocity *= expf(-particle.drag * safeDeltaTime);
+        {
+            const float dragDecay = expf(-particle.drag * safeDeltaTime);
+            particle.initialVelocity *= dragDecay;
+            particle.initialRadialVelocity *= dragDecay;
+            particle.velocityCone *= dragDecay;
+            particle.sourceMotionVelocity *= dragDecay;
+            particle.accelerationIntegratedVelocity *= dragDecay;
+        }
 
-        particle.position += particle.velocity * velocityScale * safeDeltaTime;
+        particle.velocity = Evaluate_ScaledVelocityChannels(particle, lifeProgress);
+        particle.position += particle.velocity * safeDeltaTime;
 
         const Vec3 angularVelocityScale = Evaluate_AngularVelocityScaleByLife(lifeProgress);
         const Vec3 scaledAngularVelocity{
@@ -2405,13 +2416,20 @@ Quat MeshEmitter::Build_MeshDirectionAlignTargetOrientation(
     return orientation;
 }
 
-Vec3 MeshEmitter::Sample_InitialVelocity(
+void MeshEmitter::Sample_InitialVelocityChannels(
+    MeshParticleState& particle,
     const Vec3& spawnPosition,
     const PlaneRadialSample& planeRadialSample,
     const SourceMotionVelocityContext& sourceMotionContext,
     uint32 seed) const
 {
-    Vec3 velocity{};
+    particle.velocity = Vec3{};
+    particle.initialVelocity = Vec3{};
+    particle.initialRadialVelocity = Vec3{};
+    particle.velocityCone = Vec3{};
+    particle.sourceMotionVelocity = Vec3{};
+    particle.accelerationIntegratedVelocity = Vec3{};
+
     const uint32 initialVelocitySeed = seed + Internal::Resolve_SeedSalt(_desc.motion.initialVelocitySeed, _effectPlaybackSeed);
     const uint32 initialRadialVelocitySeed = seed + Internal::Resolve_SeedSalt(_desc.motion.initialRadialVelocitySeed, _effectPlaybackSeed);
     const uint32 velocityConeSeed = seed + Internal::Resolve_SeedSalt(_desc.motion.velocityConeSeed, _effectPlaybackSeed);
@@ -2423,9 +2441,9 @@ Vec3 MeshEmitter::Sample_InitialVelocity(
             RandomRange(_desc.motion.initialVelocityMin.y, _desc.motion.initialVelocityMax.y, initialVelocitySeed + 2u),
             RandomRange(_desc.motion.initialVelocityMin.z, _desc.motion.initialVelocityMax.z, initialVelocitySeed + 3u)
         };
-        velocity += _desc.motion.initialVelocityInWorldSpace
-                    ? Resolve_WorldVectorToSimulation(sampledVelocity)
-                    : Resolve_LocalVector(sampledVelocity);
+        particle.initialVelocity += _desc.motion.initialVelocityInWorldSpace
+                                    ? Resolve_WorldVectorToSimulation(sampledVelocity)
+                                    : Resolve_LocalVector(sampledVelocity);
     }
 
     if (_desc.motion.initialRadialVelocityEnabled)
@@ -2462,7 +2480,7 @@ Vec3 MeshEmitter::Sample_InitialVelocity(
             max(_desc.motion.radialSpeed.x, _desc.motion.radialSpeed.y),
             initialRadialVelocitySeed + 5u
         );
-        velocity += radialDirection * radialSpeed;
+        particle.initialRadialVelocity += radialDirection * radialSpeed;
     }
 
     if (_desc.motion.velocityConeEnabled)
@@ -2491,7 +2509,7 @@ Vec3 MeshEmitter::Sample_InitialVelocity(
             max(_desc.motion.velocityConeSpeed.x, _desc.motion.velocityConeSpeed.y),
             velocityConeSeed + 1747u
         );
-        velocity += coneDirection * coneSpeed;
+        particle.velocityCone += coneDirection * coneSpeed;
     }
 
     if (_desc.motion.sourceMotionVelocityEnabled)
@@ -2502,7 +2520,7 @@ Vec3 MeshEmitter::Sample_InitialVelocity(
             _desc.motion.sourceMotionVelocityDirectionMode == PointParticleSourceMotionVelocityDirectionMode::SourceVelocityDirection ||
             _desc.motion.sourceMotionVelocityDirectionMode == PointParticleSourceMotionVelocityDirectionMode::SourceVelocityOpposite;
         if (requiresSourceVelocity && !sourceMotionContext.sourceVelocityValid)
-            return velocity;
+            return;
 
         const Vec3 fallbackForward = Resolve_LocalVector(Vec3{ 0.f, 0.f, 1.f });
         const Vec3 sourceDirection = sourceMotionContext.sourceVelocityValid
@@ -2562,18 +2580,16 @@ Vec3 MeshEmitter::Sample_InitialVelocity(
 
         if (_desc.motion.sourceMotionVelocityDirectionMode == PointParticleSourceMotionVelocityDirectionMode::InheritSourceVelocity)
         {
-            velocity += sourceMotionContext.sourceVelocity * _desc.motion.sourceMotionVelocitySourceSpeedScale;
-            velocity += sourceDirection * sampledSpeed;
+            particle.sourceMotionVelocity += sourceMotionContext.sourceVelocity * _desc.motion.sourceMotionVelocitySourceSpeedScale;
+            particle.sourceMotionVelocity += sourceDirection * sampledSpeed;
         }
         else
         {
             const float resolvedSpeed =
                 sampledSpeed + sourceSpeed * _desc.motion.sourceMotionVelocitySourceSpeedScale;
-            velocity += resolvedDirection * resolvedSpeed;
+            particle.sourceMotionVelocity += resolvedDirection * resolvedSpeed;
         }
     }
-
-    return velocity;
 }
 
 void MeshEmitter::Update_SourceMotionVelocity(float timeDelta)
@@ -2709,25 +2725,40 @@ Vec3 MeshEmitter::Sample_InitialAngularVelocity(uint32 seed) const
     };
 }
 
-float MeshEmitter::Evaluate_VelocityScaleByLife(float lifeProgress) const
+float MeshEmitter::Evaluate_VelocityScaleByLifeChannel(const PointParticleFloatCurveRuntimeDesc& curve, float lifeProgress) const
 {
-    const float fallbackScale = lerp(_desc.motion.velocityScaleByLife.x, _desc.motion.velocityScaleByLife.y, lifeProgress);
-    const float curveScale = Evaluate_CompactCurve(
-        lifeProgress,
-        _desc.motion.velocityScaleByLifeCurveTimes,
-        _desc.motion.velocityScaleByLifeCurveTimesBlock1,
-        _desc.motion.velocityScaleByLifeCurveValues,
-        _desc.motion.velocityScaleByLifeCurveValuesBlock1,
-        _desc.motion.velocityScaleByLifeCurveArriveTangents,
-        _desc.motion.velocityScaleByLifeCurveArriveTangentsBlock1,
-        _desc.motion.velocityScaleByLifeCurveLeaveTangents,
-        _desc.motion.velocityScaleByLifeCurveLeaveTangentsBlock1,
-        _desc.motion.velocityScaleByLifeCurveModes,
-        _desc.motion.velocityScaleByLifeCurveModesBlock1,
-        _desc.motion.velocityScaleByLifeCurveKeyCount,
-        fallbackScale
+    return max(0.f, Internal::Evaluate_FloatCurve(curve, lifeProgress, 1.f));
+}
+
+Vec3 MeshEmitter::Evaluate_ScaledVelocityChannels(const MeshParticleState& particle, float lifeProgress) const
+{
+    const float initialVelocityScale = Evaluate_VelocityScaleByLifeChannel(
+        _desc.motion.initialVelocityScaleByLife,
+        lifeProgress
     );
-    return max(0.f, curveScale);
+    const float initialRadialVelocityScale = Evaluate_VelocityScaleByLifeChannel(
+        _desc.motion.initialRadialVelocityScaleByLife,
+        lifeProgress
+    );
+    const float velocityConeScale = Evaluate_VelocityScaleByLifeChannel(
+        _desc.motion.velocityConeScaleByLife,
+        lifeProgress
+    );
+    const float sourceMotionVelocityScale = Evaluate_VelocityScaleByLifeChannel(
+        _desc.motion.sourceMotionVelocityScaleByLife,
+        lifeProgress
+    );
+    const float accelerationIntegratedVelocityScale = Evaluate_VelocityScaleByLifeChannel(
+        _desc.motion.accelerationIntegratedVelocityScaleByLife,
+        lifeProgress
+    );
+
+    return
+        particle.initialVelocity * initialVelocityScale +
+        particle.initialRadialVelocity * initialRadialVelocityScale +
+        particle.velocityCone * velocityConeScale +
+        particle.sourceMotionVelocity * sourceMotionVelocityScale +
+        particle.accelerationIntegratedVelocity * accelerationIntegratedVelocityScale;
 }
 
 Vec3 MeshEmitter::Evaluate_AccelerationByLife(const MeshParticleState& particle, float lifeProgress) const
