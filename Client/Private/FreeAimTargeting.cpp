@@ -45,14 +45,6 @@ bool FreeAimTargeting::EnterInvoke()
     if (!owner)
         return false;
 
-    const auto battleCamera = owner->Get_BattleTurnCamera();
-    if (battleCamera)
-    {
-        const Vec3 currentRot = battleCamera->Get_Transform()->Get_RotationEuler();
-        battleCamera->Set_Yaw(currentRot.y);
-        battleCamera->Set_Pitch(currentRot.x);
-    }
-
     //GAME->Lock_Mouse();
     const BattleChar& actor = owner->Get_TurnActionRequest().actor;
     if (actor.ModelCom == nullptr)
