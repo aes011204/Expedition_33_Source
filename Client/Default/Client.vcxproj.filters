@@ -433,15 +433,6 @@
     <ClCompile Include="..\Private\Base_Gustave_Attack.cpp">
       <Filter>Skill</Filter>
     </ClCompile>
-    <ClCompile Include="..\private\Base_Mon_Attack.cpp">
-      <Filter>Skill</Filter>
-    </ClCompile>
-    <ClCompile Include="..\private\Base_Mon_Defense.cpp">
-      <Filter>BattleState</Filter>
-    </ClCompile>
-    <ClCompile Include="..\private\Base_Mon_Spawn.cpp">
-      <Filter>BattleState</Filter>
-    </ClCompile>
     <ClCompile Include="..\private\BattleAction.cpp">
       <Filter>BattleState</Filter>
     </ClCompile>
@@ -572,10 +563,7 @@
     <ClCompile Include="..\private\PuzzleController.cpp">
       <Filter>96. Manager</Filter>
     </ClCompile>
-    <ClCompile Include="..\private\Simon_Combo.cpp">
-      <Filter>Skill</Filter>
-    </ClCompile>
-    <ClCompile Include="..\private\Simon_Debuff.cpp">
+    <ClCompile Include="..\Private\Skill_Monster_Battle.cpp">
       <Filter>Skill</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\SkyBoxFlow.cpp">
@@ -1821,15 +1809,6 @@
     <ClInclude Include="..\Public\Base_Gustave_Attack.h">
       <Filter>Skill</Filter>
     </ClInclude>
-    <ClInclude Include="..\public\Base_Mon_Attack.h">
-      <Filter>Skill</Filter>
-    </ClInclude>
-    <ClInclude Include="..\public\Base_Mon_Defense.h">
-      <Filter>BattleState</Filter>
-    </ClInclude>
-    <ClInclude Include="..\public\Base_Mon_Spawn.h">
-      <Filter>BattleState</Filter>
-    </ClInclude>
     <ClInclude Include="..\public\BattleAction.h">
       <Filter>BattleState</Filter>
     </ClInclude>
@@ -2065,10 +2044,7 @@
     <ClInclude Include="..\public\PuzzleController.h">
       <Filter>96. Manager</Filter>
     </ClInclude>
-    <ClInclude Include="..\public\Simon_Combo.h">
-      <Filter>Skill</Filter>
-    </ClInclude>
-    <ClInclude Include="..\public\Simon_Debuff.h">
+    <ClInclude Include="..\Public\Skill_Monster_Battle.h">
       <Filter>Skill</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\SkyBoxFlow.h">
