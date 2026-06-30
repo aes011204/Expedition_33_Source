@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include "Base.h"
 #include "Collision_Define.h"
 #include "PhysX_Types.h"
@@ -68,6 +68,7 @@ public:
 
 private:
     Shared<ColliderCom> Find_Collider(PxActor* actor) const;
+    PhysXStaticActorHandle Find_StaticShapeHandle(const PxShape* shape) const;
 
     void Push_PairEvent(Shared<ColliderCom> self, Shared<ColliderCom> other,
 						CollisionResponse response, bool began, bool staying, bool ended);
@@ -113,6 +114,7 @@ private:
 private:
     vector<PhysXPairEvent>              _frameEvents;
     umap<PxActor*, Weak<ColliderCom>>   _actorColliderMap;
+    umap<const PxShape*, PhysXStaticActorHandle> _staticShapeHandleMap;
 
 #ifdef _DEBUG
     PxPvd* _pvd = {};

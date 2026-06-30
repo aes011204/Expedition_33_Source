@@ -82,6 +82,7 @@ private:
     void Lock_PreviewObjectToOrigin();
 
     void Draw_PreviewColliders(const Shared<GameObject>& gameObject) const;
+    void Draw_ParkourProbePreview() const;
     void Draw_PreviewGrid() const;
     void Draw_MonsterPatrolPointPreview() const;
     void Draw_MonsterBattleSpawnPreview() const;

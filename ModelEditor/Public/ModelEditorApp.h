@@ -29,6 +29,8 @@ private:
 	HRESULT Ready_Fonts();
 	wstring Get_ClientResourceRoot() const;
 	wstring Get_ClientResourcePath(const wchar_t* relativePath) const;
+	wstring Get_RuntimeRoot() const;
+	wstring Resolve_ShaderPath(const wchar_t* relativePath) const;
 
 private:
 	ComPtr<Device>  _device;

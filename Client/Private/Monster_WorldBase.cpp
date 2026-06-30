@@ -589,7 +589,7 @@ void Monster_WorldBase::OnBeginOverlap(Shared<ColliderCom> self, Shared<Collider
     if (!isPlayerAdvantage)
     {
         const Shared<PlayerStateMachineCom> stateCom = heroOwner->Get_Component<PlayerStateMachineCom>();
-        isPlayerAdvantage = stateCom && stateCom->Get_CurrentPlayerState() == PlayerState::WorldAction;
+        isPlayerAdvantage = stateCom && stateCom->Get_CurrentPlayerState() == PlayerState::Parkour;
     }
 
     if (isPlayerAdvantage)

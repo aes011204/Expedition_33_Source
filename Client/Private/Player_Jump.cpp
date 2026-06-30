@@ -2,12 +2,69 @@
 #include "Player_Jump.h"
 
 #include "Body_Player.h"
+#include "Player_ParkourAction.h"
 #include "PlayerControllerCom.h"
 #include "PlayerStateMachineCom.h"
 #include "Player_WorldBase.h"
 
 Player_Jump::Player_Jump(const Shared<Player_WorldBase>& owner)
 	: Player_State{ owner } {}
+
+namespace
+{
+    constexpr float kHighParkourProbeInterval = 0.f;
+
+    const char* Get_ParkourActionName(Player_ParkourAction::ParkourActionType actionType)
+    {
+        switch (actionType)
+        {
+        case Player_ParkourAction::ParkourActionType::HighMantle:
+            return "High";
+        case Player_ParkourAction::ParkourActionType::LowMantle:
+        default:
+            return "Low";
+        }
+    }
+
+    bool Try_EnterParkourAction(
+        PlayerStateMachineCom* stateCom,
+        Player_ParkourAction::ParkourActionType actionType)
+    {
+        LOG_WARN("[Parkour] Try {} from Jump", Get_ParkourActionName(actionType));
+
+        if (stateCom == nullptr)
+        {
+            LOG_WARN("[Parkour] Reject {}: missing state machine", Get_ParkourActionName(actionType));
+            return false;
+        }
+
+        const Shared<Player_ParkourAction> parkourAction =
+            dynamic_pointer_cast<Player_ParkourAction>(stateCom->Get_State(PlayerState::Parkour));
+        if (parkourAction == nullptr)
+        {
+            LOG_WARN("[Parkour] Reject {}: missing parkour state", Get_ParkourActionName(actionType));
+            return false;
+        }
+
+        if (!parkourAction->Try_PrepareAction(actionType))
+        {
+            LOG_WARN("[Parkour] {} rejected", Get_ParkourActionName(actionType));
+            return false;
+        }
+
+        const bool changed = stateCom->Change_State(PlayerState::Parkour);
+        LOG_WARN("[Parkour] {} {}", Get_ParkourActionName(actionType), changed ? "accepted" : "change failed");
+        if (!changed)
+            parkourAction->Clear_PreparedAction();
+
+        return changed;
+    }
+
+    bool Try_EnterHighParkourAction(PlayerStateMachineCom* stateCom)
+    {
+        return Try_EnterParkourAction(stateCom, Player_ParkourAction::ParkourActionType::HighMantle);
+    }
+}
 
 HRESULT Player_Jump::Initialize()
 {
@@ -19,6 +76,11 @@ using plAnim = Body_Player::PlayerWorldAnimation;
 bool Player_Jump::EnterInvoke()
 {
 	_fallTime = 0.0f;
+    _parkourProbeElapsed = 0.f;
+    _hasLeftGroundForParkourProbe = false;
+    _canProbeParkour = IsEnterJump();
+    _lowParkourProbeDone = false;
+    _repeatHighParkourProbe = false;
 
 	uint32 animIndex = _bodyPlayer->Get_AnimationStateIndex();
 
@@ -43,7 +105,47 @@ void Player_Jump::Update(float timeDelta)
 	float curProgress = _bodyPlayer->Get_AnimationProgress();
 	bool isFinished = _bodyPlayer->Is_AnimationFinished();
 	bool isGrounded = _controllerCom->Is_Grounded();
-	bool isBlending = _bodyPlayer->Is_AnimationBlending();
+    const bool isLandingAnimation =
+        animIndex == ETOI(plAnim::Pl_LandLight) ||
+        animIndex == ETOI(plAnim::Pl_LandHeavy);
+
+    if (!isGrounded)
+        _hasLeftGroundForParkourProbe = true;
+
+    if (_canProbeParkour && !isLandingAnimation)
+    {
+        if (!_lowParkourProbeDone)
+        {
+            _lowParkourProbeDone = true;
+            _parkourProbeElapsed = 0.f;
+
+            if (Try_EnterParkourAction(this->_stateCom, Player_ParkourAction::ParkourActionType::LowMantle))
+                return;
+
+            _repeatHighParkourProbe = true;
+            if (Try_EnterHighParkourAction(this->_stateCom))
+                return;
+        }
+        else if (_repeatHighParkourProbe)
+        {
+            if (isGrounded && _hasLeftGroundForParkourProbe)
+            {
+                _repeatHighParkourProbe = false;
+            }
+            else
+            {
+                _parkourProbeElapsed += timeDelta;
+
+                if (_parkourProbeElapsed >= kHighParkourProbeInterval)
+                {
+                    _parkourProbeElapsed = 0.f;
+
+                    if (Try_EnterHighParkourAction(this->_stateCom))
+                        return;
+                }
+            }
+        }
+    }
 
 	if (!isGrounded)
 	{
@@ -59,6 +161,9 @@ void Player_Jump::Update(float timeDelta)
 	}
 	else
 	{
+        if (!_hasLeftGroundForParkourProbe)
+            return;
+
 		if (animIndex != ETOI(plAnim::Pl_LandLight) && animIndex != ETOI(plAnim::Pl_LandHeavy))
 		{
 			if (_fallTime >= 1.f)
@@ -104,6 +209,8 @@ void Player_Jump::Update(float timeDelta)
 
 void Player_Jump::LateUpdate(float timeDelta)
 {
+    Draw_ParkourDebugRays();
+
 	uint32 animIndex = _bodyPlayer->Get_AnimationStateIndex();
 	bool isFinished = _bodyPlayer->Is_AnimationFinished();
 

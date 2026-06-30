@@ -31,6 +31,7 @@ struct PhysXQueryHit
 
     ColliderCom* collider = nullptr; // 맞은 충돌체를 바로 Battle 쪽에서 actor로 역추적하기 위해 추가
     GameObject*  owner = nullptr;    // collider owner를 바로 쓰기 위한 캐시
+    PhysXStaticActorHandle staticHandle{};
 };
 
 struct CharacterControllerDesc

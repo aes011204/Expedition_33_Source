@@ -564,6 +564,13 @@ void GameplayUI_World::Handle_SavePointInput()
     if (_savePointPanel == nullptr)
         return;
 
+    const Shared<Player_WorldBase> activeHero = CLIENT->Get_ActiveHero();
+    if (activeHero != nullptr &&
+        (activeHero->Is_WorldInteracting() || activeHero->Get_WorldInteractionCandidate() != nullptr))
+    {
+        return;
+    }
+
     if (_expeditionStatPanel && _expeditionStatPanel->Is_Open())
         return;
 

@@ -70,17 +70,9 @@ public:
         PlayerCharacterType characterType,
         const wstring& modifierTag = L"ClothPhysics_PotatoBagHair");
 
-    static void BuildSimonPhysicsHairDesc(
-        PhysicsModifier::PhysicsModifierDesc& outDesc,
-        TransformCom* ownerTransform,
-        PlayerCharacterType characterType,
-        const wstring& modifierTag = L"Physics_SimonHair");
+    
 
-    static void BuildSimonHairHardcodedDesc(
-        PhysicsModifier::PhysicsModifierDesc& outDesc,
-        TransformCom* ownerTransform,
-        PlayerCharacterType characterType,
-        const wstring& modifierTag = L"Physics_SimonHair_Hardcoded");
+    
 
     static void BuildSimonHairHardcodedDesc(
         SimonHairRuntime::Desc& outDesc,
