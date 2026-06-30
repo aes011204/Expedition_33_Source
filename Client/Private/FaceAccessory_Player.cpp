@@ -79,6 +79,10 @@ void FaceAccessory_Player::Late_Update(float timeDelta)
     if (_shader == nullptr || _model == nullptr)
         return;
 
+    const Shared<GameObject> owner = Get_Owner();
+    if (owner == nullptr || !owner->Is_Visible())
+        return;
+
     GAME->Add_RenderGroup(RenderGroup::NonLight, GetSharedPtr<GameObject>());
 
     if (Casts_DynamicShadow())
@@ -119,6 +123,10 @@ HRESULT FaceAccessory_Player::Render()
 HRESULT FaceAccessory_Player::Render_Shadow()
 {
     if (_shader == nullptr || _model == nullptr)
+        return S_OK;
+
+    const Shared<GameObject> owner = Get_Owner();
+    if (owner == nullptr || !owner->Is_Visible())
         return S_OK;
 
     CHECK_FAILED(_shader->Bind_ObjectCB(_combinedWorldMatrix), E_FAIL);

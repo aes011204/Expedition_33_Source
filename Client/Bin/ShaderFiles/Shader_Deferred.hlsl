@@ -128,8 +128,8 @@ PS_OUT_LIGHT PS_MAIN_DIRECTIONAL(PS_IN In)
     Out.Shade = float4(diffuseBRDF * radiance * pointLightWrap, 1.f);
     Out.Specular = float4(specularBRDF * radiance * pointLightWrap, 1.f);
 
-    //Out.Shade = float4(diffuseBRDF * radiance * NdotL, 1.f);
-    //Out.Specular = float4(specularBRDF * radiance * NdotL, 1.f);
+    Out.Shade = float4(diffuseBRDF * radiance * NdotL, 1.f);
+    Out.Specular = float4(specularBRDF * radiance * NdotL, 1.f);
     Out.Ambient = float4(0.f, 0.f, 0.f, 1.f);
 
     return Out;

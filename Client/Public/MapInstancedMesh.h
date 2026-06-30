@@ -34,6 +34,7 @@ public:
         Shared<ModelCom> model;
         Shared<StaticCollisionData> collisionData = nullptr;
         wstring modelPath = {};
+        wstring displayName = {};
         vector<InstanceTransform> transforms;
         bool visible = true;
         bool cullEnabled = true;

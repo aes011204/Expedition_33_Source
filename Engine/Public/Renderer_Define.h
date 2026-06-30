@@ -34,6 +34,7 @@ struct RenderViewHotspotEntry
     RenderGroup renderGroup = RenderGroup::END;
     ObjectType objectType = ObjectType::None;
     ShadowCasterType shadowCasterType = ShadowCasterType::None;
+    wstring objectName = {};
     string className = {};
     string sourcePrefab = {};
     wstring sourceModelPath = {};

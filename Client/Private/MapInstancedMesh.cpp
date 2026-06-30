@@ -127,6 +127,9 @@ HRESULT MapInstancedMesh::Initialize(void* arg)
             return E_FAIL;
         }
 
+        if (!pDesc->displayName.empty())
+            Set_Name(pDesc->displayName);
+
         Refresh_HasGlow();
 
         vector<Matrix> matrices;
