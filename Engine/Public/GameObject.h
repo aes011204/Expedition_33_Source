@@ -7,6 +7,7 @@
 NS_BEGIN(Engine)
 
 class ColliderCom;
+struct RenderHotspotInstancedMeshStats;
 
 class ENGINE_DLL GameObject abstract : public Base
 {
@@ -39,6 +40,7 @@ public:
     virtual bool Allows_DynamicShadowCascade(uint32 cascadeIndex) const { return true; }
     virtual uint32 Get_RenderHotspotInstanceCount() const { return 0; }
     virtual wstring Get_RenderHotspotSourceModelPath() const { return {}; }
+    virtual bool Get_RenderHotspotInstancedMeshStats(RenderHotspotInstancedMeshStats&) const { return false; }
 
     HRESULT         Try_BeginPlay();
 

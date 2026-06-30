@@ -159,6 +159,9 @@ BattleTutorialStep BattleTutorialController::Get_CommandFocusStep() const
     if (_activeStep == BattleTutorialStep::Skill || _sequenceStage == TutorialSequenceStage::WaitingLumiereAssaultCommand)
         return BattleTutorialStep::Skill;
 
+    if (_activeStep == BattleTutorialStep::FreeAim || _sequenceStage == TutorialSequenceStage::WaitingFreeAimInput)
+        return BattleTutorialStep::FreeAim;
+
     return BattleTutorialStep::END;
 }
 

@@ -58,11 +58,11 @@ private:
     float _damageLifeTime = 1.05f;
     float _damageRiseDistance = 72.f;
 
-    float _damageStackHorizontalOffset = 80.f;
+    float _damageStackHorizontalOffset = 42.f;
     float _damageStackVerticalOffset = 22.f;
 
-    Vec3 _damageWorldAnchorOffset = Vec3(0.f, -0.4f, 0.f);
-    Vec2 _damageScreenBaseOffset = Vec2(-30.f, 50.f);
+    Vec3 _damageWorldAnchorOffset = Vec3(0.f, 0.f, 0.f);
+    Vec2 _damageScreenBaseOffset = Vec2(-24.f, -10.f);
 
     float _damageWorldAnchorRandomMinY = -0.12f;
     float _damageWorldAnchorRandomMaxY = 0.18f;

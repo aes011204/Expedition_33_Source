@@ -4,6 +4,7 @@
 #include "Body_Player.h"
 #include "PlayerControllerCom.h"
 #include "PlayerStateMachineCom.h"
+#include "Player_WorldBase.h"
 
 Player_Idle::Player_Idle(const Shared<Player_WorldBase>& owner)
     : Player_State{ owner }
@@ -69,10 +70,37 @@ void Player_Idle::Update(float timeDelta)
         return;
     }
 
-    if (IsEnterWorldAction())
+    WorldInteractionSpot::WorldInteractionRequest interactionRequest{};
+    Shared<GameObject> interactionSpot{};
+    if (Try_BuildWorldInteractionRequest(interactionRequest, interactionSpot))
     {
-        _stateCom->Change_State(PlayerState::WorldAction);
-        return;
+        if (const Shared<Player_WorldBase> owner = _owner.lock())
+        {
+            if (owner->Begin_WorldInteraction(interactionSpot, interactionRequest))
+            {
+                bool changed = false;
+                switch (interactionRequest.type)
+                {
+                case WorldInteractionSpot::WorldInteractionType::WallClimb:
+                    changed = _stateCom->Change_State(PlayerState::Climb);
+                    break;
+                case WorldInteractionSpot::WorldInteractionType::RopeTouch:
+                    changed = _stateCom->Change_State(PlayerState::RopeAction);
+                    break;
+                case WorldInteractionSpot::WorldInteractionType::RopeLook:
+                    changed = _stateCom->Change_State(PlayerState::GrappleAction);
+                    break;
+                default:
+                    changed = _stateCom->Change_State(PlayerState::RopeAction);
+                    break;
+                }
+
+                if (!changed)
+                    owner->End_WorldInteraction();
+                else
+                    return;
+            }
+        }
     }
 
     if (IsEnterMove())
@@ -105,6 +133,8 @@ void Player_Idle::Update(float timeDelta)
 
 void Player_Idle::LateUpdate(float timeDelta)
 {
+    Draw_ParkourDebugRays();
+
     if (!_isRoutineIdle)
     {
         _idleElapsedTime += timeDelta;

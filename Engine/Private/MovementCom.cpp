@@ -349,6 +349,18 @@ void MovementCom::Stop_VerticalMovement()
     _velocity.y = 0.f;
 }
 
+void MovementCom::Force_Land()
+{
+    _velocity.y = 0.f;
+    _isGrounded = true;
+    _isJumping = false;
+    _didInputJumpStart = false;
+    _jumpInputGraceRemain = 0.f;
+    _groundJumpGraceRemain = kGroundJumpGraceSec;
+    _cctGroundDetachGraceRemain = kCCTGroundDetachGraceSec;
+    _jumpStartHorizontalVelocity = Vec3::Zero;
+}
+
 void MovementCom::Start_Jump()
 {
     CHECK_NULL(_transformCom);

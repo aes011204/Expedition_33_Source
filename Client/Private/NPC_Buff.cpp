@@ -2,6 +2,7 @@
 #include "ClientInstance.h"
 #include "NPC_Body.h"
 #include "NPC_Hair.h"
+#include "ColliderCom.h"
 
 IMPLEMENT_REFLECTION(NPC_Buff)
 {
@@ -38,15 +39,46 @@ HRESULT NPC_Buff::Initialize(void* arg)
 
 void NPC_Buff::Priority_Update(float timeDelta)
 {
+    if (!CLIENT->Is_PotatoBagBattleActive())
+    {
+        Set_Visible(false);
+
+        if (_colliderCom)
+            _colliderCom->Set_IsActive(false);
+
+        return;
+    }
+
+    Set_Visible(true);
+
+    if (_colliderCom)
+        _colliderCom->Set_IsActive(true);
+
     NPC_Base::Priority_Update(timeDelta);
 }
 
 void NPC_Buff::Update(float timeDelta)
 {
-    if (CLIENT->Is_BattleActive())
+    if (!CLIENT->Is_PotatoBagBattleActive())
         return;
 
-    NPC_Base::Update(timeDelta);
+    if (auto* bodyPart = dynamic_cast<Monster_Part*>(Get_PartObject(L"Part_Body")))
+        bodyPart->Play_Animation(timeDelta);
+
+    Character_WorldBase::Update(timeDelta);
+}
+
+void NPC_Buff::Late_Update(float timeDelta)
+{
+    if (!CLIENT->Is_PotatoBagBattleActive())
+    {
+        Set_Visible(false);
+        return;
+    }
+
+    Character_WorldBase::Late_Update(timeDelta);
+
+    Update_Culling(Vec3(1.5f, 4.f, 1.5f));
 }
 
 HRESULT NPC_Buff::Render()
