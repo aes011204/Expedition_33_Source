@@ -61,6 +61,44 @@ namespace EffectAssetRuntimeLoad::Emitters
         }
     }
 
+    Vec2 Read_Normalized01Range(const json& distribution, Vec2 fallbackValue)
+    {
+        Vec2 range{
+            Evaluate_FloatDistributionMin(distribution, fallbackValue.x),
+            Evaluate_FloatDistributionMax(distribution, fallbackValue.y)
+        };
+        range.x = clamp(range.x, 0.f, 1.f);
+        range.y = clamp(range.y, 0.f, 1.f);
+        if (range.x > range.y)
+            swap(range.x, range.y);
+        return range;
+    }
+
+    void Fill_MeshDirectionAlignPayload(MeshDirectionAlignRuntimeDesc& desc, const json& data)
+    {
+        desc.enabled = true;
+        Read_Enum(data, "targetMode", desc.targetMode);
+        Read_Enum(data, "space", desc.space);
+        Read_Enum(data, "meshForwardAxis", desc.meshForwardAxis);
+        Read_Enum(data, "meshUpAxis", desc.meshUpAxis);
+        Read_Enum(data, "blendMode", desc.blendMode);
+
+        if (const auto targetIter = data.find("target"); targetIter != data.end())
+            Read_Vec3(*targetIter, desc.target);
+        if (const auto progressIter = data.find("alignmentProgress"); progressIter != data.end())
+            Fill_FloatCurvePayload(desc.alignmentProgress, *progressIter, 0.f);
+        if (const auto delayIter = data.find("randomDelay"); delayIter != data.end())
+        {
+            desc.randomDelay = Read_Normalized01Range(*delayIter, desc.randomDelay);
+            desc.randomDelaySeed = Read_DistributionRandomSeedDesc(*delayIter, &data);
+        }
+        if (const auto weightScaleIter = data.find("randomWeightScale"); weightScaleIter != data.end())
+        {
+            desc.randomWeightScale = Read_Normalized01Range(*weightScaleIter, desc.randomWeightScale);
+            desc.randomWeightScaleSeed = Read_DistributionRandomSeedDesc(*weightScaleIter, &data);
+        }
+    }
+
     string Resolve_RendererType(const json& emitter)
     {
         string rendererType = Read_String(emitter, "rendererType");
@@ -2027,6 +2065,9 @@ namespace EffectAssetRuntimeLoad::Emitters
                 Fill_MeshVector3CurvePayload(desc.meshTransform.rotationByLife, *rotationIter, Vec3{});
             }
         }
+
+        if (const json* meshDirectionAlign = Find_ModuleData(emitter, "MeshDirectionAlignOverLife"))
+            Fill_MeshDirectionAlignPayload(desc.meshDirectionAlign, *meshDirectionAlign);
 
         if (const json* initialMeshRotationRate = Find_ModuleData(emitter, "InitialMeshRotationRate"))
         {

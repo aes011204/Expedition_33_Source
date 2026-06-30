@@ -16,6 +16,7 @@ constexpr double kMeshEmitterReloadReuseInfoThresholdMs = 4.0;
 constexpr float kPlaybackCompletionEpsilon = 1e-4f;
 constexpr float kPlaneRadialEpsilon = 1e-4f;
 constexpr float kAngularDeltaEpsilon = 1e-6f;
+constexpr float kMeshDirectionAlignEpsilon = 1e-4f;
 
 float Read_Vec4Component(const Vec4& values, uint32 index)
 {
@@ -217,6 +218,24 @@ Vec3 Normalize_OrFallback(const Vec3& value, const Vec3& fallback)
     Vec3 result = value;
     result.Normalize();
     return result;
+}
+
+float Apply_MeshDirectionAlignBlendMode(float weight, EffectMeshDirectionAlignBlendMode blendMode)
+{
+    const float clampedWeight = clamp(weight, 0.f, 1.f);
+
+    switch (blendMode)
+    {
+    case EffectMeshDirectionAlignBlendMode::EaseIn:
+        return clampedWeight * clampedWeight;
+    case EffectMeshDirectionAlignBlendMode::EaseOut:
+        return 1.f - (1.f - clampedWeight) * (1.f - clampedWeight);
+    case EffectMeshDirectionAlignBlendMode::EaseInOut:
+        return clampedWeight * clampedWeight * (3.f - 2.f * clampedWeight);
+    case EffectMeshDirectionAlignBlendMode::Linear:
+    default:
+        return clampedWeight;
+    }
 }
 
 Vec3 Sample_ConeDirection(const Vec3& axis, float angleDegrees, uint32 seed)
@@ -1607,6 +1626,16 @@ void MeshEmitter::Activate_Particle(MeshParticleState& particle, uint32 seed, ui
     );
     particle.rotationQuat.Normalize();
     particle.angularVelocityRadians = Sample_InitialAngularVelocity(seed + 43u);
+    particle.directionAlignRandomDelay = clamp(
+        Sample_SpawnDistribution(_desc.meshDirectionAlign.randomDelay, _desc.meshDirectionAlign.randomDelaySeed, seed + 59u),
+        0.f,
+        1.f
+    );
+    particle.directionAlignWeightScale = clamp(
+        Sample_SpawnDistribution(_desc.meshDirectionAlign.randomWeightScale, _desc.meshDirectionAlign.randomWeightScaleSeed, seed + 61u),
+        0.f,
+        1.f
+    );
     particle.startColor = Sample_Color(
         _desc.initialColor.startColorMin,
         _desc.initialColor.startColorMax,
@@ -1761,7 +1790,6 @@ Matrix MeshEmitter::Build_InstanceMatrix(const MeshParticleState& particle) cons
     rotation.Normalize();
 
     const Matrix scaleMatrix = Matrix::CreateScale(scale);
-    const Matrix rotationMatrix = Matrix::CreateFromQuaternion(rotation);
     const Vec3 orbitOffset = Evaluate_OrbitOffset(particle, lifeProgress);
     const Vec3 motionOffset = particle.position - particle.spawnPosition;
     Vec3 emitterPosition{};
@@ -1772,6 +1800,42 @@ Matrix MeshEmitter::Build_InstanceMatrix(const MeshParticleState& particle) cons
         translation = emitterPosition + orbitOffset + motionOffset;
     const Matrix translationMatrix = Matrix::CreateTranslation(translation);
 
+    const float directionAlignWeight = Evaluate_DirectionAlignWeight(lifeProgress, particle);
+    if (directionAlignWeight > Internal::kMeshDirectionAlignEpsilon)
+    {
+        bool directionAlignEnabled = false;
+        const Quat targetOrientation = Build_MeshDirectionAlignTargetOrientation(particle, translation, directionAlignEnabled);
+        if (directionAlignEnabled)
+        {
+            Quat candidateOrientation{};
+            if (particle.spawnOrientationEnabled)
+                candidateOrientation = particle.spawnOrientation * rotation;
+            else
+            {
+                Quat alignment = Quat::CreateFromRotationMatrix(
+                    Internal::Resolve_MeshPlaneAlignmentMatrix(_desc.meshTransform.alignment)
+                );
+                alignment.Normalize();
+                candidateOrientation = rotation * alignment;
+            }
+            candidateOrientation.Normalize();
+
+            Quat finalOrientation = Quat::Slerp(candidateOrientation, targetOrientation, directionAlignWeight);
+            finalOrientation.Normalize();
+
+            Matrix localMatrix =
+                scaleMatrix *
+                Matrix::CreateFromQuaternion(finalOrientation) *
+                translationMatrix;
+
+            if (_useLocalSpace && _transformCom != nullptr)
+                return localMatrix * _transformCom->Get_WorldMatrix();
+
+            return localMatrix;
+        }
+    }
+
+    const Matrix rotationMatrix = Matrix::CreateFromQuaternion(rotation);
     Matrix localMatrix{};
     if (particle.spawnOrientationEnabled)
     {
@@ -2238,6 +2302,104 @@ Quat MeshEmitter::Build_CylinderMeshOrientation(const CylinderRadialSample& samp
         orientation = orientation * roll;
     }
 
+    orientation.Normalize();
+    outEnabled = true;
+    return orientation;
+}
+
+float MeshEmitter::Evaluate_DirectionAlignWeight(float lifeProgress, const MeshParticleState& particle) const
+{
+    if (!_desc.meshDirectionAlign.enabled || particle.directionAlignWeightScale <= Internal::kMeshDirectionAlignEpsilon)
+        return 0.f;
+
+    const float randomDelay = clamp(particle.directionAlignRandomDelay, 0.f, 1.f);
+    const float delayedLifeProgress = clamp(
+        (lifeProgress - randomDelay) / max(Internal::kMeshDirectionAlignEpsilon, 1.f - randomDelay),
+        0.f,
+        1.f
+    );
+    const float evaluatedWeight = Internal::Evaluate_FloatCurve(
+        _desc.meshDirectionAlign.alignmentProgress,
+        delayedLifeProgress,
+        0.f
+    );
+    const float scaledWeight = evaluatedWeight * clamp(particle.directionAlignWeightScale, 0.f, 1.f);
+    return Internal::Apply_MeshDirectionAlignBlendMode(scaledWeight, _desc.meshDirectionAlign.blendMode);
+}
+
+Quat MeshEmitter::Build_MeshDirectionAlignTargetOrientation(
+    const MeshParticleState&,
+    const Vec3& visualPosition,
+    bool& outEnabled) const
+{
+    outEnabled = false;
+    if (!_desc.meshDirectionAlign.enabled)
+        return Quat::Identity;
+
+    Vec3 targetDirection{};
+    if (_desc.meshDirectionAlign.targetMode == EffectMeshDirectionAlignTargetMode::Point)
+    {
+        const Vec3 targetPoint = _desc.meshDirectionAlign.space == EffectMeshDirectionAlignSpace::Local
+                                 ? Resolve_LocalPoint(_desc.meshDirectionAlign.target)
+                                 : Resolve_WorldPointToSimulation(_desc.meshDirectionAlign.target);
+        targetDirection = targetPoint - visualPosition;
+    }
+    else
+    {
+        targetDirection = _desc.meshDirectionAlign.space == EffectMeshDirectionAlignSpace::Local
+                          ? Resolve_LocalVector(_desc.meshDirectionAlign.target)
+                          : Resolve_WorldVectorToSimulation(_desc.meshDirectionAlign.target);
+    }
+
+    if (targetDirection.LengthSquared() <= Internal::kMeshDirectionAlignEpsilon * Internal::kMeshDirectionAlignEpsilon)
+    {
+        if (!_meshDirectionAlignFallbackLogged)
+        {
+            LOG_WARN(
+                "MeshEmitter MeshDirectionAlignOverLife fallback: target direction is degenerate. emitter='{}'",
+                _emitterName
+            );
+            _meshDirectionAlignFallbackLogged = true;
+        }
+        return Quat::Identity;
+    }
+
+    Vec3 targetForward = targetDirection;
+    targetForward.Normalize();
+    Vec3 targetUp = Resolve_WorldVectorToSimulation(Vec3{ 0.f, 1.f, 0.f });
+    targetUp = Internal::Normalize_OrFallback(targetUp, Vec3{ 0.f, 1.f, 0.f });
+    if (fabsf(targetForward.Dot(targetUp)) > 1.f - 1e-3f)
+        targetUp = Internal::Normalize_OrFallback(Resolve_WorldVectorToSimulation(Vec3{ 0.f, 0.f, 1.f }), Vec3{ 0.f, 0.f, 1.f });
+    if (fabsf(targetForward.Dot(targetUp)) > 1.f - 1e-3f)
+        targetUp = Vec3{ 1.f, 0.f, 0.f };
+
+    Vec3 targetRight = targetUp.Cross(targetForward);
+    targetRight = Internal::Normalize_OrFallback(targetRight, Vec3{ 1.f, 0.f, 0.f });
+    targetUp = Internal::Normalize_OrFallback(targetForward.Cross(targetRight), Vec3{ 0.f, 1.f, 0.f });
+
+    const Vec3 sourceForward = Internal::Resolve_PlaneRadialOrientationAxis(_desc.meshDirectionAlign.meshForwardAxis);
+    Vec3 sourceUp = Internal::Resolve_PlaneRadialOrientationAxis(_desc.meshDirectionAlign.meshUpAxis);
+    if (fabsf(sourceForward.Dot(sourceUp)) > 1.f - 1e-3f)
+    {
+        if (!_meshDirectionAlignFallbackLogged)
+        {
+            LOG_WARN(
+                "MeshEmitter MeshDirectionAlignOverLife fallback: meshForwardAxis and meshUpAxis are parallel. emitter='{}'",
+                _emitterName
+            );
+            _meshDirectionAlignFallbackLogged = true;
+        }
+        return Quat::Identity;
+    }
+
+    Vec3 sourceRight = sourceUp.Cross(sourceForward);
+    sourceRight.Normalize();
+    sourceUp = sourceForward.Cross(sourceRight);
+    sourceUp.Normalize();
+
+    const Matrix sourceFrame = Internal::Build_FrameMatrix(sourceRight, sourceUp, sourceForward);
+    const Matrix targetFrame = Internal::Build_FrameMatrix(targetRight, targetUp, targetForward);
+    Quat orientation = Quat::CreateFromRotationMatrix(sourceFrame.Invert() * targetFrame);
     orientation.Normalize();
     outEnabled = true;
     return orientation;
@@ -3005,6 +3167,23 @@ Vec3 MeshEmitter::Resolve_WorldVectorToSimulation(const Vec3& worldVector) const
 
     const Matrix inverseWorld = _transformCom->Get_WorldMatrix().Invert();
     return Vec3::TransformNormal(worldVector, inverseWorld);
+}
+
+Vec3 MeshEmitter::Resolve_LocalPoint(const Vec3& localPoint) const
+{
+    if (_useLocalSpace || _transformCom == nullptr)
+        return localPoint;
+
+    return Vec3::Transform(localPoint, _transformCom->Get_WorldMatrix());
+}
+
+Vec3 MeshEmitter::Resolve_WorldPointToSimulation(const Vec3& worldPoint) const
+{
+    if (!_useLocalSpace || _transformCom == nullptr)
+        return worldPoint;
+
+    const Matrix inverseWorld = _transformCom->Get_WorldMatrix().Invert();
+    return Vec3::Transform(worldPoint, inverseWorld);
 }
 
 float MeshEmitter::Random01(uint32 seed) const

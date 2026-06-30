@@ -548,6 +548,46 @@ namespace Internal
         }
     }
 
+    static const char* Get_MeshDirectionAlignTargetModeLabel(MeshDirectionAlignTargetMode mode)
+    {
+        switch (mode)
+        {
+        case MeshDirectionAlignTargetMode::Point:
+            return "Point";
+        case MeshDirectionAlignTargetMode::Direction:
+        default:
+            return "Direction";
+        }
+    }
+
+    static const char* Get_MeshDirectionAlignSpaceLabel(MeshDirectionAlignSpace space)
+    {
+        switch (space)
+        {
+        case MeshDirectionAlignSpace::Local:
+            return "Local";
+        case MeshDirectionAlignSpace::World:
+        default:
+            return "World";
+        }
+    }
+
+    static const char* Get_MeshDirectionAlignBlendModeLabel(MeshDirectionAlignBlendMode mode)
+    {
+        switch (mode)
+        {
+        case MeshDirectionAlignBlendMode::EaseIn:
+            return "Ease In";
+        case MeshDirectionAlignBlendMode::EaseOut:
+            return "Ease Out";
+        case MeshDirectionAlignBlendMode::EaseInOut:
+            return "Ease InOut";
+        case MeshDirectionAlignBlendMode::Linear:
+        default:
+            return "Linear";
+        }
+    }
+
     static const char* Get_MaterialScalarTargetLabel(MaterialScalarModulationTargetField target)
     {
         switch (target)
@@ -1555,6 +1595,122 @@ namespace Internal
         return changed;
     }
 
+    static bool Draw_MeshDirectionAlignTargetModeProperty(
+        DetailPropertyContext& detailContext,
+        MeshDirectionAlignTargetMode& value,
+        MeshDirectionAlignTargetMode defaultValue)
+    {
+        static constexpr MeshDirectionAlignTargetMode candidates[] = {
+            MeshDirectionAlignTargetMode::Direction,
+            MeshDirectionAlignTargetMode::Point,
+        };
+
+        bool changed = false;
+        ImGui::PushID("MeshDirectionAlignTargetMode");
+        detailContext.Draw_PropertyLabel("대상 방식");
+        ImGui::SetNextItemWidth(-FLT_MIN);
+        if (ImGui::BeginCombo("##Value", Get_MeshDirectionAlignTargetModeLabel(value)))
+        {
+            for (const MeshDirectionAlignTargetMode candidate : candidates)
+            {
+                const bool isSelected = value == candidate;
+                if (ImGui::Selectable(Get_MeshDirectionAlignTargetModeLabel(candidate), isSelected))
+                {
+                    value = candidate;
+                    changed = true;
+                }
+                if (isSelected)
+                    ImGui::SetItemDefaultFocus();
+            }
+            ImGui::EndCombo();
+        }
+        if (detailContext.Draw_ResetButton(value != defaultValue))
+        {
+            value = defaultValue;
+            changed = true;
+        }
+        ImGui::PopID();
+        return changed;
+    }
+
+    static bool Draw_MeshDirectionAlignSpaceProperty(
+        DetailPropertyContext& detailContext,
+        MeshDirectionAlignSpace& value,
+        MeshDirectionAlignSpace defaultValue)
+    {
+        static constexpr MeshDirectionAlignSpace candidates[] = {
+            MeshDirectionAlignSpace::Local,
+            MeshDirectionAlignSpace::World,
+        };
+
+        bool changed = false;
+        ImGui::PushID("MeshDirectionAlignSpace");
+        detailContext.Draw_PropertyLabel("공간");
+        ImGui::SetNextItemWidth(-FLT_MIN);
+        if (ImGui::BeginCombo("##Value", Get_MeshDirectionAlignSpaceLabel(value)))
+        {
+            for (const MeshDirectionAlignSpace candidate : candidates)
+            {
+                const bool isSelected = value == candidate;
+                if (ImGui::Selectable(Get_MeshDirectionAlignSpaceLabel(candidate), isSelected))
+                {
+                    value = candidate;
+                    changed = true;
+                }
+                if (isSelected)
+                    ImGui::SetItemDefaultFocus();
+            }
+            ImGui::EndCombo();
+        }
+        if (detailContext.Draw_ResetButton(value != defaultValue))
+        {
+            value = defaultValue;
+            changed = true;
+        }
+        ImGui::PopID();
+        return changed;
+    }
+
+    static bool Draw_MeshDirectionAlignBlendModeProperty(
+        DetailPropertyContext& detailContext,
+        MeshDirectionAlignBlendMode& value,
+        MeshDirectionAlignBlendMode defaultValue)
+    {
+        static constexpr MeshDirectionAlignBlendMode candidates[] = {
+            MeshDirectionAlignBlendMode::Linear,
+            MeshDirectionAlignBlendMode::EaseIn,
+            MeshDirectionAlignBlendMode::EaseOut,
+            MeshDirectionAlignBlendMode::EaseInOut,
+        };
+
+        bool changed = false;
+        ImGui::PushID("MeshDirectionAlignBlendMode");
+        detailContext.Draw_PropertyLabel("보간 방식", "정렬 진행도 weight를 보정하는 방식입니다. 회전 속도나 물리 steering 값이 아닙니다.");
+        ImGui::SetNextItemWidth(-FLT_MIN);
+        if (ImGui::BeginCombo("##Value", Get_MeshDirectionAlignBlendModeLabel(value)))
+        {
+            for (const MeshDirectionAlignBlendMode candidate : candidates)
+            {
+                const bool isSelected = value == candidate;
+                if (ImGui::Selectable(Get_MeshDirectionAlignBlendModeLabel(candidate), isSelected))
+                {
+                    value = candidate;
+                    changed = true;
+                }
+                if (isSelected)
+                    ImGui::SetItemDefaultFocus();
+            }
+            ImGui::EndCombo();
+        }
+        if (detailContext.Draw_ResetButton(value != defaultValue))
+        {
+            value = defaultValue;
+            changed = true;
+        }
+        ImGui::PopID();
+        return changed;
+    }
+
     static bool Has_PlaneRadialLocationModule(const AuthoringEmitter& emitter)
     {
         for (const AuthoringModule& module : emitter.modules)
@@ -1582,6 +1738,17 @@ namespace Internal
         for (const AuthoringModule& module : emitter.modules)
         {
             if (module.type == AuthoringModuleType::SphereLocation)
+                return true;
+        }
+
+        return false;
+    }
+
+    static bool Has_EnabledModule(const AuthoringEmitter& emitter, AuthoringModuleType type)
+    {
+        for (const AuthoringModule& module : emitter.modules)
+        {
+            if (module.type == type && module.enabled)
                 return true;
         }
 
@@ -3943,6 +4110,90 @@ bool MeshRotationOverLifeModuleDetail::Draw(
             nullptr,
             "생존 중 normalized life(0->1)에 따라 mesh 초기 회전 위에 더하는 값입니다."
         );
+    }
+
+    return changed;
+}
+
+bool MeshDirectionAlignOverLifeModuleDetail::Draw(
+    AuthoringEmitter& emitter,
+    AuthoringModule&,
+    MeshDirectionAlignOverLifeModuleData& data,
+    DetailPropertyContext& detailContext)
+{
+    const MeshDirectionAlignOverLifeModuleData defaultData{};
+    bool changed = false;
+
+    if (ImGui::CollapsingHeader("수명에 따른 메시 방향 정렬", ImGuiTreeNodeFlags_DefaultOpen))
+    {
+        if (detailContext.Begin_PropertyTable("MeshDirectionAlignOverLife"))
+        {
+            changed |= Internal::Draw_MeshDirectionAlignTargetModeProperty(detailContext, data.targetMode, defaultData.targetMode);
+            changed |= Internal::Draw_MeshDirectionAlignSpaceProperty(detailContext, data.space, defaultData.space);
+            changed |= detailContext.Draw_Vec3Property(
+                data.targetMode == MeshDirectionAlignTargetMode::Point ? "대상 점" : "대상 방향",
+                data.target,
+                defaultData.target,
+                0.01f,
+                nullptr,
+                data.targetMode == MeshDirectionAlignTargetMode::Point
+                    ? "Point 방식에서는 이 값을 target 위치로 해석합니다."
+                    : "Direction 방식에서는 이 값을 바라볼 방향 벡터로 해석합니다."
+            );
+            changed |= Internal::Draw_PlaneRadialOrientationAxisProperty(
+                detailContext,
+                "메시 앞축",
+                data.meshForwardAxis,
+                defaultData.meshForwardAxis
+            );
+            changed |= Internal::Draw_PlaneRadialOrientationAxisProperty(
+                detailContext,
+                "메시 위축",
+                data.meshUpAxis,
+                defaultData.meshUpAxis
+            );
+            changed |= Internal::Draw_MeshDirectionAlignBlendModeProperty(detailContext, data.blendMode, defaultData.blendMode);
+            detailContext.End_PropertyTable();
+        }
+
+        changed |= detailContext.Draw_FloatDistributionGroup(
+            "정렬 진행도",
+            data.alignmentProgress,
+            defaultData.alignmentProgress,
+            0.01f,
+            false,
+            true,
+            nullptr,
+            "normalized life 기준 target orientation으로 붙는 0..1 weight입니다."
+        );
+        changed |= detailContext.Draw_FloatDistributionGroup(
+            "랜덤 지연",
+            data.randomDelay,
+            defaultData.randomDelay,
+            0.01f,
+            true,
+            false,
+            nullptr,
+            "spawn 시점에 particle별로 한 번 샘플되는 정렬 시작 지연입니다. 0..1 범위로 clamp됩니다."
+        );
+        changed |= detailContext.Draw_FloatDistributionGroup(
+            "랜덤 배율",
+            data.randomWeightScale,
+            defaultData.randomWeightScale,
+            0.01f,
+            true,
+            false,
+            nullptr,
+            "spawn 시점에 particle별로 한 번 샘플되는 최종 weight 배율입니다. 0..1 범위로 clamp됩니다."
+        );
+
+        ImGui::TextDisabled("모든 메시 회전 계산 뒤에 적용됩니다. 최종 weight 1에서는 목표 방향이 최종 회전을 결정합니다.");
+        if (Internal::Has_EnabledModule(emitter, AuthoringModuleType::MeshRotationOverLife) ||
+            Internal::Has_EnabledModule(emitter, AuthoringModuleType::InitialMeshRotationRate) ||
+            Internal::Has_EnabledModule(emitter, AuthoringModuleType::MeshRotationRateScaleByLife))
+        {
+            ImGui::TextDisabled("기존 메시 회전 모듈은 weight가 낮은 구간에서 함께 보이고, weight가 높아질수록 target 방향에 흡수됩니다.");
+        }
     }
 
     return changed;

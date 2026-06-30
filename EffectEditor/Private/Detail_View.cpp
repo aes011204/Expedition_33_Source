@@ -2567,6 +2567,11 @@ void Detail_View::Render_ModuleDetail(
             changed = _meshRotationOverLifeModuleDetail.Draw(emitter, module, *data, _detailPropertyContext);
         break;
 
+    case AuthoringModuleType::MeshDirectionAlignOverLife:
+        if (auto* data = get_if<MeshDirectionAlignOverLifeModuleData>(&module.data))
+            changed = _meshDirectionAlignOverLifeModuleDetail.Draw(emitter, module, *data, _detailPropertyContext);
+        break;
+
     case AuthoringModuleType::InitialMeshRotationRate:
         if (auto* data = get_if<InitialMeshRotationRateModuleData>(&module.data))
             changed = _initialMeshRotationRateModuleDetail.Draw(emitter, module, *data, _detailPropertyContext);

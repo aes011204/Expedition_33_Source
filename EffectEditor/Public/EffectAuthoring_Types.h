@@ -35,6 +35,7 @@ enum class AuthoringModuleType : uint8
     RotationRateScaleByLife,
     InitialMeshRotation,
     MeshRotationOverLife,
+    MeshDirectionAlignOverLife,
     InitialMeshRotationRate,
     MeshRotationRateScaleByLife,
     InitialColor,
@@ -1096,6 +1097,39 @@ struct MeshRotationOverLifeModuleData
     Vector3DistributionData rotationOverLife{ Vector3DistributionData::Make_ConstantCurve(Vec3{ 0.f, 0.f, 0.f }) };
 };
 
+enum class MeshDirectionAlignTargetMode : uint8
+{
+    Direction,
+    Point,
+};
+
+enum class MeshDirectionAlignSpace : uint8
+{
+    Local,
+    World,
+};
+
+enum class MeshDirectionAlignBlendMode : uint8
+{
+    Linear,
+    EaseIn,
+    EaseOut,
+    EaseInOut,
+};
+
+struct MeshDirectionAlignOverLifeModuleData
+{
+    MeshDirectionAlignTargetMode targetMode{ MeshDirectionAlignTargetMode::Direction };
+    MeshDirectionAlignSpace space{ MeshDirectionAlignSpace::World };
+    Vec3 target{ 0.f, 0.f, 1.f };
+    PlaneRadialOrientationAxis meshForwardAxis{ PlaneRadialOrientationAxis::PositiveZ };
+    PlaneRadialOrientationAxis meshUpAxis{ PlaneRadialOrientationAxis::PositiveY };
+    FloatDistributionData alignmentProgress{ FloatDistributionData::Make_ConstantCurve(0.f, 0.f) };
+    FloatDistributionData randomDelay{ FloatDistributionData::Make_Constant(0.f) };
+    FloatDistributionData randomWeightScale{ FloatDistributionData::Make_Constant(1.f) };
+    MeshDirectionAlignBlendMode blendMode{ MeshDirectionAlignBlendMode::Linear };
+};
+
 struct InitialMeshRotationRateModuleData
 {
     Vector3DistributionData rotationRateDegrees{ Vector3DistributionData::Make_Constant(Vec3{ 0.f, 0.f, 0.f }) };
@@ -1311,6 +1345,7 @@ using AuthoringModuleData = variant<
     RotationRateScaleByLifeModuleData,
     InitialMeshRotationModuleData,
     MeshRotationOverLifeModuleData,
+    MeshDirectionAlignOverLifeModuleData,
     InitialMeshRotationRateModuleData,
     MeshRotationRateScaleByLifeModuleData,
     InitialColorModuleData,

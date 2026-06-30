@@ -219,6 +219,7 @@ private: //## Helper::AuthoringFactory
     AuthoringModule Make_RotationRateScaleByLifeModule();
     AuthoringModule Make_InitialMeshRotationModule();
     AuthoringModule Make_MeshRotationOverLifeModule();
+    AuthoringModule Make_MeshDirectionAlignOverLifeModule();
     AuthoringModule Make_InitialMeshRotationRateModule();
     AuthoringModule Make_MeshRotationRateScaleByLifeModule();
     AuthoringModule Make_InitialColorModule();

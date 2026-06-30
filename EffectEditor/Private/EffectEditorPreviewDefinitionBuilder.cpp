@@ -565,6 +565,46 @@ namespace Internal
         }
     }
 
+    EffectMeshDirectionAlignTargetMode Resolve_MeshDirectionAlignTargetMode(MeshDirectionAlignTargetMode mode)
+    {
+        switch (mode)
+        {
+        case MeshDirectionAlignTargetMode::Point:
+            return EffectMeshDirectionAlignTargetMode::Point;
+        case MeshDirectionAlignTargetMode::Direction:
+        default:
+            return EffectMeshDirectionAlignTargetMode::Direction;
+        }
+    }
+
+    EffectMeshDirectionAlignSpace Resolve_MeshDirectionAlignSpace(MeshDirectionAlignSpace space)
+    {
+        switch (space)
+        {
+        case MeshDirectionAlignSpace::Local:
+            return EffectMeshDirectionAlignSpace::Local;
+        case MeshDirectionAlignSpace::World:
+        default:
+            return EffectMeshDirectionAlignSpace::World;
+        }
+    }
+
+    EffectMeshDirectionAlignBlendMode Resolve_MeshDirectionAlignBlendMode(MeshDirectionAlignBlendMode mode)
+    {
+        switch (mode)
+        {
+        case MeshDirectionAlignBlendMode::EaseIn:
+            return EffectMeshDirectionAlignBlendMode::EaseIn;
+        case MeshDirectionAlignBlendMode::EaseOut:
+            return EffectMeshDirectionAlignBlendMode::EaseOut;
+        case MeshDirectionAlignBlendMode::EaseInOut:
+            return EffectMeshDirectionAlignBlendMode::EaseInOut;
+        case MeshDirectionAlignBlendMode::Linear:
+        default:
+            return EffectMeshDirectionAlignBlendMode::Linear;
+        }
+    }
+
     //## Float Curve Eval
 
     float Evaluate_FloatCurveSegmentLinear(const FloatCurveKeyData& leftKey, const FloatCurveKeyData& rightKey, float x)
@@ -985,6 +1025,32 @@ namespace Internal
             Set_CurveComponent(desc.curveKeyLeaveTangents, desc.curveKeyLeaveTangentsBlock1, index, key.leaveTangent);
             Set_CurveComponent(desc.curveKeyModes, desc.curveKeyModesBlock1, index, To_RuntimeCurveInterpolationMode(key.interpolationMode));
         }
+    }
+
+    MeshDirectionAlignRuntimeDesc Build_MeshDirectionAlignDesc(const MeshDirectionAlignOverLifeModuleData& data)
+    {
+        MeshDirectionAlignRuntimeDesc desc{};
+        desc.enabled = true;
+        desc.targetMode = Resolve_MeshDirectionAlignTargetMode(data.targetMode);
+        desc.space = Resolve_MeshDirectionAlignSpace(data.space);
+        desc.target = data.target;
+        desc.meshForwardAxis = Resolve_PointParticlePlaneRadialOrientationAxis(data.meshForwardAxis);
+        desc.meshUpAxis = Resolve_PointParticlePlaneRadialOrientationAxis(data.meshUpAxis);
+        Fill_FloatCurvePayload(desc.alignmentProgress, data.alignmentProgress, 0.f);
+        desc.randomDelay = Build_NormalizedFloatRange(data.randomDelay, desc.randomDelay);
+        desc.randomDelay.x = clamp(desc.randomDelay.x, 0.f, 1.f);
+        desc.randomDelay.y = clamp(desc.randomDelay.y, 0.f, 1.f);
+        if (desc.randomDelay.x > desc.randomDelay.y)
+            swap(desc.randomDelay.x, desc.randomDelay.y);
+        desc.randomDelaySeed = Build_RandomSeedDesc(data.randomDelay);
+        desc.randomWeightScale = Build_NormalizedFloatRange(data.randomWeightScale, desc.randomWeightScale);
+        desc.randomWeightScale.x = clamp(desc.randomWeightScale.x, 0.f, 1.f);
+        desc.randomWeightScale.y = clamp(desc.randomWeightScale.y, 0.f, 1.f);
+        if (desc.randomWeightScale.x > desc.randomWeightScale.y)
+            swap(desc.randomWeightScale.x, desc.randomWeightScale.y);
+        desc.randomWeightScaleSeed = Build_RandomSeedDesc(data.randomWeightScale);
+        desc.blendMode = Resolve_MeshDirectionAlignBlendMode(data.blendMode);
+        return desc;
     }
 
     void Fill_ColorOverLifeColorCurveComponent(
@@ -3655,6 +3721,12 @@ EffectEmitterDefinition Build_PreviewMeshEmitterDefinition(const AuthoringEmitte
         emitterDesc.meshTransform.rotationEnabled = true;
         Internal::Fill_MeshVector3CurvePayload(emitterDesc.meshTransform.rotationByLife, meshRotationOverLife->rotationOverLife, Vec3{});
     }
+
+    if (const auto* meshDirectionAlign = Internal::Find_ModuleData<MeshDirectionAlignOverLifeModuleData>(
+        emitter,
+        AuthoringModuleType::MeshDirectionAlignOverLife
+    ))
+        emitterDesc.meshDirectionAlign = Internal::Build_MeshDirectionAlignDesc(*meshDirectionAlign);
 
     if (const auto* initialMeshRotationRate = Internal::Find_ModuleData<InitialMeshRotationRateModuleData>(
         emitter,
