@@ -10,12 +10,14 @@ HRESULT BattleQTEController::Initialize()
 
 void BattleQTEController::Begin(const BattleQTERequest& request)
 {
-    _activeRequest = request;
-    _lastResult = BattleQTEResult::None;
-    _hasLastResult = false;
-    _isActive = true;
+    if (_isActive)
+    {
+        _queuedRequests.push_back(request);
+        OnQTEStarted.Broadcast(request);
+        return;
+    }
 
-    OnQTEStarted.Broadcast(_activeRequest);
+    Start_Request(request);
 }
 
 bool BattleQTEController::Resolve(BattleQTEResult result)
@@ -32,15 +34,33 @@ bool BattleQTEController::Resolve(BattleQTEResult result)
     _pendingNextAttackDamageBonusRate += Resolve_DamageBonusRate(result); // QTE가 여러 번 들어오면 다음 공격 보정에 누적한다.
 
     OnQTEResolved.Broadcast(result);
+
+    if (!_queuedRequests.empty())
+    {
+        _activeRequest = _queuedRequests.front();
+        _queuedRequests.erase(_queuedRequests.begin());
+        _isActive = true;
+    }
+
     return true;
 }
 
 bool BattleQTEController::FailIfActive()
 {
-    if (!_isActive)
-        return false;
+    bool resolved = false;
 
-    return Resolve(BattleQTEResult::Fail);
+    if (!_isActive)
+    {
+        _queuedRequests.clear();
+        return false;
+    }
+
+    resolved = Resolve(BattleQTEResult::Fail);
+    _activeRequest = {};
+    _isActive = false;
+    _queuedRequests.clear();
+
+    return resolved;
 }
 
 void BattleQTEController::Clear()
@@ -50,6 +70,7 @@ void BattleQTEController::Clear()
     _isActive = false;
     _hasLastResult = false;
     _pendingNextAttackDamageBonusRate = 0.f;
+    _queuedRequests.clear();
 }
 
 bool BattleQTEController::Is_ValidResult(BattleQTEResult result) const
@@ -89,6 +110,16 @@ float BattleQTEController::Resolve_DamageBonusRate(BattleQTEResult result) const
     default:
         return 0.f;
     }
+}
+
+void BattleQTEController::Start_Request(const BattleQTERequest& request)
+{
+    _activeRequest = request;
+    _lastResult = BattleQTEResult::None;
+    _hasLastResult = false;
+    _isActive = true;
+
+    OnQTEStarted.Broadcast(_activeRequest);
 }
 
 float BattleQTEController::Consume_NextAttackDamageMultiplier(const BattleChar& attacker, AttackType attackType)

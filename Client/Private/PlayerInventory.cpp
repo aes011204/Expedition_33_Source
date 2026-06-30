@@ -5,6 +5,83 @@ void PlayerInventory::Clear()
     _chroma = 0;
     _unlockedPictosIds.clear();
     _ownedWeapons.clear();
+    _ownedMaterials.clear();
+}
+
+bool PlayerInventory::Spend_Chroma(uint32 amount)
+{
+    if (_chroma < amount)
+        return false;
+
+    _chroma -= amount;
+    return true;
+}
+
+uint32 PlayerInventory::Get_MaterialCount(const string& materialId) const
+{
+    if (materialId.empty())
+        return 0;
+
+    const auto iter = find_if(_ownedMaterials.begin(), _ownedMaterials.end(),
+        [&materialId](const MaterialInventoryEntry& entry)
+        {
+            return entry.materialId == materialId;
+        });
+
+    if (iter == _ownedMaterials.end())
+        return 0;
+
+    return iter->count;
+}
+
+void PlayerInventory::Set_MaterialCount(const string& materialId, uint32 count)
+{
+    if (materialId.empty())
+        return;
+
+    auto iter = find_if(_ownedMaterials.begin(), _ownedMaterials.end(),
+        [&materialId](const MaterialInventoryEntry& entry)
+        {
+            return entry.materialId == materialId;
+        });
+
+    if (iter == _ownedMaterials.end())
+    {
+        if (count == 0)
+            return;
+
+        _ownedMaterials.push_back({ materialId, count });
+        return;
+    }
+
+    if (count == 0)
+    {
+        _ownedMaterials.erase(iter);
+        return;
+    }
+
+    iter->count = count;
+}
+
+void PlayerInventory::Add_Material(const string& materialId, uint32 amount)
+{
+    if (materialId.empty() || amount == 0)
+        return;
+
+    Set_MaterialCount(materialId, Get_MaterialCount(materialId) + amount);
+}
+
+bool PlayerInventory::Spend_Material(const string& materialId, uint32 amount)
+{
+    if (amount == 0)
+        return true;
+
+    const uint32 currentCount = Get_MaterialCount(materialId);
+    if (currentCount < amount)
+        return false;
+
+    Set_MaterialCount(materialId, currentCount - amount);
+    return true;
 }
 
 bool PlayerInventory::Is_PictosUnlocked(const string& pictosId) const
@@ -40,11 +117,56 @@ bool PlayerInventory::Is_WeaponUnlocked(const string& characterId, const string&
     if (characterId.empty() || weaponId.empty())
         return false;
 
-    return find_if(_ownedWeapons.begin(), _ownedWeapons.end(),
+    return Get_WeaponEntry(characterId, weaponId) != nullptr;
+}
+
+const PlayerInventory::WeaponInventoryEntry* PlayerInventory::Get_WeaponEntry(
+    const string& characterId,
+    const string& weaponId) const
+{
+    if (characterId.empty() || weaponId.empty())
+        return nullptr;
+
+    const auto iter = find_if(_ownedWeapons.begin(), _ownedWeapons.end(),
         [&characterId, &weaponId](const WeaponInventoryEntry& entry)
         {
             return entry.characterId == characterId && entry.weaponId == weaponId;
-        }) != _ownedWeapons.end();
+        });
+
+    if (iter == _ownedWeapons.end())
+        return nullptr;
+
+    return &(*iter);
+}
+
+uint32 PlayerInventory::Get_WeaponEnhanceLevel(const string& characterId, const string& weaponId) const
+{
+    const WeaponInventoryEntry* entry = Get_WeaponEntry(characterId, weaponId);
+    if (entry == nullptr)
+        return 1;
+
+    return max(1u, entry->enhanceLevel);
+}
+
+bool PlayerInventory::Set_WeaponEnhanceLevel(
+    const string& characterId,
+    const string& weaponId,
+    uint32 enhanceLevel)
+{
+    if (characterId.empty() || weaponId.empty())
+        return false;
+
+    auto iter = find_if(_ownedWeapons.begin(), _ownedWeapons.end(),
+        [&characterId, &weaponId](const WeaponInventoryEntry& entry)
+        {
+            return entry.characterId == characterId && entry.weaponId == weaponId;
+        });
+
+    if (iter == _ownedWeapons.end())
+        return false;
+
+    iter->enhanceLevel = max(1u, enhanceLevel);
+    return true;
 }
 
 void PlayerInventory::Unlock_Weapon(const string& characterId, const string& weaponId, uint32 enhanceLevel, uint32 enhanceExp)
@@ -58,7 +180,7 @@ void PlayerInventory::Unlock_Weapon(const string& characterId, const string& wea
     WeaponInventoryEntry entry{};
     entry.characterId = characterId;
     entry.weaponId = weaponId;
-    entry.enhanceLevel = enhanceLevel == 0 ? 1 : enhanceLevel;
+    entry.enhanceLevel = max(1u, enhanceLevel);
     entry.enhanceExp = enhanceExp;
 
     _ownedWeapons.push_back(entry);
@@ -68,17 +190,7 @@ void PlayerInventory::Ensure_DefaultUnlockedWeapons(const vector<WeaponInventory
 {
     for (const WeaponInventoryEntry& weapon : weapons)
     {
-        if (weapon.characterId.empty() || weapon.weaponId.empty())
-            continue;
-
-        if (Is_WeaponUnlocked(weapon.characterId, weapon.weaponId))
-            continue;
-
-        WeaponInventoryEntry entry = weapon;
-        if (entry.enhanceLevel == 0)
-            entry.enhanceLevel = 1;
-
-        _ownedWeapons.emplace_back(std::move(entry));
+        Unlock_Weapon(weapon.characterId, weapon.weaponId, weapon.enhanceLevel, weapon.enhanceExp);
     }
 }
 
@@ -87,6 +199,18 @@ json PlayerInventory::Create_SaveJson() const
     json root = json::object();
     root["chroma"] = _chroma;
     root["unlocked_pictos"] = _unlockedPictosIds;
+
+    root["owned_materials"] = json::array();
+    for (const MaterialInventoryEntry& material : _ownedMaterials)
+    {
+        if (material.materialId.empty() || material.count == 0)
+            continue;
+
+        json entry = json::object();
+        entry["material_id"] = material.materialId;
+        entry["count"] = material.count;
+        root["owned_materials"].emplace_back(entry);
+    }
 
     root["owned_weapons"] = json::array();
     for (const WeaponInventoryEntry& weapon : _ownedWeapons)
@@ -116,6 +240,23 @@ bool PlayerInventory::Apply_SaveJson(const json& data)
         {
             if (pictosId.is_string())
                 Unlock_Pictos(pictosId.get<string>());
+        }
+    }
+
+    if (auto materials = data.find("owned_materials"); materials != data.end() && materials->is_array())
+    {
+        for (const json& material : *materials)
+        {
+            if (!material.is_object())
+                continue;
+
+            const string materialId = material.value("material_id", string{});
+            const uint32 count = material.value("count", 0u);
+
+            if (materialId.empty() || count == 0)
+                continue;
+
+            Set_MaterialCount(materialId, count);
         }
     }
 

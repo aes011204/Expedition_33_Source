@@ -40,6 +40,36 @@ namespace
         "Potato",    // 감자
     };
 
+    const wchar_t* Resolve_CharacterSelectAnimationName(HeroId heroId)
+    {
+        switch (heroId)
+        {
+        case HeroId::Lune:
+            return L"CharacterSelect_Lune";
+        case HeroId::Maelle:
+            return L"CharacterSelect_Maelle";
+        case HeroId::Gustave:
+        default:
+            return L"CharacterSelect_Gustave";
+        }
+    }
+
+    void Play_CharacterSelectAnimation(
+        const umap<wstring, Shared<UI_Base>>& uiByName,
+        HeroId heroId)
+    {
+        const wchar_t* animationName = Resolve_CharacterSelectAnimationName(heroId);
+        for (auto& [uiName, ui] : uiByName)
+        {
+            UNREFERENCED_PARAMETER(uiName);
+
+            if (ui == nullptr)
+                continue;
+
+            ui->Play_UIAnimation(animationName, true);
+        }
+    }
+
     constexpr Vec3 kPreviewLightDirection = Vec3(-0.42f, -0.78f, 0.46f);
     constexpr Vec4 kPreviewLightDiffuse = Vec4(0.92f, 0.89f, 0.84f, 1.f);
     constexpr Vec4 kPreviewLightAmbient = Vec4(0.16f, 0.16f, 0.18f, 1.f);
@@ -161,6 +191,7 @@ void Wardrobe_Panel::Open()
     Update_PreviewHeroVisibility();
     Apply_PreviewOverrides();
     Refresh_VisibleWardrobeCards();
+    Play_CharacterSelectAnimation(_uiByName, _selectedHeroId);
 
     GAME->Play_SoundCue(Constants::SoundCue::UI_Global_GenericEnter);
     GAME->Unlock_Mouse();
@@ -257,6 +288,8 @@ void Wardrobe_Panel::Set_SelectedHeroId(HeroId heroId)
         }
 
         Refresh_VisibleWardrobeCards();
+        if (!_isProgressionContentMode)
+            Play_CharacterSelectAnimation(_uiByName, _selectedHeroId);
     }
 }
 
@@ -340,6 +373,7 @@ void Wardrobe_Panel::Handle_SelectionInput()
     }
 
     Refresh_VisibleWardrobeCards();
+    Play_CharacterSelectAnimation(_uiByName, _selectedHeroId);
 }
 
 void Wardrobe_Panel::Handle_WardrobeInput()
@@ -709,6 +743,12 @@ HRESULT Wardrobe_Panel::Load_UI(uint32 levelIndex)
     desc.jsonPath = Constants::UI::UI_Wardrobe_Path;
     desc.prototypeTagPrefix = L"Wardrobe";
     desc.outUIByName = &_uiByName;
+    desc.animationPaths =
+    {
+        Constants::UI_Anim::UI_CharacterSelectLuneAnim_Path,
+        Constants::UI_Anim::UI_CharacterSelectGustaveAnim_Path,
+        Constants::UI_Anim::UI_CharacterSelectMaelleAnim_Path
+    };
 
     CHECK_FAILED(UI_RuntimeLoader::Load_Document(desc), E_FAIL);
 

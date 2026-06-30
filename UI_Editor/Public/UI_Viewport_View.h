@@ -1,7 +1,9 @@
 #pragma once
 
+#include "UI_EditorLayoutCache.h"
 #include "UI_Editor_Window.h"
 #include "UI_Document.h"
+#include "UI_ViewportPreviewAssetService.h"
 
 namespace UIEditor
 {
@@ -33,6 +35,39 @@ namespace UIEditor
         static Shared<UI_Viewport_View> Create(UI_Editor_Manager& editorManager);
 
     private:
+        void Render_Toolbar();
+        void Draw_ViewportItems(
+            ImDrawList* drawList,
+            const ImVec2& canvasPos,
+            const ImVec2& canvasMax,
+            float displayScale,
+            const ImVec2& viewportMin,
+            const ImVec2& viewportMax,
+            bool hasBlockingPopup,
+            bool useInteractionTextLod,
+            const UI_PreviewTransformResolver& previewTransformResolver,
+            const vector<UI_EditorViewportItem>& viewportItems,
+            bool& outHasSelectedObjectRect,
+            ImVec2& outSelectedObjectMin,
+            ImVec2& outSelectedObjectMax,
+            bool& outSelectedObjectIsLocked);
+        void Handle_ViewportInteraction(
+            const UI_Document& document,
+            const UI_EditorReadModel& readModel,
+            const vector<UI_EditorViewportItem>& viewportItems,
+            ImDrawList* drawList,
+            const ImVec2& canvasSize,
+            const ImVec2& canvasPos,
+            const ImVec2& canvasMax,
+            float displayScale,
+            const ImVec2& mousePos,
+            const ImVec2& mouseCanvasPos,
+            bool hasBlockingPopup,
+            bool viewportInputAllowed,
+            bool isMouseInViewport,
+            bool isMouseInCanvas,
+            bool isAnimationPreviewActive,
+            UI_ResizeHandle hoveredResizeHandle);
         void Cancel_InteractionState(bool commitTransaction);
 
     private:
@@ -56,5 +91,6 @@ namespace UIEditor
         bool _showGrid = true;
         bool _showAnchors = false;
         bool _snapEnabled = false;
+        UI_ViewportPreviewAssetService _previewAssetService = {};
     };
 }

@@ -6,12 +6,9 @@ namespace UIEditor
 {
     namespace
     {
-        bool Matches_SearchText(const string& haystack, const string& searchText)
+        string Build_PrefabSearchHaystackLower(const UI_PrefabFileEntry& prefabEntry)
         {
-            if (searchText.empty())
-                return true;
-
-            return String::ToLowerCopy(haystack).find(searchText) != string::npos;
+            return String::ToLowerCopy(prefabEntry.name + " " + prefabEntry.relativePath);
         }
     }
 
@@ -137,12 +134,12 @@ namespace UIEditor
         const string searchText = String::ToLowerCopy(_searchBuffer);
         int32 visiblePrefabCount = 0;
 
-        for (const UI_PrefabFileEntry& prefabEntry : _prefabEntries)
+        for (const UI_PrefabBrowserEntry& browserEntry : _prefabEntries)
         {
-            const string haystack = prefabEntry.name + " " + prefabEntry.relativePath;
-            if (!Matches_SearchText(haystack, searchText))
+            if (!searchText.empty() && browserEntry.searchHaystackLower.find(searchText) == string::npos)
                 continue;
 
+            const UI_PrefabFileEntry& prefabEntry = browserEntry.prefabEntry;
             ++visiblePrefabCount;
             ImGui::PushID(String::ToString(prefabEntry.filePath).c_str());
 
@@ -220,7 +217,15 @@ namespace UIEditor
             ? fs::path(_prefabService.Get_RootDirectory())
             : fs::path(_selectedDirectory);
 
-        _prefabEntries = _prefabService.Collect_PrefabEntries(selectedDirectory.wstring());
+        const vector<UI_PrefabFileEntry> prefabEntries = _prefabService.Collect_PrefabEntries(selectedDirectory.wstring());
+        _prefabEntries.reserve(prefabEntries.size());
+        for (const UI_PrefabFileEntry& prefabEntry : prefabEntries)
+        {
+            UI_PrefabBrowserEntry browserEntry = {};
+            browserEntry.prefabEntry = prefabEntry;
+            browserEntry.searchHaystackLower = Build_PrefabSearchHaystackLower(prefabEntry);
+            _prefabEntries.push_back(move(browserEntry));
+        }
     }
 
     void UI_Prefab_Browser::Refresh_RootDirectoryState()

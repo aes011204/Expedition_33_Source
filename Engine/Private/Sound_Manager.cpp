@@ -684,7 +684,8 @@ HRESULT Sound_Manager::Reload_SoundCues()
     if (_system == nullptr)
         return E_FAIL;
 
-    Load_SoundCues(); // DT_SoundCue.json만 다시 읽어서 _soundCues 캐시를 갱신한다.
+    Load_SoundFiles(); // 에디터 실행 중 추가된 wav도 SoundCue 검증/재생에 잡히도록 캐시에 더한다.
+    Load_SoundCues();  // DT_SoundCue.json을 다시 읽어서 _soundCues 캐시를 갱신한다.
     return S_OK;
 }
 
@@ -960,6 +961,9 @@ void Sound_Manager::Load_SoundFiles()
 
         wstring key = fs::relative(entry.path(), rootPath).generic_wstring();
         transform(key.begin(), key.end(), key.begin(), ::towlower);
+
+        if (_sounds.find(key) != _sounds.end())
+            continue;
 
         FMOD_MODE mode = FMOD_DEFAULT;
 

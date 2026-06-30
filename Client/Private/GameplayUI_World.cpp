@@ -5,6 +5,8 @@
 #include "GameInstance.h"
 #include "SkillTree_Panel.h"
 #include "ChangeWeapon_Panel.h"
+#include "UpgradeWeapon_Panel.h"
+#include "Merchant_Panel.h"
 #include "ExpeditionStat_Panel.h"
 #include "UI_CrossHair.h"
 #include "UI_GetCharacter.h"
@@ -22,6 +24,7 @@
 #include "Wardrobe_Panel.h"
 #include "Pictos_Panel.h"
 #include "UI_GradientSkillPreviewTest.h"
+#include "UI_InteractionPrompt.h"
 #include "UI_Replay.h"
 
 #include "Client_Constants.h"
@@ -80,6 +83,12 @@ HRESULT GameplayUI_World::Initialize(uint32 levelIndex)
     _changeWeaponPanel = ChangeWeapon_Panel::Create(levelIndex);
     CHECK_NULL(_changeWeaponPanel, E_FAIL);
 
+    _upgradeWeaponPanel = UpgradeWeapon_Panel::Create(levelIndex);
+    CHECK_NULL(_upgradeWeaponPanel, E_FAIL);
+
+    _merchantPanel = Merchant_Panel::Create(levelIndex);
+    CHECK_NULL(_merchantPanel, E_FAIL);
+
     _characterProgressionPanel->Bind_ContentPanels(
         _changeWeaponPanel.get(),
         _changeSkillPanel.get(),
@@ -103,6 +112,9 @@ HRESULT GameplayUI_World::Initialize(uint32 levelIndex)
 
     _crossHair = UI_CrossHair::Create(levelIndex);
     CHECK_NULL(_crossHair, E_FAIL);
+
+    _interactionPrompt = UI_InteractionPrompt::Create(levelIndex);
+    CHECK_NULL(_interactionPrompt, E_FAIL);
 
     _getCharacterPanel = UI_GetCharacter::Create(levelIndex);
     CHECK_NULL(_getCharacterPanel, E_FAIL);
@@ -142,6 +154,12 @@ void GameplayUI_World::Update(float timeDelta)
     if (_changeWeaponPanel)
         _changeWeaponPanel->Update(timeDelta);
 
+    if (_upgradeWeaponPanel)
+        _upgradeWeaponPanel->Update(timeDelta);
+
+    if (_merchantPanel)
+        _merchantPanel->Update(timeDelta);
+
     if (_savePointPanel)
         _savePointPanel->Update(timeDelta);
 
@@ -176,6 +194,7 @@ void GameplayUI_World::Update(float timeDelta)
         _replayPanel->Update(timeDelta);
 
     Update_CrossHair(timeDelta);
+    Update_InteractionPrompt();
 
     if (!CLIENT->Is_FadeTransitionPlaying())
     {
@@ -279,6 +298,12 @@ vector<RuntimeUIEntry> GameplayUI_World::Get_RuntimeUIEntries() const
     if (_changeWeaponPanel)
         _changeWeaponPanel->Append_RuntimeUIEntries(entries, "World", "ChangeWeaponPanel");
 
+    if (_upgradeWeaponPanel)
+        _upgradeWeaponPanel->Append_RuntimeUIEntries(entries, "World", "UpgradeWeaponPanel");
+
+    if (_merchantPanel)
+        _merchantPanel->Append_RuntimeUIEntries(entries, "World", "MerchantPanel");
+
     if (_expeditionStatPanel)
         _expeditionStatPanel->Append_RuntimeUIEntries(entries, "World", "ExpeditionStatPanel");
 
@@ -301,6 +326,7 @@ vector<RuntimeUIEntry> GameplayUI_World::Get_RuntimeUIEntries() const
         _replayPanel->Append_RuntimeUIEntries(entries, "World", "ReplayPanel");
 
     Append_RuntimePanelEntry(entries, "World", "CrossHair", _crossHair.get());
+    Append_RuntimePanelEntry(entries, "World", "InteractionPrompt", _interactionPrompt.get());
     Append_RuntimePanelEntry(entries, "World", "GradientSkillPreviewTest", _gradientSkillPreviewTestPanel.get());
 
     return entries;
@@ -344,6 +370,9 @@ void GameplayUI_World::Force_CloseAllMenus()
     if (_arenaCharacterSelectPanel && _arenaCharacterSelectPanel->Is_Open())
         _arenaCharacterSelectPanel->Close_Immediately();
 
+    if (_merchantPanel && _merchantPanel->Is_Open())
+        _merchantPanel->Close_Immediately();
+
     if (_replayPanel && _replayPanel->Is_Open())
         _replayPanel->Close_Immediately();
 
@@ -376,6 +405,62 @@ bool GameplayUI_World::Request_ArenaCharacterSelect()
 
     Push_Menu(GameplayMenu::ArenaCharacterSelect);
 
+    return true;
+}
+
+bool GameplayUI_World::Request_MerchantShop()
+{
+    if (_merchantPanel == nullptr)
+        return false;
+
+    const bool requestedFromDialogue = CLIENT->IsDialogueInteractLocked();
+
+    if (_expeditionStatPanel && _expeditionStatPanel->Is_Open())
+    {
+        if (!requestedFromDialogue)
+            return false;
+
+        _expeditionStatPanel->Close_Immediately();
+    }
+
+    if (Get_CurrentMenu() != GameplayMenu::None)
+        return false;
+
+    if (CLIENT->Is_WorldControlSuspended() || CLIENT->Is_BattleEntering())
+        return false;
+
+    if (GAME->Is_WorldGameplayInputBlocked() && !requestedFromDialogue)
+        return false;
+
+    Push_Menu(GameplayMenu::Merchant);
+    return true;
+}
+
+bool GameplayUI_World::Request_WeaponUpgrade()
+{
+    if (_upgradeWeaponPanel == nullptr)
+        return false;
+
+    const bool requestedFromDialogue = CLIENT->IsDialogueInteractLocked();
+
+    if (_expeditionStatPanel && _expeditionStatPanel->Is_Open())
+    {
+        if (!requestedFromDialogue)
+            return false;
+
+        _expeditionStatPanel->Close_Immediately();
+    }
+
+    if (Get_CurrentMenu() != GameplayMenu::None)
+        return false;
+
+    if (CLIENT->Is_WorldControlSuspended() || CLIENT->Is_BattleEntering())
+        return false;
+
+    if (GAME->Is_WorldGameplayInputBlocked() && !requestedFromDialogue)
+        return false;
+
+    Push_Menu(GameplayMenu::WeaponUpgrade);
     return true;
 }
 
@@ -443,7 +528,7 @@ void GameplayUI_World::Handle_SavePointAction(SavePoint_Panel::SavePointAction a
 
 void GameplayUI_World::Handle_SavePointInput()
 {
-    if (!GAME->KeyDown(KEY_TYPE::E))
+    if (!GAME->KeyDown(KEY_TYPE::G))
         return;
 
     if (_savePointPanel == nullptr)
@@ -546,6 +631,11 @@ void GameplayUI_World::Handle_BackInput()
     }
 
     const GameplayMenu currentMenu = _menuStack.back();
+    if (currentMenu == GameplayMenu::WeaponUpgrade &&
+        _upgradeWeaponPanel &&
+        _upgradeWeaponPanel->Consume_BackInput())
+        return;
+
     if (currentMenu == GameplayMenu::Replay)
     {
         Close_AllMenus();
@@ -846,12 +936,28 @@ void GameplayUI_World::Close_Menu(GameplayMenu menu, bool restoreWorldControl)
         break;
 
     case GameplayMenu::WeaponUpgrade:
-        if (_changeWeaponPanel)
+        if (_upgradeWeaponPanel)
         {
             if (restoreWorldControl)
-                _changeWeaponPanel->Close(); // 최종 종료이므로 월드 입력 복구
+                _upgradeWeaponPanel->Close(); // 최종 종료이므로 월드 입력 복구
             else
-                _changeWeaponPanel->Close_ForMenuTransition(); // Character Progression으로 복귀하는 전환
+                _upgradeWeaponPanel->Close_ForMenuTransition(); // Character Progression으로 복귀하는 전환
+        }
+        break;
+
+    case GameplayMenu::Merchant:
+        if (_merchantPanel)
+        {
+            if (restoreWorldControl)
+                _merchantPanel->Close();
+            else
+                _merchantPanel->Close_ForMenuTransition();
+
+            vector<string> purchasedPictosIds = _merchantPanel->Consume_PurchasedPictosIds();
+            _pendingGetPictosIds.insert(
+                _pendingGetPictosIds.end(),
+                purchasedPictosIds.begin(),
+                purchasedPictosIds.end());
         }
         break;
 
@@ -1042,11 +1148,18 @@ void GameplayUI_World::Try_ShowPendingGetPictos()
     if (_expeditionStatPanel && _expeditionStatPanel->Is_Open())
         return;
 
-    Unlock_Manager* unlockManager = CLIENT->Get_UnlockManager();
-    if (unlockManager == nullptr)
-        return;
+    vector<string> pendingPictosIds = std::move(_pendingGetPictosIds);
+    _pendingGetPictosIds.clear();
 
-    vector<string> pendingPictosIds = unlockManager->Consume_GetPictosPresentationIds();
+    if (Unlock_Manager* unlockManager = CLIENT->Get_UnlockManager())
+    {
+        vector<string> queuedPictosIds = unlockManager->Consume_GetPictosPresentationIds();
+        pendingPictosIds.insert(
+            pendingPictosIds.end(),
+            queuedPictosIds.begin(),
+            queuedPictosIds.end());
+    }
+
     if (pendingPictosIds.empty())
         return;
 
@@ -1104,6 +1217,24 @@ void GameplayUI_World::Update_CrossHair(float timeDelta)
     _crossHair->Open();
     _crossHair->Set_HitState(freeAimState->Is_HitObject());
     _crossHair->Update(timeDelta);
+}
+
+void GameplayUI_World::Update_InteractionPrompt()
+{
+    if (_interactionPrompt == nullptr)
+        return;
+
+    Vec3 worldAnchor{};
+    if (Is_AnyMenuOpen() ||
+        CLIENT->IsDialogueActive() ||
+        CLIENT->IsDialogueInteractLocked() ||
+        !CLIENT->Try_GetInteractionPromptAnchor(worldAnchor))
+    {
+        _interactionPrompt->Clear_Target();
+        return;
+    }
+
+    _interactionPrompt->Show_AtWorldPosition(worldAnchor);
 }
 
 void GameplayUI_World::Push_Menu(GameplayMenu menu)
@@ -1168,8 +1299,10 @@ void GameplayUI_World::Close_AllMenus(bool immediate)
             _changeSkillPanel->Close_Immediately();
         else if (immediate && menu == GameplayMenu::Wardrobe && _wardrobePanel)
             _wardrobePanel->Close_Immediately();
-        else if (immediate && menu == GameplayMenu::WeaponUpgrade && _changeWeaponPanel)
-            _changeWeaponPanel->Close_Immediately();
+        else if (immediate && menu == GameplayMenu::WeaponUpgrade && _upgradeWeaponPanel)
+            _upgradeWeaponPanel->Close_Immediately();
+        else if (immediate && menu == GameplayMenu::Merchant && _merchantPanel)
+            _merchantPanel->Close_Immediately();
         else if (immediate && menu == GameplayMenu::ArenaCharacterSelect && _arenaCharacterSelectPanel)
             _arenaCharacterSelectPanel->Close_Immediately();
         else if (immediate && menu == GameplayMenu::Replay && _replayPanel)
@@ -1216,8 +1349,13 @@ void GameplayUI_World::Open_Menu(GameplayMenu menu)
             _characterProgressionPanel->Close_ForMenuTransition(); // Weapon 화면에서는 Progression의 기술/시트/픽토스 UI를 모두 숨긴다.
         if (_changeSkillPanel)
             _changeSkillPanel->Close_ForMenuTransition(); // ChangeSkill에서 넘어온 경우 Available/Current Skill UI를 정리한다.
-        if (_changeWeaponPanel)
-            _changeWeaponPanel->Open();
+        if (_upgradeWeaponPanel)
+            _upgradeWeaponPanel->Open();
+        break;
+
+    case GameplayMenu::Merchant:
+        if (_merchantPanel)
+            _merchantPanel->Open();
         break;
 
     case GameplayMenu::SavePoint:
@@ -1313,6 +1451,8 @@ void GameplayUI_World::Free()
     Release_Panel(_characterStatusPanel);
     Release_Panel(_skillTreePanel);
     Release_Panel(_changeWeaponPanel);
+    Release_Panel(_upgradeWeaponPanel);
+    Release_Panel(_merchantPanel);
     Release_Panel(_expeditionStatPanel);
     Release_Panel(_getCharacterPanel);
     Release_Panel(_getClothesPanel);

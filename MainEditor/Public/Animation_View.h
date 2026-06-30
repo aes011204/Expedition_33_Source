@@ -247,6 +247,15 @@ private:
         bool scaleEffects = true;
     };
 
+    struct PreviewSkillPhaseContext
+    {
+        bool enabled = false;
+        string skillKey{};
+        uint32 phaseIndex = 0;
+        string animationKey{};
+        float playRate = 1.f;
+    };
+
 private:
     void Refresh_Source();
     void Refresh_AssetAnimationList();
@@ -270,6 +279,7 @@ private:
     void Draw_AnimationSelector();
     void Draw_BoneTree();
     void Draw_PlaybackToolbar();
+    void Draw_SkillPhasePreviewControls();
     void Draw_PreviewPanel();
     void Draw_Sequencer();
     void Draw_SelectedDetail();
@@ -349,6 +359,11 @@ private:
     PreviewWorldTimeScaleState Resolve_PreviewWorldTimeScaleState(float currentTimeSec) const;
     void Update_PreviewAnimSpeedStates(float timeDelta);
     void Reset_PreviewAnimSpeedStates();
+    void Clear_SkillPhasePreviewContext();
+    bool Sync_SkillPhasePreviewContextForAnimation(const AnimationEntry& entry);
+    bool Set_SkillPhasePreviewContext(const string& skillKey, uint32 phaseIndex);
+    float Resolve_PreviewBaseFrameSpeed() const;
+    void Apply_PreviewBaseFrameSpeed();
     void Update_PreviewPlayEffectNotifies(float previousTimeSec, float currentTimeSec, float timeDelta);
     void Reset_PreviewPlayEffectStates();
     void Update_PreviewScreenFxCueStates(float timeDelta);
@@ -450,6 +465,7 @@ private:
 
     string _modelGuid{};
     string _currentAnimationName{};
+    PreviewSkillPhaseContext _skillPhaseContext{};
     vector<AnimationEntry> _availableAnimations{};
     char _animationSearchBuffer[128] = "";
     char _boneSearchBuffer[128] = "";
