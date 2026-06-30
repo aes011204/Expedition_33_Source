@@ -406,6 +406,41 @@ HRESULT Target_Manager::Resize_MRTs(uint32 width, uint32 height)
     return S_OK;
 }
 
+HRESULT Target_Manager::Resize_ShadowRenderTargets(uint32 width, uint32 height)
+{
+    if (width == 0 || height == 0)
+        return E_FAIL;
+
+    _shadowMapWidth = width;
+    _shadowMapHeight = height;
+
+    auto resizeTarget = [this, width, height](const wstring& targetTag, bool useDSV, uint32 arraySize)
+        {
+            Shared<RenderTarget> target = Find_RenderTarget(targetTag);
+            if (target == nullptr)
+                return S_OK;
+
+            return target->Resize(
+                width,
+                height,
+                DXGI_FORMAT_R32_FLOAT,
+                Color(1.f, 1.f, 1.f, 1.f),
+                useDSV,
+                arraySize);
+        };
+
+    CHECK_FAILED(resizeTarget(RT::LightDepth, true, ShadowLightDesc::SHADOW_CASCADE_COUNT), E_FAIL);
+
+#ifdef _DEBUG
+    CHECK_FAILED(resizeTarget(RT::LightDepthDebug0, false, 1), E_FAIL);
+    CHECK_FAILED(resizeTarget(RT::LightDepthDebug1, false, 1), E_FAIL);
+    CHECK_FAILED(resizeTarget(RT::LightDepthDebug2, false, 1), E_FAIL);
+    CHECK_FAILED(resizeTarget(RT::LightDepthDebug3, false, 1), E_FAIL);
+#endif
+
+    return S_OK;
+}
+
 HRESULT Target_Manager::Copy_CurrentRTV_To(const wstring& targetTag)
 {
     // 현재 OM에 바인딩된 RTV

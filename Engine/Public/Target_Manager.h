@@ -38,6 +38,7 @@ public :
     HRESULT End_MRT();
 
     HRESULT Resize_MRTs(uint32 width, uint32 height);
+    HRESULT Resize_ShadowRenderTargets(uint32 width, uint32 height);
 
     HRESULT Copy_CurrentRTV_To(const wstring& targetTag);
     HRESULT Copy_RTV(const wstring& srcTargetTag, const wstring& dstTargetTag);
@@ -65,8 +66,8 @@ private :
     uint32          _currentHeight = 0;
 
     // TODO ! Shadow 관련 클래스 확장되기 전까지는 여기서 Renderer랑 동기화해줘야 한다.
-    uint32                          _shadowMapWidth = 4096;
-    uint32                          _shadowMapHeight = 4096;
+    uint32                          _shadowMapWidth = 2048;
+    uint32                          _shadowMapHeight = 2048;
 
 public :
     static Unique<Target_Manager>   Create(ComPtr<Device> device, ComPtr<Context> context);

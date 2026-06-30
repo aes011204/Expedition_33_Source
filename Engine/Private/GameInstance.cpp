@@ -2727,6 +2727,11 @@ HRESULT GameInstance::Get_ShadowCBSnapshot(ShadowCB& outShadowCB) const
 
 HRESULT GameInstance::Update_ShadowLight(const ShadowLightDesc& desc)
 {
+    CHECK_NULL(_shadow, E_FAIL);
+
+    if (_targetManager != nullptr)
+        CHECK_FAILED(_targetManager->Resize_ShadowRenderTargets(desc.shadowMapWidth, desc.shadowMapHeight), E_FAIL);
+
     return _shadow->Update_ShadowLight(desc);
 }
 
