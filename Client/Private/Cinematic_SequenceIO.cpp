@@ -229,6 +229,30 @@ json SerializeActorRelativeCameraTrack(const CINEMATIC_ACTOR_RELATIVE_CAMERA_TRA
     return trackJson;
 }
 
+json SerializeCameraShot(const CINEMATIC_CAMERA_SHOT& shot)
+{
+    return
+    {
+        { "name", shot.name },
+        { "trackIndex", shot.trackIndex },
+        { "startFrame", shot.startFrame },
+        { "endFrame", shot.endFrame },
+        { "enabled", shot.enabled }
+    };
+}
+
+void DeserializeCameraShot(const json& shotJson, CINEMATIC_CAMERA_SHOT& outShot)
+{
+    outShot.name = shotJson.value("name", outShot.name);
+    outShot.trackIndex = shotJson.value("trackIndex", outShot.trackIndex);
+    outShot.startFrame = shotJson.value("startFrame", outShot.startFrame);
+    outShot.endFrame = shotJson.value("endFrame", outShot.endFrame);
+    outShot.enabled = shotJson.value("enabled", outShot.enabled);
+
+    if (outShot.endFrame < outShot.startFrame)
+        outShot.endFrame = outShot.startFrame;
+}
+
 void DeserializeActorRelativeCameraTrack(
     const json& trackJson,
     CINEMATIC_ACTOR_RELATIVE_CAMERA_TRACK& outTrack)
@@ -275,6 +299,7 @@ json SerializeEvent(const CINEMATIC_EVENT& event)
         eventJson["loop"] = playAnim->loop;
         eventJson["startFrame"] = playAnim->startFrame;
         eventJson["speed"] = playAnim->speed;
+        eventJson["holdFrame"] = playAnim->holdFrame;
     }
     else if (get_if<CinematicDespawnEventData>(&event.payload) != nullptr)
     {
@@ -285,6 +310,11 @@ json SerializeEvent(const CINEMATIC_EVENT& event)
         eventJson["type"] = "part_visibility";
         eventJson["partTag"] = partVisibility->partTag;
         eventJson["visible"] = partVisibility->visible;
+    }
+    else if (const auto* worldTimeScale = get_if<CinematicWorldTimeScaleEventData>(&event.payload))
+    {
+        eventJson["type"] = "world_time_scale";
+        eventJson["worldTimeScale"] = worldTimeScale->worldTimeScale;
     }
 
     return eventJson;
@@ -304,6 +334,7 @@ void DeserializeEvent(const json& eventJson, CINEMATIC_EVENT& outEvent)
         payload.loop = eventJson.value("loop", payload.loop);
         payload.startFrame = eventJson.value("startFrame", payload.startFrame);
         payload.speed = eventJson.value("speed", payload.speed);
+        payload.holdFrame = eventJson.value("holdFrame", payload.holdFrame);
         outEvent.payload = payload;
     }
     else if (type == "despawn")
@@ -315,6 +346,12 @@ void DeserializeEvent(const json& eventJson, CINEMATIC_EVENT& outEvent)
         CinematicPartVisibilityEventData payload{};
         payload.partTag = eventJson.value("partTag", payload.partTag);
         payload.visible = eventJson.value("visible", payload.visible);
+        outEvent.payload = payload;
+    }
+    else if (type == "world_time_scale")
+    {
+        CinematicWorldTimeScaleEventData payload{};
+        payload.worldTimeScale = eventJson.value("worldTimeScale", payload.worldTimeScale);
         outEvent.payload = payload;
     }
     else if (type == "dualliste_left_sword")
@@ -347,6 +384,7 @@ void Cinematic_SequenceIO::SaveSequenceToFile(const CINEMATIC_SEQUENCE& sequence
     jsonData["fps"] = sequence.fps;
     jsonData["cinematicTracks"] = json::array();
     jsonData["actorRelativeCameraTracks"] = json::array();
+    jsonData["cameraShots"] = json::array();
     jsonData["eventTrack"] = json::array();
     jsonData["actorTransformTracks"] = json::array();
     jsonData["modifierClip"] =
@@ -400,6 +438,9 @@ void Cinematic_SequenceIO::SaveSequenceToFile(const CINEMATIC_SEQUENCE& sequence
     for (const auto& actorRelativeTrack : sequence.actorRelativeCameraTracks)
         jsonData["actorRelativeCameraTracks"].push_back(SerializeActorRelativeCameraTrack(actorRelativeTrack));
 
+    for (const auto& shot : sequence.cameraShots)
+        jsonData["cameraShots"].push_back(SerializeCameraShot(shot));
+
     for (const auto& event : sequence.eventTrack)
         jsonData["eventTrack"].push_back(SerializeEvent(event));
 
@@ -436,6 +477,7 @@ bool Cinematic_SequenceIO::LoadSequenceFromFile(const string& filePath, CINEMATI
     loadedSequence.endFrame = jsonData.value("endFrame", loadedSequence.endFrame);
     loadedSequence.cinematicTracks.clear();
     loadedSequence.actorRelativeCameraTracks.clear();
+    loadedSequence.cameraShots.clear();
     loadedSequence.eventTrack.clear();
     loadedSequence.actorTransformTracks.clear();
 
@@ -500,6 +542,26 @@ bool Cinematic_SequenceIO::LoadSequenceFromFile(const string& filePath, CINEMATI
             DeserializeActorRelativeCameraTrack(trackJson, track);
             loadedSequence.actorRelativeCameraTracks.push_back(std::move(track));
         }
+    }
+
+    const json& cameraShotsJson = jsonData["cameraShots"];
+    if (cameraShotsJson.is_array())
+    {
+        for (const auto& shotJson : cameraShotsJson)
+        {
+            CINEMATIC_CAMERA_SHOT shot{};
+            DeserializeCameraShot(shotJson, shot);
+            loadedSequence.cameraShots.push_back(std::move(shot));
+        }
+
+        std::sort(loadedSequence.cameraShots.begin(), loadedSequence.cameraShots.end(),
+            [](const CINEMATIC_CAMERA_SHOT& lhs, const CINEMATIC_CAMERA_SHOT& rhs)
+            {
+                if (lhs.startFrame != rhs.startFrame)
+                    return lhs.startFrame < rhs.startFrame;
+
+                return lhs.endFrame < rhs.endFrame;
+            });
     }
 
     struct LegacySpawnEntry

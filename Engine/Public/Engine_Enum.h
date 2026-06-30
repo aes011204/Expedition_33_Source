@@ -240,6 +240,7 @@ namespace Engine
         Boss,
         Ambient,
         Voice,
+        WorldEvent,
         System,
         END
     };
