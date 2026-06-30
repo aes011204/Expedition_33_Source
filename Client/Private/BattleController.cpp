@@ -1185,6 +1185,9 @@ void BattleController::SetCharInitPos()
             Vec3 rot = transform->Get_RotationEuler();
             rot.y = XMConvertToDegrees(atan2f(dir.x, dir.z));
             transform->Set_RotationEuler(rot);
+
+            if (_battleSpawnRegistry)
+                _battleSpawnRegistry->Update_SpawnPose(hero.actor);
         }
     }
 

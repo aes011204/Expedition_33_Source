@@ -306,6 +306,8 @@ void BattleTurnCamera::Update(float timeDelta)
     case BattleCameraMode::PARRY:
         Update_FromCurrentPreset(timeDelta);
         break;
+    case BattleCameraMode::AIM:
+        break;
     case BattleCameraMode::ENEMYATTACK:
         Update_EnemyAttackMode(timeDelta);
         break;
@@ -368,6 +370,12 @@ void BattleTurnCamera::Update_FreeAimRotation(float timeDelta)
     _pitch += mouseDelta.y * _mouseSensor;
     _pitch = std::clamp(_pitch, -25.f, 20.f); // 상하 각도 제한
     _yaw = std::clamp(_yaw, -90.f, 90.f);     // 상하 각도 제한
+
+    if (_currentRequest.mode == BattleCameraMode::AIM)
+    {
+        Update_FromCurrentPreset(0.f);
+        return;
+    }
 
     _transformCom->Set_RotationEuler(Vec3(_pitch, _freeAimBaseYaw + _yaw, 0.f));
 
@@ -1469,7 +1477,10 @@ void BattleTurnCamera::Apply_ShotRequest(const BattleShotRequest& request)
     _playerAttackSubjectPos = nextPlayerAttackSubjectPos;
     _playerAttackOpponentPos = nextPlayerAttackOpponentPos;
 
-    if (nextPreset.snapOnEnter || request.mode == BattleCameraMode::WIDE || request.mode == BattleCameraMode::BATTLEINTRO)
+    if (nextPreset.snapOnEnter ||
+        request.mode == BattleCameraMode::WIDE ||
+        request.mode == BattleCameraMode::BATTLEINTRO ||
+        request.mode == BattleCameraMode::AIM)
     {
         const BattleCameraMode previousMode = _currentRequest.mode;
         _poseTransition.active = false;
