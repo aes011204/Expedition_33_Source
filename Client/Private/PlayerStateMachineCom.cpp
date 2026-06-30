@@ -9,6 +9,7 @@
 #include "Player_Move.h"
 #include "Player_Climb.h"
 #include "Player_RopeAction.h"
+#include "Player_GrappleAction.h"
 #include "Player_State.h"
 #include "Player_ParkourAction.h"
 
@@ -51,6 +52,7 @@ void PlayerStateMachineCom::BeginPlay()
     CHECK_FAILED(Add_State(PlayerState::Parkour, Player_ParkourAction::Create(static_pointer_cast<Player_WorldBase>(_owner.lock()))));
     CHECK_FAILED(Add_State(PlayerState::Climb, Player_Climb::Create(static_pointer_cast<Player_WorldBase>(_owner.lock()))));
     CHECK_FAILED(Add_State(PlayerState::RopeAction, Player_RopeAction::Create(static_pointer_cast<Player_WorldBase>(_owner.lock()))));
+    CHECK_FAILED(Add_State(PlayerState::GrappleAction, Player_GrappleAction::Create(static_pointer_cast<Player_WorldBase>(_owner.lock()))));
     CHECK_FAILED(Add_State(PlayerState::GameMenu, Player_GameMenu::Create(static_pointer_cast<Player_WorldBase>(_owner.lock()))));
     CHECK_FAILED(Add_State(PlayerState::FreeAim, Player_FreeAim::Create(static_pointer_cast<Player_WorldBase>(_owner.lock()))));
 }

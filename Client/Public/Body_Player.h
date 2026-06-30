@@ -78,7 +78,7 @@ public:
 
         Pl_Parkour_Low, PL_Parkour_High,
         Pl_RopeUp_Start, Pl_RopeUp_End, Pl_RopeDown_Start, Pl_RopeDown_End, Pl_RopeUpIdle, Pl_RopeDownIdle,
-        Pl_Grappling_Start, Pl_Grappling, Pl_Grappling_End,
+        Pl_Grappling,
 
         Pl_Ledge_Start, Pl_Ledge_End, Pl_Ledge_Idle, 
         Pl_Ledge_Left, Pl_Ledge_Left_Stretch, Pl_Ledge_Right, Pl_Ledge_Right_Stretch, 

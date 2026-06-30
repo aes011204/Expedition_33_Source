@@ -10,6 +10,7 @@
 #include "MapAmbientVisibility.h"
 #include "BattleStartSpawner.h"
 #include "RuntimeRuleStateService.h"
+#include "ColliderCom.h"
 
 namespace
 {
@@ -420,6 +421,23 @@ HRESULT Level_GestralVillage::Ready_Layer_ETC(const wstring& strLayerTag)
         .Spawn();
 
     CHECK_NULL(upDownRope, E_FAIL);
+
+    const Shared<GameObject> grapplingRope = Spawn_Prefab::Prefab("ETC/WorldGrapplingRopeSpot")
+        .AtLevel(ETOI(LevelType::GestralVillage))
+        .InLayer(strLayerTag)
+        .Position(Vec3(-25.9f, 9.3f, 76.5f))
+        .Rotation(Vec3(0.f, -90.f, 0.f))
+        .Scale(Vec3(1.f, 1.f, 1.f))
+        .Spawn();
+
+    CHECK_NULL(grapplingRope, E_FAIL);
+
+    if (const Shared<ColliderCom> gateCollider = grapplingRope->Get_Component<ColliderCom>(TEXT("Com_RopeGateCollider")))
+    {
+        ColliderShapeDesc gateShapeDesc = gateCollider->Get_ShapeDesc();
+        gateShapeDesc.center.z = 9.420f;
+        gateCollider->Set_ShapeDesc(gateShapeDesc);
+    }
 
     return S_OK;
 }

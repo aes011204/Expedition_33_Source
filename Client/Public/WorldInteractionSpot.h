@@ -51,6 +51,7 @@ public:
     virtual bool Can_Interact(const Shared<Player_WorldBase>& activeHero) const = 0;
     virtual bool Build_InteractionRequest(const Shared<Player_WorldBase>& activeHero, WorldInteractionRequest& outRequest) const = 0;
     virtual const wstring& Get_InteractionPrompt() const = 0;
+    virtual int32 Get_InteractionPriority() const { return 0; }
 };
 
 class WorldInteractionSpot abstract : public GameObject, public IWorldInteractionProvider
@@ -67,6 +68,7 @@ public:
 public:
     bool Can_Interact(const Shared<Player_WorldBase>& activeHero) const override;
     const wstring& Get_InteractionPrompt() const override { return _promptText; }
+    int32 Get_InteractionPriority() const override { return _priority; }
 
 protected:
     void Build_CommonRequest(WorldInteractionRequest& outRequest) const;

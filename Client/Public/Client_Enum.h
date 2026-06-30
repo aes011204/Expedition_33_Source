@@ -12,6 +12,7 @@ namespace Client
         Parkour,
         Climb,
         RopeAction,
+        GrappleAction,
         End,
     };
 

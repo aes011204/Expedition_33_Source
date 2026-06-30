@@ -98,6 +98,8 @@ bool Player_RopeAction::EnterInvoke()
     if (transform == nullptr)
         return false;
 
+    Apply_RopeAnimationSpeed(_bodyPlayer->Get_Model());
+
     _phase = RopePhase::Start;
     _startAlignFromPos = transform->Get_WorldPosition();
     _travelStartPos = _request.ropeDirection == WorldInteractionSpot::RopeDirection::Down
@@ -114,7 +116,6 @@ bool Player_RopeAction::EnterInvoke()
     _startLookFromRotation = transform->Get_WorldRotationQuaternion();
     _startLookToRotation = Resolve_TargetLookRotation(transform, _travelStartPos);
 
-    Apply_RopeAnimationSpeed(_bodyPlayer->Get_Model());
     _movementCom->Sync_RuntimePositionToTransform();
 
     if (_bodyPlayer != nullptr)

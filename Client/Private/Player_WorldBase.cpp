@@ -43,7 +43,8 @@ namespace Client::PlayerWorldTuning
     {
         return state == PlayerState::Parkour ||
             state == PlayerState::Climb ||
-            state == PlayerState::RopeAction;
+            state == PlayerState::RopeAction ||
+            state == PlayerState::GrappleAction;
     }
 
     const char* Get_ParkourActionName(Player_ParkourAction::ParkourActionType actionType)
@@ -405,8 +406,20 @@ void Player_WorldBase::Start_SwitchDissolve(float durationSec, const string& noi
 
 void Player_WorldBase::Set_WorldInteractionCandidate(const Shared<GameObject>& spot)
 {
-    if (_worldInteractionContext.isInteracting)
+    if (_worldInteractionContext.isInteracting || spot == nullptr)
         return;
+
+    const Shared<GameObject> current = _worldInteractionContext.candidateSpot.lock();
+    if (current != nullptr && current.get() != spot.get())
+    {
+        const auto* currentProvider = dynamic_cast<IWorldInteractionProvider*>(current.get());
+        const auto* nextProvider = dynamic_cast<IWorldInteractionProvider*>(spot.get());
+        const int32 currentPriority = currentProvider != nullptr ? currentProvider->Get_InteractionPriority() : 0;
+        const int32 nextPriority = nextProvider != nullptr ? nextProvider->Get_InteractionPriority() : 0;
+
+        if (nextPriority < currentPriority)
+            return;
+    }
 
     _worldInteractionContext.candidateSpot = spot;
 }

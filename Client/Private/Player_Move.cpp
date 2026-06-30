@@ -63,7 +63,11 @@ void Player_Move::Update(float timeDelta)
                     changed = _stateCom->Change_State(PlayerState::Climb);
                     break;
                 case WorldInteractionSpot::WorldInteractionType::RopeTouch:
+                    changed = _stateCom->Change_State(PlayerState::RopeAction);
+                    break;
                 case WorldInteractionSpot::WorldInteractionType::RopeLook:
+                    changed = _stateCom->Change_State(PlayerState::GrappleAction);
+                    break;
                 default:
                     changed = _stateCom->Change_State(PlayerState::RopeAction);
                     break;

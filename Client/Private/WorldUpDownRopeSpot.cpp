@@ -274,6 +274,16 @@ bool WorldUpDownRopeSpot::Build_InteractionRequest(const Shared<Player_WorldBase
     const Vec3 bottomPoint = Resolve_WorldPoint(_bottomColliderCenter);
     const Vec3 topIdlePoint = Build_RopeIdlePoint(_topRopeIdleY);
     const Vec3 bottomIdlePoint = Build_RopeIdlePoint(_bottomRopeIdleY);
+    Vec3 downTargetRopePoint = bottomIdlePoint;
+    if (isTopEntry && _transformCom != nullptr)
+    {
+        Vec3 localZ = Vec3::TransformNormal(Vec3::Look, _transformCom->Get_WorldMatrix());
+        if (localZ.LengthSquared() > 0.0001f)
+        {
+            localZ.Normalize();
+            downTargetRopePoint += localZ * 0.5f;
+        }
+    }
 
     outRequest = {};
     outRequest.type = WorldInteractionType::RopeTouch;
@@ -282,7 +292,7 @@ bool WorldUpDownRopeSpot::Build_InteractionRequest(const Shared<Player_WorldBase
     outRequest.targetPoint = isTopEntry ? bottomPoint : topPoint;
     outRequest.wallPoint = Resolve_WorldPoint(_wallPointOffset);
     outRequest.ropePoint = isTopEntry ? topIdlePoint : bottomIdlePoint;
-    outRequest.targetRopePoint = isTopEntry ? bottomIdlePoint : topIdlePoint;
+    outRequest.targetRopePoint = isTopEntry ? downTargetRopePoint : topIdlePoint;
     outRequest.warpEndProgress = std::clamp(_warpEndProgress, 0.01f, 1.f);
 
     return true;

@@ -85,7 +85,11 @@ void Player_Idle::Update(float timeDelta)
                     changed = _stateCom->Change_State(PlayerState::Climb);
                     break;
                 case WorldInteractionSpot::WorldInteractionType::RopeTouch:
+                    changed = _stateCom->Change_State(PlayerState::RopeAction);
+                    break;
                 case WorldInteractionSpot::WorldInteractionType::RopeLook:
+                    changed = _stateCom->Change_State(PlayerState::GrappleAction);
+                    break;
                 default:
                     changed = _stateCom->Change_State(PlayerState::RopeAction);
                     break;
