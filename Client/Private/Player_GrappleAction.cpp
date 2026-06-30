@@ -13,7 +13,7 @@ namespace
 {
     constexpr float kGrappleActionSpeedScale = 1.5f;
     constexpr float kAnimationBlendDuration = 0.12f;
-    constexpr float kLookPrepareDuration = 0.5f;
+    constexpr float kLookPrepareDuration = 0.2f;
 
     float EaseInOutQuint(float ratio)
     {
