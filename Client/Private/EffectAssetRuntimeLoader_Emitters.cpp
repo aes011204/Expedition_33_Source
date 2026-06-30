@@ -118,6 +118,20 @@ namespace EffectAssetRuntimeLoad::Emitters
         return clamp(required, 2u, kRibbonAutoHistoryMaxCount);
     }
 
+    EffectRibbonSpreadBasis Resolve_RibbonSpreadBasis(const string& token)
+    {
+        if (token == "ViewUp")
+            return EffectRibbonSpreadBasis::ViewUp;
+        if (token == "WorldUp")
+            return EffectRibbonSpreadBasis::WorldUp;
+        if (token == "SourceUp")
+            return EffectRibbonSpreadBasis::SourceUp;
+        if (token == "SourceRight")
+            return EffectRibbonSpreadBasis::SourceRight;
+
+        return EffectRibbonSpreadBasis::CameraFacing;
+    }
+
     uint32 Resolve_SourceHistoryCurveSubdivisionPreset(float sampleSpacing)
     {
         const float smoothDelta = sampleSpacing - 0.04f;
@@ -925,11 +939,43 @@ namespace EffectAssetRuntimeLoad::Emitters
                 desc.autoLifeFade = Read_Bool(typeData, "autoLifeFade", desc.autoLifeFade);
                 desc.tailCollapseOnIdle = Read_Bool(typeData, "tailCollapseOnIdle", desc.tailCollapseOnIdle);
                 desc.tailCollapseSpeed = max(0.f, Read_Float(typeData, "tailCollapseSpeed", desc.tailCollapseSpeed));
+                desc.useManualRoll = Read_Bool(typeData, "useManualRoll", desc.useManualRoll);
+                desc.manualRollDegrees = Read_Float(typeData, "manualRollDegrees", desc.manualRollDegrees);
             }
+        }
+
+        if (const json* ribbonOrientation = Find_ModuleData(emitter, "RibbonOrientation"))
+        {
+            desc.spreadBasis = Resolve_RibbonSpreadBasis(Read_String(*ribbonOrientation, "spreadBasis"));
+            desc.spreadAngleDegrees = Read_Float(*ribbonOrientation, "spreadAngleDegrees", desc.spreadAngleDegrees);
+            desc.useManualRoll = false;
+            desc.manualRollDegrees = 0.f;
         }
 
         if (const json* required = Find_ModuleData(emitter, "Required"))
             Apply_RequiredModule(*required, outDefinition, desc);
+
+        if (const json* initialLocation = Find_ModuleData(emitter, "InitialLocation"))
+        {
+            const auto locationIter = initialLocation->find("location");
+            if (locationIter != initialLocation->end())
+            {
+                const Vec3 minOffset = Evaluate_Vector3DistributionMin(*locationIter, desc.headOffset.minOffset);
+                const Vec3 maxOffset = Evaluate_Vector3DistributionMax(*locationIter, desc.headOffset.maxOffset);
+                desc.headOffset.enabled = true;
+                desc.headOffset.minOffset = Vec3{
+                    min(minOffset.x, maxOffset.x),
+                    min(minOffset.y, maxOffset.y),
+                    min(minOffset.z, maxOffset.z)
+                };
+                desc.headOffset.maxOffset = Vec3{
+                    max(minOffset.x, maxOffset.x),
+                    max(minOffset.y, maxOffset.y),
+                    max(minOffset.z, maxOffset.z)
+                };
+                desc.headOffsetSeed = Read_DistributionRandomSeedDesc(*locationIter, initialLocation);
+            }
+        }
 
         if (const json* materialScalarModulation = Find_ModuleData(emitter, "MaterialScalarModulation"))
         {

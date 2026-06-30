@@ -253,6 +253,16 @@ const AuthoringModuleMetadata& Get_AuthoringModuleMetadata(AuthoringModuleType t
         false,
         true
     };
+    static const AuthoringModuleMetadata ribbonOrientation{
+        "RibbonOrientation",
+        L"리본 방향",
+        L"리본 폭 방향 기준축 / 펼침 각도",
+        true,
+        true,
+        false,
+        false,
+        false
+    };
     static const AuthoringModuleMetadata materialScalarModulation{
         "MaterialScalarModulation",
         L"머티리얼 변조",
@@ -344,6 +354,8 @@ const AuthoringModuleMetadata& Get_AuthoringModuleMetadata(AuthoringModuleType t
         return sourceHistorySpriteTrailPathFollow;
     case AuthoringModuleType::SourceHistorySpriteTrailPathReplay:
         return sourceHistorySpriteTrailPathReplay;
+    case AuthoringModuleType::RibbonOrientation:
+        return ribbonOrientation;
     case AuthoringModuleType::MaterialScalarModulation:
         return materialScalarModulation;
     }

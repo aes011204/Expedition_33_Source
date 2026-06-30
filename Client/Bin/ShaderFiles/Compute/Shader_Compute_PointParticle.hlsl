@@ -13,6 +13,7 @@ struct ParticleInstanceVertex
     float4 endColor;
     float4 subUVRect;
     float2 spriteTiltDegrees;
+    float4 coreColorRgb;
 };
 
 struct ParticleLifecycleState
@@ -103,6 +104,10 @@ cbuffer ComputePointParticleParams : register(b0)
     float4 g_ColorOverLifeAlphaCurveLeaveBlock1;
     float4 g_ColorOverLifeAlphaCurveModes;
     float4 g_ColorOverLifeAlphaCurveModesBlock1;
+    float4 g_CoreColorRgbParticleLifeUniformParams; // x: enabled
+    float4 g_CoreColorRgbParticleLifeUniformMin;
+    float4 g_CoreColorRgbParticleLifeUniformMax;
+    uint4 g_CoreColorRgbParticleLifeUniformSeed;    // x: seed salt after playback-seed resolution
     float4 g_SubUVParams;                        // x/y: rows/cols, z: playback mode, w: frames per second
     float4 g_SubUVFrameParams;                   // x/y: start/end frame, z: loop, w: enabled
     float4 g_SubUVFrameCurveTimes;               // SubUV frame curve key times
@@ -1069,6 +1074,35 @@ float3 SampleRange3(float3 minValue, float3 maxValue, uint seed)
     );
 }
 
+float3 SampleCoreColorRgbParticleLifeUniform(uint respawnSeed)
+{
+    float3 result = float3(1.0f, 0.85f, 0.45f);
+
+    if (g_CoreColorRgbParticleLifeUniformParams.x >= 0.5f)
+    {
+        const uint seed = g_CoreColorRgbParticleLifeUniformSeed.x + respawnSeed * 3571u;
+        result = float3(
+            lerp(
+                min(g_CoreColorRgbParticleLifeUniformMin.x, g_CoreColorRgbParticleLifeUniformMax.x),
+                max(g_CoreColorRgbParticleLifeUniformMin.x, g_CoreColorRgbParticleLifeUniformMax.x),
+                Hash01(seed + 1u)
+            ),
+            lerp(
+                min(g_CoreColorRgbParticleLifeUniformMin.y, g_CoreColorRgbParticleLifeUniformMax.y),
+                max(g_CoreColorRgbParticleLifeUniformMin.y, g_CoreColorRgbParticleLifeUniformMax.y),
+                Hash01(seed + 2u)
+            ),
+            lerp(
+                min(g_CoreColorRgbParticleLifeUniformMin.z, g_CoreColorRgbParticleLifeUniformMax.z),
+                max(g_CoreColorRgbParticleLifeUniformMin.z, g_CoreColorRgbParticleLifeUniformMax.z),
+                Hash01(seed + 3u)
+            )
+        );
+    }
+
+    return result;
+}
+
 float2 SampleRange2(float2 minValue, float2 maxValue, uint seed)
 {
     return lerp(
@@ -1933,6 +1967,7 @@ void CS_Main(uint3 dispatchThreadId : SV_DispatchThreadID)
     const float4 particleColor = EvaluateColorOverLife(lifeProgress, lerp(legacyStartColor, legacyEndColor, lifeProgress));
     instance.startColor = particleColor;
     instance.endColor = particleColor;
+    instance.coreColorRgb = float4(SampleCoreColorRgbParticleLifeUniform(seed), 0.0f);
     instance.subUVRect = float4(u0, v0, u0 + invCols, v0 + invRows);
     instance.spriteTiltDegrees = spriteTiltDegrees;
 

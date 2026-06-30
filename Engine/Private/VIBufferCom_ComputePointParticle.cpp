@@ -82,6 +82,10 @@ struct ComputePointParticleParams
     Vec4 colorOverLifeAlphaCurveLeaveBlock1{};
     Vec4 colorOverLifeAlphaCurveModes{};
     Vec4 colorOverLifeAlphaCurveModesBlock1{};
+    Vec4 coreColorRgbParticleLifeUniformParams{};
+    Vec4 coreColorRgbParticleLifeUniformMin{};
+    Vec4 coreColorRgbParticleLifeUniformMax{};
+    XMUINT4 coreColorRgbParticleLifeUniformSeed{};
     Vec4 subUVParams{};                              // x/y: rows/cols, z: playback mode, w: frames per second.
     Vec4 subUVFrameParams{};                         // x/y: start/end frame, z: loop, w: enabled.
     Vec4 subUVFrameCurveTimes{};                     // SubUV frame curve key times.
@@ -804,6 +808,10 @@ HRESULT VIBufferCom_ComputePointParticle::Update_ConstantBuffer()
         .colorOverLifeAlphaCurveLeaveBlock1 = _desc.colorOverLifeCurve.alphaCurveLeaveBlock1,
         .colorOverLifeAlphaCurveModes = _desc.colorOverLifeCurve.alphaCurveModes,
         .colorOverLifeAlphaCurveModesBlock1 = _desc.colorOverLifeCurve.alphaCurveModesBlock1,
+        .coreColorRgbParticleLifeUniformParams = _desc.coreColorRgbParticleLifeUniformParams,
+        .coreColorRgbParticleLifeUniformMin = _desc.coreColorRgbParticleLifeUniformMin,
+        .coreColorRgbParticleLifeUniformMax = _desc.coreColorRgbParticleLifeUniformMax,
+        .coreColorRgbParticleLifeUniformSeed = _desc.coreColorRgbParticleLifeUniformSeed,
         .subUVParams = Vec4{
             static_cast<float>(max(1u, _desc.subUVRows)),
             static_cast<float>(max(1u, _desc.subUVCols)),

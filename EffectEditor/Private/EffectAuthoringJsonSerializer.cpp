@@ -618,6 +618,8 @@ namespace Internal
         root["autoLifeFade"] = data.autoLifeFade;
         root["tailCollapseOnIdle"] = data.tailCollapseOnIdle;
         root["tailCollapseSpeed"] = data.tailCollapseSpeed;
+        root["useManualRoll"] = data.useManualRoll;
+        root["manualRollDegrees"] = data.manualRollDegrees;
         return root;
     }
 
@@ -727,6 +729,8 @@ namespace Internal
         Read_BoolField(root, "tailCollapseOnIdle", outData.tailCollapseOnIdle);
         Read_NumberField(root, "tailCollapseSpeed", outData.tailCollapseSpeed);
         outData.tailCollapseSpeed = max(0.f, outData.tailCollapseSpeed);
+        Read_BoolField(root, "useManualRoll", outData.useManualRoll);
+        Read_NumberField(root, "manualRollDegrees", outData.manualRollDegrees);
     }
 
     void From_Json(const json& root, SourceHistorySpriteTrailTypeData& outData)
@@ -1924,6 +1928,25 @@ namespace Internal
             Read_RandomSeedField(root, legacySeed);
             Apply_LegacyRandomSeedToUniform(outData.location, legacySeed);
         }
+    }
+
+    json To_Json(const RibbonOrientationModuleData& data)
+    {
+        json root = json::object();
+        root["spreadBasis"] = To_EnumToken(data.spreadBasis);
+        root["spreadAngleDegrees"] = data.spreadAngleDegrees;
+        return root;
+    }
+
+    void From_Json(const json& root, RibbonOrientationModuleData& outData)
+    {
+        if (!root.is_object())
+            return;
+
+        const auto spreadBasisIter = root.find("spreadBasis");
+        if (spreadBasisIter != root.end())
+            Try_ReadEnumToken(*spreadBasisIter, outData.spreadBasis);
+        Read_NumberField(root, "spreadAngleDegrees", outData.spreadAngleDegrees);
     }
 
     json To_Json(const SphereLocationModuleData& data)
@@ -3259,6 +3282,9 @@ json EffectAuthoringJsonSerializer::To_Json(const AuthoringModule& module)
     case AuthoringModuleType::SourceHistorySpriteTrailPathReplay:
         root["data"] = Internal::To_Json(get<SourceHistorySpriteTrailPathReplayModuleData>(module.data));
         break;
+    case AuthoringModuleType::RibbonOrientation:
+        root["data"] = Internal::To_Json(get<RibbonOrientationModuleData>(module.data));
+        break;
     case AuthoringModuleType::MaterialScalarModulation:
         root["data"] = Internal::To_Json(get<MaterialScalarModulationModuleData>(module.data));
         break;
@@ -3423,6 +3449,9 @@ bool EffectAuthoringJsonSerializer::From_Json(const json& root, AuthoringModule&
         case AuthoringModuleType::SourceHistorySpriteTrailPathReplay:
             Internal::From_Json(*dataIter, get<SourceHistorySpriteTrailPathReplayModuleData>(module.data));
             break;
+        case AuthoringModuleType::RibbonOrientation:
+            Internal::From_Json(*dataIter, get<RibbonOrientationModuleData>(module.data));
+            break;
         case AuthoringModuleType::MaterialScalarModulation:
             Internal::From_Json(*dataIter, get<MaterialScalarModulationModuleData>(module.data));
             break;
@@ -3564,6 +3593,8 @@ AuthoringModuleData EffectAuthoringJsonSerializer::Make_DefaultModuleDataForRest
         return SourceHistorySpriteTrailPathFollowModuleData{};
     case AuthoringModuleType::SourceHistorySpriteTrailPathReplay:
         return SourceHistorySpriteTrailPathReplayModuleData{};
+    case AuthoringModuleType::RibbonOrientation:
+        return RibbonOrientationModuleData{};
     case AuthoringModuleType::MaterialScalarModulation:
         return MaterialScalarModulationModuleData{};
     }

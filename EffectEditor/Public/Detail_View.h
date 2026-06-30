@@ -68,6 +68,7 @@ private: //## Data::ModuleDetail
     SpawnModuleDetail _spawnModuleDetail{};
     LifetimeModuleDetail _lifetimeModuleDetail{};
     InitialLocationModuleDetail _initialLocationModuleDetail{};
+    RibbonOrientationModuleDetail _ribbonOrientationModuleDetail{};
     SphereLocationModuleDetail _sphereLocationModuleDetail{};
     PlaneRadialLocationModuleDetail _planeRadialLocationModuleDetail{};
     CylinderLocationModuleDetail _cylinderLocationModuleDetail{};
