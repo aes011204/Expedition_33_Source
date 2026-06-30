@@ -89,6 +89,71 @@ namespace Internal
             NearlyEqual(lhs.w, rhs.w);
     }
 
+    static const char* Get_RibbonSpreadBasisLabel(RibbonSpreadBasis value)
+    {
+        switch (value)
+        {
+        case RibbonSpreadBasis::CameraFacing:
+            return "카메라 바라보기";
+        case RibbonSpreadBasis::ViewUp:
+            return "화면 위쪽";
+        case RibbonSpreadBasis::WorldUp:
+            return "월드 위쪽";
+        case RibbonSpreadBasis::SourceUp:
+            return "소스 위쪽";
+        case RibbonSpreadBasis::SourceRight:
+            return "소스 오른쪽";
+        default:
+            return "카메라 바라보기";
+        }
+    }
+
+    static bool Draw_RibbonSpreadBasisProperty(
+        DetailPropertyContext& detailContext,
+        RibbonSpreadBasis& value,
+        RibbonSpreadBasis defaultValue)
+    {
+        bool changed = false;
+
+        ImGui::PushID("RibbonSpreadBasis");
+        detailContext.Draw_PropertyLabel("펼침 기준", "리본 중심선을 기준으로 폭 방향을 계산할 때 사용할 기준축입니다.");
+        ImGui::SetNextItemWidth(-FLT_MIN);
+        if (ImGui::BeginCombo("##Value", Get_RibbonSpreadBasisLabel(value)))
+        {
+            constexpr RibbonSpreadBasis kValues[] = {
+                RibbonSpreadBasis::CameraFacing,
+                RibbonSpreadBasis::ViewUp,
+                RibbonSpreadBasis::WorldUp,
+                RibbonSpreadBasis::SourceUp,
+                RibbonSpreadBasis::SourceRight,
+            };
+
+            for (const RibbonSpreadBasis candidate : kValues)
+            {
+                const bool isSelected = value == candidate;
+                if (ImGui::Selectable(Get_RibbonSpreadBasisLabel(candidate), isSelected))
+                {
+                    value = candidate;
+                    changed = true;
+                }
+
+                if (isSelected)
+                    ImGui::SetItemDefaultFocus();
+            }
+
+            ImGui::EndCombo();
+        }
+
+        if (detailContext.Draw_ResetButton(value != defaultValue))
+        {
+            value = defaultValue;
+            changed = true;
+        }
+        ImGui::PopID();
+
+        return changed;
+    }
+
     static bool Is_SameAdditiveContribution(
         const EffectMaterialAdditiveContributionData& lhs,
         const EffectMaterialAdditiveContributionData& rhs)
@@ -595,9 +660,18 @@ namespace Internal
         }
     }
 
-    static bool Is_SpriteMaterialScalarParticleLifeSupported(const AuthoringEmitter& emitter)
+    static bool Is_MaterialScalarParticleLifeSupported(const AuthoringEmitter& emitter)
     {
-        return emitter.typeData.kind == AuthoringTypeDataKind::None && emitter.rendererType == "Sprite";
+        return emitter.rendererType == "Sprite" ||
+               emitter.rendererType == "Trail" ||
+               emitter.rendererType == "Ribbon" ||
+               emitter.rendererType == "Beam" ||
+               emitter.rendererType == "Mesh" ||
+               emitter.typeData.kind == AuthoringTypeDataKind::SourceHistorySpriteTrail ||
+               emitter.typeData.kind == AuthoringTypeDataKind::Trail ||
+               emitter.typeData.kind == AuthoringTypeDataKind::Ribbon ||
+               emitter.typeData.kind == AuthoringTypeDataKind::Beam ||
+               emitter.typeData.kind == AuthoringTypeDataKind::Mesh;
     }
 
     static bool Is_MaterialScalarTimeSourceSelectable(
@@ -1926,7 +2000,7 @@ namespace Internal
         ShaderResourceView* previewSrv = nullptr;
         if (materialSlotPreview != nullptr)
         {
-            const bool allowScalarParticleLife = Is_SpriteMaterialScalarParticleLifeSupported(emitter);
+            const bool allowScalarParticleLife = Is_MaterialScalarParticleLifeSupported(emitter);
             materialSlotPreview->Update_MaterialTime(timeDelta);
             if (const MaterialScalarModulationModuleData* modulation = Find_MaterialScalarModulationModuleData(emitter))
             {
@@ -2753,10 +2827,11 @@ bool InitialMeshSizeModuleDetail::Draw(AuthoringEmitter&, AuthoringModule&, Init
     return changed;
 }
 
-bool InitialLocationModuleDetail::Draw(AuthoringEmitter&, AuthoringModule&, InitialLocationModuleData& data, DetailPropertyContext& detailContext)
+bool InitialLocationModuleDetail::Draw(AuthoringEmitter& emitter, AuthoringModule&, InitialLocationModuleData& data, DetailPropertyContext& detailContext)
 {
     const InitialLocationModuleData defaultData{};
     bool changed = false;
+    const bool isRibbon = emitter.typeData.kind == AuthoringTypeDataKind::Ribbon;
 
     if (ImGui::CollapsingHeader("위치", ImGuiTreeNodeFlags_DefaultOpen))
     {
@@ -2768,8 +2843,38 @@ bool InitialLocationModuleDetail::Draw(AuthoringEmitter&, AuthoringModule&, Init
             false,
             true,
             nullptr,
-            "spawn 시점에 한 번 샘플되는 emitter origin 기준 local offset입니다."
+            isRibbon
+                ? "Ribbon이 source history Head에 더하는 emitter local offset입니다."
+                : "spawn 시점에 한 번 샘플되는 emitter origin 기준 local offset입니다."
         );
+    }
+
+    return changed;
+}
+
+bool RibbonOrientationModuleDetail::Draw(AuthoringEmitter&, AuthoringModule&, RibbonOrientationModuleData& data, DetailPropertyContext& detailContext)
+{
+    const RibbonOrientationModuleData defaultData{};
+    bool changed = false;
+
+    if (ImGui::CollapsingHeader("리본 방향", ImGuiTreeNodeFlags_DefaultOpen))
+    {
+        if (detailContext.Begin_PropertyTable("RibbonOrientation"))
+        {
+            changed |= Internal::Draw_RibbonSpreadBasisProperty(
+                detailContext,
+                data.spreadBasis,
+                defaultData.spreadBasis
+            );
+            changed |= detailContext.Draw_FloatProperty(
+                "펼침 각도",
+                data.spreadAngleDegrees,
+                defaultData.spreadAngleDegrees,
+                0.1f,
+                "선택한 펼침 기준으로 만든 폭 방향을 리본 tangent 축 기준으로 추가 회전하는 각도입니다."
+            );
+            detailContext.End_PropertyTable();
+        }
     }
 
     return changed;
@@ -4524,7 +4629,7 @@ bool MaterialScalarModulationModuleDetail::Draw(
     DetailPropertyContext& detailContext)
 {
     bool changed = false;
-    const bool allowScalarParticleLife = Internal::Is_SpriteMaterialScalarParticleLifeSupported(emitter);
+    const bool allowScalarParticleLife = Internal::Is_MaterialScalarParticleLifeSupported(emitter);
 
     if (ImGui::CollapsingHeader("머티리얼 변조", ImGuiTreeNodeFlags_DefaultOpen))
     {
@@ -4653,18 +4758,12 @@ bool MaterialScalarModulationModuleDetail::Draw(
 
                         if (!structureChanged)
                         {
-                            if (modulator.timeSource == MaterialScalarModulationTimeSource::ParticleLife)
-                            {
-                                modulator.timeSource = MaterialScalarModulationTimeSource::EmitterTime;
-                                changed = true;
-                            }
-
                             changed |= Internal::Draw_MaterialScalarTimeSourceProperty(
                                 detailContext,
                                 "시간 축",
                                 modulator.timeSource,
                                 defaultData.timeSource,
-                                false
+                                allowScalarParticleLife
                             );
                         }
                         detailContext.End_PropertyTable();
@@ -4680,7 +4779,7 @@ bool MaterialScalarModulationModuleDetail::Draw(
                             true,
                             false,
                             nullptr,
-                            "선택한 시간 축을 입력으로 Core Color RGB에 곱할 값을 평가합니다."
+                            "선택한 시간 축을 입력으로 Core Color RGB에 적용할 RGB 색 값을 평가합니다."
                         );
 
                         if (ImGui::Button("삭제"))
@@ -4731,7 +4830,7 @@ bool MaterialScalarModulationModuleDetail::Draw(
                             {
                                 MaterialCoreColorRgbModulatorData coreColorRgbModulator = Internal::Make_CoreColorRgbModulator(emitter);
                                 coreColorRgbModulator.enabled = modulator.enabled;
-                                coreColorRgbModulator.timeSource = MaterialScalarModulationTimeSource::EmitterTime;
+                                coreColorRgbModulator.timeSource = modulator.timeSource;
                                 data.coreColorRgbModulators.push_back(coreColorRgbModulator);
                                 data.vec2Modulators.erase(data.vec2Modulators.begin() + static_cast<ptrdiff_t>(row.index));
                                 structureChanged = true;
@@ -4804,10 +4903,7 @@ bool MaterialScalarModulationModuleDetail::Draw(
                             {
                                 MaterialCoreColorRgbModulatorData coreColorRgbModulator = Internal::Make_CoreColorRgbModulator(emitter);
                                 coreColorRgbModulator.enabled = modulator.enabled;
-                                coreColorRgbModulator.timeSource =
-                                    modulator.timeSource == MaterialScalarModulationTimeSource::ParticleLife
-                                    ? MaterialScalarModulationTimeSource::EmitterTime
-                                    : modulator.timeSource;
+                                coreColorRgbModulator.timeSource = modulator.timeSource;
                                 data.coreColorRgbModulators.push_back(coreColorRgbModulator);
                                 data.modulators.erase(data.modulators.begin() + static_cast<ptrdiff_t>(row.index));
                                 structureChanged = true;
