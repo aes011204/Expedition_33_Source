@@ -179,7 +179,7 @@ HRESULT MapLandscape::Initialize(void* arg)
         _physxStaticHandle = GAME->Register_PhysXStaticCollision(
             *_collisionData,
             _transformCom->Get_WorldMatrix(),
-            Collision_Preset::Enviroment);
+            Collision_Preset::Environment);
     }
 
     return S_OK;

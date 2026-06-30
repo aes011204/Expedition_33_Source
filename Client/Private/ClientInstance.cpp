@@ -53,6 +53,8 @@ namespace
     bool g_debugDisableMapInstancedMeshRender = false;
     bool g_debugDisableGrassInstancedRender = false;
     bool g_debugDisableMapStaticMeshRender = false;
+    uint32 g_debugMapInstancedVisibleCountReadbackRequestId = 0;
+    bool g_debugForceGestralPalisadeInstancedCull = false;
     bool g_debugDisableMapInstancedMeshShadow = false;
     bool g_debugUseMapInstancedMeshShadowLOD = false;
     bool g_debugDisableGrassInstancedShadow = false;
@@ -203,7 +205,7 @@ HRESULT ClientInstance::Initialize_Client(const ComPtr<Device>& device, const Co
 
     _cinematicSequenceRunner = CinematicSequenceRunner::Create();
     CHECK_NULL(_cinematicSequenceRunner, E_FAIL);
-    
+
     _playerInventory = PlayerInventory::Create();
     CHECK_NULL(_playerInventory, E_FAIL);
 
@@ -213,22 +215,32 @@ HRESULT ClientInstance::Initialize_Client(const ComPtr<Device>& device, const Co
     // 무기 세팅
     vector<PlayerInventory::WeaponInventoryEntry> defaultUnlockedWeapons{};
     const HeroId defaultWeaponHeroes[] = { HeroId::Gustave, HeroId::Lune, HeroId::Maelle };
+
     for (HeroId heroId : defaultWeaponHeroes)
     {
         const string characterId = Get_WeaponCharacterId(heroId);
-        const string weaponId = Get_DefaultEquippedWeaponId(heroId);
-        if (characterId.empty() || weaponId.empty())
-            continue;
+        const string weaponIds[] =
+        {
+            Get_DefaultEquippedWeaponId(heroId),
+            "Baguette",
+        };
 
-        const GameDataTable::WeaponDesc* weapon = Get_WeaponDesc(characterId, weaponId);
+        for (const string& weaponId : weaponIds)
+        {
+            if (characterId.empty() || weaponId.empty())
+                continue;
 
-        PlayerInventory::WeaponInventoryEntry entry{};
-        entry.characterId = weapon ? weapon->characterId : characterId;
-        entry.weaponId = weapon ? weapon->weaponId : weaponId;
-        entry.enhanceLevel = weapon ? weapon->level : 1;
-        entry.enhanceExp = 0;
-        defaultUnlockedWeapons.emplace_back(std::move(entry));
+            const GameDataTable::WeaponDesc* weapon = Get_WeaponDesc(characterId, weaponId);
+
+            PlayerInventory::WeaponInventoryEntry entry{};
+            entry.characterId = weapon ? weapon->characterId : characterId;
+            entry.weaponId = weapon ? weapon->weaponId : weaponId;
+            entry.enhanceLevel = weapon ? weapon->level : 1;
+            entry.enhanceExp = 0;
+            defaultUnlockedWeapons.emplace_back(std::move(entry));
+        }
     }
+
     _playerInventory->Ensure_DefaultUnlockedWeapons(defaultUnlockedWeapons);
 
     _costumeManager = CostumeManager::Create();
@@ -240,17 +252,17 @@ HRESULT ClientInstance::Initialize_Client(const ComPtr<Device>& device, const Co
     _dialogueDB = DialogueDB::Create();
     CHECK_NULL(_dialogueDB, E_FAIL);
 
-   _dialogueDB->LoadFromFile(String::ToString(Client::Constants::Dialogue::Dialogue_Dir));
+    _dialogueDB->LoadFromFile(String::ToString(Client::Constants::Dialogue::Dialogue_Dir));
 
-   _dialogueManager = DialogueManager::Create();
+    _dialogueManager = DialogueManager::Create();
     CHECK_NULL(_dialogueManager, E_FAIL);
-    
+
     _battleFollowupManager = BattleFollowupManager::Create();
     CHECK_NULL(_battleFollowupManager, E_FAIL);
 
-	_isInitialized = true;
+    _isInitialized = true;
 
-	return S_OK;
+    return S_OK;
 }
 
 HRESULT ClientInstance::Initialize_Client_ForEffectEditor(const ComPtr<Device>& device, const ComPtr<Context>& context)
@@ -300,7 +312,7 @@ void ClientInstance::Update_Client(float timeDelta)
     if (_effectInstancePool)
         _effectInstancePool->Release_Finished();
 
-    if(_cinematicSequenceRunner)
+    if (_cinematicSequenceRunner)
         _cinematicSequenceRunner->Update(timeDelta, true);
 
     if (_dialogueManager)
@@ -371,6 +383,28 @@ bool ClientInstance::Is_DebugDisableMapStaticMeshRender()
 void ClientInstance::Set_DebugDisableMapStaticMeshRender(bool disabled)
 {
     g_debugDisableMapStaticMeshRender = disabled;
+}
+
+void ClientInstance::Request_DebugMapInstancedVisibleCountReadback()
+{
+    ++g_debugMapInstancedVisibleCountReadbackRequestId;
+    if (g_debugMapInstancedVisibleCountReadbackRequestId == 0)
+        g_debugMapInstancedVisibleCountReadbackRequestId = 1;
+}
+
+uint32 ClientInstance::Get_DebugMapInstancedVisibleCountReadbackRequestId()
+{
+    return g_debugMapInstancedVisibleCountReadbackRequestId;
+}
+
+bool ClientInstance::Is_DebugForceGestralPalisadeInstancedCull()
+{
+    return g_debugForceGestralPalisadeInstancedCull;
+}
+
+void ClientInstance::Set_DebugForceGestralPalisadeInstancedCull(bool enabled)
+{
+    g_debugForceGestralPalisadeInstancedCull = enabled;
 }
 
 bool ClientInstance::Is_DebugDisableMapInstancedMeshShadow()
@@ -451,7 +485,7 @@ GameDataTable::SkillTreeDesc* ClientInstance::Get_SkillTreeDesc(const string& sk
     return _gameDataTable->Get_SkillTreeDesc(skillName);
 }
 
-const umap<string, vector<string>>*  ClientInstance::Get_SkillTreeRequirementData()
+const umap<string, vector<string>>* ClientInstance::Get_SkillTreeRequirementData()
 {
     return _gameDataTable->Get_SkillTreeRequirementData();
 }
@@ -470,6 +504,46 @@ const vector<GameDataTable::WeaponDesc>* ClientInstance::Get_WeaponDescs(const s
         return nullptr;
 
     return _gameDataTable->Get_WeaponDescs(characterId);
+}
+
+const GameDataTable::WeaponUpgradeDesc* ClientInstance::Get_WeaponUpgradeDesc(
+    const string& characterId,
+    const string& weaponId,
+    uint32 level) const
+{
+    if (_gameDataTable == nullptr)
+        return nullptr;
+
+    return _gameDataTable->Get_WeaponUpgradeDesc(characterId, weaponId, level);
+}
+
+const GameDataTable::WeaponUpgradeDesc* ClientInstance::Get_NextWeaponUpgradeDesc(
+    const string& characterId,
+    const string& weaponId,
+    uint32 currentLevel) const
+{
+    if (_gameDataTable == nullptr)
+        return nullptr;
+
+    return _gameDataTable->Get_NextWeaponUpgradeDesc(characterId, weaponId, currentLevel);
+}
+
+uint32 ClientInstance::Resolve_WeaponEnhanceLevel(const string& characterId, const string& weaponId) const
+{
+    if (_playerInventory == nullptr)
+        return 1;
+
+    return _playerInventory->Get_WeaponEnhanceLevel(characterId, weaponId);
+}
+
+uint32 ClientInstance::Resolve_WeaponPower(const string& characterId, const string& weaponId) const
+{
+    const uint32 enhanceLevel = Resolve_WeaponEnhanceLevel(characterId, weaponId);
+    if (const GameDataTable::WeaponUpgradeDesc* upgradeDesc = Get_WeaponUpgradeDesc(characterId, weaponId, enhanceLevel))
+        return upgradeDesc->power;
+
+    const GameDataTable::WeaponDesc* weaponDesc = Get_WeaponDesc(characterId, weaponId);
+    return weaponDesc ? weaponDesc->power : 0;
 }
 
 const Skill_Data* ClientInstance::Get_Skill(const string& skillId)
@@ -530,7 +604,7 @@ const Item_Data* ClientInstance::Get_Item(const string& itemId)
 
 const Item_Data* ClientInstance::Get_Item(BattleItemType itemType)
 {
-     if (!_gameDataTable)
+    if (!_gameDataTable)
         return nullptr;
 
     return _gameDataTable->Get_Item(itemType);
@@ -698,7 +772,7 @@ bool ClientInstance::Ensure_DefaultEquippedWeapon(HeroId heroId)
     if (weaponDesc == nullptr)
         return false;
 
-    statCom->Set_EquippedWeapon(weaponDesc->weaponId, weaponDesc->power);
+    statCom->Set_EquippedWeapon(weaponDesc->weaponId, Resolve_WeaponPower(characterId, weaponDesc->weaponId));
     return true;
 }
 
@@ -729,6 +803,8 @@ HRESULT ClientInstance::Initialize_GameplayUI(uint32 levelIndex)
 
 void ClientInstance::Clear_GameplayUI()
 {
+    Clear_InteractionPrompt(nullptr);
+
     if (_gamePlayUI)
     {
         _gamePlayUI->Free();
@@ -1171,8 +1247,8 @@ bool ClientInstance::Is_FadeTransitionPlaying() const
 }
 
 void ClientInstance::OnEnterBattleField(uint32 FieldID, bool isPlayerAdvantage, const vector<HeroId>& heroIds,
-                                        const vector<BattleMonsterSpawnDesc>& battleMonsterSpawnDescs, const Shared<GameObject>& sourceObject,
-                                        bool completeImmediately, int32 battleStartSpawnerId, const Vec3& battleStartOffset)
+    const vector<BattleMonsterSpawnDesc>& battleMonsterSpawnDescs, const Shared<GameObject>& sourceObject,
+    bool completeImmediately, int32 battleStartSpawnerId, const Vec3& battleStartOffset)
 {
     if (_dialogueManager && _dialogueManager->IsActive())
         _dialogueManager->EndDialogue(false);
@@ -1196,6 +1272,10 @@ bool ClientInstance::Request_DialogueBattlePotatoBag()
     if (Is_BattleActive() || Is_BattleEntering())
         return false;
 
+    // 감자자루 전투 진입 시, 특정 해금 진행
+    RuntimeRuleStateService::Apply_ToCurrentRuntime(
+        RuntimeRuleStateService::Build_PotatoBagStartUnlocks(), false);
+
     BattleMonsterSpawnDesc spawnDesc{};
     spawnDesc.prefabName = Constants::Prefab::MB_PotatoBag;
 
@@ -1209,7 +1289,7 @@ bool ClientInstance::Request_DialogueBattlePotatoBag()
 
     OnEnterBattleField(
         Constants::Value::potatoBagEncounterId,
-        false,
+        true,
         Resolve_BattleEncounterHeroIds(Constants::Value::potatoBagEncounterId),
         battleMonsterSpawnDescs,
         nullptr,
@@ -1228,6 +1308,13 @@ bool ClientInstance::Is_BattleActive() const
 bool ClientInstance::Is_BattleEntering() const
 {
     return _battleController && _battleController->Is_BattleEntering();
+}
+
+bool ClientInstance::Is_PotatoBagBattleActive() const
+{
+    // 감자자루랑 전투중일 때에만 NPC가 보이게 처리하ㅣㄱ
+    return _battleController &&
+        _battleController->Is_BattleFieldActiveOrEntering(Constants::Value::potatoBagEncounterId);
 }
 
 void ClientInstance::Request_GamePlay()
@@ -1462,14 +1549,14 @@ void ClientInstance::Clear_CinematicCompletedCallbacks()
     if (_cinematicSequenceRunner == nullptr)
         return;
 
-    _cinematicSequenceRunner->Clear_CompletedCallbacks(); 
+    _cinematicSequenceRunner->Clear_CompletedCallbacks();
 }
 
 Shared<CinematicCamera> ClientInstance::Ensure_CinematicCamera()
 {
-    if(auto camera = dynamic_pointer_cast<CinematicCamera>(GAME->Get_CameraByType(ObjectType::CinematicCamera)))
+    if (auto camera = dynamic_pointer_cast<CinematicCamera>(GAME->Get_CameraByType(ObjectType::CinematicCamera)))
     {
-        return camera;  
+        return camera;
     }
 
     Shared<GameObject> gameObject;
@@ -1484,14 +1571,14 @@ Shared<CinematicCamera> ClientInstance::Ensure_CinematicCamera()
     desc.farPlane = 500.f;
     desc.mouseSensor = 0.05f;
 
-    if(FAILED(GAME->Add_GameObject(ETOI(LevelType::Static), L"GameObject_CinematicCamera", ETOI(LevelType::Static), L"Layer_Camera", gameObject, &desc)))
+    if (FAILED(GAME->Add_GameObject(ETOI(LevelType::Static), L"GameObject_CinematicCamera", ETOI(LevelType::Static), L"Layer_Camera", gameObject, &desc)))
     {
         return nullptr;
     }
 
     Shared<CinematicCamera> cinematicCamera = dynamic_pointer_cast<CinematicCamera>(gameObject);
 
-    if(cinematicCamera == nullptr)
+    if (cinematicCamera == nullptr)
         return nullptr;
 
     GAME->Add_Camera(cinematicCamera);
@@ -1500,9 +1587,9 @@ Shared<CinematicCamera> ClientInstance::Ensure_CinematicCamera()
 
 Shared<DialogueCamera> ClientInstance::Ensure_DialogueCamera()
 {
-    if(auto camera = dynamic_pointer_cast<DialogueCamera>(GAME->Get_CameraByType(ObjectType::DialogueCamera)))
+    if (auto camera = dynamic_pointer_cast<DialogueCamera>(GAME->Get_CameraByType(ObjectType::DialogueCamera)))
     {
-        return camera;  
+        return camera;
     }
 
     Shared<GameObject> gameObject;
@@ -1517,14 +1604,14 @@ Shared<DialogueCamera> ClientInstance::Ensure_DialogueCamera()
     desc.farPlane = 500.f;
     desc.mouseSensor = 0.05f;
 
-    if(FAILED(GAME->Add_GameObject(ETOI(LevelType::Static), L"GameObject_DialogueCamera", ETOI(LevelType::Static), L"Layer_Camera", gameObject, &desc)))
+    if (FAILED(GAME->Add_GameObject(ETOI(LevelType::Static), L"GameObject_DialogueCamera", ETOI(LevelType::Static), L"Layer_Camera", gameObject, &desc)))
     {
         return nullptr;
     }
 
     Shared<DialogueCamera> dialogueCamera = dynamic_pointer_cast<DialogueCamera>(gameObject);
 
-    if(dialogueCamera == nullptr)
+    if (dialogueCamera == nullptr)
         return nullptr;
 
     GAME->Add_Camera(dialogueCamera);
@@ -1833,6 +1920,38 @@ void ClientInstance::RemoveItemInteractionOverlap()
 {
     if (_itemInteractionOverlapCount > 0)
         --_itemInteractionOverlapCount;
+
+}
+void ClientInstance::Request_InteractionPrompt(const void* sourceId, const Vec3& worldAnchor)
+{
+    if (sourceId == nullptr)
+        return;
+
+    _interactionPromptSourceId = sourceId;
+    _interactionPromptWorldAnchor = worldAnchor;
+    _hasInteractionPromptRequest = true;
+}
+
+void ClientInstance::Clear_InteractionPrompt(const void* sourceId)
+{
+    if (!_hasInteractionPromptRequest)
+        return;
+
+    if (sourceId != nullptr && _interactionPromptSourceId != sourceId)
+        return;
+
+    _hasInteractionPromptRequest = false;
+    _interactionPromptSourceId = nullptr;
+    _interactionPromptWorldAnchor = Vec3::Zero;
+}
+
+bool ClientInstance::Try_GetInteractionPromptAnchor(Vec3& outWorldAnchor) const
+{
+    if (!_hasInteractionPromptRequest)
+        return false;
+
+    outWorldAnchor = _interactionPromptWorldAnchor;
+    return true;
 }
 
 HRESULT ClientInstance::Ready_ResourceLoader()
@@ -1859,13 +1978,13 @@ void ClientInstance::Release_Client()
     MapLoader::Clear_GlobalCache();
 
     auto ReleaseManager = [](auto& manager)
-    {
-        if (manager)
         {
-            manager->Free();
-            manager.reset();
-        }
-    };
+            if (manager)
+            {
+                manager->Free();
+                manager.reset();
+            }
+        };
 
     ReleaseManager(_gameDataTable);
     ReleaseManager(_previewShotTable);

@@ -47,6 +47,7 @@
 #include "UI_BattleJumpReaction.h"
 #include "UI_QTE.h"
 #include "UI_MarkEffect.h"
+#include "UI_BattleGradientGauge.h"
 #include "MonsterStatCom.h"
 #include "UI_BattleTutorial.h"
 #include "BattleTutorialController.h"
@@ -155,7 +156,6 @@ HRESULT GameplayUI_Battle::Initialize(uint32 levelIndex)
     CHECK_FAILED(Create_UI(_choiceTarget, UI_ChoiceTarget::Create), E_FAIL);
     CHECK_FAILED(Create_UI(_escapeSkipTurn, UI_EscapeSkipTurnBack::Create), E_FAIL);
     CHECK_FAILED(Create_UI(_attackTooltip, UI_AttackTooltip::Create), E_FAIL);
-    CHECK_FAILED(Create_UI(_reactionResult, UI_ReactionResult::Create), E_FAIL);
     CHECK_FAILED(Create_UI(_battleVictory, UI_BattleVictory::Create), E_FAIL);
     CHECK_FAILED(Create_UI(_turnOrder, UI_BattleSystem_TurnOrder::Create), E_FAIL);
     CHECK_FAILED(Create_UI(_battleMechanism, UI_BattleMechanism::Create), E_FAIL);
@@ -166,6 +166,7 @@ HRESULT GameplayUI_Battle::Initialize(uint32 levelIndex)
     CHECK_FAILED(Create_UI(_qte, UI_QTE::Create), E_FAIL);
     CHECK_FAILED(Create_UI(_markEffect, UI_MarkEffect::Create), E_FAIL);
     CHECK_FAILED(Create_UI(_battleTutorial, UI_BattleTutorial::Create), E_FAIL);
+    CHECK_FAILED(Create_UI(_battleGradientGauge, UI_BattleGradientGauge::Create), E_FAIL);
     CHECK_FAILED(Create_UI(_battleJumpReaction, UI_BattleJumpReaction::Create), E_FAIL);
 
     // 데미지 폰트 최대 8개
@@ -193,6 +194,12 @@ HRESULT GameplayUI_Battle::Initialize(uint32 levelIndex)
     {
         addAP = UI_AddAP::Create(levelIndex);
         CHECK_NULL(addAP, E_FAIL);
+    }
+
+    for (auto& reactionResult : _reactionResults)
+    {
+        reactionResult = UI_ReactionResult::Create(levelIndex);
+        CHECK_NULL(reactionResult, E_FAIL);
     }
 
     for (auto& battlePictos : _battlePictos)
@@ -225,6 +232,7 @@ void GameplayUI_Battle::Update(float timeDelta)
 {
     Update_BattleCommandHUD(timeDelta); // 플레이어 전투 입력 허드
     Update_BattleSystemHUD(timeDelta);  // 파티 portrait HP/AP HUD
+    Update_BattleGradientGauge(timeDelta); // Gradient 해금 후 현재 턴 actor의 게이지 스택
     Update_BattlePictos(timeDelta);     // 픽토스 활성화 알림은 portrait 위치를 기준으로 쌓는다.
     Update_BattleSystemIntroState(timeDelta);
     Update_MonsterHpBar(timeDelta);     // 몬스터 체력
@@ -294,7 +302,6 @@ vector<RuntimeUIEntry> GameplayUI_Battle::Get_RuntimeUIEntries() const
     Append_RuntimePanelEntry(entries, "ChoiceTarget", _choiceTarget.get());
     Append_RuntimePanelEntry(entries, "EscapeSkipTurn", _escapeSkipTurn.get());
     Append_RuntimePanelEntry(entries, "AttackTooltip", _attackTooltip.get());
-    Append_RuntimePanelEntry(entries, "ReactionResult", _reactionResult.get());
     Append_RuntimePanelEntry(entries, "BattleVictory", _battleVictory.get());
     Append_RuntimePanelEntry(entries, "TurnOrder", _turnOrder.get());
     Append_RuntimePanelEntry(entries, "BattleMechanism", _battleMechanism.get());
@@ -310,6 +317,7 @@ vector<RuntimeUIEntry> GameplayUI_Battle::Get_RuntimeUIEntries() const
     Append_RuntimePanelEntry(entries, "QTE", _qte.get());
     Append_RuntimePanelEntry(entries, "MarkEffect", _markEffect.get());
     Append_RuntimePanelEntry(entries, "BattleTutorial", _battleTutorial.get());
+    Append_RuntimePanelEntry(entries, "BattleGradientGauge", _battleGradientGauge.get());
     Append_RuntimePanelEntry(entries, "BattleJumpReaction", _battleJumpReaction.get());
 
     for (uint32 i = 0; i < _damageFonts.size(); ++i)
@@ -323,6 +331,9 @@ vector<RuntimeUIEntry> GameplayUI_Battle::Get_RuntimeUIEntries() const
 
     for (uint32 i = 0; i < _addAPs.size(); ++i)
         Append_OpenedRuntimePanelEntry(entries, ("AddAP_" + to_string(i)).c_str(), _addAPs[i].get());
+
+    for (uint32 i = 0; i < _reactionResults.size(); ++i)
+        Append_OpenedRuntimePanelEntry(entries, ("ReactionResult_" + to_string(i)).c_str(), _reactionResults[i].get());
 
     for (uint32 i = 0; i < _battlePictos.size(); ++i)
         Append_RuntimePanelEntry(entries, ("BattlePictos_" + to_string(i)).c_str(), _battlePictos[i].get());
@@ -612,7 +623,6 @@ void GameplayUI_Battle::Handle_BattleStarted(uint32 fieldId, bool isPlayerAdvant
         _battleDefense.get(),
         _cancelAim.get(),
         _choiceTarget.get(),
-        _reactionResult.get(),
         _battleMechanism.get(),
         _battleAnnounce.get(),
         _suddenAttack.get(),
@@ -648,6 +658,12 @@ void GameplayUI_Battle::Handle_BattleStarted(uint32 fieldId, bool isPlayerAdvant
     {
         if (addAP)
             addAP->Close();
+    }
+
+    for (auto& reactionResult : _reactionResults)
+    {
+        if (reactionResult)
+            reactionResult->Close();
     }
 
     for (auto& battlePictos : _battlePictos)
@@ -823,7 +839,6 @@ void GameplayUI_Battle::Handle_TurnEnded(const BattleChar& actor)
         _battleDefense.get(),
         _cancelAim.get(),
         _choiceTarget.get(),
-        _reactionResult.get(),
         _battleMechanism.get(),
         _battleAnnounce.get(),
         _suddenAttack.get(),
@@ -1084,13 +1099,52 @@ void GameplayUI_Battle::Handle_ReactionSucceeded(BattleReactionType reactionType
         }
     }
 
-    if (_reactionResult == nullptr ||
+    if (_reactionResults.empty() ||
         (reactionType != BattleReactionType::Dodge && reactionType != BattleReactionType::Parry))
     {
         return;
     }
 
-    _reactionResult->Show_Reaction(reactionType);
+    uint32 stackIndex = 0;
+
+    for (const BattleChar& targetChar : target)
+    {
+        if (targetChar.actor == nullptr)
+            continue;
+
+        UI_ReactionResult* selectedSlot = nullptr;
+        UI_ReactionResult* oldestSlot = nullptr;
+        float longestElapsed = -1.f;
+
+        for (auto& reactionResult : _reactionResults)
+        {
+            if (!reactionResult)
+                continue;
+
+            if (reactionResult->Is_Playing())
+            {
+                if (reactionResult->Get_Elapsed() > longestElapsed)
+                {
+                    longestElapsed = reactionResult->Get_Elapsed();
+                    oldestSlot = reactionResult.get();
+                }
+
+                continue;
+            }
+
+            if (selectedSlot == nullptr)
+                selectedSlot = reactionResult.get();
+        }
+
+        if (selectedSlot == nullptr)
+            selectedSlot = oldestSlot;
+
+        if (selectedSlot == nullptr)
+            continue;
+
+        selectedSlot->Show_Reaction(reactionType, targetChar, min(stackIndex, kReactionResultPoolSize - 1));
+        ++stackIndex;
+    }
 }
 
 void GameplayUI_Battle::Handle_ReactionWindowOpened(BattleReactionType reactionType)
@@ -1843,19 +1897,6 @@ void GameplayUI_Battle::Update_ChoiceTarget(float timeDelta)
 
     const BattleTurnState turnState = battleController->Get_CurrentTurnState();
 
-    if (turnState == BattleTurnState::ChooseAction || turnState == BattleTurnState::ChooseSkill)
-    {
-        if (battleController->Get_TargetPreview() == nullptr)
-        {
-            _choiceTarget->Close();
-            return;
-        }
-
-        _choiceTarget->Open();
-        _choiceTarget->Update(timeDelta);
-        return;
-    }
-
     if (turnState == BattleTurnState::AttackTargeting)
     {
         _choiceTarget->Open();
@@ -2029,16 +2070,22 @@ void GameplayUI_Battle::Update_AttackTooltip(float timeDelta)
 
 void GameplayUI_Battle::Update_ReactionResult(float timeDelta)
 {
-    if (_reactionResult == nullptr)
-        return;
-
     if (!_isBattleUiActive)
     {
-        _reactionResult->Close();
+        for (auto& reactionResult : _reactionResults)
+        {
+            if (reactionResult)
+                reactionResult->Close();
+        }
+
         return;
     }
 
-    _reactionResult->Update(timeDelta);
+    for (auto& reactionResult : _reactionResults)
+    {
+        if (reactionResult)
+            reactionResult->Update(timeDelta);
+    }
 }
 
 void GameplayUI_Battle::Update_BattleJumpReaction(float timeDelta)
@@ -2053,6 +2100,22 @@ void GameplayUI_Battle::Update_BattleJumpReaction(float timeDelta)
     }
 
     _battleJumpReaction->Update(timeDelta);
+}
+
+void GameplayUI_Battle::Update_BattleGradientGauge(float timeDelta)
+{
+    UNREFERENCED_PARAMETER(timeDelta);
+
+    if (_battleGradientGauge == nullptr)
+        return;
+
+    if (!_isBattleUiActive || !_isPlayerTurnUiActive || !_hasCurrentPlayerTurnActor)
+    {
+        _battleGradientGauge->Close();
+        return;
+    }
+
+    _battleGradientGauge->Update_ForActor(_currentPlayerTurnActor);
 }
 
 void GameplayUI_Battle::Update_BattleVictory(float timeDelta)
@@ -2764,7 +2827,6 @@ void GameplayUI_Battle::Reset_BattleUiRuntimeState(bool closeVictoryUi)
         _choiceTarget.get(),
         _escapeSkipTurn.get(),
         _attackTooltip.get(),
-        _reactionResult.get(),
         _turnOrder.get(),
         _battleMechanism.get(),
         _battleItemPanel.get(),
@@ -2774,6 +2836,7 @@ void GameplayUI_Battle::Reset_BattleUiRuntimeState(bool closeVictoryUi)
         _qte.get(),
         _markEffect.get(),
         _battleTutorial.get(),
+        _battleGradientGauge.get(),
         _battleJumpReaction.get(),
     };
 
@@ -2781,6 +2844,18 @@ void GameplayUI_Battle::Reset_BattleUiRuntimeState(bool closeVictoryUi)
     {
         if (panel)
             panel->Close();
+    }
+
+    for (auto& reactionResult : _reactionResults)
+    {
+        if (reactionResult)
+            reactionResult->Close();
+    }
+
+    for (auto& reactionResult : _reactionResults)
+    {
+        if (reactionResult)
+            reactionResult->Close();
     }
 
     if (_escapeSkipTurn)
@@ -2903,7 +2978,6 @@ void GameplayUI_Battle::Free()
     Release_UI(_escapeSkipTurn);
     Release_UI(_attackTooltip);
     Release_UI(_choiceTarget);
-    Release_UI(_reactionResult);
     Release_UI(_battleMechanism);
     Release_UI(_battleItemPanel);
     Release_UI(_battleSkillPanel);
@@ -2912,6 +2986,7 @@ void GameplayUI_Battle::Free()
     Release_UI(_qte);
     Release_UI(_markEffect);
     Release_UI(_battleTutorial);
+    Release_UI(_battleGradientGauge);
     Release_UI(_battleJumpReaction);
 
     for (auto& damageFont : _damageFonts)
@@ -2925,6 +3000,9 @@ void GameplayUI_Battle::Free()
 
     for (auto& addAP : _addAPs)
         Release_UI(addAP);
+
+    for (auto& reactionResult : _reactionResults)
+        Release_UI(reactionResult);
 
     for (auto& battlePictos : _battlePictos)
         Release_UI(battlePictos);

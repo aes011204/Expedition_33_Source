@@ -1,5 +1,6 @@
 #include "BattleWorldUI_SkillCards.h"
 
+#include "BattleMechanismCom.h"
 #include "BattleWorldUI_JsonTextureResolver.h"
 #include "BattleWorldUI_PlacementUtils.h"
 #include "BattleWorldUI_SurfaceAnim.h"
@@ -595,7 +596,7 @@ namespace
             {
             case 0: return { "Panel_Spark", "Spark", true };
             case 1: return { "Panel_Percee", "Percee", true };
-            case 2: return { "Panel_FleuretFury", "FleuretFury", true };
+            case 2: return { "Panel_FleureFury", "FleureFury", true };
             case 3: return { "Panel_SwordBallet", "SwordBallet", true };
             case 4: return { "Panel_Stendhal", "Stendhal", true };
             default: break;
@@ -1150,6 +1151,15 @@ namespace
         return Resolve_AspectWorldSize(Vec2(worldWidth, worldWidth), panel.size);
     }
 
+    Vec4 Apply_DimmedTint(const Vec4& color, float rgbScale, float alphaScale)
+    {
+        return Vec4(
+            color.x * rgbScale,
+            color.y * rgbScale,
+            color.z * rgbScale,
+            color.w * alphaScale);
+    }
+
     Vec4 Resolve_ImageColor(const Vec4& color, bool selected, bool dimmed)
     {
         if (selected)
@@ -1162,7 +1172,7 @@ namespace
         }
 
         if (dimmed)
-            return Vec4(color.x * 0.55f, color.y * 0.55f, color.z * 0.55f, color.w * 0.58f);
+            return Apply_DimmedTint(color, 0.65f, 1.0f);
 
         return color;
     }
@@ -1179,7 +1189,7 @@ namespace
         }
 
         if (dimmed)
-            return Vec4(color.x * 0.68f, color.y * 0.68f, color.z * 0.68f, color.w * 0.62f);
+            return Apply_DimmedTint(color, 0.72f, 1.0f);
 
         return color;
     }
@@ -2662,8 +2672,6 @@ void BattleWorldUI_SkillCards::Show_ForBattleState(
     uint32 skillPage,
     float timeDelta)
 {
-    ENGINE_PROFILE_SCOPE_DETAIL("BattleWorldUI.Skill.Show");
-
     if (_impl == nullptr || !Should_ShowBattleWorldSkillCards(currentState) || actor.statCom == nullptr)
     {
         Hide();
@@ -2814,6 +2822,17 @@ void BattleWorldUI_SkillCards::Show_ForBattleState(
                     placementTuning,
                     currentState,
                     selectedSkillKey);
+
+            const uint32 curAp = actor.statCom->Get_CurAP();
+            const uint32 apCost = skill->apCost > 0 ? static_cast<uint32>(skill->apCost) : 0u;
+            presentation.dimmed = curAp < apCost; // AP 부족 여부는 카드 표시 계산 위치에서 정하고, 기존 dimmed 합성 경로가 소비한다.
+
+            if (skill->skillKey == "UnleashedCharge" &&
+                actor.mechanismCom != nullptr &&
+                !actor.mechanismCom->Can_UseGustaveOvercharge())
+            {
+                presentation.dimmed = true; // 과충전은 최대 스택 전까지 AP 부족과 같은 dimmed 표시를 쓴다.
+            }
         }
 
         if (card.selected != presentation.selected || card.dimmed != presentation.dimmed)

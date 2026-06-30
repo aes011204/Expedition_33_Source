@@ -755,10 +755,12 @@ HRESULT GameInstance::Draw()
     }
 #endif
 
-#ifdef _DEBUG
+#if defined(_DEBUG) || defined(_EDITOR)
     // Debug Manager
     {
+#ifdef _DEBUG
         Draw_ShadowCascadeWorldDebug();
+#endif
         _debugManager->Render_Depth();
         _debugManager->Render_Overlay();
     }
@@ -2727,6 +2729,11 @@ HRESULT GameInstance::Get_ShadowCBSnapshot(ShadowCB& outShadowCB) const
 
 HRESULT GameInstance::Update_ShadowLight(const ShadowLightDesc& desc)
 {
+    CHECK_NULL(_shadow, E_FAIL);
+
+    if (_targetManager != nullptr)
+        CHECK_FAILED(_targetManager->Resize_ShadowRenderTargets(desc.shadowMapWidth, desc.shadowMapHeight), E_FAIL);
+
     return _shadow->Update_ShadowLight(desc);
 }
 
@@ -3343,6 +3350,11 @@ void GameInstance::Release_Engine()
         }
     };
 
+    LOG_INFO(
+        "[GameInstance][LeakWatch] Release_Engine begin. pendingThreadJobs={} materialTextureSrvCache={}",
+        _threadPool ? _threadPool->Get_PendingJobCount() : 0,
+        Material::Get_TextureSRVCacheSize());
+
     ReleaseManager(_threadPool);
     ReleaseManager(_debugManager);
     ReleaseManager(_cameraManager);
@@ -3380,6 +3392,9 @@ void GameInstance::Release_Engine()
     ReleaseManager(_timerManager);
 
     Material::Clear_TextureSRVCache();
+    LOG_INFO(
+        "[GameInstance][LeakWatch] Material Texture SRV cache after clear={}",
+        Material::Get_TextureSRVCacheSize());
 
     _playerStencilWriteState.Reset();
     _playerStencilWriteDepthReadState.Reset();

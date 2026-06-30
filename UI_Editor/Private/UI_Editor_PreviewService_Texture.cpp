@@ -39,6 +39,27 @@ namespace UIEditor
 
             return "path:" + String::ToString(normalizedPath);
         }
+
+        string Make_RuntimePathCacheKey(string path)
+        {
+            replace(path.begin(), path.end(), '\\', '/');
+            return String::ToLowerCopy(path);
+        }
+    }
+
+    wstring UI_Editor_PreviewService::Resolve_TexturePreviewPath(const string& texturePath)
+    {
+        if (texturePath.empty())
+            return {};
+
+        const string cacheKey = Make_RuntimePathCacheKey(texturePath);
+        const auto cachedIter = _resolvedTexturePathCache.find(cacheKey);
+        if (cachedIter != _resolvedTexturePathCache.end())
+            return cachedIter->second;
+
+        const wstring resolvedTexturePath = Resolve_ClientRuntimeResourcePath(texturePath);
+        _resolvedTexturePathCache.emplace(cacheKey, resolvedTexturePath);
+        return resolvedTexturePath;
     }
 
     ID3D11ShaderResourceView* UI_Editor_PreviewService::Get_TexturePreviewSRV(const string& textureGuid, const string& texturePath)
@@ -64,7 +85,7 @@ namespace UIEditor
 
         if (!texturePath.empty())
         {
-            const wstring resolvedTexturePath = Resolve_ClientRuntimeResourcePath(texturePath);
+            const wstring resolvedTexturePath = Resolve_TexturePreviewPath(texturePath);
             const string pathCacheKey = Make_TexturePreviewPathKey(resolvedTexturePath);
 
             if (ID3D11ShaderResourceView* pathSRV = Load_TexturePreview(pathCacheKey, resolvedTexturePath))
@@ -133,8 +154,24 @@ namespace UIEditor
             return nullptr;
         }
 
-        _textureThumbCache.emplace(cacheKey, textureSRV);
-        return _textureThumbCache[cacheKey].Get();
+        auto insertResult = _textureThumbCache.emplace(cacheKey, textureSRV);
+        if (insertResult.second)
+        {
+            _textureThumbCacheOrder.push_back(cacheKey);
+            ++_totalTexturePreviewLoadCount;
+            Trim_TexturePreviewCache();
+
+            if (_totalTexturePreviewLoadCount <= 8 || _totalTexturePreviewLoadCount % 64 == 0)
+            {
+                LOG_INFO(
+                    "[UIEditor][PreviewLeakWatch] texture preview loaded. total={} cacheSize={} path='{}'",
+                    _totalTexturePreviewLoadCount,
+                    _textureThumbCache.size(),
+                    String::ToString(texturePath));
+            }
+        }
+
+        return insertResult.first->second.Get();
     }
 
     bool UI_Editor_PreviewService::Can_LoadTexturePreviewThisFrame()

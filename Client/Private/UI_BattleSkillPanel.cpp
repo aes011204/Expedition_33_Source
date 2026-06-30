@@ -37,7 +37,7 @@ namespace
     constexpr wchar_t UI_BattleSkillTooltip_Pyrolyse_Path[] = L"UI/UI_Json/BattleSystem/SkillTooltip/Maelle/UI_BattleSystem_SkillTooltip_Pyrolyse.json";
 
     constexpr wchar_t UI_BattleSkillTooltip_FleureFury_Path[] =
-        L"UI/UI_Json/BattleSystem/SkillTooltip/Maelle/UI_BattleSystem_SkillTooltip_FleuretFury.json";
+        L"UI/UI_Json/BattleSystem/SkillTooltip/Maelle/UI_BattleSystem_SkillTooltip_FleureFury.json";
 
     constexpr wchar_t kTooltipIntroAnimationName[] = L"BattleSystem_Tooltip_Intro";
     constexpr wchar_t kTooltipOutroAnimationName[] = L"BattleSystem_Tooltip_Outro";
@@ -504,7 +504,7 @@ HRESULT UI_BattleSkillPanel::Load_UI(uint32 levelIndex)
             L"Panel_BattleSystem_Skill_BG",
             L"Panel_OffensiveSwitch",
             L"Panel_Percee",
-            L"Panel_FleuretFury",
+            L"Panel_FleureFury",
             L"Image_BattleSystem_Skill_Maelle_Deco_3",
         }), E_FAIL);
 
@@ -579,7 +579,7 @@ HRESULT UI_BattleSkillPanel::Bind_UI()
 
     CHECK_FAILED(Bind_Tooltip("OffensiveSwitch", L"Panel_BattleSystem_SkillTooltip_OffensiveSwitch"), E_FAIL);
     CHECK_FAILED(Bind_Tooltip("Percee", L"Panel_BattleSystem_SkillTooltip_Percee"), E_FAIL);
-    CHECK_FAILED(Bind_Tooltip("FleureFury", L"Panel_BattleSystem_SkillTooltip_FleuretFury"), E_FAIL);
+    CHECK_FAILED(Bind_Tooltip("FleureFury", L"Panel_BattleSystem_SkillTooltip_FleureFury"), E_FAIL);
     CHECK_FAILED(Bind_Tooltip("SwordBallet", L"Panel_BattleSystem_SkillTooltip_SwordBallet"), E_FAIL);
     CHECK_FAILED(Bind_Tooltip("Stendhal", L"Panel_BattleSystem_SkillTooltip_Stendhal"), E_FAIL);
     CHECK_FAILED(Bind_Tooltip("Pyrolyse", L"Panel_BattleSystem_SkillTooltip_Pyrolyse"), E_FAIL);
@@ -693,7 +693,7 @@ void UI_BattleSkillPanel::Set_MainPanelSkillOptionsAlpha(HeroId heroId, float al
     case HeroId::Maelle:
         Set_Alpha(L"Panel_OffensiveSwitch");
         Set_Alpha(L"Panel_Percee");
-        Set_Alpha(L"Panel_FleuretFury");
+        Set_Alpha(L"Panel_FleureFury");
         break;
 
     case HeroId::END:

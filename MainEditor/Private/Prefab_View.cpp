@@ -30,6 +30,7 @@
 #include "Mon_Dualliste_Sword_R.h"
 #include "Mon_Simon_Weapon.h"
 #include "PartObject.h"
+#include "Player_WorldBase.h"
 #include "imgui_internal.h"
 #include "AnimState_View.h"
 #include "BattleTurnCameraPoseUtils.h"
@@ -362,6 +363,7 @@ void Prefab_View::Pre_Render()
     if (_showPrefabCollider)
         Draw_PreviewColliders(_previewObject);
 
+    Draw_ParkourProbePreview();
     Draw_PreviewGrid();
     Draw_MonsterPatrolPointPreview();
     Draw_MonsterBattleSpawnPreview();
@@ -855,8 +857,8 @@ void Prefab_View::Draw_Header()
 
     ImGui::SameLine();
 
-    if (ImGui::Button("Close", ImVec2(90.f, 0.f)))
-        Close_Prefab();
+    if (ImGui::Button("Compile", ImVec2(90.f, 0.f)))
+        Compile_PreviewObject();
 
     ImGui::SameLine();
 
@@ -919,6 +921,57 @@ void Prefab_View::Draw_StructurePanel()
     ImGui::EndChild();
 }
 
+void Prefab_View::Compile_PreviewObject()
+{
+    if (_previewObject == nullptr)
+        return;
+
+    json previewJson = _previewObject->To_Json();
+    previewJson["prefab_name"] = _prefabName;
+    previewJson["default_layer_tag"] = String::ToString(_defaultSpawnLayerTag);
+
+    const Shared<GameObject> oldPreviewObject = _previewObject;
+    PreviewObjectHelpers::Stop_AttachedPreviewEffects(oldPreviewObject);
+
+    if (Shared<Animation_View> animationView = dynamic_pointer_cast<Animation_View>(EDITOR->Get_Window(L"Animation")))
+        animationView->Clear_LivePreviewBinding(oldPreviewObject);
+
+    if (Shared<AnimState_View> animStateView = dynamic_pointer_cast<AnimState_View>(EDITOR->Get_Window(L"AnimState")))
+        animStateView->Clear_LivePreviewBinding(oldPreviewObject);
+
+    Shared<GameObject> compiledObject = GAME->Instantiate_GameObjectJson(previewJson);
+    if (compiledObject == nullptr)
+    {
+        _previewObject = oldPreviewObject;
+        if (EDITOR->Get_Notification())
+            EDITOR->Get_Notification()->Add_Notification_With_Type(NotifyType::Warning, "프리펩 Compile 실패: {}", _prefabName);
+        return;
+    }
+
+    _previewObject = compiledObject;
+    _previewHasBegunPlay = false;
+
+    PreviewObjectHelpers::Disable_PreviewAnimNotifyExecution(_previewObject);
+    PreviewObjectHelpers::Disable_PreviewBehaviorTreeExecution(_previewObject);
+    PreviewObjectHelpers::Prime_PreviewObject(_previewObject);
+    _previewHasBegunPlay = true;
+
+    _sourceStaticClass = _previewObject->Get_ReflectionInfo().className;
+    if (_sourceStaticClass.empty())
+        _sourceStaticClass = String::ToString(_previewObject->Get_Name());
+
+    Lock_PreviewObjectToOrigin();
+
+    if (!Find_GameObjectByKey(_previewObject, _selectedObjectKey))
+    {
+        _selectionType = SelectionType::GameObject;
+        _selectedObjectKey = L"Root";
+        _selectedComponentKey.clear();
+    }
+
+    if (EDITOR->Get_Notification())
+        EDITOR->Get_Notification()->Add_Notification("프리펩 Compile: {}", _prefabName);
+}
 
 void Prefab_View::Draw_PreviewPanel()
 {
@@ -2313,6 +2366,60 @@ void Prefab_View::Draw_PreviewColliders(const Shared<GameObject>& gameObject) co
     }
 #else
     UNREFERENCED_PARAMETER(gameObject);
+#endif
+}
+
+void Prefab_View::Draw_ParkourProbePreview() const
+{
+#if defined(_DEBUG) || defined(_EDITOR)
+    if (_previewObject == nullptr)
+        return;
+
+    Shared<GameObject> selectedObject = Find_GameObjectByKey(_previewObject, _selectedObjectKey);
+    if (selectedObject == nullptr)
+        selectedObject = _previewObject;
+
+    Shared<Client::Player_WorldBase> player = dynamic_pointer_cast<Client::Player_WorldBase>(selectedObject);
+    if (player == nullptr)
+        return;
+
+    const Shared<TransformCom> transform = selectedObject->Get_Transform();
+    if (transform == nullptr)
+        return;
+
+    const Matrix worldMatrix = transform->Get_WorldMatrix();
+
+    Vec3 look = transform->Get_WorldForward();
+    look.y = 0.f;
+    if (look.LengthSquared() <= 0.0001f)
+        look = Vec3::Look;
+    else
+        look.Normalize();
+
+    auto drawRay = [look](const Vec3& start, float distance, const Color& color)
+    {
+        if (distance <= 0.f)
+            return;
+
+        DebugLineDesc desc{};
+        desc.start = start;
+        desc.end = start + look * distance;
+        desc.style.color = color;
+        desc.style.depthEnabled = false;
+        GAME->Draw_DebugLine(desc);
+    };
+
+    drawRay(
+        Vec3::Transform(player->Get_ParkourLowProbeCenter(), worldMatrix),
+        player->Get_ParkourLowProbeDistance(),
+        Color(0.45f, 0.75f, 1.f, 1.f));
+
+    drawRay(
+        Vec3::Transform(player->Get_ParkourHighProbeCenter(), worldMatrix),
+        player->Get_ParkourHighProbeDistance(),
+        Color(1.f, 0.55f, 1.f, 1.f));
+
+    GAME->Render_DebugOverlay();
 #endif
 }
 

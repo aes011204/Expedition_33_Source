@@ -2,6 +2,7 @@
 
 #include "GameDataTable.h"
 #include "ClientInstance.h"
+#include "GameplayUI.h"
 #include "PlayerInventory.h"
 
 IMPLEMENT_REFLECTION(Item_Chroma)
@@ -36,6 +37,9 @@ void Item_Chroma::Apply_PickupReward()
 
     // 크로마 증가. 크로마 확인 텍스트를 탭눌렀을 때 보이게 해줘야할거같다.
     inventory->Add_Chroma(_amount);
+
+    if (const Shared<GameplayUI> gameplayUI = CLIENT->Get_GameplayUI())
+        gameplayUI->Queue_GetChromaPresentation(_amount);
 }
 
 Shared<Item_Chroma> Item_Chroma::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)

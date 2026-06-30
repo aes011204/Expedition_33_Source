@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "Battle_Enum.h"
 #include "GameObject.h"

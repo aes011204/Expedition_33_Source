@@ -2243,8 +2243,9 @@ bool ModelCom::Step_SampleAnimationPose(const AnimPipelineContext& context)
 
     if (_isBlending)
     {
-        _blendElapsedTime += context.adjustedTimeDelta;
-        const float ratio = _blendElapsedTime / _blendDuration;
+        const float ratio = (_blendDuration > 0.f)
+            ? clamp(_blendElapsedTime / _blendDuration, 0.f, 1.f)
+            : 1.f;
 
         if (ratio >= 1.f)
         {
@@ -2281,6 +2282,16 @@ bool ModelCom::Step_SampleAnimationPose(const AnimPipelineContext& context)
 
                 _rootOriginalFrameVelocity.position = Vector3::Lerp(curDelta.position, nextDelta.position, ratio);
                 _rootOriginalFrameVelocity.rotation = Quaternion::Slerp(curDelta.rotation, nextDelta.rotation, ratio);
+            }
+
+            _blendElapsedTime += context.adjustedTimeDelta;
+            if (_blendElapsedTime >= _blendDuration)
+            {
+                _isBlending = false;
+                _skipInitialBlendSourceNotify = false;
+                _currentAnimIndex = _nextAnimIndex;
+                _currentAnimStateIndex = _nextAnimStateIndex;
+                _isFinished = (!_isAnimLoop && _animations[_currentAnimIndex]->Get_Progress() >= 1.f);
             }
         }
     }
@@ -2643,6 +2654,7 @@ HRESULT ModelCom::Ready_Model(const char* modelPath)
         _localBoundsMin = minBounds;
         _localBoundsMax = maxBounds;
     }
+
     stream.close();
 
     CHECK_FAILED(Try_LoadMorphData(resolvedPath), E_FAIL);

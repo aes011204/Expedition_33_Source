@@ -31,12 +31,15 @@ public:
 private:
     HRESULT Ready_Components();
     void    Sync_ToOwnerTransform();
+    bool    Try_ResolvePromptWorldAnchor(Vec3& outWorldAnchor) const;
+    bool    Has_PlayerOverlap() const { return !_playerOverlapColliders.empty(); }
 
 private:
     Shared<ColliderCom> _colliderCom {};
     Shared<NPC_Base>    _ownerNPC {};
     Vec3                _localOffset = Vec3(0.f, 0.8f, 1.2f);
-    bool                _hasPlayerOverlap = false;
+    Vec3                _promptBodyOffset = Vec3(0.f, 1.2f, 0.f);
+    uset<ColliderCom*>  _playerOverlapColliders {};
 public:
     static Shared<Trigger_Interaction> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);
     Shared<GameObject> Clone(void* arg) override;

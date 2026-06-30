@@ -133,6 +133,7 @@ public:
     static HRESULT Convert_Json_To_Bin(const wstring& jsonPath, const wstring& binPath);
     static HRESULT Convert_MapInstance_To_Bin(const wstring& mapInstanceRoot);
     static void Clear_GlobalCache();
+    static void Clear_CachedLights();
     static void Reapply_CachedLights();
     static wstring Get_LoadedMapInstanceRoot(uint32 levelIndex);
 

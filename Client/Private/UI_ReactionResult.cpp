@@ -13,23 +13,6 @@ namespace
         L"UI/UI_Animations/BattleSystem/Status/StatusEffect_Intro";
     constexpr const wchar_t* kReactionResultIntroAnimationName = L"StatusEffect_Intro";
 
-    constexpr Vec2 kReactionResultDodgeTransformOffset = Vec2(0.f, 0.f);
-    constexpr Vec2 kReactionResultParryTransformOffset = Vec2(0.f, 200.f);
-
-    Vec2 Resolve_ReactionResultTransformOffset(BattleReactionType reactionType)
-    {
-        switch (reactionType)
-        {
-        case BattleReactionType::Dodge:
-            return kReactionResultDodgeTransformOffset;
-
-        case BattleReactionType::Parry:
-            return kReactionResultParryTransformOffset;
-
-        default:
-            return Vec2::Zero;
-        }
-    }
 }
 
 HRESULT UI_ReactionResult::Initialize(uint32 levelIndex)
@@ -46,20 +29,16 @@ HRESULT UI_ReactionResult::Initialize(uint32 levelIndex)
         _parryRoot->Add_UIAnimationAsset(introAnimation);
     }
 
+    Set_FloatingMotion(0.85f, 32.f);
+    Set_StackStep(18.f, 20.f);
+    Set_AnchorMode(AnchorMode::FollowWorld);
+    Set_WorldAnchorOffset(Vec3(0.f, 0.55f, 0.f));
+    Set_ScreenBaseOffset(Vec2(0.f, -20.f));
+    Set_WorldAnchorRandomYRange(-0.04f, 0.08f);
+
     Close();
 
     return S_OK;
-}
-
-void UI_ReactionResult::Update(float timeDelta)
-{
-    if (!Is_Open() || !_isShowing)
-        return;
-
-    _elapsed += timeDelta;
-
-    if (_elapsed >= _lifeTime)
-        Close(); // Dodge/Parry 성공 텍스트는 일정 시간 뒤 자동으로 닫는다.
 }
 
 void UI_ReactionResult::Open()
@@ -69,24 +48,15 @@ void UI_ReactionResult::Open()
 
 void UI_ReactionResult::Close()
 {
-    _isShowing = false;
-    _elapsed = 0.f;
-
-    UI_RuntimePanelBase::Close();
+    UI_BattleFloatingTextBase::Close();
 
     if (_dodgeRoot)
-    {
         _dodgeRoot->Close();
-        if (_hasDodgeBaseTransformPosition && _dodgeRoot->Get_Transform() != nullptr)
-            _dodgeRoot->Get_Transform()->Set_Position(_dodgeBaseTransformPosition);
-    }
 
     if (_parryRoot)
-    {
         _parryRoot->Close();
-        if (_hasParryBaseTransformPosition && _parryRoot->Get_Transform() != nullptr)
-            _parryRoot->Get_Transform()->Set_Position(_parryBaseTransformPosition);
-    }
+
+    _root.reset();
 }
 
 void UI_ReactionResult::Append_RuntimeUIEntries(
@@ -112,13 +82,9 @@ void UI_ReactionResult::Append_RuntimeUIEntries(
     appendRoot(rootName + "_Parry", _parryRoot);
 }
 
-void UI_ReactionResult::Show_Reaction(BattleReactionType reactionType)
+void UI_ReactionResult::Show_Reaction(BattleReactionType reactionType, const BattleChar& target, uint32 stackIndex)
 {
-    const bool wasShowing = _isShowing;
-
-    Open();
-    _isShowing = true; // 위치 기반 리액션 텍스트의 표시 시간을 Update에서 관리한다.
-    _elapsed = 0.f;
+    Close();
 
     if (_dodgeRoot)
         _dodgeRoot->Close();
@@ -126,43 +92,23 @@ void UI_ReactionResult::Show_Reaction(BattleReactionType reactionType)
     if (_parryRoot)
         _parryRoot->Close();
 
-    Shared<UI_Base> selectedRoot{};
-    Vec2* baseTransformPosition = nullptr;
-    bool* hasBaseTransformPosition = nullptr;
-
     if (reactionType == BattleReactionType::Dodge)
-    {
-        selectedRoot = _dodgeRoot;
-        baseTransformPosition = &_dodgeBaseTransformPosition;
-        hasBaseTransformPosition = &_hasDodgeBaseTransformPosition;
-    }
+        _root = _dodgeRoot;
     else if (reactionType == BattleReactionType::Parry)
-    {
-        selectedRoot = _parryRoot;
-        baseTransformPosition = &_parryBaseTransformPosition;
-        hasBaseTransformPosition = &_hasParryBaseTransformPosition;
-    }
-
-    if (selectedRoot == nullptr ||
-        selectedRoot->Get_Transform() == nullptr ||
-        baseTransformPosition == nullptr ||
-        hasBaseTransformPosition == nullptr)
-    {
-        Close();
+        _root = _parryRoot;
+    else
         return;
-    }
 
-    if (!*hasBaseTransformPosition || !wasShowing)
-    {
-        *baseTransformPosition = selectedRoot->Get_Transform()->Get_Position();
-        *hasBaseTransformPosition = true;
-    }
+    if (_root == nullptr || _root->Get_Transform() == nullptr)
+        return;
 
-    const Vec2 finalScreenPos = *baseTransformPosition + Resolve_ReactionResultTransformOffset(reactionType);
-    selectedRoot->Open();
-    selectedRoot->Get_Transform()->Set_Position(finalScreenPos);
-    if (selectedRoot->Play_UIAnimation(kReactionResultIntroAnimationName, true))
-        selectedRoot->Update(0.f);
+    _root->Open();
+
+    if (!Begin_FloatingText(target, stackIndex))
+        return;
+
+    if (_root->Play_UIAnimation(kReactionResultIntroAnimationName, true))
+        _root->Update(0.f);
 }
 
 HRESULT UI_ReactionResult::Load_UI(uint32 levelIndex)
@@ -206,18 +152,6 @@ HRESULT UI_ReactionResult::Bind_UI()
 
     CHECK_NULL(_dodgeRoot, E_FAIL);
     CHECK_NULL(_parryRoot, E_FAIL);
-
-    if (_dodgeRoot->Get_Transform() != nullptr)
-    {
-        _dodgeBaseTransformPosition = _dodgeRoot->Get_Transform()->Get_Position();
-        _hasDodgeBaseTransformPosition = true;
-    }
-
-    if (_parryRoot->Get_Transform() != nullptr)
-    {
-        _parryBaseTransformPosition = _parryRoot->Get_Transform()->Get_Position();
-        _hasParryBaseTransformPosition = true;
-    }
 
     return S_OK;
 }

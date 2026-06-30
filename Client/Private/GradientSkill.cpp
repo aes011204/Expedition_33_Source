@@ -1,4 +1,4 @@
-#include "GradientSkill.h"
+﻿#include "GradientSkill.h"
 
 const char* GradientSkill::Resolve_SkillKey(HeroId heroId)
 {

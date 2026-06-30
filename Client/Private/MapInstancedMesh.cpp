@@ -9,7 +9,7 @@
 #include "StaticCollisionData.h"
 #include "Collision_Define.h"
 #include "ShaderPassFinder.h"
-#include "Shadow.h"
+#include "Renderer_Define.h"
 
 namespace
 {
@@ -57,6 +57,12 @@ namespace
             modelPath.find(L"flower") != wstring::npos ||
             modelPath.find(L"Bush") != wstring::npos ||
             modelPath.find(L"bush") != wstring::npos;
+    }
+
+    bool Is_GestralPalisadeModelPath(const wstring& modelPath)
+    {
+        return modelPath.find(L"Level_Main_GestralVillage_V2") != wstring::npos &&
+            modelPath.find(L"Palisade_Spike") != wstring::npos;
     }
 }
 
@@ -120,6 +126,9 @@ HRESULT MapInstancedMesh::Initialize(void* arg)
             return E_FAIL;
         }
 
+        if (!pDesc->displayName.empty())
+            Set_Name(pDesc->displayName);
+
         Refresh_HasGlow();
 
         vector<Matrix> matrices;
@@ -148,7 +157,7 @@ HRESULT MapInstancedMesh::Initialize(void* arg)
                 PhysXStaticActorHandle handle = GAME->Register_PhysXStaticCollision(
                     *_collisionData,
                     worldMatrix,
-                    Collision_Preset::Enviroment);
+                    Collision_Preset::Environment);
 
                 if (handle.Is_Valid())
                 {
@@ -224,24 +233,41 @@ void MapInstancedMesh::Late_Update(float timeDelta)
         GAME->Add_RenderGroup(RenderGroup::Shadow, GetSharedPtr<GameObject>());
     };
 
-    if (_cullEnabled)
+    //if (_cullEnabled)
+    //{
+    //    if (!GAME->IsVisible(_groupBounds))
+    //    {
+    //        submitShadowIfInRange();
+    //        return;
+    //    }
+
+    //    if (hasCamPos)
+    //    {
+    //        const float cullDist = _cullDist;
+    //        if (DistanceSq_ToBounds(camPos, _groupBounds) > cullDist * cullDist)
+    //        {
+    //            submitShadowIfInRange();
+    //            return;
+    //        }
+    //    }
+    //}
+
+    if (!GAME->IsVisible(_groupBounds))
     {
-        if (!GAME->IsVisible(_groupBounds))
+        submitShadowIfInRange();
+        return;
+    }
+
+    if (hasCamPos)
+    {
+        const float cullDist = _cullDist;
+        if (DistanceSq_ToBounds(camPos, _groupBounds) > cullDist * cullDist)
         {
             submitShadowIfInRange();
             return;
         }
-
-        if (hasCamPos)
-        {
-            const float cullDist = _cullDist;
-            if (DistanceSq_ToBounds(camPos, _groupBounds) > cullDist * cullDist)
-            {
-                submitShadowIfInRange();
-                return;
-            }
-        }
     }
+    /////
 
     GAME->Add_RenderGroup(RenderGroup::NonBlend, GetSharedPtr<GameObject>());
     if (_hasGlow)
@@ -326,11 +352,28 @@ HRESULT MapInstancedMesh::Render()
         return S_OK;
     }
 
+    const bool forceGestralPalisadeCull =
+        ClientInstance::Is_DebugForceGestralPalisadeInstancedCull() &&
+        Is_GestralPalisadeModelPath(_modelPath);
+    const bool useCullPath = _cullEnabled || forceGestralPalisadeCull;
+
     bool useIndirect = false;
-    if (_cullShader && _instanceSrcBuffer && _sphereBuffer && _visibleVB[0] && !_indirectArgsBuffers[0].empty())
+    if (useCullPath && _cullShader && _instanceSrcBuffer && _sphereBuffer && _visibleVB[0] && !_indirectArgsBuffers[0].empty())
     {
         DispatchCull();
         useIndirect = true;
+    }
+    else
+    {
+        _debugLastDrawInstanceCounts = {};
+        for (uint32 lod = 0; lod < 3; ++lod)
+        {
+            if (_lodModels[lod])
+                _debugLastDrawInstanceCounts[lod] = _instanceCount;
+        }
+        _debugHasDrawInstanceCounts = true;
+        _debugLastVisibleCountReadbackRequestId =
+            ClientInstance::Get_DebugMapInstancedVisibleCountReadbackRequestId();
     }
 
     if (FAILED(Bind_ShaderResources()))
@@ -470,6 +513,16 @@ HRESULT MapInstancedMesh::Ready_Components(const wstring& modelPath, Shared<Mode
         _lodModels[lod] = ModelCom::Create(_device, _context, ModelType::NonAnim, lodPathA.c_str(), Matrix::CreateScale(0.01f));
     }
 
+    for (int lod = 1; lod <= 2; ++lod)
+    {
+        if (!_lodModels[lod])
+        {
+            continue;
+        }
+        _lodModels[lod]->Get_MaterialBindings() = _lodModels[0]->Get_MaterialBindings();
+        _lodModels[lod]->Apply_BaseMaterialFromBundle_AllSlots();
+    }
+
     return S_OK;
 }
 
@@ -488,6 +541,88 @@ void MapInstancedMesh::Set_LodModel(int lod, Shared<ModelCom> model)
         uint32 args[5] = { static_cast<uint32>(model->Get_NumIndices(i)), _instanceCount, 0, 0, 0 };
         _context->UpdateSubresource(_indirectArgsBuffers[lod][i].Get(), 0, nullptr, args, 0, 0);
     }
+}
+
+bool MapInstancedMesh::Get_RenderHotspotInstancedMeshStats(RenderHotspotInstancedMeshStats& outStats) const
+{
+    outStats = {};
+    outStats.cullEnabled = _cullEnabled;
+    outStats.castShadow = _castShadow;
+    outStats.hasCullResources =
+        _cullShader &&
+        _instanceSrcBuffer &&
+        _sphereBuffer &&
+        _visibleVB[0] &&
+        !_indirectArgsBuffers[0].empty();
+    const bool forceGestralPalisadeCull =
+        ClientInstance::Is_DebugForceGestralPalisadeInstancedCull() &&
+        Is_GestralPalisadeModelPath(_modelPath);
+    outStats.usesIndirectCull = (_cullEnabled || forceGestralPalisadeCull) && outStats.hasCullResources;
+    outStats.sourceInstanceCount = _instanceCount;
+    outStats.cullDist = _cullDist;
+    outStats.lod1Dist = _lod1Dist;
+    outStats.lod2Dist = _lod2Dist;
+
+    for (uint32 lod = 0; lod < 3; ++lod)
+    {
+        const Shared<ModelCom>& model = _lodModels[lod];
+        if (!model)
+            continue;
+
+        outStats.lodMask |= (1u << lod);
+
+        const uint32 meshCount = static_cast<uint32>(model->Get_NumMeshes());
+        outStats.lodMeshCounts[lod] = meshCount;
+        outStats.estimatedMainDrawCount += meshCount;
+
+        uint32 indexCount = 0;
+        for (uint32 meshIndex = 0; meshIndex < meshCount; ++meshIndex)
+            indexCount += model->Get_NumIndices(meshIndex);
+
+        outStats.lodIndexCounts[lod] = indexCount;
+    }
+
+    if (outStats.usesIndirectCull)
+    {
+        outStats.estimatedCullCopyResourceCount = 3u;
+        for (uint32 lod = 0; lod < 3; ++lod)
+            outStats.estimatedCullCopyCountCount += static_cast<uint32>(_indirectArgsBuffers[lod].size());
+    }
+
+    outStats.sourceIndexWorkLod0 =
+        static_cast<uint64>(outStats.sourceInstanceCount) *
+        static_cast<uint64>(outStats.lodIndexCounts[0]);
+
+    if (outStats.usesIndirectCull)
+    {
+        outStats.hasDrawInstanceCounts = _debugHasDrawInstanceCounts;
+        outStats.drawInstanceCounts = _debugLastDrawInstanceCounts;
+        outStats.visibleCountReadbackRequestId = _debugLastVisibleCountReadbackRequestId;
+    }
+    else
+    {
+        outStats.hasDrawInstanceCounts = true;
+        for (uint32 lod = 0; lod < 3; ++lod)
+        {
+            if (_lodModels[lod])
+                outStats.drawInstanceCounts[lod] = _instanceCount;
+        }
+        outStats.visibleCountReadbackRequestId =
+            ClientInstance::Get_DebugMapInstancedVisibleCountReadbackRequestId();
+    }
+
+    if (outStats.hasDrawInstanceCounts)
+    {
+        for (uint32 lod = 0; lod < 3; ++lod)
+        {
+            outStats.drawInstanceCountTotal += outStats.drawInstanceCounts[lod];
+            outStats.visibleIndexWork +=
+                static_cast<uint64>(outStats.drawInstanceCounts[lod]) *
+                static_cast<uint64>(outStats.lodIndexCounts[lod]);
+        }
+    }
+
+    return true;
 }
 
 HRESULT MapInstancedMesh::CreateInstanceBuffer(const vector<Matrix>& matrices)
@@ -949,6 +1084,56 @@ void MapInstancedMesh::DispatchCull()
             _context->CopyStructureCount(buffer.Get(), sizeof(uint32), _visibleUAV[lod].Get());
         }
     }
+
+    const uint32 readbackRequestId =
+        ClientInstance::Get_DebugMapInstancedVisibleCountReadbackRequestId();
+    if (readbackRequestId != 0 &&
+        readbackRequestId != _debugLastVisibleCountReadbackRequestId)
+    {
+        _debugHasDrawInstanceCounts = Readback_DebugVisibleCounts(readbackRequestId);
+        _debugLastVisibleCountReadbackRequestId = readbackRequestId;
+    }
+}
+
+bool MapInstancedMesh::Readback_DebugVisibleCounts(uint32 requestId)
+{
+    UNREFERENCED_PARAMETER(requestId);
+
+    _debugLastDrawInstanceCounts = {};
+    bool hasAnyCount = false;
+
+    for (uint32 lod = 0; lod < 3; ++lod)
+    {
+        if (!_lodModels[lod] || _indirectArgsBuffers[lod].empty() || !_indirectArgsBuffers[lod][0])
+            continue;
+
+        if (!_debugVisibleCountReadbackBuffers[lod])
+        {
+            D3D11_BUFFER_DESC bd{};
+            bd.ByteWidth = 5 * sizeof(uint32);
+            bd.Usage = D3D11_USAGE_STAGING;
+            bd.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
+
+            if (FAILED(_device->CreateBuffer(&bd, nullptr, _debugVisibleCountReadbackBuffers[lod].GetAddressOf())))
+                continue;
+        }
+
+        _context->CopyResource(
+            _debugVisibleCountReadbackBuffers[lod].Get(),
+            _indirectArgsBuffers[lod][0].Get());
+
+        D3D11_MAPPED_SUBRESOURCE mapped{};
+        if (FAILED(_context->Map(_debugVisibleCountReadbackBuffers[lod].Get(), 0, D3D11_MAP_READ, 0, &mapped)))
+            continue;
+
+        const uint32* args = static_cast<const uint32*>(mapped.pData);
+        _debugLastDrawInstanceCounts[lod] = min(args[1], _instanceCount);
+        hasAnyCount = true;
+
+        _context->Unmap(_debugVisibleCountReadbackBuffers[lod].Get(), 0);
+    }
+
+    return hasAnyCount;
 }
 
 HRESULT MapInstancedMesh::CreateShadowIndirectArgsBuffers()
@@ -1145,6 +1330,7 @@ void MapInstancedMesh::Free()
             buffer.Reset();
         }
         _indirectArgsBuffers[lod].clear();
+        _debugVisibleCountReadbackBuffers[lod].Reset();
     }
     _cullCB.Reset();
 

@@ -99,6 +99,77 @@ namespace
             MapAdapter::AppendModelOverridesFromMaterialMapName(mapName, outOverrides);
     }
 
+    string Build_InstancedMeshNameLabel(const vector<json>& instancedMeshes, const vector<size_t>& groupIndices)
+    {
+        vector<string> names{};
+        names.reserve(groupIndices.size());
+
+        for (size_t idx : groupIndices)
+        {
+            if (idx >= instancedMeshes.size())
+                continue;
+
+            const json& entry = instancedMeshes[idx];
+            string name = entry.value("Id", string{});
+            if (name.empty())
+                name = fs::path(entry.value("ModelPath", string{})).stem().string();
+
+            Append_UniqueString(names, std::move(name));
+        }
+
+        if (names.empty())
+            return {};
+
+        string label{};
+
+        if (names.size() == 1)
+            label = names.front();
+        else if (names.size() == 2)
+            label = names[0] + ", " + names[1];
+        else
+            label = names[0] + " +" + to_string(names.size() - 1);
+
+        return label;
+    }
+
+    size_t Count_InstancedMeshInstances(const vector<json>& instancedMeshes, const vector<size_t>& groupIndices)
+    {
+        size_t instanceCount = 0;
+
+        for (size_t idx : groupIndices)
+        {
+            if (idx >= instancedMeshes.size())
+                continue;
+
+            const json& entry = instancedMeshes[idx];
+            if (entry.contains("Instances") && entry["Instances"].is_array())
+                instanceCount += entry["Instances"].size();
+        }
+
+        return instanceCount;
+    }
+
+    string Build_InstancedMeshDisplayName(const string& nameLabel, size_t instanceCount)
+    {
+        if (nameLabel.empty())
+            return {};
+
+        return nameLabel + " (cnt:" + to_string(instanceCount) + ")";
+    }
+
+    string Build_InstancedMeshChunkDisplayName(const string& nameLabel, size_t chunkInstanceCount, size_t totalInstanceCount)
+    {
+        if (nameLabel.empty())
+            return {};
+
+        if (chunkInstanceCount == totalInstanceCount)
+            return Build_InstancedMeshDisplayName(nameLabel, chunkInstanceCount);
+
+        return nameLabel +
+            " (cnt:" + to_string(chunkInstanceCount) +
+            " / total:" + to_string(totalInstanceCount) + ")";
+    }
+
     void Apply_PostProcessVolumes(const vector<json>& postProcessVolumes)
     {
         FogZoneCB fogCB{};
@@ -1043,11 +1114,15 @@ HRESULT MapLoader::Process_LoadSession(LoadSession& session, size_t maxMeshesPer
         const string& modelPathStr = session.instancedMeshModelOrder[session.nextInstancedMeshGroupIndex++];
         const vector<size_t>& groupIndices = session.instancedMeshGroups.at(modelPathStr);
         const json& firstEntry = session.instancedMeshes[groupIndices[0]];
+        const string displayNameLabel = Build_InstancedMeshNameLabel(session.instancedMeshes, groupIndices);
+        const size_t totalInstanceCount = Count_InstancedMeshInstances(session.instancedMeshes, groupIndices);
 
         MapInstancedMesh::MAPINSTANCEDMESH_DESC desc{};
         desc.visible = true;
         desc.cullEnabled = true;
         desc.castShadow = true;
+        desc.displayName = String::ToWString(
+            Build_InstancedMeshDisplayName(displayNameLabel, totalInstanceCount));
 
         for (size_t idx : groupIndices)
         {
@@ -1135,6 +1210,11 @@ HRESULT MapLoader::Process_LoadSession(LoadSession& session, size_t maxMeshesPer
         {
             MapInstancedMesh::MAPINSTANCEDMESH_DESC chunkDesc{};
             chunkDesc.modelPath = desc.modelPath;
+            chunkDesc.displayName = String::ToWString(
+                Build_InstancedMeshChunkDisplayName(
+                    displayNameLabel,
+                    chunkTransforms.size(),
+                    totalInstanceCount));
             chunkDesc.model = desc.model;
             chunkDesc.collisionData = desc.collisionData;
             chunkDesc.transforms = chunkTransforms;
@@ -1715,6 +1795,11 @@ void MapLoader::Clear_GlobalCache()
         g_globalMaterialSignatureByModel.clear();
     }
     MapAdapter::Clear_MaterialCache();
+    Clear_CachedLights();
+}
+
+void MapLoader::Clear_CachedLights()
+{
     g_cachedLights.clear();
 }
 

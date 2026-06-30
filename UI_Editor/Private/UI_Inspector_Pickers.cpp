@@ -874,8 +874,7 @@ namespace UIEditor
                 if (!generatedGuid.empty())
                 {
                     textureGuid = generatedGuid;
-                    _uiTextureAssetCacheDirty = true;
-                    _filteredUITextureAssetsDirty = true;
+                    _assetPickerService.Mark_TextureAssetsDirty();
                     changed = true;
                 }
                 else
@@ -896,13 +895,14 @@ namespace UIEditor
             ImGui::InputText(("Search##" + string(popupId)).c_str(), _textureSearchBuffer, size(_textureSearchBuffer));
             ImGui::Separator();
 
-            if (_uiTextureAssetCacheDirty)
-                Refresh_UITextureAssetCache();
-
             const string searchText = String::ToLowerCopy(_textureSearchBuffer);
-            Refresh_FilteredUITextureAssets(searchText);
+            const vector<const UI_InspectorAssetEntry*>& filteredTextureAssets =
+                _assetPickerService.Get_FilteredTextureAssets(_editorManager.Is_AssetManagerReady(), searchText);
+            const vector<const UI_InspectorAssetEntry*> filteredTextureAssetSnapshot(
+                filteredTextureAssets.begin(),
+                filteredTextureAssets.end());
 
-            if (_filteredUITextureAssets.empty())
+            if (filteredTextureAssetSnapshot.empty())
             {
                 ImGui::TextDisabled("No UI textures found under ../Bin/Resources/Textures/UI.");
             }
@@ -911,13 +911,11 @@ namespace UIEditor
                 const float listHeight = 360.f;
                 if (ImGui::BeginChild(("TextureList##" + string(popupId)).c_str(), ImVec2(520.f, listHeight), true))
                 {
-                    auto draw_texture_row = [&](const AssetMeta& assetMeta)
+                    auto draw_texture_row = [&](const UI_InspectorAssetEntry& entry)
                     {
-                        const string rowId = assetMeta.guid.empty() ? Make_ClientRuntimeResourcePath(assetMeta) : assetMeta.guid;
-                        ImGui::PushID(rowId.c_str());
+                        ImGui::PushID(entry.stableId.c_str());
 
-                        const string assetTexturePath = Make_ClientRuntimeResourcePath(assetMeta);
-                        ID3D11ShaderResourceView* rowSRV = _editorManager.Get_TexturePreviewSRV(assetMeta.guid, assetTexturePath);
+                        ID3D11ShaderResourceView* rowSRV = _editorManager.Get_TexturePreviewSRV(entry.assetMeta.guid, entry.runtimePath);
                         if (nullptr != rowSRV)
                         {
                             ImGui::Image(To_ImTextureID(rowSRV), ImVec2(48.f, 48.f));
@@ -936,31 +934,33 @@ namespace UIEditor
                         ImGui::SameLine();
                         ImGui::BeginGroup();
 
-                        const bool isSelected =
-                            (!assetMeta.guid.empty() && textureGuid == assetMeta.guid) ||
-                            (assetMeta.guid.empty() && texturePath == assetTexturePath);
-                        if (ImGui::Selectable(Get_AssetFileName(assetMeta).c_str(), isSelected))
+                        const bool isSelected = _assetPickerService.Is_TextureEntryApplied(textureGuid, texturePath, entry);
+                        if (ImGui::Selectable(entry.displayName.c_str(), isSelected))
                         {
-                            textureGuid = assetMeta.guid;
-                            texturePath = Make_ClientRuntimeResourcePath(assetMeta);
+                            textureGuid = entry.assetMeta.guid;
+                            texturePath = entry.runtimePath;
                             changed = true;
                             ImGui::CloseCurrentPopup();
                         }
 
-                        ImGui::TextDisabled("%s", assetTexturePath.c_str());
+                        ImGui::TextDisabled("%s", entry.runtimePath.c_str());
                         ImGui::EndGroup();
                         ImGui::Separator();
                         ImGui::PopID();
                     };
 
                     ImGuiListClipper clipper;
-                    clipper.Begin(static_cast<int32>(_filteredUITextureAssets.size()));
+                    clipper.Begin(static_cast<int32>(filteredTextureAssetSnapshot.size()));
                     while (clipper.Step())
                     {
-                        for (int32 rowIndex = clipper.DisplayStart; rowIndex < clipper.DisplayEnd; ++rowIndex)
+                        const int32 rowCount = static_cast<int32>(filteredTextureAssetSnapshot.size());
+                        const int32 displayStart = max(0, min(clipper.DisplayStart, rowCount));
+                        const int32 displayEnd = max(displayStart, min(clipper.DisplayEnd, rowCount));
+                        for (int32 rowIndex = displayStart; rowIndex < displayEnd; ++rowIndex)
                         {
-                            if (nullptr != _filteredUITextureAssets[rowIndex])
-                                draw_texture_row(*_filteredUITextureAssets[rowIndex]);
+                            const UI_InspectorAssetEntry* entry = filteredTextureAssetSnapshot[static_cast<size_t>(rowIndex)];
+                            if (nullptr != entry)
+                                draw_texture_row(*entry);
                         }
                     }
                 }
@@ -971,97 +971,6 @@ namespace UIEditor
         }
 
         return changed;
-    }
-
-    void UI_Inspector::Refresh_UITextureAssetCache()
-    {
-        _uiTextureAssets.clear();
-        _filteredUITextureAssets.clear();
-        _filteredUITextureAssetsDirty = true;
-
-        if (_editorManager.Is_AssetManagerReady())
-        {
-            for (const AssetMeta& assetMeta : GAME->Get_AssetsByType("Texture"))
-            {
-                if (Is_UITextureAsset(assetMeta))
-                    _uiTextureAssets.push_back(assetMeta);
-            }
-        }
-
-        if (_uiTextureAssets.empty())
-        {
-            const wstring resourceRoot = Resolve_UIEditorClientResourceRoot();
-            const fs::path uiTextureRoot = fs::path(resourceRoot) / L"Textures" / L"UI";
-
-            try
-            {
-                if (!resourceRoot.empty() && fs::exists(uiTextureRoot) && fs::is_directory(uiTextureRoot))
-                {
-                    for (const fs::directory_entry& entry : fs::recursive_directory_iterator(uiTextureRoot))
-                    {
-                        if (!entry.is_regular_file() || !Is_UITextureFileExtension(entry.path()))
-                            continue;
-
-                        AssetMeta textureAsset = {};
-                        textureAsset.type = "Texture";
-                        textureAsset.fullPath = fs::absolute(entry.path()).lexically_normal().wstring();
-                        textureAsset.relativePath = fs::relative(entry.path(), fs::path(resourceRoot)).lexically_normal().wstring();
-
-                        _uiTextureAssets.push_back(textureAsset);
-                    }
-                }
-            }
-            catch (...)
-            {
-            }
-        }
-
-        _uiTextureAssetCacheDirty = false;
-    }
-
-    void UI_Inspector::Refresh_FilteredUITextureAssets(const string& searchText)
-    {
-        if (!_filteredUITextureAssetsDirty && _lastTextureSearchText == searchText)
-            return;
-
-        _filteredUITextureAssets.clear();
-        _filteredUITextureAssets.reserve(_uiTextureAssets.size());
-
-        for (const AssetMeta& assetMeta : _uiTextureAssets)
-        {
-            if (Matches_Search(assetMeta, searchText))
-                _filteredUITextureAssets.push_back(&assetMeta);
-        }
-
-        _lastTextureSearchText = searchText;
-        _filteredUITextureAssetsDirty = false;
-    }
-
-    void UI_Inspector::Refresh_UIFontAssetCache()
-    {
-        _uiFontAssets = Collect_UISpriteFontAssets("");
-        _filteredUIFontAssets.clear();
-        _lastFontSearchText.clear();
-        _uiFontAssetCacheDirty = false;
-        _filteredUIFontAssetsDirty = true;
-    }
-
-    void UI_Inspector::Refresh_FilteredUIFontAssets(const string& searchText)
-    {
-        if (!_filteredUIFontAssetsDirty && _lastFontSearchText == searchText)
-            return;
-
-        _filteredUIFontAssets.clear();
-        _filteredUIFontAssets.reserve(_uiFontAssets.size());
-
-        for (const AssetMeta& assetMeta : _uiFontAssets)
-        {
-            if (Matches_Search(assetMeta, searchText))
-                _filteredUIFontAssets.push_back(&assetMeta);
-        }
-
-        _lastFontSearchText = searchText;
-        _filteredUIFontAssetsDirty = false;
     }
 
     void UI_Inspector::Draw_FontSlotPicker(const char* label, const char* popupId, const UI_Object& object)
@@ -1111,13 +1020,14 @@ namespace UIEditor
             ImGui::InputText(("Search##" + string(popupId)).c_str(), _fontSearchBuffer, size(_fontSearchBuffer));
             ImGui::Separator();
 
-            if (_uiFontAssetCacheDirty)
-                Refresh_UIFontAssetCache();
-
             const string searchText = String::ToLowerCopy(_fontSearchBuffer);
-            Refresh_FilteredUIFontAssets(searchText);
+            const vector<const UI_InspectorAssetEntry*>& filteredFontAssets =
+                _assetPickerService.Get_FilteredFontAssets(searchText);
+            const vector<const UI_InspectorAssetEntry*> filteredFontAssetSnapshot(
+                filteredFontAssets.begin(),
+                filteredFontAssets.end());
 
-            if (_filteredUIFontAssets.empty())
+            if (filteredFontAssetSnapshot.empty())
             {
                 ImGui::TextDisabled("No UI fonts found under ../Bin/Resources/Fonts.");
             }
@@ -1126,36 +1036,39 @@ namespace UIEditor
                 const float listHeight = 320.f;
                 if (ImGui::BeginChild(("FontList##" + string(popupId)).c_str(), ImVec2(520.f, listHeight), true))
                 {
-                    auto draw_font_row = [&](const AssetMeta& assetMeta)
+                    auto draw_font_row = [&](const UI_InspectorAssetEntry& entry)
                     {
-                        const string stableId = Get_FontAssetStableId(assetMeta);
-                        ImGui::PushID(stableId.c_str());
+                        ImGui::PushID(entry.stableId.c_str());
 
-                        const bool isSelected = Is_FontAssetApplied(object, assetMeta);
-                        if (ImGui::Selectable(Get_AssetFileName(assetMeta).c_str(), isSelected))
+                        const bool isSelected = _assetPickerService.Is_FontEntryApplied(object, entry);
+                        if (ImGui::Selectable(entry.displayName.c_str(), isSelected))
                         {
                             _editorManager.Set_UIObjectFontBinding(
                                 object.id,
-                                assetMeta.guid,
-                                Make_ClientRuntimeResourcePath(assetMeta),
-                                Make_FontTag(assetMeta));
+                                entry.assetMeta.guid,
+                                entry.runtimePath,
+                                entry.fontTag);
                             ImGui::CloseCurrentPopup();
                         }
 
-                        ImGui::TextDisabled("%s", Make_ClientRuntimeResourcePath(assetMeta).c_str());
-                        ImGui::TextDisabled("Tag: %s", Make_FontTag(assetMeta).c_str());
+                        ImGui::TextDisabled("%s", entry.runtimePath.c_str());
+                        ImGui::TextDisabled("Tag: %s", entry.fontTag.c_str());
                         ImGui::Separator();
                         ImGui::PopID();
                     };
 
                     ImGuiListClipper clipper;
-                    clipper.Begin(static_cast<int32>(_filteredUIFontAssets.size()));
+                    clipper.Begin(static_cast<int32>(filteredFontAssetSnapshot.size()));
                     while (clipper.Step())
                     {
-                        for (int32 rowIndex = clipper.DisplayStart; rowIndex < clipper.DisplayEnd; ++rowIndex)
+                        const int32 rowCount = static_cast<int32>(filteredFontAssetSnapshot.size());
+                        const int32 displayStart = max(0, min(clipper.DisplayStart, rowCount));
+                        const int32 displayEnd = max(displayStart, min(clipper.DisplayEnd, rowCount));
+                        for (int32 rowIndex = displayStart; rowIndex < displayEnd; ++rowIndex)
                         {
-                            if (nullptr != _filteredUIFontAssets[rowIndex])
-                                draw_font_row(*_filteredUIFontAssets[rowIndex]);
+                            const UI_InspectorAssetEntry* entry = filteredFontAssetSnapshot[static_cast<size_t>(rowIndex)];
+                            if (nullptr != entry)
+                                draw_font_row(*entry);
                         }
                     }
                 }

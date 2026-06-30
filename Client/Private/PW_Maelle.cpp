@@ -21,6 +21,10 @@ IMPLEMENT_REFLECTION(PW_Maelle)
 	info.displayName = "PW_Maelle";
 	info.category = "Character";
 
+	PROPERTY_FLOAT("Parkour Low Probe Distance", _parkourLowProbeDistance, 0.01f, 1.f, 0.005f);
+	PROPERTY_FLOAT("Parkour High Probe Distance", _parkourHighProbeDistance, 0.01f, 1.f, 0.005f);
+	PROPERTY_VEC3("Parkour Low Probe Center", _parkourLowProbeCenter, 0.01f);
+	PROPERTY_VEC3("Parkour High Probe Center", _parkourHighProbeCenter, 0.01f);
 
 	return true;
 }
@@ -43,8 +47,8 @@ HRESULT PW_Maelle::Initialize(void* arg)
 	auto skilltreeCom = Get_Component<SkillTreeCom>();
 
     // 공격전환 -> 불꽃으로 변경
-	skilltreeCom->TryUnlock("Spark");
-	skilltreeCom->TryUnlock("Percee");
+	skilltreeCom->ForceUnlock("Spark");
+	skilltreeCom->ForceUnlock("Percee");
     skilltreeCom->ForceUnlock("FleureFury");
 
 	//skilltreeCom->ForceUnlock("FireRise");

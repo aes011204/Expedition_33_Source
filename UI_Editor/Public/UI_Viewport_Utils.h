@@ -5,7 +5,7 @@
 namespace UIEditor::ViewportUtils
 {
     constexpr float kMinViewportZoomFactor = 1.f;
-    constexpr float kMaxViewportZoomFactor = 16.f;
+    constexpr float kMaxViewportZoomFactor = 30.f;
     constexpr float kViewportZoomStep = 1.1f;
     constexpr float kMinGridSize = 2.f;
     constexpr float kMaxGridSize = 256.f;

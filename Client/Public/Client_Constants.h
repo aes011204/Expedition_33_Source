@@ -8,8 +8,13 @@ namespace Client::Constants::UI
     inline constexpr wchar_t UI_GameEntry_Path[] = L"UI/UI_Json/Scene/GameEntry/UI_GameEntryScene.json";
     inline constexpr wchar_t UI_CharacterStatus_Path[] = L"UI/UI_Json/Character/UI_CharacterStatus.json";
     inline constexpr wchar_t UI_SavePoint_Path[] = L"UI/UI_Json/CommonSystem/UI_SavePoint.json";
+    inline constexpr wchar_t UI_Interaction_Key_E_Texture_Path[] = L"../Bin/Resources/Textures/UI/Common/Input/Keys/T_Icon_Key_E.png";
     inline constexpr wchar_t UI_ExpeditionStatus_Path[] = L"UI/UI_Json/CommonSystem/UI_ExpeditionStatus.json";
     inline constexpr wchar_t UI_ChangeWeapon_Path[] = L"UI/UI_Json/CommonSystem/UI_ChangeWeapon.json";
+    inline constexpr wchar_t UI_ChangeWeapon_Current_Weapon_Tooltip_Path[] =
+        L"UI/UI_Json/CommonSystem/UI_ChangeWeapon_Current_Weapon_Tooltip.json";
+    inline constexpr wchar_t UI_UpgradeWeapon_Path[] = L"UI/UI_Json/CommonSystem/UI_Upgrade_Weapon.json";
+    inline constexpr wchar_t UI_Merchant_Path[] = L"UI/UI_Json/CommonSystem/UI_Merchant.json";
     inline constexpr wchar_t UI_Replay_Path[] = L"UI/UI_Json/CommonSystem/UI_RePlay.json";
 
     inline constexpr wchar_t UI_SkillTree_BG_Path[] = L"UI/UI_Json/Skill/SkillTree/UI_SkillTree_Test.json";
@@ -44,6 +49,7 @@ namespace Client::Constants::UI
     inline constexpr wchar_t UI_Monster_Hp_Path[] = L"UI/UI_Json/BattleSystem/UI_Monster_HP_Bar.json";
     inline constexpr wchar_t UI_Boss_Hp_Path[] = L"UI/UI_Json/BattleSystem/UI_Boss_HP_Bar.json";
     inline constexpr wchar_t UI_Player_Hp_Path[] = L"UI/UI_Json/BattleSystem/UI_Player_HP_Bar.json";
+    inline constexpr wchar_t UI_BattleSystem_Gradient_Gauge_Path[] = L"UI/UI_Json/BattleSystem/UI_BattleSystem_Gradient_Gauge.json";
 
     inline constexpr wchar_t UI_Target_Monster_Path[] = L"UI/UI_Json/BattleSystem/UI_Target_Monster.json";
 
@@ -99,6 +105,7 @@ namespace Client::Constants::UI
     inline constexpr wchar_t UI_Tutorial_QTE_Path[]          = L"UI/UI_Json/BattleSystem/Tutorial/UI_Tutorial_QTE.json";
     inline constexpr wchar_t UI_Tutorial_Counter_Path[]      = L"UI/UI_Json/BattleSystem/Tutorial/UI_Tutorial_Counter.json";
     inline constexpr wchar_t UI_Tutorial_FreeAim_Path[]      = L"UI/UI_Json/BattleSystem/Tutorial/UI_Tutorial_FreeAim.json";
+    inline constexpr wchar_t UI_Tutorial_Gradient_Path[]     = L"UI/UI_Json/BattleSystem/Tutorial/UI_Tutorial_Gradient.json";
 
 #pragma endregion
 
@@ -156,6 +163,9 @@ namespace Client::Constants::UI
     inline constexpr wchar_t UI_Get_Weapon_Maelle_Sekarum_Path[] =
         L"UI/UI_Json/CommonSystem/Get_Item/Weapon/UI_Get_Weapon_Maelle_Sekarum.json";
 
+    inline constexpr wchar_t UI_Get_Chroma_Path[] =
+        L"UI/UI_Json/CommonSystem/Get_Item/Chroma/UI_Get_Chroma.json";
+
     inline constexpr wchar_t UI_Get_Pictos_AugmentedAim_Path[] =
         L"UI/UI_Json/CommonSystem/Get_Item/Pictos/UI_Get_Pictos_AugmentedAim.json";
 
@@ -208,6 +218,13 @@ namespace Client::Constants::UI
 namespace Client::Constants::UI_Anim
 {
     inline constexpr wchar_t UI_LoadingAnim_Path[] = L"UI/UI_Animations/Scene/Loading";
+
+    inline constexpr wchar_t UI_CharacterSelectLuneAnim_Path[] =
+        L"UI/UI_Animations/Character_Select/CharacterSelect_Lune";
+    inline constexpr wchar_t UI_CharacterSelectGustaveAnim_Path[] =
+        L"UI/UI_Animations/Character_Select/CharacterSelect_Gustave";
+    inline constexpr wchar_t UI_CharacterSelectMaelleAnim_Path[] =
+        L"UI/UI_Animations/Character_Select/CharacterSelect_Maelle";
 
     inline constexpr wchar_t UI_CrossAirReadyAnim_Path[] =
         L"UI/UI_Animations/BattleSystem/CrossAir/Ready_CrossAir";
@@ -302,6 +319,7 @@ namespace Client::Constants::UI_Anim
     inline constexpr wchar_t UI_Tutorial_QTEAnim_Path[]          = L"UI/UI_Animations/Tutorial/Tutorial_QTE";
     inline constexpr wchar_t UI_Tutorial_CounterAnim_Path[]      = L"UI/UI_Animations/Tutorial/Tutorial_Counter";
     inline constexpr wchar_t UI_Tutorial_FreeAimAnim_Path[]      = L"UI/UI_Animations/Tutorial/Tutorial_FreeAim";
+    inline constexpr wchar_t UI_Tutorial_GradientAnim_Path[]     = L"UI/UI_Animations/Tutorial/Tutorial_Gradient";
 #pragma endregion
 
 #pragma region 해금 시스템
@@ -514,6 +532,10 @@ namespace Client::Constants::Prefab
     inline constexpr char BattleStartSpawner_Boss[] = "BattleStartSpawner/BSS_GamePlay_Boss";
     inline constexpr char BSS_Gestral_PotatoBag[] = "BattleStartSpawner/BSS_Gestral_PotatoBag";
 
+    inline constexpr char BSS_Gameplay01[] = "BattleStartSpawner/BSS_GamePlay01";
+    inline constexpr char BSS_Gameplay02[] = "BattleStartSpawner/BSS_GamePlay02";
+
+
 }
 
 // 이제 사운드는 DT_SoundCue에 추가해서, 거기에 등록된 cueId를 여기에 상수로 매핑하는 형식으로 통일하기
@@ -599,6 +621,6 @@ namespace Client::Constants::Dialogue
 
 namespace Client::Constants::Value
 {
-    constexpr uint32 potatoBagEncounterId = 1;
+    constexpr uint32 potatoBagEncounterId = 100; // 일반 월드 몬스터 기본 encounter 1과 분리된 Gradient 안내 전용 전투
     constexpr int32  potatoBagBattleStartSpawnerId = 5;
 }

@@ -233,6 +233,13 @@ void Profile_View::Render()
     if (!Is_Open())
         return;
 
+    if (_pendingViewHotspotVisibleCountLogFrames > 0)
+    {
+        --_pendingViewHotspotVisibleCountLogFrames;
+        if (_pendingViewHotspotVisibleCountLogFrames == 0)
+            Log_ViewHotspot();
+    }
+
     bool isOpen = Is_Open();
     const string windowName = String::ToString(Get_WindowName());
 
@@ -442,7 +449,10 @@ void Profile_View::Draw_Toolbar()
 
     ImGui::SameLine();
     if (ImGui::Button("Log View Hotspot"))
-        Log_ViewHotspot();
+    {
+        Client::ClientInstance::Request_DebugMapInstancedVisibleCountReadback();
+        _pendingViewHotspotVisibleCountLogFrames = 2;
+    }
 
     ImGui::SameLine();
     ImGui::Checkbox("Sort by cost", &_sortByCost);
@@ -486,6 +496,10 @@ void Profile_View::Draw_Render_Isolation()
     bool disableMapInstanced = Client::ClientInstance::Is_DebugDisableMapInstancedMeshRender();
     if (ImGui::Checkbox("Disable MapInstancedMesh", &disableMapInstanced))
         Client::ClientInstance::Set_DebugDisableMapInstancedMeshRender(disableMapInstanced);
+
+    bool forceGestralPalisadeCull = Client::ClientInstance::Is_DebugForceGestralPalisadeInstancedCull();
+    if (ImGui::Checkbox("Force Gestral Palisade Instanced Cull", &forceGestralPalisadeCull))
+        Client::ClientInstance::Set_DebugForceGestralPalisadeInstancedCull(forceGestralPalisadeCull);
 
     bool disableGrassInstanced = Client::ClientInstance::Is_DebugDisableGrassInstancedRender();
     if (ImGui::Checkbox("Disable Grass Instanced", &disableGrassInstanced))
@@ -793,10 +807,22 @@ void Profile_View::Log_ViewHotspot() const
     unordered_map<string, uint32> sourcePrefabCounts{};
     unordered_map<string, uint32> sourceModelPathCounts{};
     vector<const Engine::RenderViewHotspotEntry*> instancedNonBlendRows{};
+    vector<const Engine::RenderViewHotspotEntry*> instancedMeshCostRows{};
+    vector<const Engine::RenderViewHotspotEntry*> instancedMeshVisibleCostRows{};
     vector<const Engine::RenderViewHotspotEntry*> nonBlendBoundsRows{};
     uint32 nonBlendBoundsCount = 0;
     uint32 instancedNonBlendGroupCount = 0;
     uint64 instancedNonBlendSubmittedInstances = 0;
+    uint32 instancedMeshCullEnabledGroups = 0;
+    uint32 instancedMeshCullResourceGroups = 0;
+    uint32 instancedMeshIndirectCullGroups = 0;
+    uint32 instancedMeshEstimatedMainDraws = 0;
+    uint32 instancedMeshEstimatedCullCopyResources = 0;
+    uint32 instancedMeshEstimatedCullCopyCounts = 0;
+    uint64 instancedMeshSourceIndexWorkLod0 = 0;
+    uint32 instancedMeshDrawCountGroups = 0;
+    uint64 instancedMeshDrawnInstances = 0;
+    uint64 instancedMeshVisibleIndexWork = 0;
 
     for (const Engine::RenderViewHotspotEntry& entry : snapshot.entries)
     {
@@ -824,6 +850,30 @@ void Profile_View::Log_ViewHotspot() const
                 ++instancedNonBlendGroupCount;
                 instancedNonBlendSubmittedInstances += entry.renderHotspotInstanceCount;
                 instancedNonBlendRows.push_back(&entry);
+
+                if (entry.hasInstancedMeshStats)
+                {
+                    const Engine::RenderHotspotInstancedMeshStats& stats = entry.instancedMeshStats;
+                    instancedMeshCostRows.push_back(&entry);
+                    if (stats.cullEnabled)
+                        ++instancedMeshCullEnabledGroups;
+                    if (stats.hasCullResources)
+                        ++instancedMeshCullResourceGroups;
+                    if (stats.usesIndirectCull)
+                        ++instancedMeshIndirectCullGroups;
+
+                    instancedMeshEstimatedMainDraws += stats.estimatedMainDrawCount;
+                    instancedMeshEstimatedCullCopyResources += stats.estimatedCullCopyResourceCount;
+                    instancedMeshEstimatedCullCopyCounts += stats.estimatedCullCopyCountCount;
+                    instancedMeshSourceIndexWorkLod0 += stats.sourceIndexWorkLod0;
+                    if (stats.hasDrawInstanceCounts)
+                    {
+                        ++instancedMeshDrawCountGroups;
+                        instancedMeshDrawnInstances += stats.drawInstanceCountTotal;
+                        instancedMeshVisibleIndexWork += stats.visibleIndexWork;
+                        instancedMeshVisibleCostRows.push_back(&entry);
+                    }
+                }
             }
         }
     }
@@ -841,6 +891,23 @@ void Profile_View::Log_ViewHotspot() const
         nonBlendBoundsCount,
         instancedNonBlendGroupCount,
         instancedNonBlendSubmittedInstances));
+
+    Log_ViewHotspot_Line(sourceLoc, fmt::format(
+        "instanced_mesh_render_estimate groups={} cull_enabled_groups={} cull_resource_groups={} indirect_cull_groups={} estimated_main_draws={} cull_copy_resources={} cull_copy_counts={} source_index_work_lod0={}",
+        instancedMeshCostRows.size(),
+        instancedMeshCullEnabledGroups,
+        instancedMeshCullResourceGroups,
+        instancedMeshIndirectCullGroups,
+        instancedMeshEstimatedMainDraws,
+        instancedMeshEstimatedCullCopyResources,
+        instancedMeshEstimatedCullCopyCounts,
+        instancedMeshSourceIndexWorkLod0));
+
+    Log_ViewHotspot_Line(sourceLoc, fmt::format(
+        "instanced_mesh_visible_estimate groups_with_draw_counts={} drawn_instances={} visible_index_work={}",
+        instancedMeshDrawCountGroups,
+        instancedMeshDrawnInstances,
+        instancedMeshVisibleIndexWork));
 
     Log_ViewHotspot_Line(sourceLoc, fmt::format(
         "rendered_counts nonblend={} shadow_total={} shadow_cascade0={} shadow_cascade1={} shadow_cascade2={} shadow_cascade3={}",
@@ -913,6 +980,107 @@ void Profile_View::Log_ViewHotspot() const
             entry.worldBoundsExtents.y,
             entry.worldBoundsExtents.z,
             Get_MaxExtent(entry.worldBoundsExtents)));
+    }
+
+    sort(instancedMeshCostRows.begin(), instancedMeshCostRows.end(),
+        [](const Engine::RenderViewHotspotEntry* lhs, const Engine::RenderViewHotspotEntry* rhs)
+    {
+        const Engine::RenderHotspotInstancedMeshStats& lhsStats = lhs->instancedMeshStats;
+        const Engine::RenderHotspotInstancedMeshStats& rhsStats = rhs->instancedMeshStats;
+
+        if (lhsStats.sourceIndexWorkLod0 != rhsStats.sourceIndexWorkLod0)
+            return lhsStats.sourceIndexWorkLod0 > rhsStats.sourceIndexWorkLod0;
+
+        if (lhsStats.estimatedMainDrawCount != rhsStats.estimatedMainDrawCount)
+            return lhsStats.estimatedMainDrawCount > rhsStats.estimatedMainDrawCount;
+
+        return lhsStats.sourceInstanceCount > rhsStats.sourceInstanceCount;
+    });
+
+    if (instancedMeshCostRows.size() > kViewHotspotTopLimit)
+        instancedMeshCostRows.resize(kViewHotspotTopLimit);
+
+    for (size_t index = 0; index < instancedMeshCostRows.size(); ++index)
+    {
+        const Engine::RenderViewHotspotEntry& entry = *instancedMeshCostRows[index];
+        const Engine::RenderHotspotInstancedMeshStats& stats = entry.instancedMeshStats;
+        Log_ViewHotspot_Line(sourceLoc, fmt::format(
+            "top_instanced_mesh_cost[{}] source_index_work_lod0={} draw_count_valid={} draw_instances=[{},{},{}] draw_instances_total={} visible_index_work={} visible_request_id={} instances={} lod_mask=0x{:X} lod_meshes=[{},{},{}] lod_indices=[{},{},{}] estimated_draws={} cull_enabled={} cull_resources={} indirect_cull={} cull_copy_resources={} cull_copy_counts={} cast_shadow={} cull_dist={:.1f} lod_dist=({:.1f},{:.1f}) class=\"{}\" source_model=\"{}\" object=0x{:X} bounds_center=({:.3f}, {:.3f}, {:.3f}) bounds_extents=({:.3f}, {:.3f}, {:.3f}) max_extent={:.3f}",
+            index,
+            stats.sourceIndexWorkLod0,
+            stats.hasDrawInstanceCounts,
+            stats.drawInstanceCounts[0],
+            stats.drawInstanceCounts[1],
+            stats.drawInstanceCounts[2],
+            stats.drawInstanceCountTotal,
+            stats.visibleIndexWork,
+            stats.visibleCountReadbackRequestId,
+            stats.sourceInstanceCount,
+            stats.lodMask,
+            stats.lodMeshCounts[0],
+            stats.lodMeshCounts[1],
+            stats.lodMeshCounts[2],
+            stats.lodIndexCounts[0],
+            stats.lodIndexCounts[1],
+            stats.lodIndexCounts[2],
+            stats.estimatedMainDrawCount,
+            stats.cullEnabled,
+            stats.hasCullResources,
+            stats.usesIndirectCull,
+            stats.estimatedCullCopyResourceCount,
+            stats.estimatedCullCopyCountCount,
+            stats.castShadow,
+            stats.cullDist,
+            stats.lod1Dist,
+            stats.lod2Dist,
+            entry.className.empty() ? string("<none>") : entry.className,
+            entry.sourceModelPath.empty() ? string("<none>") : String::ToString(entry.sourceModelPath),
+            entry.objectKey,
+            entry.worldBoundsCenter.x,
+            entry.worldBoundsCenter.y,
+            entry.worldBoundsCenter.z,
+            entry.worldBoundsExtents.x,
+            entry.worldBoundsExtents.y,
+            entry.worldBoundsExtents.z,
+            Get_MaxExtent(entry.worldBoundsExtents)));
+    }
+
+    sort(instancedMeshVisibleCostRows.begin(), instancedMeshVisibleCostRows.end(),
+        [](const Engine::RenderViewHotspotEntry* lhs, const Engine::RenderViewHotspotEntry* rhs)
+    {
+        const Engine::RenderHotspotInstancedMeshStats& lhsStats = lhs->instancedMeshStats;
+        const Engine::RenderHotspotInstancedMeshStats& rhsStats = rhs->instancedMeshStats;
+
+        if (lhsStats.visibleIndexWork != rhsStats.visibleIndexWork)
+            return lhsStats.visibleIndexWork > rhsStats.visibleIndexWork;
+
+        return lhsStats.drawInstanceCountTotal > rhsStats.drawInstanceCountTotal;
+    });
+
+    if (instancedMeshVisibleCostRows.size() > kViewHotspotTopLimit)
+        instancedMeshVisibleCostRows.resize(kViewHotspotTopLimit);
+
+    for (size_t index = 0; index < instancedMeshVisibleCostRows.size(); ++index)
+    {
+        const Engine::RenderViewHotspotEntry& entry = *instancedMeshVisibleCostRows[index];
+        const Engine::RenderHotspotInstancedMeshStats& stats = entry.instancedMeshStats;
+        Log_ViewHotspot_Line(sourceLoc, fmt::format(
+            "top_instanced_mesh_visible_cost[{}] visible_index_work={} draw_instances=[{},{},{}] draw_instances_total={} source_index_work_lod0={} cull_enabled={} indirect_cull={} lod_indices=[{},{},{}] class=\"{}\" source_model=\"{}\" object=0x{:X}",
+            index,
+            stats.visibleIndexWork,
+            stats.drawInstanceCounts[0],
+            stats.drawInstanceCounts[1],
+            stats.drawInstanceCounts[2],
+            stats.drawInstanceCountTotal,
+            stats.sourceIndexWorkLod0,
+            stats.cullEnabled,
+            stats.usesIndirectCull,
+            stats.lodIndexCounts[0],
+            stats.lodIndexCounts[1],
+            stats.lodIndexCounts[2],
+            entry.className.empty() ? string("<none>") : entry.className,
+            entry.sourceModelPath.empty() ? string("<none>") : String::ToString(entry.sourceModelPath),
+            entry.objectKey));
     }
 
     sort(nonBlendBoundsRows.begin(), nonBlendBoundsRows.end(),

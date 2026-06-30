@@ -348,9 +348,7 @@ void GS_MAIN(point GS_IN In[1], inout TriangleStream<GS_OUT> OutStream)
         upDir = float3(0.f, 0.f, 1.f);
     }
     else if (!usedInstanceLookBasis && g_ScreenAlignmentMode == 7)
-    {
         ResolveWorldUpFacingCameraBasis(particlePosition, rightDir, upDir);
-    }
     else if (!usedInstanceLookBasis && (g_ScreenAlignmentMode == 3 || g_ScreenAlignmentMode == 4))
     {
         float3 lookDir = float3(0.f, 0.f, 0.f);

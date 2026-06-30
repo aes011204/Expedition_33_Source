@@ -19,6 +19,7 @@ public:
 private:
     float _worldTimeScale = 1.f;
     bool _scalePreviewEffects = true;
-    float _restoreWorldTimeScale = 1.f;
+    uint64 _activeSectionId = 0;
+    bool _isApplied = false;
 };
 NS_END

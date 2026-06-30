@@ -69,6 +69,7 @@ private:
     void Draw_ComponentEntries(const Shared<GameObject>& gameObject, const wstring& objectKey);
 
     Shared<GameObject> Find_GameObjectByKey(const Shared<GameObject>& rootObject, const wstring& objectKey) const;
+    void Compile_PreviewObject();
 
 private:
     void Ensure_PreviewRenderTarget(uint32 width, uint32 height);
@@ -81,6 +82,7 @@ private:
     void Lock_PreviewObjectToOrigin();
 
     void Draw_PreviewColliders(const Shared<GameObject>& gameObject) const;
+    void Draw_ParkourProbePreview() const;
     void Draw_PreviewGrid() const;
     void Draw_MonsterPatrolPointPreview() const;
     void Draw_MonsterBattleSpawnPreview() const;

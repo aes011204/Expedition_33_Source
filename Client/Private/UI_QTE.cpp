@@ -21,94 +21,62 @@ HRESULT UI_QTE::Initialize(uint32 levelIndex)
 
 void UI_QTE::Update(float timeDelta)
 {
-    if (!Is_Open() || _root == nullptr)
+    if (!Is_Open())
         return;
 
-    // QTE 시작
-    if (_stage == QTE_Stage::Intro)
+    const int32 inputSlotIndex = Find_FirstInputSlotIndex();
+
+    for (uint32 slotIndex : _activeSlotOrder)
     {
-        _elapsed += timeDelta;
+        if (slotIndex >= _slots.size())
+            continue;
 
-        if (_elapsed >= _request.introDuration)
-            Begin_Progress();
-
-        return;
+        Update_Slot(_slots[slotIndex], timeDelta, static_cast<int32>(slotIndex) == inputSlotIndex);
     }
 
-    // QTE 진행 중
-    if (_stage == QTE_Stage::Progress)
-    {
-        _elapsed += timeDelta;
+    Remove_InactiveSlotOrder();
 
-        if (GAME->KeyDown(KEY_TYPE::SPACE))
-        {
-            const float safeDuration = max(_request.progressDuration, 0.0001f);
-            const float ratio = clamp(_elapsed / safeDuration, 0.f, 1.f);
-
-            // Progress 진행률 기준으로 노란 구간 안이면 Perfect, 그 전이면 Normal.
-            const bool isPerfect =
-                ratio >= _request.perfectStartRatio &&
-                ratio <= _request.perfectEndRatio;
-
-            Resolve(isPerfect ? BattleQTEResult::SuccessPerfect : BattleQTEResult::SuccessNormal);
-            return;
-        }
-
-        if (_elapsed >= _request.progressDuration)
-            Resolve(BattleQTEResult::Fail);
-
-        return;
-    }
-
-    // 결과 : 실패, 노말, 퍼펙트 판단
-    if (_stage == QTE_Stage::Result)
-    {
-        _resultElapsed += timeDelta;
-
-        if (_resultElapsed >= _resultDuration)
-            Close();
-
-        return;
-    }
+    if (_activeSlotOrder.empty())
+        UI_RuntimePanelBase::Close();
 }
 
 void UI_QTE::Open()
 {
-    UI_RuntimePanelBase::Open();
+    _isOpen = true;
 }
 
 void UI_QTE::Close()
 {
-    _stage = QTE_Stage::Closed;
-    _request = {};
-    _pendingResult = BattleQTEResult::None;
-    _hasPendingResult = false;
-    _elapsed = 0.f;
-    _resultElapsed = 0.f;
+    _activeSlotOrder.clear();
+    _pendingResults.clear();
 
-    Stop_QTEAnimations();
-    Close_AllQTEVisuals();
+    for (QTE_Slot& slot : _slots)
+        Close_Slot(slot);
 
     UI_RuntimePanelBase::Close();
 }
 
 void UI_QTE::Play_QTE(const BattleQTERequest& request)
 {
-    _request = request;
-    _stage = QTE_Stage::Intro;
-    _pendingResult = BattleQTEResult::None;
-    _hasPendingResult = false;
-    _elapsed = 0.f;
-    _resultElapsed = 0.f;
+    int32 slotIndex = Find_FreeSlotIndex();
+    if (slotIndex < 0)
+        return;
 
-    UI_RuntimePanelBase::Open();
-    Open_AllQTEVisuals();
-    Close_ResultVisuals();
+    QTE_Slot& slot = _slots[slotIndex];
+    slot.request = request;
+    slot.stage = QTE_Stage::Intro;
+    slot.elapsed = 0.f;
+    slot.resultElapsed = 0.f;
 
-    Apply_PresetPlacement(request);
+    _activeSlotOrder.push_back(static_cast<uint32>(slotIndex));
+    _isOpen = true;
+    Open_AllQTEVisuals(slot);
+    Close_ResultVisuals(slot);
+
+    Apply_PresetPlacement(slot, request);
 
     GAME->Play_SoundCue(Constants::SoundCue::UI_Battle_QTE_Start);
-    Play_QTEAnimation(L"QTE_Intro");
+    Play_QTEAnimation(slot, L"QTE_Intro");
 }
 
 void UI_QTE::Apply_ExternalResult(BattleQTEResult  result)
@@ -119,35 +87,43 @@ void UI_QTE::Apply_ExternalResult(BattleQTEResult  result)
     if (result == BattleQTEResult::None || result == BattleQTEResult::END)
         return;
 
-    _pendingResult = BattleQTEResult::None;
-    _hasPendingResult = false;
+    for (uint32 slotIndex : _activeSlotOrder)
+    {
+        if (slotIndex >= _slots.size())
+            continue;
 
-    _stage = QTE_Stage::Result;
-    _elapsed = 0.f;
-    _resultElapsed = 0.f;
+        QTE_Slot& slot = _slots[slotIndex];
+        if (slot.stage == QTE_Stage::Result)
+            return;
+    }
+
+    const int32 inputSlotIndex = Find_FirstInputSlotIndex();
+    if (inputSlotIndex < 0)
+        return;
+
+    QTE_Slot& slot = _slots[inputSlotIndex];
+    slot.stage = QTE_Stage::Result;
+    slot.elapsed = 0.f;
+    slot.resultElapsed = 0.f;
 
     // UI 내부 입력이 아니라 ANS_QTE 종료/턴 종료에서 확정된 결과도 같은 결과 애니메이션으로 표시
-    Play_ResultAnimation(result);
+    Play_ResultAnimation(slot, result);
 }
 
 bool UI_QTE::Try_ConsumeResult(BattleQTEResult& outResult)
 {
-    if (!_hasPendingResult)
+    if (_pendingResults.empty())
         return false;
 
-    outResult = _pendingResult;
-    _pendingResult = BattleQTEResult::None;
-    _hasPendingResult = false;
+    outResult = _pendingResults.front();
+    _pendingResults.erase(_pendingResults.begin());
 
     return true;
 }
 
 HRESULT UI_QTE::Load_UI(uint32 levelIndex)
 {
-    UI_RuntimeLoader::UI_LoadDesc desc{};
-    desc.levelIndex = levelIndex;
-    desc.jsonPath = Constants::UI::UI_QTE_Path;
-    desc.animationPaths =
+    const vector<wstring> animationPaths =
     {
         Constants::UI_Anim::UI_QTEIntroAnim_Path,
         Constants::UI_Anim::UI_QTEProgressAnim_Path,
@@ -155,51 +131,67 @@ HRESULT UI_QTE::Load_UI(uint32 levelIndex)
         Constants::UI_Anim::UI_QTESuccessNormalAnim_Path,
         Constants::UI_Anim::UI_QTESuccessPerfectAnim_Path,
     };
-    desc.prototypeTagPrefix = L"QTE";
-    desc.outUIByName = &_uiByName;
 
-    CHECK_FAILED(UI_RuntimeLoader::Load_Document(desc), E_FAIL);
+    for (uint32 slotIndex = 0; slotIndex < _slots.size(); ++slotIndex)
+    {
+        QTE_Slot& slot = _slots[slotIndex];
 
-    _root = UI_Utils::Find_UI(_uiByName, L"Panel_QTE");
-    CHECK_NULL(_root, E_FAIL);
+        UI_RuntimeLoader::UI_LoadDesc desc{};
+        desc.levelIndex = levelIndex;
+        desc.jsonPath = Constants::UI::UI_QTE_Path;
+        desc.animationPaths = animationPaths;
+        desc.prototypeTagPrefix = L"QTE" + to_wstring(slotIndex);
+        desc.outUIByName = &slot.uiByName;
 
-    CHECK_FAILED(Bind_UIReferences(), E_FAIL);
+        CHECK_FAILED(UI_RuntimeLoader::Load_Document(desc), E_FAIL);
+
+        slot.root = UI_Utils::Find_UI(slot.uiByName, L"Panel_QTE");
+        CHECK_NULL(slot.root, E_FAIL);
+
+        CHECK_FAILED(Bind_UIReferences(slot), E_FAIL);
+    }
+
+    _uiByName = _slots[0].uiByName;
+    _root = _slots[0].root;
 
     return S_OK;
 }
 
-HRESULT UI_QTE::Bind_UIReferences()
+HRESULT UI_QTE::Bind_UIReferences(QTE_Slot& slot)
 {
-    _areaLineRoot = UI_Utils::Find_UI(_uiByName, L"Panel_QTE_Area_Line");
-    _decoAngleRoot = UI_Utils::Find_UI(_uiByName, L"Panel_QTE_Deco_Angle");
+    slot.areaLineRoot = UI_Utils::Find_UI(slot.uiByName, L"Panel_QTE_Area_Line");
+    slot.decoAngleRoot = UI_Utils::Find_UI(slot.uiByName, L"Panel_QTE_Deco_Angle");
 
-    _keySpaceRoot = UI_Utils::Find_UI(_uiByName, L"Panel_Key_Space");
-    _cursorProgressRoot = UI_Utils::Find_UI(_uiByName, L"Image_QTE_CursorProgress");
+    slot.keySpaceRoot = UI_Utils::Find_UI(slot.uiByName, L"Panel_Key_Space");
+    slot.cursorProgressRoot = UI_Utils::Find_UI(slot.uiByName, L"Image_QTE_CursorProgress");
 
-    _normalDecoRoot = UI_Utils::Find_UI(_uiByName, L"Panel_QTE_Normal_Deco");
-    _perfectDecoRoot = UI_Utils::Find_UI(_uiByName, L"Panel_QTE_Perfect_Deco");
-    _perfectTextRoot = UI_Utils::Find_UI(_uiByName, L"Panel_QTE_Perfect_Text");
+    slot.normalDecoRoot = UI_Utils::Find_UI(slot.uiByName, L"Panel_QTE_Normal_Deco");
+    slot.perfectDecoRoot = UI_Utils::Find_UI(slot.uiByName, L"Panel_QTE_Perfect_Deco");
+    slot.perfectTextRoot = UI_Utils::Find_UI(slot.uiByName, L"Panel_QTE_Perfect_Text");
 
-    CHECK_NULL(_areaLineRoot, E_FAIL);
-    CHECK_NULL(_decoAngleRoot, E_FAIL);
-    CHECK_NULL(_keySpaceRoot, E_FAIL);
-    CHECK_NULL(_cursorProgressRoot, E_FAIL);
-    CHECK_NULL(_normalDecoRoot, E_FAIL);
-    CHECK_NULL(_perfectDecoRoot, E_FAIL);
-    CHECK_NULL(_perfectTextRoot, E_FAIL);
+    CHECK_NULL(slot.areaLineRoot, E_FAIL);
+    CHECK_NULL(slot.decoAngleRoot, E_FAIL);
+    CHECK_NULL(slot.keySpaceRoot, E_FAIL);
+    CHECK_NULL(slot.cursorProgressRoot, E_FAIL);
+    CHECK_NULL(slot.normalDecoRoot, E_FAIL);
+    CHECK_NULL(slot.perfectDecoRoot, E_FAIL);
+    CHECK_NULL(slot.perfectTextRoot, E_FAIL);
 
     return S_OK;
 }
 
 void UI_QTE::Reset_VisualState()
 {
-    Stop_QTEAnimations();
-    Close_ResultVisuals();
+    for (QTE_Slot& slot : _slots)
+    {
+        Stop_QTEAnimations(slot);
+        Close_ResultVisuals(slot);
+    }
 }
 
-void UI_QTE::Open_AllQTEVisuals()
+void UI_QTE::Open_AllQTEVisuals(QTE_Slot& slot)
 {
-    for (auto& [name, ui] : _uiByName)
+    for (auto& [name, ui] : slot.uiByName)
     {
         UNREFERENCED_PARAMETER(name);
 
@@ -208,9 +200,9 @@ void UI_QTE::Open_AllQTEVisuals()
     }
 }
 
-void UI_QTE::Close_AllQTEVisuals()
+void UI_QTE::Close_AllQTEVisuals(QTE_Slot& slot)
 {
-    for (auto& [name, ui] : _uiByName)
+    for (auto& [name, ui] : slot.uiByName)
     {
         UNREFERENCED_PARAMETER(name);
 
@@ -219,16 +211,16 @@ void UI_QTE::Close_AllQTEVisuals()
     }
 }
 
-void UI_QTE::Close_ResultVisuals()
+void UI_QTE::Close_ResultVisuals(QTE_Slot& slot)
 {
-    Set_UIOpen(_normalDecoRoot, false);
-    Set_UIOpen(_perfectDecoRoot, false);
-    Set_UIOpen(_perfectTextRoot, false);
+    Set_UIOpen(slot.normalDecoRoot, false);
+    Set_UIOpen(slot.perfectDecoRoot, false);
+    Set_UIOpen(slot.perfectTextRoot, false);
 }
 
-void UI_QTE::Play_QTEAnimation(const wstring& animationName)
+void UI_QTE::Play_QTEAnimation(QTE_Slot& slot, const wstring& animationName)
 {
-    for (auto& [name, ui] : _uiByName)
+    for (auto& [name, ui] : slot.uiByName)
     {
         UNREFERENCED_PARAMETER(name);
 
@@ -240,9 +232,9 @@ void UI_QTE::Play_QTEAnimation(const wstring& animationName)
     }
 }
 
-void UI_QTE::Stop_QTEAnimations()
+void UI_QTE::Stop_QTEAnimations(QTE_Slot& slot)
 {
-    for (auto& [name, ui] : _uiByName)
+    for (auto& [name, ui] : slot.uiByName)
     {
         UNREFERENCED_PARAMETER(name);
 
@@ -251,6 +243,17 @@ void UI_QTE::Stop_QTEAnimations()
 
         ui->Stop_UIAnimation();
     }
+}
+
+void UI_QTE::Close_Slot(QTE_Slot& slot)
+{
+    slot.stage = QTE_Stage::Closed;
+    slot.request = {};
+    slot.elapsed = 0.f;
+    slot.resultElapsed = 0.f;
+
+    Stop_QTEAnimations(slot);
+    Close_AllQTEVisuals(slot);
 }
 
 void UI_QTE::Set_UIOpen(const Shared<UI_Base>& ui, bool isOpen) const
@@ -264,63 +267,109 @@ void UI_QTE::Set_UIOpen(const Shared<UI_Base>& ui, bool isOpen) const
         ui->Close();
 }
 
-void UI_QTE::Begin_Progress()
+void UI_QTE::Update_Slot(QTE_Slot& slot, float timeDelta, bool allowInput)
 {
-    _stage = QTE_Stage::Progress;
-    _elapsed = 0.f;
+    if (slot.stage == QTE_Stage::Closed || slot.root == nullptr)
+        return;
 
-    Open_AllQTEVisuals();
-    Close_ResultVisuals();
+    if (slot.stage == QTE_Stage::Intro)
+    {
+        slot.elapsed += timeDelta;
+
+        if (slot.elapsed >= slot.request.introDuration)
+            Begin_Progress(slot);
+
+        return;
+    }
+
+    if (slot.stage == QTE_Stage::Progress)
+    {
+        slot.elapsed += timeDelta;
+
+        if (allowInput && GAME->KeyDown(KEY_TYPE::SPACE))
+        {
+            const float safeDuration = max(slot.request.progressDuration, 0.0001f);
+            const float ratio = clamp(slot.elapsed / safeDuration, 0.f, 1.f);
+
+            const bool isPerfect =
+                ratio >= slot.request.perfectStartRatio &&
+                ratio <= slot.request.perfectEndRatio;
+
+            Resolve(slot, isPerfect ? BattleQTEResult::SuccessPerfect : BattleQTEResult::SuccessNormal);
+            return;
+        }
+
+        if (allowInput && slot.elapsed >= slot.request.progressDuration)
+            Resolve(slot, BattleQTEResult::Fail);
+
+        return;
+    }
+
+    if (slot.stage == QTE_Stage::Result)
+    {
+        slot.resultElapsed += timeDelta;
+
+        if (slot.resultElapsed >= _resultDuration)
+            Close_Slot(slot);
+    }
+}
+
+void UI_QTE::Begin_Progress(QTE_Slot& slot)
+{
+    slot.stage = QTE_Stage::Progress;
+    slot.elapsed = 0.f;
+
+    Open_AllQTEVisuals(slot);
+    Close_ResultVisuals(slot);
 
     // Progress도 루트가 아니라 모든 바인딩 타겟에 재생 요청한다.
-    Play_QTEAnimation(L"QTE_Progress");
+    Play_QTEAnimation(slot, L"QTE_Progress");
 }
 
-void UI_QTE::Resolve(BattleQTEResult result)
+void UI_QTE::Resolve(QTE_Slot& slot, BattleQTEResult result)
 {
-    if (_stage != QTE_Stage::Progress)
+    if (slot.stage != QTE_Stage::Progress)
         return;
 
-    _pendingResult = result;
-    _hasPendingResult = true;
+    _pendingResults.push_back(result);
 
-    _stage = QTE_Stage::Result;
-    _elapsed = 0.f;
-    _resultElapsed = 0.f;
+    slot.stage = QTE_Stage::Result;
+    slot.elapsed = 0.f;
+    slot.resultElapsed = 0.f;
 
     // QTE 결과
-    Play_ResultAnimation(result);
+    Play_ResultAnimation(slot, result);
 }
 
-void UI_QTE::Play_ResultAnimation(BattleQTEResult result)
+void UI_QTE::Play_ResultAnimation(QTE_Slot& slot, BattleQTEResult result)
 {
-    if (_root == nullptr)
+    if (slot.root == nullptr)
         return;
 
-    Open_AllQTEVisuals();
+    Open_AllQTEVisuals(slot);
 
     switch (result)
     {
     case BattleQTEResult::SuccessPerfect:
-        Set_UIOpen(_perfectDecoRoot, true);
-        Set_UIOpen(_perfectTextRoot, true);
-        Set_UIOpen(_normalDecoRoot, false);
+        Set_UIOpen(slot.perfectDecoRoot, true);
+        Set_UIOpen(slot.perfectTextRoot, true);
+        Set_UIOpen(slot.normalDecoRoot, false);
         GAME->Play_SoundCue(Constants::SoundCue::UI_Battle_QTE_SuccessPerfect);
-        Play_QTEAnimation(L"QTE_Success_Perfect");
+        Play_QTEAnimation(slot, L"QTE_Success_Perfect");
         break;
 
     case BattleQTEResult::SuccessNormal:
-        Set_UIOpen(_normalDecoRoot, true);
-        Set_UIOpen(_perfectDecoRoot, false);
-        Set_UIOpen(_perfectTextRoot, false);
+        Set_UIOpen(slot.normalDecoRoot, true);
+        Set_UIOpen(slot.perfectDecoRoot, false);
+        Set_UIOpen(slot.perfectTextRoot, false);
         GAME->Play_SoundCue(Constants::SoundCue::UI_Battle_QTE_SuccessRegular);
-        Play_QTEAnimation(L"QTE_Success_Normal");
+        Play_QTEAnimation(slot, L"QTE_Success_Normal");
         break;
 
     case BattleQTEResult::Fail:
-        Close_ResultVisuals();
+        Close_ResultVisuals(slot);
         GAME->Play_SoundCue(Constants::SoundCue::UI_Battle_QTE_Miss);
-        Play_QTEAnimation(L"QTE_Fail");
+        Play_QTEAnimation(slot, L"QTE_Fail");
         break;
 
     default:
@@ -328,17 +377,56 @@ void UI_QTE::Play_ResultAnimation(BattleQTEResult result)
     }
 }
 
-void UI_QTE::Apply_PresetPlacement(const BattleQTERequest& request)
+void UI_QTE::Apply_PresetPlacement(QTE_Slot& slot, const BattleQTERequest& request)
 {
-     if (_root == nullptr || _root->Get_Transform() == nullptr)
+     if (slot.root == nullptr || slot.root->Get_Transform() == nullptr)
         return;
 
-    auto rootTr = _root->Get_Transform();
+    auto rootTr = slot.root->Get_Transform();
 
     rootTr->Set_Position(request.screenPosition);
     rootTr->Set_Scale(Vec2(request.screenScale, request.screenScale));
 
-    _root->Refresh_OpenBaseTransform();
+    slot.root->Refresh_OpenBaseTransform();
+}
+
+int32 UI_QTE::Find_FreeSlotIndex() const
+{
+    for (uint32 slotIndex = 0; slotIndex < _slots.size(); ++slotIndex)
+    {
+        if (_slots[slotIndex].stage == QTE_Stage::Closed)
+            return static_cast<int32>(slotIndex);
+    }
+
+    return -1;
+}
+
+int32 UI_QTE::Find_FirstInputSlotIndex() const
+{
+    for (uint32 slotIndex : _activeSlotOrder)
+    {
+        if (slotIndex >= _slots.size())
+            continue;
+
+        const QTE_Slot& slot = _slots[slotIndex];
+        if (slot.stage == QTE_Stage::Intro || slot.stage == QTE_Stage::Progress)
+            return static_cast<int32>(slotIndex);
+    }
+
+    return -1;
+}
+
+void UI_QTE::Remove_InactiveSlotOrder()
+{
+    _activeSlotOrder.erase(
+        remove_if(
+            _activeSlotOrder.begin(),
+            _activeSlotOrder.end(),
+            [this](uint32 slotIndex)
+            {
+                return slotIndex >= _slots.size() || _slots[slotIndex].stage == QTE_Stage::Closed;
+            }),
+        _activeSlotOrder.end());
 }
 
 Unique<UI_QTE> UI_QTE::Create(uint32 levelIndex)

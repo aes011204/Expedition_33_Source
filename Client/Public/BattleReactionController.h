@@ -61,7 +61,7 @@ public:
 
         BattleReactionType type = BattleReactionType::None;
 
-        BattleChar apRewardTarget{};
+        vector<BattleChar> apRewardTargets{};
         uint32 apRewardAmount = 0;
         EAPChangeReason apRewardReason = EAPChangeReason::Invalid;
     };
@@ -243,7 +243,7 @@ private:
     // 카운터
     bool _isCounterTimeSectionActive = false;
     float _counterTimeSectionRestoreScale = 1.f;
-    Shared<ModelCom> _counterTimeSectionModel = nullptr;
+    vector<Shared<ModelCom>> _counterTimeSectionModels = {};
 
 public:
     static Shared<BattleReactionController> Create();

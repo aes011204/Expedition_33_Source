@@ -471,7 +471,8 @@ namespace Client
         Jump,
         JumpCounter,
 
-        Hit_Weak
+        Hit_Weak,
+        GroupCounter,
     };
 
     enum class BattleReactionType
@@ -563,6 +564,9 @@ namespace Client
         QTE,
         Counter,
         FreeAim,
+
+        Gradient,
+
         END
     };
 
