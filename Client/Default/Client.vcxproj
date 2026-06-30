@@ -196,6 +196,7 @@
     <ClInclude Include="..\Public\AN_SL_SpawnAttColl.h" />
     <ClInclude Include="..\Public\AN_PlaySound.h" />
     <ClInclude Include="..\Public\AN_ReturnBattleIdle.h" />
+    <ClInclude Include="..\Public\AN_SL_UseHealingPotion.h" />
     <ClInclude Include="..\Public\AN_WeaponAttach.h" />
     <ClInclude Include="..\Public\AN_WeaponDetach.h" />
     <ClInclude Include="..\Public\ANS_WeaponEcho.h" />
@@ -251,6 +252,7 @@
     <ClInclude Include="..\Public\CA_ScreenFx.h" />
     <ClInclude Include="..\Public\ChangeSkill_Panel.h" />
     <ClInclude Include="..\public\ChangeWeapon_Panel.h" />
+    <ClInclude Include="..\Public\SL_UseItem.h" />
     <ClInclude Include="..\Public\UpgradeWeapon_Panel.h" />
     <ClInclude Include="..\Public\Merchant_Panel.h" />
     <ClInclude Include="..\public\BT_FinishDecision.h" />
@@ -581,6 +583,7 @@
     <ClInclude Include="..\Public\UI_GetClothes.h" />
     <ClInclude Include="..\Public\UI_GetWeapon.h" />
     <ClInclude Include="..\Public\UI_GetPictos.h" />
+    <ClInclude Include="..\Public\UI_GetChroma.h" />
     <ClInclude Include="..\Public\UI_HealFont.h" />
     <ClInclude Include="..\Public\UI_DestroyShield.h" />
     <ClInclude Include="..\Public\UI_MarkEffect.h" />
@@ -685,6 +688,7 @@
     <ClCompile Include="..\Private\AN_SL_SpawnAttColl.cpp" />
     <ClCompile Include="..\Private\AN_PlaySound.cpp" />
     <ClCompile Include="..\Private\AN_ReturnBattleIdle.cpp" />
+    <ClCompile Include="..\Private\AN_SL_UseHealingPotion.cpp" />
     <ClCompile Include="..\Private\AN_WeaponAttach.cpp" />
     <ClCompile Include="..\Private\AN_WeaponDetach.cpp" />
     <ClCompile Include="..\Private\ANS_WeaponEcho.cpp" />
@@ -791,6 +795,7 @@
     <ClCompile Include="..\Private\SL_State.cpp" />
     <ClCompile Include="..\Private\SL_TargetCom.cpp" />
     <ClCompile Include="..\Private\SL_Test_Lancelier.cpp" />
+    <ClCompile Include="..\Private\SL_UseItem.cpp" />
     <ClCompile Include="..\Private\SL_Weapon.cpp" />
     <ClCompile Include="..\Private\SoulLikeCamera.cpp" />
     <ClCompile Include="..\Private\SoulLikeController.cpp" />
@@ -1052,6 +1057,7 @@
     <ClCompile Include="..\Private\UI_GetClothes.cpp" />
     <ClCompile Include="..\Private\UI_GetWeapon.cpp" />
     <ClCompile Include="..\Private\UI_GetPictos.cpp" />
+    <ClCompile Include="..\Private\UI_GetChroma.cpp" />
     <ClCompile Include="..\Private\UI_HealFont.cpp" />
     <ClCompile Include="..\Private\UI_DestroyShield.cpp" />
     <ClCompile Include="..\Private\UI_MarkEffect.cpp" />

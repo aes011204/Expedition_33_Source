@@ -107,6 +107,7 @@ private:
     int _avgWindow = 120;
     int _maxScopeRows = 64;
     int _autoHitchLogRemaining = 8;
+    int _pendingViewHotspotVisibleCountLogFrames = 0;
     float _autoHitchThresholdMs = 80.f;
     char _filter[128] = {};
 

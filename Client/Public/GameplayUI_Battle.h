@@ -220,7 +220,6 @@ private:
     Unique<UI_ChoiceTarget>                 _choiceTarget;
     Unique<UI_EscapeSkipTurnBack>           _escapeSkipTurn;
     Unique<UI_AttackTooltip>                _attackTooltip;
-    Unique<UI_ReactionResult>               _reactionResult;
     Unique<UI_BattleVictory>                _battleVictory;
     Unique<UI_BattleSystem_TurnOrder>       _turnOrder;
     Unique<UI_BattleMechanism>              _battleMechanism;
@@ -246,6 +245,9 @@ private:
 
     static constexpr uint32 kAddAPPoolSize = 4;
     array<Unique<UI_AddAP>, kAddAPPoolSize> _addAPs{};
+
+    static constexpr uint32 kReactionResultPoolSize = 4;
+    array<Unique<UI_ReactionResult>, kReactionResultPoolSize> _reactionResults{};
 
     static constexpr uint32 kBattlePictosPoolSize = 9; // 3 heroes x 3 equipped pictos
     array<Unique<UI_BattlePictos>, kBattlePictosPoolSize> _battlePictos{};

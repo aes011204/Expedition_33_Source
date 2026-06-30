@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include "NPC_Base.h"
 
 NS_BEGIN(Client)
@@ -20,6 +20,8 @@ public:
     HRESULT Initialize(void* arg) override;
     void    Priority_Update(float timeDelta) override;
     void    Update(float timeDelta) override;
+    void    Late_Update(float timeDelta) override;
+
     HRESULT Render() override;
     HRESULT Render_Shadow() override;
 
