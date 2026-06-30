@@ -1,4 +1,4 @@
-#include "Mon_Abbest_Body.h"
+﻿#include "Mon_Abbest_Body.h"
 
 #include "ModelCom.h"
 #include "ChainModifierPreset.h"
@@ -28,6 +28,8 @@ HRESULT Mon_Abbest_Body::Initialize(void* arg)
 
     _rootIndex = _model->Get_BoneIndex("root");
     _model->Set_LocalRootNode(_rootIndex);
+
+    //_model->Set_RootMotionEnabled(false);
 
     ChainModifier::ChainModifierDesc clothDesc{};
     ChainModifierPreset::BuildAbbestClothDesc(

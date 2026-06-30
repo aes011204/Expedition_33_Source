@@ -40,6 +40,33 @@ cbuffer cbEffectSpriteMaterial : register(b2)
     float4 g_EffectMaterialScalarModulationKeyLeaveTangentsBlock1[8];
     float4 g_EffectMaterialScalarModulationKeyModes[8];
     float4 g_EffectMaterialScalarModulationKeyModesBlock1[8];
+    float4 g_EffectMaterialCoreColorRgbModulationParams = { 0.f, 0.f, 0.f, 0.f };
+    float4 g_EffectMaterialCoreColorRgbModulationMeta[8];
+    float4 g_EffectMaterialCoreColorRgbModulationUniformMin[8];
+    float4 g_EffectMaterialCoreColorRgbModulationUniformMax[8];
+    float4 g_EffectMaterialCoreColorRgbModulationUniformSeed[8];
+    float4 g_EffectMaterialCoreColorRgbModulationKeyTimes[8];
+    float4 g_EffectMaterialCoreColorRgbModulationKeyTimesBlock1[8];
+    float4 g_EffectMaterialCoreColorRgbModulationKeyValuesR[8];
+    float4 g_EffectMaterialCoreColorRgbModulationKeyValuesRBlock1[8];
+    float4 g_EffectMaterialCoreColorRgbModulationKeyValuesG[8];
+    float4 g_EffectMaterialCoreColorRgbModulationKeyValuesGBlock1[8];
+    float4 g_EffectMaterialCoreColorRgbModulationKeyValuesB[8];
+    float4 g_EffectMaterialCoreColorRgbModulationKeyValuesBBlock1[8];
+    float4 g_EffectMaterialCoreColorRgbModulationKeyArriveTangentsR[8];
+    float4 g_EffectMaterialCoreColorRgbModulationKeyArriveTangentsRBlock1[8];
+    float4 g_EffectMaterialCoreColorRgbModulationKeyArriveTangentsG[8];
+    float4 g_EffectMaterialCoreColorRgbModulationKeyArriveTangentsGBlock1[8];
+    float4 g_EffectMaterialCoreColorRgbModulationKeyArriveTangentsB[8];
+    float4 g_EffectMaterialCoreColorRgbModulationKeyArriveTangentsBBlock1[8];
+    float4 g_EffectMaterialCoreColorRgbModulationKeyLeaveTangentsR[8];
+    float4 g_EffectMaterialCoreColorRgbModulationKeyLeaveTangentsRBlock1[8];
+    float4 g_EffectMaterialCoreColorRgbModulationKeyLeaveTangentsG[8];
+    float4 g_EffectMaterialCoreColorRgbModulationKeyLeaveTangentsGBlock1[8];
+    float4 g_EffectMaterialCoreColorRgbModulationKeyLeaveTangentsB[8];
+    float4 g_EffectMaterialCoreColorRgbModulationKeyLeaveTangentsBBlock1[8];
+    float4 g_EffectMaterialCoreColorRgbModulationKeyModes[8];
+    float4 g_EffectMaterialCoreColorRgbModulationKeyModesBlock1[8];
     int g_OpacitySource = 0;
     float g_EffectSpriteMaterialTime = 0.f;
     float3 g_EffectSpritePadding;
@@ -142,6 +169,7 @@ struct VS_IN
     float4 endColor : COLOR1;
     float4 subUVRect : TEXCOORD1;
     float2 spriteTiltDegrees : TEXCOORD2;
+    float4 coreColorRgb : TEXCOORD3;
 };
 
 struct VS_OUT
@@ -155,6 +183,7 @@ struct VS_OUT
     float rotationRadians : TEXCOORD3;
     float3 velocityDirection : TEXCOORD4;
     float2 spriteTiltDegrees : TEXCOORD5;
+    float4 coreColorRgb : TEXCOORD6;
 };
 
 VS_OUT VS_MAIN(VS_IN In)
@@ -171,6 +200,7 @@ VS_OUT VS_MAIN(VS_IN In)
     Out.rotationRadians = atan2(In.InstanceMatrix[0].y, In.InstanceMatrix[0].x);
     Out.velocityDirection = In.InstanceMatrix[2].xyz;
     Out.spriteTiltDegrees = In.spriteTiltDegrees;
+    Out.coreColorRgb = In.coreColorRgb;
 
     return Out;
 }
@@ -186,6 +216,7 @@ struct GS_IN
     float rotationRadians : TEXCOORD3;
     float3 velocityDirection : TEXCOORD4;
     float2 spriteTiltDegrees : TEXCOORD5;
+    float4 coreColorRgb : TEXCOORD6;
 };
 
 struct GS_OUT
@@ -196,6 +227,7 @@ struct GS_OUT
     float4 startColor : COLOR0;
     float4 endColor : COLOR1;
     float4 subUVRect : TEXCOORD2;
+    float4 coreColorRgb : TEXCOORD3;
 };
 
 // 파티클 위치에서 카메라를 향하는 정규화 look 방향을 구한다.
@@ -399,6 +431,7 @@ void GS_MAIN(point GS_IN In[1], inout TriangleStream<GS_OUT> OutStream)
     Out[0].startColor = In[0].startColor;
     Out[0].endColor = In[0].endColor;
     Out[0].subUVRect = In[0].subUVRect;
+    Out[0].coreColorRgb = In[0].coreColorRgb;
 
     Out[1].position = mul(float4(particlePosition + rightDir + upDir, 1.f), ViewProjMatrix);
     Out[1].texCoord = float2(1.f, 0.f);
@@ -406,6 +439,7 @@ void GS_MAIN(point GS_IN In[1], inout TriangleStream<GS_OUT> OutStream)
     Out[1].startColor = In[0].startColor;
     Out[1].endColor = In[0].endColor;
     Out[1].subUVRect = In[0].subUVRect;
+    Out[1].coreColorRgb = In[0].coreColorRgb;
 
     Out[2].position = mul(float4(particlePosition - rightDir - upDir, 1.f), ViewProjMatrix);
     Out[2].texCoord = float2(0.f, 1.f);
@@ -413,6 +447,7 @@ void GS_MAIN(point GS_IN In[1], inout TriangleStream<GS_OUT> OutStream)
     Out[2].startColor = In[0].startColor;
     Out[2].endColor = In[0].endColor;
     Out[2].subUVRect = In[0].subUVRect;
+    Out[2].coreColorRgb = In[0].coreColorRgb;
 
     Out[3].position = mul(float4(particlePosition + rightDir - upDir, 1.f), ViewProjMatrix);
     Out[3].texCoord = float2(1.f, 1.f);
@@ -420,6 +455,7 @@ void GS_MAIN(point GS_IN In[1], inout TriangleStream<GS_OUT> OutStream)
     Out[3].startColor = In[0].startColor;
     Out[3].endColor = In[0].endColor;
     Out[3].subUVRect = In[0].subUVRect;
+    Out[3].coreColorRgb = In[0].coreColorRgb;
 
     OutStream.Append(Out[0]);
     OutStream.Append(Out[1]);
@@ -435,6 +471,7 @@ struct PS_IN
     float4 startColor : COLOR0;
     float4 endColor : COLOR1;
     float4 subUVRect : TEXCOORD2;
+    float4 coreColorRgb : TEXCOORD3;
 };
 
 struct PS_OUT
@@ -481,6 +518,8 @@ EffectMaterialSurface Resolve_EffectMaterialSurface(PS_IN In)
                                          * EffectMaterialScalar_ResolveMultiplier(EFFECT_MATERIAL_SCALAR_TARGET_OUTER_INTENSITY, lifeProgress);
     const float resolvedCoreColorMultiplier =
         EffectMaterialScalar_ResolveMultiplier(EFFECT_MATERIAL_SCALAR_TARGET_CORE_COLOR, lifeProgress);
+    const float3 resolvedCoreColorRgb =
+        EffectMaterialCoreColor_ResolveRgb(g_EffectSpriteCoreEmissiveColor.rgb, lifeProgress, In.coreColorRgb.rgb);
     const float opacityPower = max(resolvedOpacityPower, 0.0001f);
     const float alphaCutoff = saturate(resolvedAlphaCutoff);
     const float alphaErosion = saturate(resolvedAlphaErosion);
@@ -491,7 +530,7 @@ EffectMaterialSurface Resolve_EffectMaterialSurface(PS_IN In)
         g_EffectSpriteCoreEmissiveParams.w
     );
     const float4 resolvedCoreEmissiveColor = float4(
-        g_EffectSpriteCoreEmissiveColor.rgb * resolvedCoreColorMultiplier,
+        resolvedCoreColorRgb * resolvedCoreColorMultiplier,
         resolvedOuterIntensity
     );
     const float selectedOpacity = Effect_SelectOpacity(symbol, g_OpacitySource);
@@ -591,6 +630,8 @@ PS_OUT PS_ADDITIVE(PS_IN In)
                                          * EffectMaterialScalar_ResolveMultiplier(EFFECT_MATERIAL_SCALAR_TARGET_OUTER_INTENSITY, lifeProgress);
     const float resolvedCoreColorMultiplier =
         EffectMaterialScalar_ResolveMultiplier(EFFECT_MATERIAL_SCALAR_TARGET_CORE_COLOR, lifeProgress);
+    const float3 resolvedCoreColorRgb =
+        EffectMaterialCoreColor_ResolveRgb(g_EffectSpriteCoreEmissiveColor.rgb, lifeProgress, In.coreColorRgb.rgb);
     const float resolvedIntensity = g_EffectSpriteParams.x
                                     * EffectMaterialScalar_ResolveMultiplier(EFFECT_MATERIAL_SCALAR_TARGET_INTENSITY, lifeProgress);
     const float alphaCutoff = saturate(resolvedAlphaCutoff);
@@ -602,7 +643,7 @@ PS_OUT PS_ADDITIVE(PS_IN In)
         g_EffectSpriteCoreEmissiveParams.w
     );
     const float4 resolvedCoreEmissiveColor = float4(
-        g_EffectSpriteCoreEmissiveColor.rgb * resolvedCoreColorMultiplier,
+        resolvedCoreColorRgb * resolvedCoreColorMultiplier,
         resolvedOuterIntensity
     );
     float noiseFactor = 1.f;

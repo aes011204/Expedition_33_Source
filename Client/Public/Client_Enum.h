@@ -10,9 +10,10 @@ namespace Client
         WorldAction,
         GameMenu,
         FreeAim,
-
+        Parkour,
         Climb,
         RopeAction,
+        GrappleAction,
         End,
     };
 

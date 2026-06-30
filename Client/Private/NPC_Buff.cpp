@@ -2,6 +2,7 @@
 #include "ClientInstance.h"
 #include "NPC_Body.h"
 #include "NPC_Hair.h"
+#include "ColliderCom.h"
 
 IMPLEMENT_REFLECTION(NPC_Buff)
 {
@@ -19,6 +20,7 @@ NPC_Buff::NPC_Buff(const ComPtr<Device>& device, const ComPtr<Context>& context)
 {
     _worldMoveSpeedScale = 0.1f;
     _defaultAnimationKey = "Idle";
+    _fightVisible = true;
 }
 
 NPC_Buff::NPC_Buff(const NPC_Buff& prototype) : NPC_Base(prototype)
@@ -43,10 +45,12 @@ void NPC_Buff::Priority_Update(float timeDelta)
 
 void NPC_Buff::Update(float timeDelta)
 {
-    if (CLIENT->Is_BattleActive())
-        return;
-
     NPC_Base::Update(timeDelta);
+}
+
+void NPC_Buff::Late_Update(float timeDelta)
+{
+    NPC_Base::Late_Update(timeDelta);
 }
 
 HRESULT NPC_Buff::Render()

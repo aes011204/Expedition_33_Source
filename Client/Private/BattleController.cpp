@@ -64,6 +64,10 @@ namespace
 {
     // DOF_MODIFY 
     constexpr char kBattleDOFOwnerTag[] = "BattleTurn";
+
+    constexpr wchar_t kHealTintEffect[] = L"Effects\\Assets\\Item\\HealTint_G.effect.json";
+    constexpr wchar_t kEnergyTintEffect[] = L"Effects\\Assets\\Item\\HealTint_B.effect.json";
+    constexpr wchar_t kReviveTintEffect[] = L"Effects\\Assets\\Item\\HealTint_P.effect.json";
 }
 
 BattleController::BattleController()
@@ -563,6 +567,8 @@ EBattleEndResult BattleController::OnExitBattleField(EBattleEndResult result)
     _heroes.clear();
     _enemies.clear();
 
+    _battleTurnCamera.reset(); // 도주/패배 뒤에도 이전 전투 카메라 참조를 다음 전투로 넘기지 않는다.
+
     Clear_BattleEnterPending();
     _activeBattleFieldID = 0;
 
@@ -933,22 +939,22 @@ float BattleController::Resolve_PrefabGroundOffsetY(const Shared<GameObject>& ac
 void BattleController::SetCharInitPos()
 {
     auto normalizeAngleDegrees = [](float angle) -> float
-    {
-        while (angle > 180.f)
-            angle -= 360.f;
-        while (angle < -180.f)
-            angle += 360.f;
-        return angle;
-    };
+        {
+            while (angle > 180.f)
+                angle -= 360.f;
+            while (angle < -180.f)
+                angle += 360.f;
+            return angle;
+        };
 
     auto projectToSpawnerLocal = [](const Vec3& worldPos, const Vec3& origin, const Vec3& localRight, const Vec3& localForward) -> Vec3
-    {
-        const Vec3 delta = worldPos - origin;
-        const float localX = delta.x * localRight.x + delta.y * localRight.y + delta.z * localRight.z;
-        const float localY = delta.y;
-        const float localZ = delta.x * localForward.x + delta.y * localForward.y + delta.z * localForward.z;
-        return Vec3(localX, localY, localZ);
-    };
+        {
+            const Vec3 delta = worldPos - origin;
+            const float localX = delta.x * localRight.x + delta.y * localRight.y + delta.z * localRight.z;
+            const float localY = delta.y;
+            const float localZ = delta.x * localForward.x + delta.y * localForward.y + delta.z * localForward.z;
+            return Vec3(localX, localY, localZ);
+        };
 
     Vec3 startPos = Vec3(145.f, 23.5f, 7.24f);
     Vec3 right = Vec3::Right;
@@ -1578,13 +1584,6 @@ void BattleController::Execute_Skill()
     auto& action = Get_TurnAction();
     const BattleChar& actor = action.Get_CurChar();
 
-    /*LOG_DEBUG(
-        "Execute_Skill: actor={}, target={}, script={}",
-        actor.actor ? String::ToString(actor.actor->Get_Name()).c_str() : "null",
-        action.GetCurStepTarget()[0].actor ? String::ToString(action.GetCurStepTarget()[0].actor->Get_Name()).c_str() : "null",
-        action.GetSkillData().scriptClassName.c_str()
-    );*/
-
     if (actor.ModelCom == nullptr)
     {
         LOG_ERROR("Execute_Skill: actor.ModelCom is null");
@@ -1639,6 +1638,21 @@ void BattleController::Execute_Skill()
         return;
     }
 
+    // 귀찮아서 여기에. 구스타브 과충전 10스택
+    if (action.GetSkillData().skillKey == "UnleashedCharge" &&
+        actor.mechanismCom != nullptr &&
+        !actor.mechanismCom->Can_UseGustaveOvercharge())
+    {
+        Clear_CurrentScript();
+
+        if (actor.statCom->Is_Player() && _battleFSM)
+            _battleFSM->Change_State(BattleTurnState::ChooseSkill);
+        else
+            EndTurn();
+
+        return;
+    }
+
     if (isGradientSkill && !actor.statCom->Can_UseGradientGauge())
     {
         LOG_DEBUG("Execute_Skill: gradient gauge is empty. skill={}",
@@ -1683,18 +1697,62 @@ void BattleController::Execute_Item()
     switch (itemData.itemType)
     {
     case BattleItemType::HealingTint:
-        if (action.GetInitTarget().statCom->Get_AliveStatus() != EAliveStatus::Alive)
+    {
+        const BattleChar& target = action.GetInitTarget();
+
+        if (target.statCom->Get_AliveStatus() != EAliveStatus::Alive)
             return; // 치유 틴트는 살아있는 대상에게만 적용한다.
 
-        DamageSystem::Heal(action.GetInitTarget().statCom->Get_StatInfo().maxHp * static_cast<float>(itemData.healHp) * 0.01f, action.GetInitTarget());
-        break;
+        auto& runtimeStat = target.statCom->Get_RuntimeStat();
+        const float beforeHp = runtimeStat.CurHp;
+
+        DamageSystem::Heal(
+            target.statCom->Get_StatInfo().maxHp *
+            static_cast<float>(itemData.healHp) * 0.01f, target);
+
+        // 힐 이팩트
+        if (runtimeStat.CurHp > beforeHp && target.actor != nullptr)
+        {
+            PlayEffectDesc effectDesc{};
+            effectDesc.effectName = kHealTintEffect;
+            effectDesc.spawnBasisTarget = target.actor;
+            effectDesc.localOffset = Vec3(0.f, 0.f, 0.f);
+            effectDesc.scale = Vec3(1.f, 1.f, 1.f);
+
+            CLIENT->Play_Effect(effectDesc);
+        }
+    }
+
+    break;
 
     case BattleItemType::EnergyTint:
-        if (action.GetInitTarget().statCom->Get_AliveStatus() != EAliveStatus::Alive)
+    {
+        const BattleChar& target = action.GetInitTarget();
+
+        if (target.statCom->Get_AliveStatus() != EAliveStatus::Alive)
             return; // 에너지 틴트는 살아있는 대상에게만 적용한다.
 
-        action.GetInitTarget().statCom->Add_AP(itemData.restoreAp);
-        break;
+        // 에너지 틴트 이팩트
+        {
+            PlayEffectDesc effectDesc{};
+            effectDesc.effectName = kEnergyTintEffect;
+            effectDesc.spawnBasisTarget = target.actor;
+            effectDesc.localOffset = Vec3(0.f, 0.f, 0.f);
+            effectDesc.scale = Vec3(1.f, 1.f, 1.f);
+
+            CLIENT->Play_Effect(effectDesc);
+        }
+
+        const uint32 beforeAp = target.statCom->Get_CurAP();
+
+        target.statCom->Add_AP(itemData.restoreAp);
+
+        const uint32 gainedAp = target.statCom->Get_CurAP() - beforeAp;
+        if (gainedAp > 0)
+            OnBattleApChanged.Broadcast(target, gainedAp, EAPChangeReason::ConsumableItem);
+    }
+
+    break;
 
     case BattleItemType::ReviveTint:
         if (action.GetInitTarget().statCom->Get_AliveStatus() != EAliveStatus::Dead)
@@ -1703,20 +1761,16 @@ void BattleController::Execute_Item()
         if (action.GetInitTarget().statCom->Is_ReviveBlocked())
             return;
 
-        //action.GetInitTarget().statCom->Set_AliveStatus(EAliveStatus::Alive); // 먼저 부활 상태로 복구한다.
-        //Restore_BattleTargetCollision(action.GetInitTarget()); // 부활 직후 다시 충돌 가능 상태로 전환
+        // 에너지 틴트 이팩트
+        {
+            PlayEffectDesc effectDesc{};
+            effectDesc.effectName = kReviveTintEffect;
+            effectDesc.spawnBasisTarget = action.GetInitTarget().actor;
+            effectDesc.localOffset = Vec3(0.f, 0.f, 0.f);
+            effectDesc.scale = Vec3(1.f, 1.f, 1.f);
 
-        //DamageSystem::Heal(action.GetInitTarget().statCom->Get_StatInfo().maxHp * static_cast<float>(itemData.reviveHp) * 0.01f, action.GetInitTarget());
-
-        //if (action.GetInitTarget().ModelCom)
-        //{
-        //    if (!action.GetInitTarget().ModelCom->Set_AnimationByState(ETOI(BattleAnimType::Revive), 0.2f, false))
-        //    {
-        //        BattleAnimUtils::Play_BattleIdle(
-        //            action.GetInitTarget(),
-        //            0.2f); // Revive 매핑이 없으면 부활된 대상 기준 idle로 복귀한다.
-        //    }
-        //}
+            CLIENT->Play_Effect(effectDesc);
+        }
 
         //Rebuild_TurnQueue(action.GetInitTarget());
         Revive_BattleMon(action.GetInitTarget(), static_cast<float>(itemData.reviveHp) * 0.01f);
@@ -2131,6 +2185,8 @@ void BattleController::Confirm_Victory()
     _heroes.clear();
     _enemies.clear();
 
+    _battleTurnCamera.reset(); // 다음 전투는 현재 레벨/Camera_Manager 기준으로 다시 BattleTurnCamera를 잡는다.
+
     Clear_BattleEnterPending();
     _activeBattleFieldID = 0;
 
@@ -2442,21 +2498,26 @@ void BattleController::Apply_ReactionApReward(const BattleReactionInputResult& r
 {
     if (!result.success ||
         result.apRewardAmount == 0 ||
-        result.apRewardTarget.actor == nullptr ||
-        result.apRewardTarget.statCom == nullptr)
+        result.apRewardTargets.empty())
     {
         return;
     }
 
-    const uint32 beforeAp = result.apRewardTarget.statCom->Get_CurAP();
+    for (const BattleChar& rewardTarget : result.apRewardTargets)
+    {
+        if (rewardTarget.actor == nullptr || rewardTarget.statCom == nullptr)
+            continue;
 
-    result.apRewardTarget.statCom->Add_AP(result.apRewardAmount);
+        const uint32 beforeAp = rewardTarget.statCom->Get_CurAP();
 
-    const uint32 afterAp = result.apRewardTarget.statCom->Get_CurAP();
-    const uint32 gainedAp = afterAp - beforeAp;
+        rewardTarget.statCom->Add_AP(result.apRewardAmount);
 
-    if (gainedAp > 0)
-        OnBattleApChanged.Broadcast(result.apRewardTarget, gainedAp, result.apRewardReason);
+        const uint32 afterAp = rewardTarget.statCom->Get_CurAP();
+        const uint32 gainedAp = afterAp - beforeAp;
+
+        if (gainedAp > 0)
+            OnBattleApChanged.Broadcast(rewardTarget, gainedAp, result.apRewardReason);
+    }
 }
 
 void BattleController::Handle_ReactionSucceededForResult(BattleReactionType reactionType,
@@ -2468,9 +2529,18 @@ void BattleController::Handle_ReactionSucceededForResult(BattleReactionType reac
 
 HRESULT BattleController::Ready_BattleTurnCamera()
 {
+    if (_battleTurnCamera != nullptr &&
+        (_battleTurnCamera->Is_MarkDestroy() || _battleTurnCamera->Get_Transform() == nullptr))
+    {
+        _battleTurnCamera.reset(); // 레벨 전환으로 Free된 카메라는 다음 전투에서 새로 잡아야 한다.
+    }
+
     if (_battleTurnCamera == nullptr)
     {
         auto camera = GAME->Get_CameraByType(ObjectType::BattleTurnCamera);
+
+        if (camera != nullptr && (camera->Is_MarkDestroy() || camera->Get_Transform() == nullptr))
+            camera.reset(); // Camera_Manager에 남은 비정상 카메라는 재사용하지 않는다.
 
         if (camera)
             _battleTurnCamera = dynamic_pointer_cast<BattleTurnCamera>(camera);
@@ -2850,6 +2920,11 @@ bool BattleController::Update_BattleTutorialGate(float timeDelta)
     if (_battleTutorialController)
         _battleTutorialController->Update(timeDelta);
 
+    if (_battleTurnCamera)
+        _battleTurnCamera->Set_RuntimePausedByTutorial(
+            _battleTutorialController != nullptr &&
+            _battleTutorialController->Should_PauseBattlePresentation());
+
     if (_battleTutorialController)
     {
         BattleReactionInputResult tutorialReactionResult{};
@@ -3123,6 +3198,13 @@ void BattleController::Set_BattleFSM()
     _battleFSM->Add_State(BattleTurnState::FreeAimTargeting, FreeAimTargeting::Create(GetSharedPtr<BattleController>()));
 
     //_battleFSM->Change_State(BattleTurnState::ChooseAction);
+}
+
+bool BattleController::Is_BattleFieldActiveOrEntering(uint32 fieldId) const
+{
+    return fieldId != 0 &&
+        ((_isBattleEntering && _pendingBattleFieldID == fieldId) ||
+            (_isBattleActive && _activeBattleFieldID == fieldId));
 }
 
 void BattleController::End_FirstAnim()

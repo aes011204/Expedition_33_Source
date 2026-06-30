@@ -514,6 +514,49 @@ RuntimeRuleStateIO::RuleState RuntimeRuleStateService::Build_GestralVillageStart
 	return ruleState;
 }
 
+RuntimeRuleStateIO::RuleState RuntimeRuleStateService::Build_PotatoBagStartUnlocks()
+{
+    RuntimeRuleStateIO::RuleState ruleState{};
+
+	ruleState.inventoryJson = Build_SelectedWeaponInventoryJson({
+		{ "Gustave", "Tireso" },
+		{ "Lune", "Snowim" },
+		{ "Maelle", "Plenum" },
+		});
+
+    const struct
+	{
+		HeroId heroId;
+		const char* characterId;
+		const char* weaponId;
+		vector<const char*> skillKeys;
+	} heroes[] =
+	{
+		{ HeroId::Gustave, "Gustave", "Tireso", { "LumiereAssault", "UnleashedCharge", "MarkingShot", "Shatter", "PerfectBreak", "AngelsEye" } },
+		{ HeroId::Lune, "Lune", "Snowim", { "Immolation", "IceGust", "Thunderfall", "TerraQuake", "CripplingTsunami", "SkyBreak" } },
+		{ HeroId::Maelle, "Maelle", "Plenum", { "Spark", "Percee", "FleureFury", "SwordBallet", "Stendhal", "Pyrolyse" } },
+	};
+
+	for (const auto& hero : heroes)
+	{
+		RuntimeCheckpointIO::HeroState heroState = Build_HeroSkillState({ hero.heroId, hero.skillKeys });
+
+		const GameDataTable::WeaponDesc* weaponDesc =
+			CLIENT->Get_WeaponDesc(hero.characterId, hero.weaponId);
+
+		if (weaponDesc != nullptr)
+		{
+			heroState.statJson["equipped_weapon_id"] = weaponDesc->weaponId;
+			heroState.statJson["equipped_weapon_power"] =
+				CLIENT->Resolve_WeaponPower(hero.characterId, weaponDesc->weaponId);
+		}
+
+		ruleState.heroes.emplace_back(std::move(heroState));
+	}
+
+	return ruleState;
+}
+
 RuntimeRuleStateIO::RuleState RuntimeRuleStateService::Build_SimonStartUnlocks()
 {
 	RuntimeRuleStateIO::RuleState ruleState{};

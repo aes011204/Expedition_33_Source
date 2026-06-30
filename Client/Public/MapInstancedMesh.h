@@ -34,6 +34,7 @@ public:
         Shared<ModelCom> model;
         Shared<StaticCollisionData> collisionData = nullptr;
         wstring modelPath = {};
+        wstring displayName = {};
         vector<InstanceTransform> transforms;
         bool visible = true;
         bool cullEnabled = true;
@@ -62,6 +63,7 @@ public:
     virtual bool Allows_DynamicShadowCascade(uint32 cascadeIndex) const override;
     virtual uint32 Get_RenderHotspotInstanceCount() const override { return _instanceCount; }
     virtual wstring Get_RenderHotspotSourceModelPath() const override { return _modelPath; }
+    virtual bool Get_RenderHotspotInstancedMeshStats(RenderHotspotInstancedMeshStats& outStats) const override;
 
     virtual json To_Json() const override;
     virtual void From_Json(const json& node) override;
@@ -85,6 +87,10 @@ private:
     ComPtr<Buffer> _visibleVB[3];
     ComPtr<Buffer> _cullCB;
     vector<ComPtr<Buffer>> _indirectArgsBuffers[3];
+    ComPtr<Buffer> _debugVisibleCountReadbackBuffers[3];
+    array<uint32, 3> _debugLastDrawInstanceCounts = {};
+    uint32 _debugLastVisibleCountReadbackRequestId = 0;
+    bool _debugHasDrawInstanceCounts = false;
     vector<PhysXStaticActorHandle> _physxStaticHandles;
     BoundingBox _groupBounds = {};
 
@@ -96,7 +102,7 @@ private:
     ComPtr<Buffer> _shadowVisibleVB;
     vector<ComPtr<Buffer>> _shadowIndirectArgsBuffers[3];
 
-    float _lod1Dist = 100.f;
+    float _lod1Dist = 90.f;
     float _lod2Dist = 115.f;
 
     float _accTime = {};
@@ -118,6 +124,7 @@ private:
     void ResetShadowIndirectArgsBuffers();
     uint32 Resolve_ShadowLodIndex(uint32 cascadeIndex) const;
     void DispatchCull();
+    bool Readback_DebugVisibleCounts(uint32 requestId);
     void DispatchShadowCull(uint32 cascadeIndex, uint32 shadowLod);
     static array<Vec4, 6> ExtractFrustumPlanes(const Matrix& vp);
     void Refresh_HasGlow();

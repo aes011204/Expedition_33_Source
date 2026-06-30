@@ -13,6 +13,7 @@
 #include "UI_GetClothes.h"
 #include "UI_GetWeapon.h"
 #include "UI_GetPictos.h"
+#include "UI_GetChroma.h"
 #include "ClientInstance.h"
 #include "GameplayUI.h"
 #include "Player_FreeAim.h"
@@ -128,6 +129,9 @@ HRESULT GameplayUI_World::Initialize(uint32 levelIndex)
     _getPictosPanel = UI_GetPictos::Create(levelIndex);
     CHECK_NULL(_getPictosPanel, E_FAIL);
 
+    _getChromaPanel = UI_GetChroma::Create(levelIndex);
+    CHECK_NULL(_getChromaPanel, E_FAIL);
+
     _arenaCharacterSelectPanel = UI_ArenaCharacterSelect::Create(levelIndex);
     CHECK_NULL(_arenaCharacterSelectPanel, E_FAIL);
 
@@ -184,6 +188,9 @@ void GameplayUI_World::Update(float timeDelta)
     if (_getPictosPanel)
         _getPictosPanel->Update(timeDelta);
 
+    if (_getChromaPanel)
+        _getChromaPanel->Update(timeDelta);
+
     if (_arenaCharacterSelectPanel)
         _arenaCharacterSelectPanel->Update(timeDelta);
 
@@ -216,6 +223,11 @@ void GameplayUI_World::Update(float timeDelta)
         Try_ShowPendingGetPictos();
 
         if (Is_GetPictosOpen())
+            return;
+
+        Try_ShowPendingGetChroma();
+
+        if (Is_GetChromaOpen())
             return;
 
         if (_arenaCharacterSelectPanel && _arenaCharacterSelectPanel->Is_Open())
@@ -256,6 +268,9 @@ void GameplayUI_World::Update_Input()
         return;
 
     if (Is_GetPictosOpen())
+        return;
+
+    if (Is_GetChromaOpen())
         return;
 
     Handle_GradientSkillPreviewTestInput();
@@ -319,6 +334,9 @@ vector<RuntimeUIEntry> GameplayUI_World::Get_RuntimeUIEntries() const
     if (_getPictosPanel)
         _getPictosPanel->Append_RuntimeUIEntries(entries, "World", "GetPictosPanel");
 
+    if (_getChromaPanel)
+        _getChromaPanel->Append_RuntimeUIEntries(entries, "World", "GetChromaPanel");
+
     if (_arenaCharacterSelectPanel)
         _arenaCharacterSelectPanel->Append_RuntimeUIEntries(entries, "World", "ArenaCharacterSelectPanel");
 
@@ -338,6 +356,7 @@ bool GameplayUI_World::Is_AnyMenuOpen() const
         Is_GetClothesOpen() ||
         Is_GetWeaponOpen() ||
         Is_GetPictosOpen() ||
+        Is_GetChromaOpen() ||
         !_menuStack.empty() ||
         (_replayPanel && _replayPanel->Is_Open()) ||
         (_savePointPanel && _savePointPanel->Is_ClosingWithOutro());
@@ -366,6 +385,9 @@ void GameplayUI_World::Force_CloseAllMenus()
 
     if (_getPictosPanel && _getPictosPanel->Is_Open())
         _getPictosPanel->Close_Immediately();
+
+    if (_getChromaPanel && _getChromaPanel->Is_Open())
+        _getChromaPanel->Close_Immediately();
 
     if (_arenaCharacterSelectPanel && _arenaCharacterSelectPanel->Is_Open())
         _arenaCharacterSelectPanel->Close_Immediately();
@@ -464,6 +486,14 @@ bool GameplayUI_World::Request_WeaponUpgrade()
     return true;
 }
 
+void GameplayUI_World::Queue_GetChromaPresentation(uint32 chromaAmount)
+{
+    if (chromaAmount == 0)
+        return;
+
+    _pendingGetChromaAmounts.emplace_back(chromaAmount);
+}
+
 Shared<SoulLikeController> GameplayUI_World::Spawn_SoulLikeControllerForArena()
 {
     if (const Shared<SoulLikeController> existingController = CLIENT->Get_SoulLikeController())
@@ -533,6 +563,13 @@ void GameplayUI_World::Handle_SavePointInput()
 
     if (_savePointPanel == nullptr)
         return;
+
+    const Shared<Player_WorldBase> activeHero = CLIENT->Get_ActiveHero();
+    if (activeHero != nullptr &&
+        (activeHero->Is_WorldInteracting() || activeHero->Get_WorldInteractionCandidate() != nullptr))
+    {
+        return;
+    }
 
     if (_expeditionStatPanel && _expeditionStatPanel->Is_Open())
         return;
@@ -1166,6 +1203,41 @@ void GameplayUI_World::Try_ShowPendingGetPictos()
     _getPictosPanel->Open_ForPictosIds(pendingPictosIds);
 }
 
+void GameplayUI_World::Try_ShowPendingGetChroma()
+{
+    if (_getChromaPanel == nullptr || _getChromaPanel->Is_Open())
+        return;
+
+    if (Is_GetCharacterOpen() || Is_GetClothesOpen() || Is_GetWeaponOpen() || Is_GetPictosOpen())
+        return;
+
+    if (CLIENT->Is_FadeTransitionPlaying())
+        return;
+
+    if (CLIENT->Is_WorldControlSuspended() || CLIENT->Is_BattleEntering())
+        return;
+
+    if (GAME->Is_WorldGameplayInputBlocked())
+        return;
+
+    if (!_menuStack.empty())
+        return;
+
+    if (_savePointPanel && (_savePointPanel->Is_Open() || _savePointPanel->Is_ClosingWithOutro()))
+        return;
+
+    if (_expeditionStatPanel && _expeditionStatPanel->Is_Open())
+        return;
+
+    vector<uint32> pendingChromaAmounts = std::move(_pendingGetChromaAmounts);
+    _pendingGetChromaAmounts.clear();
+
+    if (pendingChromaAmounts.empty())
+        return;
+
+    _getChromaPanel->Open_ForChromaAmounts(pendingChromaAmounts);
+}
+
 bool GameplayUI_World::Is_GetClothesOpen() const
 {
     return _getClothesPanel && _getClothesPanel->Is_Open();
@@ -1179,6 +1251,11 @@ bool GameplayUI_World::Is_GetWeaponOpen() const
 bool GameplayUI_World::Is_GetPictosOpen() const
 {
     return _getPictosPanel && _getPictosPanel->Is_Open();
+}
+
+bool GameplayUI_World::Is_GetChromaOpen() const
+{
+    return _getChromaPanel && _getChromaPanel->Is_Open();
 }
 
 void GameplayUI_World::Update_CrossHair(float timeDelta)
@@ -1458,6 +1535,7 @@ void GameplayUI_World::Free()
     Release_Panel(_getClothesPanel);
     Release_Panel(_getWeaponPanel);
     Release_Panel(_getPictosPanel);
+    Release_Panel(_getChromaPanel);
     Release_Panel(_arenaCharacterSelectPanel);
     Release_Panel(_replayPanel);
     Release_Panel(_gradientSkillPreviewTestPanel);

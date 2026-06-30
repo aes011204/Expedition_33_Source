@@ -31,7 +31,6 @@ public:
     BattlePhase Get_CurPhase() const override;
 
 protected:
-    bool Try_GetDamageFeedbackSocketWorldPosition(Vec3& outWorldPos) const override;
     HRESULT Ready_PartObjects();
 
     bool Should_AppendPreTurnEndPhase(const ActionRequest& request) const override;

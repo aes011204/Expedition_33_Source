@@ -35,12 +35,13 @@ struct ParticleInstanceVertex
     Vec4 endColor{ 1.f, 1.f, 1.f, 1.f };   // particle 수명 종료 시점의 색상/알파.
     Vec4 subUVRect{ 0.f, 0.f, 1.f, 1.f };  // x/y는 uv 시작점, z/w는 uv 끝점이다.
     Vec2 spriteTiltDegrees{};              // x/y: roll 적용 이후 card local X/Y 기준 tilt degree다.
+    Vec4 coreColorRgb{ 1.f, 0.85f, 0.45f, 0.f }; // Core Color RGB Uniform+ParticleLife 생성 시점 샘플이다.
 };
 
 // Particle shader가 사용하는 vertex + instance input layout.
 struct ParticleInstanceLayout
 {
-    static constexpr uint32 numElements = 10;
+    static constexpr uint32 numElements = 11;
 
     // WORLD 0~3은 semantic name WORLD + semantic index 0~3으로 표현한다.
     static constexpr D3D11_INPUT_ELEMENT_DESC Elements[] = {
@@ -54,6 +55,7 @@ struct ParticleInstanceLayout
         { "COLOR", 1, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 88, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
         { "TEXCOORD", 1, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 104, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
         { "TEXCOORD", 2, DXGI_FORMAT_R32G32_FLOAT, 1, 120, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
+        { "TEXCOORD", 3, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 128, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
     };
 };
 
@@ -68,12 +70,13 @@ struct TrailInstanceVertex
     Vec4 endColor{};      // segment 끝 색상이다.
     Vec4 subUVRect{};     // segment별 trail UV 영역이다.
     Vec4 segmentParams{}; // x: age 진행률, y: width 배율, z: alpha 배율, w: reserved.
+    Vec4 coreColorRgb{ 1.f, 0.85f, 0.45f, 0.f };
 };
 
 // Trail shader가 사용하는 vertex + instance input layout.
 struct TrailInstanceLayout
 {
-    static constexpr uint32 numElements = 10;
+    static constexpr uint32 numElements = 11;
 
     static constexpr D3D11_INPUT_ELEMENT_DESC Elements[] = {
         { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
@@ -86,12 +89,13 @@ struct TrailInstanceLayout
         { "COLOR", 1, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 88, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
         { "TEXCOORD", 1, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 104, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
         { "TEXCOORD", 2, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 120, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
+        { "TEXCOORD", 6, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 136, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
     };
 };
 
 struct EffectMeshInstanceLayout
 {
-    static constexpr uint32 numElements = 11;
+    static constexpr uint32 numElements = 12;
 
     static constexpr D3D11_INPUT_ELEMENT_DESC Elements[] = {
         { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
@@ -105,6 +109,7 @@ struct EffectMeshInstanceLayout
         { "INST_WORLD", 3, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 48, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
         { "INST_COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 64, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
         { "INST_LIFE", 0, DXGI_FORMAT_R32G32_FLOAT, 1, 80, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
+        { "INST_CORE_COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 96, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
     };
 };
 
@@ -112,7 +117,7 @@ struct EffectMeshInstanceLayout
 // ComputeSourceHistoryRibbonEmitter::RibbonInstanceVertex와 byte layout을 맞춘다.
 struct RibbonInstanceLayout
 {
-    static constexpr uint32 numElements = 10; // ComputeSourceHistoryRibbonEmitter::RibbonInstanceVertex와 byte layout을 맞춘다.
+    static constexpr uint32 numElements = 11; // ComputeSourceHistoryRibbonEmitter::RibbonInstanceVertex와 byte layout을 맞춘다.
 
     static constexpr D3D11_INPUT_ELEMENT_DESC Elements[] = {
         { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
@@ -125,6 +130,7 @@ struct RibbonInstanceLayout
         { "COLOR", 1, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 88, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
         { "TEXCOORD", 1, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 104, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
         { "TEXCOORD", 2, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 120, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
+        { "TEXCOORD", 6, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 136, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
     };
 };
 
@@ -132,7 +138,7 @@ struct RibbonInstanceLayout
 // ComputeGeneratedBeamEmitter::BeamInstanceVertex와 byte layout을 맞춘다.
 struct BeamInstanceLayout
 {
-    static constexpr uint32 numElements = 10;
+    static constexpr uint32 numElements = 11;
 
     static constexpr D3D11_INPUT_ELEMENT_DESC Elements[] = {
         { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
@@ -145,6 +151,7 @@ struct BeamInstanceLayout
         { "COLOR", 1, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 88, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
         { "TEXCOORD", 1, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 104, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
         { "TEXCOORD", 2, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 120, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
+        { "TEXCOORD", 6, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 136, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
     };
 };
 
@@ -152,7 +159,7 @@ struct BeamInstanceLayout
 // ComputeSourceHistorySpriteTrailEmitter::StampInstanceVertex와 byte layout을 맞춘다.
 struct SourceHistorySpriteTrailInstanceLayout
 {
-    static constexpr uint32 numElements = 8;
+    static constexpr uint32 numElements = 9;
 
     static constexpr D3D11_INPUT_ELEMENT_DESC Elements[] = {
         { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
@@ -163,6 +170,7 @@ struct SourceHistorySpriteTrailInstanceLayout
         { "COLOR", 1, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 56, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
         { "TEXCOORD", 1, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 72, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
         { "TEXCOORD", 2, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 88, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
+        { "TEXCOORD", 3, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 104, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
     };
 };
 
@@ -784,6 +792,10 @@ struct ComputePointParticleDesc : public InstanceSpawnDesc
     PointParticleRandomSeedRuntimeDesc colorOverLifeSeed{};           // ColorOverLife RGB random sample seed salt다.
     PointParticleRandomSeedRuntimeDesc alphaOverLifeSeed{};           // ColorOverLife Alpha random sample seed salt다.
     PointParticleColorOverLifeCurveDesc colorOverLifeCurve{};         // ConstantCurve ColorOverLife payload다.
+    Vec4 coreColorRgbParticleLifeUniformParams{};                     // x: enabled.
+    Vec4 coreColorRgbParticleLifeUniformMin{ 1.f, 0.85f, 0.45f, 0.f };
+    Vec4 coreColorRgbParticleLifeUniformMax{ 1.f, 0.85f, 0.45f, 0.f };
+    XMUINT4 coreColorRgbParticleLifeUniformSeed{};                    // x: seed salt after playback-seed resolution.
     Vec2 radius{};                                                    // 화면 확인용 원형 이동 반경 범위. authoring 의미로 승격하지 않는다.
     uint32 subUVRows{ 1 };                                            // atlas row 수다.
     uint32 subUVCols{ 1 };                                            // atlas column 수다.

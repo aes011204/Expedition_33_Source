@@ -29,10 +29,51 @@ cbuffer cbEffectMeshMaterial : register(b2)
     float4 g_EffectMeshAdditiveFlags = { 1.f, 0.f, 0.f, 0.f };
     float4 g_EffectMeshCoreEmissiveParams = { 0.f, 4.f, 2.f, 1.f };
     float4 g_EffectMeshCoreEmissiveColor = { 1.f, 0.85f, 0.45f, 1.f };
+    float4 g_EffectMaterialScalarModulationParams = { 0.f, 0.f, 0.f, 0.f };
+    float4 g_EffectMaterialScalarModulationMeta[8];
+    float4 g_EffectMaterialScalarModulationKeyTimes[8];
+    float4 g_EffectMaterialScalarModulationKeyTimesBlock1[8];
+    float4 g_EffectMaterialScalarModulationKeyValues[8];
+    float4 g_EffectMaterialScalarModulationKeyValuesBlock1[8];
+    float4 g_EffectMaterialScalarModulationKeyArriveTangents[8];
+    float4 g_EffectMaterialScalarModulationKeyArriveTangentsBlock1[8];
+    float4 g_EffectMaterialScalarModulationKeyLeaveTangents[8];
+    float4 g_EffectMaterialScalarModulationKeyLeaveTangentsBlock1[8];
+    float4 g_EffectMaterialScalarModulationKeyModes[8];
+    float4 g_EffectMaterialScalarModulationKeyModesBlock1[8];
+    float4 g_EffectMaterialCoreColorRgbModulationParams = { 0.f, 0.f, 0.f, 0.f };
+    float4 g_EffectMaterialCoreColorRgbModulationMeta[8];
+    float4 g_EffectMaterialCoreColorRgbModulationUniformMin[8];
+    float4 g_EffectMaterialCoreColorRgbModulationUniformMax[8];
+    float4 g_EffectMaterialCoreColorRgbModulationUniformSeed[8];
+    float4 g_EffectMaterialCoreColorRgbModulationKeyTimes[8];
+    float4 g_EffectMaterialCoreColorRgbModulationKeyTimesBlock1[8];
+    float4 g_EffectMaterialCoreColorRgbModulationKeyValuesR[8];
+    float4 g_EffectMaterialCoreColorRgbModulationKeyValuesRBlock1[8];
+    float4 g_EffectMaterialCoreColorRgbModulationKeyValuesG[8];
+    float4 g_EffectMaterialCoreColorRgbModulationKeyValuesGBlock1[8];
+    float4 g_EffectMaterialCoreColorRgbModulationKeyValuesB[8];
+    float4 g_EffectMaterialCoreColorRgbModulationKeyValuesBBlock1[8];
+    float4 g_EffectMaterialCoreColorRgbModulationKeyArriveTangentsR[8];
+    float4 g_EffectMaterialCoreColorRgbModulationKeyArriveTangentsRBlock1[8];
+    float4 g_EffectMaterialCoreColorRgbModulationKeyArriveTangentsG[8];
+    float4 g_EffectMaterialCoreColorRgbModulationKeyArriveTangentsGBlock1[8];
+    float4 g_EffectMaterialCoreColorRgbModulationKeyArriveTangentsB[8];
+    float4 g_EffectMaterialCoreColorRgbModulationKeyArriveTangentsBBlock1[8];
+    float4 g_EffectMaterialCoreColorRgbModulationKeyLeaveTangentsR[8];
+    float4 g_EffectMaterialCoreColorRgbModulationKeyLeaveTangentsRBlock1[8];
+    float4 g_EffectMaterialCoreColorRgbModulationKeyLeaveTangentsG[8];
+    float4 g_EffectMaterialCoreColorRgbModulationKeyLeaveTangentsGBlock1[8];
+    float4 g_EffectMaterialCoreColorRgbModulationKeyLeaveTangentsB[8];
+    float4 g_EffectMaterialCoreColorRgbModulationKeyLeaveTangentsBBlock1[8];
+    float4 g_EffectMaterialCoreColorRgbModulationKeyModes[8];
+    float4 g_EffectMaterialCoreColorRgbModulationKeyModesBlock1[8];
     int g_OpacitySource = 0;
     float g_EffectMeshMaterialTime = 0.f;
     float2 g_EffectMeshPadding;
 };
+
+#include "Shader_EffectMaterialScalarModulation.hlsli"
 
 Texture2D g_Texture : register(t0);
 Texture2D g_NoiseTexture : register(t1);
@@ -117,6 +158,7 @@ struct VS_IN
     float4 vWorld3 : INST_WORLD3;
     float4 vInstanceColor : INST_COLOR0;
     float2 vLifeTime : INST_LIFE0;
+    float4 vCoreColorRgb : INST_CORE_COLOR0;
 };
 
 struct VS_OUT
@@ -126,6 +168,7 @@ struct VS_OUT
     float3 vNormal : TEXCOORD1;
     float4 vInstanceColor : COLOR0;
     float2 vLifeTime : TEXCOORD2;
+    float4 vCoreColorRgb : TEXCOORD3;
 };
 
 VS_OUT VS_MAIN(VS_IN In)
@@ -139,6 +182,7 @@ VS_OUT VS_MAIN(VS_IN In)
     Out.vNormal = normalize(mul(float4(In.vNormal, 0.f), mPreWorld)).xyz;
     Out.vInstanceColor = In.vInstanceColor;
     Out.vLifeTime = In.vLifeTime;
+    Out.vCoreColorRgb = In.vCoreColorRgb;
     return Out;
 }
 
@@ -149,6 +193,23 @@ struct PS_OUT
 
 EffectMaterialSurface Resolve_EffectMeshSurface(VS_OUT In)
 {
+    const float lifeProgress = saturate(In.vLifeTime.y / max(In.vLifeTime.x, 0.0001f));
+    const float resolvedOpacityPower =
+        g_EffectMeshParams.y * EffectMaterialScalar_ResolveMultiplier(EFFECT_MATERIAL_SCALAR_TARGET_OPACITY_POWER, lifeProgress);
+    const float resolvedNoiseStrength =
+        g_EffectMeshParams.z * EffectMaterialScalar_ResolveMultiplier(EFFECT_MATERIAL_SCALAR_TARGET_NOISE_STRENGTH, lifeProgress);
+    const float resolvedAlphaErosion =
+        g_EffectMeshAlphaParams.y * EffectMaterialScalar_ResolveMultiplier(EFFECT_MATERIAL_SCALAR_TARGET_ALPHA_EROSION, lifeProgress);
+    const float resolvedAlphaCutoff =
+        g_EffectMeshAlphaParams.x * EffectMaterialScalar_ResolveMultiplier(EFFECT_MATERIAL_SCALAR_TARGET_ALPHA_CUTOFF, lifeProgress);
+    const float resolvedCoreIntensity =
+        g_EffectMeshCoreEmissiveParams.z * EffectMaterialScalar_ResolveMultiplier(EFFECT_MATERIAL_SCALAR_TARGET_CORE_INTENSITY, lifeProgress);
+    const float resolvedOuterIntensity =
+        g_EffectMeshCoreEmissiveColor.a * EffectMaterialScalar_ResolveMultiplier(EFFECT_MATERIAL_SCALAR_TARGET_OUTER_INTENSITY, lifeProgress);
+    const float resolvedCoreColorMultiplier =
+        EffectMaterialScalar_ResolveMultiplier(EFFECT_MATERIAL_SCALAR_TARGET_CORE_COLOR, lifeProgress);
+    const float3 resolvedCoreColorRgb =
+        EffectMaterialCoreColor_ResolveRgb(g_EffectMeshCoreEmissiveColor.rgb, lifeProgress, In.vCoreColorRgb.rgb);
     const float2 mainUVPolicy = g_EffectMeshUVAxisPolicyParams.xy;
     const float2 noiseUVPolicy = g_EffectMeshUVAxisPolicyParams.zw;
     const float2 maskUVPolicy = g_EffectMeshMaskUVAxisPolicyParams.xy;
@@ -171,11 +232,16 @@ EffectMaterialSurface Resolve_EffectMeshSurface(VS_OUT In)
     surfaceInput.maskTexel = maskTexel;
     surfaceInput.instanceColor = In.vInstanceColor;
     surfaceInput.tint = g_Tint;
-    surfaceInput.params = g_EffectMeshParams;
-    surfaceInput.alphaParams = g_EffectMeshAlphaParams;
+    surfaceInput.params = float4(g_EffectMeshParams.x, resolvedOpacityPower, resolvedNoiseStrength, g_EffectMeshParams.w);
+    surfaceInput.alphaParams = float4(resolvedAlphaCutoff, resolvedAlphaErosion, g_EffectMeshAlphaParams.z, g_EffectMeshAlphaParams.w);
     surfaceInput.sourceParams = g_EffectMeshSourceParams;
-    surfaceInput.coreEmissiveColor = g_EffectMeshCoreEmissiveColor;
-    surfaceInput.coreEmissiveParams = g_EffectMeshCoreEmissiveParams;
+    surfaceInput.coreEmissiveColor = float4(resolvedCoreColorRgb * resolvedCoreColorMultiplier, resolvedOuterIntensity);
+    surfaceInput.coreEmissiveParams = float4(
+        g_EffectMeshCoreEmissiveParams.x,
+        g_EffectMeshCoreEmissiveParams.y,
+        resolvedCoreIntensity,
+        g_EffectMeshCoreEmissiveParams.w
+    );
     surfaceInput.opacitySource = g_OpacitySource;
     return EffectMeshCommon_ResolveSurface(surfaceInput);
 }
@@ -184,7 +250,10 @@ PS_OUT PS_ALPHA(VS_OUT In)
 {
     PS_OUT Out = (PS_OUT)0;
     const EffectMaterialSurface surface = Resolve_EffectMeshSurface(In);
-    Out.color = Effect_ComposeAlphaBlend(surface, g_EffectMeshParams.x);
+    const float lifeProgress = saturate(In.vLifeTime.y / max(In.vLifeTime.x, 0.0001f));
+    const float resolvedIntensity =
+        g_EffectMeshParams.x * EffectMaterialScalar_ResolveMultiplier(EFFECT_MATERIAL_SCALAR_TARGET_INTENSITY, lifeProgress);
+    Out.color = Effect_ComposeAlphaBlend(surface, resolvedIntensity);
     return Out;
 }
 
@@ -192,13 +261,33 @@ PS_OUT PS_MASKED(VS_OUT In)
 {
     PS_OUT Out = (PS_OUT)0;
     const EffectMaterialSurface surface = Resolve_EffectMeshSurface(In);
-    Out.color = float4(surface.color * max(g_EffectMeshParams.x, 0.f), 1.f);
+    const float lifeProgress = saturate(In.vLifeTime.y / max(In.vLifeTime.x, 0.0001f));
+    const float resolvedIntensity =
+        g_EffectMeshParams.x * EffectMaterialScalar_ResolveMultiplier(EFFECT_MATERIAL_SCALAR_TARGET_INTENSITY, lifeProgress);
+    Out.color = float4(surface.color * max(resolvedIntensity, 0.f), 1.f);
     return Out;
 }
 
 PS_OUT PS_ADDITIVE(VS_OUT In)
 {
     PS_OUT Out = (PS_OUT)0;
+    const float lifeProgress = saturate(In.vLifeTime.y / max(In.vLifeTime.x, 0.0001f));
+    const float resolvedNoiseStrength =
+        g_EffectMeshParams.z * EffectMaterialScalar_ResolveMultiplier(EFFECT_MATERIAL_SCALAR_TARGET_NOISE_STRENGTH, lifeProgress);
+    const float resolvedAlphaErosion =
+        g_EffectMeshAlphaParams.y * EffectMaterialScalar_ResolveMultiplier(EFFECT_MATERIAL_SCALAR_TARGET_ALPHA_EROSION, lifeProgress);
+    const float resolvedAlphaCutoff =
+        g_EffectMeshAlphaParams.x * EffectMaterialScalar_ResolveMultiplier(EFFECT_MATERIAL_SCALAR_TARGET_ALPHA_CUTOFF, lifeProgress);
+    const float resolvedCoreIntensity =
+        g_EffectMeshCoreEmissiveParams.z * EffectMaterialScalar_ResolveMultiplier(EFFECT_MATERIAL_SCALAR_TARGET_CORE_INTENSITY, lifeProgress);
+    const float resolvedOuterIntensity =
+        g_EffectMeshCoreEmissiveColor.a * EffectMaterialScalar_ResolveMultiplier(EFFECT_MATERIAL_SCALAR_TARGET_OUTER_INTENSITY, lifeProgress);
+    const float resolvedCoreColorMultiplier =
+        EffectMaterialScalar_ResolveMultiplier(EFFECT_MATERIAL_SCALAR_TARGET_CORE_COLOR, lifeProgress);
+    const float resolvedIntensity =
+        g_EffectMeshParams.x * EffectMaterialScalar_ResolveMultiplier(EFFECT_MATERIAL_SCALAR_TARGET_INTENSITY, lifeProgress);
+    const float3 resolvedCoreColorRgb =
+        EffectMaterialCoreColor_ResolveRgb(g_EffectMeshCoreEmissiveColor.rgb, lifeProgress, In.vCoreColorRgb.rgb);
 
     const float2 mainUVPolicy = g_EffectMeshUVAxisPolicyParams.xy;
     const float2 noiseUVPolicy = g_EffectMeshUVAxisPolicyParams.zw;
@@ -222,15 +311,20 @@ PS_OUT PS_ADDITIVE(VS_OUT In)
     additiveInput.maskTexel = maskTexel;
     additiveInput.instanceColor = In.vInstanceColor;
     additiveInput.tint = g_Tint;
-    additiveInput.params = g_EffectMeshParams;
-    additiveInput.alphaParams = g_EffectMeshAlphaParams;
+    additiveInput.params = float4(resolvedIntensity, g_EffectMeshParams.y, resolvedNoiseStrength, g_EffectMeshParams.w);
+    additiveInput.alphaParams = float4(resolvedAlphaCutoff, resolvedAlphaErosion, g_EffectMeshAlphaParams.z, g_EffectMeshAlphaParams.w);
     additiveInput.sourceParams = g_EffectMeshSourceParams;
     additiveInput.additiveParams = g_EffectMeshAdditiveParams;
     additiveInput.additiveEmissiveColor = g_EffectMeshAdditiveEmissiveColor;
     additiveInput.additiveConstantColor = g_EffectMeshAdditiveConstantColor;
     additiveInput.additiveFlags = g_EffectMeshAdditiveFlags;
-    additiveInput.coreEmissiveColor = g_EffectMeshCoreEmissiveColor;
-    additiveInput.coreEmissiveParams = g_EffectMeshCoreEmissiveParams;
+    additiveInput.coreEmissiveColor = float4(resolvedCoreColorRgb * resolvedCoreColorMultiplier, resolvedOuterIntensity);
+    additiveInput.coreEmissiveParams = float4(
+        g_EffectMeshCoreEmissiveParams.x,
+        g_EffectMeshCoreEmissiveParams.y,
+        resolvedCoreIntensity,
+        g_EffectMeshCoreEmissiveParams.w
+    );
     additiveInput.opacitySource = g_OpacitySource;
     Out.color = float4(EffectMeshCommon_ResolveAdditiveContribution(additiveInput), 1.f);
     return Out;

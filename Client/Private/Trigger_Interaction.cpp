@@ -70,6 +70,12 @@ void Trigger_Interaction::Update(float timeDelta)
 
     Sync_ToOwnerTransform();
 
+    if (CLIENT->Is_WorldControlSuspended())
+    {
+        CLIENT->Clear_InteractionPrompt(this);
+        return;
+    }
+
     if (GAME->Is_WorldGameplayInputBlocked())
     {
         CLIENT->Clear_InteractionPrompt(this);

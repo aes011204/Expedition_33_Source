@@ -3,6 +3,8 @@
 #include "Bounding_OBB.h"
 #include "ColliderCom.h"
 #include "GameInstance.h"
+#include "ModelCom.h"
+#include "Monster_Part.h"
 
 Character_BattleBase::Character_BattleBase(const ComPtr<Device>& device, const ComPtr<Context>& context)
     : Character(device, context)
@@ -80,6 +82,26 @@ bool Character_BattleBase::Try_GetDamageFeedbackWorldPosition(Vec3& outWorldPos)
 
     if (PartObject* body = Get_PartObject(L"Part_Body"))
     {
+        if (auto* monsterBody = dynamic_cast<Monster_Part*>(body))
+        {
+            if (Shared<ModelCom> model = monsterBody->Get_Model())
+            {
+                Vec3 localMin{};
+                Vec3 localMax{};
+                if (model->Try_Get_LocalBounds(localMin, localMax))
+                {
+                    const Vec3 localCenter = (localMin + localMax) * 0.5f;
+                    const float localHeight = max(localMax.y - localMin.y, 0.f);
+
+                    Vec3 localAnchor = localCenter;
+                    localAnchor.y = localMin.y + localHeight * 0.68f; // 몬스터 몸통 상단 근처에 데미지 숫자를 띄운다.
+
+                    outWorldPos = Vec3::Transform(localAnchor, body->Get_CombinedWorldMatrix());
+                    return true;
+                }
+            }
+        }
+
         const Matrix& bodyWorld = body->Get_CombinedWorldMatrix();
         outWorldPos = Vec3(bodyWorld._41, bodyWorld._42, bodyWorld._43);
         outWorldPos += Get_DamageFeedbackFallbackOffset();

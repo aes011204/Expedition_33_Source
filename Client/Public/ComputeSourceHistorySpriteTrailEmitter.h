@@ -64,6 +64,7 @@ private: //## Types::PlaybackRuntime
         uint32 frameIndex{};
         Vec4 startColor{ 1.f, 1.f, 1.f, 1.f };
         Vec4 endColor{ 1.f, 1.f, 1.f, 1.f };
+        Vec3 coreColorRgb{ 1.f, 0.85f, 0.45f };
         float widthScale{ 1.f };
         float lengthScale{ 1.f };
         float initialRotationRadians{};
@@ -122,6 +123,7 @@ private: //## Types::PlaybackRuntime
         Vec4 endColor{};
         Vec4 subUVRect{ 0.f, 0.f, 1.f, 1.f };
         Vec4 rotationAndTilt{};
+        Vec4 coreColorRgb{ 1.f, 0.85f, 0.45f, 0.f };
     };
 
 private: //## Static Values
