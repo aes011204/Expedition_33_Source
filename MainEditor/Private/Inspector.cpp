@@ -14,6 +14,7 @@
 #include "GameplayUI_Types.h"
 #include "IRuntimeUI_EditorTarget.h"
 #include "MapAuthoringIO.h"
+#include "MapInstancedMesh.h"
 #include "MapLoader.h"
 #include "MapStaticMesh.h"
 #include "Monster_WorldBase.h"
@@ -41,6 +42,52 @@ constexpr float CascadePresetLabelWidth = 110.f;
 weak_ptr<Client::Monster_WorldBase> g_pendingPatrolPickMonster{};
 int32 g_pendingPatrolPickIndex = -1;
 bool g_showMonsterPatrolPoints = false;
+
+Shared<ModelCom> Try_GetInspectorModel(const Shared<GameObject>& target)
+{
+    if (target == nullptr)
+        return nullptr;
+
+    if (dynamic_pointer_cast<Client::MapInstancedMesh>(target) != nullptr)
+        return nullptr;
+
+    if (const Shared<ModelCom> model = target->Get_Component<ModelCom>())
+        return model;
+
+    if (const Shared<Client::MapStaticMesh> mapStaticMesh = dynamic_pointer_cast<Client::MapStaticMesh>(target))
+        return mapStaticMesh->Get_Model();
+
+    return nullptr;
+}
+
+void Draw_LocalBoundsDebugBox(const Shared<GameObject>& target, const Vec3& localMin, const Vec3& localMax)
+{
+    const Shared<TransformCom> transform = target ? target->Get_Transform() : nullptr;
+    if (transform == nullptr)
+        return;
+
+    const Vec3 localCenter = (localMin + localMax) * 0.5f;
+    const Vec3 localExtents = (localMax - localMin) * 0.5f;
+    Matrix worldMatrix = transform->Get_WorldMatrix();
+
+    Vec3 worldScale = Vec3::One;
+    Quat worldRotation = Quat::Identity;
+    Vec3 worldTranslation = Vec3::Zero;
+    if (!worldMatrix.Decompose(worldScale, worldRotation, worldTranslation))
+        return;
+
+    DebugBoxDesc debugBox{};
+    debugBox.center = Vec3::Transform(localCenter, worldMatrix);
+    debugBox.extents = Vec3(
+        abs(localExtents.x * worldScale.x),
+        abs(localExtents.y * worldScale.y),
+        abs(localExtents.z * worldScale.z));
+    debugBox.rotation = worldRotation;
+    debugBox.style.color = Color(0.2f, 1.f, 0.35f, 1.f);
+    debugBox.style.depthEnabled = true;
+    debugBox.style.duration = 0.f;
+    GAME->Draw_DebugBox(debugBox);
+}
 
 bool Try_MakeViewportRay(const POINT& pixelPos, Vec3& outOrigin, Vec3& outDirection)
 {
@@ -1351,6 +1398,7 @@ void Inspector::Draw_Components(const Shared<GameObject>& target)
         ImGui::Spacing();
     }
 
+    Draw_ModelLocalBounds(target);
     Draw_ComponentOverride(static_pointer_cast<Component>(transform));
     Draw_MonsterBattlePrefabList(target);
     Draw_MonsterPatrolPointEditor(target, true);
@@ -1380,6 +1428,45 @@ void Inspector::Draw_Components(const Shared<GameObject>& target)
         if (const Shared<ModelCom> mapModel = mapStaticMesh->Get_Model())
             Draw_ComponentOverride(static_pointer_cast<Component>(mapModel));
     }
+}
+
+void Inspector::Draw_ModelLocalBounds(const Shared<GameObject>& target)
+{
+    const Shared<ModelCom> model = Try_GetInspectorModel(target);
+    if (model == nullptr)
+        return;
+
+    Vec3 localMin = Vec3::Zero;
+    Vec3 localMax = Vec3::Zero;
+    if (!model->Try_Get_LocalBounds(localMin, localMax))
+        return;
+
+    static bool s_drawSelectedModelBounds = false;
+
+    if (!ImGui::CollapsingHeader("Model Local Bounds", ImGuiTreeNodeFlags_DefaultOpen))
+        return;
+
+    ImGui::AlignTextToFramePadding();
+    ImGui::TextDisabled("Min");
+    ImGui::SameLine(InspectorLabelWidth);
+    ImGui::Text("(%.3f, %.3f, %.3f)", localMin.x, localMin.y, localMin.z);
+
+    ImGui::AlignTextToFramePadding();
+    ImGui::TextDisabled("Max");
+    ImGui::SameLine(InspectorLabelWidth);
+    ImGui::Text("(%.3f, %.3f, %.3f)", localMax.x, localMax.y, localMax.z);
+
+    const Vec3 localSize = localMax - localMin;
+    ImGui::AlignTextToFramePadding();
+    ImGui::TextDisabled("Size");
+    ImGui::SameLine(InspectorLabelWidth);
+    ImGui::Text("(%.3f, %.3f, %.3f)", localSize.x, localSize.y, localSize.z);
+
+    if (ImGui::Checkbox("Draw Selected Bounds", &s_drawSelectedModelBounds) && !s_drawSelectedModelBounds)
+        GAME->Clear_DebugDraws();
+
+    if (s_drawSelectedModelBounds)
+        Draw_LocalBoundsDebugBox(target, localMin, localMax);
 }
 
 bool Inspector::Draw_MonsterBattlePrefabList(const Shared<GameObject>& target)
