@@ -3,6 +3,7 @@
 #include "ClientInstance.h"
 #include "Client_Constants.h"
 #include "MapAmbientVisibility.h"
+#include "MovementCom.h"
 #include "PlayableParts.h"
 #include "Player_WorldBase.h"
 #include "PuzzleController.h"
@@ -134,6 +135,9 @@ void Level_GamePlay::Update(float fTimeDelta)
         CHECK_NULL(active);
 
         active->Get_Transform()->Set_WorldPosition(Vec3(75.44f, 21.99f, -14.77f));
+
+        if (auto movement = active->Get_Component<MovementCom>())
+            movement->Sync_RuntimePositionToTransform();
     }
 
 }

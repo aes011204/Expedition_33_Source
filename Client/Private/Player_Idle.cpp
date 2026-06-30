@@ -70,6 +70,12 @@ void Player_Idle::Update(float timeDelta)
         return;
     }
 
+    if (IsEnterWorldAction())
+    {
+        _stateCom->Change_State(PlayerState::WorldAction);
+        return;
+    }
+
     WorldInteractionSpot::WorldInteractionRequest interactionRequest{};
     Shared<GameObject> interactionSpot{};
     if (Try_BuildWorldInteractionRequest(interactionRequest, interactionSpot))
@@ -133,7 +139,7 @@ void Player_Idle::Update(float timeDelta)
 
 void Player_Idle::LateUpdate(float timeDelta)
 {
-    Draw_ParkourDebugRays();
+    //Draw_ParkourDebugRays();
 
     if (!_isRoutineIdle)
     {

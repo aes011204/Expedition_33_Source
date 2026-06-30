@@ -11,6 +11,7 @@
 #include "BattleStartSpawner.h"
 #include "RuntimeRuleStateService.h"
 #include "ColliderCom.h"
+#include "NPC_Base.h"
 
 namespace
 {
@@ -365,6 +366,11 @@ HRESULT Level_GestralVillage::Ready_Layer_NPC(const wstring& strLayerTag)
         .Spawn();
 
     CHECK_NULL(dance, E_FAIL);
+
+    auto buff = dynamic_pointer_cast<NPC_Base>(dance);
+    CHECK_NULL(buff, E_FAIL);
+
+    buff->Set_FightVisible(false);
 
     return S_OK;
 }

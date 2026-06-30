@@ -170,7 +170,9 @@ void Player_WorldBase::Priority_Update(float timeDelta)
     if (!stateOwnedTransformBeforeUpdate && !stateOwnsTransform)
         _playerControllerCom->Update_Movement(timeDelta);
 
-    if (_movementCom && _movementCom->Did_InputJumpStart() && !stateOwnsTransform)
+    const bool isActiveHero = CLIENT->Is_ActiveHero(GetSharedPtr<GameObject>());
+
+    if (isActiveHero && _movementCom && _movementCom->Did_InputJumpStart() && !stateOwnsTransform)
     {
         _fallStateEnterAcc = 0.f; // 실제 점프 입력은 기존처럼 즉시 Jump 상태로 보낸다.
 
