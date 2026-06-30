@@ -978,7 +978,7 @@ HRESULT MeshEmitter::Bind_EffectMaterialResources()
 {
     const float emitterPhase = Compute_MaterialScalarModulationPhase(_emitterElapsedTime, _desc.playback.duration);
     const EffectRequiredMaterialRuntimeDesc material =
-        Resolve_EmitterTimeMaterialParameterModulation(_desc.material, emitterPhase);
+        Resolve_EmitterTimeMaterialParameterModulation(_desc.material, emitterPhase, _effectPlaybackSeed);
 
     CHECK_NULL(_texture, E_FAIL);
 
@@ -1084,6 +1084,12 @@ HRESULT MeshEmitter::Bind_EffectMaterialResources()
     CHECK_FAILED_THROTTLED(_shader->Bind_RawValue("g_EffectMeshAdditiveFlags", &effectMeshAdditiveFlags, sizeof(effectMeshAdditiveFlags)), 60, E_FAIL);
     CHECK_FAILED_THROTTLED(_shader->Bind_RawValue("g_EffectMeshCoreEmissiveParams", &effectMeshCoreEmissiveParams, sizeof(effectMeshCoreEmissiveParams)), 60, E_FAIL);
     CHECK_FAILED_THROTTLED(_shader->Bind_RawValue("g_EffectMeshCoreEmissiveColor", &effectMeshCoreEmissiveColor, sizeof(effectMeshCoreEmissiveColor)), 60, E_FAIL);
+    CHECK_FAILED_THROTTLED(Bind_MaterialScalarModulationShaderPayloadToShader(_shader.get(), material.scalarModulation, emitterPhase), 60, E_FAIL);
+    CHECK_FAILED_THROTTLED(
+        Bind_CoreColorRgbModulationShaderPayload(_shader.get(), material.coreColorRgbModulation, emitterPhase, _effectPlaybackSeed),
+        60,
+        E_FAIL
+    );
     CHECK_FAILED_THROTTLED(_shader->Bind_RawValue("g_OpacitySource", &_opacitySourceIndex, sizeof(_opacitySourceIndex)), 60, E_FAIL);
     return S_OK;
 }
@@ -1092,7 +1098,7 @@ HRESULT MeshEmitter::Bind_DistortionResources()
 {
     const float emitterPhase = Compute_MaterialScalarModulationPhase(_emitterElapsedTime, _desc.playback.duration);
     const EffectRequiredMaterialRuntimeDesc material =
-        Resolve_EmitterTimeMaterialParameterModulation(_desc.material, emitterPhase);
+        Resolve_EmitterTimeMaterialParameterModulation(_desc.material, emitterPhase, _effectPlaybackSeed);
 
     if (nullptr != _flowTexture)
         CHECK_FAILED_THROTTLED(_flowTexture->Bind_ShaderResourceView(_shader.get(), "g_FlowTexture", 0), 60, E_FAIL);
@@ -1126,6 +1132,7 @@ HRESULT MeshEmitter::Bind_DistortionResources()
     CHECK_FAILED_THROTTLED(_shader->Bind_RawValue("g_FlowUVScrollSpeed", &material.flowUVScrollSpeed, sizeof(material.flowUVScrollSpeed)), 60, E_FAIL);
     CHECK_FAILED_THROTTLED(_shader->Bind_RawValue("g_FlowUVTilingMode", &flowUVTilingMode, sizeof(flowUVTilingMode)), 60, E_FAIL);
     CHECK_FAILED_THROTTLED(_shader->Bind_RawValue("g_FlowUVRotation", &flowUVRotation, sizeof(flowUVRotation)), 60, E_FAIL);
+    CHECK_FAILED_THROTTLED(Bind_MaterialScalarModulationShaderPayloadToShader(_shader.get(), material.scalarModulation, emitterPhase), 60, E_FAIL);
     return S_OK;
 }
 
@@ -1212,6 +1219,7 @@ void MeshEmitter::Update_InstanceBuffer()
         instance.color = Evaluate_ColorOverLife(*particle, lifeProgress);
         instance.lifeTime = Vec2{ particle->lifeMax, particle->age };
         instance.padding = Vec2{};
+        instance.coreColorRgb = Vec4{ particle->coreColorRgb.x, particle->coreColorRgb.y, particle->coreColorRgb.z, 0.f };
     }
 
     if (_activeInstanceCount == 0u)
@@ -1614,6 +1622,16 @@ void MeshEmitter::Activate_Particle(MeshParticleState& particle, uint32 seed, ui
         seed + 53u
     );
     particle.seed = seed;
+    particle.coreColorRgb = Sample_ParticleLifeCoreColorRgbUniformModulation(
+        _desc.material.coreColorRgbModulation,
+        Vec3{
+            _desc.material.coreEmissive.coreColor.x,
+            _desc.material.coreEmissive.coreColor.y,
+            _desc.material.coreEmissive.coreColor.z
+        },
+        _effectPlaybackSeed,
+        seed
+    );
 }
 
 void MeshEmitter::Update_Particles(float timeDelta)
@@ -1665,9 +1683,7 @@ void MeshEmitter::Update_Particles(float timeDelta)
             }
         }
         else
-        {
             particle.rotationRadians += scaledAngularVelocity * safeDeltaTime;
-        }
     }
 }
 
@@ -1737,10 +1753,10 @@ Matrix MeshEmitter::Build_InstanceMatrix(const MeshParticleState& particle) cons
 
     Quat rotation = _desc.meshTransform.initialAngularVelocityInWorldSpace
                     ? particle.rotationQuat * Quat::CreateFromYawPitchRoll(
-                        XMConvertToRadians(rotationByLife.y),
-                        XMConvertToRadians(rotationByLife.x),
-                        XMConvertToRadians(rotationByLife.z)
-                    )
+                          XMConvertToRadians(rotationByLife.y),
+                          XMConvertToRadians(rotationByLife.x),
+                          XMConvertToRadians(rotationByLife.z)
+                      )
                     : Quat::CreateFromYawPitchRoll(rotationRadians.y, rotationRadians.x, rotationRadians.z);
     rotation.Normalize();
 

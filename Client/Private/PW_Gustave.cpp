@@ -21,6 +21,10 @@ IMPLEMENT_REFLECTION(PW_Gustave)
     info.displayName = "PW_Gustave";
     info.category = "Character";
     
+    PROPERTY_FLOAT("Parkour Low Probe Distance", _parkourLowProbeDistance, 0.01f, 1.f, 0.005f);
+    PROPERTY_FLOAT("Parkour High Probe Distance", _parkourHighProbeDistance, 0.01f, 1.f, 0.005f);
+    PROPERTY_VEC3("Parkour Low Probe Center", _parkourLowProbeCenter, 0.01f);
+    PROPERTY_VEC3("Parkour High Probe Center", _parkourHighProbeCenter, 0.01f);
 
     return true;
 }
@@ -42,9 +46,9 @@ HRESULT PW_Gustave::Initialize(void* arg)
 
     auto skillTreeCom = Get_Component<SkillTreeCom>();
 
-    skillTreeCom->TryUnlock("LumiereAssault");
-    skillTreeCom->TryUnlock("UnleashedCharge");
-    skillTreeCom->TryUnlock("MarkingShot");
+    skillTreeCom->ForceUnlock("LumiereAssault");
+    skillTreeCom->ForceUnlock("UnleashedCharge");
+    skillTreeCom->ForceUnlock("MarkingShot");
 
     //skillTreeCom->ForceUnlock("Shatter");
     //skillTreeCom->ForceUnlock("PerfectBreak");

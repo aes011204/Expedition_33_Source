@@ -397,6 +397,9 @@
     <ClCompile Include="..\Private\AN_PlayEffect.cpp">
       <Filter>95. AnimNotify\00. Notifies</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\AN_PlayEffectBattleDir.cpp">
+      <Filter>95. AnimNotify\00. Notifies</Filter>
+    </ClCompile>
     <ClCompile Include="..\Private\AN_SL_SpawnAttColl.cpp">
       <Filter>95. AnimNotify\01. NotifyStates</Filter>
     </ClCompile>
@@ -429,15 +432,6 @@
     </ClCompile>
     <ClCompile Include="..\Private\Base_Gustave_Attack.cpp">
       <Filter>Skill</Filter>
-    </ClCompile>
-    <ClCompile Include="..\private\Base_Mon_Attack.cpp">
-      <Filter>Skill</Filter>
-    </ClCompile>
-    <ClCompile Include="..\private\Base_Mon_Defense.cpp">
-      <Filter>BattleState</Filter>
-    </ClCompile>
-    <ClCompile Include="..\private\Base_Mon_Spawn.cpp">
-      <Filter>BattleState</Filter>
     </ClCompile>
     <ClCompile Include="..\private\BattleAction.cpp">
       <Filter>BattleState</Filter>
@@ -569,10 +563,7 @@
     <ClCompile Include="..\private\PuzzleController.cpp">
       <Filter>96. Manager</Filter>
     </ClCompile>
-    <ClCompile Include="..\private\Simon_Combo.cpp">
-      <Filter>Skill</Filter>
-    </ClCompile>
-    <ClCompile Include="..\private\Simon_Debuff.cpp">
+    <ClCompile Include="..\Private\Skill_Monster_Battle.cpp">
       <Filter>Skill</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\SkyBoxFlow.cpp">
@@ -1110,6 +1101,9 @@
     <ClCompile Include="..\Private\UI_BattleMechanism.cpp">
       <Filter>02. GameObject\UI</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\UI_BattleGradientGauge.cpp">
+      <Filter>02. GameObject\UI</Filter>
+    </ClCompile>
     <ClCompile Include="..\Private\UI_BattleTutorial.cpp">
       <Filter>02. GameObject\UI</Filter>
     </ClCompile>
@@ -1289,6 +1283,7 @@
     <ClCompile Include="..\Private\UI_GetClothes.cpp" />
     <ClCompile Include="..\Private\UI_GetWeapon.cpp" />
     <ClCompile Include="..\Private\UI_GetPictos.cpp" />
+    <ClCompile Include="..\Private\UI_GetChroma.cpp" />
     <ClCompile Include="..\Private\UI_BattlePictos.cpp" />
     <ClCompile Include="..\Private\UI_BattleJumpReaction.cpp" />
     <ClCompile Include="..\Private\UI_ArenaCharacterSelect.cpp" />
@@ -1436,6 +1431,8 @@
     <ClCompile Include="..\Private\Item_DailyLog.cpp" />
     <ClCompile Include="..\Private\UI_DailyLog.cpp" />
     <ClCompile Include="..\Private\ANS_CanAction.cpp" />
+    <ClCompile Include="..\Private\SL_UseItem.cpp" />
+    <ClCompile Include="..\Private\AN_SL_UseHealingPotion.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\Public\ANS_AnimSpeed.h">
@@ -1480,6 +1477,7 @@
     <ClInclude Include="..\Public\UI_GetClothes.h" />
     <ClInclude Include="..\Public\UI_GetWeapon.h" />
     <ClInclude Include="..\Public\UI_GetPictos.h" />
+    <ClInclude Include="..\Public\UI_GetChroma.h" />
     <ClInclude Include="..\Public\UI_BattlePictos.h" />
     <ClInclude Include="..\Public\UI_BattleJumpReaction.h" />
     <ClInclude Include="..\Public\UI_ArenaCharacterSelect.h" />
@@ -1566,6 +1564,8 @@
     <ClInclude Include="..\Public\Item_DailyLog.h" />
     <ClInclude Include="..\Public\UI_DailyLog.h" />
     <ClInclude Include="..\Public\ANS_CanAction.h" />
+    <ClInclude Include="..\Public\SL_UseItem.h" />
+    <ClInclude Include="..\Public\AN_SL_UseHealingPotion.h" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimAdditive.hlsl">
@@ -1793,6 +1793,9 @@
     <ClInclude Include="..\Public\AN_PlayEffect.h">
       <Filter>95. AnimNotify\00. Notifies</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\AN_PlayEffectBattleDir.h">
+      <Filter>95. AnimNotify\00. Notifies</Filter>
+    </ClInclude>
     <ClInclude Include="..\Public\AN_SL_SpawnAttColl.h">
       <Filter>95. AnimNotify\01. NotifyStates</Filter>
     </ClInclude>
@@ -1825,15 +1828,6 @@
     </ClInclude>
     <ClInclude Include="..\Public\Base_Gustave_Attack.h">
       <Filter>Skill</Filter>
-    </ClInclude>
-    <ClInclude Include="..\public\Base_Mon_Attack.h">
-      <Filter>Skill</Filter>
-    </ClInclude>
-    <ClInclude Include="..\public\Base_Mon_Defense.h">
-      <Filter>BattleState</Filter>
-    </ClInclude>
-    <ClInclude Include="..\public\Base_Mon_Spawn.h">
-      <Filter>BattleState</Filter>
     </ClInclude>
     <ClInclude Include="..\public\BattleAction.h">
       <Filter>BattleState</Filter>
@@ -2076,10 +2070,7 @@
     <ClInclude Include="..\public\PuzzleController.h">
       <Filter>96. Manager</Filter>
     </ClInclude>
-    <ClInclude Include="..\public\Simon_Combo.h">
-      <Filter>Skill</Filter>
-    </ClInclude>
-    <ClInclude Include="..\public\Simon_Debuff.h">
+    <ClInclude Include="..\Public\Skill_Monster_Battle.h">
       <Filter>Skill</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\SkyBoxFlow.h">
@@ -2551,6 +2542,9 @@
       <Filter>02. GameObject\UI</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\UI_BattleMechanism.h">
+      <Filter>02. GameObject\UI</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\UI_BattleGradientGauge.h">
       <Filter>02. GameObject\UI</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\UI_BattleTutorial.h">

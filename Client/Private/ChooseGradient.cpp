@@ -85,6 +85,10 @@ void ChooseGradient::Update(float timeDelta)
     if (!request.actor.statCom->Try_GetSkillKeyBySlot(GradientSkill::SlotIndex, skillKey))
         return; // Empty slot 6 means Gradient cannot be selected.
 
+    // ChooseAction에서 한 번 막지만, Gradient 선택 상태 안에서도 확정 직전에 다시 확인한다.
+    if (!request.actor.statCom->Can_UseGradientGauge())
+        return;
+
     const Skill_Data* skillData = CLIENT->Get_Skill(skillKey);
     if (skillData == nullptr)
         return;

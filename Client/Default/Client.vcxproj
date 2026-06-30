@@ -193,9 +193,11 @@
     <ClInclude Include="..\Public\AN_SL_DuallisteCloneSkill.h" />
     <ClInclude Include="..\Public\AN_EndTurn.h" />
     <ClInclude Include="..\Public\AN_PlayEffect.h" />
+    <ClInclude Include="..\Public\AN_PlayEffectBattleDir.h" />
     <ClInclude Include="..\Public\AN_SL_SpawnAttColl.h" />
     <ClInclude Include="..\Public\AN_PlaySound.h" />
     <ClInclude Include="..\Public\AN_ReturnBattleIdle.h" />
+    <ClInclude Include="..\Public\AN_SL_UseHealingPotion.h" />
     <ClInclude Include="..\Public\AN_WeaponAttach.h" />
     <ClInclude Include="..\Public\AN_WeaponDetach.h" />
     <ClInclude Include="..\Public\ANS_WeaponEcho.h" />
@@ -209,9 +211,6 @@
     <ClInclude Include="..\Public\AN_WorldFreeAimHit.h" />
     <ClInclude Include="..\Public\AttackPlaying.h" />
     <ClInclude Include="..\Public\Base_Gustave_Attack.h" />
-    <ClInclude Include="..\public\Base_Mon_Attack.h" />
-    <ClInclude Include="..\public\Base_Mon_Defense.h" />
-    <ClInclude Include="..\public\Base_Mon_Spawn.h" />
     <ClInclude Include="..\public\BattleAction.h" />
     <ClInclude Include="..\public\BattleActionExecutor.h" />
     <ClInclude Include="..\Public\BattleAnimUtils.h" />
@@ -251,6 +250,7 @@
     <ClInclude Include="..\Public\CA_ScreenFx.h" />
     <ClInclude Include="..\Public\ChangeSkill_Panel.h" />
     <ClInclude Include="..\public\ChangeWeapon_Panel.h" />
+    <ClInclude Include="..\Public\SL_UseItem.h" />
     <ClInclude Include="..\Public\UpgradeWeapon_Panel.h" />
     <ClInclude Include="..\Public\Merchant_Panel.h" />
     <ClInclude Include="..\public\BT_FinishDecision.h" />
@@ -371,8 +371,7 @@
     <ClInclude Include="..\Public\MapWater.h" />
     <ClInclude Include="..\public\Mon_WeakPoint.h" />
     <ClInclude Include="..\public\PuzzleController.h" />
-    <ClInclude Include="..\public\Simon_Combo.h" />
-    <ClInclude Include="..\public\Simon_Debuff.h" />
+    <ClInclude Include="..\Public\Skill_Monster_Battle.h" />
     <ClInclude Include="..\Public\SkyBoxFlow.h" />
     <ClInclude Include="..\Public\SkyCloudCard.h" />
     <ClInclude Include="..\Public\SourcePointSampleProvider_ByPart.h" />
@@ -537,6 +536,10 @@
     <ClInclude Include="..\Public\PW_Lune.h" />
     <ClInclude Include="..\Public\PW_Maelle.h" />
     <ClInclude Include="..\Public\PreviewCamera.h" />
+    <ClInclude Include="..\Public\Player_ParkourAction.h" />
+    <ClInclude Include="..\Public\Player_Climb.h" />
+    <ClInclude Include="..\Public\Player_RopeAction.h" />
+    <ClInclude Include="..\Public\Player_GrappleAction.h" />
     <ClInclude Include="..\Public\Player_WorldAction.h" />
     <ClInclude Include="..\Public\SkillTreeCom.h" />
     <ClInclude Include="..\Public\Player_Idle.h" />
@@ -565,6 +568,10 @@
     <ClInclude Include="..\Public\Terrain_UE.h" />
     <ClInclude Include="..\Public\TrailAnchor_Asset.h" />
     <ClInclude Include="..\Public\Trigger_WorldAction.h" />
+    <ClInclude Include="..\Public\WorldLedgeSpot.h" />
+    <ClInclude Include="..\Public\WorldInteractionSpot.h" />
+    <ClInclude Include="..\Public\WorldGrapplingRopeSpot.h" />
+    <ClInclude Include="..\Public\WorldUpDownRopeSpot.h" />
     <ClInclude Include="..\public\UIPreviewManager.h" />
     <ClInclude Include="..\Public\UI_AddAP.h" />
     <ClInclude Include="..\Public\UI_ArenaCharacterSelect.h" />
@@ -573,6 +580,7 @@
     <ClInclude Include="..\Public\UI_BattleFloatingTextBase.h" />
     <ClInclude Include="..\Public\UI_BattleItemPanel.h" />
     <ClInclude Include="..\Public\UI_BattleMechanism.h" />
+    <ClInclude Include="..\Public\UI_BattleGradientGauge.h" />
     <ClInclude Include="..\Public\UI_BattlePictos.h" />
     <ClInclude Include="..\Public\UI_BattleTutorial.h" />
     <ClInclude Include="..\Public\UI_BattleJumpReaction.h" />
@@ -580,6 +588,7 @@
     <ClInclude Include="..\Public\UI_GetClothes.h" />
     <ClInclude Include="..\Public\UI_GetWeapon.h" />
     <ClInclude Include="..\Public\UI_GetPictos.h" />
+    <ClInclude Include="..\Public\UI_GetChroma.h" />
     <ClInclude Include="..\Public\UI_HealFont.h" />
     <ClInclude Include="..\Public\UI_DestroyShield.h" />
     <ClInclude Include="..\Public\UI_MarkEffect.h" />
@@ -681,9 +690,11 @@
     <ClCompile Include="..\Private\AN_Dissolve_Parts.cpp" />
     <ClCompile Include="..\Private\AN_EndTurn.cpp" />
     <ClCompile Include="..\Private\AN_PlayEffect.cpp" />
+    <ClCompile Include="..\Private\AN_PlayEffectBattleDir.cpp" />
     <ClCompile Include="..\Private\AN_SL_SpawnAttColl.cpp" />
     <ClCompile Include="..\Private\AN_PlaySound.cpp" />
     <ClCompile Include="..\Private\AN_ReturnBattleIdle.cpp" />
+    <ClCompile Include="..\Private\AN_SL_UseHealingPotion.cpp" />
     <ClCompile Include="..\Private\AN_WeaponAttach.cpp" />
     <ClCompile Include="..\Private\AN_WeaponDetach.cpp" />
     <ClCompile Include="..\Private\ANS_WeaponEcho.cpp" />
@@ -697,9 +708,6 @@
     <ClCompile Include="..\Private\AN_WorldFreeAimHit.cpp" />
     <ClCompile Include="..\Private\AttackPlaying.cpp" />
     <ClCompile Include="..\Private\Base_Gustave_Attack.cpp" />
-    <ClCompile Include="..\private\Base_Mon_Attack.cpp" />
-    <ClCompile Include="..\private\Base_Mon_Defense.cpp" />
-    <ClCompile Include="..\private\Base_Mon_Spawn.cpp" />
     <ClCompile Include="..\private\BattleAction.cpp" />
     <ClCompile Include="..\private\BattleActionExecutor.cpp" />
     <ClCompile Include="..\Private\BattleAnimutils.cpp" />
@@ -790,6 +798,7 @@
     <ClCompile Include="..\Private\SL_State.cpp" />
     <ClCompile Include="..\Private\SL_TargetCom.cpp" />
     <ClCompile Include="..\Private\SL_Test_Lancelier.cpp" />
+    <ClCompile Include="..\Private\SL_UseItem.cpp" />
     <ClCompile Include="..\Private\SL_Weapon.cpp" />
     <ClCompile Include="..\Private\SoulLikeCamera.cpp" />
     <ClCompile Include="..\Private\SoulLikeController.cpp" />
@@ -810,8 +819,7 @@
     <ClCompile Include="..\Private\Mon_WeakPoint.cpp" />
     <ClCompile Include="..\Private\PlayerInventory.cpp" />
     <ClCompile Include="..\private\PuzzleController.cpp" />
-    <ClCompile Include="..\private\Simon_Combo.cpp" />
-    <ClCompile Include="..\private\Simon_Debuff.cpp" />
+    <ClCompile Include="..\Private\Skill_Monster_Battle.cpp" />
     <ClCompile Include="..\Private\SkyBoxFlow.cpp" />
     <ClCompile Include="..\Private\SkyCloudCard.cpp" />
     <ClCompile Include="..\Private\SourcePointSampleProvider_ByPart.cpp" />
@@ -1008,8 +1016,12 @@
     <ClCompile Include="..\Private\Player_Move.cpp" />
     <ClCompile Include="..\Private\Player_State.cpp" />
     <ClCompile Include="..\Private\PlayerStateMachineCom.cpp" />
-    <ClCompile Include="..\Private\PreviewCamera.cpp" />
+    <ClCompile Include="..\Private\Player_Climb.cpp" />
+    <ClCompile Include="..\Private\Player_RopeAction.cpp" />
+    <ClCompile Include="..\Private\Player_GrappleAction.cpp" />
     <ClCompile Include="..\Private\Player_WorldAction.cpp" />
+    <ClCompile Include="..\Private\PreviewCamera.cpp" />
+    <ClCompile Include="..\Private\Player_ParkourAction.cpp" />
     <ClCompile Include="..\Private\IRuntimeUI_EditorTarget.cpp" />
     <ClCompile Include="..\Private\RadialBlur_ScreenFx.cpp" />
     <ClCompile Include="..\Private\SimpleMath.cpp" />
@@ -1035,6 +1047,10 @@
     <ClCompile Include="..\Private\Terrain_UE.cpp" />
     <ClCompile Include="..\Private\TrailAnchor_Asset.cpp" />
     <ClCompile Include="..\Private\Trigger_WorldAction.cpp" />
+    <ClCompile Include="..\Private\WorldLedgeSpot.cpp" />
+    <ClCompile Include="..\Private\WorldInteractionSpot.cpp" />
+    <ClCompile Include="..\Private\WorldGrapplingRopeSpot.cpp" />
+    <ClCompile Include="..\Private\WorldUpDownRopeSpot.cpp" />
     <ClCompile Include="..\private\UIPreviewManager.cpp" />
     <ClCompile Include="..\Private\UI_AddAP.cpp" />
     <ClCompile Include="..\Private\UI_ArenaCharacterSelect.cpp" />
@@ -1043,6 +1059,7 @@
     <ClCompile Include="..\Private\UI_BattleFloatingTextBase.cpp" />
     <ClCompile Include="..\Private\UI_BattleItemPanel.cpp" />
     <ClCompile Include="..\Private\UI_BattleMechanism.cpp" />
+    <ClCompile Include="..\Private\UI_BattleGradientGauge.cpp" />
     <ClCompile Include="..\Private\UI_BattlePictos.cpp" />
     <ClCompile Include="..\Private\UI_BattleTutorial.cpp" />
     <ClCompile Include="..\Private\UI_BattleJumpReaction.cpp" />
@@ -1050,6 +1067,7 @@
     <ClCompile Include="..\Private\UI_GetClothes.cpp" />
     <ClCompile Include="..\Private\UI_GetWeapon.cpp" />
     <ClCompile Include="..\Private\UI_GetPictos.cpp" />
+    <ClCompile Include="..\Private\UI_GetChroma.cpp" />
     <ClCompile Include="..\Private\UI_HealFont.cpp" />
     <ClCompile Include="..\Private\UI_DestroyShield.cpp" />
     <ClCompile Include="..\Private\UI_MarkEffect.cpp" />

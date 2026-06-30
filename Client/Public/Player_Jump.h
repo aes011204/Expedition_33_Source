@@ -19,6 +19,11 @@ public:
 
 private:
 	float _fallTime{ 0.f };
+    float _parkourProbeElapsed{ 0.f };
+    bool _hasLeftGroundForParkourProbe{ false };
+    bool _canProbeParkour{ false };
+    bool _lowParkourProbeDone{ false };
+    bool _repeatHighParkourProbe{ false };
 
 public:
     static Shared<Player_Jump> Create(const Shared<Player_WorldBase>& owner);

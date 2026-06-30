@@ -66,6 +66,7 @@ private: //## Types::PlaybackRuntime
         Vec4 color{ 1.f, 1.f, 1.f, 1.f };       // life 평가까지 반영된 최종 particle color다.
         Vec2 lifeTime{};                        // x: particle 수명, y: 현재 age다.
         Vec2 padding{};                         // instance layout 16-byte 정렬 유지용 padding이다.
+        Vec4 coreColorRgb{ 1.f, 0.85f, 0.45f, 0.f }; // Core Color RGB Uniform+ParticleLife 생성 시점 샘플이다.
     };
 
     struct MeshParticleState
@@ -87,6 +88,7 @@ private: //## Types::PlaybackRuntime
         Vec3 angularVelocityRadians{};           // 현재 particle 회전 속도다.
         Vec4 startColor{ 1.f, 1.f, 1.f, 1.f };   // InitialColor에서 정한 particle 시작 색상이다.
         Vec4 endColor{ 1.f, 1.f, 1.f, 1.f };     // ColorOverLife endpoint 보간에 사용할 particle 끝 색상이다.
+        Vec3 coreColorRgb{ 1.f, 0.85f, 0.45f };   // Core Color RGB Uniform+ParticleLife 생성 시점 샘플이다.
         uint32 seed{};                           // particle별 deterministic random sample seed다.
     };
 

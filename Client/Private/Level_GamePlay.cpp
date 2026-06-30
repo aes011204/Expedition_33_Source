@@ -3,6 +3,7 @@
 #include "ClientInstance.h"
 #include "Client_Constants.h"
 #include "MapAmbientVisibility.h"
+#include "MovementCom.h"
 #include "PlayableParts.h"
 #include "Player_WorldBase.h"
 #include "PuzzleController.h"
@@ -17,9 +18,17 @@ namespace
     // 시네마틱 연출 트리거 위치
     constexpr Vec3 kCinematicTriggerSpawnPosition = Vec3(78.61f, 22.06f, -14.58f);
 
+    // 창병 전투 시작 위치
+    constexpr Vec3 kLancelierBattlePosition = Vec3(-39.12f, 19.1f, -93.1f);
+    constexpr Vec3 kLancelierBattleRotation = Vec3(0.f, 33.6f, 0.f);
+
+    // 방패병 전투 시작 위치
+    constexpr Vec3 kPortierBattlePosition = Vec3(-35.03f, 19.42f, -33.65f);
+    constexpr Vec3 kPortierBattleRotation = Vec3(0.f, 0.f, 0.f);
+
     // 보스 전투 시작 위치
-    constexpr Vec3 kBossBattlePosition = Vec3(134.35f, 21.82f, -1.11f);
-    constexpr Vec3 kBossBattleRotation = Vec3(0.f, 67.5f, 0.f);
+    constexpr Vec3 kBossBattlePosition = Vec3(123.46f, 21.82f, -9.67f);
+    constexpr Vec3 kBossBattleRotation = Vec3(0.f, 82.2f, 0.f);
 
     VolumetricLightShaftZoneCB Build_GamePlayLightShaftZones()
     {
@@ -126,6 +135,9 @@ void Level_GamePlay::Update(float fTimeDelta)
         CHECK_NULL(active);
 
         active->Get_Transform()->Set_WorldPosition(Vec3(75.44f, 21.99f, -14.77f));
+
+        if (auto movement = active->Get_Component<MovementCom>())
+            movement->Sync_RuntimePositionToTransform();
     }
 
 }
@@ -281,20 +293,20 @@ HRESULT Level_GamePlay::Ready_Layer_Trigger(const wstring& strLayerTag)
 HRESULT Level_GamePlay::Ready_Layer_BattleStartSpawner(const wstring& strLayerTag)
 {
     // 튜토리얼 렌서러
-    //auto tutorialStart = Spawn_Prefab::Prefab(Constants::Prefab::BattleStartSpawner_Boss)
-    //    .AtLevel(ETOI(LevelType::GamePlay))
-    //    .InLayer(strLayerTag)
-    //    .Position(kBossBattlePosition)
-    //    .Rotation(kBossBattleRotation)
-    //    .Spawn();
+    auto tutorialStart = Spawn_Prefab::Prefab(Constants::Prefab::BSS_Gameplay01)
+        .AtLevel(ETOI(LevelType::GamePlay))
+        .InLayer(strLayerTag)
+        .Position(kLancelierBattlePosition)
+        .Rotation(kLancelierBattleRotation)
+        .Spawn();
 
     // 방패병
-    //auto portierStart = Spawn_Prefab::Prefab(Constants::Prefab::BattleStartSpawner_Boss)
-    //    .AtLevel(ETOI(LevelType::GamePlay))
-    //    .InLayer(strLayerTag)
-    //    .Position(kBossBattlePosition)
-    //    .Rotation(kBossBattleRotation)
-    //    .Spawn();
+    auto portierStart = Spawn_Prefab::Prefab(Constants::Prefab::BSS_Gameplay02)
+        .AtLevel(ETOI(LevelType::GamePlay))
+        .InLayer(strLayerTag)
+        .Position(kPortierBattlePosition)
+        .Rotation(kPortierBattleRotation)
+        .Spawn();
 
     // 보스 전투 시작 스포너
     auto bishopStart = Spawn_Prefab::Prefab(Constants::Prefab::BattleStartSpawner_Boss)
@@ -469,7 +481,7 @@ HRESULT Level_GamePlay::Ready_Layer_Monster(const wstring& strLayerTag)
 
 HRESULT Level_GamePlay::Ready_Layer_Player(const wstring& strLayerTag)
 {
-    //Vec3 startPos = Vec3(-465.f, 50.f, 65.f);
+    // 플레이어 시작 위치만 지정
     Vec3 startPos = Vec3(-87.f, 19.47f, -132.94f);
     CHECK_FAILED(CLIENT->Initialize_Hero(ETOI(LevelType::GamePlay), strLayerTag, startPos), E_FAIL);
 

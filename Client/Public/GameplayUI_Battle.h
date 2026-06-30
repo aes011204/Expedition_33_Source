@@ -45,6 +45,7 @@ class UI_BattleJumpReaction;
 class UI_QTE;
 class UI_MarkEffect;
 class UI_BattleTutorial;
+class UI_BattleGradientGauge;
 
 class Monster_BattleBase;
 
@@ -104,6 +105,7 @@ private:
 
     void    Update_BattleCommandHUD(float timeDelta);
     void    Update_BattleSystemHUD(float timeDelta);
+    void    Update_BattleGradientGauge(float timeDelta);
     void    Update_BattlePictos(float timeDelta);
     void    Update_MonsterHpBar(float timeDelta);
     bool    Ensure_BossHpBar();
@@ -218,7 +220,6 @@ private:
     Unique<UI_ChoiceTarget>                 _choiceTarget;
     Unique<UI_EscapeSkipTurnBack>           _escapeSkipTurn;
     Unique<UI_AttackTooltip>                _attackTooltip;
-    Unique<UI_ReactionResult>               _reactionResult;
     Unique<UI_BattleVictory>                _battleVictory;
     Unique<UI_BattleSystem_TurnOrder>       _turnOrder;
     Unique<UI_BattleMechanism>              _battleMechanism;
@@ -229,6 +230,7 @@ private:
     Unique<UI_QTE>                          _qte;
     Unique<UI_MarkEffect>                   _markEffect;
     Unique<UI_BattleTutorial>               _battleTutorial;
+    Unique<UI_BattleGradientGauge>          _battleGradientGauge;
     Unique<UI_BattleJumpReaction>           _battleJumpReaction;
 
 private:
@@ -243,6 +245,9 @@ private:
 
     static constexpr uint32 kAddAPPoolSize = 4;
     array<Unique<UI_AddAP>, kAddAPPoolSize> _addAPs{};
+
+    static constexpr uint32 kReactionResultPoolSize = 4;
+    array<Unique<UI_ReactionResult>, kReactionResultPoolSize> _reactionResults{};
 
     static constexpr uint32 kBattlePictosPoolSize = 9; // 3 heroes x 3 equipped pictos
     array<Unique<UI_BattlePictos>, kBattlePictosPoolSize> _battlePictos{};

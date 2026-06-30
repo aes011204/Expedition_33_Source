@@ -77,7 +77,13 @@ void AN_SpawnLineGroundEffect::Execute(const AnimNotifyContext& context)
         if (_segmentIndex <= 0)
             return;
 
-        float scaleValue = (static_cast<float>(_segmentNum - 1) / static_cast<float>(_segmentIndex)) * 0.25f;
+        float scaleValue = 1.2f;
+        if (_segmentIndex == 1)
+            scaleValue = 0.6f;
+        else if (_segmentIndex == 2)
+            scaleValue = 0.9f;
+        else if (_segmentIndex == 3)
+            scaleValue = 1.2f;
         desc.scale = Vec3(scaleValue, scaleValue, scaleValue);
 
 

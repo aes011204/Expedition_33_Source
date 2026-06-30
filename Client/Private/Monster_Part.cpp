@@ -170,6 +170,8 @@ void Monster_Part::Update(float timeDelta)
 {
     Update_CombinedWorldMatrix(_transformCom->Get_WorldMatrix());
 
+    if (_partEffectCom)
+        _partEffectCom->Update(timeDelta);
 
 }
 

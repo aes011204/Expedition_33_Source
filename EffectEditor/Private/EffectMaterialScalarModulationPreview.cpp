@@ -6,6 +6,40 @@ NS_BEGIN(EffectEditor)
 
 namespace
 {
+    PointParticleRandomSeedRuntimeDesc Build_RandomSeedDesc(const DistributionRandomSeedData& data)
+    {
+        return PointParticleRandomSeedRuntimeDesc{
+            .manualSeedEnabled = data.mode == DistributionRandomSeedMode::Manual,
+            .seed = data.mode == DistributionRandomSeedMode::Manual ? data.manualSeed : 0u,
+            .useInstanceSeed = data.useInstanceSeed
+        };
+    }
+
+    uint32 Resolve_MaterialModulationSeedSalt(const PointParticleRandomSeedRuntimeDesc& seed, uint32 effectPlaybackSeed)
+    {
+        uint32 salt = seed.manualSeedEnabled ? seed.seed : 0u;
+        if (seed.useInstanceSeed)
+            salt += effectPlaybackSeed;
+        return salt;
+    }
+
+    float Hash_MaterialModulation01(uint32 seed)
+    {
+        seed ^= 2747636419u;
+        seed *= 2654435769u;
+        seed ^= seed >> 16;
+        seed *= 2654435769u;
+        seed ^= seed >> 16;
+        return static_cast<float>(seed & 0x00FFFFFFu) / 16777215.f;
+    }
+
+    float Sample_MaterialModulationRange(float minValue, float maxValue, uint32 seed)
+    {
+        const float lower = min(minValue, maxValue);
+        const float upper = max(minValue, maxValue);
+        return lower + (upper - lower) * Hash_MaterialModulation01(seed);
+    }
+
     float Get_Component(const Vec4& value, uint32 index)
     {
         switch (index)
@@ -276,7 +310,14 @@ namespace
         if (const auto* constant = get_if<ConstantVector3DistributionData>(&distribution.payload))
             value = constant->value;
         else if (const auto* uniform = get_if<UniformVector3DistributionData>(&distribution.payload))
-            value = (uniform->minValue + uniform->maxValue) * 0.5f;
+        {
+            desc.enabled = true;
+            desc.uniformEnabled = true;
+            desc.uniformMin = uniform->minValue;
+            desc.uniformMax = uniform->maxValue;
+            desc.uniformSeed = Build_RandomSeedDesc(uniform->randomSeed);
+            return desc;
+        }
 
         desc.enabled = true;
         desc.keyCount = 2;
@@ -463,8 +504,22 @@ namespace
         return Get_Component(keyValues, keyValuesBlock1, clampedKeyCount - 1);
     }
 
-    Vec3 Evaluate_CoreColorRgbCurve(const EffectMaterialCoreColorRgbModulationCurveDesc& curve, float x, const Vec3& fallbackValue)
+    Vec3 Evaluate_CoreColorRgbCurve(
+        const EffectMaterialCoreColorRgbModulationCurveDesc& curve,
+        float x,
+        const Vec3& fallbackValue,
+        uint32 effectPlaybackSeed)
     {
+        if (curve.enabled && curve.uniformEnabled)
+        {
+            const uint32 seed = Resolve_MaterialModulationSeedSalt(curve.uniformSeed, effectPlaybackSeed);
+            return Vec3{
+                Sample_MaterialModulationRange(curve.uniformMin.x, curve.uniformMax.x, seed + 1u),
+                Sample_MaterialModulationRange(curve.uniformMin.y, curve.uniformMax.y, seed + 2u),
+                Sample_MaterialModulationRange(curve.uniformMin.z, curve.uniformMax.z, seed + 3u)
+            };
+        }
+
         return Vec3{
             Evaluate_CurveComponents(
                 curve.keyTimes,
@@ -747,6 +802,7 @@ MaterialParameterModulationPreviewResult Evaluate_MaterialParameterModulationPre
     const EffectMaterialVec2ModulationRuntimeDesc& vec2Modulation,
     const EffectMaterialScalarModulationRuntimeDesc& modulation,
     float previewPhase,
+    uint32 effectPlaybackSeed,
     bool evaluateParticleLife)
 {
     MaterialScalarModulationPreviewResult result{};
@@ -770,7 +826,7 @@ MaterialParameterModulationPreviewResult Evaluate_MaterialParameterModulationPre
             result.material.coreEmissive.coreColor.y,
             result.material.coreEmissive.coreColor.z
         };
-        const Vec3 coreColorRgb = Evaluate_CoreColorRgbCurve(modulator.curve, previewPhase, fallbackValue);
+        const Vec3 coreColorRgb = Evaluate_CoreColorRgbCurve(modulator.curve, previewPhase, fallbackValue, effectPlaybackSeed);
         result.material.coreEmissive.coreColor.x = coreColorRgb.x;
         result.material.coreEmissive.coreColor.y = coreColorRgb.y;
         result.material.coreEmissive.coreColor.z = coreColorRgb.z;
@@ -822,6 +878,7 @@ MaterialScalarModulationPreviewResult Evaluate_MaterialScalarModulationPreview(
     const EffectMaterialVec2ModulationRuntimeDesc& vec2Modulation,
     const EffectMaterialScalarModulationRuntimeDesc& modulation,
     float previewPhase,
+    uint32 effectPlaybackSeed,
     bool evaluateParticleLife)
 {
     return Evaluate_MaterialParameterModulationPreview(
@@ -830,6 +887,7 @@ MaterialScalarModulationPreviewResult Evaluate_MaterialScalarModulationPreview(
         vec2Modulation,
         modulation,
         previewPhase,
+        effectPlaybackSeed,
         evaluateParticleLife
     );
 }

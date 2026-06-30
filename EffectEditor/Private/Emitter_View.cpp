@@ -846,6 +846,8 @@ AuthoringModule Emitter_View::Make_DefaultModuleByType(AuthoringModuleType type)
         return Make_SourceHistorySpriteTrailPathFollowModule();
     case AuthoringModuleType::SourceHistorySpriteTrailPathReplay:
         return Make_SourceHistorySpriteTrailPathReplayModule();
+    case AuthoringModuleType::RibbonOrientation:
+        return Make_RibbonOrientationModule();
     case AuthoringModuleType::MaterialScalarModulation:
         return Make_MaterialScalarModulationModule();
     }
@@ -1282,6 +1284,17 @@ AuthoringModule Emitter_View::Make_SourceHistorySpriteTrailPathReplayModule()
     return module;
 }
 
+AuthoringModule Emitter_View::Make_RibbonOrientationModule()
+{
+    AuthoringModule module{};
+    module.id = Issue_AuthoringId();
+    module.type = AuthoringModuleType::RibbonOrientation;
+    module.enabled = true;
+    Apply_AuthoringModuleMetadata(module);
+    module.data = RibbonOrientationModuleData{};
+    return module;
+}
+
 AuthoringModule Emitter_View::Make_MaterialScalarModulationModule()
 {
     AuthoringModule module{};
@@ -1312,10 +1325,12 @@ bool Emitter_View::Is_ModuleCompatibleWithEmitter(const AuthoringEmitter& emitte
         {
         case AuthoringModuleType::Required:
         case AuthoringModuleType::Lifetime:
+        case AuthoringModuleType::InitialLocation:
         case AuthoringModuleType::InitialColor:
         case AuthoringModuleType::ColorOverLife:
         case AuthoringModuleType::SubUVFrameOverLife:
         case AuthoringModuleType::SizeByLife:
+        case AuthoringModuleType::RibbonOrientation:
         case AuthoringModuleType::MaterialScalarModulation:
             return true;
         default:
@@ -1458,6 +1473,7 @@ bool Emitter_View::Can_AddModuleType(const AuthoringEmitter& emitter, AuthoringM
     case AuthoringModuleType::SpawnPerUnit:
     case AuthoringModuleType::SourceHistorySpriteTrailPathFollow:
     case AuthoringModuleType::SourceHistorySpriteTrailPathReplay:
+    case AuthoringModuleType::RibbonOrientation:
     case AuthoringModuleType::MaterialScalarModulation:
         if (type == AuthoringModuleType::SourceHistorySpriteTrailPathFollow &&
             Has_ModuleType(emitter, AuthoringModuleType::SourceHistorySpriteTrailPathReplay))
@@ -1594,6 +1610,9 @@ void Emitter_View::Add_Module(size_t emitterIndex, AuthoringModuleType type)
         break;
     case AuthoringModuleType::SourceHistorySpriteTrailPathReplay:
         module = Make_SourceHistorySpriteTrailPathReplayModule();
+        break;
+    case AuthoringModuleType::RibbonOrientation:
+        module = Make_RibbonOrientationModule();
         break;
     case AuthoringModuleType::MaterialScalarModulation:
         module = Make_MaterialScalarModulationModule();
@@ -2562,6 +2581,9 @@ void Emitter_View::Reset_ModuleData(size_t emitterIndex, size_t moduleIndex)
     case AuthoringModuleType::SourceHistorySpriteTrailPathReplay:
         module.data = SourceHistorySpriteTrailPathReplayModuleData{};
         break;
+    case AuthoringModuleType::RibbonOrientation:
+        module.data = RibbonOrientationModuleData{};
+        break;
     case AuthoringModuleType::MaterialScalarModulation:
         module.data = MaterialScalarModulationModuleData{};
         break;
@@ -3073,6 +3095,14 @@ vector<Emitter_View::ModulePickerEntry> Emitter_View::Build_ModulePickerEntries(
             true,
             Can_AddModuleType(emitter, AuthoringModuleType::SourceHistorySpriteTrailPathReplay),
             "Sprite Trail TypeData 전용"
+        )
+    );
+    entries.push_back(
+        makeEntry(
+            AuthoringModuleType::RibbonOrientation,
+            true,
+            Can_AddModuleType(emitter, AuthoringModuleType::RibbonOrientation),
+            "Ribbon TypeData 전용"
         )
     );
     entries.push_back(

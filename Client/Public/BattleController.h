@@ -124,6 +124,8 @@ public:
     bool Is_BattleEntering() const { return _isBattleEntering; } // 배틀 진입 시작
     bool Is_BattleIntroPresentationActive() const { return _isBattleEntering || _isWaitingBattleTransition; }
 
+    bool Is_BattleFieldActiveOrEntering(uint32 fieldId) const;
+
     Shared<SkillScript> Get_CurrentScript() const { return _curScript; }
     void Clear_CurrentScript() { _curScript.reset(); }
 
@@ -335,8 +337,11 @@ private: /* 전투 AP */
 
     void Apply_VictoryRewardExp(uint32 rewardExp);
 
-    void Play_EnemyTargetedStart(const BattleChar& target);
+    void Play_EnemyTargetedStart(const vector<BattleChar>& targets);
     void Play_EnemyTargetedEnd();
+
+    void Request_BattleSpawnRotationReturn(const BattleChar& target, float duration = 0.2f);
+    void Update_BattleSpawnRotationReturns(float timeDelta);
 
 private:
     bool _battleEnded = {};
@@ -417,8 +422,8 @@ private:
     vector<string> _lastVictoryRewardPictosIds{};
     wstring _preBattleBGM{};
 
-    BattleChar  _enemyTurnTargetedActor = {};
-    bool        _hasEnemyTurnTargetedActor = false;
+    vector<BattleChar> _enemyTurnTargetedActors = {};
+    vector<BattleSpawnRotationReturn> _battleSpawnRotationReturns = {};
 
     // 전투 튜토리얼
     Shared<BattleTutorialController> _battleTutorialController{};
@@ -430,6 +435,7 @@ private:
     bool          _isWaitingTurnStartStatusHit = false;
 
     uint32      _activeBattleFieldID = 0;
+
 
 public:
     static Shared<BattleController> Create();

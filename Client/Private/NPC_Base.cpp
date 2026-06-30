@@ -41,6 +41,9 @@ void NPC_Base::Register_CommonReflectionProperties(Engine::ClassReflectionInfo& 
     info.properties.push_back(Engine::PropertyInfo{
         "_facePlayerOnDialogueStart", "Face Player On Dialogue Start", "_facePlayerOnDialogueStart",
         Engine::PropertyType::Bool, offsetof(NPC_Base, _facePlayerOnDialogueStart) });
+    info.properties.push_back(Engine::PropertyInfo{
+        "_fightVisible", "Fight Visible", "_fightVisible",
+        Engine::PropertyType::Bool, offsetof(NPC_Base, _fightVisible) });
 }
 
 HRESULT NPC_Base::Initialize(void* arg)
@@ -86,6 +89,18 @@ void NPC_Base::BeginPlay()
 
 void NPC_Base::Update(float timeDelta)
 {
+    if (_fightVisible)
+    {
+        if (!CLIENT->Is_PotatoBagBattleActive())
+            return;
+
+        if (auto* bodyPart = dynamic_cast<Monster_Part*>(Get_PartObject(L"Part_Body")))
+            bodyPart->Play_Animation(timeDelta);
+
+        Character_WorldBase::Update(timeDelta);
+        return;
+    }
+
     if (CLIENT->Is_WorldControlSuspended())
         return;
 
@@ -97,6 +112,28 @@ void NPC_Base::Update(float timeDelta)
 
 void NPC_Base::Late_Update(float timeDelta)
 {
+    if (_fightVisible)
+    {
+        if (!CLIENT->Is_PotatoBagBattleActive())
+        {
+            Set_Visible(false);
+
+            if (_colliderCom)
+                _colliderCom->Set_IsActive(false);
+
+            return;
+        }
+
+        Set_Visible(true);
+
+        if (_colliderCom)
+            _colliderCom->Set_IsActive(true);
+
+        Character_WorldBase::Late_Update(timeDelta);
+        Update_Culling(Vec3(1.5f, 4.f, 1.5f));
+        return;
+    }
+
     if (CLIENT->Is_WorldControlSuspended())
     {
         Set_Visible(false);

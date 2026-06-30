@@ -83,20 +83,6 @@ Monster_BattleBase::BattlePhase MB_PotatoBag::Get_CurPhase() const
     return BattlePhase::Opening;
 }
 
-bool MB_PotatoBag::Try_GetDamageFeedbackSocketWorldPosition(Vec3& outWorldPos) const
-{
-    if (_body == nullptr)
-        return false;
-
-    const Matrix* socketMatrix = _body->Get_SocketBoneMatrixPtr("root");
-    if (socketMatrix == nullptr)
-        return false;
-
-    const Matrix socketWorldMatrix = *socketMatrix * _body->Get_CombinedWorldMatrix();
-    outWorldPos = Vec3(socketWorldMatrix._41, socketWorldMatrix._42, socketWorldMatrix._43);
-    return true;
-}
-
 HRESULT MB_PotatoBag::Ready_PartObjects()
 {
     Mon_PotatoBag_Body::BODY_DESC bodyDesc{};

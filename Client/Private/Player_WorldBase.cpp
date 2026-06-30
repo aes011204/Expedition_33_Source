@@ -20,6 +20,7 @@
 #include "FacialClip.h"
 #include "ModelCom.h"
 #include "Player_GameMenu.h"
+#include "Player_ParkourAction.h"
 #include "SkillTreeCom.h"
 #include "CostumeManager.h"
 #include "TransformCom.h"
@@ -28,6 +29,74 @@ namespace Client::PlayerWorldTuning
 {
     constexpr float kFallStateEnterDelaySec = 0.10f;
     constexpr float kFallStateEnterSpeedY = -2.4f;
+
+    constexpr array<Vec3, 5> kDebugWarpPoints =
+    {
+        Vec3(-26.04f, 15.27f, 86.57f),
+        Vec3(-25.69f, 9.59f, 74.02f),
+        Vec3(-49.02f, 9.22f, 78.26f),
+        Vec3(-66.56f, 15.31f, 57.68f),
+        Vec3(-79.30f, 18.26f, 52.95f),
+    };
+
+    bool Is_TransformOwnedState(PlayerState state)
+    {
+        return state == PlayerState::Parkour ||
+            state == PlayerState::Climb ||
+            state == PlayerState::RopeAction ||
+            state == PlayerState::GrappleAction;
+    }
+
+    const char* Get_ParkourActionName(Player_ParkourAction::ParkourActionType actionType)
+    {
+        switch (actionType)
+        {
+        case Player_ParkourAction::ParkourActionType::HighMantle:
+            return "High";
+        case Player_ParkourAction::ParkourActionType::LowMantle:
+        default:
+            return "Low";
+        }
+    }
+
+    bool Try_EnterParkourFromJumpIntent(
+        const Shared<PlayerStateMachineCom>& stateMachineCom,
+        Player_ParkourAction::ParkourActionType actionType)
+    {
+        if (stateMachineCom == nullptr)
+            return false;
+
+        LOG_WARN("[Parkour] Try {} from JumpIntent", Get_ParkourActionName(actionType));
+
+        const Shared<Player_ParkourAction> parkourAction =
+            dynamic_pointer_cast<Player_ParkourAction>(stateMachineCom->Get_State(PlayerState::Parkour));
+        if (parkourAction == nullptr)
+        {
+            LOG_WARN("[Parkour] Reject {} from JumpIntent: missing parkour state", Get_ParkourActionName(actionType));
+            return false;
+        }
+
+        if (!parkourAction->Try_PrepareAction(actionType))
+        {
+            LOG_WARN("[Parkour] {} rejected from JumpIntent", Get_ParkourActionName(actionType));
+            return false;
+        }
+
+        const bool changed = stateMachineCom->Change_State(PlayerState::Parkour);
+        LOG_WARN("[Parkour] {} {} from JumpIntent", Get_ParkourActionName(actionType), changed ? "accepted" : "change failed");
+        if (!changed)
+            parkourAction->Clear_PreparedAction();
+
+        return changed;
+    }
+
+    bool Try_EnterParkourFromJumpIntent(const Shared<PlayerStateMachineCom>& stateMachineCom)
+    {
+        if (Try_EnterParkourFromJumpIntent(stateMachineCom, Player_ParkourAction::ParkourActionType::LowMantle))
+            return true;
+
+        return Try_EnterParkourFromJumpIntent(stateMachineCom, Player_ParkourAction::ParkourActionType::HighMantle);
+    }
 }
 
 Player_WorldBase::Player_WorldBase(const ComPtr<Device>& device, const ComPtr<Context>& context)
@@ -52,8 +121,8 @@ HRESULT Player_WorldBase::Initialize(void* arg)
     desc.degreePerSec = 180.f;
 
     CHECK_FAILED(Character_WorldBase::Initialize(&desc), E_FAIL);
-    CHECK_FAILED(Ready_Components(), E_FAIL);
     CHECK_FAILED(Ready_PartObjects(), E_FAIL);
+    CHECK_FAILED(Ready_Components(), E_FAIL);
 
     return S_OK;
 }
@@ -71,6 +140,9 @@ void Player_WorldBase::BeginPlay()
         }
     }
 
+    if (_playerStateMachineCom)
+        _playerStateMachineCom->BeginPlay_RegisteredStates();
+
     _playerStateMachineCom->Change_State(PlayerState::Idle);
 }
 
@@ -84,15 +156,37 @@ void Player_WorldBase::Priority_Update(float timeDelta)
 
     __super::Priority_Update(timeDelta);
 
+    if(_isCinematicDriven)
+        return;
+
     // follower도 StateMachine/Controller를 타야 Idle/Run/Sprint 전환과 PhysX 이동이 처리된다.
     _playerControllerCom->Update_InputState();
-    _playerStateMachineCom->Update_CurrentState(timeDelta);
-    _playerControllerCom->Update_Movement(timeDelta);
 
-    if (_movementCom && _movementCom->Did_InputJumpStart())
+    const bool stateOwnedTransformBeforeUpdate =
+        PlayerWorldTuning::Is_TransformOwnedState(_playerStateMachineCom->Get_CurrentPlayerState());
+
+    _playerStateMachineCom->Update_CurrentState(timeDelta);
+
+    const PlayerState currentStateAfterUpdate = _playerStateMachineCom->Get_CurrentPlayerState();
+    const bool stateOwnsTransform = PlayerWorldTuning::Is_TransformOwnedState(currentStateAfterUpdate);
+
+    if (!stateOwnedTransformBeforeUpdate && !stateOwnsTransform)
+        _playerControllerCom->Update_Movement(timeDelta);
+
+    const bool isActiveHero = CLIENT->Is_ActiveHero(GetSharedPtr<GameObject>());
+
+    if (isActiveHero && _movementCom && _movementCom->Did_InputJumpStart() && !stateOwnsTransform)
     {
         _fallStateEnterAcc = 0.f; // 실제 점프 입력은 기존처럼 즉시 Jump 상태로 보낸다.
-        _playerStateMachineCom->Change_State(PlayerState::Jump);
+
+        if (PlayerWorldTuning::Try_EnterParkourFromJumpIntent(_playerStateMachineCom))
+        {
+            _playerStateMachineCom->Update_CurrentState(0.f);
+        }
+        else if (_playerStateMachineCom->Change_State(PlayerState::Jump))
+        {
+            _playerStateMachineCom->Update_CurrentState(0.f);
+        }
     }
     else if (_movementCom)
     {
@@ -125,6 +219,8 @@ void Player_WorldBase::Priority_Update(float timeDelta)
     {
         _fallStateEnterAcc = 0.f;
     }
+
+    Handle_DebugWarpShortcuts();
 
     _playerStateMachineCom->LateUpdate_CurrentState(timeDelta);
 }
@@ -177,6 +273,24 @@ void Player_WorldBase::Post_PhysX_Update(float timeDelta)
 HRESULT Player_WorldBase::Render()
 {
     return S_OK;
+}
+
+void Player_WorldBase::Set_CinematicDriven(bool cinematicDriven)
+{
+    if (_isCinematicDriven == cinematicDriven)
+        return;
+
+    _isCinematicDriven = cinematicDriven;
+
+    if (_movementCom)
+    {
+        _movementCom->Set_CCTTransformSyncSuppressed(cinematicDriven);
+        _movementCom->Clear_FollowMoveCommand();
+        _movementCom->Apply_Input({});
+        _movementCom->Stop_AllMovement();
+        _movementCom->Stop_VerticalMovement();
+        _movementCom->Sync_RuntimePositionToTransform();
+    }
 }
 
 void Player_WorldBase::Set_PartyVisibilityAllowed(bool allowed)
@@ -257,6 +371,39 @@ const wchar_t* Player_WorldBase::Get_GameMenuFacialClipPath() const
     return L"Animations/Facial/Metahuman_Common/MicroMovements/A_MH_RandomMovement_GameMenu_Lune.facialclipbin";
 }
 
+void Player_WorldBase::Handle_DebugWarpShortcuts()
+{
+    if (!GAME->KeyPress(KEY_TYPE::SHIFT))
+        return;
+
+    const array<KEY_TYPE, 5> keys =
+    {
+        KEY_TYPE::KEY_1,
+        KEY_TYPE::KEY_2,
+        KEY_TYPE::KEY_3,
+        KEY_TYPE::KEY_4,
+        static_cast<KEY_TYPE>('5'),
+    };
+
+    for (size_t i = 0; i < keys.size(); ++i)
+    {
+        if (!GAME->KeyDown(keys[i]))
+            continue;
+
+        _transformCom->Set_WorldPosition(PlayerWorldTuning::kDebugWarpPoints[i]);
+
+        if (_movementCom)
+            _movementCom->Sync_RuntimePositionToTransform();
+
+        _fallStateEnterAcc = 0.f;
+
+        if (_playerStateMachineCom)
+            _playerStateMachineCom->Change_State(PlayerState::Idle);
+
+        return;
+    }
+}
+
 void Player_WorldBase::Enter_GameMenuAnimation(uint32 introAnim, uint32 idleAnim)
 {
     if (nullptr == _playerStateMachineCom) return;
@@ -278,6 +425,87 @@ void Player_WorldBase::Start_SwitchDissolve(float durationSec, const string& noi
         _effectCom->Start_SwitchDissolve(durationSec, noiseName);
 
 
+}
+
+void Player_WorldBase::Set_WorldInteractionCandidate(const Shared<GameObject>& spot)
+{
+    if (_worldInteractionContext.isInteracting || spot == nullptr)
+        return;
+
+    const Shared<GameObject> current = _worldInteractionContext.candidateSpot.lock();
+    if (current != nullptr && current.get() != spot.get())
+    {
+        const auto* currentProvider = dynamic_cast<IWorldInteractionProvider*>(current.get());
+        const auto* nextProvider = dynamic_cast<IWorldInteractionProvider*>(spot.get());
+        const int32 currentPriority = currentProvider != nullptr ? currentProvider->Get_InteractionPriority() : 0;
+        const int32 nextPriority = nextProvider != nullptr ? nextProvider->Get_InteractionPriority() : 0;
+
+        if (nextPriority < currentPriority)
+            return;
+    }
+
+    _worldInteractionContext.candidateSpot = spot;
+}
+
+void Player_WorldBase::Clear_WorldInteractionCandidate(const GameObject* spot)
+{
+    const Shared<GameObject> current = _worldInteractionContext.candidateSpot.lock();
+    if (current == nullptr)
+        return;
+
+    if (spot != nullptr && current.get() != spot)
+        return;
+
+    _worldInteractionContext.candidateSpot.reset();
+}
+
+Shared<GameObject> Player_WorldBase::Get_WorldInteractionCandidate() const
+{
+    return _worldInteractionContext.candidateSpot.lock();
+}
+
+bool Player_WorldBase::Begin_WorldInteraction(const Shared<GameObject>& spot, const WorldInteractionSpot::WorldInteractionRequest& request)
+{
+    if (spot == nullptr)
+        return false;
+
+    _worldInteractionContext.activeSpot = spot;
+    _worldInteractionContext.candidateSpot = spot;
+    _worldInteractionContext.activeRequest = request;
+    _worldInteractionContext.isInteracting = true;
+
+    return true;
+}
+
+void Player_WorldBase::Clear_WorldInteractionRequest(const GameObject* spot)
+{
+    const Shared<GameObject> active = _worldInteractionContext.activeSpot.lock();
+    if (spot != nullptr && active != nullptr && active.get() != spot)
+        return;
+
+    if (spot != nullptr && active == nullptr && !_worldInteractionContext.isInteracting)
+        return;
+
+    _worldInteractionContext.activeSpot.reset();
+    _worldInteractionContext.activeRequest = {};
+    _worldInteractionContext.isInteracting = false;
+}
+
+void Player_WorldBase::End_WorldInteraction()
+{
+    _worldInteractionContext.activeSpot.reset();
+    _worldInteractionContext.activeRequest = {};
+    _worldInteractionContext.isInteracting = false;
+}
+
+bool Player_WorldBase::Is_WorldInteracting() const
+{
+    return _worldInteractionContext.isInteracting;
+}
+
+const WorldInteractionSpot::WorldInteractionRequest& Player_WorldBase::Get_WorldInteractionRequest() const
+{
+    return _worldInteractionContext.activeRequest;
 }
 
 HRESULT Player_WorldBase::Apply_CostumePreset(const CostumePreset& preset)
@@ -986,6 +1214,7 @@ HRESULT Player_WorldBase::Ready_Components()
     obbDesc.extents = Vec3(0.35f, 0.75f, 0.35f);
 
     CHECK_FAILED(Ready_Collider(L"Com_Collider_OBB", &obbDesc, Collision_Preset::Player_WorldBody), E_FAIL);
+    CHECK_FAILED(Rename_ComponentTag(TEXT("Com_Collider_OBB"), TEXT("Com_0_PlayerWorldBodyCollider")), E_FAIL);
 
     CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Com_SkillTree"), _skillTreeCom), E_FAIL);
     CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Com_PlayerStat"), _combatStatCom), E_FAIL);

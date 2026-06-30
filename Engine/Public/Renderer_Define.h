@@ -4,12 +4,37 @@
 
 NS_BEGIN(Engine)
 
+struct RenderHotspotInstancedMeshStats
+{
+    bool cullEnabled = false;
+    bool castShadow = false;
+    bool hasCullResources = false;
+    bool usesIndirectCull = false;
+    uint32 lodMask = 0;
+    array<uint32, 3> lodMeshCounts = {};
+    array<uint32, 3> lodIndexCounts = {};
+    uint32 estimatedMainDrawCount = 0;
+    uint32 estimatedCullCopyResourceCount = 0;
+    uint32 estimatedCullCopyCountCount = 0;
+    uint32 sourceInstanceCount = 0;
+    uint64 sourceIndexWorkLod0 = 0;
+    bool hasDrawInstanceCounts = false;
+    array<uint32, 3> drawInstanceCounts = {};
+    uint32 drawInstanceCountTotal = 0;
+    uint64 visibleIndexWork = 0;
+    uint32 visibleCountReadbackRequestId = 0;
+    float cullDist = 0.f;
+    float lod1Dist = 0.f;
+    float lod2Dist = 0.f;
+};
+
 struct RenderViewHotspotEntry
 {
     uintptr_t objectKey = 0;
     RenderGroup renderGroup = RenderGroup::END;
     ObjectType objectType = ObjectType::None;
     ShadowCasterType shadowCasterType = ShadowCasterType::None;
+    wstring objectName = {};
     string className = {};
     string sourcePrefab = {};
     wstring sourceModelPath = {};
@@ -18,6 +43,8 @@ struct RenderViewHotspotEntry
     Vec3 worldBoundsCenter = {};
     Vec3 worldBoundsExtents = {};
     uint32 renderHotspotInstanceCount = 0;
+    bool hasInstancedMeshStats = false;
+    RenderHotspotInstancedMeshStats instancedMeshStats = {};
 };
 
 struct RenderViewHotspotSnapshot

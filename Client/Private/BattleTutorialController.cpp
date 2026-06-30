@@ -11,6 +11,7 @@
 #include "CombatStatCom.h"
 #include "EffectCom.h"
 #include "EffectInstance.h"
+#include "Client_Constants.h"
 
 namespace
 {
@@ -109,6 +110,7 @@ void BattleTutorialController::Reset_ForBattle(uint32 encounterId, const Shared<
     _tutorialEnemyActionCount = 0;
     _isTutorialOpen = false;
     _blockBattleUpdate = false;
+    _pauseBattlePresentation = false;
     _isTutorialSoundPaused = false;
     _hasPendingRequest = false;
     _pendingElapsedSec = 0.f;
@@ -157,6 +159,9 @@ BattleTutorialStep BattleTutorialController::Get_CommandFocusStep() const
 
     if (_activeStep == BattleTutorialStep::Skill || _sequenceStage == TutorialSequenceStage::WaitingLumiereAssaultCommand)
         return BattleTutorialStep::Skill;
+
+    if (_activeStep == BattleTutorialStep::FreeAim || _sequenceStage == TutorialSequenceStage::WaitingFreeAimInput)
+        return BattleTutorialStep::FreeAim;
 
     return BattleTutorialStep::END;
 }
@@ -277,6 +282,7 @@ void BattleTutorialController::Open_Tutorial(const BattleTutorialRequest& reques
 
     _isTutorialOpen = true;
     _blockBattleUpdate = request.blockInput;
+    _pauseBattlePresentation = request.pauseBattle;
     _activeStep = request.step;
 
     if (request.pauseBattle)
@@ -309,6 +315,7 @@ void BattleTutorialController::Close_Tutorial()
 
     _isTutorialOpen = false;
     _blockBattleUpdate = false;
+    _pauseBattlePresentation = false;
     _activeStep = BattleTutorialStep::END;
 
     OnTutorialClosed.Broadcast();
@@ -327,6 +334,7 @@ void BattleTutorialController::Reset_RuntimeState()
     _tutorialEnemyActionCount = 0;
     _isTutorialOpen = false;
     _blockBattleUpdate = false;
+    _pauseBattlePresentation = false;
     _isTutorialSoundPaused = false;
     _hasPendingRequest = false;
     _pendingElapsedSec = 0.f;
@@ -340,7 +348,11 @@ void BattleTutorialController::Reset_RuntimeState()
 
 bool BattleTutorialController::Can_RequestTutorial(BattleTutorialStep step) const
 {
-    if (!Is_TutorialBattleEncounter(_encounterId))
+    const bool isPotatoBagGradientTutorial =
+        step == BattleTutorialStep::Gradient &&
+        _encounterId == Constants::Value::potatoBagEncounterId;
+
+    if (!isPotatoBagGradientTutorial && !Is_TutorialBattleEncounter(_encounterId))
         return false;
 
     if (_isTutorialOpen)
@@ -391,6 +403,11 @@ BattleTutorialRequest BattleTutorialController::Build_Request(BattleTutorialStep
         request.delaySec = 0.f;
         break;
 
+    case BattleTutorialStep::Gradient:
+        request.pauseBattle = true;
+        request.blockInput = true;
+        request.delaySec = 0.f; // 감자자루 첫 플레이어 선택 전에 바로 안내를 띄운다.
+        break;
 
     default:
         break;
@@ -515,7 +532,9 @@ void BattleTutorialController::Restore_TutorialSounds()
 
 bool BattleTutorialController::Should_DeferEnemyTurnStart() const
 {
-    return _isTutorialOpen && _activeStep == BattleTutorialStep::EnemyTurn;
+    return _isTutorialOpen &&
+        (_activeStep == BattleTutorialStep::EnemyTurn ||
+            _activeStep == BattleTutorialStep::Gradient);
 }
 
 bool BattleTutorialController::Should_BlockPlayerBattleInput(BattleTurnState currentState,
@@ -612,6 +631,12 @@ void BattleTutorialController::Handle_TurnStarted(const BattleChar& actor, Battl
 {
     if (actor.statCom == nullptr)
         return;
+
+    if (_encounterId == Constants::Value::potatoBagEncounterId)
+    {
+        Request_Tutorial(BattleTutorialStep::Gradient);
+        return; // 감자자루는 선턴이 몬스터여도 Gradient 안내를 전투 시작 카드로 먼저 띄운다.
+    }
 
     if (!actor.statCom->Is_Player())
     {

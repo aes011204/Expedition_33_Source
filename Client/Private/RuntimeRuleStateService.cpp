@@ -226,6 +226,28 @@ namespace
 		return hero;
 	}
 
+	RuntimeCheckpointIO::HeroState Build_HeroSkillState(const FinalSkillSetupDesc& setup)
+	{
+		RuntimeCheckpointIO::HeroState hero{};
+		hero.heroId = setup.heroId;
+
+		vector<string> skillKeys{};
+		skillKeys.reserve(setup.skillKeys.size());
+		for (const char* skillKey : setup.skillKeys)
+		{
+			if (skillKey != nullptr && skillKey[0] != '\0')
+				skillKeys.emplace_back(skillKey);
+		}
+
+		hero.statJson = json::object();
+		hero.statJson["_skillKeys"] = skillKeys;
+
+		hero.skillTreeJson = json::object();
+		hero.skillTreeJson["unlocked_skill_ids"] = skillKeys; // 시작 장착 스킬은 전투 검증에서도 해금된 스킬이어야 한다.
+
+		return hero;
+	}
+
 	vector<RuntimeCheckpointIO::HeroState> Build_FinalHeroStates()
 	{
 		const FinalSkillSetupDesc setups[] =
@@ -338,10 +360,13 @@ namespace
 				applied = true;
 			}
 
-			if (Shared<SkillTreeCom> skillTree = hero->Get_Component<SkillTreeCom>())
+			if (heroState.skillTreeJson.is_object() && heroState.skillTreeJson.contains("unlocked_skill_ids"))
 			{
-				skillTree->Apply_SaveJson(heroState.skillTreeJson);
-				applied = true;
+				if (Shared<SkillTreeCom> skillTree = hero->Get_Component<SkillTreeCom>())
+				{
+					skillTree->Apply_SaveJson(heroState.skillTreeJson);
+					applied = true;
+				}
 			}
 		}
 
@@ -449,23 +474,22 @@ RuntimeRuleStateIO::RuleState RuntimeRuleStateService::Build_GestralVillageStart
 		"Roulette",
 		});
 
-	// 바게트, 픽토스 장착된 상태로 시작
+	// 바게트, 픽토스, 기본 전투 스킬이 장착된 상태로 시작
 	const struct
 	{
 		HeroId heroId;
 		const char* characterId;
+		vector<const char*> skillKeys;
 	} heroes[] =
 	{
-		{ HeroId::Gustave, "Gustave" },
-		{ HeroId::Lune, "Lune" },
-		{ HeroId::Maelle, "Maelle" },
+		{ HeroId::Gustave, "Gustave", { "LumiereAssault", "UnleashedCharge", "MarkingShot", "Shatter", "PerfectBreak" } },
+		{ HeroId::Lune, "Lune", { "Immolation", "IceGust", "Thunderfall", "TerraQuake", "CripplingTsunami" } },
+		{ HeroId::Maelle, "Maelle", { "Spark", "Percee", "FleureFury", "SwordBallet", "Pyrolyse" } },
 	};
 
 	for (const auto& hero : heroes)
 	{
-		RuntimeCheckpointIO::HeroState heroState{};
-		heroState.heroId = hero.heroId;
-		heroState.statJson = json::object();
+		RuntimeCheckpointIO::HeroState heroState = Build_HeroSkillState({ hero.heroId, hero.skillKeys });
 
 		const GameDataTable::WeaponDesc* weaponDesc =
 			CLIENT->Get_WeaponDesc(hero.characterId, "Baguette");
@@ -483,6 +507,49 @@ RuntimeRuleStateIO::RuleState RuntimeRuleStateService::Build_GestralVillageStart
 			"Roulette",
 			"",
 			});
+
+		ruleState.heroes.emplace_back(std::move(heroState));
+	}
+
+	return ruleState;
+}
+
+RuntimeRuleStateIO::RuleState RuntimeRuleStateService::Build_PotatoBagStartUnlocks()
+{
+    RuntimeRuleStateIO::RuleState ruleState{};
+
+	ruleState.inventoryJson = Build_SelectedWeaponInventoryJson({
+		{ "Gustave", "Tireso" },
+		{ "Lune", "Snowim" },
+		{ "Maelle", "Plenum" },
+		});
+
+    const struct
+	{
+		HeroId heroId;
+		const char* characterId;
+		const char* weaponId;
+		vector<const char*> skillKeys;
+	} heroes[] =
+	{
+		{ HeroId::Gustave, "Gustave", "Tireso", { "LumiereAssault", "UnleashedCharge", "MarkingShot", "Shatter", "PerfectBreak", "AngelsEye" } },
+		{ HeroId::Lune, "Lune", "Snowim", { "Immolation", "IceGust", "Thunderfall", "TerraQuake", "CripplingTsunami", "SkyBreak" } },
+		{ HeroId::Maelle, "Maelle", "Plenum", { "Spark", "Percee", "FleureFury", "SwordBallet", "Pyrolyse", "Stendhal" } },
+	};
+
+	for (const auto& hero : heroes)
+	{
+		RuntimeCheckpointIO::HeroState heroState = Build_HeroSkillState({ hero.heroId, hero.skillKeys });
+
+		const GameDataTable::WeaponDesc* weaponDesc =
+			CLIENT->Get_WeaponDesc(hero.characterId, hero.weaponId);
+
+		if (weaponDesc != nullptr)
+		{
+			heroState.statJson["equipped_weapon_id"] = weaponDesc->weaponId;
+			heroState.statJson["equipped_weapon_power"] =
+				CLIENT->Resolve_WeaponPower(hero.characterId, weaponDesc->weaponId);
+		}
 
 		ruleState.heroes.emplace_back(std::move(heroState));
 	}

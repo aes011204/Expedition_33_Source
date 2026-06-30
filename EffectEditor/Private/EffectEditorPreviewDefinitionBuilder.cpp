@@ -65,6 +65,24 @@ namespace Internal
         return clamp(required, 2u, kRibbonAutoHistoryMaxCount);
     }
 
+    EffectRibbonSpreadBasis Resolve_RibbonSpreadBasis(RibbonSpreadBasis basis)
+    {
+        switch (basis)
+        {
+        case RibbonSpreadBasis::ViewUp:
+            return EffectRibbonSpreadBasis::ViewUp;
+        case RibbonSpreadBasis::WorldUp:
+            return EffectRibbonSpreadBasis::WorldUp;
+        case RibbonSpreadBasis::SourceUp:
+            return EffectRibbonSpreadBasis::SourceUp;
+        case RibbonSpreadBasis::SourceRight:
+            return EffectRibbonSpreadBasis::SourceRight;
+        case RibbonSpreadBasis::CameraFacing:
+        default:
+            return EffectRibbonSpreadBasis::CameraFacing;
+        }
+    }
+
     //## Preview Policy
 
     Color Clamp_PreviewColor(Color value)
@@ -2482,6 +2500,15 @@ EffectEmitterDefinition Build_PreviewSourceHistoryRibbonEmitterDefinition(const 
     emitterDesc.autoLifeFade = sourceHistoryPolicy.autoLifeFade;
     emitterDesc.tailCollapseOnIdle = sourceHistoryPolicy.tailCollapseOnIdle;
     emitterDesc.tailCollapseSpeed = max(0.f, sourceHistoryPolicy.tailCollapseSpeed);
+    emitterDesc.useManualRoll = sourceHistoryPolicy.useManualRoll;
+    emitterDesc.manualRollDegrees = sourceHistoryPolicy.manualRollDegrees;
+    if (const auto* ribbonOrientation = Internal::Find_ModuleData<RibbonOrientationModuleData>(emitter, AuthoringModuleType::RibbonOrientation))
+    {
+        emitterDesc.spreadBasis = Internal::Resolve_RibbonSpreadBasis(ribbonOrientation->spreadBasis);
+        emitterDesc.spreadAngleDegrees = ribbonOrientation->spreadAngleDegrees;
+        emitterDesc.useManualRoll = false;
+        emitterDesc.manualRollDegrees = 0.f;
+    }
     if (const auto* required = Internal::Find_ModuleData<RequiredModuleData>(emitter, AuthoringModuleType::Required))
     {
         EffectRuntime::Copy_EffectMaterialInstanceToRuntimeDesc(required->material, emitterDesc.material);
@@ -2499,6 +2526,24 @@ EffectEmitterDefinition Build_PreviewSourceHistoryRibbonEmitterDefinition(const 
         definition.localPosition = required->emitterOrigin;
         definition.localRotationDegrees = required->emitterRotationDegrees;
         definition.useLocalSpace = required->useLocalSpace;
+    }
+
+    if (const auto* initialLocation = Internal::Find_ModuleData<InitialLocationModuleData>(emitter, AuthoringModuleType::InitialLocation))
+    {
+        const Vec3 minOffset = Internal::Evaluate_Vector3DistributionMin(initialLocation->location, emitterDesc.headOffset.minOffset);
+        const Vec3 maxOffset = Internal::Evaluate_Vector3DistributionMax(initialLocation->location, emitterDesc.headOffset.maxOffset);
+        emitterDesc.headOffset.enabled = true;
+        emitterDesc.headOffset.minOffset = Vec3{
+            min(minOffset.x, maxOffset.x),
+            min(minOffset.y, maxOffset.y),
+            min(minOffset.z, maxOffset.z)
+        };
+        emitterDesc.headOffset.maxOffset = Vec3{
+            max(minOffset.x, maxOffset.x),
+            max(minOffset.y, maxOffset.y),
+            max(minOffset.z, maxOffset.z)
+        };
+        emitterDesc.headOffsetSeed = Internal::Build_RandomSeedDesc(initialLocation->location);
     }
 
     if (const auto* materialScalarModulation = Internal::Find_ModuleData<MaterialScalarModulationModuleData>(

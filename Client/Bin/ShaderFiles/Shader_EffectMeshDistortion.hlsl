@@ -19,7 +19,10 @@ cbuffer cbEffectMeshDistortion : register(b2)
     float g_FlowUVTilingMode = 0.f;
     float g_FlowUVRotation = 0.f;
     float g_EffectMeshDistortionPadding = 0.f;
+#include "Shader_EffectMaterialModulationPayloadGlobals.hlsli"
 };
+
+#include "Shader_EffectMaterialScalarModulation.hlsli"
 
 Texture2D g_FlowTexture : register(t3);
 
@@ -36,6 +39,7 @@ struct VS_IN
     float4 vWorld3 : INST_WORLD3;
     float4 vInstanceColor : INST_COLOR0;
     float2 vLifeTime : INST_LIFE0;
+    float4 vCoreColorRgb : INST_CORE_COLOR0;
 };
 
 struct VS_OUT
@@ -43,6 +47,7 @@ struct VS_OUT
     float4 vPosition : SV_POSITION;
     float2 vTexcoord : TEXCOORD0;
     float4 vInstanceColor : COLOR0;
+    float2 vLifeTime : TEXCOORD1;
 };
 
 float2 Build_FlowUV(float2 rawUV)
@@ -75,6 +80,7 @@ VS_OUT VS_MAIN(VS_IN In)
     Out.vPosition = mul(float4(In.vPosition, 1.f), mul(mPreWorld, mul(g_ViewMatrix, g_ProjMatrix)));
     Out.vTexcoord = In.vTexcoord;
     Out.vInstanceColor = In.vInstanceColor;
+    Out.vLifeTime = In.vLifeTime;
     return Out;
 }
 
@@ -86,13 +92,16 @@ struct PS_OUT
 PS_OUT PS_MAIN(VS_OUT In)
 {
     PS_OUT Out = (PS_OUT)0;
+    const float lifeProgress = saturate(In.vLifeTime.y / max(In.vLifeTime.x, 0.0001f));
     const float surfaceCoverage = saturate(In.vInstanceColor.a * g_Tint.a);
     const float lensCoverage = EffectDistortion_ComputeLensCoverage(surfaceCoverage, 1.f, g_EffectDistortionParams.y);
     const float2 flowUV = Build_FlowUV(In.vTexcoord);
     const float2 flow = 0 != g_EffectDistortionParams.z
                         ? Sample_FlowTexture(flowUV) * 2.f - 1.f
                         : float2(0.f, 0.f);
-    const float2 offset = EffectDistortion_ComputeScreenOffset(flow, g_EffectDistortionParams.x);
+    const float refractionIntensity =
+        g_EffectDistortionParams.x * EffectMaterialScalar_ResolveMultiplier(EFFECT_MATERIAL_SCALAR_TARGET_REFRACTION_INTENSITY, lifeProgress);
+    const float2 offset = EffectDistortion_ComputeScreenOffset(flow, refractionIntensity);
     Out.color = EffectDistortion_PackField(offset, lensCoverage);
     return Out;
 }
