@@ -1110,6 +1110,10 @@ void CinematicSequenceRunner::Apply_ActorTransformTracks(float currentFrameExact
 
         transform->Set_WorldPosition(position);
         transform->Set_WorldRotationEuler(rotation);
+        transform->Update_WorldMatrix();
+
+        if (const auto container = dynamic_pointer_cast<ContainerObject>(actor))
+            container->Refresh_PartObjectTransforms();
     }
 }
 

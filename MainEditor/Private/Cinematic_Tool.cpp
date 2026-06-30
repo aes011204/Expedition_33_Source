@@ -1213,7 +1213,7 @@ void Cinematic_Tool::Render_SequenceSettings()
     {
         Refresh_SequenceFileList();
         _selectedSequenceFileIndex = -1;
-        ImGui::OpenPopup("Load Cinematic Sequence");
+        _requestOpenLoadSequencePopup = true;
     }
 
     if (ImGui::Button("Clear All Keys"))
@@ -1923,6 +1923,12 @@ void Cinematic_Tool::Render_ActorTransformTracks()
 
 void Cinematic_Tool::Render_LoadSequencePopup()
 {
+    if (_requestOpenLoadSequencePopup)
+    {
+        ImGui::OpenPopup("Load Cinematic Sequence");
+        _requestOpenLoadSequencePopup = false;
+    }
+
     if (!ImGui::BeginPopupModal("Load Cinematic Sequence", nullptr, ImGuiWindowFlags_AlwaysAutoResize))
         return;
 

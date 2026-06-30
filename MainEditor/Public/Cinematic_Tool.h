@@ -137,6 +137,7 @@ private:
     bool                                 _requestOpenSelectedKeyPopup = false;
     bool                                 _requestOpenInsertKeyPopup = false;
     bool                                 _requestRemoveKeyPopup = false;
+    bool                                 _requestOpenLoadSequencePopup = false;
     bool                                 _requestOpenSaveSequenceConfirmPopup = false;
     bool                                 _requestOpenLoadSequenceConfirmPopup = false;
     bool                                 _requestOpenNewEmptySequenceConfirmPopup = false;
