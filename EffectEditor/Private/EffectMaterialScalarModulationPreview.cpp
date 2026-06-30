@@ -308,9 +308,7 @@ namespace
 
         Vec3 value{ 1.f, 0.85f, 0.45f };
         if (const auto* constant = get_if<ConstantVector3DistributionData>(&distribution.payload))
-        {
             value = constant->value;
-        }
         else if (const auto* uniform = get_if<UniformVector3DistributionData>(&distribution.payload))
         {
             desc.enabled = true;
