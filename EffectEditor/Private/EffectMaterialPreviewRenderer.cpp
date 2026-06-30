@@ -150,12 +150,13 @@ namespace Internal
 EffectMaterialPreviewRenderer::EffectMaterialPreviewRenderer(uint32 previewTextureSize)
     : _previewTextureWidth{ max(1u, previewTextureSize) }
     , _previewTextureHeight{ max(1u, previewTextureSize) }
-    , _sceneResolve{ make_unique<EffectPreviewPostProcessRenderer>(
-        L"EffectMaterialPreviewDisplay",
-        L"EffectMaterialPreviewHDR",
-        L"EffectMaterialPreviewBloom",
-        _previewTextureWidth,
-        _previewTextureHeight) }
+    , _sceneResolve{
+        make_unique<EffectPreviewPostProcessRenderer>(
+            L"EffectMaterialPreviewDisplay",
+            L"EffectMaterialPreviewHDR",
+            L"EffectMaterialPreviewBloom",
+            _previewTextureWidth,
+            _previewTextureHeight) }
 {
     Reset_View();
 }

@@ -224,24 +224,41 @@ void MapInstancedMesh::Late_Update(float timeDelta)
         GAME->Add_RenderGroup(RenderGroup::Shadow, GetSharedPtr<GameObject>());
     };
 
-    if (_cullEnabled)
+    //if (_cullEnabled)
+    //{
+    //    if (!GAME->IsVisible(_groupBounds))
+    //    {
+    //        submitShadowIfInRange();
+    //        return;
+    //    }
+
+    //    if (hasCamPos)
+    //    {
+    //        const float cullDist = _cullDist;
+    //        if (DistanceSq_ToBounds(camPos, _groupBounds) > cullDist * cullDist)
+    //        {
+    //            submitShadowIfInRange();
+    //            return;
+    //        }
+    //    }
+    //}
+
+    if (!GAME->IsVisible(_groupBounds))
     {
-        if (!GAME->IsVisible(_groupBounds))
+        submitShadowIfInRange();
+        return;
+    }
+
+    if (hasCamPos)
+    {
+        const float cullDist = _cullDist;
+        if (DistanceSq_ToBounds(camPos, _groupBounds) > cullDist * cullDist)
         {
             submitShadowIfInRange();
             return;
         }
-
-        if (hasCamPos)
-        {
-            const float cullDist = _cullDist;
-            if (DistanceSq_ToBounds(camPos, _groupBounds) > cullDist * cullDist)
-            {
-                submitShadowIfInRange();
-                return;
-            }
-        }
     }
+    /////
 
     GAME->Add_RenderGroup(RenderGroup::NonBlend, GetSharedPtr<GameObject>());
     if (_hasGlow)
@@ -327,7 +344,7 @@ HRESULT MapInstancedMesh::Render()
     }
 
     bool useIndirect = false;
-    if (_cullShader && _instanceSrcBuffer && _sphereBuffer && _visibleVB[0] && !_indirectArgsBuffers[0].empty())
+    if (_cullEnabled && _cullShader && _instanceSrcBuffer && _sphereBuffer && _visibleVB[0] && !_indirectArgsBuffers[0].empty())
     {
         DispatchCull();
         useIndirect = true;

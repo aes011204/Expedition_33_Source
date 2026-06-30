@@ -3,7 +3,14 @@
 #include "Bounding_OBB.h"
 #include "ClientInstance.h"
 #include "ColliderCom.h"
+#include "EffectCom.h"
 #include "Player_WorldBase.h"
+
+namespace
+{
+    constexpr wchar_t kItemCrystalEffectName[] = L"Effects\\Assets\\Item\\Crystal.effect.json";
+    constexpr wchar_t kItemEatEffectName[] = L"Effects\\Assets\\Item\\EatItem.effect.json";
+}
 
 Item::Item(const ComPtr<Device>& device, const ComPtr<Context>& context)
     : GameObject(device, context)
@@ -43,6 +50,9 @@ HRESULT Item::Initialize(void* arg)
 void Item::Update(float timeDelta)
 {
     GameObject::Update(timeDelta);
+
+    if (_effectCom)
+        _effectCom->Update(timeDelta);
 
     if (_pickedUp || !_hasPlayerOverlap)
         return;
@@ -175,6 +185,25 @@ HRESULT Item::Ready_Components()
     _colliderCom->Set_CollisionPreset(Collision_Preset::Item);
     _colliderCom->Set_IsActive(true);
 
+    CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Com_Effect"), _effectCom), E_FAIL);
+
+    if (_effectCom)
+    {
+        EffectCom::InspectorEffectSettings settings = _effectCom->Get_InspectorEffectSettings();
+        settings.autoPlay = true;
+        if (settings.effectName.empty())
+            settings.effectName = kItemCrystalEffectName;
+        settings.target = EffectCom::EffectPlayTarget::OwnerRoot;
+        settings.layerTag = L"Layer_Effect";
+        settings.localOffset = Vec3(0.f, 0.7f, 0.f);
+        settings.localRotation = Vec3::Zero;
+        settings.scale = Vec3::One;
+        settings.followTarget = false;
+        settings.requiresManualRelease = true;
+
+        _effectCom->Set_InspectorEffectSettings(settings);
+    }
+
     return S_OK;
 }
 
@@ -196,6 +225,16 @@ void Item::Try_Pickup()
     const string& logName = _displayName.empty() ? _itemId : _displayName;
     LOG_INFO("[ItemPickup] type={} id={} name={} amount={}", Get_ItemTypeName(), _itemId, logName, _amount);
 
+    // 아이템 획득 이팩트
+    PlayEffectDesc eatEffectDesc{};
+    eatEffectDesc.effectName = kItemEatEffectName;
+    eatEffectDesc.spawnBasisTarget = GetSharedPtr<GameObject>();
+    eatEffectDesc.localOffset = Vec3(0.f, 0.7f, 0.f);
+    CLIENT->Play_Effect(eatEffectDesc);
+
+    if (_effectCom)
+        _effectCom->Stop_AllAttachedEffects();
+
     if (_colliderCom)
     {
         _colliderCom->Set_IsActive(false);
@@ -207,6 +246,9 @@ void Item::Try_Pickup()
 
 void Item::Free()
 {
+    if (_effectCom)
+        _effectCom->Stop_AllAttachedEffects();
+
     if (_hasPlayerOverlap)
     {
         _hasPlayerOverlap = false;

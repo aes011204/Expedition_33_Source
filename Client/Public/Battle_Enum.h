@@ -563,6 +563,9 @@ namespace Client
         QTE,
         Counter,
         FreeAim,
+
+        Gradient,
+
         END
     };
 

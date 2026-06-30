@@ -36,6 +36,27 @@ namespace
 
         return lightShaftZoneCB;
     }
+
+    constexpr wchar_t kFlameEffectName[] = L"Effects/Assets/Map/FX_Brazier_Fire.effect.json";
+
+    constexpr Vec3 kCasinoLightPositions[] = {
+        Vec3(118.12f, -3.23f, 19.45f),
+        Vec3(123.58f, -3.23f, 17.01f),
+        Vec3(130.79f, -3.23f, 13.69f),
+        Vec3(138.57f, -3.23f, 10.15f),
+        Vec3(146.17f, -3.23f, 6.77f),
+        Vec3(153.71f, -3.23f, 3.37f),
+        Vec3(162.12f, -3.23f, -0.44f),
+        Vec3(169.83f, -3.23f, -4.09f),
+        Vec3(161.36f, -3.23f, -22.58f),
+        Vec3(153.53f, -3.23f, -18.87f),
+        Vec3(144.43f, -3.23f, -15.01f),
+        Vec3(137.51f, -3.23f, -11.88f),
+        Vec3(129.94f, -3.23f, -8.20f),
+        Vec3(121.95f, -3.23f, -4.96f),
+        Vec3(114.97f, -3.23f, -1.60f),
+        Vec3(109.85f, -3.23f, 0.82f),
+    };
 }
 
 Level_GestralVillage::Level_GestralVillage(const ComPtr<Device>& device, const ComPtr<Context>& context)
@@ -93,6 +114,17 @@ void Level_GestralVillage::BeginPlay()
         GAME->Get_DelegateHub().OnEditorPlayRuntime.Add(this, &Level_GestralVillage::Play_MapBGM);
 
     CLIENT->Capture_InitialWorldSnapshot();
+
+    // flame
+    PlayEffectDesc desc{};
+    desc.effectName = kFlameEffectName;
+    desc.scale = Vec3(1.f, 1.f, 1.f);
+
+    for (const auto& pos : kCasinoLightPositions)
+    {
+        desc.worldPosition = pos;
+        CLIENT->Play_Effect(desc);
+    }
 }
 
 void Level_GestralVillage::Update(float fTimeDelta)
@@ -136,9 +168,10 @@ HRESULT Level_GestralVillage::Ready_Lights()
         ShadowDesc.lightDistancePadding = 30.f;
         // 그림자용 ortho projection 범위 여유 값
         ShadowDesc.xyPadding = 2.f;
-        ShadowDesc.zPadding = 20.f;
+        ShadowDesc.zPadding = 10.f;
 
         // Shadow map 해상도. 4096 * 4096 * 4 * 4byte = 256mb
+        // fix 4096 -> 2048
         ShadowDesc.shadowMapWidth = 2048;
         ShadowDesc.shadowMapHeight = 2048;
 
@@ -157,7 +190,7 @@ HRESULT Level_GestralVillage::Ready_Lights()
         cascadePresets.close.cascadeBlendDistance = 0.8f;
 
         cascadePresets.normal.focusNear = 0.1f;
-        cascadePresets.normal.focusFar = 80.f;
+        cascadePresets.normal.focusFar = 60.f;
         cascadePresets.normal.cascadeSplitLambda = 0.8f;
         cascadePresets.normal.cascadeBlendDistance = 1.7f;
 
@@ -344,7 +377,6 @@ HRESULT Level_GestralVillage::Ready_Layer_Monster(const wstring& strLayerTag)
 
 HRESULT Level_GestralVillage::Ready_Layer_Effect(const wstring& strLayerTag)
 {
-
     return S_OK;
 }
 
@@ -405,8 +437,8 @@ HRESULT Level_GestralVillage::Ready_Layer_ETC(const wstring& strLayerTag)
     auto potatobag = Spawn_Prefab::Prefab(Constants::Prefab::BSS_Gestral_PotatoBag)
         .AtLevel(ETOI(LevelType::GestralVillage))
         .InLayer(L"Layer_BattleStartSpawner")
-        .Position(Vec3(0.69f, 3.68f, 55.6f))
-        .Rotation(Vec3(0.f, -22.6f, 0.f))
+        .Position(Vec3(1.1f, 3.68f, 53.87f))
+        .Rotation(Vec3(0.f, -14.4f, 0.f))
         .Spawn();
 
     _bssPotatoBag = dynamic_pointer_cast<BattleStartSpawner>(potatobag);

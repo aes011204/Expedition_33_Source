@@ -46,9 +46,9 @@ HRESULT PW_Gustave::Initialize(void* arg)
 
     auto skillTreeCom = Get_Component<SkillTreeCom>();
 
-    skillTreeCom->TryUnlock("LumiereAssault");
-    skillTreeCom->TryUnlock("UnleashedCharge");
-    skillTreeCom->TryUnlock("MarkingShot");
+    skillTreeCom->ForceUnlock("LumiereAssault");
+    skillTreeCom->ForceUnlock("UnleashedCharge");
+    skillTreeCom->ForceUnlock("MarkingShot");
 
     //skillTreeCom->ForceUnlock("Shatter");
     //skillTreeCom->ForceUnlock("PerfectBreak");

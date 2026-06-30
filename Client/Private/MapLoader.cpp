@@ -1715,6 +1715,11 @@ void MapLoader::Clear_GlobalCache()
         g_globalMaterialSignatureByModel.clear();
     }
     MapAdapter::Clear_MaterialCache();
+    Clear_CachedLights();
+}
+
+void MapLoader::Clear_CachedLights()
+{
     g_cachedLights.clear();
 }
 

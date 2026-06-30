@@ -1,10 +1,14 @@
 #pragma once
 #include "UI_Document.h"
 #include "UI_AnimationPreviewService.h"
+#include "UI_BrushPresetService.h"
 #include "UI_ClipboardService.h"
 #include "UI_Editor_FileService.h"
 #include "UI_Editor_HistoryService.h"
+#include "UI_EditorLayoutCache.h"
 #include "UI_Editor_PreviewService.h"
+#include "UI_EditorReadModel.h"
+#include "UI_EditorSession.h"
 #include "UI_Editor_Window.h"
 #include "UI_ObjectCommandService.h"
 #include "UI_ObjectEditService.h"
@@ -13,6 +17,14 @@
 #include "UI_TransformService.h"
 
 NS_BEGIN(UIEditor)
+
+enum class UI_EditorEditImpact
+{
+    Selection,
+    Visual,
+    Layout,
+    Structure,
+};
 
 class UI_Editor_Manager final
 {
@@ -29,6 +41,13 @@ public:
 
 public:
     const UI_Document& Get_Document() const;
+    const UI_EditorSession& Get_Session() const;
+    const UI_EditorSession& Get_LayoutSession() const;
+    const UI_EditorReadModel& Get_ReadModel() const;
+    const UI_EditorLayoutCache& Get_LayoutCache() const;
+    uint64 Get_DocumentChangeSerial() const;
+    UI_EditorEditImpact Get_LastDocumentChangeImpact() const;
+    ObjectId Get_LastChangedObjectId() const;
     ObjectId Get_SelectedObjectId() const;
     void Set_SelectedObjectId(ObjectId objectId);
     void Set_SingleSelection(ObjectId objectId);
@@ -143,7 +162,9 @@ public:
         UI_TextAlign textAlign,
         float scale,
         bool textWrap,
-        const D3D11_RECT& clipRect);
+        const D3D11_RECT& clipRect,
+        const D3D11_RECT* sharedClipRect = nullptr,
+        bool allowSharedClip = false);
     void Play_AnimationPreview(ObjectId objectId);
     void Play_AnimationAssetPreview(const UI_AnimationAsset& asset, int32 startFrame);
     void Play_AnimationSequencePreview(const UI_AnimationSequenceAsset& sequence, int32 startFrame);
@@ -167,6 +188,7 @@ private:
     void Handle_Shortcuts();
     void Render_RenamePopup();
     void Clear_RuntimeCaches();
+    void Notify_DocumentChanged(UI_EditorEditImpact impact, ObjectId objectId = 0);
     void Resolve_LoadedAssetReferences();
     void Refresh_AnimationTargetBindings();
     void Apply_Selection(const vector<ObjectId>& objectIds, ObjectId primaryObjectId);
@@ -174,7 +196,7 @@ private:
     void Prune_InvalidSelection();
     bool Select_ImportedObjectsAndRefresh(const vector<ObjectId>& createdRootObjectIds);
     void Restore_HistorySelectionAndRefresh(ObjectId selectedObjectId, const vector<ObjectId>& selectedObjectIds);
-    bool Apply_UIObjectEdit(ObjectId objectId, const function<bool(const UI_Object&)>& canApply, const function<bool()>& applyEdit);
+    bool Apply_UIObjectEdit(ObjectId objectId, UI_EditorEditImpact impact, const function<bool(const UI_Object&)>& canApply, const function<bool()>& applyEdit);
     void Push_UndoSnapshot();
     void Clear_History();
 
@@ -191,9 +213,20 @@ private:
     UI_AnimationPreviewService _animationPreviewService = {};
     UI_Editor_FileService _fileService = {};
     UI_ClipboardService _clipboardService = {};
+    UI_BrushPresetService _brushPresetService = {};
     UI_ObjectCommandService _objectCommandService = {};
     UI_ObjectEditService _objectEditService = {};
     UI_TransformService _transformService = {};
+    mutable UI_EditorReadModel _readModel = {};
+    mutable UI_EditorLayoutCache _layoutCache = {};
+    mutable UI_EditorSession _session = {};
+    uint64 _readModelRevision = 1;
+    uint64 _layoutRevision = 1;
+    uint64 _selectionRevision = 1;
+    uint64 _animationPreviewRevision = 1;
+    uint64 _documentChangeSerial = 0;
+    UI_EditorEditImpact _lastDocumentChangeImpact = UI_EditorEditImpact::Structure;
+    ObjectId _lastChangedObjectId = 0;
     ObjectId _renameRequestObjectId = 0;
     bool _isRenamingCanvas = false;
     bool _openRenamePopup = false;

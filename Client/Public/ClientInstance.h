@@ -100,6 +100,10 @@ public: /* For.GameData Table */
     const umap<string, vector<string>>* Get_SkillTreeRequirementData();
     const GameDataTable::WeaponDesc* Get_WeaponDesc(const string& characterId, const string& weaponId) const;
     const vector<GameDataTable::WeaponDesc>* Get_WeaponDescs(const string& characterId) const;
+    const GameDataTable::WeaponUpgradeDesc* Get_WeaponUpgradeDesc(const string& characterId, const string& weaponId, uint32 level) const;
+    const GameDataTable::WeaponUpgradeDesc* Get_NextWeaponUpgradeDesc(const string& characterId, const string& weaponId, uint32 currentLevel) const;
+    uint32 Resolve_WeaponEnhanceLevel(const string& characterId, const string& weaponId) const;
+    uint32 Resolve_WeaponPower(const string& characterId, const string& weaponId) const;
     const Skill_Data* Get_Skill(const string& skillId);
     const vector<string> Get_AllSkillIds();
     HRESULT Reload_GameDataTables();
@@ -329,6 +333,10 @@ public:
     void AddItemInteractionOverlap();
     void RemoveItemInteractionOverlap();
     bool HasItemInteractionOverlap() const { return _itemInteractionOverlapCount > 0; }
+
+    void Request_InteractionPrompt(const void* sourceId, const Vec3& worldAnchor);
+    void Clear_InteractionPrompt(const void* sourceId);
+    bool Try_GetInteractionPromptAnchor(Vec3& outWorldAnchor) const;
     
 public: /* Battle Followup Manager */
      BattleFollowupManager* Get_BattleFollowupManager() const { return _battleFollowupManager.get(); }
@@ -351,10 +359,13 @@ private:
 
     atomic<bool> _isStaticResourcesLoaded = false;
     bool         _isStaticObjectsSpawned = false;
-	bool         _isInitialized = false;
+    bool         _isInitialized = false;
     bool         _isTargetCameraEditMode = false;
     int          _dialogueInteractionOverlapCount = 0;
     int          _itemInteractionOverlapCount = 0;
+    bool         _hasInteractionPromptRequest = false;
+    const void*  _interactionPromptSourceId = nullptr;
+    Vec3         _interactionPromptWorldAnchor = Vec3::Zero;
 
 private:
     Shared<CameraDirector>              _cameraDirector;
