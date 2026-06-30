@@ -7,26 +7,43 @@
 
 namespace Internal
 {
-void Play_TargetHitEffect(const BattleChar& target, const BattleHitSequenceRunner::HitEffectDesc& hitEffect)
-{
-    if (!hitEffect.Is_Valid() || target.actor == nullptr)
-        return;
+    void Play_TargetHitEffect(const BattleChar& target, const BattleHitSequenceRunner::HitEffectDesc& hitEffect)
+    {
+        if (!hitEffect.Is_Valid() || target.actor == nullptr)
+            return;
 
-    const Shared<EffectCom> effectCom = target.actor->Get_Component<EffectCom>();
-    if (effectCom == nullptr)
-        return;
+        const Shared<EffectCom> effectCom = target.actor->Get_Component<EffectCom>();
+        if (effectCom == nullptr)
+            return;
 
-    EffectCom::EffectPlayDesc effectDesc{};
-    effectDesc.levelIndex = GAME->Current_LevelIndex();
-    effectDesc.effectName = hitEffect.effectName;
-    effectDesc.target = EffectCom::EffectPlayTarget::OwnerRoot;
-    effectDesc.localOffset = hitEffect.localOffset;
-    effectDesc.localRotation = hitEffect.localRotation;
-    effectDesc.scale = hitEffect.scale;
-    effectDesc.followTarget = false;
+        EffectCom::EffectPlayDesc effectDesc{};
+        effectDesc.levelIndex = GAME->Current_LevelIndex();
+        effectDesc.effectName = hitEffect.effectName;
+        effectDesc.target = EffectCom::EffectPlayTarget::OwnerRoot;
+        effectDesc.localOffset = hitEffect.localOffset;
+        effectDesc.localRotation = hitEffect.localRotation;
+        effectDesc.scale = hitEffect.scale;
+        effectDesc.followTarget = false;
 
-    effectCom->Play_Effect(effectDesc);
-}
+        effectCom->Play_Effect(effectDesc);
+    }
+
+    void Play_TargetHitSound(const BattleChar& target, const wstring& hitSoundCue)
+    {
+        if (hitSoundCue.empty())
+            return;
+
+        Vec3 soundPosition = Vec3::Zero;
+        const Vec3* soundPositionPtr = nullptr;
+
+        if (target.actor != nullptr && target.actor->Get_Transform() != nullptr)
+        {
+            soundPosition = target.actor->Get_Transform()->Get_WorldPosition();
+            soundPositionPtr = &soundPosition;
+        }
+
+        GAME->Play_SoundCue(hitSoundCue, soundPositionPtr);
+    }
 }
 
 /* 제물 */
@@ -112,10 +129,12 @@ void Skill_Lune_Thunderfall::Execute(const Skill_Data& skill, const BattleAction
 
     BattleHitSequenceRunner::HitEffectDesc effectDesc{};
     effectDesc.effectName = L"Lune_ThunderFall_Attack";
+    effectDesc.hitSoundCue = L"Lune_Thunderfall_Hit";
     effectDesc.scale = { 1.3f, 1.3f, 1.3f };
 
     DamageSystem::ApplyDamage(hitDamage, attacker, target, attackType); // 첫 타 호출 시점은 AN_Attack
     Internal::Play_TargetHitEffect(target, effectDesc);
+    Internal::Play_TargetHitSound(target, effectDesc.hitSoundCue);
 
     const int32 remainingHits = hitCount - 1; // hitCount에서 한대 때렸으니까 -1
     if (remainingHits <= 0)
@@ -158,7 +177,12 @@ void Skill_Lune_TerraQuake::Execute(const Skill_Data& skill, const BattleAction&
     DamageSystem::ApplyDamage(damage, attacker, curTargets, attackType);
 
     for (auto& target : curTargets)
+    {
         Internal::Play_TargetHitEffect(target, effectDesc);
+    }
+
+    // 한 번만. 이거 근데 왜이리 소리가 작아;
+    GAME->Play_SoundCue(L"Lune_TerraQuake_Hit", nullptr, 4.5f, 1.f);
 }
 
 Shared<Skill_Lune_TerraQuake> Skill_Lune_TerraQuake::Create()
@@ -187,23 +211,17 @@ Shared<Skill_Lune_CripplingTsunami> Skill_Lune_CripplingTsunami::Create()
 /* 하늘 파괴 */
 void Skill_Lune_SkyBreak::Execute(const Skill_Data& skill, const BattleAction& action, AttackType attackType)
 {
+    const BattleChar& attacker = action.Get_CurChar();
+
     const auto& curTargets = action.GetCurStepTarget();
     if (curTargets.empty())
         return;
-
-    const BattleChar& attacker = action.Get_CurChar();
-    const BattleChar& target = curTargets.front();
 
     if (attacker.mechanismCom)
         attacker.mechanismCom->Add_LuneStains({ ElementalType::Ice, ElementalType::Light });
 
     const float damage = DamageSystem::CalculatePlayerAttackDamage(attacker, skill.powerMultiplier);
-    DamageSystem::ApplyDamage(damage, attacker, target, attackType);
-
-    auto battle = CLIENT->Get_BattleController();
-    CHECK_NULL(battle);
-
-    battle->Try_ApplySkillBuff(skill, target);
+    DamageSystem::ApplyDamage(damage, attacker, curTargets, attackType);
 }
 
 Shared<Skill_Lune_SkyBreak> Skill_Lune_SkyBreak::Create()

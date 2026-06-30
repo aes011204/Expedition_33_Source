@@ -8,7 +8,7 @@ namespace UIEditor
         if (objectId == 0)
             return _state.selectedObjectId == 0 && _state.selectedObjectIds.empty();
 
-        return find(_state.selectedObjectIds.begin(), _state.selectedObjectIds.end(), objectId) != _state.selectedObjectIds.end();
+        return _selectedObjectIdSet.find(objectId) != _selectedObjectIdSet.end();
     }
 
     const UI_Object* UI_SelectionService::Get_SelectedObject(const UI_Document& document) const
@@ -94,6 +94,7 @@ namespace UIEditor
     void UI_SelectionService::Apply_SelectionState(UI_SelectionState selectionState)
     {
         _state = move(selectionState);
+        Rebuild_SelectedObjectIdSet();
     }
 
     void UI_SelectionService::Restore_SelectionState(const UI_Document& document, ObjectId selectedObjectId, const vector<ObjectId>& selectedObjectIds)
@@ -151,5 +152,17 @@ namespace UIEditor
     vector<ObjectId> UI_SelectionService::Get_RootSelectedObjectIds(const UI_Document& document) const
     {
         return Collect_RootObjectIds(document, _state.selectedObjectIds);
+    }
+
+    void UI_SelectionService::Rebuild_SelectedObjectIdSet()
+    {
+        _selectedObjectIdSet.clear();
+        _selectedObjectIdSet.reserve(_state.selectedObjectIds.size());
+
+        for (ObjectId objectId : _state.selectedObjectIds)
+        {
+            if (objectId != 0)
+                _selectedObjectIdSet.insert(objectId);
+        }
     }
 }

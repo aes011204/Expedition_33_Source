@@ -40,6 +40,10 @@ namespace UIEditor
         vector<ObjectId> Get_RootSelectedObjectIds(const UI_Document& document) const;
 
     private:
+        void Rebuild_SelectedObjectIdSet();
+
+    private:
         UI_SelectionState _state = {};
+        unordered_set<ObjectId> _selectedObjectIdSet = {};
     };
 }

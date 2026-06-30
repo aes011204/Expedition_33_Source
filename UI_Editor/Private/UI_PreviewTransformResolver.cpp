@@ -12,6 +12,7 @@ namespace UIEditor
         _document = &document;
         _canvasSize = canvasSize;
         _sampleFunc = sampleFunc;
+        _objectById.clear();
         _previewObjectCache.clear();
         _resolvedLocalSizeCache.clear();
         _resolvedLocalPositionCache.clear();
@@ -19,11 +20,17 @@ namespace UIEditor
         _worldRotationCache.clear();
         _effectiveAlphaMultiplierCache.clear();
         _worldFrameCache.clear();
+
+        const vector<UI_Object>& objects = document.Get_Objects();
+        _objectById.reserve(objects.size());
+        for (const UI_Object& object : objects)
+            _objectById[object.id] = &object;
     }
 
     const UI_Object* UI_PreviewTransformResolver::Find_Object(ObjectId objectId) const
     {
-        return nullptr == _document ? nullptr : _document->Find_Object(objectId);
+        const auto iter = _objectById.find(objectId);
+        return iter != _objectById.end() ? iter->second : nullptr;
     }
 
     UI_Object UI_PreviewTransformResolver::Make_PreviewObject(const UI_Object& object) const

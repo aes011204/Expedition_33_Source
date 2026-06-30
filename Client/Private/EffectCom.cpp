@@ -153,6 +153,9 @@ IMPLEMENT_REFLECTION(EffectCom)
     info.category = "Component";
 
     PROPERTY_WSTRING("Effect Name", _inspectorEffectName);
+    PROPERTY_VEC3("Position", _inspectorLocalOffset, 0.01f);
+    PROPERTY_VEC3("Rotation", _inspectorLocalRotation, 0.1f);
+    PROPERTY_VEC3("Scale", _inspectorScale, 0.01f);
 
     return true;
 }

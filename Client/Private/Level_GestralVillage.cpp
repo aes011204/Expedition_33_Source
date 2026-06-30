@@ -167,7 +167,7 @@ HRESULT Level_GestralVillage::Ready_Lights()
         ShadowDesc.lightDistancePadding = 30.f;
         // 그림자용 ortho projection 범위 여유 값
         ShadowDesc.xyPadding = 2.f;
-        ShadowDesc.zPadding = 20.f;
+        ShadowDesc.zPadding = 10.f;
 
         // Shadow map 해상도. 4096 * 4096 * 4 * 4byte = 256mb
         // fix 4096 -> 2048
@@ -189,7 +189,7 @@ HRESULT Level_GestralVillage::Ready_Lights()
         cascadePresets.close.cascadeBlendDistance = 0.8f;
 
         cascadePresets.normal.focusNear = 0.1f;
-        cascadePresets.normal.focusFar = 80.f;
+        cascadePresets.normal.focusFar = 60.f;
         cascadePresets.normal.cascadeSplitLambda = 0.8f;
         cascadePresets.normal.cascadeBlendDistance = 1.7f;
 
@@ -436,8 +436,8 @@ HRESULT Level_GestralVillage::Ready_Layer_ETC(const wstring& strLayerTag)
     auto potatobag = Spawn_Prefab::Prefab(Constants::Prefab::BSS_Gestral_PotatoBag)
         .AtLevel(ETOI(LevelType::GestralVillage))
         .InLayer(L"Layer_BattleStartSpawner")
-        .Position(Vec3(0.69f, 3.68f, 55.6f))
-        .Rotation(Vec3(0.f, -22.6f, 0.f))
+        .Position(Vec3(1.1f, 3.68f, 53.87f))
+        .Rotation(Vec3(0.f, -14.4f, 0.f))
         .Spawn();
 
     _bssPotatoBag = dynamic_pointer_cast<BattleStartSpawner>(potatobag);

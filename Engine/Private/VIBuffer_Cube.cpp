@@ -25,7 +25,7 @@ HRESULT VIBuffer_Cube::Initialize_Prototype()
 	VertexBufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
 	VertexBufferDesc.StructureByteStride = _vertexStride;
 
-	VTXCUBE* vertices = new VTXCUBE[_numVertices];
+	vector<VTXCUBE> vertices(_numVertices);
 	vertices[0].position = XMFLOAT3(-0.5f, 0.5f, -0.5f);
 	vertices[0].texcoord = vertices[0].position;
 	vertices[1].position = XMFLOAT3(0.5f, 0.5f, -0.5f);
@@ -44,7 +44,7 @@ HRESULT VIBuffer_Cube::Initialize_Prototype()
 	vertices[7].texcoord = vertices[7].position;
 
 	D3D11_SUBRESOURCE_DATA VertexInitialData{};
-	VertexInitialData.pSysMem = vertices;
+	VertexInitialData.pSysMem = vertices.data();
 
 	if (FAILED(_device->CreateBuffer(&VertexBufferDesc, &VertexInitialData, _vb.GetAddressOf())))
 		return E_FAIL;
@@ -55,7 +55,7 @@ HRESULT VIBuffer_Cube::Initialize_Prototype()
 	IndexBufferDesc.BindFlags = D3D11_BIND_INDEX_BUFFER;
 	IndexBufferDesc.StructureByteStride = _indexStride;
 
-	uint16* indices = new uint16[_numIndices];
+	vector<uint16> indices(_numIndices);
 	indices[0] = 1; indices[1] = 5; indices[2] = 6;
 	indices[3] = 1; indices[4] = 6; indices[5] = 2;
 	indices[6] = 4; indices[7] = 0; indices[8] = 3;
@@ -70,13 +70,10 @@ HRESULT VIBuffer_Cube::Initialize_Prototype()
 	indices[33] = 0; indices[34] = 2; indices[35] = 3;
 
 	D3D11_SUBRESOURCE_DATA IndexInitialData{};
-	IndexInitialData.pSysMem = indices;
+	IndexInitialData.pSysMem = indices.data();
 
 	if (FAILED(_device->CreateBuffer(&IndexBufferDesc, &IndexInitialData, _ib.GetAddressOf())))
 		return E_FAIL;
-
-	Safe_Delete_Array(vertices);
-	Safe_Delete_Array(indices);
 
 	return S_OK;
 }

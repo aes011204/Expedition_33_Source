@@ -41,6 +41,7 @@ private:
     bool Is_ValidResult(BattleQTEResult result) const;
     bool Is_NextAttackDamageType(AttackType attackType) const;
     float Resolve_DamageBonusRate(BattleQTEResult result) const;
+    void Start_Request(const BattleQTERequest& request);
 
 public:
     FOnQTEStarted OnQTEStarted;
@@ -52,6 +53,7 @@ private:
     bool             _isActive = false;
     bool             _hasLastResult = false;
     float            _pendingNextAttackDamageBonusRate = 0.f;
+    vector<BattleQTERequest> _queuedRequests{};
 
 public:
     static Shared<BattleQTEController> Create();

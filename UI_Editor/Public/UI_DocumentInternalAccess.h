@@ -8,6 +8,7 @@ namespace UIEditor
     class UI_DocumentSerializer;
     class UI_Editor_FileService;
     class UI_Editor_Manager;
+    class UI_BrushPresetService;
     class UI_ObjectCommandService;
     class UI_ObjectEditService;
     class UI_TransformService;
@@ -18,6 +19,7 @@ namespace UIEditor
         friend class UI_DocumentSerializer;
         friend class UI_Editor_FileService;
         friend class UI_Editor_Manager;
+        friend class UI_BrushPresetService;
         friend class UI_ObjectCommandService;
         friend class UI_ObjectEditService;
         friend class UI_TransformService;

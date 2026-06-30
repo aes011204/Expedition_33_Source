@@ -36,6 +36,7 @@ void BattleHitSequenceRunner::Update(float timeDelta)
             _pending.attackType);
 
         Play_HitEffect(_pending.target, _pending.hitEffect);
+        Play_HitSound(_pending.target, _pending.hitEffect.hitSoundCue);
 
         --_pending.remainingHits;
     }
@@ -104,4 +105,21 @@ void BattleHitSequenceRunner::Play_HitEffect(const BattleChar& target, const Hit
     effectDesc.followTarget = false;
 
     effectCom->Play_Effect(effectDesc);
+}
+
+void BattleHitSequenceRunner::Play_HitSound(const BattleChar& target, const wstring& hitSoundCue) const
+{
+    if (hitSoundCue.empty())
+        return;
+
+    Vec3 soundPosition = Vec3::Zero;
+    const Vec3* soundPositionPtr = nullptr;
+
+    if (target.actor != nullptr && target.actor->Get_Transform() != nullptr)
+    {
+        soundPosition = target.actor->Get_Transform()->Get_WorldPosition();
+        soundPositionPtr = &soundPosition;
+    }
+
+    GAME->Play_SoundCue(hitSoundCue, soundPositionPtr);
 }

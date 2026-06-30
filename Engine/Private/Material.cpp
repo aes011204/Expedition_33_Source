@@ -7,6 +7,7 @@ namespace
 {
     mutex g_TextureSrvCacheMutex;
     unordered_map<wstring, ComPtr<ID3D11ShaderResourceView>> g_TextureSrvCache;
+    uint64 g_TextureSrvCacheCreateCount = 0;
 }
 
 Material::Material(const ComPtr<Device>& device, const ComPtr<Context>& context)
@@ -384,6 +385,11 @@ HRESULT Material::Create_TextureSRV(const fs::path& texturePath, ID3D11ShaderRes
         return hr;
     }
 
+    bool shouldLogCacheCreate = false;
+    size_t textureSrvCacheSize = 0;
+    uint64 textureSrvCacheCreateCount = 0;
+    wstring textureSrvCacheLastKey = {};
+
     {
         lock_guard<mutex> lock(g_TextureSrvCacheMutex);
 
@@ -404,6 +410,24 @@ HRESULT Material::Create_TextureSRV(const fs::path& texturePath, ID3D11ShaderRes
         }
 
         g_TextureSrvCache.emplace(cacheKey, createdSrv);
+        ++g_TextureSrvCacheCreateCount;
+
+        if (g_TextureSrvCache.size() == 1 || g_TextureSrvCache.size() % 64 == 0)
+        {
+            shouldLogCacheCreate = true;
+            textureSrvCacheSize = g_TextureSrvCache.size();
+            textureSrvCacheCreateCount = g_TextureSrvCacheCreateCount;
+            textureSrvCacheLastKey = cacheKey;
+        }
+    }
+
+    if (shouldLogCacheCreate)
+    {
+        LOG_INFO(
+            "[Material][LeakWatch] Texture SRV cache size={} createdTotal={} last='{}'",
+            textureSrvCacheSize,
+            textureSrvCacheCreateCount,
+            String::ToString(textureSrvCacheLastKey));
     }
 
     const HRESULT copyResult = createdSrv.CopyTo(outSrv);
@@ -452,6 +476,24 @@ void Material::Free()
 
 void Material::Clear_TextureSRVCache()
 {
+    size_t textureSrvCacheSize = 0;
+    uint64 textureSrvCacheCreateCount = 0;
+
+    {
+        lock_guard<mutex> lock(g_TextureSrvCacheMutex);
+        textureSrvCacheSize = g_TextureSrvCache.size();
+        textureSrvCacheCreateCount = g_TextureSrvCacheCreateCount;
+        g_TextureSrvCache.clear();
+    }
+
+    LOG_INFO(
+        "[Material][LeakWatch] Clearing Texture SRV cache. size={} createdTotal={}",
+        textureSrvCacheSize,
+        textureSrvCacheCreateCount);
+}
+
+size_t Material::Get_TextureSRVCacheSize()
+{
     lock_guard<mutex> lock(g_TextureSrvCacheMutex);
-    g_TextureSrvCache.clear();
+    return g_TextureSrvCache.size();
 }

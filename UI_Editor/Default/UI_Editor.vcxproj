@@ -20,6 +20,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\Private\UI_ClipboardService.cpp" />
+    <ClCompile Include="..\Private\UI_BrushPresetService.cpp" />
     <ClCompile Include="..\Private\UI_AnimationAssetSerializer.cpp" />
     <ClCompile Include="..\Private\UI_AnimationAssetService.cpp" />
     <ClCompile Include="..\Private\UI_AnimationAssetService_FileDialog.cpp" />
@@ -29,6 +30,7 @@
     <ClCompile Include="..\Private\UI_AnimationSequenceTimelineView.cpp" />
     <ClCompile Include="..\Private\UI_AnimationTimelineView.cpp" />
     <ClCompile Include="..\Private\UI_Animation_View.cpp" />
+    <ClCompile Include="..\Private\UI_Animation_View_Preview.cpp" />
     <ClCompile Include="..\Private\UI_Animation_View_Keyframe.cpp" />
     <ClCompile Include="..\Private\UI_Animation_View_Sequence.cpp" />
     <ClCompile Include="..\Private\UI_Animation_View_Shortcuts.cpp" />
@@ -44,8 +46,12 @@
     <ClCompile Include="..\Private\UI_Editor_HistoryService.cpp" />
     <ClCompile Include="..\private\UI_Editor_Manager.cpp" />
     <ClCompile Include="..\Private\UI_Editor_Manager_AnimationPreview.cpp" />
+    <ClCompile Include="..\Private\UI_Editor_Manager_Commands.cpp" />
+    <ClCompile Include="..\Private\UI_Editor_Manager_Document.cpp" />
     <ClCompile Include="..\Private\UI_Editor_Manager_ObjectEditing.cpp" />
+    <ClCompile Include="..\Private\UI_Editor_Manager_UI.cpp" />
     <ClCompile Include="..\Private\UI_Editor_ImGuiManager.cpp" />
+    <ClCompile Include="..\Private\UI_InspectorAssetPickerService.cpp" />
     <ClCompile Include="..\Private\UI_Inspector_Pickers.cpp" />
     <ClCompile Include="..\Private\UI_Editor_Instance.cpp" />
     <ClCompile Include="..\Private\UI_Editor_PreviewService.cpp" />
@@ -64,6 +70,7 @@
     <ClCompile Include="..\Private\UI_SelectionService.cpp" />
     <ClCompile Include="..\Private\UI_TransformService.cpp" />
     <ClCompile Include="..\Private\UI_Vfx_View.cpp" />
+    <ClCompile Include="..\Private\UI_ViewportPreviewAssetService.cpp" />
     <ClCompile Include="..\Private\UI_Viewport_View.cpp" />
     <ClCompile Include="..\Private\UI_Viewport_Utils.cpp" />
     <ClCompile Include="pch.cpp">
@@ -78,6 +85,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\Public\UI_ClipboardService.h" />
+    <ClInclude Include="..\Public\UI_BrushPresetService.h" />
     <ClInclude Include="..\Public\UI_AnimationAssetSerializer.h" />
     <ClInclude Include="..\Public\UI_AnimationAssetService.h" />
     <ClInclude Include="..\Public\UI_AnimationEditHistory.h" />
@@ -95,6 +103,9 @@
     <ClInclude Include="..\Public\UI_Editor_Defines.h" />
     <ClInclude Include="..\Public\UI_Editor_FileService.h" />
     <ClInclude Include="..\Public\UI_Editor_HistoryService.h" />
+    <ClInclude Include="..\Public\UI_EditorLayoutCache.h" />
+    <ClInclude Include="..\Public\UI_EditorReadModel.h" />
+    <ClInclude Include="..\Public\UI_EditorSession.h" />
     <ClInclude Include="..\Public\UI_Editor_Enum.h" />
     <ClInclude Include="..\Public\UI_Editor_ImGuiInclude.h" />
     <ClInclude Include="..\Public\UI_Editor_ImGuiManager.h" />
@@ -105,6 +116,7 @@
     <ClInclude Include="..\Public\UI_Editor_Utils.h" />
     <ClInclude Include="..\Public\UI_Editor_Window.h" />
     <ClInclude Include="..\Public\UI_Hierarchy_View.h" />
+    <ClInclude Include="..\Public\UI_InspectorAssetPickerService.h" />
     <ClInclude Include="..\public\UI_Editor_Manager.h" />
     <ClInclude Include="..\public\UI_Inspector.h" />
     <ClInclude Include="..\Public\UI_ObjectCommandService.h" />
@@ -116,6 +128,7 @@
     <ClInclude Include="..\Public\UI_TransformService.h" />
     <ClInclude Include="..\Public\UI_Vfx_View.h" />
     <ClInclude Include="..\Public\UI_Viewport_View.h" />
+    <ClInclude Include="..\Public\UI_ViewportPreviewAssetService.h" />
     <ClInclude Include="..\Public\UI_Viewport_Utils.h" />
     <ClInclude Include="pch.h" />
   </ItemGroup>
