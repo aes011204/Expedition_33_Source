@@ -102,7 +102,7 @@ private:
     ComPtr<Buffer> _shadowVisibleVB;
     vector<ComPtr<Buffer>> _shadowIndirectArgsBuffers[3];
 
-    float _lod1Dist = 100.f;
+    float _lod1Dist = 90.f;
     float _lod2Dist = 115.f;
 
     float _accTime = {};
