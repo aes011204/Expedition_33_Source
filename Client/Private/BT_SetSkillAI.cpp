@@ -169,13 +169,10 @@ void BT_SetSkillAI::SelectSkill(const Shared<BlackBoard>& bb, int32 SkillIndex)
 		const vector<string>& skillKeys = stat->Get_SkillKey();
 		if (SkillIndex >= 0 && SkillIndex < static_cast<int32>(skillKeys.size()))
 		{
-			Monster_BattleBase::SkillChoiceContext nextContext = owner->_cachedContext;
 			const string& skillKey = skillKeys[SkillIndex];
-
 			owner->Push_SkillHistory(skillKey);
-			nextContext.lastSkillIndex = skillKey;
-			nextContext.previousPhase = owner->Get_CurPhase();
-			owner->_cachedContext = nextContext;
+			owner->_cachedContext.lastSkillIndex = skillKey;
+			owner->_cachedContext.previousPhase = owner->Get_CurPhase();
 		}
 	}
 

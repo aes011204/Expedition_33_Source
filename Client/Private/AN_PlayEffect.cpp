@@ -1,4 +1,4 @@
-﻿#include "AN_PlayEffect.h"
+#include "AN_PlayEffect.h"
 
 #include "EffectCom.h"
 #include "GameInstance.h"
@@ -20,7 +20,6 @@ IMPLEMENT_REFLECTION(AN_PlayEffect)
     PROPERTY_BOOL("위치 상속", _inheritPosition);
     PROPERTY_BOOL("회전 상속", _inheritRotation);
     PROPERTY_BOOL("스케일 상속", _inheritScale);
-
     return true;
 }
 

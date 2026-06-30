@@ -26,6 +26,8 @@ void ANS_Move::On_Begin(const AnimNotifyContext& context)
     _startRot = {};
     _goalRot = {};
     _isCounter = false;
+    _keepFaceTarget = false;
+    _faceTargetActor = nullptr;
 
     if (action.Get_CurChar().ModelCom.get() != context.model)
     {
@@ -74,6 +76,12 @@ void ANS_Move::On_Begin(const AnimNotifyContext& context)
         if (curChar.actor == nullptr || curChar.ModelCom == nullptr)
             return;
 
+        const auto& phases = action.GetSkillData().AnimPhases;
+        if (action.GetCurAnimIndex() < phases.size())
+            _keepFaceTarget = phases[action.GetCurAnimIndex()].faceTarget;
+
+        _faceTargetActor = action.GetInitTarget().actor;
+
         curChar.ModelCom->Set_RootMotionEnabled(false);
 
         _moveTarget = curChar.actor->Get_Transform();
@@ -84,15 +92,7 @@ void ANS_Move::On_Begin(const AnimNotifyContext& context)
         _goalPos = action.GetPhaseGoalPos();
 
         _startRot = _moveTarget->Get_RotationEuler();
-        _goalRot = _startRot;
-
-        const auto& phases = action.GetSkillData().AnimPhases;
-        if (action.GetCurAnimIndex() < phases.size())
-        {
-            const BattleActionPhase& phase = phases[action.GetCurAnimIndex()];
-            if (phase.movementPolicy == BattleMovementPolicy::ReturnToOrigin)
-                _goalRot = action.GetOriginRot();
-        }
+        _goalRot = _keepFaceTarget ? _startRot : action.GetOriginRot();
 
         _isCounter = false;
     }
@@ -111,6 +111,32 @@ void ANS_Move::On_Tick(const AnimNotifyContext& context)
     const float curProgress = context.notifyStateProgress;
     _moveTarget->Set_Position(Vec3::Lerp(_startPos, _goalPos, curProgress));
 
+    if (_keepFaceTarget && _faceTargetActor != nullptr)
+    {
+        const Shared<TransformCom> targetTransform = _faceTargetActor->Get_Transform();
+        if (targetTransform != nullptr)
+        {
+            const Vec3 currentPos = _moveTarget->Get_Position();
+            Vec3 dir = targetTransform->Get_Position() - currentPos;
+            dir.y = 0.f;
+
+            if (dir.LengthSquared() > 0.0001f)
+            {
+                const float goalYaw = XMConvertToDegrees(atan2f(dir.x, dir.z));
+                float startYaw = _startRot.y;
+                float deltaYaw = goalYaw - startYaw;
+                while (deltaYaw > 180.f)
+                    deltaYaw -= 360.f;
+                while (deltaYaw < -180.f)
+                    deltaYaw += 360.f;
+
+                Vec3 nextRot = _startRot;
+                nextRot.y = startYaw + deltaYaw * curProgress;
+                _moveTarget->Set_RotationEuler(nextRot);
+                return;
+            }
+        }
+    }
 
     float startYaw = _startRot.y;
     float goalYaw = _goalRot.y;
@@ -138,6 +164,28 @@ void ANS_Move::On_End(const AnimNotifyContext& context)
     _moveTarget->Set_Position(_goalPos);
 
     Vec3 finalRot = _startRot;
-    finalRot.y = _goalRot.y;
+    if (_keepFaceTarget && _faceTargetActor != nullptr)
+    {
+        const Shared<TransformCom> targetTransform = _faceTargetActor->Get_Transform();
+        if (targetTransform != nullptr)
+        {
+            Vec3 dir = targetTransform->Get_Position() - _goalPos;
+            dir.y = 0.f;
+
+            if (dir.LengthSquared() > 0.0001f)
+                finalRot.y = XMConvertToDegrees(atan2f(dir.x, dir.z));
+            else
+                finalRot.y = _goalRot.y;
+        }
+        else
+        {
+            finalRot.y = _goalRot.y;
+        }
+    }
+    else
+    {
+        finalRot.y = _goalRot.y;
+    }
+
     _moveTarget->Set_RotationEuler(finalRot);
 }
