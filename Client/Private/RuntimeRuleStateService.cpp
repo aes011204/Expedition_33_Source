@@ -240,7 +240,7 @@ namespace
 			},
 			{
 				HeroId::Maelle,
-				{ "Spark", "Percee", "FleureFury", "SwordBallet", "Stendhal", "Pyrolyse" }
+				{ "Spark", "Percee", "FleureFury", "SwordBallet", "Pyrolyse", "Stendhal" }
 			},
 		};
 

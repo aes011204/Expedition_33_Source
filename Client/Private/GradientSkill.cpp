@@ -9,7 +9,7 @@ const char* GradientSkill::Resolve_SkillKey(HeroId heroId)
     case HeroId::Lune:
         return "SkyBreak";
     case HeroId::Maelle:
-        return "Pyrolyse";
+        return "Stendhal";
     case HeroId::END:
     default:
         return "";
