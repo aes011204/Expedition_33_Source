@@ -77,7 +77,7 @@ private:
         int trackIndex,
         CINEMATIC_TRACK*& outWorldTrack,
         CINEMATIC_ACTOR_RELATIVE_CAMERA_TRACK*& outActorRelativeTrack,
-        CameraTrackKind& outKind);
+        CameraTrackKind& outKind) const;
     bool Evaluate_ActorRelativeCameraTrack(
         const CINEMATIC_ACTOR_RELATIVE_CAMERA_TRACK& track,
         float currentFrameExact,
@@ -87,6 +87,13 @@ private:
         float currentFrameExact,
         CAMERAPOSE& outPose) const;
     void Apply_ActiveCameraTrackPose(float currentFrameExact);
+    bool Resolve_ActiveCameraTrackForFrame(
+        float currentFrameExact,
+        CINEMATIC_TRACK*& outWorldTrack,
+        CINEMATIC_ACTOR_RELATIVE_CAMERA_TRACK*& outActorRelativeTrack,
+        CameraTrackKind& outKind,
+        int& outTrackIndex) const;
+    bool Uses_CameraShots() const;
     static Vec3 Build_LookAtRotation(const Vec3& fromWorldPos, const Vec3& toWorldPos, const Vec3& fallbackRotation);
 
     struct BindingRuntimeState
@@ -113,6 +120,7 @@ private:
         const CinematicPlayAnimEventData& payload);
     bool Execute_DespawnEvent(const string& targetId, const CinematicDespawnEventData& payload);
     bool Execute_PartVisibilityEvent(const string& targetId, const CinematicPartVisibilityEventData& payload);
+    bool Execute_WorldTimeScaleEvent(const CinematicWorldTimeScaleEventData& payload);
     Shared<GameObject> Find_ReusableActorByPrefabName(const string& prefabName) const;
     bool Is_ActorAlreadyBound(const Shared<GameObject>& actor) const;
     void Apply_CinematicDrivenState(const Shared<GameObject>& actor, bool cinematicDriven) const;
@@ -148,6 +156,8 @@ private:
     bool _applyCameraTrack = true;
     bool _applyEventTrack = true;
     bool _applyActorTransformTrack = true;
+    bool _hasWorldTimeScaleOverride = false;
+    float _restoreWorldTimeScale = 1.f;
 
     FOnCinematicCompleted _onNaturalCompleted;
 

@@ -113,6 +113,15 @@ void ContainerObject::Post_PhysX_Update(float timeDelta)
         partObject->Post_PhysX_Update(timeDelta);
 }
 
+void ContainerObject::Refresh_PartObjectTransforms()
+{
+    for (auto& partObject : _partObjectUpdateOrder)
+    {
+        if (partObject)
+            partObject->Update(0.f);
+    }
+}
+
 HRESULT ContainerObject::Render()
 {
 	return S_OK;

@@ -29,6 +29,7 @@ private:
     void Close_Root();
 
 private:
+    Shared<Engine::UI_Text> _chromaLabelText{};
     Shared<Engine::UI_Text> _chromaValueText{};
 
     uint32 _activeChromaAmount = 0;
