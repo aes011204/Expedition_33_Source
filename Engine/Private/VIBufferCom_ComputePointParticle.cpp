@@ -247,6 +247,61 @@ struct ComputePointParticleParams
     XMUINT4 cylinderLocationSeedSalts{};             // x: radius, y: height, z: angle, w: unused.
     Vec4 cylinderOrientationParams{};                // x: enabled, y: target kind, z: orientation mode, w: follow orbit over life.
     Vec4 cylinderOrientationAngles{};                // x: tilt degrees, y: roll offset degrees, z/w: unused.
+    Vec4 initialVelocityScaleByLifeCurveTimes{};     // InitialVelocity channel VelocityOverLife key times.
+    Vec4 initialVelocityScaleByLifeCurveTimesBlock1{};
+    Vec4 initialVelocityScaleByLifeCurveValues{};    // InitialVelocity channel VelocityOverLife values.
+    Vec4 initialVelocityScaleByLifeCurveValuesBlock1{};
+    Vec4 initialVelocityScaleByLifeCurveArriveTangents{};
+    Vec4 initialVelocityScaleByLifeCurveArriveTangentsBlock1{};
+    Vec4 initialVelocityScaleByLifeCurveLeaveTangents{};
+    Vec4 initialVelocityScaleByLifeCurveLeaveTangentsBlock1{};
+    Vec4 initialVelocityScaleByLifeCurveModes{};
+    Vec4 initialVelocityScaleByLifeCurveModesBlock1{};
+    Vec4 initialVelocityScaleByLifeCurveParams{};    // x: key count, y: enabled, z/w: unused.
+    Vec4 initialRadialVelocityScaleByLifeCurveTimes{};
+    Vec4 initialRadialVelocityScaleByLifeCurveTimesBlock1{};
+    Vec4 initialRadialVelocityScaleByLifeCurveValues{};
+    Vec4 initialRadialVelocityScaleByLifeCurveValuesBlock1{};
+    Vec4 initialRadialVelocityScaleByLifeCurveArriveTangents{};
+    Vec4 initialRadialVelocityScaleByLifeCurveArriveTangentsBlock1{};
+    Vec4 initialRadialVelocityScaleByLifeCurveLeaveTangents{};
+    Vec4 initialRadialVelocityScaleByLifeCurveLeaveTangentsBlock1{};
+    Vec4 initialRadialVelocityScaleByLifeCurveModes{};
+    Vec4 initialRadialVelocityScaleByLifeCurveModesBlock1{};
+    Vec4 initialRadialVelocityScaleByLifeCurveParams{}; // x: key count, y: enabled, z/w: unused.
+    Vec4 velocityConeScaleByLifeCurveTimes{};
+    Vec4 velocityConeScaleByLifeCurveTimesBlock1{};
+    Vec4 velocityConeScaleByLifeCurveValues{};
+    Vec4 velocityConeScaleByLifeCurveValuesBlock1{};
+    Vec4 velocityConeScaleByLifeCurveArriveTangents{};
+    Vec4 velocityConeScaleByLifeCurveArriveTangentsBlock1{};
+    Vec4 velocityConeScaleByLifeCurveLeaveTangents{};
+    Vec4 velocityConeScaleByLifeCurveLeaveTangentsBlock1{};
+    Vec4 velocityConeScaleByLifeCurveModes{};
+    Vec4 velocityConeScaleByLifeCurveModesBlock1{};
+    Vec4 velocityConeScaleByLifeCurveParams{};       // x: key count, y: enabled, z/w: unused.
+    Vec4 sourceMotionVelocityScaleByLifeCurveTimes{};
+    Vec4 sourceMotionVelocityScaleByLifeCurveTimesBlock1{};
+    Vec4 sourceMotionVelocityScaleByLifeCurveValues{};
+    Vec4 sourceMotionVelocityScaleByLifeCurveValuesBlock1{};
+    Vec4 sourceMotionVelocityScaleByLifeCurveArriveTangents{};
+    Vec4 sourceMotionVelocityScaleByLifeCurveArriveTangentsBlock1{};
+    Vec4 sourceMotionVelocityScaleByLifeCurveLeaveTangents{};
+    Vec4 sourceMotionVelocityScaleByLifeCurveLeaveTangentsBlock1{};
+    Vec4 sourceMotionVelocityScaleByLifeCurveModes{};
+    Vec4 sourceMotionVelocityScaleByLifeCurveModesBlock1{};
+    Vec4 sourceMotionVelocityScaleByLifeCurveParams{}; // x: key count, y: enabled, z/w: unused.
+    Vec4 accelerationIntegratedVelocityScaleByLifeCurveTimes{};
+    Vec4 accelerationIntegratedVelocityScaleByLifeCurveTimesBlock1{};
+    Vec4 accelerationIntegratedVelocityScaleByLifeCurveValues{};
+    Vec4 accelerationIntegratedVelocityScaleByLifeCurveValuesBlock1{};
+    Vec4 accelerationIntegratedVelocityScaleByLifeCurveArriveTangents{};
+    Vec4 accelerationIntegratedVelocityScaleByLifeCurveArriveTangentsBlock1{};
+    Vec4 accelerationIntegratedVelocityScaleByLifeCurveLeaveTangents{};
+    Vec4 accelerationIntegratedVelocityScaleByLifeCurveLeaveTangentsBlock1{};
+    Vec4 accelerationIntegratedVelocityScaleByLifeCurveModes{};
+    Vec4 accelerationIntegratedVelocityScaleByLifeCurveModesBlock1{};
+    Vec4 accelerationIntegratedVelocityScaleByLifeCurveParams{}; // x: key count, y: enabled, z/w: unused.
 };
 
 static uint32 Resolve_SeedSalt(const PointParticleRandomSeedRuntimeDesc& seed, uint32 effectPlaybackSeed)
@@ -275,6 +330,16 @@ static Vec3 Normalize_OrFallback(const Vec3& value, const Vec3& fallback)
     Vec3 result = value;
     result.Normalize();
     return result;
+}
+
+static Vec4 Build_FloatCurveParams(const PointParticleFloatCurveRuntimeDesc& curve)
+{
+    return Vec4{
+        static_cast<float>(max(1u, min(kEffectDistributionCurveMaxKeys, curve.curveKeyCount))),
+        curve.enabled ? 1.f : 0.f,
+        0.f,
+        0.f
+    };
 }
 
 VIBufferCom_ComputePointParticle::VIBufferCom_ComputePointParticle(const ComPtr<Device>& device, const ComPtr<Context>& context)
@@ -1204,7 +1269,62 @@ HRESULT VIBufferCom_ComputePointParticle::Update_ConstantBuffer()
             _desc.cylinderOrientation.rollOffsetDegrees,
             0.f,
             0.f
-        }
+        },
+        .initialVelocityScaleByLifeCurveTimes = _desc.motion.initialVelocityScaleByLife.curveKeyTimes,
+        .initialVelocityScaleByLifeCurveTimesBlock1 = _desc.motion.initialVelocityScaleByLife.curveKeyTimesBlock1,
+        .initialVelocityScaleByLifeCurveValues = _desc.motion.initialVelocityScaleByLife.curveKeyValues,
+        .initialVelocityScaleByLifeCurveValuesBlock1 = _desc.motion.initialVelocityScaleByLife.curveKeyValuesBlock1,
+        .initialVelocityScaleByLifeCurveArriveTangents = _desc.motion.initialVelocityScaleByLife.curveKeyArriveTangents,
+        .initialVelocityScaleByLifeCurveArriveTangentsBlock1 = _desc.motion.initialVelocityScaleByLife.curveKeyArriveTangentsBlock1,
+        .initialVelocityScaleByLifeCurveLeaveTangents = _desc.motion.initialVelocityScaleByLife.curveKeyLeaveTangents,
+        .initialVelocityScaleByLifeCurveLeaveTangentsBlock1 = _desc.motion.initialVelocityScaleByLife.curveKeyLeaveTangentsBlock1,
+        .initialVelocityScaleByLifeCurveModes = _desc.motion.initialVelocityScaleByLife.curveKeyModes,
+        .initialVelocityScaleByLifeCurveModesBlock1 = _desc.motion.initialVelocityScaleByLife.curveKeyModesBlock1,
+        .initialVelocityScaleByLifeCurveParams = Build_FloatCurveParams(_desc.motion.initialVelocityScaleByLife),
+        .initialRadialVelocityScaleByLifeCurveTimes = _desc.motion.initialRadialVelocityScaleByLife.curveKeyTimes,
+        .initialRadialVelocityScaleByLifeCurveTimesBlock1 = _desc.motion.initialRadialVelocityScaleByLife.curveKeyTimesBlock1,
+        .initialRadialVelocityScaleByLifeCurveValues = _desc.motion.initialRadialVelocityScaleByLife.curveKeyValues,
+        .initialRadialVelocityScaleByLifeCurveValuesBlock1 = _desc.motion.initialRadialVelocityScaleByLife.curveKeyValuesBlock1,
+        .initialRadialVelocityScaleByLifeCurveArriveTangents = _desc.motion.initialRadialVelocityScaleByLife.curveKeyArriveTangents,
+        .initialRadialVelocityScaleByLifeCurveArriveTangentsBlock1 = _desc.motion.initialRadialVelocityScaleByLife.curveKeyArriveTangentsBlock1,
+        .initialRadialVelocityScaleByLifeCurveLeaveTangents = _desc.motion.initialRadialVelocityScaleByLife.curveKeyLeaveTangents,
+        .initialRadialVelocityScaleByLifeCurveLeaveTangentsBlock1 = _desc.motion.initialRadialVelocityScaleByLife.curveKeyLeaveTangentsBlock1,
+        .initialRadialVelocityScaleByLifeCurveModes = _desc.motion.initialRadialVelocityScaleByLife.curveKeyModes,
+        .initialRadialVelocityScaleByLifeCurveModesBlock1 = _desc.motion.initialRadialVelocityScaleByLife.curveKeyModesBlock1,
+        .initialRadialVelocityScaleByLifeCurveParams = Build_FloatCurveParams(_desc.motion.initialRadialVelocityScaleByLife),
+        .velocityConeScaleByLifeCurveTimes = _desc.motion.velocityConeScaleByLife.curveKeyTimes,
+        .velocityConeScaleByLifeCurveTimesBlock1 = _desc.motion.velocityConeScaleByLife.curveKeyTimesBlock1,
+        .velocityConeScaleByLifeCurveValues = _desc.motion.velocityConeScaleByLife.curveKeyValues,
+        .velocityConeScaleByLifeCurveValuesBlock1 = _desc.motion.velocityConeScaleByLife.curveKeyValuesBlock1,
+        .velocityConeScaleByLifeCurveArriveTangents = _desc.motion.velocityConeScaleByLife.curveKeyArriveTangents,
+        .velocityConeScaleByLifeCurveArriveTangentsBlock1 = _desc.motion.velocityConeScaleByLife.curveKeyArriveTangentsBlock1,
+        .velocityConeScaleByLifeCurveLeaveTangents = _desc.motion.velocityConeScaleByLife.curveKeyLeaveTangents,
+        .velocityConeScaleByLifeCurveLeaveTangentsBlock1 = _desc.motion.velocityConeScaleByLife.curveKeyLeaveTangentsBlock1,
+        .velocityConeScaleByLifeCurveModes = _desc.motion.velocityConeScaleByLife.curveKeyModes,
+        .velocityConeScaleByLifeCurveModesBlock1 = _desc.motion.velocityConeScaleByLife.curveKeyModesBlock1,
+        .velocityConeScaleByLifeCurveParams = Build_FloatCurveParams(_desc.motion.velocityConeScaleByLife),
+        .sourceMotionVelocityScaleByLifeCurveTimes = _desc.motion.sourceMotionVelocityScaleByLife.curveKeyTimes,
+        .sourceMotionVelocityScaleByLifeCurveTimesBlock1 = _desc.motion.sourceMotionVelocityScaleByLife.curveKeyTimesBlock1,
+        .sourceMotionVelocityScaleByLifeCurveValues = _desc.motion.sourceMotionVelocityScaleByLife.curveKeyValues,
+        .sourceMotionVelocityScaleByLifeCurveValuesBlock1 = _desc.motion.sourceMotionVelocityScaleByLife.curveKeyValuesBlock1,
+        .sourceMotionVelocityScaleByLifeCurveArriveTangents = _desc.motion.sourceMotionVelocityScaleByLife.curveKeyArriveTangents,
+        .sourceMotionVelocityScaleByLifeCurveArriveTangentsBlock1 = _desc.motion.sourceMotionVelocityScaleByLife.curveKeyArriveTangentsBlock1,
+        .sourceMotionVelocityScaleByLifeCurveLeaveTangents = _desc.motion.sourceMotionVelocityScaleByLife.curveKeyLeaveTangents,
+        .sourceMotionVelocityScaleByLifeCurveLeaveTangentsBlock1 = _desc.motion.sourceMotionVelocityScaleByLife.curveKeyLeaveTangentsBlock1,
+        .sourceMotionVelocityScaleByLifeCurveModes = _desc.motion.sourceMotionVelocityScaleByLife.curveKeyModes,
+        .sourceMotionVelocityScaleByLifeCurveModesBlock1 = _desc.motion.sourceMotionVelocityScaleByLife.curveKeyModesBlock1,
+        .sourceMotionVelocityScaleByLifeCurveParams = Build_FloatCurveParams(_desc.motion.sourceMotionVelocityScaleByLife),
+        .accelerationIntegratedVelocityScaleByLifeCurveTimes = _desc.motion.accelerationIntegratedVelocityScaleByLife.curveKeyTimes,
+        .accelerationIntegratedVelocityScaleByLifeCurveTimesBlock1 = _desc.motion.accelerationIntegratedVelocityScaleByLife.curveKeyTimesBlock1,
+        .accelerationIntegratedVelocityScaleByLifeCurveValues = _desc.motion.accelerationIntegratedVelocityScaleByLife.curveKeyValues,
+        .accelerationIntegratedVelocityScaleByLifeCurveValuesBlock1 = _desc.motion.accelerationIntegratedVelocityScaleByLife.curveKeyValuesBlock1,
+        .accelerationIntegratedVelocityScaleByLifeCurveArriveTangents = _desc.motion.accelerationIntegratedVelocityScaleByLife.curveKeyArriveTangents,
+        .accelerationIntegratedVelocityScaleByLifeCurveArriveTangentsBlock1 = _desc.motion.accelerationIntegratedVelocityScaleByLife.curveKeyArriveTangentsBlock1,
+        .accelerationIntegratedVelocityScaleByLifeCurveLeaveTangents = _desc.motion.accelerationIntegratedVelocityScaleByLife.curveKeyLeaveTangents,
+        .accelerationIntegratedVelocityScaleByLifeCurveLeaveTangentsBlock1 = _desc.motion.accelerationIntegratedVelocityScaleByLife.curveKeyLeaveTangentsBlock1,
+        .accelerationIntegratedVelocityScaleByLifeCurveModes = _desc.motion.accelerationIntegratedVelocityScaleByLife.curveKeyModes,
+        .accelerationIntegratedVelocityScaleByLifeCurveModesBlock1 = _desc.motion.accelerationIntegratedVelocityScaleByLife.curveKeyModesBlock1,
+        .accelerationIntegratedVelocityScaleByLifeCurveParams = Build_FloatCurveParams(_desc.motion.accelerationIntegratedVelocityScaleByLife)
     };
 
     _context->UpdateSubresource(_computeConstantBuffer.Get(), 0, nullptr, &params, 0, 0);
