@@ -67,7 +67,6 @@ void Skill_Lune_Immolation::Execute(const Skill_Data& skill, const BattleAction&
 
     battle->Try_ApplySkillBuff(skill, target);
 
-    // TEMP. 이거 일단 임시. 프로토 타입 이후 제대로 구조잡기. 근데 그냥 이렇게 코드로 제어해도 될거같기도 하고
     if (target.actor != nullptr)
     {
         BattleHitSequenceRunner::HitEffectDesc effectDesc{};
@@ -201,6 +200,14 @@ void Skill_Lune_CripplingTsunami::Execute(const Skill_Data& skill, const BattleA
 
     const float damage = DamageSystem::CalculatePlayerAttackDamage(attacker, skill.powerMultiplier);
     DamageSystem::ApplyDamage(damage, attacker, curTargets, attackType);
+
+    auto battle = CLIENT->Get_BattleController();
+    CHECK_NULL(battle);
+
+    for (const BattleChar& target : curTargets)
+    {
+        battle->Try_ApplySkillBuff(skill, target);
+    }
 }
 
 Shared<Skill_Lune_CripplingTsunami> Skill_Lune_CripplingTsunami::Create()

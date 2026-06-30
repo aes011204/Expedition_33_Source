@@ -135,22 +135,32 @@ void BT_Patrol::OnStart()
     monster->Set_DesiredAction(Monster_WorldBase::MonsterWorldAnim::Patrol);
 
     const Vec3 ownerPos = monster->Get_Transform()->Get_Position();
-    float bestDistSq = FLT_MAX;
-    _curIndex = 0;
+    const bool resumePatrolProgress =
+        _resumePatrolProgressAfterHit &&
+        _hasPatrolProgress &&
+        _curIndex < static_cast<uint32>(_patrolPoints.size());
 
-    for (uint32 i = 0; i < static_cast<uint32>(_patrolPoints.size()); ++i)
+    if (!resumePatrolProgress)
     {
-        Vec3 toPoint = _patrolPoints[i] - ownerPos;
-        toPoint.y = 0.f;
+        float bestDistSq = FLT_MAX;
+        _curIndex = 0;
 
-        const float distSq = toPoint.LengthSquared();
-        if (distSq < bestDistSq)
+        for (uint32 i = 0; i < static_cast<uint32>(_patrolPoints.size()); ++i)
         {
-            bestDistSq = distSq;
-            _curIndex = i;
+            Vec3 toPoint = _patrolPoints[i] - ownerPos;
+            toPoint.y = 0.f;
+
+            const float distSq = toPoint.LengthSquared();
+            if (distSq < bestDistSq)
+            {
+                bestDistSq = distSq;
+                _curIndex = i;
+            }
         }
     }
 
+    _hasPatrolProgress = true;
+    _resumePatrolProgressAfterHit = false;
     _lastSamplePos = ownerPos;
     _stuckAccum = 0.f;
     _usingBypassTarget = false;
@@ -263,6 +273,20 @@ BNode::NODE_STATE BT_Patrol::Logic_Update(float deltaTime)
 
 void BT_Patrol::OnFinish()
 {
+    const Shared<AIController> owner = Get_Owner();
+    Shared<Monster_WorldBase> monster = owner ? dynamic_pointer_cast<Monster_WorldBase>(owner->Get_Owner()) : nullptr;
+    const bool interruptedByHit =
+        monster &&
+        (monster->Is_Stunned() || monster->Get_CurrentAction() == Monster_WorldBase::MonsterWorldAnim::Hit);
+
+    _resumePatrolProgressAfterHit =
+        interruptedByHit &&
+        !_patrolPoints.empty() &&
+        _curIndex < static_cast<uint32>(_patrolPoints.size());
+
+    if (!_resumePatrolProgressAfterHit)
+        _hasPatrolProgress = false;
+
     _stuckAccum = 0.f;
     _usingBypassTarget = false;
     _bypassTarget = Vec3::Zero;
