@@ -29,6 +29,7 @@ private:
         const Quat& fromRotation,
         const Quat& toRotation,
         float ratio) const;
+    void Begin_GrappleLaunch(const Shared<TransformCom>& transform);
     void Finish_GrappleAction();
 
 private:
@@ -38,8 +39,11 @@ private:
     Vec3 _launchTargetPos = Vec3::Zero;
     Quat _launchLookFromRotation = Quat::Identity;
     Quat _launchLookToRotation = Quat::Identity;
+    float _lookPrepareElapsed = 0.f;
 
     bool _hasActiveRequest = false;
+    bool _isPreparingLook = false;
+    bool _isLaunching = false;
 };
 
 NS_END
