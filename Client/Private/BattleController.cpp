@@ -542,10 +542,21 @@ EBattleEndResult BattleController::OnExitBattleField(EBattleEndResult result)
 
     if (result == EBattleEndResult::Victory)
     {
+        const bool isBishopCinematicBGM =
+            GAME->Get_CurrentBGM() == Constants::SoundBGM::BishopBattleBossMain;
+
         if (Is_TutorialBattleEncounter(_activeBattleFieldID))
+        {
             GAME->Stop_SoundChannel(SoundChannel::BGM);
+        }
+        else if (isBishopCinematicBGM)  // 주교잡고나서는 Victory 브금
+        {
+            GAME->Play_BGM(Constants::SoundBGM::BishopBattleBossVictory, 1.f, true, 0.f);
+        }
         else
+        {
             Restore_PreBattleBGM();
+        }
 
         _isWaitingVictoryConfirm = true;
         _isBattleEntering = false;
@@ -2997,11 +3008,17 @@ void BattleController::Complete_BattleField()
         }
     }
 
-    GAME->Play_BGM(
-        hasBossEnemy ? Constants::SoundBGM::BattleBossBGM : Constants::SoundBGM::BattleNormalBGM,
-        1.f,
-        true,
-        0.f);
+    const bool isBishopCinematicBGM =
+        GAME->Get_CurrentBGM() == Constants::SoundBGM::BishopBattleBossMain;
+
+    if (!isBishopCinematicBGM)
+    {
+        GAME->Play_BGM(
+            hasBossEnemy ? Constants::SoundBGM::BattleBossBGM : Constants::SoundBGM::BattleNormalBGM,
+            1.f,
+            true,
+            0.f);
+    }
 
     // 초기 플레이 순서 지정
     Build_InitialTurnQueue(_pendingBattleIsPlayerAdvantage);
@@ -3101,16 +3118,25 @@ bool BattleController::Try_ApplyFreeAimWeakPointBonus(const BattleFreeAimHitTarg
 
 void BattleController::Capture_PreBattleBGM()
 {
+    if (_hasCapturedPreBattleBGM)
+        return;
+
     _preBattleBGM = GAME->Get_CurrentBGM();
+    _hasCapturedPreBattleBGM = true;
 }
 
 void BattleController::Restore_PreBattleBGM()
 {
-    if (_preBattleBGM.empty())
+    if (!_hasCapturedPreBattleBGM)
         return;
 
-    GAME->Play_BGM(_preBattleBGM, 1.f, true, 0.f);
+    if (_preBattleBGM.empty())
+        GAME->Stop_SoundChannel(SoundChannel::BGM, 0.f);
+    else
+        GAME->Play_BGM(_preBattleBGM, 1.f, true, 0.f);
+
     _preBattleBGM.clear();
+    _hasCapturedPreBattleBGM = false;
 }
 
 bool BattleController::Update_BattleTutorialGate(float timeDelta)

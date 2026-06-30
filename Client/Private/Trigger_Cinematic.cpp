@@ -1,4 +1,6 @@
 ﻿#include "Trigger_Cinematic.h"
+
+#include "BattleController.h"
 #include "Client_Constants.h"
 #include "ColliderCom.h"
 #include "Bounding_AABB.h"
@@ -69,7 +71,17 @@ void Trigger_Cinematic::OnBeginOverlap(Shared<ColliderCom> self, Shared<Collider
         self->Set_IsActive(false);
         self->Clear_Overlap();
 
-        const wstring sequencePath = Constants::Cinematic::RuntimeJson_Dir + _sequenceFileId;
+		const wstring sequencePath = Constants::Cinematic::RuntimeJson_Dir + _sequenceFileId;
+        const bool isBishopCinematic =
+            _sequenceFileId == Constants::Cinematic::BishopCinematicFileId;
+
+        if (isBishopCinematic)
+        {
+            if (const Shared<BattleController> battleController = CLIENT->Get_BattleController())
+                battleController->Capture_PreBattleBGM();
+
+            GAME->Play_BGM(Constants::SoundBGM::BishopBattleBossMain, 1.f, true, 0.f);
+        }
 
         CLIENT->Clear_CinematicCompletedCallbacks();
 

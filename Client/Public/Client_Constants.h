@@ -557,6 +557,9 @@ namespace Client::Constants::SoundBGM
         L"BGM/Gestral/MUS_ForgottenBattlefield_BT_Dualliste_PhaseTransition.wav";
     constexpr const wchar_t* DuallisteBattlePhase2Main =
         L"BGM/Gestral/MUS_ForgottenBattlefield_BT_Dualliste_Phase2_Main.wav";
+
+    constexpr const wchar_t* BishopBattleBossMain = L"BGM/SpringMeadow/MUS_SpringMeadows_BT_Boss_Main.wav";
+    constexpr const wchar_t* BishopBattleBossVictory = L"BGM/SpringMeadow/MUS_SpringMeadows_BT_Boss_VictoryScreen.wav";
 }
 
 namespace Client::Constants::Cinematic

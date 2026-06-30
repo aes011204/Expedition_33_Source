@@ -37,9 +37,7 @@ namespace
     constexpr char kBaguettePresentationId[] = "Baguette";
     constexpr char kPotatoBagPresentationId[] = "PotatoBag";
 
-    // 소스 몬스터 위치를 못 받을 때만 쓰는 fallback 좌표.
-    const Vec3 kBishopRewardPortalFallbackPosition = Vec3(-87.f, 19.47f, -118.f);
-    const Vec3 kBishopRewardPortalOffsetFromBishop = Vec3(0.f, 0.f, 3.f);
+    const Vec3 kBishopRewardPortalSpawnPosition = Vec3(143.70f, 21.65f, 0.54f);
     const Vec3 kBishopRewardPortalRotation = Vec3::Zero;
 
     Unlock_Manager::UnlockReward Make_CostumeReward(HeroId heroId, const char* presetId)
@@ -68,9 +66,8 @@ namespace
         reward.targetLevel = LevelType::GamePlay;
         reward.layerTag = kBishopRewardPortalLayer;
         reward.prefabName = kBishopRewardPortalPrefab;
-        reward.spawnPosition = kBishopRewardPortalFallbackPosition;
-        reward.useRewardOrigin = true;
-        reward.spawnOffsetFromOrigin = kBishopRewardPortalOffsetFromBishop;
+        reward.spawnPosition = kBishopRewardPortalSpawnPosition;
+        reward.useRewardOrigin = false;
         reward.spawnRotation = kBishopRewardPortalRotation;
         return reward;
     }
