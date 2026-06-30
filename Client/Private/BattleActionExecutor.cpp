@@ -104,7 +104,10 @@ void BattleActionExecutor::Begin_ActionPhase(BattleAction& action)
         action.Get_CurChar().actor->Get_Transform()->Get_Position(),
         Resolve_PhaseGoalPosition(action, phase));
 
-    if (phase.faceTarget)
+    if (phase.faceTarget &&
+        phase.movementPolicy != BattleMovementPolicy::MoveToTarget &&
+        phase.movementPolicy != BattleMovementPolicy::ReturnToOrigin &&
+        phase.movementPolicy != BattleMovementPolicy::RootMotionToTarget)
     {
         const Vec3 faceGoalPos =
             phase.targetAnchor == BattleTargetAnchor::Self
@@ -313,8 +316,6 @@ void BattleActionExecutor::Update_ActionMovement(float timeDelta, BattleAction& 
         return;
 
     const BattleActionPhase& phase = phases[action.GetCurAnimIndex()];
-    if (phase.movementPolicy == BattleMovementPolicy::Custom)
-        return;
 
     if (!action.Get_CurChar().actor || !action.Get_CurChar().ModelCom)
         return;
@@ -331,6 +332,9 @@ void BattleActionExecutor::Update_ActionMovement(float timeDelta, BattleAction& 
 
         SmoothFaceActionTarget(action, faceGoalPos, timeDelta);
     }
+
+    if (phase.movementPolicy == BattleMovementPolicy::Custom)
+        return;
 
     switch (phase.movementPolicy)
     {
