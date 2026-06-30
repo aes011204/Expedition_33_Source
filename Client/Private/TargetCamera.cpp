@@ -311,7 +311,11 @@ void TargetCamera::Update_SmoothedTargetPosition(const Vec3& targetPos, float ti
 {
     if (_currentState == TargetCameraMode::AIM)
     {
-        _smoothedTargetPos = targetPos; // FreeAim 중에는 플레이어 위치를 지연 없이 따라간다.
+        constexpr float kAimTargetFollowSpeed = 28.f;
+
+        _smoothedTargetPos.x = Math::Lerp_Damp(_smoothedTargetPos.x, targetPos.x, kAimTargetFollowSpeed, timeDelta);
+        _smoothedTargetPos.y = Math::Lerp_Damp(_smoothedTargetPos.y, targetPos.y, kAimTargetFollowSpeed, timeDelta);
+        _smoothedTargetPos.z = Math::Lerp_Damp(_smoothedTargetPos.z, targetPos.z, kAimTargetFollowSpeed, timeDelta);
         return;
     }
 
@@ -661,6 +665,17 @@ void TargetCamera::Change_Mode(TargetCameraMode mode)
 {
     const TargetCameraMode previousMode = _currentState;
     const bool wasBattleEnter = previousMode == TargetCameraMode::BATTLE_ENTER;
+    const bool isWorldFreeAimTransition =
+        (previousMode == TargetCameraMode::NORMAL && mode == TargetCameraMode::AIM) ||
+        (previousMode == TargetCameraMode::AIM && mode == TargetCameraMode::NORMAL);
+
+    float preservedCollisionDistance = -1.f;
+    if (isWorldFreeAimTransition && _transformCom != nullptr && _currentLookTarget.LengthSquared() > 0.0001f)
+    {
+        const Vec3 cameraToLookTarget = _transformCom->Get_WorldPosition() - _currentLookTarget;
+        if (cameraToLookTarget.LengthSquared() > 0.0001f)
+            preservedCollisionDistance = cameraToLookTarget.Length();
+    }
 
     if (previousMode != mode && mode != TargetCameraMode::SOULLIKE)
         Reset_RuntimeShake();
@@ -669,7 +684,7 @@ void TargetCamera::Change_Mode(TargetCameraMode mode)
 
     _collisionQueryAccum = 0.f;
     _hasCollisionQueryCache = false;
-    _collisionDistance = -1.f;
+    _collisionDistance = preservedCollisionDistance;
 
     if (wasBattleEnter)
         _battleEnterAcc = 0.f; // BattleTurnCamera/전투 종료 등 외부 전환으로 빠져나가도 다음 전투 진입은 0초부터 시작해야 한다.

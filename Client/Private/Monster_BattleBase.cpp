@@ -353,6 +353,11 @@ Monster_BattleBase::SkillChoiceContext Monster_BattleBase::Build_SkillChoiceCont
     context.previousPhase = _cachedContext.previousPhase;
     context.lastSkillIndex = _cachedContext._prevSkillKey[0];
     context.lastTargetIndex = _cachedContext._prevTarget[0];
+    for (int32 i = 0; i < 3; ++i)
+    {
+        context._prevSkillKey[i] = _cachedContext._prevSkillKey[i];
+        context._prevTarget[i] = _cachedContext._prevTarget[i];
+    }
 
     for (const BattleChar& hero : heroes)
     {

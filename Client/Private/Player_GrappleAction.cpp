@@ -13,6 +13,7 @@ namespace
 {
     constexpr float kGrappleActionSpeedScale = 1.5f;
     constexpr float kAnimationBlendDuration = 0.12f;
+    constexpr float kLookPrepareDuration = 0.2f;
 
     float EaseInOutQuint(float ratio)
     {
@@ -67,28 +68,19 @@ bool Player_GrappleAction::EnterInvoke()
     if (transform == nullptr)
         return false;
 
-    _launchStartPos = transform->Get_WorldPosition();
     _launchTargetPos = _request.targetPoint;
     _launchLookFromRotation = transform->Get_WorldRotationQuaternion();
     _launchLookToRotation = Resolve_TargetLookRotation(transform, _launchTargetPos);
+    _lookPrepareElapsed = 0.f;
     _hasActiveRequest = true;
-
-    Apply_GrappleAnimationSpeed(_bodyPlayer->Get_Model());
-    _movementCom->Sync_RuntimePositionToTransform();
-
-    _bodyPlayer->Set_AnimationSpeed(1.f);
-    _bodyPlayer->Set_AnimationByState(
-        ETOI(Body_Player::PlayerWorldAnimation::Pl_Grappling),
-        kAnimationBlendDuration,
-        false);
+    _isPreparingLook = true;
+    _isLaunching = false;
 
     return true;
 }
 
 void Player_GrappleAction::Update(float timeDelta)
 {
-    UNREFERENCED_PARAMETER(timeDelta);
-
     if (_controllerCom == nullptr || _stateCom == nullptr || _bodyPlayer == nullptr || _movementCom == nullptr)
     {
         if (_stateCom != nullptr)
@@ -116,12 +108,33 @@ void Player_GrappleAction::Update(float timeDelta)
         return;
     }
 
+    if (_isPreparingLook)
+    {
+        _lookPrepareElapsed += std::max(timeDelta, 0.f);
+        const float lookRatio = kLookPrepareDuration > 0.f ? _lookPrepareElapsed / kLookPrepareDuration : 1.f;
+
+        Apply_LookBlend(transform, _launchLookFromRotation, _launchLookToRotation, lookRatio);
+        _movementCom->Sync_RuntimePositionToTransform();
+
+        if (lookRatio >= 1.f)
+            Begin_GrappleLaunch(transform);
+
+        return;
+    }
+
+    if (!_isLaunching)
+    {
+        Finish_GrappleAction();
+        _stateCom->Change_State(PlayerState::Idle);
+        return;
+    }
+
     const float progress = _bodyPlayer->Get_AnimationProgress();
     const float moveRatio = EaseInOutQuint(progress);
     const Vec3 nextPos = Vec3::Lerp(_launchStartPos, _launchTargetPos, moveRatio);
 
     transform->Set_WorldPosition(nextPos);
-    Apply_LookBlend(transform, _launchLookFromRotation, _launchLookToRotation, moveRatio);
+    Apply_LookBlend(transform, _launchLookToRotation, _launchLookToRotation, 1.f);
     _movementCom->Sync_RuntimePositionToTransform();
 
     if (_bodyPlayer->Is_AnimationFinished())
@@ -153,6 +166,8 @@ void Player_GrappleAction::ExitInvoke()
         _controllerCom->Set_RigidControl(PlayerControllerCom::RigidControl{});
 
     _hasActiveRequest = false;
+    _isPreparingLook = false;
+    _isLaunching = false;
 }
 
 bool Player_GrappleAction::Is_GrapplingRequest() const
@@ -196,12 +211,34 @@ void Player_GrappleAction::Apply_LookBlend(
     transform->Set_WorldRotationQuaternion(blendedRotation);
 }
 
+void Player_GrappleAction::Begin_GrappleLaunch(const Shared<TransformCom>& transform)
+{
+    if (transform == nullptr || _bodyPlayer == nullptr || _movementCom == nullptr)
+        return;
+
+    _isPreparingLook = false;
+    _isLaunching = true;
+    _launchStartPos = transform->Get_WorldPosition();
+
+    Apply_LookBlend(transform, _launchLookToRotation, _launchLookToRotation, 1.f);
+    Apply_GrappleAnimationSpeed(_bodyPlayer->Get_Model());
+    _movementCom->Sync_RuntimePositionToTransform();
+
+    _bodyPlayer->Set_AnimationSpeed(1.f);
+    _bodyPlayer->Set_AnimationByState(
+        ETOI(Body_Player::PlayerWorldAnimation::Pl_Grappling),
+        kAnimationBlendDuration,
+        false);
+}
+
 void Player_GrappleAction::Finish_GrappleAction()
 {
     if (const Shared<Player_WorldBase> owner = _owner.lock())
         owner->End_WorldInteraction();
 
     _hasActiveRequest = false;
+    _isPreparingLook = false;
+    _isLaunching = false;
 }
 
 Shared<Player_GrappleAction> Player_GrappleAction::Create(const Shared<Player_WorldBase>& owner)

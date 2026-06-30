@@ -38,6 +38,12 @@ namespace BattleAnimUtils
 {
     BattleAnimType Resolve_BattleIdleAnimType(const BattleChar& actor)
     {
+        if (actor.statCom != nullptr &&
+            actor.statCom->Get_AliveStatus() == EAliveStatus::Dead)
+        {
+            return BattleAnimType::Dead; // 부활 전 사망자는 어떤 idle 복귀 요청도 Dead 상태로 고정한다.
+        }
+
         // 스턴 부여돼있으면 스턴 (파괴)
         if (Has_BattleBuff(actor, Buffs::Stun))
             return BattleAnimType::Idle_Stun;
@@ -101,6 +107,14 @@ namespace BattleAnimUtils
 
         BattleAnimType idleType = Resolve_BattleIdleAnimType(actor);
 
+        if (idleType == BattleAnimType::Dead)
+        {
+            if (actor.ModelCom->Get_AnimationStateIndex() != ETOI(BattleAnimType::Dead))
+                actor.ModelCom->Set_AnimationByState(ETOI(BattleAnimType::Dead), blendTime, false);
+
+            return;
+        }
+
         if (idleType == BattleAnimType::Waiting ||
             idleType == BattleAnimType::Base_Idle)
         {
@@ -129,6 +143,13 @@ namespace BattleAnimUtils
     {
         if (actor.ModelCom == nullptr)
             return false;
+
+        if (actor.statCom != nullptr &&
+            actor.statCom->Get_AliveStatus() == EAliveStatus::Dead)
+        {
+            Play_BattleIdle(actor, blendTime); // 죽은 액터는 Turn_Start fallback보다 Dead 유지가 우선이다.
+            return false;
+        }
 
         if (actor.ModelCom->Set_AnimationByState(ETOI(BattleAnimType::Turn_Start), blendTime, false))
             return true;

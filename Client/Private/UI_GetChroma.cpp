@@ -14,8 +14,10 @@ namespace
 {
     constexpr wchar_t kGetItemAnimationName[] = L"Get_Item";
     constexpr wchar_t kChromaRootName[] = L"Panel_Get_Chroma";
+    constexpr wchar_t kChromaLabelTextName[] = L"Text_Get_Chroma";
     constexpr wchar_t kChromaValueTextName[] = L"Text_Get_Chroma_Value";
     constexpr wchar_t kChromaPrototypeTagPrefix[] = L"GetChroma";
+    constexpr wchar_t kChromaLabelText[] = L"크로마";
 }
 
 HRESULT UI_GetChroma::Initialize(uint32 levelIndex)
@@ -104,7 +106,10 @@ HRESULT UI_GetChroma::Load_UI(uint32 levelIndex)
 
 HRESULT UI_GetChroma::Bind_UI()
 {
+    _chromaLabelText = Find_TypedUI<Engine::UI_Text>(_uiByName, kChromaLabelTextName, "GetChroma");
     _chromaValueText = Find_TypedUI<Engine::UI_Text>(_uiByName, kChromaValueTextName, "GetChroma");
+
+    CHECK_NULL(_chromaLabelText, E_FAIL);
     CHECK_NULL(_chromaValueText, E_FAIL);
 
     return S_OK;
@@ -123,6 +128,7 @@ void UI_GetChroma::Open_NextChroma()
         _elapsed = 0.f;
 
         Close_Root();
+        _chromaLabelText->Set_Text(kChromaLabelText);
         _chromaValueText->Set_Text(to_wstring(_activeChromaAmount));
         UI_RuntimePanelBase::Open();
         _root->Play_UIAnimation(kGetItemAnimationName, true);

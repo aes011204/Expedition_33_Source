@@ -1043,7 +1043,7 @@ void MapInstancedMesh::DispatchCull()
         params.planes[i] = planes[i];
     }
     params.totalCount = _instanceCount;
-    params.maxDist = INSTANCE_CULL_DIST;
+    params.maxDist = _cullDist;
     params.lod1Dist = _lodModels[1] ? _lod1Dist : params.maxDist;
     params.lod2Dist = _lodModels[2] ? _lod2Dist : params.maxDist;
 
@@ -1356,6 +1356,7 @@ json MapInstancedMesh::To_Json() const
     root["Visible"] = _visible;
     root["CullEnabled"] = _cullEnabled;
     root["CastShadow"] = _castShadow;
+    root["CullDist"] = _cullDist;
 
     json transformsArray = json::array();
     for (const auto& t : _transforms)
@@ -1378,6 +1379,7 @@ void MapInstancedMesh::From_Json(const json& node)
     _visible = node.value("Visible", true);
     _cullEnabled = node.value("CullEnabled", true);
     _castShadow = node.value("CastShadow", true);
+    _cullDist = node.value("CullDist", 125.f);
 
     if (node.contains("model_path"))
     {
