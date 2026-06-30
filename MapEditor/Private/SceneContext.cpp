@@ -2422,6 +2422,7 @@ void SceneContext::Import_MapInstance(const string& mapName)
                     obj->_visible = e.value("Visible", true);
                     obj->_cullEnabled = e.value("CullEnabled", true);
                     obj->_castShadow = e.value("CastShadow", true);
+                    obj->_instancedCullDist = e.value("CullDist", 125.f);
 
                     if (e.contains("Instances"))
                     {
