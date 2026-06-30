@@ -6,6 +6,7 @@
 #include "ClientInstance.h"
 #include "BattleController.h"
 #include "BattleStateMachine.h"
+#include "BattleMechanismCom.h"
 #include "CombatStatCom.h"
 #include "Battle_Event.h"
 
@@ -151,6 +152,7 @@ void ChooseSkill::Update(float timeDelta)
         return;
     }
 
+    // AP 부족 차단
     const uint32 apCost = skillData->apCost > 0 ? static_cast<uint32>(skillData->apCost) : 0u;
     if (request.actor.statCom->Get_CurAP() < apCost)
     {
@@ -161,13 +163,18 @@ void ChooseSkill::Update(float timeDelta)
         return;
     }
 
+    if (skillData->skillKey == "UnleashedCharge" &&
+        request.actor.mechanismCom != nullptr &&
+        !request.actor.mechanismCom->Can_UseGustaveOvercharge())
+    {
+        return;
+    }
+
     request.type = EBattleContext::Skill;
     request.skillKey = skillData->skillKey; // SkillTargeting에서 target까지 확정한 뒤 Execute_Skill로 넘긴다.
     owner->Ensure_EnemyTargetPreview();
 
     battleFSM->Change_State(BattleTurnState::SkillTargeting);
-
-
 }
 
 void ChooseSkill::LateUpdate(float timeDelta)

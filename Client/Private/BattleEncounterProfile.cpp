@@ -17,6 +17,12 @@ namespace
             true,       // 튜토리얼인지
             true // 플레이어 선 턴인지
         },
+        {
+            BattleEncounterIds::PotatoBagGradientTutorial,
+            {},          // 파티 구성은 기본 전투 구성을 그대로 사용한다.
+            false,       // Lancelier 튜토리얼 시퀀스와 섞지 않고 Gradient 카드만 별도 허용한다.
+            false
+        },
 
         // 나중에 필드별로 플레이어 스폰 구성이 달라지면 여기에 추가
     };

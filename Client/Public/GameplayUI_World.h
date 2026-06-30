@@ -18,6 +18,7 @@ class UI_GetCharacter;
 class UI_GetClothes;
 class UI_GetWeapon;
 class UI_GetPictos;
+class UI_GetChroma;
 class UI_InteractionPrompt;
 
 class ChangeSkill_Panel;
@@ -51,6 +52,7 @@ public:
     bool    Request_ArenaCharacterSelect();
     bool    Request_MerchantShop();
     bool    Request_WeaponUpgrade();
+    void    Queue_GetChromaPresentation(uint32 chromaAmount);
 
 private:
     void    Handle_SavePointAction(SavePoint_Panel::SavePointAction action);
@@ -71,10 +73,12 @@ private:
     void    Try_ShowPendingGetClothes();
     void    Try_ShowPendingGetWeapon();
     void    Try_ShowPendingGetPictos();
+    void    Try_ShowPendingGetChroma();
     bool    Is_GetCharacterOpen() const;
     bool    Is_GetClothesOpen() const;
     bool    Is_GetWeaponOpen() const;
     bool    Is_GetPictosOpen() const;
+    bool    Is_GetChromaOpen() const;
     bool    Is_GradientSkillPreviewTestOpen() const;
 
 private:
@@ -107,6 +111,7 @@ private:
     Unique<UI_GetClothes>               _getClothesPanel;
     Unique<UI_GetWeapon>                _getWeaponPanel;
     Unique<UI_GetPictos>                _getPictosPanel;
+    Unique<UI_GetChroma>                _getChromaPanel;
     Unique<UI_Replay>                   _replayPanel;
 
     Unique<UI_ArenaCharacterSelect>     _arenaCharacterSelectPanel;
@@ -120,6 +125,7 @@ private:
     vector<GameplayMenu>                _menuStack{};
     GamePlayMenuFade                    _menuFade{};
     vector<string>                      _pendingGetPictosIds{};
+    vector<uint32>                      _pendingGetChromaAmounts{};
 
 public:
     static Unique<GameplayUI_World> Create(uint32 levelIndex);

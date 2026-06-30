@@ -103,11 +103,14 @@ public:
     float Get_PlayerHitPushDuration() const { return _playerHitPushDuration; }
 
     uint32 Get_HealingPotionCount() const { return _healingPotionCount; }
+    bool   Try_ApplyHealingPotion(const Shared<SL_Maelle>& player);
+
     float Get_EstherGaugeRatio() const;
 
     bool    Notify_EstherAttack(GameObject* notifyOwner);
 
     bool    Is_VictoryCameraBlocked() const;
+
 
 private:
     void    Request_SoulLikeCamera(bool alignBehindPlayer = false);

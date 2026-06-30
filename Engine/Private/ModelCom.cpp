@@ -2654,6 +2654,7 @@ HRESULT ModelCom::Ready_Model(const char* modelPath)
         _localBoundsMin = minBounds;
         _localBoundsMax = maxBounds;
     }
+
     stream.close();
 
     CHECK_FAILED(Try_LoadMorphData(resolvedPath), E_FAIL);

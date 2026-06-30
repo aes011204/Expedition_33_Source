@@ -1,6 +1,21 @@
 ﻿#include "ANS_WorldTimeScale.h"
 #include "ClientInstance.h"
-#include  "GameInstance.h"
+#include "GameInstance.h"
+
+#include <algorithm>
+
+namespace
+{
+    struct WorldTimeScaleSection
+    {
+        uint64 id = 0;
+        float worldTimeScale = 1.f;
+    };
+
+    uint64 g_nextWorldTimeScaleSectionId = 1;
+    float g_worldTimeScaleRestoreBase = 1.f;
+    vector<WorldTimeScaleSection> g_activeWorldTimeScaleSections;
+}
 
 IMPLEMENT_REFLECTION(ANS_WorldTimeScale)
 {
@@ -15,7 +30,18 @@ IMPLEMENT_REFLECTION(ANS_WorldTimeScale)
 
 void ANS_WorldTimeScale::On_Begin(const AnimNotifyContext& context)
 {
-    _restoreWorldTimeScale= GAME->Get_WorldTimeScale();
+    UNREFERENCED_PARAMETER(context);
+
+    if (_isApplied)
+        return;
+
+    if (g_activeWorldTimeScaleSections.empty())
+        g_worldTimeScaleRestoreBase = GAME->Get_WorldTimeScaleRestoreBase();
+
+    _activeSectionId = g_nextWorldTimeScaleSectionId++;
+    _isApplied = true;
+
+    g_activeWorldTimeScaleSections.push_back({ _activeSectionId, _worldTimeScale });
     GAME->Set_WorldTimeScale(_worldTimeScale);
 }
 
@@ -26,6 +52,24 @@ void ANS_WorldTimeScale::On_Tick(const AnimNotifyContext& context)
 
 void ANS_WorldTimeScale::On_End(const AnimNotifyContext& context)
 {
+    UNREFERENCED_PARAMETER(context);
 
-   GAME->Set_WorldTimeScale(_restoreWorldTimeScale);
+    if (!_isApplied)
+        return;
+
+    auto it = std::remove_if(g_activeWorldTimeScaleSections.begin(), g_activeWorldTimeScaleSections.end(),
+        [this](const WorldTimeScaleSection& section)
+        {
+            return section.id == _activeSectionId;
+        });
+
+    g_activeWorldTimeScaleSections.erase(it, g_activeWorldTimeScaleSections.end());
+
+    if (g_activeWorldTimeScaleSections.empty())
+        GAME->Set_WorldTimeScale(g_worldTimeScaleRestoreBase);
+    else
+        GAME->Set_WorldTimeScale(g_activeWorldTimeScaleSections.back().worldTimeScale);
+
+    _activeSectionId = 0;
+    _isApplied = false;
 }

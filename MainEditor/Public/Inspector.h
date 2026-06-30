@@ -73,6 +73,7 @@ private:
     static bool Draw_UIFloatRow(const char* label, const string& id, float& value, float speed = 0.01f);
 
     static void Draw_Components(const Shared<GameObject>& target);
+    static void Draw_ModelLocalBounds(const Shared<GameObject>& target);
     static void Draw_ObjectReflection(const Shared<GameObject>& target);
     static bool Draw_MonsterBattlePrefabList(const Shared<GameObject>& target);
 

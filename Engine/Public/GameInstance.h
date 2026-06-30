@@ -138,6 +138,7 @@ public:
     void Stop_WorldTimeSlow();
 
     float Get_WorldTimeScale() const { return _worldTimeScale; }
+    float Get_WorldTimeScaleRestoreBase() const { return _isWorldTimeSlowActive ? _worldTimeScaleBeforeSlow : _worldTimeScale; }
     float Get_UnscaledTimeDelta() const { return _unscaledTimeDelta; }
     float Get_WorldTimeDelta() const { return _worldTimeDelta; }
 

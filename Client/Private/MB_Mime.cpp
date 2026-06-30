@@ -113,20 +113,6 @@ bool MB_Mime::Try_ApplyBattleBreakOnDamage(const DamageAppliedInfo& info)
     return true;
 }
 
-bool MB_Mime::Try_GetDamageFeedbackSocketWorldPosition(Vec3& outWorldPos) const
-{
-    if (_body == nullptr)
-        return false;
-
-    const Matrix* socketMatrix = _body->Get_SocketBoneMatrixPtr("root");
-    if (socketMatrix == nullptr)
-        return false;
-
-    const Matrix socketWorldMatrix = *socketMatrix * _body->Get_CombinedWorldMatrix();
-    outWorldPos = Vec3(socketWorldMatrix._41, socketWorldMatrix._42, socketWorldMatrix._43);
-    return true;
-}
-
 HRESULT MB_Mime::Ready_PartObjects()
 {
     Mon_Mime_Body::BODY_DESC bodyDesc{};

@@ -34,6 +34,8 @@ enum class SL_PlayerState
     Jump,
     JumpCounter,
 
+    UseItem,
+
     End
 };
 
@@ -98,6 +100,8 @@ enum class SoulLikeAnim
 
     Idle_To_Run,
     Run_To_Idle,
+
+    UseHeal,
 };
 
 enum class SL_DodgeDirection

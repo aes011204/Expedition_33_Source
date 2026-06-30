@@ -71,6 +71,8 @@ public: /* 구스타브 */
     int32   Get_GustaveCharge() const { return _gustave.currentCharge; }
     int32   Get_GustaveMaxCharge() const { return _gustave.maxCharge; }
 
+    bool    Can_UseGustaveOvercharge() const;
+
     void    Add_GustaveCharge(int32 amount = 1);
     int32   Consume_AllGustaveCharge(); // 과충전 사용
     void    Clear_GustaveCharge();

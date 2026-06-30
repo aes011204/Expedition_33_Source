@@ -75,6 +75,11 @@ void BattleMechanismCom::Reset_ForHero(HeroId heroId)
     }
 }
 
+bool BattleMechanismCom::Can_UseGustaveOvercharge() const
+{
+    return Is_Gustave() && _gustave.currentCharge >= _gustave.maxCharge; // 과충전 사용 가능
+}
+
 void BattleMechanismCom::Add_GustaveCharge(int32 amount)
 {
     if (!Is_Gustave() || amount <= 0)

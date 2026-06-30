@@ -53,6 +53,8 @@ namespace
     bool g_debugDisableMapInstancedMeshRender = false;
     bool g_debugDisableGrassInstancedRender = false;
     bool g_debugDisableMapStaticMeshRender = false;
+    uint32 g_debugMapInstancedVisibleCountReadbackRequestId = 0;
+    bool g_debugForceGestralPalisadeInstancedCull = false;
     bool g_debugDisableMapInstancedMeshShadow = false;
     bool g_debugUseMapInstancedMeshShadowLOD = false;
     bool g_debugDisableGrassInstancedShadow = false;
@@ -381,6 +383,28 @@ bool ClientInstance::Is_DebugDisableMapStaticMeshRender()
 void ClientInstance::Set_DebugDisableMapStaticMeshRender(bool disabled)
 {
     g_debugDisableMapStaticMeshRender = disabled;
+}
+
+void ClientInstance::Request_DebugMapInstancedVisibleCountReadback()
+{
+    ++g_debugMapInstancedVisibleCountReadbackRequestId;
+    if (g_debugMapInstancedVisibleCountReadbackRequestId == 0)
+        g_debugMapInstancedVisibleCountReadbackRequestId = 1;
+}
+
+uint32 ClientInstance::Get_DebugMapInstancedVisibleCountReadbackRequestId()
+{
+    return g_debugMapInstancedVisibleCountReadbackRequestId;
+}
+
+bool ClientInstance::Is_DebugForceGestralPalisadeInstancedCull()
+{
+    return g_debugForceGestralPalisadeInstancedCull;
+}
+
+void ClientInstance::Set_DebugForceGestralPalisadeInstancedCull(bool enabled)
+{
+    g_debugForceGestralPalisadeInstancedCull = enabled;
 }
 
 bool ClientInstance::Is_DebugDisableMapInstancedMeshShadow()
@@ -1248,6 +1272,10 @@ bool ClientInstance::Request_DialogueBattlePotatoBag()
     if (Is_BattleActive() || Is_BattleEntering())
         return false;
 
+    // 감자자루 전투 진입 시, 특정 해금 진행
+    RuntimeRuleStateService::Apply_ToCurrentRuntime(
+        RuntimeRuleStateService::Build_PotatoBagStartUnlocks(), false);
+
     BattleMonsterSpawnDesc spawnDesc{};
     spawnDesc.prefabName = Constants::Prefab::MB_PotatoBag;
 
@@ -1261,7 +1289,7 @@ bool ClientInstance::Request_DialogueBattlePotatoBag()
 
     OnEnterBattleField(
         Constants::Value::potatoBagEncounterId,
-        false,
+        true,
         Resolve_BattleEncounterHeroIds(Constants::Value::potatoBagEncounterId),
         battleMonsterSpawnDescs,
         nullptr,
@@ -1280,6 +1308,13 @@ bool ClientInstance::Is_BattleActive() const
 bool ClientInstance::Is_BattleEntering() const
 {
     return _battleController && _battleController->Is_BattleEntering();
+}
+
+bool ClientInstance::Is_PotatoBagBattleActive() const
+{
+    // 감자자루랑 전투중일 때에만 NPC가 보이게 처리하ㅣㄱ
+    return _battleController &&
+        _battleController->Is_BattleFieldActiveOrEntering(Constants::Value::potatoBagEncounterId);
 }
 
 void ClientInstance::Request_GamePlay()
