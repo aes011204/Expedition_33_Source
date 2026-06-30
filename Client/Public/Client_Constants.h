@@ -563,7 +563,7 @@ namespace Client::Constants::Cinematic
 {
     inline constexpr wchar_t RuntimeJson_Dir[] = L"../../../Client/Bin/Resources/Data/json/Cinematics/";
     inline constexpr wchar_t BridgeCinematic[] = L"../../../Client/Bin/Resources/Data/json/Cinematics/Bridge.json";
-    inline constexpr wchar_t BishopCinematicFileId[] = L"Bishop_Cinematic.json";
+    inline constexpr wchar_t BishopCinematicFileId[] = L"Bishop_Cinematic_2.json";
 
     inline constexpr wchar_t Dualliste_Intro[] = L"Dualliste_1.json";
     inline constexpr wchar_t Dualliste_PhaseChange[] = L"Dualliste.json";

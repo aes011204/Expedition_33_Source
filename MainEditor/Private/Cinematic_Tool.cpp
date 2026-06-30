@@ -2992,7 +2992,7 @@ void Cinematic_Tool::Render_SelectedActorRelativeCameraKeyframeEditor(CINEMATIC_
 
 void Cinematic_Tool::Render_SelectedModifierKeyframeEditor(CameraKeyframe& keyframe)
 {
-    const float maxTime = Evaluate_CinematicSequenceTime(_sequence, _sequence.endFrame);
+    const float maxTime = Evaluate_CinematicSequenceTime(_sequence, static_cast<float>(_sequence.endFrame));
     bool needsSort = false;
     bool previewChanged = false;
 
@@ -3374,7 +3374,7 @@ void Cinematic_Tool::Render_PreviewState()
     CINEMATIC_KEYFRAME* rightKey = nullptr;
 
     if (selectedTrack != nullptr)
-        Find_SurroundingKeyFrames(selectedTrack, _currentFrame, leftKey, rightKey);
+        Find_SurroundingKeyFrames(selectedTrack, static_cast<float>(_currentFrame), leftKey, rightKey);
 
     const int keyCount = selectedTrack ? static_cast<int>(selectedTrack->keyframes.size()) : 0;
 
@@ -4144,8 +4144,8 @@ void Cinematic_Tool::Apply_CurrentFramePose()
         return;
     }
 
-    const Client::CameraModifierSample modifierSample = Evaluate_CinematicModifierSample(_sequence, _currentFrame);
-    const float sequenceTime = Evaluate_CinematicSequenceTime(_sequence, _currentFrame);
+    const Client::CameraModifierSample modifierSample = Evaluate_CinematicModifierSample(_sequence, static_cast<float>(_currentFrame));
+    const float sequenceTime = Evaluate_CinematicSequenceTime(_sequence, static_cast<float>(_currentFrame));
 
     freeCamera->Get_Transform()->Set_WorldPosition(camPose.position);
     freeCamera->Get_Transform()->Set_RotationEuler(camPose.rotation);
