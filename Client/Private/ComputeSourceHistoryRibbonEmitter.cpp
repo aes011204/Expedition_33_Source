@@ -718,12 +718,14 @@ void ComputeSourceHistoryRibbonEmitter::Build_RenderSamples(
     vector<HistorySample> sourceSamples{};
     sourceSamples.reserve(history.size() + (currentSourcePosition != nullptr ? 1u : 0u));
     if (currentSourcePosition != nullptr)
+    {
         sourceSamples.push_back(
             HistorySample{
                 .position = *currentSourcePosition,
                 .serial = !history.empty() ? history.front().serial : _sampleSerialCounter
             }
         );
+    }
     sourceSamples.insert(sourceSamples.end(), history.begin(), history.end());
 
     if (sourceSamples.empty())
@@ -926,6 +928,7 @@ void ComputeSourceHistoryRibbonEmitter::Retire_HistoryStroke(
     {
         if (history.empty() ||
             (history.front().position - *currentSourcePosition).Length() > kMinRenderableRibbonLength)
+        {
             history.insert(
                 history.begin(),
                 HistorySample{
@@ -934,6 +937,7 @@ void ComputeSourceHistoryRibbonEmitter::Retire_HistoryStroke(
                     .serial = !history.empty() ? history.front().serial : _sampleSerialCounter++
                 }
             );
+        }
         else
         {
             history.front().position = *currentSourcePosition;
@@ -1362,9 +1366,7 @@ Vec3 ComputeSourceHistoryRibbonEmitter::Resolve_SourceBasisAxis() const
         sourceTransform = sourceEmitter != nullptr ? sourceEmitter->Get_Transform() : nullptr;
     }
     else
-    {
         sourceTransform = _transformCom;
-    }
 
     if (sourceTransform == nullptr)
         return Vec3{};

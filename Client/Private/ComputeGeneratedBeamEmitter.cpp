@@ -872,14 +872,14 @@ HRESULT ComputeGeneratedBeamEmitter::Append_SegmentPayloads(vector<SegmentPayloa
 
             SegmentPayload payload{};
             payload.previousPosition =
-                Vec4(previousSource.position.x, previousSource.position.y, previousSource.position.z, (!clippedSegmentStart && index > 0u) ? 1.f : 0.f);
+                Vec4(previousSource.position.x, previousSource.position.y, previousSource.position.z, !clippedSegmentStart && index > 0u ? 1.f : 0.f);
             payload.currentPosition = Vec4(clippedCurrent.position.x, clippedCurrent.position.y, clippedCurrent.position.z, 1.f);
             payload.nextPosition = Vec4(clippedNext.position.x, clippedNext.position.y, clippedNext.position.z, 1.f);
             payload.nextNextPosition = Vec4(
                 nextNext.position.x,
                 nextNext.position.y,
                 nextNext.position.z,
-                (!clippedSegmentEnd && index + 2u < pathSamples.size()) ? 1.f : 0.f
+                !clippedSegmentEnd && index + 2u < pathSamples.size() ? 1.f : 0.f
             );
             payload.currentSampleParams =
                 Vec4(clippedCurrent.age, visualLife, (clippedCurrent.distance - visibleStartDistance) * uvDistanceScale, baseWidth * pathEntry.widthScale);

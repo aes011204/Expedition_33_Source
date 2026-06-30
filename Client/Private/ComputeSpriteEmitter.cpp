@@ -1148,12 +1148,12 @@ ComputePointParticleDesc ComputeSpriteEmitter::Make_ComputePointParticleDesc() c
     Vec3 coreColorRgbUniformMax{};
     uint32 coreColorRgbUniformSeed{};
     if (Resolve_ParticleLifeCoreColorRgbUniformSampleDesc(
-            _desc.required.material.coreColorRgbModulation,
-            _effectPlaybackSeed,
-            coreColorRgbUniformMin,
-            coreColorRgbUniformMax,
-            coreColorRgbUniformSeed
-        ))
+        _desc.required.material.coreColorRgbModulation,
+        _effectPlaybackSeed,
+        coreColorRgbUniformMin,
+        coreColorRgbUniformMax,
+        coreColorRgbUniformSeed
+    ))
     {
         desc.coreColorRgbParticleLifeUniformParams = Vec4{ 1.f, 0.f, 0.f, 0.f };
         desc.coreColorRgbParticleLifeUniformMin = Vec4{ coreColorRgbUniformMin.x, coreColorRgbUniformMin.y, coreColorRgbUniformMin.z, 0.f };

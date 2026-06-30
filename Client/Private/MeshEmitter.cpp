@@ -1683,9 +1683,7 @@ void MeshEmitter::Update_Particles(float timeDelta)
             }
         }
         else
-        {
             particle.rotationRadians += scaledAngularVelocity * safeDeltaTime;
-        }
     }
 }
 
@@ -1755,10 +1753,10 @@ Matrix MeshEmitter::Build_InstanceMatrix(const MeshParticleState& particle) cons
 
     Quat rotation = _desc.meshTransform.initialAngularVelocityInWorldSpace
                     ? particle.rotationQuat * Quat::CreateFromYawPitchRoll(
-                        XMConvertToRadians(rotationByLife.y),
-                        XMConvertToRadians(rotationByLife.x),
-                        XMConvertToRadians(rotationByLife.z)
-                    )
+                          XMConvertToRadians(rotationByLife.y),
+                          XMConvertToRadians(rotationByLife.x),
+                          XMConvertToRadians(rotationByLife.z)
+                      )
                     : Quat::CreateFromYawPitchRoll(rotationRadians.y, rotationRadians.x, rotationRadians.z);
     rotation.Normalize();
 
