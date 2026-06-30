@@ -99,6 +99,45 @@ namespace
             MapAdapter::AppendModelOverridesFromMaterialMapName(mapName, outOverrides);
     }
 
+    string Build_InstancedMeshDisplayName(const vector<json>& instancedMeshes, const vector<size_t>& groupIndices)
+    {
+        vector<string> names{};
+        names.reserve(groupIndices.size());
+        size_t instanceCount = 0;
+
+        for (size_t idx : groupIndices)
+        {
+            if (idx >= instancedMeshes.size())
+                continue;
+
+            const json& entry = instancedMeshes[idx];
+            string name = entry.value("Id", string{});
+            if (name.empty())
+                name = fs::path(entry.value("ModelPath", string{})).stem().string();
+
+            Append_UniqueString(names, std::move(name));
+
+            if (entry.contains("Instances") && entry["Instances"].is_array())
+                instanceCount += entry["Instances"].size();
+        }
+
+        if (names.empty())
+            return {};
+
+        string label{};
+
+        if (names.size() == 1)
+            label = names.front();
+        else if (names.size() == 2)
+            label = names[0] + ", " + names[1];
+        else
+            label = names[0] + " +" + to_string(names.size() - 1);
+
+        label += " (cnt:" + to_string(instanceCount) + ")";
+
+        return label;
+    }
+
     void Apply_PostProcessVolumes(const vector<json>& postProcessVolumes)
     {
         FogZoneCB fogCB{};
@@ -1048,6 +1087,8 @@ HRESULT MapLoader::Process_LoadSession(LoadSession& session, size_t maxMeshesPer
         desc.visible = true;
         desc.cullEnabled = true;
         desc.castShadow = true;
+        desc.displayName = String::ToWString(
+            Build_InstancedMeshDisplayName(session.instancedMeshes, groupIndices));
 
         for (size_t idx : groupIndices)
         {
@@ -1135,6 +1176,7 @@ HRESULT MapLoader::Process_LoadSession(LoadSession& session, size_t maxMeshesPer
         {
             MapInstancedMesh::MAPINSTANCEDMESH_DESC chunkDesc{};
             chunkDesc.modelPath = desc.modelPath;
+            chunkDesc.displayName = desc.displayName;
             chunkDesc.model = desc.model;
             chunkDesc.collisionData = desc.collisionData;
             chunkDesc.transforms = chunkTransforms;
