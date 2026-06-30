@@ -169,6 +169,10 @@ void Monster_Part::Priority_Update(float timeDelta)
 void Monster_Part::Update(float timeDelta)
 {
     Update_CombinedWorldMatrix(_transformCom->Get_WorldMatrix());
+
+    if (_partEffectCom)
+        _partEffectCom->Update(timeDelta);
+
 }
 
 void Monster_Part::Late_Update(float timeDelta)
