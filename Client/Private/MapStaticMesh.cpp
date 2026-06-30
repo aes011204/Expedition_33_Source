@@ -287,6 +287,16 @@ void MapStaticMesh::Late_Update(float timeDelta)
                     DrawStaticCollisionDebug(_collisionData, _transformCom->Get_WorldMatrix());
             }
         }
+
+        //if (g_showCollisionDebug)
+        //{
+        //    DebugBoxDesc boundsDesc{};
+        //    boundsDesc.center = worldBox.Center;
+        //    boundsDesc.extents = worldBox.Extents;
+        //    boundsDesc.style.color = Color(1.f, 1.f, 1.f, 1.f);
+        //    boundsDesc.style.depthEnabled = false;
+        //    GAME->Draw_DebugBox(boundsDesc);
+        //}
     }
 
     GAME->Add_RenderGroup(RenderGroup::NonBlend, GetSharedPtr<GameObject>());
