@@ -8,7 +8,7 @@
 cbuffer cbEffectRibbonDistortion : register(b2)
 {
     float4 g_Tint = { 1.f, 1.f, 1.f, 1.f };
-    float4 g_EffectRibbonAxisParams = { 0.f, 1.f, 0.f, 0.f }; // x: renderAxis, y: visibleLength, z: tilingDistance, w: smooth start tangent
+    float4 g_EffectRibbonAxisParams = { 0.f, 1.f, 0.f, 0.f }; // x: spread basis, y: visibleLength, z: spread angle radians, w: smooth start tangent
     float4 g_EffectRibbonFallbackAxis = { 1.f, 0.f, 0.f, 0.f };
     float4 g_EffectDistortionParams = { 0.f, 1.f, 0.f, 0.f }; // x: intensity, y: presence, z: useFlow, w: material time
     float4 g_DistortionScreenSize = { 1.f, 1.f, 0.f, 0.f };
@@ -29,6 +29,8 @@ Texture2D g_FlowTexture : register(t3);
 static const int RIBBON_RENDER_AXIS_CAMERA_UP = 0;
 static const int RIBBON_RENDER_AXIS_VIEW_UP = 1;
 static const int RIBBON_RENDER_AXIS_WORLD_UP = 2;
+static const int RIBBON_RENDER_AXIS_SOURCE_UP = 3;
+static const int RIBBON_RENDER_AXIS_SOURCE_RIGHT = 4;
 static const float kRibbonEdgeFade = 0.04f;
 
 float3 NormalizeOrFallback(float3 value, float3 fallbackAxis)
@@ -78,10 +80,27 @@ float3 Resolve_RibbonSide(float3 currentPosition, float3 tangent)
         axis = Resolve_ViewUpAxis();
     else if (renderAxis == RIBBON_RENDER_AXIS_WORLD_UP)
         axis = float3(0.f, 1.f, 0.f);
+    else if (renderAxis == RIBBON_RENDER_AXIS_SOURCE_UP || renderAxis == RIBBON_RENDER_AXIS_SOURCE_RIGHT)
+        axis = fallbackAxis;
 
     float3 side = NormalizeOrFallback(cross(axis, tangent), fallbackAxis);
     if (abs(dot(side, tangent)) > 0.98f)
         side = NormalizeOrFallback(cross(Resolve_ViewUpAxis(), tangent), fallbackAxis);
+
+    const float rollRadians = g_EffectRibbonAxisParams.z;
+    if (abs(rollRadians) > 0.00001f)
+    {
+        float sinRoll = 0.f;
+        float cosRoll = 1.f;
+        sincos(rollRadians, sinRoll, cosRoll);
+        const float3 normalizedTangent = NormalizeOrFallback(tangent, float3(0.f, 0.f, 1.f));
+        side = NormalizeOrFallback(
+            side * cosRoll +
+            cross(normalizedTangent, side) * sinRoll +
+            normalizedTangent * dot(normalizedTangent, side) * (1.f - cosRoll),
+            fallbackAxis
+        );
+    }
 
     return side;
 }

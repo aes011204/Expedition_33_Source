@@ -85,6 +85,7 @@ private: //## Types::PlaybackRuntime
         float collapseLength{ -1.f };
         float age{};
         float missingTime{};
+        Vec3 headOffset{};
         bool activeThisFrame{};
         bool hasPreviousSourcePosition{};
     };
@@ -152,6 +153,7 @@ private: //## Data::PlaybackRuntime
     float _selfRootCollapseLength{ -1.f };
     Vec3 _selfRootSourcePosition{};
     Vec3 _selfRootPreviousSourcePosition{};
+    Vec3 _selfRootHeadOffset{};
     bool _hasSelfRootPreviousSourcePosition{};
     vector<HistoryLane> _sourceLanes{};
     vector<RetiredLoopStroke> _retiredLoopStrokes{};
@@ -224,6 +226,9 @@ private: //## Helper::Render
     HRESULT Bind_ShaderResources();
     HRESULT Bind_MaterialResources();
     HRESULT Bind_DistortionResources();
+    EffectRibbonRenderAxis Resolve_RibbonRenderAxis() const;
+    Vec4 Resolve_RibbonFallbackAxis() const;
+    Vec3 Resolve_SourceBasisAxis() const;
     bool Can_SubmitRender() const;
     uint32 Compute_MaxLaneRenderSegmentCount() const;
     uint32 Compute_MaxRenderSegmentCount() const;
@@ -238,6 +243,9 @@ private: //## Helper::Render
     const wchar_t* Resolve_ShaderId() const;
     uint32 Resolve_ShaderPassIndex() const;
     int Resolve_OpacitySourceIndex() const;
+    Vec3 Sample_HeadOffset(uint32 seed) const;
+    Vec3 Resolve_HeadOffsetWorld(const Vec3& localOffset) const;
+    Vec3 Apply_HeadOffset(const Vec3& sourcePosition, const Vec3& localOffset) const;
     bool Try_Resolve_SourcePosition(Vec3& outPosition) const;
     Vec3 Resolve_SourcePosition() const;
     Vec4 Evaluate_ColorOverLife(float lifeProgress) const;

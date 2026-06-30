@@ -89,6 +89,71 @@ namespace Internal
             NearlyEqual(lhs.w, rhs.w);
     }
 
+    static const char* Get_RibbonSpreadBasisLabel(RibbonSpreadBasis value)
+    {
+        switch (value)
+        {
+        case RibbonSpreadBasis::CameraFacing:
+            return "카메라 바라보기";
+        case RibbonSpreadBasis::ViewUp:
+            return "화면 위쪽";
+        case RibbonSpreadBasis::WorldUp:
+            return "월드 위쪽";
+        case RibbonSpreadBasis::SourceUp:
+            return "소스 위쪽";
+        case RibbonSpreadBasis::SourceRight:
+            return "소스 오른쪽";
+        default:
+            return "카메라 바라보기";
+        }
+    }
+
+    static bool Draw_RibbonSpreadBasisProperty(
+        DetailPropertyContext& detailContext,
+        RibbonSpreadBasis& value,
+        RibbonSpreadBasis defaultValue)
+    {
+        bool changed = false;
+
+        ImGui::PushID("RibbonSpreadBasis");
+        detailContext.Draw_PropertyLabel("펼침 기준", "리본 중심선을 기준으로 폭 방향을 계산할 때 사용할 기준축입니다.");
+        ImGui::SetNextItemWidth(-FLT_MIN);
+        if (ImGui::BeginCombo("##Value", Get_RibbonSpreadBasisLabel(value)))
+        {
+            constexpr RibbonSpreadBasis kValues[] = {
+                RibbonSpreadBasis::CameraFacing,
+                RibbonSpreadBasis::ViewUp,
+                RibbonSpreadBasis::WorldUp,
+                RibbonSpreadBasis::SourceUp,
+                RibbonSpreadBasis::SourceRight,
+            };
+
+            for (const RibbonSpreadBasis candidate : kValues)
+            {
+                const bool isSelected = value == candidate;
+                if (ImGui::Selectable(Get_RibbonSpreadBasisLabel(candidate), isSelected))
+                {
+                    value = candidate;
+                    changed = true;
+                }
+
+                if (isSelected)
+                    ImGui::SetItemDefaultFocus();
+            }
+
+            ImGui::EndCombo();
+        }
+
+        if (detailContext.Draw_ResetButton(value != defaultValue))
+        {
+            value = defaultValue;
+            changed = true;
+        }
+        ImGui::PopID();
+
+        return changed;
+    }
+
     static bool Is_SameAdditiveContribution(
         const EffectMaterialAdditiveContributionData& lhs,
         const EffectMaterialAdditiveContributionData& rhs)
@@ -2762,10 +2827,11 @@ bool InitialMeshSizeModuleDetail::Draw(AuthoringEmitter&, AuthoringModule&, Init
     return changed;
 }
 
-bool InitialLocationModuleDetail::Draw(AuthoringEmitter&, AuthoringModule&, InitialLocationModuleData& data, DetailPropertyContext& detailContext)
+bool InitialLocationModuleDetail::Draw(AuthoringEmitter& emitter, AuthoringModule&, InitialLocationModuleData& data, DetailPropertyContext& detailContext)
 {
     const InitialLocationModuleData defaultData{};
     bool changed = false;
+    const bool isRibbon = emitter.typeData.kind == AuthoringTypeDataKind::Ribbon;
 
     if (ImGui::CollapsingHeader("위치", ImGuiTreeNodeFlags_DefaultOpen))
     {
@@ -2777,8 +2843,38 @@ bool InitialLocationModuleDetail::Draw(AuthoringEmitter&, AuthoringModule&, Init
             false,
             true,
             nullptr,
-            "spawn 시점에 한 번 샘플되는 emitter origin 기준 local offset입니다."
+            isRibbon
+                ? "Ribbon이 source history Head에 더하는 emitter local offset입니다."
+                : "spawn 시점에 한 번 샘플되는 emitter origin 기준 local offset입니다."
         );
+    }
+
+    return changed;
+}
+
+bool RibbonOrientationModuleDetail::Draw(AuthoringEmitter&, AuthoringModule&, RibbonOrientationModuleData& data, DetailPropertyContext& detailContext)
+{
+    const RibbonOrientationModuleData defaultData{};
+    bool changed = false;
+
+    if (ImGui::CollapsingHeader("리본 방향", ImGuiTreeNodeFlags_DefaultOpen))
+    {
+        if (detailContext.Begin_PropertyTable("RibbonOrientation"))
+        {
+            changed |= Internal::Draw_RibbonSpreadBasisProperty(
+                detailContext,
+                data.spreadBasis,
+                defaultData.spreadBasis
+            );
+            changed |= detailContext.Draw_FloatProperty(
+                "펼침 각도",
+                data.spreadAngleDegrees,
+                defaultData.spreadAngleDegrees,
+                0.1f,
+                "선택한 펼침 기준으로 만든 폭 방향을 리본 tangent 축 기준으로 추가 회전하는 각도입니다."
+            );
+            detailContext.End_PropertyTable();
+        }
     }
 
     return changed;

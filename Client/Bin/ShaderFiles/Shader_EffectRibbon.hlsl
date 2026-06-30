@@ -26,7 +26,7 @@ cbuffer cbEffectRibbonMaterial : register(b2)
     float4 g_EffectRibbonAdditiveFlags = { 1.f, 0.f, 0.f, 0.f };
     float4 g_EffectRibbonCoreEmissiveParams = { 0.f, 4.f, 2.f, 1.f };     // x: enabled, y: corePower, z: coreIntensity, w: outerPower
     float4 g_EffectRibbonCoreEmissiveColor = { 1.f, 0.85f, 0.45f, 1.f };  // rgb: coreColor, a: outerIntensity
-    float4 g_EffectRibbonAxisParams = { 0.f, 1.f, 0.f, 0.f };             // x: renderAxis, y: visibleLength, z: tilingDistance, w: smooth start tangent
+    float4 g_EffectRibbonAxisParams = { 0.f, 1.f, 0.f, 0.f };             // x: spread basis, y: visibleLength, z: spread angle radians, w: smooth start tangent
     float4 g_EffectRibbonFallbackAxis = { 1.f, 0.f, 0.f, 0.f };
     float4 g_EffectMaterialScalarModulationParams = { 0.f, 0.f, 0.f, 0.f };
     float4 g_EffectMaterialScalarModulationMeta[8];
@@ -81,6 +81,8 @@ Texture2D g_MaskTexture : register(t2);
 static const int RIBBON_RENDER_AXIS_CAMERA_UP = 0;
 static const int RIBBON_RENDER_AXIS_VIEW_UP = 1;
 static const int RIBBON_RENDER_AXIS_WORLD_UP = 2;
+static const int RIBBON_RENDER_AXIS_SOURCE_UP = 3;
+static const int RIBBON_RENDER_AXIS_SOURCE_RIGHT = 4;
 static const float kRibbonEdgeFade = 0.04f;
 
 float Resolve_RibbonAxisUV(float rawValue, float transformedValue, float policy)
@@ -113,7 +115,7 @@ float2 Rotate_MaterialUV(float2 uv, float rotation)
 float2 Build_RibbonMaterialUV(float2 rawUV, float4 uvParams, float2 uvOffset, float2 policy, float rotation)
 {
     const float2 rotatedUV = Rotate_MaterialUV(rawUV, rotation);
-    const float2 transformedUV = Apply_RibbonMaterialUV(rawUV, uvParams, uvOffset);
+    const float2 transformedUV = Apply_RibbonMaterialUV(rotatedUV, uvParams, uvOffset);
     return float2(
         Resolve_RibbonAxisUV(rotatedUV.x, transformedUV.x, policy.x),
         Resolve_RibbonAxisUV(rotatedUV.y, transformedUV.y, policy.y)
@@ -271,10 +273,27 @@ float3 Resolve_RibbonSide(float3 currentPosition, float3 tangent)
         axis = Resolve_ViewUpAxis();
     else if (renderAxis == RIBBON_RENDER_AXIS_WORLD_UP)
         axis = float3(0.f, 1.f, 0.f);
+    else if (renderAxis == RIBBON_RENDER_AXIS_SOURCE_UP || renderAxis == RIBBON_RENDER_AXIS_SOURCE_RIGHT)
+        axis = fallbackAxis;
 
     float3 side = NormalizeOrFallback(cross(axis, tangent), fallbackAxis);
     if (abs(dot(side, tangent)) > 0.98f)
         side = NormalizeOrFallback(cross(Resolve_ViewUpAxis(), tangent), fallbackAxis);
+
+    const float rollRadians = g_EffectRibbonAxisParams.z;
+    if (abs(rollRadians) > 0.00001f)
+    {
+        float sinRoll = 0.f;
+        float cosRoll = 1.f;
+        sincos(rollRadians, sinRoll, cosRoll);
+        const float3 normalizedTangent = NormalizeOrFallback(tangent, float3(0.f, 0.f, 1.f));
+        side = NormalizeOrFallback(
+            side * cosRoll +
+            cross(normalizedTangent, side) * sinRoll +
+            normalizedTangent * dot(normalizedTangent, side) * (1.f - cosRoll),
+            fallbackAxis
+        );
+    }
 
     return side;
 }

@@ -40,6 +40,16 @@ static float Hash01(uint32 seed)
     return static_cast<float>(seed & 0x00FFFFFFu) / 16777215.f;
 }
 
+static float RandomRange(float minValue, float maxValue, uint32 seed)
+{
+    const float low = min(minValue, maxValue);
+    const float high = max(minValue, maxValue);
+    if (low == high)
+        return low;
+
+    return lerp(low, high, Hash01(seed));
+}
+
 struct SubUVFrameRange
 {
     uint32 startFrame{};
@@ -355,6 +365,7 @@ HRESULT ComputeSourceHistoryRibbonEmitter::Reset_ForEffectReplay()
     _sampleIntervalAccumulator = 0.f;
     _selfRootCollapseLength = -1.f;
     _hasSelfRootPreviousSourcePosition = false;
+    _selfRootHeadOffset = Sample_HeadOffset((_loopIndex + 1u) * 9781u + 173u);
     Clear_ParticleFollowerHistory();
     _retiredLoopStrokes.clear();
     _materialElapsedTime = 0.f;
@@ -571,19 +582,26 @@ void ComputeSourceHistoryRibbonEmitter::Update_ParticleFollowerHistory(float tim
             {
                 _sourceLanes.push_back(HistoryLane{ .sourceIndex = sourcePoint.sourceIndex });
                 lane = &_sourceLanes.back();
+                lane->headOffset = Sample_HeadOffset(
+                    (_loopIndex + 1u) * 9781u +
+                    sourcePoint.sourceIndex * 1664525u +
+                    4099u
+                );
             }
+
+            const Vec3 sourcePosition = Apply_HeadOffset(sourcePoint.position, lane->headOffset);
 
             lane->activeThisFrame = true;
             lane->missingTime = 0.f;
             const float frameMovedDistance =
                 lane->hasPreviousSourcePosition
-                ? (sourcePoint.position - lane->previousSourcePosition).Length()
+                ? (sourcePosition - lane->previousSourcePosition).Length()
                 : _desc.sampleSpacing;
             const bool isIdle =
                 lane->hasPreviousSourcePosition && frameMovedDistance <= max(_desc.sampleSpacing * 0.1f, 0.0001f);
-            lane->currentSourcePosition = sourcePoint.position;
+            lane->currentSourcePosition = sourcePosition;
             const bool movedEnough =
-                lane->history.empty() || (sourcePoint.position - lane->history.front().position).Length() >= _desc.sampleSpacing;
+                lane->history.empty() || (sourcePosition - lane->history.front().position).Length() >= _desc.sampleSpacing;
             const bool intervalReady =
                 _desc.sampleInterval > 0.f && lane->sampleIntervalAccumulator >= _desc.sampleInterval;
             const bool shouldInsertSample = movedEnough || (!_desc.tailCollapseOnIdle && intervalReady);
@@ -592,7 +610,7 @@ void ComputeSourceHistoryRibbonEmitter::Update_ParticleFollowerHistory(float tim
 
             if (shouldInsertSample)
             {
-                Insert_HistorySample(lane->history, lane->sampleIntervalAccumulator, sourcePoint.position);
+                Insert_HistorySample(lane->history, lane->sampleIntervalAccumulator, sourcePosition);
                 lane->collapseLength = -1.f;
             }
             else if (_desc.tailCollapseOnIdle && _desc.tailCollapseSpeed > 0.f)
@@ -612,7 +630,7 @@ void ComputeSourceHistoryRibbonEmitter::Update_ParticleFollowerHistory(float tim
                     lane->collapseLength = -1.f;
             }
 
-            lane->previousSourcePosition = sourcePoint.position;
+            lane->previousSourcePosition = sourcePosition;
             lane->hasPreviousSourcePosition = true;
             Prune_History(lane->history);
         }
@@ -1271,10 +1289,10 @@ HRESULT ComputeSourceHistoryRibbonEmitter::Update_ComputeConstants()
 {
     RibbonComputeParams params{};
     params.segmentCount = _drawSegmentCount;
-    params.renderAxis = static_cast<uint32>(EffectRibbonRenderAxis::CameraUp);
+    params.renderAxis = static_cast<uint32>(Resolve_RibbonRenderAxis());
     params.tilingDistance = _desc.tilingDistance;
     params.visibleLength = _visibleRibbonLength;
-    params.axisFallback = Vec4(1.f, 0.f, 0.f, 0.f);
+    params.axisFallback = Resolve_RibbonFallbackAxis();
     params.fadeParams = Vec4(_desc.autoLifeFade ? 1.f : 0.f, _desc.maxLength, _desc.tailFadeLength, 0.f);
     _context->UpdateSubresource(_computeConstantBuffer.Get(), 0, nullptr, &params, 0, 0);
     return S_OK;
@@ -1296,14 +1314,86 @@ HRESULT ComputeSourceHistoryRibbonEmitter::Copy_ComputeOutput()
     return S_OK;
 }
 
+EffectRibbonRenderAxis ComputeSourceHistoryRibbonEmitter::Resolve_RibbonRenderAxis() const
+{
+    switch (_desc.spreadBasis)
+    {
+    case EffectRibbonSpreadBasis::ViewUp:
+        return EffectRibbonRenderAxis::ViewUp;
+    case EffectRibbonSpreadBasis::WorldUp:
+        return EffectRibbonRenderAxis::WorldUp;
+    case EffectRibbonSpreadBasis::SourceUp:
+    case EffectRibbonSpreadBasis::SourceRight:
+        return Resolve_SourceBasisAxis().LengthSquared() > 0.0001f
+               ? (_desc.spreadBasis == EffectRibbonSpreadBasis::SourceUp
+                  ? EffectRibbonRenderAxis::SourceUp
+                  : EffectRibbonRenderAxis::SourceRight)
+               : EffectRibbonRenderAxis::CameraUp;
+    case EffectRibbonSpreadBasis::CameraFacing:
+    default:
+        return EffectRibbonRenderAxis::CameraUp;
+    }
+}
+
+Vec4 ComputeSourceHistoryRibbonEmitter::Resolve_RibbonFallbackAxis() const
+{
+    Vec3 axis{ 1.f, 0.f, 0.f };
+    if (_desc.spreadBasis == EffectRibbonSpreadBasis::SourceUp ||
+        _desc.spreadBasis == EffectRibbonSpreadBasis::SourceRight)
+    {
+        axis = Resolve_SourceBasisAxis();
+        if (axis.LengthSquared() <= 0.0001f)
+            axis = Vec3{ 1.f, 0.f, 0.f };
+        else
+            axis.Normalize();
+    }
+
+    return Vec4(axis.x, axis.y, axis.z, 0.f);
+}
+
+Vec3 ComputeSourceHistoryRibbonEmitter::Resolve_SourceBasisAxis() const
+{
+    Shared<TransformCom> sourceTransform{};
+    if (_desc.sourceMode == EffectSourceHistoryRibbonSourceMode::ParticleEmitter)
+    {
+        const Shared<EffectInstance> effectOwner = dynamic_pointer_cast<EffectInstance>(_effectOwner.lock());
+        const Shared<EffectEmitter> sourceEmitter =
+            effectOwner != nullptr ? effectOwner->Find_EmitterById(_desc.sourceEmitterId) : nullptr;
+        sourceTransform = sourceEmitter != nullptr ? sourceEmitter->Get_Transform() : nullptr;
+    }
+    else
+    {
+        sourceTransform = _transformCom;
+    }
+
+    if (sourceTransform == nullptr)
+        return Vec3{};
+
+    Vec3 axis =
+        _desc.spreadBasis == EffectRibbonSpreadBasis::SourceRight
+        ? sourceTransform->Get_WorldRight()
+        : sourceTransform->Get_WorldUp();
+    if (axis.LengthSquared() > 0.0001f)
+        axis.Normalize();
+
+    return axis;
+}
+
 HRESULT ComputeSourceHistoryRibbonEmitter::Bind_ShaderResources()
 {
     CHECK_FAILED(GAME->Bind_CameraCB(_shader), E_FAIL);
 
+    const float spreadAngleDegrees = _desc.useManualRoll ? _desc.manualRollDegrees : _desc.spreadAngleDegrees;
+    const float spreadAngleRadians = XMConvertToRadians(spreadAngleDegrees);
     if (Is_DistortionFamily())
     {
-        const Vec4 effectRibbonAxisParams = Vec4(static_cast<float>(static_cast<uint32>(EffectRibbonRenderAxis::CameraUp)), _visibleRibbonLength, 0.f, 1.f);
-        const Vec4 effectRibbonFallbackAxis{ 1.f, 0.f, 0.f, 0.f };
+        const Vec4 effectRibbonAxisParams = Vec4(
+            static_cast<float>(static_cast<uint32>(Resolve_RibbonRenderAxis())),
+            _visibleRibbonLength,
+            spreadAngleRadians,
+            1.f
+        );
+        const Vec4 effectRibbonFallbackAxis = Resolve_RibbonFallbackAxis();
 
         CHECK_FAILED(_shader->Bind_RawValue("g_Tint", &_desc.material.tint, sizeof(_desc.material.tint)), E_FAIL);
         CHECK_FAILED(_shader->Bind_RawValue("g_EffectRibbonAxisParams", &effectRibbonAxisParams, sizeof(effectRibbonAxisParams)), E_FAIL);
@@ -1397,8 +1487,15 @@ HRESULT ComputeSourceHistoryRibbonEmitter::Bind_MaterialResources()
         material.coreEmissive.coreColor.z,
         material.coreEmissive.outerIntensity
     );
-    const Vec4 effectRibbonAxisParams = Vec4(static_cast<float>(EffectRibbonRenderAxis::CameraUp), _visibleRibbonLength, 0.f, 1.f);
-    const Vec4 effectRibbonFallbackAxis{ 1.f, 0.f, 0.f, 0.f };
+    const float spreadAngleDegrees = _desc.useManualRoll ? _desc.manualRollDegrees : _desc.spreadAngleDegrees;
+    const float spreadAngleRadians = XMConvertToRadians(spreadAngleDegrees);
+    const Vec4 effectRibbonAxisParams = Vec4(
+        static_cast<float>(static_cast<uint32>(Resolve_RibbonRenderAxis())),
+        _visibleRibbonLength,
+        spreadAngleRadians,
+        1.f
+    );
+    const Vec4 effectRibbonFallbackAxis = Resolve_RibbonFallbackAxis();
     const int opacitySourceIndex = Resolve_OpacitySourceIndex();
 
     CHECK_FAILED(_shader->Bind_RawValue("g_EffectRibbonParams", &effectRibbonParams, sizeof(effectRibbonParams)), E_FAIL);
@@ -1534,6 +1631,7 @@ void ComputeSourceHistoryRibbonEmitter::Start_NextLoop()
     _history.clear();
     _sampleIntervalAccumulator = 0.f;
     _selfRootCollapseLength = -1.f;
+    _selfRootHeadOffset = Sample_HeadOffset((_loopIndex + 1u) * 9781u + 173u);
     Clear_ParticleFollowerHistory();
     _drawSegmentCount = 0u;
     _sampleSerialCounter = 0u;
@@ -1595,6 +1693,34 @@ int ComputeSourceHistoryRibbonEmitter::Resolve_OpacitySourceIndex() const
     return 0;
 }
 
+Vec3 ComputeSourceHistoryRibbonEmitter::Sample_HeadOffset(uint32 seed) const
+{
+    if (!_desc.headOffset.enabled)
+        return Vec3{};
+
+    const uint32 resolvedSeed = seed + EffectAssetRuntimeLoad::Resolve_SeedSalt(_desc.headOffsetSeed, _effectPlaybackSeed);
+    return Vec3{
+        EffectAssetRuntimeLoad::RandomRange(_desc.headOffset.minOffset.x, _desc.headOffset.maxOffset.x, resolvedSeed + 1u),
+        EffectAssetRuntimeLoad::RandomRange(_desc.headOffset.minOffset.y, _desc.headOffset.maxOffset.y, resolvedSeed + 2u),
+        EffectAssetRuntimeLoad::RandomRange(_desc.headOffset.minOffset.z, _desc.headOffset.maxOffset.z, resolvedSeed + 3u)
+    };
+}
+
+Vec3 ComputeSourceHistoryRibbonEmitter::Resolve_HeadOffsetWorld(const Vec3& localOffset) const
+{
+    if (_transformCom == nullptr)
+        return localOffset;
+
+    return _transformCom->Get_WorldRight() * localOffset.x +
+           _transformCom->Get_WorldUp() * localOffset.y +
+           _transformCom->Get_WorldForward() * localOffset.z;
+}
+
+Vec3 ComputeSourceHistoryRibbonEmitter::Apply_HeadOffset(const Vec3& sourcePosition, const Vec3& localOffset) const
+{
+    return sourcePosition + Resolve_HeadOffsetWorld(localOffset);
+}
+
 bool ComputeSourceHistoryRibbonEmitter::Try_Resolve_SourcePosition(Vec3& outPosition) const
 {
     const Shared<IEffectSourcePointSampleProvider> sampleProvider = _desc.sourcePointSampleProvider.lock();
@@ -1604,11 +1730,12 @@ bool ComputeSourceHistoryRibbonEmitter::Try_Resolve_SourcePosition(Vec3& outPosi
         if (!sampleProvider->Try_GetSourcePointSample(sample))
             return false;
 
-        outPosition = sample.worldPosition;
+        outPosition = Apply_HeadOffset(sample.worldPosition, _selfRootHeadOffset);
         return true;
     }
 
-    outPosition = _transformCom != nullptr ? _transformCom->Get_WorldPosition() : Vec3{};
+    const Vec3 sourcePosition = _transformCom != nullptr ? _transformCom->Get_WorldPosition() : Vec3{};
+    outPosition = Apply_HeadOffset(sourcePosition, _selfRootHeadOffset);
     return true;
 }
 
