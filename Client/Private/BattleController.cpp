@@ -567,6 +567,8 @@ EBattleEndResult BattleController::OnExitBattleField(EBattleEndResult result)
     _heroes.clear();
     _enemies.clear();
 
+    _battleTurnCamera.reset(); // 도주/패배 뒤에도 이전 전투 카메라 참조를 다음 전투로 넘기지 않는다.
+
     Clear_BattleEnterPending();
     _activeBattleFieldID = 0;
 
@@ -2183,6 +2185,8 @@ void BattleController::Confirm_Victory()
     _heroes.clear();
     _enemies.clear();
 
+    _battleTurnCamera.reset(); // 다음 전투는 현재 레벨/Camera_Manager 기준으로 다시 BattleTurnCamera를 잡는다.
+
     Clear_BattleEnterPending();
     _activeBattleFieldID = 0;
 
@@ -2525,9 +2529,18 @@ void BattleController::Handle_ReactionSucceededForResult(BattleReactionType reac
 
 HRESULT BattleController::Ready_BattleTurnCamera()
 {
+    if (_battleTurnCamera != nullptr &&
+        (_battleTurnCamera->Is_MarkDestroy() || _battleTurnCamera->Get_Transform() == nullptr))
+    {
+        _battleTurnCamera.reset(); // 레벨 전환으로 Free된 카메라는 다음 전투에서 새로 잡아야 한다.
+    }
+
     if (_battleTurnCamera == nullptr)
     {
         auto camera = GAME->Get_CameraByType(ObjectType::BattleTurnCamera);
+
+        if (camera != nullptr && (camera->Is_MarkDestroy() || camera->Get_Transform() == nullptr))
+            camera.reset(); // Camera_Manager에 남은 비정상 카메라는 재사용하지 않는다.
 
         if (camera)
             _battleTurnCamera = dynamic_pointer_cast<BattleTurnCamera>(camera);
@@ -2906,6 +2919,11 @@ bool BattleController::Update_BattleTutorialGate(float timeDelta)
 {
     if (_battleTutorialController)
         _battleTutorialController->Update(timeDelta);
+
+    if (_battleTurnCamera)
+        _battleTurnCamera->Set_RuntimePausedByTutorial(
+            _battleTutorialController != nullptr &&
+            _battleTutorialController->Should_PauseBattlePresentation());
 
     if (_battleTutorialController)
     {

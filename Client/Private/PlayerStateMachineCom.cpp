@@ -12,6 +12,7 @@
 #include "Player_GrappleAction.h"
 #include "Player_State.h"
 #include "Player_ParkourAction.h"
+#include "Player_WorldAction.h"
 
 NS_BEGIN(Client);
 
@@ -49,6 +50,7 @@ void PlayerStateMachineCom::BeginPlay()
     CHECK_FAILED(Add_State(PlayerState::Idle, Player_Idle::Create(static_pointer_cast<Player_WorldBase>(_owner.lock()))));
     CHECK_FAILED(Add_State(PlayerState::Move, Player_Move::Create(static_pointer_cast<Player_WorldBase>(_owner.lock()))));
     CHECK_FAILED(Add_State(PlayerState::Jump, Player_Jump::Create(static_pointer_cast<Player_WorldBase>(_owner.lock()))));
+    CHECK_FAILED(Add_State(PlayerState::WorldAction, Player_WorldAction::Create(static_pointer_cast<Player_WorldBase>(_owner.lock()))));
     CHECK_FAILED(Add_State(PlayerState::Parkour, Player_ParkourAction::Create(static_pointer_cast<Player_WorldBase>(_owner.lock()))));
     CHECK_FAILED(Add_State(PlayerState::Climb, Player_Climb::Create(static_pointer_cast<Player_WorldBase>(_owner.lock()))));
     CHECK_FAILED(Add_State(PlayerState::RopeAction, Player_RopeAction::Create(static_pointer_cast<Player_WorldBase>(_owner.lock()))));

@@ -436,8 +436,9 @@ BattleReactionController::BattleReactionInputResult BattleReactionController::Su
             if (allowCounterOnSuccess)
                 _pendingParryCounterTarget = context.counterTarget;
 
+            // 단체 패링이어도 HitStop, Sound는 한번만 재생
             if (auto battle = CLIENT->Get_BattleController())
-                battle->Play_BattleHitStop(0.08f, 0.08f); // 단체 패링이어도 성공 순간 hitStop은 한번만 적용한다.
+                battle->Play_BattleHitStop(0.08f, 0.08f);
 
 			GAME->Play_SoundCue(Constants::SoundCue::Battle_Parry_Success);
         }

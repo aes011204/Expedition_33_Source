@@ -20,6 +20,7 @@ NPC_Buff::NPC_Buff(const ComPtr<Device>& device, const ComPtr<Context>& context)
 {
     _worldMoveSpeedScale = 0.1f;
     _defaultAnimationKey = "Idle";
+    _fightVisible = true;
 }
 
 NPC_Buff::NPC_Buff(const NPC_Buff& prototype) : NPC_Base(prototype)
@@ -39,46 +40,17 @@ HRESULT NPC_Buff::Initialize(void* arg)
 
 void NPC_Buff::Priority_Update(float timeDelta)
 {
-    if (!CLIENT->Is_PotatoBagBattleActive())
-    {
-        Set_Visible(false);
-
-        if (_colliderCom)
-            _colliderCom->Set_IsActive(false);
-
-        return;
-    }
-
-    Set_Visible(true);
-
-    if (_colliderCom)
-        _colliderCom->Set_IsActive(true);
-
     NPC_Base::Priority_Update(timeDelta);
 }
 
 void NPC_Buff::Update(float timeDelta)
 {
-    if (!CLIENT->Is_PotatoBagBattleActive())
-        return;
-
-    if (auto* bodyPart = dynamic_cast<Monster_Part*>(Get_PartObject(L"Part_Body")))
-        bodyPart->Play_Animation(timeDelta);
-
-    Character_WorldBase::Update(timeDelta);
+    NPC_Base::Update(timeDelta);
 }
 
 void NPC_Buff::Late_Update(float timeDelta)
 {
-    if (!CLIENT->Is_PotatoBagBattleActive())
-    {
-        Set_Visible(false);
-        return;
-    }
-
-    Character_WorldBase::Late_Update(timeDelta);
-
-    Update_Culling(Vec3(1.5f, 4.f, 1.5f));
+    NPC_Base::Late_Update(timeDelta);
 }
 
 HRESULT NPC_Buff::Render()

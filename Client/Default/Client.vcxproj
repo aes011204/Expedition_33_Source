@@ -543,6 +543,7 @@
     <ClInclude Include="..\Public\Player_Climb.h" />
     <ClInclude Include="..\Public\Player_RopeAction.h" />
     <ClInclude Include="..\Public\Player_GrappleAction.h" />
+    <ClInclude Include="..\Public\Player_WorldAction.h" />
     <ClInclude Include="..\Public\SkillTreeCom.h" />
     <ClInclude Include="..\Public\Player_Idle.h" />
     <ClInclude Include="..\Public\Player_Jump.h" />
@@ -1024,6 +1025,7 @@
     <ClCompile Include="..\Private\Player_Climb.cpp" />
     <ClCompile Include="..\Private\Player_RopeAction.cpp" />
     <ClCompile Include="..\Private\Player_GrappleAction.cpp" />
+    <ClCompile Include="..\Private\Player_WorldAction.cpp" />
     <ClCompile Include="..\Private\PreviewCamera.cpp" />
     <ClCompile Include="..\Private\Player_ParkourAction.cpp" />
     <ClCompile Include="..\Private\IRuntimeUI_EditorTarget.cpp" />

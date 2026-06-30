@@ -1,6 +1,6 @@
 ﻿#include "pch.h"
 #include "Player_Jump.h"
-
+#include "ClientInstance.h"
 #include "Body_Player.h"
 #include "Player_ParkourAction.h"
 #include "PlayerControllerCom.h"
@@ -78,7 +78,12 @@ bool Player_Jump::EnterInvoke()
 	_fallTime = 0.0f;
     _parkourProbeElapsed = 0.f;
     _hasLeftGroundForParkourProbe = false;
-    _canProbeParkour = IsEnterJump();
+
+    const Shared<Player_WorldBase> owner = _owner.lock();
+    const bool isActiveHero = owner != nullptr &&
+    CLIENT->Is_ActiveHero(static_pointer_cast<GameObject>(owner));
+
+    _canProbeParkour = isActiveHero && IsEnterJump();
     _lowParkourProbeDone = false;
     _repeatHighParkourProbe = false;
 
@@ -112,7 +117,12 @@ void Player_Jump::Update(float timeDelta)
     if (!isGrounded)
         _hasLeftGroundForParkourProbe = true;
 
-    if (_canProbeParkour && !isLandingAnimation)
+    const Shared<Player_WorldBase> owner = _owner.lock();
+    const bool isActiveHero = owner != nullptr &&
+
+    CLIENT->Is_ActiveHero(static_pointer_cast<GameObject>(owner));
+
+    if (isActiveHero && _canProbeParkour && !isLandingAnimation)
     {
         if (!_lowParkourProbeDone)
         {
