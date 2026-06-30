@@ -262,7 +262,7 @@ namespace
 			},
 			{
 				HeroId::Maelle,
-				{ "Spark", "Percee", "FleureFury", "SwordBallet", "Stendhal", "Pyrolyse" }
+				{ "Spark", "Percee", "FleureFury", "SwordBallet", "Pyrolyse", "Stendhal" }
 			},
 		};
 
@@ -484,7 +484,7 @@ RuntimeRuleStateIO::RuleState RuntimeRuleStateService::Build_GestralVillageStart
 	{
 		{ HeroId::Gustave, "Gustave", { "LumiereAssault", "UnleashedCharge", "MarkingShot", "Shatter", "PerfectBreak" } },
 		{ HeroId::Lune, "Lune", { "Immolation", "IceGust", "Thunderfall", "TerraQuake", "CripplingTsunami" } },
-		{ HeroId::Maelle, "Maelle", { "Spark", "Percee", "FleureFury", "SwordBallet", "Stendhal" } },
+		{ HeroId::Maelle, "Maelle", { "Spark", "Percee", "FleureFury", "SwordBallet", "Pyrolyse" } },
 	};
 
 	for (const auto& hero : heroes)
@@ -534,7 +534,7 @@ RuntimeRuleStateIO::RuleState RuntimeRuleStateService::Build_PotatoBagStartUnloc
 	{
 		{ HeroId::Gustave, "Gustave", "Tireso", { "LumiereAssault", "UnleashedCharge", "MarkingShot", "Shatter", "PerfectBreak", "AngelsEye" } },
 		{ HeroId::Lune, "Lune", "Snowim", { "Immolation", "IceGust", "Thunderfall", "TerraQuake", "CripplingTsunami", "SkyBreak" } },
-		{ HeroId::Maelle, "Maelle", "Plenum", { "Spark", "Percee", "FleureFury", "SwordBallet", "Stendhal", "Pyrolyse" } },
+		{ HeroId::Maelle, "Maelle", "Plenum", { "Spark", "Percee", "FleureFury", "SwordBallet", "Pyrolyse", "Stendhal" } },
 	};
 
 	for (const auto& hero : heroes)

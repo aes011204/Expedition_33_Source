@@ -27,8 +27,8 @@ namespace
     constexpr Vec3 kPortierBattleRotation = Vec3(0.f, 0.f, 0.f);
 
     // 보스 전투 시작 위치
-    constexpr Vec3 kBossBattlePosition = Vec3(134.35f, 21.82f, -1.11f);
-    constexpr Vec3 kBossBattleRotation = Vec3(0.f, 67.5f, 0.f);
+    constexpr Vec3 kBossBattlePosition = Vec3(123.46f, 21.82f, -9.67f);
+    constexpr Vec3 kBossBattleRotation = Vec3(0.f, 82.2f, 0.f);
 
     VolumetricLightShaftZoneCB Build_GamePlayLightShaftZones()
     {
@@ -481,7 +481,7 @@ HRESULT Level_GamePlay::Ready_Layer_Monster(const wstring& strLayerTag)
 
 HRESULT Level_GamePlay::Ready_Layer_Player(const wstring& strLayerTag)
 {
-    //Vec3 startPos = Vec3(-465.f, 50.f, 65.f);
+    // 플레이어 시작 위치만 지정
     Vec3 startPos = Vec3(-87.f, 19.47f, -132.94f);
     CHECK_FAILED(CLIENT->Initialize_Hero(ETOI(LevelType::GamePlay), strLayerTag, startPos), E_FAIL);
 

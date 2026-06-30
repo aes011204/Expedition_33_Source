@@ -196,6 +196,7 @@ void BattleController::Update(float timeDelta)
         return; // 상태 이상 아나운스가 끝나기 전에는 턴 입력/AI를 시작하지 않는다.
 
     _reactionController.UpdateAnimation(timeDelta);
+    Update_BattleSpawnRotationReturns(timeDelta);
 
     if (_isPendingVictorySlow)
     {
@@ -329,7 +330,33 @@ void BattleController::Run_EnemyTurn()
 
     monster->Decide_Action_BTOnly(Get_TurnActionRequest(), Get_AliveHeroes());
 
-    Play_EnemyTargetedStart(Get_TurnActionRequest().InitTarget);
+    vector<BattleChar> targetedHeroes{};
+    const Skill_Data* selectedSkill = CLIENT->Get_Skill(Get_TurnActionRequest().skillKey);
+
+    bool targetsAllHeroes = false;
+    if (selectedSkill != nullptr)
+    {
+        for (const TargetType targetType : selectedSkill->targetingType)
+        {
+            if (targetType == TargetType::AllEnemies ||
+                targetType == TargetType::AllEnemiesJump)
+            {
+                targetsAllHeroes = true;
+                break;
+            }
+        }
+    }
+
+    if (targetsAllHeroes)
+    {
+        targetedHeroes = Get_AliveHeroes();
+    }
+    else if (Get_TurnActionRequest().InitTarget.actor != nullptr)
+    {
+        targetedHeroes.push_back(Get_TurnActionRequest().InitTarget);
+    }
+
+    Play_EnemyTargetedStart(targetedHeroes);
 
     ExecuteActionRequest(Get_TurnActionRequest());
 
@@ -639,6 +666,14 @@ void BattleController::EndTurn()
     // 이번 적 턴에서 공격하는 플레이어 Targeted End 애니메이션 재생
     Play_EnemyTargetedEnd();
 
+    if (_currentTurnActor.actor != nullptr &&
+        _currentTurnActor.statCom != nullptr &&
+        _currentTurnActor.statCom->Is_Player() &&
+        _currentTurnActor.statCom->Get_AliveStatus() != EAliveStatus::Dead)
+    {
+        Request_BattleSpawnRotationReturn(_currentTurnActor, 0.2f);
+    }
+
     // 일단 만들어 놓은 스킬 지우기
     Clear_CurrentScript();
 
@@ -650,6 +685,7 @@ void BattleController::EndTurn()
         if (_heroes[i].statCom->Get_AliveStatus() == EAliveStatus::Dead)
             DeadPlayer++;
     }
+
     if (DeadPlayer == _heroes.size())
     {
         OnExitBattleField(EBattleEndResult::Defeat);
@@ -1882,53 +1918,211 @@ void BattleController::Apply_VictoryRewardExp(uint32 rewardExp)
     }
 }
 
-void BattleController::Play_EnemyTargetedStart(const BattleChar& target)
+void BattleController::Play_EnemyTargetedStart(const vector<BattleChar>& targets)
 {
-    _enemyTurnTargetedActor = {};
-    _hasEnemyTurnTargetedActor = false;
-    if (target.actor == nullptr || target.ModelCom == nullptr || target.statCom == nullptr)
+    _enemyTurnTargetedActors.clear();
+
+    for (const BattleChar& target : targets)
+    {
+        if (target.actor == nullptr || target.ModelCom == nullptr || target.statCom == nullptr)
+            continue;
+
+        if (!target.statCom->Is_Player())
+            continue;
+
+        if (target.statCom->Get_AliveStatus() == EAliveStatus::Dead)
+            continue;
+
+        bool alreadyAdded = false;
+        for (const BattleChar& existing : _enemyTurnTargetedActors)
+        {
+            if (existing.actor == target.actor)
+            {
+                alreadyAdded = true;
+                break;
+            }
+        }
+
+        if (alreadyAdded)
+            continue;
+
+        _enemyTurnTargetedActors.push_back(target);
+    }
+
+    if (_enemyTurnTargetedActors.empty())
         return;
 
-    if (!target.statCom->Is_Player())
-        return;
+    const BattleChar& attacker = Get_TurnActionRequest().actor;
+    if (attacker.actor != nullptr)
+    {
+        const auto attackerTransform = attacker.actor->Get_Transform();
 
-    _enemyTurnTargetedActor = target;
-    _hasEnemyTurnTargetedActor = true;
+        if (attackerTransform != nullptr)
+        {
+            for (const BattleChar& target : _enemyTurnTargetedActors)
+            {
+                const auto targetTransform = target.actor->Get_Transform();
+                if (targetTransform == nullptr)
+                    continue;
+
+                Vec3 dir = attackerTransform->Get_Position() - targetTransform->Get_Position();
+                dir.y = 0.f;
+
+                if (dir.LengthSquared() > 0.0001f)
+                {
+                    dir.Normalize();
+
+                    Vec3 rot = targetTransform->Get_RotationEuler();
+                    rot.y = XMConvertToDegrees(atan2f(dir.x, dir.z));
+                    targetTransform->Set_RotationEuler(rot);
+                }
+            }
+        }
+    }
 
     for (const BattleChar& hero : _heroes)
     {
-        if (hero.actor == nullptr || hero.actor == target.actor)
+        if (hero.actor == nullptr)
+            continue;
+
+        bool isTargeted = false;
+        for (const BattleChar& target : _enemyTurnTargetedActors)
+        {
+            if (target.actor == hero.actor)
+            {
+                isTargeted = true;
+                break;
+            }
+        }
+
+        if (isTargeted)
             continue;
 
         BattleAnimUtils::Play_BattleIdle(hero, 0.2f);
     }
 
-    // Start -> Idle은 Notify에서 제어
-    if (!target.ModelCom->Set_AnimationByState(ETOI(BattleAnimType::Targeted_Start), 0.2f, false))
+    for (const BattleChar& target : _enemyTurnTargetedActors)
     {
-        // fallback
-        if (!target.ModelCom->Set_AnimationByState(ETOI(BattleAnimType::Targeted_Idle), 0.2f, true))
-            BattleAnimUtils::Play_BattleIdle(target, 0.2f);
+        if (!target.ModelCom->Set_AnimationByState(ETOI(BattleAnimType::Targeted_Start), 0.2f, false))
+        {
+            if (!target.ModelCom->Set_AnimationByState(ETOI(BattleAnimType::Targeted_Idle), 0.2f, true))
+                BattleAnimUtils::Play_BattleIdle(target, 0.2f);
+        }
     }
 }
 
 void BattleController::Play_EnemyTargetedEnd()
 {
-    if (!_hasEnemyTurnTargetedActor)
+    if (_enemyTurnTargetedActors.empty())
         return;
 
-    const BattleChar target = _enemyTurnTargetedActor;
-    _enemyTurnTargetedActor = {};
-    _hasEnemyTurnTargetedActor = false;
+    const vector<BattleChar> targetedActors = _enemyTurnTargetedActors;
+    _enemyTurnTargetedActors.clear();
 
-    if (target.actor == nullptr || target.ModelCom == nullptr)
+    for (const BattleChar& target : targetedActors)
+    {
+        if (target.actor == nullptr || target.ModelCom == nullptr || target.statCom == nullptr)
+            continue;
+
+        if (target.statCom->Get_AliveStatus() == EAliveStatus::Dead)
+            continue;
+
+        Request_BattleSpawnRotationReturn(target, 0.2f);
+
+        if (!target.ModelCom->Set_AnimationByState(ETOI(BattleAnimType::Targeted_End), 0.2f, false))
+            BattleAnimUtils::Play_BattleIdle(target, 0.2f);
+    }
+}
+
+void BattleController::Request_BattleSpawnRotationReturn(const BattleChar& target, float duration)
+{
+    if (target.actor == nullptr || target.statCom == nullptr)
         return;
 
     if (target.statCom->Get_AliveStatus() == EAliveStatus::Dead)
         return;
 
-    if (!target.ModelCom->Set_AnimationByState(ETOI(BattleAnimType::Targeted_End), 0.2f, false))
-        BattleAnimUtils::Play_BattleIdle(target, 0.2f);
+    if (_battleSpawnRegistry == nullptr)
+        return;
+
+    const BattleSpawnRegistry::BattleEntry* spawnEntry =
+        _battleSpawnRegistry->Find_SpawnEntry(target.actor);
+
+    if (spawnEntry == nullptr)
+        return;
+
+    const Shared<TransformCom> transform = target.actor->Get_Transform();
+    if (transform == nullptr)
+        return;
+
+    for (BattleSpawnRotationReturn& runtime : _battleSpawnRotationReturns)
+    {
+        if (runtime.target.actor == target.actor)
+        {
+            runtime.target = target;
+            runtime.startRotation = transform->Get_RotationEuler();
+            runtime.goalRotation = spawnEntry->spawnRotation;
+            runtime.elapsed = 0.f;
+            runtime.duration = max(duration, 0.001f);
+            return;
+        }
+    }
+
+    BattleSpawnRotationReturn runtime{};
+    runtime.target = target;
+    runtime.startRotation = transform->Get_RotationEuler();
+    runtime.goalRotation = spawnEntry->spawnRotation;
+    runtime.elapsed = 0.f;
+    runtime.duration = max(duration, 0.001f);
+
+    _battleSpawnRotationReturns.push_back(runtime);
+}
+
+void BattleController::Update_BattleSpawnRotationReturns(float timeDelta)
+{
+    for (size_t i = 0; i < _battleSpawnRotationReturns.size();)
+    {
+        BattleSpawnRotationReturn& runtime = _battleSpawnRotationReturns[i];
+
+        if (runtime.target.actor == nullptr ||
+            runtime.target.statCom == nullptr ||
+            runtime.target.statCom->Get_AliveStatus() == EAliveStatus::Dead)
+        {
+            _battleSpawnRotationReturns.erase(_battleSpawnRotationReturns.begin() + i);
+            continue;
+        }
+
+        const Shared<TransformCom> transform = runtime.target.actor->Get_Transform();
+        if (transform == nullptr)
+        {
+            _battleSpawnRotationReturns.erase(_battleSpawnRotationReturns.begin() + i);
+            continue;
+        }
+
+        runtime.elapsed += max(0.f, timeDelta);
+
+        const float ratio = clamp(runtime.elapsed / max(runtime.duration, 0.001f), 0.f, 1.f);
+
+        Vec3 nextRotation = runtime.startRotation;
+
+        float deltaYaw = runtime.goalRotation.y - runtime.startRotation.y;
+        while (deltaYaw > 180.f)
+            deltaYaw -= 360.f;
+        while (deltaYaw < -180.f)
+            deltaYaw += 360.f;
+
+        nextRotation.y = runtime.startRotation.y + deltaYaw * ratio;
+        transform->Set_RotationEuler(nextRotation);
+
+        if (ratio >= 1.f)
+        {
+            transform->Set_RotationEuler(runtime.goalRotation);
+            _battleSpawnRotationReturns.erase(_battleSpawnRotationReturns.begin() + i);
+            continue;
+        }
+
+        ++i;
+    }
 }
 
 void BattleController::Begin_FreeAimShot(const BattleAction& shotAction)
@@ -2711,6 +2905,7 @@ void BattleController::Clear_BattleRuntimeState()
     _pendingNextTurn = false;
     _requestEndTurnOnCurrentActorDeath = false;
     _reactionController.Clear_RuntimeState();
+    _battleSpawnRotationReturns.clear();
 
     if (_qteController)
         _qteController->Clear();
