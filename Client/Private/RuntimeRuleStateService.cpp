@@ -514,6 +514,30 @@ RuntimeRuleStateIO::RuleState RuntimeRuleStateService::Build_GestralVillageStart
 	return ruleState;
 }
 
+RuntimeRuleStateIO::RuleState RuntimeRuleStateService::Build_BishopStartUnlocks()
+{
+	RuntimeRuleStateIO::RuleState ruleState = Build_GestralVillageStartUnlocks();
+
+	ruleState.inventoryJson["unlocked_pictos"] = json::array({
+		"EnergisingTurn",
+		});
+
+	for (RuntimeCheckpointIO::HeroState& heroState : ruleState.heroes)
+	{
+		if (!heroState.statJson.is_object())
+			continue;
+
+		// Bishop 시작 상태는 Gestral 입장 세팅을 쓰되 Roulette만 전투 장착에서 제외한다.
+		heroState.statJson["equipped_pictos_ids"] = json::array({
+			"EnergisingTurn",
+			"",
+			"",
+			});
+	}
+
+	return ruleState;
+}
+
 RuntimeRuleStateIO::RuleState RuntimeRuleStateService::Build_PotatoBagStartUnlocks()
 {
     RuntimeRuleStateIO::RuleState ruleState{};

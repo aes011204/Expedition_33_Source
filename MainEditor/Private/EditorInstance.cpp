@@ -729,6 +729,14 @@ bool EditorInstance::Save_FirstTutorialHeroUnlockRuleState(const fs::path& path)
     return Client::RuntimeRuleStateIO::Save_Msgpack(path, ruleState);
 }
 
+bool EditorInstance::Save_BishopStartRuleState(const fs::path& path) const
+{
+    const Client::RuntimeRuleStateIO::RuleState ruleState =
+        Client::RuntimeRuleStateService::Build_BishopStartUnlocks();
+
+    return Client::RuntimeRuleStateIO::Save_Msgpack(path, ruleState);
+}
+
 bool EditorInstance::Save_FinalSkillSetupUnlockRuleState(const fs::path& path) const
 {
     const Client::RuntimeRuleStateIO::RuleState ruleState =

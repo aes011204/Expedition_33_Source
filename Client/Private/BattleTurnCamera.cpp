@@ -343,6 +343,19 @@ void BattleTurnCamera::Focus_Battle(const vector<BattleChar>& heroes, const vect
     _smoothedTargetPos = pose.cameraPos;
 }
 
+void BattleTurnCamera::Reset_FreeAimRotation(float baseYaw)
+{
+    _freeAimBaseYaw = baseYaw;
+    _yaw = 0.f;
+    _pitch = 0.f;
+
+    if (_transformCom)
+    {
+        _transformCom->Set_RotationEuler(Vec3(_pitch, _freeAimBaseYaw, 0.f));
+        Update_TransformMatrices();
+    }
+}
+
 void BattleTurnCamera::Update_FreeAimRotation(float timeDelta)
 {
     UNREFERENCED_PARAMETER(timeDelta);
@@ -356,7 +369,7 @@ void BattleTurnCamera::Update_FreeAimRotation(float timeDelta)
     _pitch = std::clamp(_pitch, -25.f, 20.f); // 상하 각도 제한
     _yaw = std::clamp(_yaw, -90.f, 90.f);     // 상하 각도 제한
 
-    _transformCom->Set_RotationEuler(Vec3(_pitch, _yaw, 0.f));
+    _transformCom->Set_RotationEuler(Vec3(_pitch, _freeAimBaseYaw + _yaw, 0.f));
 
     Update_TransformMatrices();
 }
@@ -1111,6 +1124,9 @@ float BattleTurnCamera::Resolve_YawBaseForPresetMode(const BattleShotRequest& re
     {
     case BattleCameraMode::SELECTSKILL:
         return resolveSubjectFacingYaw();
+
+    case BattleCameraMode::AIM:
+        return _freeAimBaseYaw + _yaw;
 
     case BattleCameraMode::PLAYERFOCUS:
     case BattleCameraMode::ENEMYFOCUS:
