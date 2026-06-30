@@ -57,7 +57,6 @@ enum class Collision_Preset
     Camera,
     Monster_WeakPoint,
     Player_WeakPointTarget,
-    Player_ParkourSensor,
 
     SL_PlayerBody,
     SL_PlayerAttack,
@@ -65,6 +64,8 @@ enum class Collision_Preset
     SL_MonsterAttack,
     SL_TargetSensor,
     NPC_WorldBody,
+
+    Player_ParkourSensor,
 
     END
 };
@@ -269,12 +270,6 @@ static const Collision_Preset_Data g_CollisionPresets[ETOI(
     /* blockMask   */ 0
     },
 
-    // Player_ParkourSensor — 전방/가슴팍 파쿠르 후보 탐색용. 환경물과 overlap 이벤트만 받는다.
-    { Collision_Channel::Player_ParkourSensor,
-    /* overlapMask */ ETOI(Collision_Channel::Environment),
-    /* blockMask   */ 0
-    },
-
     // SL_PlayerBody: SL 모드 플레이어 본체/피격용. 몬스터 몸체와 환경물은 이동을 막는다.
     { Collision_Channel::SL_PlayerBody,
       ETOI(Collision_Channel::SL_MonsterAttack),
@@ -315,6 +310,12 @@ static const Collision_Preset_Data g_CollisionPresets[ETOI(
       ETOI(Collision_Channel::WorldActionTrigger),
       ETOI(Collision_Channel::Player_WorldBody) |
       ETOI(Collision_Channel::Environment)
+    },
+
+    // Player_ParkourSensor — 전방/가슴팍 파쿠르 후보 탐색용. 환경물과 overlap 이벤트만 받는다.
+    { Collision_Channel::Player_ParkourSensor,
+    /* overlapMask */ ETOI(Collision_Channel::Environment),
+    /* blockMask   */ 0
     },
 
 };

@@ -42,6 +42,33 @@ cbuffer cbEffectDistortionSpriteMaterial : register(b2)
     float4 g_EffectMaterialScalarModulationKeyLeaveTangentsBlock1[8];
     float4 g_EffectMaterialScalarModulationKeyModes[8];
     float4 g_EffectMaterialScalarModulationKeyModesBlock1[8];
+    float4 g_EffectMaterialCoreColorRgbModulationParams = { 0.f, 0.f, 0.f, 0.f };
+    float4 g_EffectMaterialCoreColorRgbModulationMeta[8];
+    float4 g_EffectMaterialCoreColorRgbModulationUniformMin[8];
+    float4 g_EffectMaterialCoreColorRgbModulationUniformMax[8];
+    float4 g_EffectMaterialCoreColorRgbModulationUniformSeed[8];
+    float4 g_EffectMaterialCoreColorRgbModulationKeyTimes[8];
+    float4 g_EffectMaterialCoreColorRgbModulationKeyTimesBlock1[8];
+    float4 g_EffectMaterialCoreColorRgbModulationKeyValuesR[8];
+    float4 g_EffectMaterialCoreColorRgbModulationKeyValuesRBlock1[8];
+    float4 g_EffectMaterialCoreColorRgbModulationKeyValuesG[8];
+    float4 g_EffectMaterialCoreColorRgbModulationKeyValuesGBlock1[8];
+    float4 g_EffectMaterialCoreColorRgbModulationKeyValuesB[8];
+    float4 g_EffectMaterialCoreColorRgbModulationKeyValuesBBlock1[8];
+    float4 g_EffectMaterialCoreColorRgbModulationKeyArriveTangentsR[8];
+    float4 g_EffectMaterialCoreColorRgbModulationKeyArriveTangentsRBlock1[8];
+    float4 g_EffectMaterialCoreColorRgbModulationKeyArriveTangentsG[8];
+    float4 g_EffectMaterialCoreColorRgbModulationKeyArriveTangentsGBlock1[8];
+    float4 g_EffectMaterialCoreColorRgbModulationKeyArriveTangentsB[8];
+    float4 g_EffectMaterialCoreColorRgbModulationKeyArriveTangentsBBlock1[8];
+    float4 g_EffectMaterialCoreColorRgbModulationKeyLeaveTangentsR[8];
+    float4 g_EffectMaterialCoreColorRgbModulationKeyLeaveTangentsRBlock1[8];
+    float4 g_EffectMaterialCoreColorRgbModulationKeyLeaveTangentsG[8];
+    float4 g_EffectMaterialCoreColorRgbModulationKeyLeaveTangentsGBlock1[8];
+    float4 g_EffectMaterialCoreColorRgbModulationKeyLeaveTangentsB[8];
+    float4 g_EffectMaterialCoreColorRgbModulationKeyLeaveTangentsBBlock1[8];
+    float4 g_EffectMaterialCoreColorRgbModulationKeyModes[8];
+    float4 g_EffectMaterialCoreColorRgbModulationKeyModesBlock1[8];
     float g_FlowUVTilingMode = 0.f;
     float g_FlowUVRotation = 0.f;
     int g_OpacitySource = 0;
@@ -161,6 +188,7 @@ struct VS_IN
     float4 endColor : COLOR1;
     float4 subUVRect : TEXCOORD1;
     float2 spriteTiltDegrees : TEXCOORD2;
+    float4 coreColorRgb : TEXCOORD3;
 };
 
 struct VS_OUT
@@ -550,7 +578,9 @@ PS_OUT PS_MAIN(PS_IN In)
 
     const float shapeCoverage = EffectDistortion_ComputeShapeCoverage(g_EffectDistortionShapeParams, In.texCoord, lifeProgress);
     const float lensCoverage = EffectDistortion_ComputeLensCoverage(materialCoverage, shapeCoverage, g_EffectDistortionParams.y);
-    const float2 offset = EffectDistortion_ComputeScreenOffset(flow, g_EffectDistortionParams.x);
+    const float refractionIntensity =
+        g_EffectDistortionParams.x * EffectMaterialScalar_ResolveMultiplier(EFFECT_MATERIAL_SCALAR_TARGET_REFRACTION_INTENSITY, lifeProgress);
+    const float2 offset = EffectDistortion_ComputeScreenOffset(flow, refractionIntensity);
     Out.color = EffectDistortion_PackField(offset, lensCoverage);
     return Out;
 }

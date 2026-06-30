@@ -532,6 +532,10 @@ namespace Client::Constants::Prefab
     inline constexpr char BattleStartSpawner_Boss[] = "BattleStartSpawner/BSS_GamePlay_Boss";
     inline constexpr char BSS_Gestral_PotatoBag[] = "BattleStartSpawner/BSS_Gestral_PotatoBag";
 
+    inline constexpr char BSS_Gameplay01[] = "BattleStartSpawner/BSS_GamePlay01";
+    inline constexpr char BSS_Gameplay02[] = "BattleStartSpawner/BSS_GamePlay02";
+
+
 }
 
 // 이제 사운드는 DT_SoundCue에 추가해서, 거기에 등록된 cueId를 여기에 상수로 매핑하는 형식으로 통일하기

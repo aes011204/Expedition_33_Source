@@ -74,6 +74,7 @@ public:
     void Set_BattlePlaneYaw(float yawDegrees) { _battlePlaneYawDegrees = yawDegrees; }
     void Reset_RuntimeState();
     void Set_IsClipPreview(bool boolean) { _isClipPreview = boolean; }
+    void Set_RuntimePausedByTutorial(bool paused) { _isRuntimePausedByTutorial = paused; }
 
     void Update_FreeAimRotation(float timeDelta);
     Vec3 Get_AimOrigin() const;                // 히트스캔 시작 위치
@@ -270,6 +271,7 @@ private:
     bool                 _isWideMode = false;
     bool                 _hasWideAnchor = false;
     bool                 _isFirstUpdate = true;
+    bool                 _isRuntimePausedByTutorial = false;
 
     // DOF_MODIFY 
     bool                 _battleDOFPresetApplied = false;

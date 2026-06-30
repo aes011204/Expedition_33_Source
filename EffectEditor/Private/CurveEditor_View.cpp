@@ -1229,6 +1229,8 @@ vector<CurveEditor_View::CurveTarget> CurveEditor_View::Collect_ModuleTargets(
         if (auto* data = get_if<SourceHistorySpriteTrailPathReplayModuleData>(&module.data))
             Add_FloatTarget(targets, emitter, module, data->drainCurve, "drainCurve", "경로 리플레이 흡수 곡선", IM_COL32(120, 235, 210, 255), requireActiveCurve);
         break;
+    case AuthoringModuleType::RibbonOrientation:
+        break;
     case AuthoringModuleType::MaterialScalarModulation:
         if (auto* data = get_if<MaterialScalarModulationModuleData>(&module.data))
         {

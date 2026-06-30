@@ -1897,19 +1897,6 @@ void GameplayUI_Battle::Update_ChoiceTarget(float timeDelta)
 
     const BattleTurnState turnState = battleController->Get_CurrentTurnState();
 
-    if (turnState == BattleTurnState::ChooseAction || turnState == BattleTurnState::ChooseSkill)
-    {
-        if (battleController->Get_TargetPreview() == nullptr)
-        {
-            _choiceTarget->Close();
-            return;
-        }
-
-        _choiceTarget->Open();
-        _choiceTarget->Update(timeDelta);
-        return;
-    }
-
     if (turnState == BattleTurnState::AttackTargeting)
     {
         _choiceTarget->Open();
