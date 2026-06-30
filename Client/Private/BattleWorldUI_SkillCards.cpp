@@ -1490,8 +1490,6 @@ namespace
         const BattleWorldSkillJsonObjectMap& objectsById,
         BattleWorldSkillCardDef::Layer& outLayer)
     {
-        UNREFERENCED_PARAMETER(panelSpec);
-
         if (object.text.empty())
             return false;
 
@@ -1504,10 +1502,15 @@ namespace
         Vec4 color = object.color;
         color.w *= Resolve_JsonAlphaMultiplier(object, panelId, objectsById);
 
+        const BattleWorldSkillCardTextSlot runtimeSlot =
+            panelSpec.useRuntimeText
+            ? Resolve_TextSlot(object.name, panelSpec.textPrefix)
+            : BattleWorldSkillCardTextSlot::Literal;
+
         outLayer.kind = BattleWorldSkillCardLayerKind::Text;
         outLayer.sortOrder = object.sortOrder;
         outLayer.sequence = object.sequence;
-        outLayer.text.slot = BattleWorldSkillCardTextSlot::Literal;
+        outLayer.text.slot = runtimeSlot;
         outLayer.text.text = String::ToWString(object.text);
         outLayer.text.fontTag = String::ToWString(object.fontTag);
         outLayer.text.size = object.size;
@@ -1518,7 +1521,10 @@ namespace
         outLayer.text.color = Make_PremultipliedSpriteFontColor(color);
         outLayer.text.align = Resolve_TextAlign(object.textAlign);
         outLayer.text.textWrap = object.textWrap;
-        outLayer.text.useRuntimeText = false;
+        outLayer.text.useRuntimeText =
+            runtimeSlot == BattleWorldSkillCardTextSlot::KeyPrompt ||
+            runtimeSlot == BattleWorldSkillCardTextSlot::ApCost ||
+            runtimeSlot == BattleWorldSkillCardTextSlot::ApCostShadow; // 이름/설명은 UI JSON 원문을 유지하고, 키/소모 AP만 런타임 값으로 교체한다.
         return true;
     }
 

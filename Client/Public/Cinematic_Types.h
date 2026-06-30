@@ -83,6 +83,16 @@ typedef struct CinematicActorTransformTrack
 
 }CINEMATIC_ACTOR_TRANSFORM_TRACK;
 
+typedef struct CinematicCameraShot
+{
+    string name = "Camera Shot";
+    int    trackIndex = 0;
+    int    startFrame = 0;
+    int    endFrame = 30;
+    bool   enabled = true;
+
+}CINEMATIC_CAMERA_SHOT;
+
 enum class CinematicCleanupPolicy
 {
     DespawnOnStop,
@@ -106,6 +116,7 @@ struct CinematicPlayAnimEventData
     bool loop = false;
     float startFrame = 0.f;
     float speed = 1.f;
+    bool holdFrame = false;
 };
 
 struct CinematicDespawnEventData
@@ -118,11 +129,17 @@ struct CinematicPartVisibilityEventData
     bool visible = true;
 };
 
+struct CinematicWorldTimeScaleEventData
+{
+    float worldTimeScale = 1.f;
+};
+
 using CinematicEventPayload = variant<
     CinematicSpawnEventData,
     CinematicPlayAnimEventData,
     CinematicDespawnEventData,
-    CinematicPartVisibilityEventData>;
+    CinematicPartVisibilityEventData,
+    CinematicWorldTimeScaleEventData>;
 
 typedef struct CinematicEvent
 {
@@ -138,6 +155,7 @@ typedef struct CinematicSequence
     int    fps = 30;
     vector<CINEMATIC_TRACK> cinematicTracks;
     vector<CINEMATIC_ACTOR_RELATIVE_CAMERA_TRACK> actorRelativeCameraTracks;
+    vector<CINEMATIC_CAMERA_SHOT> cameraShots;
     Client::CameraModifierClip modifierClip;
     vector<CINEMATIC_EVENT> eventTrack;
     vector<CINEMATIC_ACTOR_TRANSFORM_TRACK> actorTransformTracks;

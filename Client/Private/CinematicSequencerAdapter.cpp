@@ -687,6 +687,8 @@ void DrawKeyMarkers(
 
             if (isHovered && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
             {
+                if (selectedTrackIndex != nullptr)
+                    *selectedTrackIndex = index;
                 if (selectedActorTransformTrackIndex != nullptr)
                     *selectedActorTransformTrackIndex = actorTrackIndex;
                 if (selectedActorTransformKeyIndex != nullptr)
@@ -755,6 +757,8 @@ void DrawKeyMarkers(
 
         if (IsActorTransformTrackIndex(sequence, index))
         {
+            if (selectedTrackIndex != nullptr)
+                *selectedTrackIndex = index;
             if (selectedActorTransformTrackIndex != nullptr)
                 *selectedActorTransformTrackIndex = GetActorTransformTrackOffset(sequence, index);
             if (selectedActorTransformKeyIndex != nullptr)

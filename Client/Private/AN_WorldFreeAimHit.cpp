@@ -32,6 +32,9 @@ void AN_WorldFreeAimHit::Execute(const AnimNotifyContext& context)
     if (stateCom == nullptr)
         return;
 
+    if (stateCom->Get_CurrentPlayerState() != PlayerState::FreeAim)
+        return; // FreeAim을 빠져나간 뒤 늦게 들어온 shoot notify는 소비하지 않는다.
+
     Shared<State> state = stateCom->Get_State(PlayerState::FreeAim);
     Shared<Player_FreeAim> freeAimState = dynamic_pointer_cast<Player_FreeAim>(state);
     if (freeAimState == nullptr)

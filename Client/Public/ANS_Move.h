@@ -3,6 +3,7 @@
 #include "AnimNotifyState.h"
 NS_BEGIN(Engine)
 
+class GameObject;
 class TransformCom;
 NS_END
 NS_BEGIN(Client)
@@ -27,8 +28,10 @@ private:
     Vec3 _startRot = {};
     Vec3 _goalRot = {};
 
-   bool  _isCounter ={};
-  Shared<TransformCom> _moveTarget = {};
+    bool _isCounter = {};
+    bool _keepFaceTarget = false;
+    Shared<TransformCom> _moveTarget = {};
+    Shared<Engine::GameObject> _faceTargetActor = {};
 };
 
 NS_END

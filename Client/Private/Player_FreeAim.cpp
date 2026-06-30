@@ -212,6 +212,9 @@ void Player_FreeAim::ExitInvoke()
     _hitObject.reset();
     Clear_PendingFreeAimShot();
 
+    if (_bodyPlayer != nullptr)
+        _bodyPlayer->Set_AnimationSpeed(1.f); // shoot 2배속 상태로 FreeAim을 빠져나가도 다음 상태에 속도를 남기지 않는다.
+
     if (_offsetModifier)
         _offsetModifier->Set_Active(false);
 
@@ -259,6 +262,9 @@ void Player_FreeAim::Trigger_PendingFreeAimShotHit()
 {
     if (_hasConsumedPendingShotHit)
         return; // 같은 발사 애니메이션에서 두 번 맞지 않게 막는다.
+
+    if (_stateCom == nullptr || _stateCom->Get_CurrentPlayerState() != PlayerState::FreeAim)
+        return; // FreeAim 상태가 끝난 뒤 도착한 notify는 이전 발사 결과를 소비하지 않는다.
 
     if (_bodyPlayer == nullptr)
         return;
@@ -421,7 +427,6 @@ Shared<GameObject> Player_FreeAim::Find_FreeAimHitTarget(FreeAimHitInfo* outHitI
 
     if (outHitInfo != nullptr)
     {
-        outHitInfo->object = hitObjectShared;
         outHitInfo->hitPosition = objectHit.position;
         outHitInfo->shotDirection = direction;
         outHitInfo->hitNormal = objectHit.normal;
