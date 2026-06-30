@@ -12,6 +12,7 @@
 #include "SL_Parry.h"
 #include "SL_Skill.h"
 #include "SL_State.h"
+#include "SL_UseItem.h"
 
 IMPLEMENT_REFLECTION(SL_StateMachineCom)
 {
@@ -64,6 +65,7 @@ void SL_StateMachineCom::BeginPlay()
     CHECK_FAILED(Add_State(SL_PlayerState::Parry, SL_Parry::Create(owner)));
     CHECK_FAILED(Add_State(SL_PlayerState::Jump, SL_Jump::Create(owner)));
     CHECK_FAILED(Add_State(SL_PlayerState::JumpCounter, SL_JumpCounter::Create(owner)));
+    CHECK_FAILED(Add_State(SL_PlayerState::UseItem, SL_UseItem::Create(owner)));
 
     for (auto& [stateTag, state] : _states)
     {

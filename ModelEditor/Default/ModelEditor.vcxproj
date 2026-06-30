@@ -164,19 +164,26 @@
     <FxCompile>
       <ShaderType>Effect</ShaderType>
       <ShaderModel>5.0</ShaderModel>
-      <AdditionalIncludeDirectories>$(SolutionDir)Engine\Bin\ShaderFiles;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)..\..\Engine\Bin\ShaderFiles;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </FxCompile>
     <PreBuildEvent>
       <Command>if not exist "$(OutDir)ShaderFiles" mkdir "$(OutDir)ShaderFiles"
-xcopy /y /d "$(SolutionDir)Engine\Bin\ShaderFiles\Engine_Shader_Defines.hlsli" "$(OutDir)ShaderFiles\"
-xcopy /y /d "$(SolutionDir)Client\Bin\ShaderFiles\Shader_Deferred.hlsl" "$(OutDir)ShaderFiles\"</Command>
+if not exist "$(OutDir)ShaderFiles\Compute" mkdir "$(OutDir)ShaderFiles\Compute"
+xcopy /y /d "$(ProjectDir)..\..\ModelEditor\Bin\ShaderFiles\*.*" "$(OutDir)ShaderFiles\"
+xcopy /y /d "$(ProjectDir)..\..\Engine\Bin\ShaderFiles\Engine_Shader_Defines.hlsli" "$(OutDir)ShaderFiles\"
+xcopy /y /d "$(ProjectDir)..\..\Client\Bin\ShaderFiles\Shader_Deferred.hlsl" "$(OutDir)ShaderFiles\"
+xcopy /y /d "$(ProjectDir)..\..\Client\Bin\ShaderFiles\Shader_VtxMesh.hlsl" "$(OutDir)ShaderFiles\"
+xcopy /y /d "$(ProjectDir)..\..\Client\Bin\ShaderFiles\Shader_VtxAnimMesh.hlsl" "$(OutDir)ShaderFiles\"
+xcopy /y /d "$(ProjectDir)..\..\Client\Bin\ShaderFiles\Compute\Shader_Compute_BoneRemap.hlsl" "$(OutDir)ShaderFiles\Compute\"
+xcopy /y /d "$(ProjectDir)..\..\Client\Bin\ShaderFiles\Compute\Shader_Compute_AnimMeshSkinning.hlsl" "$(OutDir)ShaderFiles\Compute\"
+xcopy /y /d "$(ProjectDir)..\..\Engine\Bin\ShaderFiles\Compute\Shader_Compute_MorphDeform.hlsl" "$(OutDir)ShaderFiles\Compute\"</Command>
     </PreBuildEvent>
     <PostBuildEvent>
-      <Command>if exist "$(SolutionDir)Engine\Bin\$(Configuration)\Engine.dll" xcopy /y /d "$(SolutionDir)Engine\Bin\$(Configuration)\Engine.dll" "$(OutDir)"
-if exist "$(SolutionDir)Engine\Bin\$(Configuration)\Engine.pdb" xcopy /y /d "$(SolutionDir)Engine\Bin\$(Configuration)\Engine.pdb" "$(OutDir)"
-if exist "$(SolutionDir)Client\Bin\$(Configuration)\assimp-vc143-mtd.dll" xcopy /y /d "$(SolutionDir)Client\Bin\$(Configuration)\assimp-vc143-mtd.dll" "$(OutDir)"
-if exist "$(SolutionDir)EngineSDK\lib\$(Configuration)\fmodL.dll" xcopy /y /d "$(SolutionDir)EngineSDK\lib\$(Configuration)\fmodL.dll" "$(OutDir)"
-if exist "$(SolutionDir)EngineSDK\lib\$(Configuration)\fmod.dll" xcopy /y /d "$(SolutionDir)EngineSDK\lib\$(Configuration)\fmod.dll" "$(OutDir)"</Command>
+      <Command>if exist "$(ProjectDir)..\..\Engine\Bin\$(Configuration)\Engine.dll" xcopy /y /d "$(ProjectDir)..\..\Engine\Bin\$(Configuration)\Engine.dll" "$(OutDir)"
+if exist "$(ProjectDir)..\..\Engine\Bin\$(Configuration)\Engine.pdb" xcopy /y /d "$(ProjectDir)..\..\Engine\Bin\$(Configuration)\Engine.pdb" "$(OutDir)"
+if exist "$(ProjectDir)..\..\Client\Bin\$(Configuration)\assimp-vc143-mtd.dll" xcopy /y /d "$(ProjectDir)..\..\Client\Bin\$(Configuration)\assimp-vc143-mtd.dll" "$(OutDir)"
+if exist "$(ProjectDir)..\..\EngineSDK\lib\$(Configuration)\fmodL.dll" xcopy /y /d "$(ProjectDir)..\..\EngineSDK\lib\$(Configuration)\fmodL.dll" "$(OutDir)"
+if exist "$(ProjectDir)..\..\EngineSDK\lib\$(Configuration)\fmod.dll" xcopy /y /d "$(ProjectDir)..\..\EngineSDK\lib\$(Configuration)\fmod.dll" "$(OutDir)"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -205,19 +212,26 @@ if exist "$(SolutionDir)EngineSDK\lib\$(Configuration)\fmod.dll" xcopy /y /d "$(
     <FxCompile>
       <ShaderType>Effect</ShaderType>
       <ShaderModel>5.0</ShaderModel>
-      <AdditionalIncludeDirectories>$(SolutionDir)Engine\Bin\ShaderFiles;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)..\..\Engine\Bin\ShaderFiles;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </FxCompile>
     <PreBuildEvent>
       <Command>if not exist "$(OutDir)ShaderFiles" mkdir "$(OutDir)ShaderFiles"
-xcopy /y /d "$(SolutionDir)Engine\Bin\ShaderFiles\Engine_Shader_Defines.hlsli" "$(OutDir)ShaderFiles\"
-xcopy /y /d "$(SolutionDir)Client\Bin\ShaderFiles\Shader_Deferred.hlsl" "$(OutDir)ShaderFiles\"</Command>
+if not exist "$(OutDir)ShaderFiles\Compute" mkdir "$(OutDir)ShaderFiles\Compute"
+xcopy /y /d "$(ProjectDir)..\..\ModelEditor\Bin\ShaderFiles\*.*" "$(OutDir)ShaderFiles\"
+xcopy /y /d "$(ProjectDir)..\..\Engine\Bin\ShaderFiles\Engine_Shader_Defines.hlsli" "$(OutDir)ShaderFiles\"
+xcopy /y /d "$(ProjectDir)..\..\Client\Bin\ShaderFiles\Shader_Deferred.hlsl" "$(OutDir)ShaderFiles\"
+xcopy /y /d "$(ProjectDir)..\..\Client\Bin\ShaderFiles\Shader_VtxMesh.hlsl" "$(OutDir)ShaderFiles\"
+xcopy /y /d "$(ProjectDir)..\..\Client\Bin\ShaderFiles\Shader_VtxAnimMesh.hlsl" "$(OutDir)ShaderFiles\"
+xcopy /y /d "$(ProjectDir)..\..\Client\Bin\ShaderFiles\Compute\Shader_Compute_BoneRemap.hlsl" "$(OutDir)ShaderFiles\Compute\"
+xcopy /y /d "$(ProjectDir)..\..\Client\Bin\ShaderFiles\Compute\Shader_Compute_AnimMeshSkinning.hlsl" "$(OutDir)ShaderFiles\Compute\"
+xcopy /y /d "$(ProjectDir)..\..\Engine\Bin\ShaderFiles\Compute\Shader_Compute_MorphDeform.hlsl" "$(OutDir)ShaderFiles\Compute\"</Command>
     </PreBuildEvent>
     <PostBuildEvent>
-      <Command>if exist "$(SolutionDir)Engine\Bin\$(Configuration)\Engine.dll" xcopy /y /d "$(SolutionDir)Engine\Bin\$(Configuration)\Engine.dll" "$(OutDir)"
-if exist "$(SolutionDir)Engine\Bin\$(Configuration)\Engine.pdb" xcopy /y /d "$(SolutionDir)Engine\Bin\$(Configuration)\Engine.pdb" "$(OutDir)"
-if exist "$(SolutionDir)Client\Bin\$(Configuration)\assimp-vc143-mt.dll" xcopy /y /d "$(SolutionDir)Client\Bin\$(Configuration)\assimp-vc143-mt.dll" "$(OutDir)"
-if exist "$(SolutionDir)EngineSDK\lib\$(Configuration)\fmodL.dll" xcopy /y /d "$(SolutionDir)EngineSDK\lib\$(Configuration)\fmodL.dll" "$(OutDir)"
-if exist "$(SolutionDir)EngineSDK\lib\$(Configuration)\fmod.dll" xcopy /y /d "$(SolutionDir)EngineSDK\lib\$(Configuration)\fmod.dll" "$(OutDir)"</Command>
+      <Command>if exist "$(ProjectDir)..\..\Engine\Bin\$(Configuration)\Engine.dll" xcopy /y /d "$(ProjectDir)..\..\Engine\Bin\$(Configuration)\Engine.dll" "$(OutDir)"
+if exist "$(ProjectDir)..\..\Engine\Bin\$(Configuration)\Engine.pdb" xcopy /y /d "$(ProjectDir)..\..\Engine\Bin\$(Configuration)\Engine.pdb" "$(OutDir)"
+if exist "$(ProjectDir)..\..\Client\Bin\$(Configuration)\assimp-vc143-mt.dll" xcopy /y /d "$(ProjectDir)..\..\Client\Bin\$(Configuration)\assimp-vc143-mt.dll" "$(OutDir)"
+if exist "$(ProjectDir)..\..\EngineSDK\lib\$(Configuration)\fmodL.dll" xcopy /y /d "$(ProjectDir)..\..\EngineSDK\lib\$(Configuration)\fmodL.dll" "$(OutDir)"
+if exist "$(ProjectDir)..\..\EngineSDK\lib\$(Configuration)\fmod.dll" xcopy /y /d "$(ProjectDir)..\..\EngineSDK\lib\$(Configuration)\fmod.dll" "$(OutDir)"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>

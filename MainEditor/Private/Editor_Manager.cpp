@@ -29,6 +29,7 @@
 #include "ScreenFx_View.h"
 #include "SoulLike_Viewer.h"
 #include "PathTool.h"
+#include "RenderCall_View.h"
 #include "SoulLikeCamera_Viewer.h"
 #include "BattleController.h"
 
@@ -133,6 +134,7 @@ HRESULT Editor_Manager::Initialize()
     Add_Window(Console_View::Create());
     Add_Window(Camera_Tool::Create());
     Add_Window(Profile_View::Create());
+    Add_Window(RenderCall_View::Create());
     Add_Window(Cinematic_Tool::Create());
     Add_Window(BattleCameraPreview_View::Create());
     Add_Window(BT_View::Create());

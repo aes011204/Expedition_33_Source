@@ -138,11 +138,6 @@ bool GamePlayUI_SL::Ensure_LockOn()
 void GamePlayUI_SL::Show_ParryResult(const Vec3& worldPos)
 {
     UNREFERENCED_PARAMETER(worldPos);
-
-    if (!Ensure_ReactionResult())
-        return;
-
-    _reactionResult->Show_Reaction(BattleReactionType::Parry);
 }
 
 void GamePlayUI_SL::Show_BossDamage(float damage)

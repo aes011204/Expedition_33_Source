@@ -274,6 +274,9 @@ void BattleTurnCamera::Update(float timeDelta)
     if (!GAME->Is_ActiveCamera(GetSharedPtr<Camera>()))
         return;
 
+    if (_isRuntimePausedByTutorial)
+        return; // pauseBattle 튜토리얼이 열린 동안 transition/clip/drift 카메라 진행을 고정한다.
+
     if (_isLiveEditEnabled)
         Update_LiveEditInput(timeDelta);
 
@@ -437,6 +440,7 @@ void BattleTurnCamera::Reset_RuntimeState()
     _yaw = 0.f;
     _pitch = 0.f;
     _isClipPreview = false;
+    _isRuntimePausedByTutorial = false;
     _isFirstUpdate = true;
     _isWideMode = false;
     _battleDOFPresetApplied = false;

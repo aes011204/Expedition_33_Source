@@ -2393,6 +2393,7 @@ void Renderer::Capture_RenderViewHotspotCandidate(RenderGroup renderGroup, const
     entry.renderGroup = renderGroup;
     entry.objectType = gameObject->Get_ObjectType();
     entry.shadowCasterType = gameObject->Get_ShadowCasterType();
+    entry.objectName = gameObject->Get_Name();
     entry.sourcePrefab = gameObject->Get_SourcePrefabName();
 
     ClassReflectionInfo& reflectionInfo = gameObject->Get_ReflectionInfo();
@@ -2416,6 +2417,7 @@ void Renderer::Capture_RenderViewHotspotCandidate(RenderGroup renderGroup, const
     }
 
     entry.renderHotspotInstanceCount = gameObject->Get_RenderHotspotInstanceCount();
+    entry.hasInstancedMeshStats = gameObject->Get_RenderHotspotInstancedMeshStats(entry.instancedMeshStats);
 
     _hotspotPendingSnapshot.entries.emplace_back(move(entry));
     ++_hotspotPendingSnapshot.totalSubmissions;

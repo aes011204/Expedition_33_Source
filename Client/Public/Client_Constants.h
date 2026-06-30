@@ -163,6 +163,9 @@ namespace Client::Constants::UI
     inline constexpr wchar_t UI_Get_Weapon_Maelle_Sekarum_Path[] =
         L"UI/UI_Json/CommonSystem/Get_Item/Weapon/UI_Get_Weapon_Maelle_Sekarum.json";
 
+    inline constexpr wchar_t UI_Get_Chroma_Path[] =
+        L"UI/UI_Json/CommonSystem/Get_Item/Chroma/UI_Get_Chroma.json";
+
     inline constexpr wchar_t UI_Get_Pictos_AugmentedAim_Path[] =
         L"UI/UI_Json/CommonSystem/Get_Item/Pictos/UI_Get_Pictos_AugmentedAim.json";
 
@@ -529,6 +532,10 @@ namespace Client::Constants::Prefab
     inline constexpr char BattleStartSpawner_Boss[] = "BattleStartSpawner/BSS_GamePlay_Boss";
     inline constexpr char BSS_Gestral_PotatoBag[] = "BattleStartSpawner/BSS_Gestral_PotatoBag";
 
+    inline constexpr char BSS_Gameplay01[] = "BattleStartSpawner/BSS_GamePlay01";
+    inline constexpr char BSS_Gameplay02[] = "BattleStartSpawner/BSS_GamePlay02";
+
+
 }
 
 // 이제 사운드는 DT_SoundCue에 추가해서, 거기에 등록된 cueId를 여기에 상수로 매핑하는 형식으로 통일하기
@@ -614,6 +621,6 @@ namespace Client::Constants::Dialogue
 
 namespace Client::Constants::Value
 {
-    constexpr uint32 potatoBagEncounterId = 1;
+    constexpr uint32 potatoBagEncounterId = 100; // 일반 월드 몬스터 기본 encounter 1과 분리된 Gradient 안내 전용 전투
     constexpr int32  potatoBagBattleStartSpawnerId = 5;
 }

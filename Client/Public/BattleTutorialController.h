@@ -70,6 +70,7 @@ public:
 
     bool Is_TutorialOpen() const { return _isTutorialOpen; }
     bool Should_BlockBattleUpdate() const { return _blockBattleUpdate; }
+    bool Should_PauseBattlePresentation() const { return _pauseBattlePresentation; }
 
     BattleTutorialStep Get_ActiveStep() const { return _activeStep; }
     BattleTutorialStep Get_CommandFocusStep() const;
@@ -131,6 +132,7 @@ private:
     uint32 _tutorialEnemyActionCount = 0;
     bool _isTutorialOpen = false;
     bool _blockBattleUpdate = false;
+    bool _pauseBattlePresentation = false;
     bool _isTutorialSoundPaused = false; // QTE 중 이미 시작된 긴 Effect SFX를 튜토리얼 pause와 같이 멈춘다.
 
     bool _hasPendingRequest = false;
