@@ -10,7 +10,6 @@
 #include "Collision_Define.h"
 #include "ShaderPassFinder.h"
 #include "Renderer_Define.h"
-#include "Shadow.h"
 
 namespace
 {
@@ -158,7 +157,7 @@ HRESULT MapInstancedMesh::Initialize(void* arg)
                 PhysXStaticActorHandle handle = GAME->Register_PhysXStaticCollision(
                     *_collisionData,
                     worldMatrix,
-                    Collision_Preset::Enviroment);
+                    Collision_Preset::Environment);
 
                 if (handle.Is_Valid())
                 {
@@ -512,6 +511,16 @@ HRESULT MapInstancedMesh::Ready_Components(const wstring& modelPath, Shared<Mode
         }
 
         _lodModels[lod] = ModelCom::Create(_device, _context, ModelType::NonAnim, lodPathA.c_str(), Matrix::CreateScale(0.01f));
+    }
+
+    for (int lod = 1; lod <= 2; ++lod)
+    {
+        if (!_lodModels[lod])
+        {
+            continue;
+        }
+        _lodModels[lod]->Get_MaterialBindings() = _lodModels[0]->Get_MaterialBindings();
+        _lodModels[lod]->Apply_BaseMaterialFromBundle_AllSlots();
     }
 
     return S_OK;

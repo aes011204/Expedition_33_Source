@@ -1,8 +1,16 @@
-#pragma once
+﻿#pragma once
 #include "AnimationModifier.h"
 #include "TransformCom.h"
 #include "ChainModifier.h"
-#include <unordered_set>
+
+namespace physx {
+	class PxPhysics;
+	class PxScene;
+	class PxMaterial;
+	class PxRigidDynamic;
+	class PxJoint;
+}
+using namespace physx;
 
 NS_BEGIN(Engine)
 
@@ -16,6 +24,10 @@ public:
 		string rootBoneName{};
 		float outputMultiplier{ 1.f };
 		float smoothMultiplier{ 1.f };
+		float maxAngleMul{ 1.f };
+		float radiusMul{ 1.f };
+		float dampingMul{ 1.f };
+		float restoreMul{ 1.f };
 	};
 
 	struct PhysicsModifierDesc : public AnimationModifierDesc
@@ -31,77 +43,48 @@ public:
 		const Matrix* collisionOwnerWorldMatrix{ nullptr };
 
 		float outputAlpha{ 1.f };
-		float outputSmoothAlpha{ 0.18f };
-		float idleOutputSmoothAlpha{ 0.35f };
-		float tipOutputSmoothScale{ 1.f };
-		float idleMotionDeadzone{ 0.001f };
-		float teleportDistance{ 300.f };
-		float poseFollowAlpha{ 0.25f };
-		float freePoseFollowAlpha{ 0.08f };
-		float contactPoseFollowAlpha{ 0.65f };
-		float releasePoseFollowAlpha{ 0.04f };
-		float releaseMemoryTime{ 0.18f };
-		float animTranslationInertiaScale{ 0.85f };
-		float animRotationInertiaScale{ 1.15f };
-		float ownerTranslationInertiaScale{ 0.45f };
-		float ownerRotationInertiaScale{ 0.85f };
-		float inertiaMaxDistance{ 14.f };
-		float inertiaDamping{ 0.82f };
-		float contactInertiaDamping{ 0.35f };
+		float rotationOutputAlpha{ 0.25f };
+		float outputSmoothAlpha{ 0.35f };
+		float idleOutputSmoothAlpha{ 0.45f };
+		float idleMotionDeadzone{ 0.06f };
+		float maxOutputAngleDegree{ 150.f };
+
+		float contactRotationFollowAlpha{ 0.34f };
+		float freeRotationFollowAlpha{ 0.46f };
+		float rotationFollowDepthScale{ 0.10f };
+
+		float poseRestoreAlpha{ 0.08f };
+		float poseRestoreMaxSpeed{ 2.50f };
+
+		float contactInertiaDamping{ 0.18f };
 		float releaseInertiaDamping{ 0.12f };
-		float maxInertialStepScale{ 0.25f };
-		uint32 solverIterations{ 2 };
-		float targetFrameRate{ 60.f };
-		bool enableCollision{ false };
-		float collisionPrimitiveScale{ 1.f };
-		float collisionRadiusPadding{ 0.f };
-		float collisionPushOutScale{ 0.9f };
-		float collisionPushOutMaxScale{ 0.35f };
-		float collisionContactSkinWidth{ 0.03f };
-		Vec3 collisionPushDirectionWorld{ Vec3::Zero };
-		float collisionPushDirectionBlend{ 0.f };
-		float collisionDirectionSmoothAlpha{ 0.35f };
-		float contactOutputAlpha{ 0.85f };
-		float contactOutputSmoothAlpha{ 0.45f };
-		float contactOutputLimitDegree{ 120.f };
-		float contactPoseFollowScale{ 0.15f };
-		float contactSolveLimitDegree{ 75.f };
-		bool segmentFrameOutput{ false };
-		float rotationOutputAlpha{ 1.f };
-		float translationOutputAlpha{ 0.f };
-		float translationOutputLimitScale{ 0.10f };
-		float contactCorrectionSmoothAlpha{ 0.55f };
-		float contactCorrectionReleaseAlpha{ 0.35f };
-		float childCollisionPushDamping{ 0.35f };
-		float tipCollisionPushDamping{ 0.65f };
-		float contactBendPropagationAlpha{ 0.f };
-		float contactBendPropagationDecay{ 0.75f };
-		float finalCollisionProjectionScale{ 1.f };
-		float finalCollisionProjectionMaxScale{ 0.08f };
-		int32 finalCollisionProjectionIterations{ 1 };
-		float collisionDirectionBlockAlpha{ 1.f };
+
+		bool enableCollision{ true };
+		float collisionPrimitiveScale{ 0.30f };
+		float collisionRadiusPadding{ 0.12f };
+		float collisionContactSkinWidth{ 0.08f };
+		float collisionSphereRadius{ 0.24f };
+		float collisionPushOutScale{ 1.f };
 		float contactSnapAlpha{ 0.90f };
-		float releaseContactCorrectionAlpha{ 0.12f };
+		float collisionCorrectionSmoothAlpha{ 0.30f };
+		float collisionNormalSmoothAlpha{ 0.30f };
+		uint32 collisionProjectionIterations{ 3 };
+
+		Vec3 windDirection{ Vec3::Zero };
+		float windScale{ 0.f };
+
+		float teleportDistance{ 300.f };
+		uint32 solverIterations{ 5 };
+
+		bool writeBackEnabled{ true };
+		bool debugDrawCollisionCapsules{ false };
+
 		mutable int32 debugActiveChainCount{ 0 };
 		mutable int32 debugActiveNodeCount{ 0 };
 		mutable int32 debugLoadedCapsuleCount{ 0 };
 		mutable int32 debugActiveCapsuleCount{ 0 };
-		mutable int32 debugCollisionSource{ 0 };
 		mutable int32 debugCollisionHitCount{ 0 };
-		mutable int32 debugSegmentCollisionHitCount{ 0 };
-		mutable float debugMinCollisionMargin{ 0.f };
-		mutable int32 debugCollisionPushOutCount{ 0 };
-		mutable float debugMaxCollisionPushOut{ 0.f };
-		mutable int32 debugSegmentCount{ 0 };
 		mutable float debugInertiaMagnitude{ 0.f };
-		mutable int32 debugReleaseNodeCount{ 0 };
-		mutable int32 debugContactNodeCount{ 0 };
-		bool writeBackEnabled{ true };
-		float hairCollisionClearance{ 0.f };
-		bool debugDrawChains{ false };
-		bool debugDrawNodes{ false };
-		bool debugDrawSegments{ false };
-		bool debugDrawCollisions{ false };
 	};
 
 	struct RuntimeDebugCapsule
@@ -112,13 +95,26 @@ public:
 		float collisionRadius{ 0.f };
 	};
 
+	struct RuntimeDebugSphere
+	{
+		Vec3 center{ Vec3::Zero };
+		float radius{ 0.f };
+		bool hasContact{ false };
+	};
+
 	struct RuntimeDebugSegment
 	{
 		Vec3 startPoint{ Vec3::Zero };
 		Vec3 endPoint{ Vec3::Zero };
 		bool hasContact{ false };
 		bool hasPush{ false };
-		bool isSolvedSegment{ false };
+	};
+
+	struct WorldCapsule
+	{
+		Vec3 startPoint{ Vec3::Zero };
+		Vec3 endPoint{ Vec3::Zero };
+		float radius{ 0.f };
 	};
 
 private:
@@ -127,49 +123,53 @@ private:
 		uint32 boneIndex{ 0 };
 		int32 parentNodeIndex{ -1 };
 		vector<int32> childNodeIndices{};
+
 		Matrix bindLocal{ Matrix::Identity };
 		Matrix poseLocal{ Matrix::Identity };
 		Matrix originalWorld{ Matrix::Identity };
+
+		Vec3 bindLocalDir{ Vec3::Zero };
+		Vec3 bindScale{ Vec3::One };
 		Vec3 poseLocalDir{ Vec3::Zero };
-		Vec3 smoothedLocalDir{ Vec3::Zero };
 		Vec3 smoothedLocalTranslation{ Vec3::Zero };
 		Quat smoothedLocalRotation{ Quat::Identity };
-		Vec3 position{ Vec3::Zero };
-		Vec3 solvedPosition{ Vec3::Zero };
-		Vec3 prevSolvedPosition{ Vec3::Zero };
-		Vec3 prevPosePosition{ Vec3::Zero };
-		Vec3 prevPoseDir{ Vec3::Zero };
-		Vec3 inertiaOffsetWorld{ Vec3::Zero };
-		Vec3 contactCorrection{ Vec3::Zero };
-		Vec3 smoothedContactCorrection{ Vec3::Zero };
-		Vec3 smoothedCollisionNormal{ Vec3::Zero };
+
 		float length{ 0.f };
 		float depthRatio{ 0.f };
-		float collisionCorrectionDistance{ 0.f };
-		float contactReleaseTimer{ 0.f };
-		bool hasSmoothedLocalDir{ false };
+		float debugSphereRadius{ 0.f };
+
+		Vec3 solvedPosition{ Vec3::Zero };
+		Vec3 prevSolvedPosition{ Vec3::Zero };
+		Vec3 smoothedCollisionOffset{ Vec3::Zero };
+		Vec3 smoothedContactNormal{ Vec3::Zero };
+
 		bool hasSmoothedLocalTransform{ false };
-		bool hasSolvedState{ false };
-		bool hasPrevPoseState{ false };
-		bool wasCollisionDriven{ false };
-		bool hasCollisionContact{ false };
-		bool hasCollisionPushApplied{ false };
-		bool hasSmoothedCollisionNormal{ false };
+		bool hasSmoothedCollisionOffset{ false };
+		bool hasSmoothedContactNormal{ false };
+		bool hadContactThisFrame{ false };
+		bool hadPushThisFrame{ false };
+		bool isKinematic{ false };
+
+		physx::PxRigidDynamic* actor{ nullptr };
+		PxJoint* joint{ nullptr };
 	};
 
 	struct Chain
 	{
 		ChainDesc desc{};
-		vector<Node> nodes{};
 		int32 anchorBoneIndex{ -1 };
+		PxRigidDynamic* anchorActor{ nullptr };
 		Matrix anchorWorld{ Matrix::Identity };
+		vector<Node> nodes{};
 	};
 
-	struct WorldCapsule
+	struct Blocker
 	{
-		Vec3 startPoint{ Vec3::Zero };
-		Vec3 endPoint{ Vec3::Zero };
+		string boneName{};
+		PxRigidDynamic* actor{ nullptr };
 		float radius{ 0.f };
+		float halfHeight{ 0.f };
+		bool isSphere{ false };
 	};
 
 protected:
@@ -185,50 +185,73 @@ public:
 	void RuntimeResetPose(ModelCom* model) override { ResetPose(model); }
 	bool Can_RuntimeRebuild() const override { return true; }
 	void RuntimeRebuild(ModelCom* model) override;
-	void Set_RuntimeTestOwnerMotion(bool enabled, const Vec3& delta);
 	void ResetPose(ModelCom* model);
-	void Build_RuntimeDebugCapsules(ModelCom* model, vector<RuntimeDebugCapsule>& outCapsules) const;
-	void Build_RuntimeDebugSegments(vector<RuntimeDebugSegment>& outSegments) const;
+	void Build_RuntimeDebugCapsules(vector<RuntimeDebugCapsule>& outCapsules) const { outCapsules = _runtimeDebugCapsules; }
+	void Build_RuntimeDebugSpheres(vector<RuntimeDebugSphere>& outSpheres) const { outSpheres = _runtimeDebugSpheres; }
+	void Build_RuntimeDebugSegments(vector<RuntimeDebugSegment>& outSegments) const { outSegments = _runtimeDebugSegments; }
+	void Set_RuntimeTestOwnerMotion(bool enabled, const Vec3& delta);
+
+	void Apply_WindForce(const Vec3& direction, float scale);
 
 private:
+	void Release_PhysXResources();
 	void Initialize_Chains(ModelCom* model);
-	void BuildChainRecursive(ModelCom* model, int32 boneIndex, int32 parentNodeIndex, Chain& chain);
-	void Restore_PoseLocals(ModelCom* model);
+	void BuildChainRecursive(ModelCom* model, int32 boneIndex, int32 parentNodeIndex, Chain& outChain);
 	void Capture_CurrentPose(ModelCom* model, const Matrix& ownerWorld);
-	void Reset_SolvedStateToPose();
-	void Update_InertiaOffsets(const Matrix& ownerWorld, const Matrix& prevOwnerWorld, const Vec3& ownerDelta);
-	void Prepare_SolvedPoseStart();
-	void Update_ContactReleaseStates(float timeDelta);
-	void Evaluate_SegmentCollisionContacts(const ModelCom* model, const Matrix& ownerWorld);
-	void Solve_ContactPoseChains(const ModelCom* model, const Matrix& ownerWorld);
-	void Finalize_CollisionProjection(const ModelCom* model, const Matrix& ownerWorld);
-	void Commit_SolvedState();
-	void Enforce_ChainLengthConstraints(Chain& chain);
-	void Update_ResolvedCollisionPushDirection(const Matrix& ownerWorld);
-	void Project_ChainOutOfColliders(Chain& chain, const vector<WorldCapsule>& worldCapsules, float scale, float maxScale, bool markContact);
-	void HardProject_SegmentsOutOfColliders(Chain& chain, const vector<WorldCapsule>& worldCapsules, bool markContact);
-	void HardProject_NodePointsOutOfColliders(Chain& chain, const vector<WorldCapsule>& worldCapsules, bool markContact);
-	float GetCollisionQueryRadius(const WorldCapsule& capsule) const;
-	float GetCollisionContactDistance(const WorldCapsule& capsule) const;
-	void Apply_NodeCorrection(Chain& chain, size_t nodeIndex, const Vec3& correction, float penetration, bool propagateToChildren);
-	void Apply_CorrectionToDescendants(Chain& chain, size_t nodeIndex, const Vec3& correction);
-	void Write_BackSolvedPoseToModel(ModelCom* model, const Matrix& ownerWorld, bool isOwnerIdle);
-	vector<WorldCapsule> Update_WorldCapsules(const ModelCom* model, const Matrix& ownerWorld) const;
-	void Draw_DebugChains() const;
+	bool Ensure_PhysXResources(
+		ModelCom* model,
+		const ModelCom* collisionModel,
+		const Matrix& ownerWorld,
+		const Matrix& collisionOwnerWorld);
+	void Reset_PhysXStateToPose(
+		ModelCom* model,
+		const ModelCom* collisionModel,
+		const Matrix& ownerWorld,
+		const Matrix& collisionOwnerWorld);
+	void Sync_KinematicActors(
+		ModelCom* model,
+		const ModelCom* collisionModel,
+		const Matrix& ownerWorld,
+		const Matrix& collisionOwnerWorld);
+	void Update_SolvedPositionsFromActors();
+	void Apply_PostSimulationConstraints(
+		ModelCom* model,
+		const Matrix& ownerWorld,
+		const vector<WorldCapsule>& worldCapsules,
+		float timeDelta);
+	void Write_BackToModel(ModelCom* model, const Matrix& ownerWorld, bool isOwnerIdle);
+	vector<WorldCapsule> Build_WorldCapsules(const ModelCom* collisionModel, const Matrix& collisionOwnerWorld) const;
+	void Build_DebugOutput(ModelCom* model, const Matrix& ownerWorld);
+	bool Validate_RootAlignment(ModelCom* model, const Matrix& ownerWorld);
+	void Restore_PoseLocals(ModelCom* model);
+
+	static Vec3 Get_Position(const Matrix& matrix);
+	static Vec3 Get_LocalDirection(const Matrix& parentWorld, const Vec3& worldDirection);
+	static Vec3 Limit_LocalDirectionByAngle(const Vec3& baseLocalDirection, const Vec3& targetLocalDirection, float maxAngleDegree);
+	static Quat Build_RotationDelta(const Vec3& fromDirection, const Vec3& toDirection);
+	static Matrix Build_LocalMatrix_FromSRT(const Vec3& scale, const Quat& rotation, const Vec3& translation);
+	static Vec3 Closest_PointOnSegment(const Vec3& point, const Vec3& start, const Vec3& end);
 
 private:
 	PhysicsModifierDesc _desc{};
 	vector<Chain> _chains{};
 	vector<ChainModifier::CapsuleColliderDesc> _colliders{};
+	vector<Blocker> _blockers{};
+	vector<RuntimeDebugCapsule> _runtimeDebugCapsules{};
+	vector<RuntimeDebugSphere> _runtimeDebugSpheres{};
+	vector<RuntimeDebugSegment> _runtimeDebugSegments{};
 	unordered_set<string> _configuredRoots{};
 	bool _chainsInitialized{ false };
-	bool _isFirstUpdate{ true };
+	bool _physxResourcesReady{ false };
 	Vec3 _prevOwnerPos{ Vec3::Zero };
 	Matrix _prevOwnerWorld{ Matrix::Identity };
-	float _elapsedTime{ 0.f };
+	bool _hasPrevOwnerWorld{ false };
 	bool _runtimeTestOwnerMotionEnabled{ false };
 	Vec3 _runtimeTestOwnerMotionDelta{ Vec3::Zero };
-	Vec3 _resolvedCollisionPushDirectionWorld{ Vec3::Zero };
+
+	PxPhysics* _physics{ nullptr };
+	PxScene* _scene{ nullptr };
+	PxMaterial* _material{ nullptr };
 
 public:
 	static Shared<PhysicsModifier> Create(const PhysicsModifierDesc* desc);

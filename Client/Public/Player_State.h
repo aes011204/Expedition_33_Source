@@ -1,6 +1,7 @@
 ﻿#pragma once
 #include "State.h"
 #include "MovementCom.h"
+#include "WorldInteractionSpot.h"
 
 NS_BEGIN(Client)
 
@@ -40,7 +41,14 @@ protected:
     bool Is_MovementBlocked() const;     // follower blocked 상태
     bool IsFalling() const;
     bool IsFreeAimShoot() const; // FreeAim 상태에서 좌클
+    float Get_ParkourLowProbeDistance() const;
+    float Get_ParkourHighProbeDistance() const;
+    Vec3 Get_ParkourLowProbeCenter() const;
+    Vec3 Get_ParkourHighProbeCenter() const;
 
+    void Draw_ParkourDebugRays() const;
+
+    bool Try_BuildWorldInteractionRequest(WorldInteractionSpot::WorldInteractionRequest& outRequest, Shared<GameObject>& outSpot) const;
     bool IsEnterWorldAction() const; 
     bool IsEnterFreeAim() const;
     bool IsEnterJump() const;       
@@ -51,6 +59,7 @@ protected:
     Weak<Player_WorldBase>            _owner{};
     PlayerControllerCom*              _controllerCom{ nullptr };
     PlayerStateMachineCom*            _stateCom{ nullptr };
+    MovementCom*                      _movementCom{ nullptr };
     Body_Player*                      _bodyPlayer{ nullptr };
 
 public:

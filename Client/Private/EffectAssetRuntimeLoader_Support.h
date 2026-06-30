@@ -2,9 +2,15 @@
 #include "EffectAssetRuntimeLoader.h"
 #include "EffectRuntime_Lowering.h"
 
+namespace Engine
+{
+    struct PointParticleCylinderLocationDesc;
+    struct PointParticleSpriteTiltDesc;
+}
+
 NS_BEGIN(Client)
 
-namespace EffectAssetRuntimeLoad
+    namespace EffectAssetRuntimeLoad
 {
     namespace Json
     {
