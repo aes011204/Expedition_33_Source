@@ -29,6 +29,7 @@ public:
     Shared<Mon_WeakPoint> Get_BattleWeakPoint() const override { return _weak; }
     bool Try_Consume_FreeAimWeakPoint() override;
     BattlePhase Get_CurPhase() const override;
+    bool Should_ApplySerializedPart(const wstring& partTag, const json& partObjectJson) const override;
 
 protected:
     HRESULT Ready_PartObjects();

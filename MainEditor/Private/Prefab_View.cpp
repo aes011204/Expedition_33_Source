@@ -28,6 +28,7 @@
 #include "WeaponPrefabLoader.h"
 #include "Mon_Dualliste_Sword_L.h"
 #include "Mon_Dualliste_Sword_R.h"
+#include "Mon_PotatoBag_Weapon.h"
 #include "Mon_Simon_Weapon.h"
 #include "PartObject.h"
 #include "Player_WorldBase.h"
@@ -1465,6 +1466,8 @@ void Prefab_View::Draw_SelectedWeaponSourceAnchorPanel(const Shared<GameObject>&
         anchorsPtr = &swordL->Get_SourceHistoryAnchors();
     else if (Shared<Client::Mon_Dualliste_Sword_R> swordR = dynamic_pointer_cast<Client::Mon_Dualliste_Sword_R>(weaponObject))
         anchorsPtr = &swordR->Get_SourceHistoryAnchors();
+    else if (Shared<Client::Mon_PotatoBag_Weapon> potatoBagWeapon = dynamic_pointer_cast<Client::Mon_PotatoBag_Weapon>(weaponObject))
+        anchorsPtr = &potatoBagWeapon->Get_SourceHistoryAnchors();
 
     if (anchorsPtr == nullptr)
         return;
@@ -2506,7 +2509,8 @@ void Prefab_View::Draw_SelectedWeaponTrailAnchorPreview() const
     if (dynamic_pointer_cast<Client::Weapon>(selectedObject) == nullptr &&
         dynamic_pointer_cast<Client::Mon_Dualliste_Sword_L>(selectedObject) == nullptr &&
         dynamic_pointer_cast<Client::Mon_Dualliste_Sword_R>(selectedObject) == nullptr &&
-        dynamic_pointer_cast<Client::Mon_Simon_Weapon>(selectedObject) == nullptr)
+        dynamic_pointer_cast<Client::Mon_Simon_Weapon>(selectedObject) == nullptr &&
+        dynamic_pointer_cast<Client::Mon_PotatoBag_Weapon>(selectedObject) == nullptr)
         return;
 
     if (_selectedWeaponTrailModelGuid.empty())
@@ -2584,6 +2588,8 @@ void Prefab_View::Draw_SelectedWeaponSourceAnchorPreview() const
         anchors = &swordL->Get_SourceHistoryAnchors();
     else if (Shared<Client::Mon_Dualliste_Sword_R> swordR = dynamic_pointer_cast<Client::Mon_Dualliste_Sword_R>(selectedObject))
         anchors = &swordR->Get_SourceHistoryAnchors();
+    else if (Shared<Client::Mon_PotatoBag_Weapon> potatoBagWeapon = dynamic_pointer_cast<Client::Mon_PotatoBag_Weapon>(selectedObject))
+        anchors = &potatoBagWeapon->Get_SourceHistoryAnchors();
 
     if (selectedObject == nullptr || anchors == nullptr || anchors->empty())
         return;
@@ -2919,6 +2925,8 @@ bool Prefab_View::Try_GetSelectedWeaponModel(const Shared<GameObject>& selectedO
         outModel = swordR->Get_Model();
     else if (Shared<Client::Mon_Simon_Weapon> simonWeapon = dynamic_pointer_cast<Client::Mon_Simon_Weapon>(selectedObject))
         outModel = simonWeapon->Get_Model();
+    else if (Shared<Client::Mon_PotatoBag_Weapon> potatoBagWeapon = dynamic_pointer_cast<Client::Mon_PotatoBag_Weapon>(selectedObject))
+        outModel = potatoBagWeapon->Get_Model();
     else
         return false;
 
@@ -2958,6 +2966,11 @@ bool Prefab_View::Try_ResolveTrailAnchorWorldPosition(
     {
         modelCom = swordR->Get_Model();
         combinedWorldMatrix = swordR->Get_CombinedWorldMatrix();
+    }
+    else if (Shared<Client::Mon_PotatoBag_Weapon> potatoBagWeapon = dynamic_pointer_cast<Client::Mon_PotatoBag_Weapon>(selectedObject))
+    {
+        modelCom = potatoBagWeapon->Get_Model();
+        combinedWorldMatrix = potatoBagWeapon->Get_CombinedWorldMatrix();
     }
     else if (Shared<Client::Mon_Simon_Weapon> simonWeapon = dynamic_pointer_cast<Client::Mon_Simon_Weapon>(selectedObject))
     {
@@ -3015,6 +3028,11 @@ bool Prefab_View::Try_ResolveSourceAnchorWorldPosition(
     {
         modelCom = swordR->Get_Model();
         combinedWorldMatrix = swordR->Get_CombinedWorldMatrix();
+    }
+    else if (Shared<Client::Mon_PotatoBag_Weapon> potatoBagWeapon = dynamic_pointer_cast<Client::Mon_PotatoBag_Weapon>(weaponObject))
+    {
+        modelCom = potatoBagWeapon->Get_Model();
+        combinedWorldMatrix = potatoBagWeapon->Get_CombinedWorldMatrix();
     }
     else
     {

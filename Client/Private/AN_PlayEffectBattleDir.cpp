@@ -2,6 +2,7 @@
 
 #include "BattleController.h"
 #include "ClientInstance.h"
+#include "CombatStatCom.h"
 #include "ContainerObject.h"
 #include "EffectCom.h"
 #include "GameInstance.h"
@@ -146,6 +147,80 @@ const BattleChar* Resolve_CurrentBattleTarget(BattleController& battle)
     return nullptr;
 }
 
+bool Try_ResolveCurrentBattleContext(
+    const AnimNotifyContext& context,
+    Shared<GameObject>& outNotifyOwnerRoot,
+    Shared<BattleController>& outBattle)
+{
+    outNotifyOwnerRoot = nullptr;
+    outBattle = nullptr;
+
+    if (context.isPreview || context.owner == nullptr)
+        return false;
+
+    outNotifyOwnerRoot = Resolve_NotifyOwnerRoot(context.owner);
+    if (outNotifyOwnerRoot == nullptr)
+        return false;
+
+    outBattle = CLIENT->Get_BattleController();
+    if (outBattle == nullptr || !outBattle->Is_BattleStarted())
+        return false;
+
+    const BattleChar& currentActor = outBattle->Get_TurnAction().Get_CurChar();
+    if (currentActor.actor == nullptr || currentActor.actor.get() != outNotifyOwnerRoot.get())
+        return false;
+
+    return true;
+}
+
+vector<BattleChar> Resolve_EffectBattleTargets(
+    const AnimNotifyContext& context,
+    bool includeDeadTargetsOnAllEnemies)
+{
+    Shared<GameObject> notifyOwnerRoot{};
+    Shared<BattleController> battle{};
+    if (!Try_ResolveCurrentBattleContext(context, notifyOwnerRoot, battle))
+        return {};
+
+    const BattleAction& turnAction = battle->Get_TurnAction();
+    if (turnAction.GetCurStepIndex() >= turnAction.GetSteps().size())
+        return {};
+
+    const BattleAction::AttackStep& currentStep = turnAction.GetCurStep();
+    const bool isAllEnemiesStep =
+        currentStep.targetType == TargetType::AllEnemies ||
+        currentStep.targetType == TargetType::AllEnemiesJump;
+
+    if (isAllEnemiesStep)
+    {
+        if (includeDeadTargetsOnAllEnemies)
+        {
+            if (turnAction.Get_CurChar().statCom && turnAction.Get_CurChar().statCom->Is_Player())
+                return battle->Get_BattleEnemies();
+
+            return battle->Get_BattleHeroes();
+        }
+
+        return turnAction.GetCurStepTarget();
+    }
+
+    vector<BattleChar> resolvedTargets{};
+    for (const BattleChar& target : turnAction.GetCurStepTarget())
+    {
+        if (target.actor != nullptr && !target.actor->Is_MarkDestroy())
+            resolvedTargets.push_back(target);
+    }
+
+    if (!resolvedTargets.empty())
+        return resolvedTargets;
+
+    const BattleChar& initTarget = turnAction.GetInitTarget();
+    if (initTarget.actor != nullptr && !initTarget.actor->Is_MarkDestroy())
+        resolvedTargets.push_back(initTarget);
+
+    return resolvedTargets;
+}
+
 float Resolve_YawDegFromDirection(const Vec3& direction, float fallbackYawDeg)
 {
     Vec3 flattenedDirection = direction;
@@ -171,24 +246,15 @@ void Apply_BattleTargetFacingIfNeeded(
     const AnimNotifyContext& context,
     const EffectCom::EffectPlayDesc& sourceDesc,
     EffectCom::EffectPlayDesc& inOutDesc,
-    bool usePitch)
+    bool usePitch,
+    const BattleChar* explicitTarget = nullptr)
 {
-    if (context.isPreview || context.owner == nullptr)
+    Shared<GameObject> notifyOwnerRoot{};
+    Shared<BattleController> battle{};
+    if (!Try_ResolveCurrentBattleContext(context, notifyOwnerRoot, battle))
         return;
 
-    const Shared<GameObject> notifyOwnerRoot = Resolve_NotifyOwnerRoot(context.owner);
-    if (notifyOwnerRoot == nullptr)
-        return;
-
-    const Shared<BattleController> battle = CLIENT->Get_BattleController();
-    if (battle == nullptr || !battle->Is_BattleStarted())
-        return;
-
-    const BattleChar& currentActor = battle->Get_TurnAction().Get_CurChar();
-    if (currentActor.actor == nullptr || currentActor.actor.get() != notifyOwnerRoot.get())
-        return;
-
-    const BattleChar* currentTarget = Resolve_CurrentBattleTarget(*battle);
+    const BattleChar* currentTarget = explicitTarget ? explicitTarget : Resolve_CurrentBattleTarget(*battle);
     if (currentTarget == nullptr || currentTarget->actor == nullptr || currentTarget->actor->Get_Transform() == nullptr)
         return;
 
@@ -240,20 +306,22 @@ IMPLEMENT_REFLECTION(AN_PlayEffectBattleDir)
     auto& info = GetStaticReflectionInfo();
     info.properties.clear();
 
-    PROPERTY_WSTRING("이펙트 이름", _effectName);
+    PROPERTY_WSTRING("Effect Name", _effectName);
     PROPERTY_ENUM("Target", _target, EffectCom::EffectPlayTarget);
-    PROPERTY_WSTRING("파츠 이름", _partTag);
-    PROPERTY_STRING("소켓 이름", _socketName);
-    PROPERTY_WSTRING("레이어 태그", _layerTag);
-    PROPERTY_VEC3("로컬 오프셋", _localOffset);
-    PROPERTY_VEC3("로컬 회전", _localRotation);
-    PROPERTY_VEC3("스케일", _scale);
-    PROPERTY_FLOAT("이펙트 재생 속도", _playbackSpeed, 0.f, 10.f, 0.01f);
-    PROPERTY_BOOL("위치 상속", _inheritPosition);
-    PROPERTY_BOOL("회전 상속", _inheritRotation);
-    PROPERTY_BOOL("스케일 상속", _inheritScale);
+    PROPERTY_WSTRING("Part Tag", _partTag);
+    PROPERTY_STRING("Socket Name", _socketName);
+    PROPERTY_WSTRING("Layer Tag", _layerTag);
+    PROPERTY_VEC3("Local Offset", _localOffset);
+    PROPERTY_VEC3("Local Rotation", _localRotation);
+    PROPERTY_VEC3("Scale", _scale);
+    PROPERTY_FLOAT("Playback Speed", _playbackSpeed, 0.f, 10.f, 0.01f);
+    PROPERTY_BOOL("Inherit Position", _inheritPosition);
+    PROPERTY_BOOL("Inherit Rotation", _inheritRotation);
+    PROPERTY_BOOL("Inherit Scale", _inheritScale);
     PROPERTY_BOOL("Use Pitch", _usePitch);
-    PROPERTY_BOOL("Yaw 만 적용", _useBattleTargetYawOnly);
+    PROPERTY_BOOL("Use Battle Target Yaw Only", _useBattleTargetYawOnly);
+    PROPERTY_INT("AllEnemies Repeat Count", _allEnemiesRepeatCount);
+    PROPERTY_BOOL("Include Dead Targets On AllEnemies", _includeDeadTargetsOnAllEnemies);
 
     return true;
 }
@@ -305,5 +373,46 @@ void AN_PlayEffectBattleDir::Execute(const AnimNotifyContext& context)
         return;
     }
 
-    effectCom->Play_Effect(desc);
+    const vector<BattleChar> effectTargets =
+        Resolve_EffectBattleTargets(context, _includeDeadTargetsOnAllEnemies);
+
+    if (effectTargets.empty())
+    {
+        effectCom->Play_Effect(desc);
+        return;
+    }
+
+    const Shared<BattleController> battle = CLIENT->Get_BattleController();
+    const bool isAllEnemiesStep =
+        battle != nullptr &&
+        battle->Get_TurnAction().GetCurStepIndex() < battle->Get_TurnAction().GetSteps().size() &&
+        (battle->Get_TurnAction().GetCurStep().targetType == TargetType::AllEnemies ||
+         battle->Get_TurnAction().GetCurStep().targetType == TargetType::AllEnemiesJump);
+
+    const int32 repeatCount = isAllEnemiesStep ? max(_allEnemiesRepeatCount, 1) : 1;
+
+    for (const BattleChar& target : effectTargets)
+    {
+        if (target.actor == nullptr || target.actor->Get_Transform() == nullptr)
+            continue;
+
+        EffectCom::EffectPlayDesc perTargetDesc = desc;
+        EffectCom::EffectPlayDesc perTargetBattleDesc = desc;
+        Apply_BattleTargetFacingIfNeeded(context, desc, perTargetBattleDesc, _usePitch, &target);
+
+        if (_useBattleTargetYawOnly)
+        {
+            if (_usePitch)
+                perTargetDesc.localRotation.x = perTargetBattleDesc.localRotation.x;
+
+            perTargetDesc.localRotation.y = perTargetBattleDesc.localRotation.y;
+        }
+        else
+        {
+            perTargetDesc.localRotation = perTargetBattleDesc.localRotation;
+        }
+
+        for (int32 repeatIndex = 0; repeatIndex < repeatCount; ++repeatIndex)
+            effectCom->Play_Effect(perTargetDesc);
+    }
 }
