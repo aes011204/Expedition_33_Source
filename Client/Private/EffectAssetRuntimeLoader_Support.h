@@ -100,6 +100,7 @@ NS_BEGIN(Client)
         void Fill_RotationOverLifePayload(PointParticleRotationDesc& desc, const json& rotationOverLife);
         void Fill_RotationRateScaleByLifePayload(PointParticleRotationDesc& desc, const json& rotationRateScaleByLife);
         void Fill_VelocityScaleByLifePayload(PointParticleMotionDesc& desc, const json& velocityOverLife);
+        void Fill_VelocityScaleByLifeChannelPayload(PointParticleFloatCurveRuntimeDesc& desc, const json& velocityOverLife);
         void Fill_VelocityConePayload(PointParticleMotionDesc& desc, const json& velocityCone);
         void Fill_AccelerationCurvePayload(PointParticleMotionDesc& desc, const json& distribution);
         void Fill_OrbitOverLifePayload(EffectOrbitOverLifeRuntimeDesc& desc, const json& orbitOverLife);

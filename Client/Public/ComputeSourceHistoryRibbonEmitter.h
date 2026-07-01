@@ -201,6 +201,7 @@ private: //## Helper::PlaybackRuntime
         float widthMultiplier = 1.f) const;
     bool Has_RenderableHistory() const;
     bool Has_RenderableHistory(const vector<HistorySample>& history, const Vec3* currentSourcePosition = nullptr) const;
+    const Vec3* Resolve_LaneCurrentHeadForRender(const HistoryLane& lane) const;
     HistoryLane* Find_HistoryLane(uint32 sourceIndex);
     void Clear_ParticleFollowerHistory();
     void Retire_ActiveLoopStrokes();

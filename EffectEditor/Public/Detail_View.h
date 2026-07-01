@@ -93,6 +93,7 @@ private: //## Data::ModuleDetail
     RotationRateScaleByLifeModuleDetail _rotationRateScaleByLifeModuleDetail{};
     InitialMeshRotationModuleDetail _initialMeshRotationModuleDetail{};
     MeshRotationOverLifeModuleDetail _meshRotationOverLifeModuleDetail{};
+    MeshDirectionAlignOverLifeModuleDetail _meshDirectionAlignOverLifeModuleDetail{};
     InitialMeshRotationRateModuleDetail _initialMeshRotationRateModuleDetail{};
     MeshRotationRateScaleByLifeModuleDetail _meshRotationRateScaleByLifeModuleDetail{};
     InitialColorModuleDetail _initialColorModuleDetail{};

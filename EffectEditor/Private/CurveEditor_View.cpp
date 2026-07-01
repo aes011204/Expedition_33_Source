@@ -1140,6 +1140,21 @@ vector<CurveEditor_View::CurveTarget> CurveEditor_View::Collect_ModuleTargets(
         if (auto* data = get_if<MeshRotationOverLifeModuleData>(&module.data))
             Add_Vector3Target(targets, emitter, module, data->rotationOverLife, "rotationOverLife", "Mesh Rotation Over Life", true, requireActiveCurve);
         break;
+    case AuthoringModuleType::MeshDirectionAlignOverLife:
+        if (auto* data = get_if<MeshDirectionAlignOverLifeModuleData>(&module.data))
+        {
+            Add_FloatTarget(
+                targets,
+                emitter,
+                module,
+                data->alignmentProgress,
+                "alignmentProgress",
+                "Mesh Direction Align Progress",
+                IM_COL32(125, 205, 255, 255),
+                requireActiveCurve
+            );
+        }
+        break;
     case AuthoringModuleType::InitialMeshRotationRate:
         if (auto* data = get_if<InitialMeshRotationRateModuleData>(&module.data))
             Add_Vector3Target(targets, emitter, module, data->rotationRateDegrees, "rotationRateDegrees", "Mesh Rotation Rate", true, requireActiveCurve);
