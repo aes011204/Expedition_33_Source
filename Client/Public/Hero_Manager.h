@@ -78,6 +78,8 @@ public:
     // Active Hero인가?
     bool    Is_ActiveHero(const Shared<GameObject>& target) const;
 
+    void    Warp_PartyToFormation(const Vec3& anchorPos, const Vec3& anchorRot);
+
 private:
     void    Switch_NextHero();
     void    Snap_AllHeroesToFormation(

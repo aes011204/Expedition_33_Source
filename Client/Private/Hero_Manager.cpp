@@ -1062,6 +1062,34 @@ bool Hero_Manager::Is_ActiveHero(const Shared<GameObject>& target) const
     return target == static_pointer_cast<GameObject>(activeHero);
 }
 
+void Hero_Manager::Warp_PartyToFormation(const Vec3& anchorPos, const Vec3& anchorRot)
+{
+    const Matrix anchorRotation = Matrix::CreateFromYawPitchRoll(
+        DirectX::XMConvertToRadians(anchorRot.y),
+        DirectX::XMConvertToRadians(anchorRot.x),
+        DirectX::XMConvertToRadians(anchorRot.z));
+
+    Vec3 anchorForward = Vec3::TransformNormal(Vec3::Look, anchorRotation);
+    Vec3 anchorRight = Vec3::TransformNormal(Vec3::Right, anchorRotation);
+
+    Reset_FollowerRuntime();
+    Snap_AllHeroesToFormation(anchorPos, anchorRot, anchorForward, anchorRight);
+    Reset_AllHeroesToIdle();
+
+    _activeTrail.clear();
+    _recordTimer = 0.f;
+    Set_ActiveTrail(_recordInterval);
+
+    Refresh_TargetCamera();
+
+    if (auto camera = _targetCamera.lock())
+    {
+        camera->Change_Mode(TargetCameraMode::NORMAL);
+        camera->Set_OrbitAngles(anchorRot.y, 0.f);
+        camera->Reset_RuntimeCameraState();
+    }
+}
+
 Unique<Hero_Manager> Hero_Manager::Create()
 {
     auto instance = make_unique<Hero_Manager>();

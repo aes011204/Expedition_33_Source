@@ -2683,6 +2683,8 @@ void BattleController::Apply_Buff(const BattleChar& target, Buffs buffId, uint32
         effectDesc.spawnBasisTarget = target.actor;
         effectDesc.localOffset = Vec3(0.f, 1.7f, 0.3f);
         effectDesc.scale = Vec3(1.f, 1.f, 1.f);
+        effectDesc.playbackSpeed = 0.6f;
+
         CLIENT->Play_Effect(effectDesc);
     }
 }

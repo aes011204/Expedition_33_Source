@@ -216,6 +216,10 @@ private:
     static constexpr float  kHealingPotionHealRatio = 0.3f; // 30퍼센트
     uint32 _healingPotionCount = kMaxHealingPotionCount;
 
+    // 승리 후 포지션
+    Vec3 _victoryPosition = Vec3(2.41f, 3.50f, 92.82f);
+    Vec3 _victoryRotation = Vec3(0.f, 180.f, 0.f);
+
 public:
     static Shared<SoulLikeController> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);
     Shared<GameObject> Clone(void* arg) override;
