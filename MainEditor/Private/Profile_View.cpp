@@ -462,6 +462,29 @@ void Profile_View::Draw_Camera_Debug()
             }
         }
     }
+
+    ImGui::Separator();
+    ImGui::TextUnformatted("Instanced Shadow Cache");
+
+    const bool cacheEnabled = GAME->Is_UseInstancedShadowCache();
+    const bool hasBake = GAME->Has_InstancedShadowCache();
+
+    bool cacheToggle = cacheEnabled;
+    if (ImGui::Checkbox("Cache Instanced Shadow##ShadowCache", &cacheToggle))
+    {
+        GAME->Set_UseInstancedShadowCache(cacheToggle);
+    }
+
+    ImGui::SameLine();
+    ImGui::TextDisabled(hasBake ? "(baked)" : "(not baked)");
+
+    if (cacheEnabled)
+    {
+        if (ImGui::Button("Rebake##ShadowRebake"))
+        {
+            GAME->Request_BakeCachedInstancedShadow();
+        }
+    }
 }
 
 void Profile_View::Draw_Toolbar()
