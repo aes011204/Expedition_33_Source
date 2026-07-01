@@ -528,6 +528,15 @@ public: /* For.Shadow */
         const Shared<Camera>& camera,
         const Vec3& lightDir);
 
+    void Push_BakeShadowTransform(const Matrix& view, const Matrix& proj);
+    bool Is_BakingInstancedShadow() const { return _bakeShadowOverrideActive; }
+    void Pop_BakeShadowTransform();
+    void Set_UseInstancedShadowCache(bool enabled);
+    bool Is_UseInstancedShadowCache() const;
+    void Request_BakeCachedInstancedShadow();
+    bool Has_InstancedShadowCache() const;
+    const Matrix& Get_CachedShadowViewProj() const;
+
 public: /* For.Collision_Manager */
     void Add_Collider(Shared<ColliderCom> collider);
     void Add_Collider(Shared<ColliderCom> collider, const Matrix& worldMatrix);
@@ -717,6 +726,10 @@ private:
 
     bool _isPlayerInputBlocked = false;
     bool _isFreeCameraInputEnabled = false;
+
+    bool _bakeShadowOverrideActive = false;
+    Matrix _bakeShadowViewOverride = {};
+    Matrix _bakeShadowProjOverride = {};
 
     bool _isGameplayPaused = false;
     GameplayInputMode _gameplayInputMode = GameplayInputMode::Normal;

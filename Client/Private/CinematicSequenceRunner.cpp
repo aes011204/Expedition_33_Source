@@ -396,7 +396,7 @@ bool CinematicSequenceRunner::Play_Sequence(
     if (_applyEventTrack)
         Execute_EventsUpToFrame(_sequence.startFrame, static_cast<float>(_sequence.startFrame));
     if (_applyEventTrack && _applyActorTransformTrack && !_suspendActorTransformTrackPreview)
-        Apply_ActorTransformTracks(static_cast<float>(_sequence.startFrame));
+        Apply_AuthoredActorTracks(static_cast<float>(_sequence.startFrame));
     if (applyCameraTrack)
         _player->Play();
 
@@ -463,7 +463,7 @@ bool CinematicSequenceRunner::Play_Sequence(
     if (_applyEventTrack)
         Execute_EventsUpToFrame(_sequence.startFrame, static_cast<float>(_sequence.startFrame));
     if (_applyEventTrack && _applyActorTransformTrack && !_suspendActorTransformTrackPreview)
-        Apply_ActorTransformTracks(static_cast<float>(_sequence.startFrame));
+        Apply_AuthoredActorTracks(static_cast<float>(_sequence.startFrame));
     if (applyCameraTrack)
         _player->Play();
 
@@ -555,7 +555,7 @@ void CinematicSequenceRunner::Set_CurrentFrame(int frame)
     if (_applyEventTrack)
         Execute_EventsUpToFrame(targetFrame, static_cast<float>(targetFrame));
     if (_applyEventTrack && _applyActorTransformTrack && !_suspendActorTransformTrackPreview)
-        Apply_ActorTransformTracks(static_cast<float>(targetFrame));
+        Apply_AuthoredActorTracks(static_cast<float>(targetFrame));
     if (_applyEventTrack)
         Apply_BoundActorAnimationPreview(static_cast<float>(targetFrame));
 }
@@ -577,7 +577,7 @@ void CinematicSequenceRunner::Refresh_CurrentFrameContext()
     if (_applyEventTrack)
         Execute_EventsUpToFrame(currentFrame, static_cast<float>(currentFrame));
     if (_applyEventTrack && _applyActorTransformTrack && !_suspendActorTransformTrackPreview)
-        Apply_ActorTransformTracks(static_cast<float>(currentFrame));
+        Apply_AuthoredActorTracks(static_cast<float>(currentFrame));
     if (_applyEventTrack)
         Apply_BoundActorAnimationPreview(static_cast<float>(currentFrame));
 }
@@ -619,7 +619,7 @@ void CinematicSequenceRunner::Preview_CurrentFrame(
         Execute_EventsUpToFrame(targetFrame, static_cast<float>(targetFrame));
 
     if (applyEventTrack && applyActorTransformTrack && !_suspendActorTransformTrackPreview)
-        Apply_ActorTransformTracks(static_cast<float>(targetFrame));
+        Apply_AuthoredActorTracks(static_cast<float>(targetFrame));
 
     if (applyEventTrack)
         Apply_BoundActorAnimationPreview(static_cast<float>(targetFrame));
@@ -669,7 +669,7 @@ void CinematicSequenceRunner::Preview_CurrentFrameExact(
         Execute_EventsUpToFrame(targetFrame, targetFrameExact);
 
     if (applyEventTrack && applyActorTransformTrack && !_suspendActorTransformTrackPreview)
-        Apply_ActorTransformTracks(targetFrameExact);
+        Apply_AuthoredActorTracks(targetFrameExact);
 
     if (applyEventTrack)
         Apply_BoundActorAnimationPreview(targetFrameExact);
@@ -705,7 +705,7 @@ void CinematicSequenceRunner::Set_ActorTransformTrackPreviewSuspended(bool suspe
     _suspendActorTransformTrackPreview = suspended;
 
     if (!_suspendActorTransformTrackPreview && _player != nullptr && _player->Is_CinematicPlaying())
-        Apply_ActorTransformTracks(_player->Get_CurrentFrameExact());
+        Apply_AuthoredActorTracks(_player->Get_CurrentFrameExact());
 }
 
 void CinematicSequenceRunner::Update(float timeDelta, bool tickBoundAnimationsManually)
@@ -727,7 +727,7 @@ void CinematicSequenceRunner::Update(float timeDelta, bool tickBoundAnimationsMa
     if (_applyEventTrack)
         Execute_EventsUpToFrame(currentFrame, currentFrameExact);
     if (_applyEventTrack && _applyActorTransformTrack && !_suspendActorTransformTrackPreview)
-        Apply_ActorTransformTracks(currentFrameExact);
+        Apply_AuthoredActorTracks(currentFrameExact);
 
     if (tickBoundAnimationsManually && isPlayingAfterUpdate && !_player->Is_CinematicPaused())
         Update_BoundActorAnimations(timeDelta);
@@ -1117,6 +1117,45 @@ void CinematicSequenceRunner::Apply_ActorTransformTracks(float currentFrameExact
     }
 }
 
+void CinematicSequenceRunner::Apply_AuthoredActorTracks(float currentFrameExact)
+{
+    Apply_ActorTransformTracks(currentFrameExact);
+    Apply_PartRotationTracks(currentFrameExact);
+}
+
+void CinematicSequenceRunner::Apply_PartRotationTracks(float currentFrameExact)
+{
+    for (const auto& track : _sequence.partRotationTracks)
+    {
+        if (!track.enabled || track.targetId.empty() || track.partTag.empty())
+            continue;
+
+        Shared<GameObject> actor = Get_BoundActor(track.targetId);
+        if (actor == nullptr)
+            continue;
+
+        const auto container = dynamic_pointer_cast<ContainerObject>(actor);
+        if (container == nullptr)
+            continue;
+
+        PartObject* part = container->Get_PartObject(String::ToWString(track.partTag));
+        if (part == nullptr)
+            continue;
+
+        Shared<TransformCom> transform = part->Get_Transform();
+        if (transform == nullptr)
+            continue;
+
+        Vec3 rotation = Vec3::Zero;
+        if (!Evaluate_PartRotationTrack(track, currentFrameExact, rotation))
+            continue;
+
+        transform->Set_RotationEuler(rotation);
+        transform->Update_WorldMatrix();
+        part->Update(0.f);
+    }
+}
+
 bool CinematicSequenceRunner::Evaluate_ActorTransformTrack(
     const CINEMATIC_ACTOR_TRANSFORM_TRACK& track,
     float currentFrameExact,
@@ -1159,6 +1198,52 @@ bool CinematicSequenceRunner::Evaluate_ActorTransformTrack(
         const float t = (currentFrameExact - static_cast<float>(left.frame)) /
             static_cast<float>(right.frame - left.frame);
         outPosition = Vec3::Lerp(left.position, right.position, t);
+        outRotation = LerpRotationDegreesShortest(left.rotation, right.rotation, t);
+        return true;
+    }
+
+    return false;
+}
+
+bool CinematicSequenceRunner::Evaluate_PartRotationTrack(
+    const CINEMATIC_PART_ROTATION_TRACK& track,
+    float currentFrameExact,
+    Vec3& outRotation) const
+{
+    if (!track.enabled || track.keyframes.empty())
+        return false;
+
+    const auto& keyframes = track.keyframes;
+    if (currentFrameExact <= static_cast<float>(keyframes.front().frame))
+    {
+        outRotation = keyframes.front().rotation;
+        return true;
+    }
+
+    if (currentFrameExact >= static_cast<float>(keyframes.back().frame))
+    {
+        outRotation = keyframes.back().rotation;
+        return true;
+    }
+
+    for (size_t i = 0; i + 1 < keyframes.size(); ++i)
+    {
+        const auto& left = keyframes[i];
+        const auto& right = keyframes[i + 1];
+        if (currentFrameExact < static_cast<float>(left.frame) ||
+            currentFrameExact > static_cast<float>(right.frame))
+        {
+            continue;
+        }
+
+        if (left.frame == right.frame)
+        {
+            outRotation = right.rotation;
+            return true;
+        }
+
+        const float t = (currentFrameExact - static_cast<float>(left.frame)) /
+            static_cast<float>(right.frame - left.frame);
         outRotation = LerpRotationDegreesShortest(left.rotation, right.rotation, t);
         return true;
     }

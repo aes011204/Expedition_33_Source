@@ -83,6 +83,7 @@ void SkillTargeting::Update(float timeDelta)
     {
         EvtBattlePresentation event;
         event.cameraMode = BattleCameraMode::SELECTSKILL;
+        event.presetId = magic_enum::enum_name(owner->Get_TurnActionRequest().actor.heroId);
         event.subject = owner->Get_TurnActionRequest().actor.actor;
         GAME->Get_EventBus().Publish(event);
 
