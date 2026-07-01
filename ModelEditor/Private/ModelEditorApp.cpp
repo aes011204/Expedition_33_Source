@@ -42,18 +42,20 @@ HRESULT ModelEditorApp::Initialize()
 	if (FAILED(ModelImGui_Manager::GetInstance()->Initialize(g_hWnd, _device, _context)))
 		return E_FAIL;
 
+	const wstring vtxMeshShaderPath = Resolve_ShaderPath(L"Shader_VtxMesh.hlsl");
 	Shared<ShaderCom> vtxMeshShader =
 		ShaderCom::Create(_device, _context,
-			L"../../../Client/Bin/ShaderFiles/Shader_VtxMesh.hlsl",
+			vtxMeshShaderPath.c_str(),
 			VTXMESH::Elements, VTXMESH::numElements, ShaderType::VtxMesh);
 	if (vtxMeshShader == nullptr)
 		return E_FAIL;
 	if (FAILED(GAME->Add_Prototype(0, L"Shader_VtxMesh", vtxMeshShader)))
 		return E_FAIL;
 
+	const wstring vtxAnimMeshShaderPath = Resolve_ShaderPath(L"Shader_VtxAnimMesh.hlsl");
 	Shared<ShaderCom> vtxAnimMeshShader =
 		ShaderCom::Create(_device, _context,
-			L"../../../Client/Bin/ShaderFiles/Shader_VtxAnimMesh.hlsl",
+			vtxAnimMeshShaderPath.c_str(),
 			VTXANIMMESH::Elements, VTXANIMMESH::numElements, ShaderType::VtxAnimMesh);
 	if (vtxAnimMeshShader == nullptr)
 		return E_FAIL;
@@ -70,15 +72,15 @@ HRESULT ModelEditorApp::Initialize()
 
     CHECK_FAILED(addComputeShader(
         L"ComputeShader_BoneRemap",
-        L"../../../Client/Bin/ShaderFiles/Compute/Shader_Compute_BoneRemap.hlsl"), E_FAIL);
+        Resolve_ShaderPath(L"Compute/Shader_Compute_BoneRemap.hlsl").c_str()), E_FAIL);
 
     CHECK_FAILED(addComputeShader(
         L"ComputeShader_AnimMeshSkinning",
-        L"../../../Client/Bin/ShaderFiles/Compute/Shader_Compute_AnimMeshSkinning.hlsl"), E_FAIL);
+        Resolve_ShaderPath(L"Compute/Shader_Compute_AnimMeshSkinning.hlsl").c_str()), E_FAIL);
 
     CHECK_FAILED(addComputeShader(
         L"ComputeShader_MorphDeform",
-        L"../../../Engine/Bin/ShaderFiles/Compute/Shader_Compute_MorphDeform.hlsl"), E_FAIL);
+        Resolve_ShaderPath(L"Compute/Shader_Compute_MorphDeform.hlsl").c_str()), E_FAIL);
 
 	if (FAILED(GAME->Add_Prototype(0, L"Prototype_GameObject_ModelEditorCamera", ModelEditorCamera::Create(_device, _context))))
 		return E_FAIL;
@@ -139,11 +141,7 @@ HRESULT ModelEditorApp::Ready_Fonts()
 
 wstring ModelEditorApp::Get_ClientResourceRoot() const
 {
-	wchar_t modulePath[MAX_PATH] = {};
-	if (0 == GetModuleFileNameW(nullptr, modulePath, MAX_PATH))
-		return {};
-
-	const std::filesystem::path runtimeRoot = std::filesystem::path(modulePath).parent_path();
+	const std::filesystem::path runtimeRoot = Get_RuntimeRoot();
 	return std::filesystem::absolute(runtimeRoot / ResourcePath).lexically_normal().wstring();
 }
 
@@ -153,6 +151,50 @@ wstring ModelEditorApp::Get_ClientResourcePath(const wchar_t* relativePath) cons
 		return Get_ClientResourceRoot();
 
 	return (std::filesystem::path(Get_ClientResourceRoot()) / relativePath).lexically_normal().wstring();
+}
+
+wstring ModelEditorApp::Get_RuntimeRoot() const
+{
+	wchar_t modulePath[MAX_PATH] = {};
+	if (0 == GetModuleFileNameW(nullptr, modulePath, MAX_PATH))
+		return {};
+
+	return std::filesystem::path(modulePath).parent_path().wstring();
+}
+
+wstring ModelEditorApp::Resolve_ShaderPath(const wchar_t* relativePath) const
+{
+	if (relativePath == nullptr || L'\0' == *relativePath)
+		return {};
+
+	const std::filesystem::path runtimeRoot = Get_RuntimeRoot();
+	const std::filesystem::path relative = relativePath;
+
+	const std::array<std::filesystem::path, 5> shaderRoots =
+	{
+		runtimeRoot / L"ShaderFiles",
+		runtimeRoot / L".." / L"ShaderFiles",
+		runtimeRoot / L"../../../ModelEditor/Bin/ShaderFiles",
+		runtimeRoot / L"../../../Client/Bin/ShaderFiles",
+		runtimeRoot / L"../../../Engine/Bin/ShaderFiles",
+	};
+
+	for (const std::filesystem::path& shaderRoot : shaderRoots)
+	{
+		const std::filesystem::path candidate =
+			std::filesystem::absolute(shaderRoot / relative).lexically_normal();
+
+		if (std::filesystem::exists(candidate))
+			return candidate.wstring();
+	}
+
+	const std::filesystem::path fallback =
+		std::filesystem::absolute(runtimeRoot / L"ShaderFiles" / relative).lexically_normal();
+
+	LOG_WARN("ModelEditor shader path fallback used. relative='{}', path='{}'",
+		String::ToString(relativePath), String::ToString(fallback.wstring()));
+
+	return fallback.wstring();
 }
 
 ModelEditorApp::~ModelEditorApp()

@@ -54,6 +54,13 @@ private:
         static constexpr unsigned int StateHandleHover = 0xFFC5793D;
     };
 
+    struct NotifyDragEntry
+    {
+        int32 id = -1;
+        int32 startFrame = 0;
+        int32 startTrackIndex = 0;
+    };
+
     static int32 TimeSec_ToFrame(float timeSec, int32 fps);
     static float Frame_ToTimeSec(int32 frame, int32 fps);
     bool Resolve_TrackRow(int32 rowIndex, bool& outIsStateTrack, int32& outTrackIndex) const;
@@ -71,6 +78,9 @@ private:
 
 private:
     int32 _draggingNotifyId = -1;
+    int32 _notifyDragStartFrame = 0;
+    int32 _notifyDragStartTrackIndex = 0;
+    vector<NotifyDragEntry> _notifyDragEntries{};
     int32 _draggingStateId = -1;
     float _stateDragOffsetX = 0.f;
     EStateDragMode _stateDragMode = EStateDragMode::None;

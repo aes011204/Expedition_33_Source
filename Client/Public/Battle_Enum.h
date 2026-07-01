@@ -471,7 +471,8 @@ namespace Client
         Jump,
         JumpCounter,
 
-        Hit_Weak
+        Hit_Weak,
+        GroupCounter,
     };
 
     enum class BattleReactionType
@@ -575,6 +576,16 @@ namespace Client
         bool pauseBattle = true; // 튜토리얼 표시 중, Model을 멈출것인지
         bool blockInput = true;  // 입력은?
         float delaySec = 0.f;    // 연출과 겹치지 않게, 튜토리얼 표시 늦출 때
+    };
+
+    // 원래 회전값으로 돌아가기
+    struct BattleSpawnRotationReturn
+    {
+        BattleChar target = {};
+        Vec3 startRotation = Vec3::Zero;
+        Vec3 goalRotation = Vec3::Zero;
+        float elapsed = 0.f;
+        float duration = 0.2f;
     };
 
 }

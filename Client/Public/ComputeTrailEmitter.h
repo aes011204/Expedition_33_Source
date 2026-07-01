@@ -42,6 +42,7 @@ private: //## Types::TrailRuntime
     {
         EffectTrailSample sample{}; // provider에서 받은 base/tip world sample이다.
         float age{};                // sample이 누적된 뒤 흐른 시간이다.
+        uint32 serial{};            // 생성 시점 material random seed용 stable key다.
     };
 
     struct TrailRenderSample
@@ -49,6 +50,7 @@ private: //## Types::TrailRuntime
         EffectTrailSample sample{}; // render 직전에 보간된 base/tip world sample이다.
         float age{};                // 보간된 sample의 age다.
         float distanceFromHead{};   // head sample 기준 누적 trail 거리다. UV 거리 계산에 사용한다.
+        uint32 serial{};            // source history sample에서 이어받은 stable key다.
     };
 
     struct TrailSamplePayload
@@ -56,6 +58,7 @@ private: //## Types::TrailRuntime
         Vec4 baseWorldPosition{}; // compute shader가 읽을 trail base world position이다.
         Vec4 tipWorldPosition{};  // compute shader가 읽을 trail tip world position이다.
         Vec4 sampleParams{};      // x: sample age, y: head 기준 누적 거리, zw: reserved.
+        Vec4 coreColorRgb{ 1.f, 0.85f, 0.45f, 0.f };
     };
 
     struct TrailComputeParams
@@ -162,6 +165,8 @@ private: //## Data::TrailRuntime
     float _materialElapsedTime{};
     // body/mask UV stretch에 사용할 현재 표시 trail 길이다.
     float _visibleTrailLength{ 1.f };
+    // material particle-life uniform random에 사용할 sample serial counter다.
+    uint32 _sampleSerialCounter{};
 
 private: //## Data::Components
     // trail draw shader다.

@@ -155,6 +155,11 @@ void Skill_Gustave_PerfectBreak::Execute(const Skill_Data& skill, const BattleAc
     const float damage = DamageSystem::CalculatePlayerAttackDamage(attacker, skill.powerMultiplier);
     DamageSystem::ApplyDamage(damage, attacker, target, attackType);
 
+    auto battle = CLIENT->Get_BattleController();
+    CHECK_NULL(battle);
+
+    battle->Try_ApplySkillBuff(skill, target);
+
     if (attacker.mechanismCom)
         attacker.mechanismCom->Add_GustaveCharge(1);
 }

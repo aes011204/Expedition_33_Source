@@ -65,6 +65,24 @@ namespace Internal
         return clamp(required, 2u, kRibbonAutoHistoryMaxCount);
     }
 
+    EffectRibbonSpreadBasis Resolve_RibbonSpreadBasis(RibbonSpreadBasis basis)
+    {
+        switch (basis)
+        {
+        case RibbonSpreadBasis::ViewUp:
+            return EffectRibbonSpreadBasis::ViewUp;
+        case RibbonSpreadBasis::WorldUp:
+            return EffectRibbonSpreadBasis::WorldUp;
+        case RibbonSpreadBasis::SourceUp:
+            return EffectRibbonSpreadBasis::SourceUp;
+        case RibbonSpreadBasis::SourceRight:
+            return EffectRibbonSpreadBasis::SourceRight;
+        case RibbonSpreadBasis::CameraFacing:
+        default:
+            return EffectRibbonSpreadBasis::CameraFacing;
+        }
+    }
+
     //## Preview Policy
 
     Color Clamp_PreviewColor(Color value)
@@ -547,6 +565,46 @@ namespace Internal
         }
     }
 
+    EffectMeshDirectionAlignTargetMode Resolve_MeshDirectionAlignTargetMode(MeshDirectionAlignTargetMode mode)
+    {
+        switch (mode)
+        {
+        case MeshDirectionAlignTargetMode::Point:
+            return EffectMeshDirectionAlignTargetMode::Point;
+        case MeshDirectionAlignTargetMode::Direction:
+        default:
+            return EffectMeshDirectionAlignTargetMode::Direction;
+        }
+    }
+
+    EffectMeshDirectionAlignSpace Resolve_MeshDirectionAlignSpace(MeshDirectionAlignSpace space)
+    {
+        switch (space)
+        {
+        case MeshDirectionAlignSpace::Local:
+            return EffectMeshDirectionAlignSpace::Local;
+        case MeshDirectionAlignSpace::World:
+        default:
+            return EffectMeshDirectionAlignSpace::World;
+        }
+    }
+
+    EffectMeshDirectionAlignBlendMode Resolve_MeshDirectionAlignBlendMode(MeshDirectionAlignBlendMode mode)
+    {
+        switch (mode)
+        {
+        case MeshDirectionAlignBlendMode::EaseIn:
+            return EffectMeshDirectionAlignBlendMode::EaseIn;
+        case MeshDirectionAlignBlendMode::EaseOut:
+            return EffectMeshDirectionAlignBlendMode::EaseOut;
+        case MeshDirectionAlignBlendMode::EaseInOut:
+            return EffectMeshDirectionAlignBlendMode::EaseInOut;
+        case MeshDirectionAlignBlendMode::Linear:
+        default:
+            return EffectMeshDirectionAlignBlendMode::Linear;
+        }
+    }
+
     //## Float Curve Eval
 
     float Evaluate_FloatCurveSegmentLinear(const FloatCurveKeyData& leftKey, const FloatCurveKeyData& rightKey, float x)
@@ -967,6 +1025,32 @@ namespace Internal
             Set_CurveComponent(desc.curveKeyLeaveTangents, desc.curveKeyLeaveTangentsBlock1, index, key.leaveTangent);
             Set_CurveComponent(desc.curveKeyModes, desc.curveKeyModesBlock1, index, To_RuntimeCurveInterpolationMode(key.interpolationMode));
         }
+    }
+
+    MeshDirectionAlignRuntimeDesc Build_MeshDirectionAlignDesc(const MeshDirectionAlignOverLifeModuleData& data)
+    {
+        MeshDirectionAlignRuntimeDesc desc{};
+        desc.enabled = true;
+        desc.targetMode = Resolve_MeshDirectionAlignTargetMode(data.targetMode);
+        desc.space = Resolve_MeshDirectionAlignSpace(data.space);
+        desc.target = data.target;
+        desc.meshForwardAxis = Resolve_PointParticlePlaneRadialOrientationAxis(data.meshForwardAxis);
+        desc.meshUpAxis = Resolve_PointParticlePlaneRadialOrientationAxis(data.meshUpAxis);
+        Fill_FloatCurvePayload(desc.alignmentProgress, data.alignmentProgress, 0.f);
+        desc.randomDelay = Build_NormalizedFloatRange(data.randomDelay, desc.randomDelay);
+        desc.randomDelay.x = clamp(desc.randomDelay.x, 0.f, 1.f);
+        desc.randomDelay.y = clamp(desc.randomDelay.y, 0.f, 1.f);
+        if (desc.randomDelay.x > desc.randomDelay.y)
+            swap(desc.randomDelay.x, desc.randomDelay.y);
+        desc.randomDelaySeed = Build_RandomSeedDesc(data.randomDelay);
+        desc.randomWeightScale = Build_NormalizedFloatRange(data.randomWeightScale, desc.randomWeightScale);
+        desc.randomWeightScale.x = clamp(desc.randomWeightScale.x, 0.f, 1.f);
+        desc.randomWeightScale.y = clamp(desc.randomWeightScale.y, 0.f, 1.f);
+        if (desc.randomWeightScale.x > desc.randomWeightScale.y)
+            swap(desc.randomWeightScale.x, desc.randomWeightScale.y);
+        desc.randomWeightScaleSeed = Build_RandomSeedDesc(data.randomWeightScale);
+        desc.blendMode = Resolve_MeshDirectionAlignBlendMode(data.blendMode);
+        return desc;
     }
 
     void Fill_ColorOverLifeColorCurveComponent(
@@ -1739,6 +1823,135 @@ namespace Internal
         }
     }
 
+    void Fill_VelocityScaleByLifeChannelPayload(PointParticleFloatCurveRuntimeDesc& desc, const FloatDistributionData& data)
+    {
+        const float startValue = Evaluate_FloatDistributionMin(data, 1.f);
+        const float endValue = Evaluate_FloatDistributionMax(data, 1.f);
+        desc.enabled = true;
+        desc.curveKeyCount = 2u;
+        desc.curveKeyTimes = Vec4{ 0.f, 1.f, 0.f, 0.f };
+        desc.curveKeyTimesBlock1 = Vec4{};
+        desc.curveKeyValues = Vec4{ startValue, endValue, 0.f, 0.f };
+        desc.curveKeyValuesBlock1 = Vec4{};
+        desc.curveKeyArriveTangents = Vec4{};
+        desc.curveKeyArriveTangentsBlock1 = Vec4{};
+        desc.curveKeyLeaveTangents = Vec4{};
+        desc.curveKeyLeaveTangentsBlock1 = Vec4{};
+        desc.curveKeyModes = Vec4{ 1.f, 1.f, 0.f, 0.f };
+        desc.curveKeyModesBlock1 = Vec4{};
+
+        const auto* curve = get_if<ConstantCurveFloatDistributionData>(&data.payload);
+        if (curve == nullptr)
+            return;
+
+        vector<FloatCurveKeyData> keys = curve->keys;
+        ranges::sort(keys, {}, &FloatCurveKeyData::time);
+        const uint32 keyCount = min(kEffectDistributionCurveMaxKeys, static_cast<uint32>(keys.size()));
+        if (keyCount == 0u)
+            return;
+
+        desc.curveKeyCount = keyCount;
+        desc.curveKeyTimes = Vec4{};
+        desc.curveKeyTimesBlock1 = Vec4{};
+        desc.curveKeyValues = Vec4{};
+        desc.curveKeyValuesBlock1 = Vec4{};
+        desc.curveKeyArriveTangents = Vec4{};
+        desc.curveKeyArriveTangentsBlock1 = Vec4{};
+        desc.curveKeyLeaveTangents = Vec4{};
+        desc.curveKeyLeaveTangentsBlock1 = Vec4{};
+        desc.curveKeyModes = Vec4{};
+        desc.curveKeyModesBlock1 = Vec4{};
+
+        for (uint32 index = 0; index < keyCount; ++index)
+        {
+            const FloatCurveKeyData& key = keys[index];
+            Set_CurveComponent(desc.curveKeyTimes, desc.curveKeyTimesBlock1, index, clamp(key.time, 0.f, 1.f));
+            Set_CurveComponent(desc.curveKeyValues, desc.curveKeyValuesBlock1, index, key.value);
+            Set_CurveComponent(desc.curveKeyArriveTangents, desc.curveKeyArriveTangentsBlock1, index, key.arriveTangent);
+            Set_CurveComponent(desc.curveKeyLeaveTangents, desc.curveKeyLeaveTangentsBlock1, index, key.leaveTangent);
+            Set_CurveComponent(desc.curveKeyModes, desc.curveKeyModesBlock1, index, To_RuntimeCurveInterpolationMode(key.interpolationMode));
+        }
+    }
+
+    PointParticleFloatCurveRuntimeDesc& Resolve_VelocityScaleChannelPayload(
+        PointParticleMotionDesc& desc,
+        VelocityOverLifeApplyChannel channel)
+    {
+        switch (channel)
+        {
+        case VelocityOverLifeApplyChannel::InitialVelocity:
+            return desc.initialVelocityScaleByLife;
+        case VelocityOverLifeApplyChannel::InitialRadialVelocity:
+            return desc.initialRadialVelocityScaleByLife;
+        case VelocityOverLifeApplyChannel::VelocityCone:
+            return desc.velocityConeScaleByLife;
+        case VelocityOverLifeApplyChannel::SourceMotionVelocity:
+            return desc.sourceMotionVelocityScaleByLife;
+        case VelocityOverLifeApplyChannel::AccelerationIntegratedVelocity:
+        default:
+            return desc.accelerationIntegratedVelocityScaleByLife;
+        }
+    }
+
+    void Apply_VelocityOverLifeOwnership(PointParticleMotionDesc& desc, const AuthoringEmitter& emitter)
+    {
+        const VelocityOverLifeApplyChannel channels[] = {
+            VelocityOverLifeApplyChannel::InitialVelocity,
+            VelocityOverLifeApplyChannel::InitialRadialVelocity,
+            VelocityOverLifeApplyChannel::VelocityCone,
+            VelocityOverLifeApplyChannel::SourceMotionVelocity,
+            VelocityOverLifeApplyChannel::AccelerationIntegratedVelocity,
+        };
+        const uint32 channelMasks[] = {
+            kVelocityOverLifeApplyChannelInitialVelocityMask,
+            kVelocityOverLifeApplyChannelInitialRadialVelocityMask,
+            kVelocityOverLifeApplyChannelVelocityConeMask,
+            kVelocityOverLifeApplyChannelSourceMotionVelocityMask,
+            kVelocityOverLifeApplyChannelAccelerationIntegratedVelocityMask,
+        };
+        const VelocityOverLifeModuleData* owners[5]{};
+
+        for (const AuthoringModule& module : emitter.modules)
+        {
+            if (module.type != AuthoringModuleType::VelocityOverLife || !module.enabled)
+                continue;
+
+            const auto* data = get_if<VelocityOverLifeModuleData>(&module.data);
+            if (data == nullptr)
+                continue;
+
+            const uint32 mask = data->applyChannelMask != 0u ? data->applyChannelMask : kVelocityOverLifeApplyChannelAllMask;
+            for (uint32 index = 0u; index < 5u; ++index)
+            {
+                if ((mask & channelMasks[index]) != 0u && owners[index] == nullptr)
+                    owners[index] = data;
+            }
+        }
+
+        const VelocityOverLifeModuleData* sharedOwner = owners[0];
+        bool hasAnyOwner = sharedOwner != nullptr;
+        bool hasSingleOwnerForAllChannels = sharedOwner != nullptr;
+        for (uint32 index = 0u; index < 5u; ++index)
+        {
+            if (owners[index] != nullptr)
+            {
+                hasAnyOwner = true;
+                Fill_VelocityScaleByLifeChannelPayload(
+                    Resolve_VelocityScaleChannelPayload(desc, channels[index]),
+                    owners[index]->scaleOverLife
+                );
+            }
+
+            if (owners[index] != sharedOwner)
+                hasSingleOwnerForAllChannels = false;
+        }
+
+        if (hasAnyOwner)
+            desc.enabled = true;
+        if (hasSingleOwnerForAllChannels)
+            Fill_VelocityScaleByLifePayload(desc, sharedOwner->scaleOverLife);
+    }
+
     void Fill_VelocityConePayload(PointParticleMotionDesc& desc, const VelocityConeModuleData& data)
     {
         desc.enabled = true;
@@ -2234,11 +2447,7 @@ EffectEmitterDefinition Build_PreviewEmitterDefinition(const AuthoringEmitter& e
         desc.motion.dragSeed = Internal::Build_RandomSeedDesc(drag->drag);
     }
 
-    if (const auto* velocityOverLife = Internal::Find_ModuleData<VelocityOverLifeModuleData>(emitter, AuthoringModuleType::VelocityOverLife))
-    {
-        desc.motion.enabled = true;
-        Internal::Fill_VelocityScaleByLifePayload(desc.motion, velocityOverLife->scaleOverLife);
-    }
+    Internal::Apply_VelocityOverLifeOwnership(desc.motion, emitter);
 
     if (const auto* orbitOverLife = Internal::Find_ModuleData<OrbitOverLifeModuleData>(emitter, AuthoringModuleType::OrbitOverLife))
         desc.orbitOverLife = Internal::Build_OrbitOverLifeDesc(*orbitOverLife);
@@ -2482,6 +2691,15 @@ EffectEmitterDefinition Build_PreviewSourceHistoryRibbonEmitterDefinition(const 
     emitterDesc.autoLifeFade = sourceHistoryPolicy.autoLifeFade;
     emitterDesc.tailCollapseOnIdle = sourceHistoryPolicy.tailCollapseOnIdle;
     emitterDesc.tailCollapseSpeed = max(0.f, sourceHistoryPolicy.tailCollapseSpeed);
+    emitterDesc.useManualRoll = sourceHistoryPolicy.useManualRoll;
+    emitterDesc.manualRollDegrees = sourceHistoryPolicy.manualRollDegrees;
+    if (const auto* ribbonOrientation = Internal::Find_ModuleData<RibbonOrientationModuleData>(emitter, AuthoringModuleType::RibbonOrientation))
+    {
+        emitterDesc.spreadBasis = Internal::Resolve_RibbonSpreadBasis(ribbonOrientation->spreadBasis);
+        emitterDesc.spreadAngleDegrees = ribbonOrientation->spreadAngleDegrees;
+        emitterDesc.useManualRoll = false;
+        emitterDesc.manualRollDegrees = 0.f;
+    }
     if (const auto* required = Internal::Find_ModuleData<RequiredModuleData>(emitter, AuthoringModuleType::Required))
     {
         EffectRuntime::Copy_EffectMaterialInstanceToRuntimeDesc(required->material, emitterDesc.material);
@@ -2499,6 +2717,24 @@ EffectEmitterDefinition Build_PreviewSourceHistoryRibbonEmitterDefinition(const 
         definition.localPosition = required->emitterOrigin;
         definition.localRotationDegrees = required->emitterRotationDegrees;
         definition.useLocalSpace = required->useLocalSpace;
+    }
+
+    if (const auto* initialLocation = Internal::Find_ModuleData<InitialLocationModuleData>(emitter, AuthoringModuleType::InitialLocation))
+    {
+        const Vec3 minOffset = Internal::Evaluate_Vector3DistributionMin(initialLocation->location, emitterDesc.headOffset.minOffset);
+        const Vec3 maxOffset = Internal::Evaluate_Vector3DistributionMax(initialLocation->location, emitterDesc.headOffset.maxOffset);
+        emitterDesc.headOffset.enabled = true;
+        emitterDesc.headOffset.minOffset = Vec3{
+            min(minOffset.x, maxOffset.x),
+            min(minOffset.y, maxOffset.y),
+            min(minOffset.z, maxOffset.z)
+        };
+        emitterDesc.headOffset.maxOffset = Vec3{
+            max(minOffset.x, maxOffset.x),
+            max(minOffset.y, maxOffset.y),
+            max(minOffset.z, maxOffset.z)
+        };
+        emitterDesc.headOffsetSeed = Internal::Build_RandomSeedDesc(initialLocation->location);
     }
 
     if (const auto* materialScalarModulation = Internal::Find_ModuleData<MaterialScalarModulationModuleData>(
@@ -2956,11 +3192,7 @@ EffectEmitterDefinition Build_PreviewSourceHistorySpriteTrailEmitterDefinition(c
         emitterDesc.motion.dragSeed = Internal::Build_RandomSeedDesc(drag->drag);
     }
 
-    if (const auto* velocityOverLife = Internal::Find_ModuleData<VelocityOverLifeModuleData>(emitter, AuthoringModuleType::VelocityOverLife))
-    {
-        emitterDesc.motion.enabled = true;
-        Internal::Fill_VelocityScaleByLifePayload(emitterDesc.motion, velocityOverLife->scaleOverLife);
-    }
+    Internal::Apply_VelocityOverLifeOwnership(emitterDesc.motion, emitter);
 
     if (const auto* initialRotation = Internal::Find_ModuleData<InitialRotationModuleData>(emitter, AuthoringModuleType::InitialRotation))
     {
@@ -3568,11 +3800,7 @@ EffectEmitterDefinition Build_PreviewMeshEmitterDefinition(const AuthoringEmitte
         emitterDesc.motion.dragSeed = Internal::Build_RandomSeedDesc(drag->drag);
     }
 
-    if (const auto* velocityOverLife = Internal::Find_ModuleData<VelocityOverLifeModuleData>(emitter, AuthoringModuleType::VelocityOverLife))
-    {
-        emitterDesc.motion.enabled = true;
-        Internal::Fill_VelocityScaleByLifePayload(emitterDesc.motion, velocityOverLife->scaleOverLife);
-    }
+    Internal::Apply_VelocityOverLifeOwnership(emitterDesc.motion, emitter);
 
     if (const auto* orbitOverLife = Internal::Find_ModuleData<OrbitOverLifeModuleData>(emitter, AuthoringModuleType::OrbitOverLife))
         emitterDesc.orbitOverLife = Internal::Build_OrbitOverLifeDesc(*orbitOverLife);
@@ -3610,6 +3838,12 @@ EffectEmitterDefinition Build_PreviewMeshEmitterDefinition(const AuthoringEmitte
         emitterDesc.meshTransform.rotationEnabled = true;
         Internal::Fill_MeshVector3CurvePayload(emitterDesc.meshTransform.rotationByLife, meshRotationOverLife->rotationOverLife, Vec3{});
     }
+
+    if (const auto* meshDirectionAlign = Internal::Find_ModuleData<MeshDirectionAlignOverLifeModuleData>(
+        emitter,
+        AuthoringModuleType::MeshDirectionAlignOverLife
+    ))
+        emitterDesc.meshDirectionAlign = Internal::Build_MeshDirectionAlignDesc(*meshDirectionAlign);
 
     if (const auto* initialMeshRotationRate = Internal::Find_ModuleData<InitialMeshRotationRateModuleData>(
         emitter,

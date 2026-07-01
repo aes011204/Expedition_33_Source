@@ -2452,6 +2452,11 @@ void Detail_View::Render_ModuleDetail(
             changed = _initialLocationModuleDetail.Draw(emitter, module, *data, _detailPropertyContext);
         break;
 
+    case AuthoringModuleType::RibbonOrientation:
+        if (auto* data = get_if<RibbonOrientationModuleData>(&module.data))
+            changed = _ribbonOrientationModuleDetail.Draw(emitter, module, *data, _detailPropertyContext);
+        break;
+
     case AuthoringModuleType::SphereLocation:
         if (auto* data = get_if<SphereLocationModuleData>(&module.data))
             changed = _sphereLocationModuleDetail.Draw(emitter, module, *data, _detailPropertyContext);
@@ -2560,6 +2565,11 @@ void Detail_View::Render_ModuleDetail(
     case AuthoringModuleType::MeshRotationOverLife:
         if (auto* data = get_if<MeshRotationOverLifeModuleData>(&module.data))
             changed = _meshRotationOverLifeModuleDetail.Draw(emitter, module, *data, _detailPropertyContext);
+        break;
+
+    case AuthoringModuleType::MeshDirectionAlignOverLife:
+        if (auto* data = get_if<MeshDirectionAlignOverLifeModuleData>(&module.data))
+            changed = _meshDirectionAlignOverLifeModuleDetail.Draw(emitter, module, *data, _detailPropertyContext);
         break;
 
     case AuthoringModuleType::InitialMeshRotationRate:

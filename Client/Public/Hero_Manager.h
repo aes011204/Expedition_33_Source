@@ -157,7 +157,7 @@ private:
     float _sprintFollowDistance = 2.5f;
     float _sprintFollowReleaseDistance = 1.2f;   // sprint 해제는 더 가까워졌을 때만
     float _sprintFollowMinHoldTime = 0.25f;      // sprint에 들어가면 최소 이 시간은 유지
-    float _teleportReseatDistance  = 10.f;
+    float _teleportReseatDistance  = 6.f;       // Active Hero와 이 거리 이상 벌어지면 보정된 follow 위치로 재배치한다.
     float _followTargetProbeInterval = 0.05f;
     float _followTargetProbeMoveThreshold = 0.15f;
 

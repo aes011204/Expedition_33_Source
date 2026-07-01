@@ -89,6 +89,71 @@ namespace Internal
             NearlyEqual(lhs.w, rhs.w);
     }
 
+    static const char* Get_RibbonSpreadBasisLabel(RibbonSpreadBasis value)
+    {
+        switch (value)
+        {
+        case RibbonSpreadBasis::CameraFacing:
+            return "카메라 바라보기";
+        case RibbonSpreadBasis::ViewUp:
+            return "화면 위쪽";
+        case RibbonSpreadBasis::WorldUp:
+            return "월드 위쪽";
+        case RibbonSpreadBasis::SourceUp:
+            return "소스 위쪽";
+        case RibbonSpreadBasis::SourceRight:
+            return "소스 오른쪽";
+        default:
+            return "카메라 바라보기";
+        }
+    }
+
+    static bool Draw_RibbonSpreadBasisProperty(
+        DetailPropertyContext& detailContext,
+        RibbonSpreadBasis& value,
+        RibbonSpreadBasis defaultValue)
+    {
+        bool changed = false;
+
+        ImGui::PushID("RibbonSpreadBasis");
+        detailContext.Draw_PropertyLabel("펼침 기준", "리본 중심선을 기준으로 폭 방향을 계산할 때 사용할 기준축입니다.");
+        ImGui::SetNextItemWidth(-FLT_MIN);
+        if (ImGui::BeginCombo("##Value", Get_RibbonSpreadBasisLabel(value)))
+        {
+            constexpr RibbonSpreadBasis kValues[] = {
+                RibbonSpreadBasis::CameraFacing,
+                RibbonSpreadBasis::ViewUp,
+                RibbonSpreadBasis::WorldUp,
+                RibbonSpreadBasis::SourceUp,
+                RibbonSpreadBasis::SourceRight,
+            };
+
+            for (const RibbonSpreadBasis candidate : kValues)
+            {
+                const bool isSelected = value == candidate;
+                if (ImGui::Selectable(Get_RibbonSpreadBasisLabel(candidate), isSelected))
+                {
+                    value = candidate;
+                    changed = true;
+                }
+
+                if (isSelected)
+                    ImGui::SetItemDefaultFocus();
+            }
+
+            ImGui::EndCombo();
+        }
+
+        if (detailContext.Draw_ResetButton(value != defaultValue))
+        {
+            value = defaultValue;
+            changed = true;
+        }
+        ImGui::PopID();
+
+        return changed;
+    }
+
     static bool Is_SameAdditiveContribution(
         const EffectMaterialAdditiveContributionData& lhs,
         const EffectMaterialAdditiveContributionData& rhs)
@@ -483,6 +548,46 @@ namespace Internal
         }
     }
 
+    static const char* Get_MeshDirectionAlignTargetModeLabel(MeshDirectionAlignTargetMode mode)
+    {
+        switch (mode)
+        {
+        case MeshDirectionAlignTargetMode::Point:
+            return "Point";
+        case MeshDirectionAlignTargetMode::Direction:
+        default:
+            return "Direction";
+        }
+    }
+
+    static const char* Get_MeshDirectionAlignSpaceLabel(MeshDirectionAlignSpace space)
+    {
+        switch (space)
+        {
+        case MeshDirectionAlignSpace::Local:
+            return "Local";
+        case MeshDirectionAlignSpace::World:
+        default:
+            return "World";
+        }
+    }
+
+    static const char* Get_MeshDirectionAlignBlendModeLabel(MeshDirectionAlignBlendMode mode)
+    {
+        switch (mode)
+        {
+        case MeshDirectionAlignBlendMode::EaseIn:
+            return "Ease In";
+        case MeshDirectionAlignBlendMode::EaseOut:
+            return "Ease Out";
+        case MeshDirectionAlignBlendMode::EaseInOut:
+            return "Ease InOut";
+        case MeshDirectionAlignBlendMode::Linear:
+        default:
+            return "Linear";
+        }
+    }
+
     static const char* Get_MaterialScalarTargetLabel(MaterialScalarModulationTargetField target)
     {
         switch (target)
@@ -595,9 +700,18 @@ namespace Internal
         }
     }
 
-    static bool Is_SpriteMaterialScalarParticleLifeSupported(const AuthoringEmitter& emitter)
+    static bool Is_MaterialScalarParticleLifeSupported(const AuthoringEmitter& emitter)
     {
-        return emitter.typeData.kind == AuthoringTypeDataKind::None && emitter.rendererType == "Sprite";
+        return emitter.rendererType == "Sprite" ||
+               emitter.rendererType == "Trail" ||
+               emitter.rendererType == "Ribbon" ||
+               emitter.rendererType == "Beam" ||
+               emitter.rendererType == "Mesh" ||
+               emitter.typeData.kind == AuthoringTypeDataKind::SourceHistorySpriteTrail ||
+               emitter.typeData.kind == AuthoringTypeDataKind::Trail ||
+               emitter.typeData.kind == AuthoringTypeDataKind::Ribbon ||
+               emitter.typeData.kind == AuthoringTypeDataKind::Beam ||
+               emitter.typeData.kind == AuthoringTypeDataKind::Mesh;
     }
 
     static bool Is_MaterialScalarTimeSourceSelectable(
@@ -1220,6 +1334,121 @@ namespace Internal
         return changed;
     }
 
+    static const char* Get_VelocityOverLifeApplyChannelLabel(VelocityOverLifeApplyChannel channel)
+    {
+        switch (channel)
+        {
+        case VelocityOverLifeApplyChannel::InitialVelocity:
+            return "Initial Velocity";
+        case VelocityOverLifeApplyChannel::InitialRadialVelocity:
+            return "Initial Radial Velocity";
+        case VelocityOverLifeApplyChannel::VelocityCone:
+            return "Velocity Cone";
+        case VelocityOverLifeApplyChannel::SourceMotionVelocity:
+            return "Source Motion Velocity";
+        case VelocityOverLifeApplyChannel::AccelerationIntegratedVelocity:
+            return "Acceleration Integrated Velocity";
+        default:
+            return "Initial Velocity";
+        }
+    }
+
+    static uint32 To_VelocityOverLifeApplyChannelMask(VelocityOverLifeApplyChannel channel)
+    {
+        switch (channel)
+        {
+        case VelocityOverLifeApplyChannel::InitialVelocity:
+            return kVelocityOverLifeApplyChannelInitialVelocityMask;
+        case VelocityOverLifeApplyChannel::InitialRadialVelocity:
+            return kVelocityOverLifeApplyChannelInitialRadialVelocityMask;
+        case VelocityOverLifeApplyChannel::VelocityCone:
+            return kVelocityOverLifeApplyChannelVelocityConeMask;
+        case VelocityOverLifeApplyChannel::SourceMotionVelocity:
+            return kVelocityOverLifeApplyChannelSourceMotionVelocityMask;
+        case VelocityOverLifeApplyChannel::AccelerationIntegratedVelocity:
+            return kVelocityOverLifeApplyChannelAccelerationIntegratedVelocityMask;
+        default:
+            return 0u;
+        }
+    }
+
+    static bool Has_VelocityOverLifeChannelConflict(
+        const AuthoringEmitter& emitter,
+        const AuthoringModule& currentModule,
+        const VelocityOverLifeModuleData& currentData)
+    {
+        if (!currentModule.enabled)
+            return false;
+
+        const uint32 currentMask = currentData.applyChannelMask != 0u
+                                   ? currentData.applyChannelMask
+                                   : kVelocityOverLifeApplyChannelAllMask;
+        for (const AuthoringModule& module : emitter.modules)
+        {
+            if (module.id == currentModule.id || module.type != AuthoringModuleType::VelocityOverLife || !module.enabled)
+                continue;
+
+            const auto* data = get_if<VelocityOverLifeModuleData>(&module.data);
+            if (data == nullptr)
+                continue;
+
+            const uint32 otherMask = data->applyChannelMask != 0u
+                                     ? data->applyChannelMask
+                                     : kVelocityOverLifeApplyChannelAllMask;
+            if ((currentMask & otherMask) != 0u)
+                return true;
+        }
+
+        return false;
+    }
+
+    static bool Draw_VelocityOverLifeApplyChannelMaskProperty(
+        DetailPropertyContext& detailContext,
+        uint32& mask,
+        uint32 defaultMask)
+    {
+        bool changed = false;
+        if (mask == 0u)
+            mask = kVelocityOverLifeApplyChannelAllMask;
+
+        ImGui::PushID("VelocityOverLifeApplyChannels");
+        detailContext.Draw_PropertyLabel(
+            "적용 대상",
+            "VelocityOverLife 배율을 적용할 velocity channel입니다. 겹친 channel은 모듈 목록 위쪽 항목이 우선합니다."
+        );
+
+        const VelocityOverLifeApplyChannel channels[] = {
+            VelocityOverLifeApplyChannel::InitialVelocity,
+            VelocityOverLifeApplyChannel::InitialRadialVelocity,
+            VelocityOverLifeApplyChannel::VelocityCone,
+            VelocityOverLifeApplyChannel::SourceMotionVelocity,
+            VelocityOverLifeApplyChannel::AccelerationIntegratedVelocity,
+        };
+        for (const VelocityOverLifeApplyChannel channel : channels)
+        {
+            const uint32 channelMask = To_VelocityOverLifeApplyChannelMask(channel);
+            bool enabled = (mask & channelMask) != 0u;
+            if (ImGui::Checkbox(Get_VelocityOverLifeApplyChannelLabel(channel), &enabled))
+            {
+                const uint32 nextMask = enabled ? (mask | channelMask) : (mask & ~channelMask);
+                if (nextMask != 0u)
+                {
+                    mask = nextMask;
+                    changed = true;
+                }
+            }
+        }
+
+        if (detailContext.Draw_ResetButton(mask != defaultMask))
+        {
+            mask = defaultMask;
+            changed = true;
+        }
+        ImGui::PopID();
+
+        return changed;
+    }
+
     static bool Draw_PlaneRadialOrientationModeProperty(
         DetailPropertyContext& detailContext,
         const char* label,
@@ -1481,6 +1710,122 @@ namespace Internal
         return changed;
     }
 
+    static bool Draw_MeshDirectionAlignTargetModeProperty(
+        DetailPropertyContext& detailContext,
+        MeshDirectionAlignTargetMode& value,
+        MeshDirectionAlignTargetMode defaultValue)
+    {
+        static constexpr MeshDirectionAlignTargetMode candidates[] = {
+            MeshDirectionAlignTargetMode::Direction,
+            MeshDirectionAlignTargetMode::Point,
+        };
+
+        bool changed = false;
+        ImGui::PushID("MeshDirectionAlignTargetMode");
+        detailContext.Draw_PropertyLabel("대상 방식");
+        ImGui::SetNextItemWidth(-FLT_MIN);
+        if (ImGui::BeginCombo("##Value", Get_MeshDirectionAlignTargetModeLabel(value)))
+        {
+            for (const MeshDirectionAlignTargetMode candidate : candidates)
+            {
+                const bool isSelected = value == candidate;
+                if (ImGui::Selectable(Get_MeshDirectionAlignTargetModeLabel(candidate), isSelected))
+                {
+                    value = candidate;
+                    changed = true;
+                }
+                if (isSelected)
+                    ImGui::SetItemDefaultFocus();
+            }
+            ImGui::EndCombo();
+        }
+        if (detailContext.Draw_ResetButton(value != defaultValue))
+        {
+            value = defaultValue;
+            changed = true;
+        }
+        ImGui::PopID();
+        return changed;
+    }
+
+    static bool Draw_MeshDirectionAlignSpaceProperty(
+        DetailPropertyContext& detailContext,
+        MeshDirectionAlignSpace& value,
+        MeshDirectionAlignSpace defaultValue)
+    {
+        static constexpr MeshDirectionAlignSpace candidates[] = {
+            MeshDirectionAlignSpace::Local,
+            MeshDirectionAlignSpace::World,
+        };
+
+        bool changed = false;
+        ImGui::PushID("MeshDirectionAlignSpace");
+        detailContext.Draw_PropertyLabel("공간");
+        ImGui::SetNextItemWidth(-FLT_MIN);
+        if (ImGui::BeginCombo("##Value", Get_MeshDirectionAlignSpaceLabel(value)))
+        {
+            for (const MeshDirectionAlignSpace candidate : candidates)
+            {
+                const bool isSelected = value == candidate;
+                if (ImGui::Selectable(Get_MeshDirectionAlignSpaceLabel(candidate), isSelected))
+                {
+                    value = candidate;
+                    changed = true;
+                }
+                if (isSelected)
+                    ImGui::SetItemDefaultFocus();
+            }
+            ImGui::EndCombo();
+        }
+        if (detailContext.Draw_ResetButton(value != defaultValue))
+        {
+            value = defaultValue;
+            changed = true;
+        }
+        ImGui::PopID();
+        return changed;
+    }
+
+    static bool Draw_MeshDirectionAlignBlendModeProperty(
+        DetailPropertyContext& detailContext,
+        MeshDirectionAlignBlendMode& value,
+        MeshDirectionAlignBlendMode defaultValue)
+    {
+        static constexpr MeshDirectionAlignBlendMode candidates[] = {
+            MeshDirectionAlignBlendMode::Linear,
+            MeshDirectionAlignBlendMode::EaseIn,
+            MeshDirectionAlignBlendMode::EaseOut,
+            MeshDirectionAlignBlendMode::EaseInOut,
+        };
+
+        bool changed = false;
+        ImGui::PushID("MeshDirectionAlignBlendMode");
+        detailContext.Draw_PropertyLabel("보간 방식", "정렬 진행도 weight를 보정하는 방식입니다. 회전 속도나 물리 steering 값이 아닙니다.");
+        ImGui::SetNextItemWidth(-FLT_MIN);
+        if (ImGui::BeginCombo("##Value", Get_MeshDirectionAlignBlendModeLabel(value)))
+        {
+            for (const MeshDirectionAlignBlendMode candidate : candidates)
+            {
+                const bool isSelected = value == candidate;
+                if (ImGui::Selectable(Get_MeshDirectionAlignBlendModeLabel(candidate), isSelected))
+                {
+                    value = candidate;
+                    changed = true;
+                }
+                if (isSelected)
+                    ImGui::SetItemDefaultFocus();
+            }
+            ImGui::EndCombo();
+        }
+        if (detailContext.Draw_ResetButton(value != defaultValue))
+        {
+            value = defaultValue;
+            changed = true;
+        }
+        ImGui::PopID();
+        return changed;
+    }
+
     static bool Has_PlaneRadialLocationModule(const AuthoringEmitter& emitter)
     {
         for (const AuthoringModule& module : emitter.modules)
@@ -1508,6 +1853,17 @@ namespace Internal
         for (const AuthoringModule& module : emitter.modules)
         {
             if (module.type == AuthoringModuleType::SphereLocation)
+                return true;
+        }
+
+        return false;
+    }
+
+    static bool Has_EnabledModule(const AuthoringEmitter& emitter, AuthoringModuleType type)
+    {
+        for (const AuthoringModule& module : emitter.modules)
+        {
+            if (module.type == type && module.enabled)
                 return true;
         }
 
@@ -1926,7 +2282,7 @@ namespace Internal
         ShaderResourceView* previewSrv = nullptr;
         if (materialSlotPreview != nullptr)
         {
-            const bool allowScalarParticleLife = Is_SpriteMaterialScalarParticleLifeSupported(emitter);
+            const bool allowScalarParticleLife = Is_MaterialScalarParticleLifeSupported(emitter);
             materialSlotPreview->Update_MaterialTime(timeDelta);
             if (const MaterialScalarModulationModuleData* modulation = Find_MaterialScalarModulationModuleData(emitter))
             {
@@ -2753,10 +3109,11 @@ bool InitialMeshSizeModuleDetail::Draw(AuthoringEmitter&, AuthoringModule&, Init
     return changed;
 }
 
-bool InitialLocationModuleDetail::Draw(AuthoringEmitter&, AuthoringModule&, InitialLocationModuleData& data, DetailPropertyContext& detailContext)
+bool InitialLocationModuleDetail::Draw(AuthoringEmitter& emitter, AuthoringModule&, InitialLocationModuleData& data, DetailPropertyContext& detailContext)
 {
     const InitialLocationModuleData defaultData{};
     bool changed = false;
+    const bool isRibbon = emitter.typeData.kind == AuthoringTypeDataKind::Ribbon;
 
     if (ImGui::CollapsingHeader("위치", ImGuiTreeNodeFlags_DefaultOpen))
     {
@@ -2768,8 +3125,38 @@ bool InitialLocationModuleDetail::Draw(AuthoringEmitter&, AuthoringModule&, Init
             false,
             true,
             nullptr,
-            "spawn 시점에 한 번 샘플되는 emitter origin 기준 local offset입니다."
+            isRibbon
+                ? "Ribbon이 source history Head에 더하는 emitter local offset입니다."
+                : "spawn 시점에 한 번 샘플되는 emitter origin 기준 local offset입니다."
         );
+    }
+
+    return changed;
+}
+
+bool RibbonOrientationModuleDetail::Draw(AuthoringEmitter&, AuthoringModule&, RibbonOrientationModuleData& data, DetailPropertyContext& detailContext)
+{
+    const RibbonOrientationModuleData defaultData{};
+    bool changed = false;
+
+    if (ImGui::CollapsingHeader("리본 방향", ImGuiTreeNodeFlags_DefaultOpen))
+    {
+        if (detailContext.Begin_PropertyTable("RibbonOrientation"))
+        {
+            changed |= Internal::Draw_RibbonSpreadBasisProperty(
+                detailContext,
+                data.spreadBasis,
+                defaultData.spreadBasis
+            );
+            changed |= detailContext.Draw_FloatProperty(
+                "펼침 각도",
+                data.spreadAngleDegrees,
+                defaultData.spreadAngleDegrees,
+                0.1f,
+                "선택한 펼침 기준으로 만든 폭 방향을 리본 tangent 축 기준으로 추가 회전하는 각도입니다."
+            );
+            detailContext.End_PropertyTable();
+        }
     }
 
     return changed;
@@ -3397,7 +3784,7 @@ bool DragModuleDetail::Draw(AuthoringEmitter&, const AuthoringModule& module, Dr
     return changed;
 }
 
-bool VelocityOverLifeModuleDetail::Draw(AuthoringEmitter&, AuthoringModule&, VelocityOverLifeModuleData& data, DetailPropertyContext& detailContext)
+bool VelocityOverLifeModuleDetail::Draw(AuthoringEmitter& emitter, AuthoringModule& module, VelocityOverLifeModuleData& data, DetailPropertyContext& detailContext)
 {
     const VelocityOverLifeModuleData defaultData{};
     bool changed = false;
@@ -3414,6 +3801,26 @@ bool VelocityOverLifeModuleDetail::Draw(AuthoringEmitter&, AuthoringModule&, Vel
             nullptr,
             "생존 중 normalized life(0->1) 기준으로 현재 속도에 곱하는 배율입니다."
         );
+
+        if (ImGui::CollapsingHeader("고급 적용 대상"))
+        {
+            if (detailContext.Begin_PropertyTable("VelocityOverLifeApplyChannels"))
+            {
+                changed |= Internal::Draw_VelocityOverLifeApplyChannelMaskProperty(
+                    detailContext,
+                    data.applyChannelMask,
+                    defaultData.applyChannelMask
+                );
+                detailContext.End_PropertyTable();
+            }
+        }
+
+        if (Internal::Has_VelocityOverLifeChannelConflict(emitter, module, data))
+        {
+            ImGui::PushStyleColor(ImGuiCol_Text, ImVec4{ 1.f, 0.78f, 0.28f, 1.f });
+            ImGui::TextWrapped("겹친 대상은 위쪽 VelocityOverLife가 우선 적용됩니다.");
+            ImGui::PopStyleColor();
+        }
     }
 
     return changed;
@@ -3838,6 +4245,90 @@ bool MeshRotationOverLifeModuleDetail::Draw(
             nullptr,
             "생존 중 normalized life(0->1)에 따라 mesh 초기 회전 위에 더하는 값입니다."
         );
+    }
+
+    return changed;
+}
+
+bool MeshDirectionAlignOverLifeModuleDetail::Draw(
+    AuthoringEmitter& emitter,
+    AuthoringModule&,
+    MeshDirectionAlignOverLifeModuleData& data,
+    DetailPropertyContext& detailContext)
+{
+    const MeshDirectionAlignOverLifeModuleData defaultData{};
+    bool changed = false;
+
+    if (ImGui::CollapsingHeader("수명에 따른 메시 방향 정렬", ImGuiTreeNodeFlags_DefaultOpen))
+    {
+        if (detailContext.Begin_PropertyTable("MeshDirectionAlignOverLife"))
+        {
+            changed |= Internal::Draw_MeshDirectionAlignTargetModeProperty(detailContext, data.targetMode, defaultData.targetMode);
+            changed |= Internal::Draw_MeshDirectionAlignSpaceProperty(detailContext, data.space, defaultData.space);
+            changed |= detailContext.Draw_Vec3Property(
+                data.targetMode == MeshDirectionAlignTargetMode::Point ? "대상 점" : "대상 방향",
+                data.target,
+                defaultData.target,
+                0.01f,
+                nullptr,
+                data.targetMode == MeshDirectionAlignTargetMode::Point
+                    ? "Point 방식에서는 이 값을 target 위치로 해석합니다."
+                    : "Direction 방식에서는 이 값을 바라볼 방향 벡터로 해석합니다."
+            );
+            changed |= Internal::Draw_PlaneRadialOrientationAxisProperty(
+                detailContext,
+                "메시 앞축",
+                data.meshForwardAxis,
+                defaultData.meshForwardAxis
+            );
+            changed |= Internal::Draw_PlaneRadialOrientationAxisProperty(
+                detailContext,
+                "메시 위축",
+                data.meshUpAxis,
+                defaultData.meshUpAxis
+            );
+            changed |= Internal::Draw_MeshDirectionAlignBlendModeProperty(detailContext, data.blendMode, defaultData.blendMode);
+            detailContext.End_PropertyTable();
+        }
+
+        changed |= detailContext.Draw_FloatDistributionGroup(
+            "정렬 진행도",
+            data.alignmentProgress,
+            defaultData.alignmentProgress,
+            0.01f,
+            false,
+            true,
+            nullptr,
+            "normalized life 기준 target orientation으로 붙는 0..1 weight입니다."
+        );
+        changed |= detailContext.Draw_FloatDistributionGroup(
+            "랜덤 지연",
+            data.randomDelay,
+            defaultData.randomDelay,
+            0.01f,
+            true,
+            false,
+            nullptr,
+            "spawn 시점에 particle별로 한 번 샘플되는 정렬 시작 지연입니다. 0..1 범위로 clamp됩니다."
+        );
+        changed |= detailContext.Draw_FloatDistributionGroup(
+            "랜덤 배율",
+            data.randomWeightScale,
+            defaultData.randomWeightScale,
+            0.01f,
+            true,
+            false,
+            nullptr,
+            "spawn 시점에 particle별로 한 번 샘플되는 최종 weight 배율입니다. 0..1 범위로 clamp됩니다."
+        );
+
+        ImGui::TextDisabled("모든 메시 회전 계산 뒤에 적용됩니다. 최종 weight 1에서는 목표 방향이 최종 회전을 결정합니다.");
+        if (Internal::Has_EnabledModule(emitter, AuthoringModuleType::MeshRotationOverLife) ||
+            Internal::Has_EnabledModule(emitter, AuthoringModuleType::InitialMeshRotationRate) ||
+            Internal::Has_EnabledModule(emitter, AuthoringModuleType::MeshRotationRateScaleByLife))
+        {
+            ImGui::TextDisabled("기존 메시 회전 모듈은 weight가 낮은 구간에서 함께 보이고, weight가 높아질수록 target 방향에 흡수됩니다.");
+        }
     }
 
     return changed;
@@ -4524,7 +5015,7 @@ bool MaterialScalarModulationModuleDetail::Draw(
     DetailPropertyContext& detailContext)
 {
     bool changed = false;
-    const bool allowScalarParticleLife = Internal::Is_SpriteMaterialScalarParticleLifeSupported(emitter);
+    const bool allowScalarParticleLife = Internal::Is_MaterialScalarParticleLifeSupported(emitter);
 
     if (ImGui::CollapsingHeader("머티리얼 변조", ImGuiTreeNodeFlags_DefaultOpen))
     {
@@ -4653,18 +5144,12 @@ bool MaterialScalarModulationModuleDetail::Draw(
 
                         if (!structureChanged)
                         {
-                            if (modulator.timeSource == MaterialScalarModulationTimeSource::ParticleLife)
-                            {
-                                modulator.timeSource = MaterialScalarModulationTimeSource::EmitterTime;
-                                changed = true;
-                            }
-
                             changed |= Internal::Draw_MaterialScalarTimeSourceProperty(
                                 detailContext,
                                 "시간 축",
                                 modulator.timeSource,
                                 defaultData.timeSource,
-                                false
+                                allowScalarParticleLife
                             );
                         }
                         detailContext.End_PropertyTable();
@@ -4680,7 +5165,7 @@ bool MaterialScalarModulationModuleDetail::Draw(
                             true,
                             false,
                             nullptr,
-                            "선택한 시간 축을 입력으로 Core Color RGB에 곱할 값을 평가합니다."
+                            "선택한 시간 축을 입력으로 Core Color RGB에 적용할 RGB 색 값을 평가합니다."
                         );
 
                         if (ImGui::Button("삭제"))
@@ -4731,7 +5216,7 @@ bool MaterialScalarModulationModuleDetail::Draw(
                             {
                                 MaterialCoreColorRgbModulatorData coreColorRgbModulator = Internal::Make_CoreColorRgbModulator(emitter);
                                 coreColorRgbModulator.enabled = modulator.enabled;
-                                coreColorRgbModulator.timeSource = MaterialScalarModulationTimeSource::EmitterTime;
+                                coreColorRgbModulator.timeSource = modulator.timeSource;
                                 data.coreColorRgbModulators.push_back(coreColorRgbModulator);
                                 data.vec2Modulators.erase(data.vec2Modulators.begin() + static_cast<ptrdiff_t>(row.index));
                                 structureChanged = true;
@@ -4804,10 +5289,7 @@ bool MaterialScalarModulationModuleDetail::Draw(
                             {
                                 MaterialCoreColorRgbModulatorData coreColorRgbModulator = Internal::Make_CoreColorRgbModulator(emitter);
                                 coreColorRgbModulator.enabled = modulator.enabled;
-                                coreColorRgbModulator.timeSource =
-                                    modulator.timeSource == MaterialScalarModulationTimeSource::ParticleLife
-                                    ? MaterialScalarModulationTimeSource::EmitterTime
-                                    : modulator.timeSource;
+                                coreColorRgbModulator.timeSource = modulator.timeSource;
                                 data.coreColorRgbModulators.push_back(coreColorRgbModulator);
                                 data.modulators.erase(data.modulators.begin() + static_cast<ptrdiff_t>(row.index));
                                 structureChanged = true;

@@ -5,6 +5,7 @@
 #include "Mon_WeakPoint.h"
 #include "MonsterStatCom.h"
 #include "EffectCom.h"
+#include "ModelCom.h"
 
 IMPLEMENT_REFLECTION(MB_PotatoBag)
 {
@@ -55,46 +56,74 @@ void MB_PotatoBag::Update(float timeDelta)
     Monster_BattleBase::Update(timeDelta);
 
     if (_body)
+    {
         _body->Play_Animation(timeDelta);
+        Apply_NoShieldArmBreakPose();
+    }
 }
 
 bool MB_PotatoBag::Try_Consume_FreeAimWeakPoint()
 {
-    const auto Eff = _shield->Get_Component<EffectCom>();
-    if (!Eff)
+    if (!Monster_BattleBase::Try_Consume_FreeAimWeakPoint())
         return false;
-    
-    Eff->Start_VanishDissolve(.5f, "T_Perlin_Noise_M",  true);
-    _curPhase = NoShield;
 
-    return Monster_BattleBase::Try_Consume_FreeAimWeakPoint();
+    Enter_NoShieldPhase();
+
+    return true;
+}
+
+bool MB_PotatoBag::Try_ApplyBattleBreakOnDamage(const DamageAppliedInfo& info, bool canTriggerBreak)
+{
+    return Character_BattleBase::Try_ApplyBattleBreakOnDamage(info, canTriggerBreak);
 }
 
 Monster_BattleBase::BattlePhase MB_PotatoBag::Get_CurPhase() const
 {
-    if (Get_HpRatio() > 0.9f)
-        return BattlePhase::Opening;
-    if (_curPhase == Defense)
-        return BattlePhase::Mid;
-    else if (_curPhase == NoShield)
+    if (_curPhase == NoShield)
         return BattlePhase::Critical;
 
+    if (Get_HpRatio() > 0.9f)
+        return BattlePhase::Opening;
+
+    if (_curPhase == Defense)
+        return BattlePhase::Mid;
 
     return BattlePhase::Opening;
 }
 
-bool MB_PotatoBag::Try_GetDamageFeedbackSocketWorldPosition(Vec3& outWorldPos) const
+bool MB_PotatoBag::Enter_NoShieldPhase()
 {
-    if (_body == nullptr)
+    if (_curPhase == NoShield)
         return false;
 
-    const Matrix* socketMatrix = _body->Get_SocketBoneMatrixPtr("root");
-    if (socketMatrix == nullptr)
-        return false;
+    if (_shield)
+    {
+        if (const auto effectCom = _shield->Get_Component<EffectCom>())
+            effectCom->Start_VanishDissolve(.5f, "T_Perlin_Noise_M", true);
+    }
 
-    const Matrix socketWorldMatrix = *socketMatrix * _body->Get_CombinedWorldMatrix();
-    outWorldPos = Vec3(socketWorldMatrix._41, socketWorldMatrix._42, socketWorldMatrix._43);
+    _curPhase = NoShield;
+    Hide_FreeAimWeakPoint();
+    Apply_NoShieldArmBreakPose();
+
     return true;
+}
+
+void MB_PotatoBag::Apply_NoShieldArmBreakPose()
+{
+    if (_curPhase != NoShield || _body == nullptr)
+        return;
+
+    const Shared<ModelCom> model = _body->Get_Model();
+    if (model == nullptr)
+        return;
+
+    const int32 upperArmIndex = model->Get_BoneIndex("upperarm_l");
+    if (upperArmIndex < 0)
+        return;
+
+    model->Set_BoneLocalMatrix(static_cast<uint32>(upperArmIndex), Matrix::CreateScale(0.f));
+    model->Rebuild_BoneCombinedMatrices();
 }
 
 HRESULT MB_PotatoBag::Ready_PartObjects()
@@ -147,14 +176,9 @@ HRESULT MB_PotatoBag::Ready_PartObjects()
 
 bool MB_PotatoBag::Should_AppendPreTurnEndPhase(const ActionRequest& request) const
 {
+    UNREFERENCED_PARAMETER(request);
 
-
-    if (Get_CurPhase() == BattlePhase::Mid)
-        return true;
-    else
-        return false;
-
-    return false;
+    return _curPhase == Defense && Get_CurPhase() == BattlePhase::Mid;
 }
 
 Shared<MB_PotatoBag> MB_PotatoBag::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)

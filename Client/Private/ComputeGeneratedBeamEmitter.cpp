@@ -872,14 +872,14 @@ HRESULT ComputeGeneratedBeamEmitter::Append_SegmentPayloads(vector<SegmentPayloa
 
             SegmentPayload payload{};
             payload.previousPosition =
-                Vec4(previousSource.position.x, previousSource.position.y, previousSource.position.z, (!clippedSegmentStart && index > 0u) ? 1.f : 0.f);
+                Vec4(previousSource.position.x, previousSource.position.y, previousSource.position.z, !clippedSegmentStart && index > 0u ? 1.f : 0.f);
             payload.currentPosition = Vec4(clippedCurrent.position.x, clippedCurrent.position.y, clippedCurrent.position.z, 1.f);
             payload.nextPosition = Vec4(clippedNext.position.x, clippedNext.position.y, clippedNext.position.z, 1.f);
             payload.nextNextPosition = Vec4(
                 nextNext.position.x,
                 nextNext.position.y,
                 nextNext.position.z,
-                (!clippedSegmentEnd && index + 2u < pathSamples.size()) ? 1.f : 0.f
+                !clippedSegmentEnd && index + 2u < pathSamples.size() ? 1.f : 0.f
             );
             payload.currentSampleParams =
                 Vec4(clippedCurrent.age, visualLife, (clippedCurrent.distance - visibleStartDistance) * uvDistanceScale, baseWidth * pathEntry.widthScale);
@@ -888,6 +888,17 @@ HRESULT ComputeGeneratedBeamEmitter::Append_SegmentPayloads(vector<SegmentPayloa
             payload.startColor = color;
             payload.endColor = color;
             payload.subUVRect = subUVRect;
+            const Vec3 coreColorRgb = Sample_ParticleLifeCoreColorRgbUniformModulation(
+                _desc.material.coreColorRgbModulation,
+                Vec3{
+                    _desc.material.coreEmissive.coreColor.x,
+                    _desc.material.coreEmissive.coreColor.y,
+                    _desc.material.coreEmissive.coreColor.z
+                },
+                _effectPlaybackSeed,
+                pathEntry.stripIndex * 4099u + index
+            );
+            payload.coreColorRgb = Vec4(coreColorRgb.x, coreColorRgb.y, coreColorRgb.z, 0.f);
             outPayloads.push_back(payload);
 
             if (clippedSegmentEnd)
@@ -1146,7 +1157,7 @@ HRESULT ComputeGeneratedBeamEmitter::Bind_MaterialResources()
 {
     const float emitterPhase = Compute_MaterialScalarModulationPhase(_materialElapsedTime, _desc.playback.duration);
     const EffectRequiredMaterialRuntimeDesc material =
-        Resolve_EmitterTimeMaterialUniformParameterModulation(_desc.material, emitterPhase);
+        Resolve_EmitterTimeMaterialUniformParameterModulation(_desc.material, emitterPhase, _effectPlaybackSeed);
 
     CHECK_FAILED(_mainTexture->Bind_ShaderResourceView(_shader.get(), "g_MainTexture", 0), E_FAIL);
 
@@ -1258,6 +1269,7 @@ HRESULT ComputeGeneratedBeamEmitter::Bind_MaterialResources()
     CHECK_FAILED(_shader->Bind_RawValue("g_EffectBeamFallbackAxis", &effectBeamFallbackAxis, sizeof(effectBeamFallbackAxis)), E_FAIL);
     CHECK_FAILED(_shader->Bind_RawValue("g_EffectBeamMaterialTime", &_materialElapsedTime, sizeof(_materialElapsedTime)), E_FAIL);
     CHECK_FAILED(EffectBeamRuntime::Bind_MaterialScalarModulationPayload(_shader.get(), _desc.material.scalarModulation, emitterPhase), E_FAIL);
+    CHECK_FAILED(Bind_CoreColorRgbModulationShaderPayload(_shader.get(), _desc.material.coreColorRgbModulation, emitterPhase, _effectPlaybackSeed), E_FAIL);
     CHECK_FAILED(_shader->Bind_RawValue("g_OpacitySource", &opacitySourceIndex, sizeof(opacitySourceIndex)), E_FAIL);
     return S_OK;
 }
@@ -1266,7 +1278,7 @@ HRESULT ComputeGeneratedBeamEmitter::Bind_DistortionResources()
 {
     const float emitterPhase = Compute_MaterialScalarModulationPhase(_materialElapsedTime, _desc.playback.duration);
     const EffectRequiredMaterialRuntimeDesc material =
-        Resolve_EmitterTimeMaterialUniformParameterModulation(_desc.material, emitterPhase);
+        Resolve_EmitterTimeMaterialUniformParameterModulation(_desc.material, emitterPhase, _effectPlaybackSeed);
 
     CHECK_FAILED(_mainTexture->Bind_ShaderResourceView(_shader.get(), "g_MainTexture", 0), E_FAIL);
 
@@ -1355,6 +1367,7 @@ HRESULT ComputeGeneratedBeamEmitter::Bind_DistortionResources()
     CHECK_FAILED(_shader->Bind_RawValue("g_FlowUVScrollSpeed", &material.flowUVScrollSpeed, sizeof(material.flowUVScrollSpeed)), E_FAIL);
     CHECK_FAILED(_shader->Bind_RawValue("g_FlowUVTilingMode", &flowUVTilingMode, sizeof(flowUVTilingMode)), E_FAIL);
     CHECK_FAILED(_shader->Bind_RawValue("g_FlowUVRotation", &flowUVRotation, sizeof(flowUVRotation)), E_FAIL);
+    CHECK_FAILED(EffectBeamRuntime::Bind_MaterialScalarModulationPayload(_shader.get(), material.scalarModulation, emitterPhase), E_FAIL);
     return S_OK;
 }
 

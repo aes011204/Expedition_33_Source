@@ -163,6 +163,9 @@ namespace Client::Constants::UI
     inline constexpr wchar_t UI_Get_Weapon_Maelle_Sekarum_Path[] =
         L"UI/UI_Json/CommonSystem/Get_Item/Weapon/UI_Get_Weapon_Maelle_Sekarum.json";
 
+    inline constexpr wchar_t UI_Get_Chroma_Path[] =
+        L"UI/UI_Json/CommonSystem/Get_Item/Chroma/UI_Get_Chroma.json";
+
     inline constexpr wchar_t UI_Get_Pictos_AugmentedAim_Path[] =
         L"UI/UI_Json/CommonSystem/Get_Item/Pictos/UI_Get_Pictos_AugmentedAim.json";
 
@@ -529,6 +532,10 @@ namespace Client::Constants::Prefab
     inline constexpr char BattleStartSpawner_Boss[] = "BattleStartSpawner/BSS_GamePlay_Boss";
     inline constexpr char BSS_Gestral_PotatoBag[] = "BattleStartSpawner/BSS_Gestral_PotatoBag";
 
+    inline constexpr char BSS_Gameplay01[] = "BattleStartSpawner/BSS_GamePlay01";
+    inline constexpr char BSS_Gameplay02[] = "BattleStartSpawner/BSS_GamePlay02";
+
+
 }
 
 // 이제 사운드는 DT_SoundCue에 추가해서, 거기에 등록된 cueId를 여기에 상수로 매핑하는 형식으로 통일하기
@@ -550,13 +557,17 @@ namespace Client::Constants::SoundBGM
         L"BGM/Gestral/MUS_ForgottenBattlefield_BT_Dualliste_PhaseTransition.wav";
     constexpr const wchar_t* DuallisteBattlePhase2Main =
         L"BGM/Gestral/MUS_ForgottenBattlefield_BT_Dualliste_Phase2_Main.wav";
+
+    constexpr const wchar_t* BishopBattleBossMain = L"BGM/SpringMeadow/MUS_SpringMeadows_BT_Boss_Main.wav";
+    constexpr const wchar_t* BishopBattleBossVictory = L"BGM/SpringMeadow/MUS_SpringMeadows_BT_Boss_VictoryScreen.wav";
 }
 
 namespace Client::Constants::Cinematic
 {
     inline constexpr wchar_t RuntimeJson_Dir[] = L"../../../Client/Bin/Resources/Data/json/Cinematics/";
     inline constexpr wchar_t BridgeCinematic[] = L"../../../Client/Bin/Resources/Data/json/Cinematics/Bridge.json";
-    inline constexpr wchar_t BishopCinematicFileId[] = L"Bishop_Cinematic.json";
+    inline constexpr wchar_t BishopCinematicFileId[] = L"Bishop_Cinematic_2.json";
+    inline constexpr wchar_t TutorialCinematicFileId[] = L"Lancelier_Intro.json";
 
     inline constexpr wchar_t Dualliste_Intro[] = L"Dualliste_1.json";
     inline constexpr wchar_t Dualliste_PhaseChange[] = L"Dualliste.json";
@@ -614,6 +625,6 @@ namespace Client::Constants::Dialogue
 
 namespace Client::Constants::Value
 {
-    constexpr uint32 potatoBagEncounterId = 1;
+    constexpr uint32 potatoBagEncounterId = 100; // 일반 월드 몬스터 기본 encounter 1과 분리된 Gradient 안내 전용 전투
     constexpr int32  potatoBagBattleStartSpawnerId = 5;
 }

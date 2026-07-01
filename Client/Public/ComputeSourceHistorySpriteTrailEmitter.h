@@ -64,6 +64,7 @@ private: //## Types::PlaybackRuntime
         uint32 frameIndex{};
         Vec4 startColor{ 1.f, 1.f, 1.f, 1.f };
         Vec4 endColor{ 1.f, 1.f, 1.f, 1.f };
+        Vec3 coreColorRgb{ 1.f, 0.85f, 0.45f };
         float widthScale{ 1.f };
         float lengthScale{ 1.f };
         float initialRotationRadians{};
@@ -71,6 +72,11 @@ private: //## Types::PlaybackRuntime
         Vec2 initialTiltDegrees{};
         Vec2 tiltOverLifeDegrees{};
         Vec3 velocity{};
+        Vec3 initialVelocity{};
+        Vec3 initialRadialVelocity{};
+        Vec3 velocityCone{};
+        Vec3 sourceMotionVelocity{};
+        Vec3 accelerationIntegratedVelocity{};
         Vec3 acceleration{};
         float drag{};
         bool pathFollowActive{};
@@ -122,6 +128,7 @@ private: //## Types::PlaybackRuntime
         Vec4 endColor{};
         Vec4 subUVRect{ 0.f, 0.f, 1.f, 1.f };
         Vec4 rotationAndTilt{};
+        Vec4 coreColorRgb{ 1.f, 0.85f, 0.45f, 0.f };
     };
 
 private: //## Static Values
@@ -239,7 +246,11 @@ private: //## Helper::Render
     float Sample_InitialAngularVelocity(uint32 stampSerial) const;
     Vec2 Sample_InitialTilt(uint32 stampSerial) const;
     Vec2 Sample_TiltOverLife(uint32 stampSerial) const;
-    Vec3 Sample_InitialVelocity(uint32 stampSerial, const Vec3& spawnCenter, const SourceMotionVelocityContext& sourceMotionContext) const;
+    void Sample_InitialVelocityChannels(
+        Stamp& stamp,
+        uint32 stampSerial,
+        const Vec3& spawnCenter,
+        const SourceMotionVelocityContext& sourceMotionContext) const;
     Vec3 Sample_Acceleration(uint32 stampSerial) const;
     float Sample_Drag(uint32 stampSerial) const;
     float Sample_PathFollowSpeed(uint32 stampSerial) const;
@@ -254,7 +265,8 @@ private: //## Helper::Render
     float Evaluate_RotationOverLife(float lifeProgress) const;
     float Evaluate_RotationRateScaleByLife(float lifeProgress) const;
     Vec2 Evaluate_SpriteTiltOverLife(const Stamp& stamp, float lifeProgress) const;
-    float Evaluate_VelocityScaleByLife(float lifeProgress) const;
+    float Evaluate_VelocityScaleByLifeChannel(const PointParticleFloatCurveRuntimeDesc& curve, float lifeProgress) const;
+    Vec3 Evaluate_ScaledVelocityChannels(const Stamp& stamp, float lifeProgress) const;
     Vec3 Evaluate_AccelerationByLife(const Stamp& stamp, float lifeProgress) const;
     float Evaluate_PathReplayDrainCurve(float progress) const;
     uint32 Evaluate_SubUVFrameIndex(const Stamp& stamp) const;

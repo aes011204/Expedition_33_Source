@@ -76,7 +76,7 @@ void MB_Mime::Adjust_IncomingBattleDamage(const BattleChar& attacker, float& dam
     damage *= kMimeUnbrokenDamageMultiplier;
 }
 
-bool MB_Mime::Try_ApplyBattleBreakOnDamage(const DamageAppliedInfo& info)
+bool MB_Mime::Try_ApplyBattleBreakOnDamage(const DamageAppliedInfo& info, bool canTriggerBreak)
 {
     if (_combatStat == nullptr || info.damage <= 0.f)
         return false;
@@ -95,6 +95,9 @@ bool MB_Mime::Try_ApplyBattleBreakOnDamage(const DamageAppliedInfo& info)
     if (_combatStat->Get_CurBreak() < _combatStat->Get_MaxBreak())
         return false;
 
+    if (!canTriggerBreak)
+        return false;
+
     _combatStat->SetBreak(true);
     _combatStat->Set_Break(_combatStat->Get_MaxBreak());
 
@@ -110,20 +113,6 @@ bool MB_Mime::Try_ApplyBattleBreakOnDamage(const DamageAppliedInfo& info)
             info.target.ModelCom->Set_AnimationByState(ETOI(BattleAnimType::Idle_Stun), 0.2f, true); // Mime animmap에는 현재 Idle_Stun만 확인됨.
     }
 
-    return true;
-}
-
-bool MB_Mime::Try_GetDamageFeedbackSocketWorldPosition(Vec3& outWorldPos) const
-{
-    if (_body == nullptr)
-        return false;
-
-    const Matrix* socketMatrix = _body->Get_SocketBoneMatrixPtr("root");
-    if (socketMatrix == nullptr)
-        return false;
-
-    const Matrix socketWorldMatrix = *socketMatrix * _body->Get_CombinedWorldMatrix();
-    outWorldPos = Vec3(socketWorldMatrix._41, socketWorldMatrix._42, socketWorldMatrix._43);
     return true;
 }
 

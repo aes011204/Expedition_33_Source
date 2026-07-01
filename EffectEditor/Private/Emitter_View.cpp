@@ -824,6 +824,8 @@ AuthoringModule Emitter_View::Make_DefaultModuleByType(AuthoringModuleType type)
         return Make_InitialMeshRotationModule();
     case AuthoringModuleType::MeshRotationOverLife:
         return Make_MeshRotationOverLifeModule();
+    case AuthoringModuleType::MeshDirectionAlignOverLife:
+        return Make_MeshDirectionAlignOverLifeModule();
     case AuthoringModuleType::InitialMeshRotationRate:
         return Make_InitialMeshRotationRateModule();
     case AuthoringModuleType::MeshRotationRateScaleByLife:
@@ -846,6 +848,8 @@ AuthoringModule Emitter_View::Make_DefaultModuleByType(AuthoringModuleType type)
         return Make_SourceHistorySpriteTrailPathFollowModule();
     case AuthoringModuleType::SourceHistorySpriteTrailPathReplay:
         return Make_SourceHistorySpriteTrailPathReplayModule();
+    case AuthoringModuleType::RibbonOrientation:
+        return Make_RibbonOrientationModule();
     case AuthoringModuleType::MaterialScalarModulation:
         return Make_MaterialScalarModulationModule();
     }
@@ -1161,6 +1165,17 @@ AuthoringModule Emitter_View::Make_MeshRotationOverLifeModule()
     return module;
 }
 
+AuthoringModule Emitter_View::Make_MeshDirectionAlignOverLifeModule()
+{
+    AuthoringModule module{};
+    module.id = Issue_AuthoringId();
+    module.type = AuthoringModuleType::MeshDirectionAlignOverLife;
+    module.enabled = true;
+    Apply_AuthoringModuleMetadata(module);
+    module.data = MeshDirectionAlignOverLifeModuleData{};
+    return module;
+}
+
 AuthoringModule Emitter_View::Make_InitialMeshRotationRateModule()
 {
     AuthoringModule module{};
@@ -1282,6 +1297,17 @@ AuthoringModule Emitter_View::Make_SourceHistorySpriteTrailPathReplayModule()
     return module;
 }
 
+AuthoringModule Emitter_View::Make_RibbonOrientationModule()
+{
+    AuthoringModule module{};
+    module.id = Issue_AuthoringId();
+    module.type = AuthoringModuleType::RibbonOrientation;
+    module.enabled = true;
+    Apply_AuthoringModuleMetadata(module);
+    module.data = RibbonOrientationModuleData{};
+    return module;
+}
+
 AuthoringModule Emitter_View::Make_MaterialScalarModulationModule()
 {
     AuthoringModule module{};
@@ -1312,10 +1338,12 @@ bool Emitter_View::Is_ModuleCompatibleWithEmitter(const AuthoringEmitter& emitte
         {
         case AuthoringModuleType::Required:
         case AuthoringModuleType::Lifetime:
+        case AuthoringModuleType::InitialLocation:
         case AuthoringModuleType::InitialColor:
         case AuthoringModuleType::ColorOverLife:
         case AuthoringModuleType::SubUVFrameOverLife:
         case AuthoringModuleType::SizeByLife:
+        case AuthoringModuleType::RibbonOrientation:
         case AuthoringModuleType::MaterialScalarModulation:
             return true;
         default:
@@ -1398,6 +1426,7 @@ bool Emitter_View::Is_ModuleCompatibleWithEmitter(const AuthoringEmitter& emitte
     case AuthoringModuleType::InitialMeshSize:
     case AuthoringModuleType::InitialMeshRotation:
     case AuthoringModuleType::MeshRotationOverLife:
+    case AuthoringModuleType::MeshDirectionAlignOverLife:
     case AuthoringModuleType::InitialMeshRotationRate:
     case AuthoringModuleType::MeshRotationRateScaleByLife:
     case AuthoringModuleType::MeshSizeByLife:
@@ -1447,6 +1476,7 @@ bool Emitter_View::Can_AddModuleType(const AuthoringEmitter& emitter, AuthoringM
     case AuthoringModuleType::RotationRateScaleByLife:
     case AuthoringModuleType::InitialMeshRotation:
     case AuthoringModuleType::MeshRotationOverLife:
+    case AuthoringModuleType::MeshDirectionAlignOverLife:
     case AuthoringModuleType::InitialMeshRotationRate:
     case AuthoringModuleType::MeshRotationRateScaleByLife:
     case AuthoringModuleType::InitialColor:
@@ -1458,7 +1488,10 @@ bool Emitter_View::Can_AddModuleType(const AuthoringEmitter& emitter, AuthoringM
     case AuthoringModuleType::SpawnPerUnit:
     case AuthoringModuleType::SourceHistorySpriteTrailPathFollow:
     case AuthoringModuleType::SourceHistorySpriteTrailPathReplay:
+    case AuthoringModuleType::RibbonOrientation:
     case AuthoringModuleType::MaterialScalarModulation:
+        if (type == AuthoringModuleType::VelocityOverLife)
+            return Is_ModuleCompatibleWithEmitter(emitter, type);
         if (type == AuthoringModuleType::SourceHistorySpriteTrailPathFollow &&
             Has_ModuleType(emitter, AuthoringModuleType::SourceHistorySpriteTrailPathReplay))
             return false;
@@ -1562,6 +1595,9 @@ void Emitter_View::Add_Module(size_t emitterIndex, AuthoringModuleType type)
     case AuthoringModuleType::MeshRotationOverLife:
         module = Make_MeshRotationOverLifeModule();
         break;
+    case AuthoringModuleType::MeshDirectionAlignOverLife:
+        module = Make_MeshDirectionAlignOverLifeModule();
+        break;
     case AuthoringModuleType::InitialMeshRotationRate:
         module = Make_InitialMeshRotationRateModule();
         break;
@@ -1594,6 +1630,9 @@ void Emitter_View::Add_Module(size_t emitterIndex, AuthoringModuleType type)
         break;
     case AuthoringModuleType::SourceHistorySpriteTrailPathReplay:
         module = Make_SourceHistorySpriteTrailPathReplayModule();
+        break;
+    case AuthoringModuleType::RibbonOrientation:
+        module = Make_RibbonOrientationModule();
         break;
     case AuthoringModuleType::MaterialScalarModulation:
         module = Make_MaterialScalarModulationModule();
@@ -2524,6 +2563,10 @@ void Emitter_View::Reset_ModuleData(size_t emitterIndex, size_t moduleIndex)
         module.data = MeshRotationOverLifeModuleData{};
         break;
 
+    case AuthoringModuleType::MeshDirectionAlignOverLife:
+        module.data = MeshDirectionAlignOverLifeModuleData{};
+        break;
+
     case AuthoringModuleType::InitialMeshRotationRate:
         module.data = InitialMeshRotationRateModuleData{};
         break;
@@ -2561,6 +2604,9 @@ void Emitter_View::Reset_ModuleData(size_t emitterIndex, size_t moduleIndex)
         break;
     case AuthoringModuleType::SourceHistorySpriteTrailPathReplay:
         module.data = SourceHistorySpriteTrailPathReplayModuleData{};
+        break;
+    case AuthoringModuleType::RibbonOrientation:
+        module.data = RibbonOrientationModuleData{};
         break;
     case AuthoringModuleType::MaterialScalarModulation:
         module.data = MaterialScalarModulationModuleData{};
@@ -3073,6 +3119,22 @@ vector<Emitter_View::ModulePickerEntry> Emitter_View::Build_ModulePickerEntries(
             true,
             Can_AddModuleType(emitter, AuthoringModuleType::SourceHistorySpriteTrailPathReplay),
             "Sprite Trail TypeData 전용"
+        )
+    );
+    entries.push_back(
+        makeEntry(
+            AuthoringModuleType::MeshDirectionAlignOverLife,
+            true,
+            Can_AddModuleType(emitter, AuthoringModuleType::MeshDirectionAlignOverLife),
+            "Mesh TypeData 전용"
+        )
+    );
+    entries.push_back(
+        makeEntry(
+            AuthoringModuleType::RibbonOrientation,
+            true,
+            Can_AddModuleType(emitter, AuthoringModuleType::RibbonOrientation),
+            "Ribbon TypeData 전용"
         )
     );
     entries.push_back(

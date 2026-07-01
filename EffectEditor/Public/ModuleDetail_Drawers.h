@@ -65,7 +65,7 @@ public:
         DetailPropertyContext& detailContext);
 };
 
-// InitialLocation module의 emitter-local spawn offset authoring row를 그린다.
+// InitialLocation module의 emitter-local offset authoring row를 그린다.
 class InitialLocationModuleDetail
 {
 public:
@@ -73,6 +73,17 @@ public:
         AuthoringEmitter& emitter,
         AuthoringModule& module,
         InitialLocationModuleData& data,
+        DetailPropertyContext& detailContext);
+};
+
+// RibbonOrientation module의 ribbon 폭 방향 기준축 authoring row를 그린다.
+class RibbonOrientationModuleDetail
+{
+public:
+    bool Draw(
+        AuthoringEmitter& emitter,
+        AuthoringModule& module,
+        RibbonOrientationModuleData& data,
         DetailPropertyContext& detailContext);
 };
 
@@ -315,6 +326,17 @@ public:
         AuthoringEmitter& emitter,
         AuthoringModule& module,
         MeshRotationOverLifeModuleData& data,
+        DetailPropertyContext& detailContext);
+};
+
+// MeshDirectionAlignOverLife module의 target-facing alignment authoring row를 그린다.
+class MeshDirectionAlignOverLifeModuleDetail
+{
+public:
+    bool Draw(
+        AuthoringEmitter& emitter,
+        AuthoringModule& module,
+        MeshDirectionAlignOverLifeModuleData& data,
         DetailPropertyContext& detailContext);
 };
 

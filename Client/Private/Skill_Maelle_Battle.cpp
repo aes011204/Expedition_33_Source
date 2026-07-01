@@ -1,6 +1,7 @@
 ﻿#include "Skill_Maelle_Battle.h"
 #include "BattleMechanismCom.h"
 #include "DamageSystem.h"
+#include "ClientInstance.h"
 
 /* 공격 태세 */
 void Skill_Maelle_OffensiveSwitch::Execute(const Skill_Data& skill, const BattleAction& action, AttackType attackType)
@@ -71,6 +72,7 @@ Shared<Skill_Maelle_FireRise> Skill_Maelle_FireRise::Create()
     return make_shared<Skill_Maelle_FireRise>();
 }
 
+/* 플뢰레 격노 */
 void Skill_Maelle_FleureFury::Execute(const Skill_Data& skill, const BattleAction& action, AttackType attackType)
 {
     const BattleChar& attacker = action.Get_CurChar();
@@ -83,6 +85,11 @@ void Skill_Maelle_FleureFury::Execute(const Skill_Data& skill, const BattleActio
 
     const float damage = DamageSystem::CalculatePlayerAttackDamage(attacker, skill.powerMultiplier);
     DamageSystem::ApplyDamage(damage, attacker, target, attackType);
+
+    auto battle = CLIENT->Get_BattleController();
+    CHECK_NULL(battle);
+
+    battle->Try_ApplySkillBuff(skill, target);
     
     // 임시로 명인태세
     if (attacker.mechanismCom != nullptr)
@@ -111,6 +118,11 @@ void Skill_Maelle_Spark::Execute(const Skill_Data& skill, const BattleAction& ac
     // 임시로 명인태세
     if (attacker.mechanismCom != nullptr)
         attacker.mechanismCom->Set_MaelleStance(BattleMechanismCom::MaelleStance::Virtuose);
+
+    auto battle = CLIENT->Get_BattleController();
+    CHECK_NULL(battle);
+
+    battle->Try_ApplySkillBuff(skill, target);
 }
 
 Shared<Skill_Maelle_Spark> Skill_Maelle_Spark::Create()
@@ -155,7 +167,7 @@ void Skill_Maelle_SwordBallet::Execute(const Skill_Data& skill, const BattleActi
 
     const float damage = DamageSystem::CalculatePlayerAttackDamage(attacker, skill.powerMultiplier);
     DamageSystem::ApplyDamage(damage, attacker, target, attackType);
-    
+
     // 임시로 명인태세
     if (attacker.mechanismCom != nullptr)
         attacker.mechanismCom->Set_MaelleStance(BattleMechanismCom::MaelleStance::Virtuose);
@@ -183,6 +195,11 @@ void Skill_Maelle_Pyrolyse::Execute(const Skill_Data& skill, const BattleAction&
     // 임시로 명인태세
     if (attacker.mechanismCom != nullptr)
         attacker.mechanismCom->Set_MaelleStance(BattleMechanismCom::MaelleStance::Virtuose);
+
+    auto battle = CLIENT->Get_BattleController();
+    CHECK_NULL(battle);
+
+    battle->Try_ApplySkillBuff(skill, target);
 }
 
 Shared<Skill_Maelle_Pyrolyse> Skill_Maelle_Pyrolyse::Create()

@@ -74,6 +74,9 @@ const char* Get_CinematicEventTypeLabel(const CINEMATIC_EVENT& event)
     if (get_if<CinematicPartVisibilityEventData>(&event.payload) != nullptr)
         return "PartVisibility";
 
+    if (get_if<CinematicWorldTimeScaleEventData>(&event.payload) != nullptr)
+        return "WorldTimeScale";
+
     return "Unknown";
 }
 
@@ -247,6 +250,11 @@ int Get_ActorRelativeTrackStartIndex(const CINEMATIC_SEQUENCE& sequence)
     return static_cast<int>(sequence.cinematicTracks.size());
 }
 
+int Get_CinematicCameraTrackCount(const CINEMATIC_SEQUENCE& sequence)
+{
+    return static_cast<int>(sequence.cinematicTracks.size() + sequence.actorRelativeCameraTracks.size());
+}
+
 int Get_ModifierTrackStartIndex(const CINEMATIC_SEQUENCE& sequence)
 {
     return Get_ActorRelativeTrackStartIndex(sequence) + static_cast<int>(sequence.actorRelativeCameraTracks.size());
@@ -260,6 +268,76 @@ int Get_EventTrackIndex(const CINEMATIC_SEQUENCE& sequence)
 int Get_ActorTransformTrackStartIndex(const CINEMATIC_SEQUENCE& sequence)
 {
     return Get_EventTrackIndex(sequence) + CinematicSequencerAdapter::kEventTrackCount;
+}
+
+string Build_CameraTrackLabel(const CINEMATIC_SEQUENCE& sequence, int trackIndex)
+{
+    if (trackIndex >= 0 && trackIndex < static_cast<int>(sequence.cinematicTracks.size()))
+    {
+        const auto& track = sequence.cinematicTracks[trackIndex];
+        return track.name.empty() ? ("World Track " + std::to_string(trackIndex)) : track.name;
+    }
+
+    const int actorRelativeTrackIndex = trackIndex - static_cast<int>(sequence.cinematicTracks.size());
+    if (actorRelativeTrackIndex >= 0 &&
+        actorRelativeTrackIndex < static_cast<int>(sequence.actorRelativeCameraTracks.size()))
+    {
+        const auto& track = sequence.actorRelativeCameraTracks[actorRelativeTrackIndex];
+        return track.name.empty() ? ("Actor Relative Track " + std::to_string(actorRelativeTrackIndex)) : track.name;
+    }
+
+    return "Invalid Track";
+}
+
+bool Resolve_CameraShotTrack(
+    const CINEMATIC_SEQUENCE& sequence,
+    float frameExact,
+    CINEMATIC_TRACK*& outTrack,
+    CINEMATIC_ACTOR_RELATIVE_CAMERA_TRACK*& outActorRelativeTrack)
+{
+    outTrack = nullptr;
+    outActorRelativeTrack = nullptr;
+
+    if (sequence.cameraShots.empty())
+        return false;
+
+    const int frame = std::clamp(
+        static_cast<int>(std::floor(frameExact)),
+        sequence.startFrame,
+        sequence.endFrame);
+
+    int resolvedTrackIndex = -1;
+    for (const auto& shot : sequence.cameraShots)
+    {
+        if (!shot.enabled)
+            continue;
+
+        if (frame < shot.startFrame || frame > shot.endFrame)
+            continue;
+
+        resolvedTrackIndex = shot.trackIndex;
+        break;
+    }
+
+    if (resolvedTrackIndex < 0)
+        return false;
+
+    if (resolvedTrackIndex < static_cast<int>(sequence.cinematicTracks.size()))
+    {
+        outTrack = const_cast<CINEMATIC_TRACK*>(&sequence.cinematicTracks[resolvedTrackIndex]);
+        return true;
+    }
+
+    const int actorRelativeTrackIndex = resolvedTrackIndex - static_cast<int>(sequence.cinematicTracks.size());
+    if (actorRelativeTrackIndex >= 0 &&
+        actorRelativeTrackIndex < static_cast<int>(sequence.actorRelativeCameraTracks.size()))
+    {
+        outActorRelativeTrack = const_cast<CINEMATIC_ACTOR_RELATIVE_CAMERA_TRACK*>(
+            &sequence.actorRelativeCameraTracks[actorRelativeTrackIndex]);
+        return true;
+    }
+
+    return false;
 }
 
 }
@@ -392,6 +470,19 @@ void Cinematic_Tool::Toggle_PreviewPlayback()
             _previewApplyCameraTrack,
             _previewApplyEventTrack,
             _previewApplyActorTransformTrack);
+
+        const float previewStartFrameExact = _useExactFramePreview
+            ? _currentFrameExact
+            : static_cast<float>(_currentFrame);
+        if (previewStartFrameExact > static_cast<float>(_sequence.startFrame))
+        {
+            CLIENT->Preview_CurrentSequenceFrameExact(
+                previewStartFrameExact,
+                _previewApplyCameraTrack,
+                _previewApplyEventTrack,
+                _previewApplyActorTransformTrack,
+                false);
+        }
 
         if (!_previewApplyCameraTrack)
         {
@@ -1031,12 +1122,39 @@ void Cinematic_Tool::Render_RightPanel()
 {
     Render_PreviewState();
     Render_SelectedKeyframePopup();
-    Render_SequenceSettings();
-    Render_EventTrack();
-    Render_ActorRelativeCameraTracks();
-    Render_ActorTransformTracks();
-    Render_TrackList();
-    Render_KeyframeList();
+
+    if (ImGui::BeginTabBar("##CinematicRightPanelTabs"))
+    {
+        if (ImGui::BeginTabItem("Sequence"))
+        {
+            Render_SequenceSettings();
+            Render_CameraShots();
+            ImGui::EndTabItem();
+        }
+
+        if (ImGui::BeginTabItem("Events"))
+        {
+            Render_EventTrack();
+            ImGui::EndTabItem();
+        }
+
+        if (ImGui::BeginTabItem("Tracks"))
+        {
+            Render_TrackList();
+            Render_ActorRelativeCameraTracks();
+            Render_ActorTransformTracks();
+            ImGui::EndTabItem();
+        }
+
+        if (ImGui::BeginTabItem("Selection"))
+        {
+            Render_KeyframeList();
+            ImGui::EndTabItem();
+        }
+
+        ImGui::EndTabBar();
+    }
+
     Render_LoadSequencePopup();
     Render_SequenceOverwriteWarningPopups();
     Render_RemoveKeyframePopup();
@@ -1063,6 +1181,11 @@ void Cinematic_Tool::Render_SequenceSettings()
     if (ImGui::DragInt("start frame", &_sequence.startFrame, 1.f, 0, _sequence.endFrame))
     {
         _sequence.startFrame = std::clamp(_sequence.startFrame, 0, _sequence.endFrame);
+        for (auto& shot : _sequence.cameraShots)
+        {
+            shot.startFrame = std::clamp(shot.startFrame, _sequence.startFrame, _sequence.endFrame);
+            shot.endFrame = std::clamp(shot.endFrame, shot.startFrame, _sequence.endFrame);
+        }
         _currentFrame = std::clamp(_currentFrame, _sequence.startFrame, _sequence.endFrame);
         _isPreviewDirty = true;
     }
@@ -1071,6 +1194,11 @@ void Cinematic_Tool::Render_SequenceSettings()
     if (ImGui::DragInt("end frame", &_sequence.endFrame, 1.f, _sequence.startFrame, 100000))
     {
         _sequence.endFrame = std::max(_sequence.endFrame, _sequence.startFrame);
+        for (auto& shot : _sequence.cameraShots)
+        {
+            shot.startFrame = std::clamp(shot.startFrame, _sequence.startFrame, _sequence.endFrame);
+            shot.endFrame = std::clamp(shot.endFrame, shot.startFrame, _sequence.endFrame);
+        }
         _currentFrame = std::clamp(_currentFrame, _sequence.startFrame, _sequence.endFrame);
         _isPreviewDirty = true;
     }
@@ -1085,7 +1213,7 @@ void Cinematic_Tool::Render_SequenceSettings()
     {
         Refresh_SequenceFileList();
         _selectedSequenceFileIndex = -1;
-        ImGui::OpenPopup("Load Cinematic Sequence");
+        _requestOpenLoadSequencePopup = true;
     }
 
     if (ImGui::Button("Clear All Keys"))
@@ -1104,70 +1232,86 @@ void Cinematic_Tool::Render_EventTrack()
 {
     Draw_SectionHeader("Event Track");
 
-    if (ImGui::Button("Add Spawn Event"))
-    {
-        CINEMATIC_EVENT event{};
-        event.frame = _currentFrame;
-        event.payload = CinematicSpawnEventData{};
-        _sequence.eventTrack.push_back(event);
-        _selectedEventIndex = static_cast<int>(_sequence.eventTrack.size()) - 1;
-    }
-
-    ImGui::SameLine();
-    if (ImGui::Button("Add PlayAnim Event"))
-    {
-        CINEMATIC_EVENT event{};
-        event.frame = _currentFrame;
-        event.payload = CinematicPlayAnimEventData{};
-        _sequence.eventTrack.push_back(event);
-        _selectedEventIndex = static_cast<int>(_sequence.eventTrack.size()) - 1;
-    }
-
-    ImGui::SameLine();
-    if (ImGui::Button("Add Despawn Event"))
-    {
-        CINEMATIC_EVENT event{};
-        event.frame = _currentFrame;
-        event.payload = CinematicDespawnEventData{};
-        _sequence.eventTrack.push_back(event);
-        _selectedEventIndex = static_cast<int>(_sequence.eventTrack.size()) - 1;
-        Request_CinematicPreviewRefresh(true);
-    }
-
-    ImGui::SameLine();
-    if (ImGui::Button("Add PartVisibility Event"))
-    {
-        CINEMATIC_EVENT event{};
-        event.frame = _currentFrame;
-        CinematicPartVisibilityEventData payload{};
-        payload.partTag = "Part_Sword_L";
-        event.payload = payload;
-        _sequence.eventTrack.push_back(event);
-        _selectedEventIndex = static_cast<int>(_sequence.eventTrack.size()) - 1;
-        Request_CinematicPreviewRefresh(true);
-    }
-
-    ImGui::SameLine();
     const bool canRemoveEvent =
         _selectedEventIndex >= 0 &&
         _selectedEventIndex < static_cast<int>(_sequence.eventTrack.size());
-    if (!canRemoveEvent)
-        ImGui::BeginDisabled();
 
-    if (ImGui::Button("Remove Event"))
+    auto addEvent = [&](CinematicEventPayload payload, bool refreshPreview)
     {
-        _sequence.eventTrack.erase(_sequence.eventTrack.begin() + _selectedEventIndex);
-        _selectedEventIndex = std::clamp(
-            _selectedEventIndex,
-            -1,
-            static_cast<int>(_sequence.eventTrack.size()) - 1);
-        Request_CinematicPreviewRefresh(true);
+        CINEMATIC_EVENT event{};
+        event.frame = _currentFrame;
+        event.payload = payload;
+        _sequence.eventTrack.push_back(event);
+        _selectedEventIndex = static_cast<int>(_sequence.eventTrack.size()) - 1;
+        std::sort(_sequence.eventTrack.begin(), _sequence.eventTrack.end(),
+            [](const CINEMATIC_EVENT& lhs, const CINEMATIC_EVENT& rhs)
+            {
+                return lhs.frame < rhs.frame;
+            });
+
+        if (refreshPreview)
+            Request_CinematicPreviewRefresh(true);
+    };
+
+    ImGui::TextDisabled("Current frame %d", _currentFrame);
+    ImGui::SameLine();
+    ImGui::TextDisabled("Events %d", static_cast<int>(_sequence.eventTrack.size()));
+
+    if (ImGui::BeginTable("##EventTrackButtons", 2, ImGuiTableFlags_SizingStretchSame))
+    {
+        ImGui::TableNextRow();
+        ImGui::TableNextColumn();
+        if (ImGui::Button("Add Spawn", ImVec2(-FLT_MIN, 0.f)))
+            addEvent(CinematicSpawnEventData{}, false);
+
+        ImGui::TableNextColumn();
+        if (ImGui::Button("Add PlayAnim", ImVec2(-FLT_MIN, 0.f)))
+            addEvent(CinematicPlayAnimEventData{}, false);
+
+        ImGui::TableNextRow();
+        ImGui::TableNextColumn();
+        if (ImGui::Button("Add Despawn", ImVec2(-FLT_MIN, 0.f)))
+            addEvent(CinematicDespawnEventData{}, true);
+
+        ImGui::TableNextColumn();
+        if (ImGui::Button("Add PartVisibility", ImVec2(-FLT_MIN, 0.f)))
+        {
+            CinematicPartVisibilityEventData payload{};
+            payload.partTag = "Part_Sword_L";
+            addEvent(payload, true);
+        }
+
+        ImGui::TableNextRow();
+        ImGui::TableNextColumn();
+        if (ImGui::Button("Add WorldTimeScale", ImVec2(-FLT_MIN, 0.f)))
+            addEvent(CinematicWorldTimeScaleEventData{}, true);
+
+        ImGui::TableNextColumn();
+        if (!canRemoveEvent)
+            ImGui::BeginDisabled();
+        if (ImGui::Button("Remove Selected", ImVec2(-FLT_MIN, 0.f)))
+        {
+            _sequence.eventTrack.erase(_sequence.eventTrack.begin() + _selectedEventIndex);
+            _selectedEventIndex = std::clamp(
+                _selectedEventIndex,
+                -1,
+                static_cast<int>(_sequence.eventTrack.size()) - 1);
+            Request_CinematicPreviewRefresh(true);
+        }
+        if (!canRemoveEvent)
+            ImGui::EndDisabled();
+
+        ImGui::EndTable();
     }
 
-    if (!canRemoveEvent)
-        ImGui::EndDisabled();
+    const bool canEditEvent =
+        _selectedEventIndex >= 0 &&
+        _selectedEventIndex < static_cast<int>(_sequence.eventTrack.size());
 
-    if (ImGui::BeginListBox("##EventTrackList", ImVec2(-FLT_MIN, 120.f)))
+    if (!canEditEvent)
+        ImGui::TextDisabled("Select an event to edit its details.");
+
+    if (ImGui::BeginListBox("##EventTrackList", ImVec2(-FLT_MIN, 180.f)))
     {
         for (int i = 0; i < static_cast<int>(_sequence.eventTrack.size()); ++i)
         {
@@ -1188,8 +1332,11 @@ void Cinematic_Tool::Render_EventTrack()
         ImGui::EndListBox();
     }
 
-    if (!canRemoveEvent)
+    if (!canEditEvent)
         return;
+
+    ImGui::Separator();
+    ImGui::TextDisabled("Selected Event");
 
     CINEMATIC_EVENT& event = _sequence.eventTrack[_selectedEventIndex];
     bool eventEdited = false;
@@ -1250,6 +1397,15 @@ void Cinematic_Tool::Render_EventTrack()
         if (isPartVisibility)
             ImGui::SetItemDefaultFocus();
 
+        const bool isWorldTimeScale = get_if<CinematicWorldTimeScaleEventData>(&event.payload) != nullptr;
+        if (ImGui::Selectable("WorldTimeScale", isWorldTimeScale))
+        {
+            event.payload = CinematicWorldTimeScaleEventData{};
+            eventEdited = true;
+        }
+        if (isWorldTimeScale)
+            ImGui::SetItemDefaultFocus();
+
         ImGui::EndCombo();
     }
 
@@ -1277,6 +1433,8 @@ void Cinematic_Tool::Render_EventTrack()
             playAnim->speed = std::max(playAnim->speed, 0.01f);
             eventEdited = true;
         }
+        if (ImGui::Checkbox("hold frame", &playAnim->holdFrame))
+            eventEdited = true;
     }
     else if (auto* spawn = get_if<CinematicSpawnEventData>(&event.payload))
     {
@@ -1341,6 +1499,15 @@ void Cinematic_Tool::Render_EventTrack()
         if (ImGui::Checkbox("visible", &partVisibility->visible))
             eventEdited = true;
         ImGui::TextDisabled("Target should be a bound ContainerObject actor id.");
+    }
+    else if (auto* worldTimeScale = get_if<CinematicWorldTimeScaleEventData>(&event.payload))
+    {
+        if (ImGui::DragFloat("world time scale", &worldTimeScale->worldTimeScale, 0.01f, 0.f, 8.f, "%.2f"))
+        {
+            worldTimeScale->worldTimeScale = std::clamp(worldTimeScale->worldTimeScale, 0.f, 8.f);
+            eventEdited = true;
+        }
+        ImGui::TextDisabled("Add another WorldTimeScale event later in the sequence to restore to 1.0 or a new value.");
     }
 
     const string selectedTargetId = event.targetId;
@@ -1756,6 +1923,12 @@ void Cinematic_Tool::Render_ActorTransformTracks()
 
 void Cinematic_Tool::Render_LoadSequencePopup()
 {
+    if (_requestOpenLoadSequencePopup)
+    {
+        ImGui::OpenPopup("Load Cinematic Sequence");
+        _requestOpenLoadSequencePopup = false;
+    }
+
     if (!ImGui::BeginPopupModal("Load Cinematic Sequence", nullptr, ImGuiWindowFlags_AlwaysAutoResize))
         return;
 
@@ -1931,6 +2104,127 @@ void Cinematic_Tool::Render_SequenceOverwriteWarningPopups()
     }
 }
 
+void Cinematic_Tool::Render_CameraShots()
+{
+    Draw_SectionHeader("Camera Shots");
+
+    if (ImGui::Button("Add Shot"))
+    {
+        CINEMATIC_CAMERA_SHOT shot{};
+        shot.name = "Shot " + std::to_string(_sequence.cameraShots.size());
+        shot.startFrame = _currentFrame;
+        shot.endFrame = std::clamp(_currentFrame + std::max(_sequence.fps, 1), _sequence.startFrame, _sequence.endFrame);
+        shot.trackIndex = std::clamp(_selectedTrackIndex, 0, std::max(Get_CinematicCameraTrackCount(_sequence) - 1, 0));
+        _sequence.cameraShots.push_back(shot);
+        _selectedCameraShotIndex = static_cast<int>(_sequence.cameraShots.size()) - 1;
+        _isPreviewDirty = true;
+    }
+
+    ImGui::SameLine();
+    const bool canRemoveShot =
+        _selectedCameraShotIndex >= 0 &&
+        _selectedCameraShotIndex < static_cast<int>(_sequence.cameraShots.size());
+    if (!canRemoveShot)
+        ImGui::BeginDisabled();
+
+    if (ImGui::Button("Remove Shot"))
+    {
+        _sequence.cameraShots.erase(_sequence.cameraShots.begin() + _selectedCameraShotIndex);
+        _selectedCameraShotIndex = std::clamp(
+            _selectedCameraShotIndex,
+            -1,
+            static_cast<int>(_sequence.cameraShots.size()) - 1);
+        _isPreviewDirty = true;
+    }
+
+    if (!canRemoveShot)
+        ImGui::EndDisabled();
+
+    if (_sequence.cameraShots.empty())
+    {
+        ImGui::TextDisabled("No camera shots. Existing single-track playback stays active.");
+        return;
+    }
+
+    std::sort(_sequence.cameraShots.begin(), _sequence.cameraShots.end(),
+        [](const CINEMATIC_CAMERA_SHOT& lhs, const CINEMATIC_CAMERA_SHOT& rhs)
+        {
+            if (lhs.startFrame != rhs.startFrame)
+                return lhs.startFrame < rhs.startFrame;
+
+            return lhs.endFrame < rhs.endFrame;
+        });
+
+    if (ImGui::BeginListBox("##CameraShotList", ImVec2(-FLT_MIN, 110.f)))
+    {
+        for (int i = 0; i < static_cast<int>(_sequence.cameraShots.size()); ++i)
+        {
+            const auto& shot = _sequence.cameraShots[i];
+            char label[192]{};
+            sprintf_s(label,
+                "%s | %d-%d | %s",
+                shot.name.c_str(),
+                shot.startFrame,
+                shot.endFrame,
+                Build_CameraTrackLabel(_sequence, shot.trackIndex).c_str());
+
+            if (ImGui::Selectable(label, _selectedCameraShotIndex == i))
+            {
+                _selectedCameraShotIndex = i;
+                _currentFrame = std::clamp(shot.startFrame, _sequence.startFrame, _sequence.endFrame);
+                _currentFrameExact = static_cast<float>(_currentFrame);
+                _isPreviewDirty = true;
+            }
+        }
+
+        ImGui::EndListBox();
+    }
+
+    if (!canRemoveShot)
+        return;
+
+    auto& shot = _sequence.cameraShots[_selectedCameraShotIndex];
+    char shotNameBuffer[128]{};
+    strncpy_s(shotNameBuffer, shot.name.c_str(), _TRUNCATE);
+    if (ImGui::InputText("shot name", shotNameBuffer, static_cast<size_t>(_countof(shotNameBuffer))))
+        shot.name = shotNameBuffer;
+
+    if (ImGui::BeginCombo("shot track", Build_CameraTrackLabel(_sequence, shot.trackIndex).c_str()))
+    {
+        for (int i = 0; i < Get_CinematicCameraTrackCount(_sequence); ++i)
+        {
+            const string label = Build_CameraTrackLabel(_sequence, i);
+            const bool isSelected = (shot.trackIndex == i);
+            if (ImGui::Selectable(label.c_str(), isSelected))
+            {
+                shot.trackIndex = i;
+                _isPreviewDirty = true;
+            }
+
+            if (isSelected)
+                ImGui::SetItemDefaultFocus();
+        }
+
+        ImGui::EndCombo();
+    }
+
+    if (ImGui::Checkbox("shot enabled", &shot.enabled))
+        _isPreviewDirty = true;
+
+    if (ImGui::DragInt("shot start", &shot.startFrame, 1.f, _sequence.startFrame, _sequence.endFrame))
+    {
+        shot.startFrame = std::clamp(shot.startFrame, _sequence.startFrame, _sequence.endFrame);
+        shot.endFrame = std::max(shot.endFrame, shot.startFrame);
+        _isPreviewDirty = true;
+    }
+
+    if (ImGui::DragInt("shot end", &shot.endFrame, 1.f, shot.startFrame, _sequence.endFrame))
+    {
+        shot.endFrame = std::clamp(shot.endFrame, shot.startFrame, _sequence.endFrame);
+        _isPreviewDirty = true;
+    }
+}
+
 void Cinematic_Tool::Render_ImSequencer()
 {
     Clamp_Selection();
@@ -1983,11 +2277,7 @@ void Cinematic_Tool::Render_ImSequencer()
     {
         _currentFrameExact = static_cast<float>(_currentFrame);
         _useExactFramePreview = false;
-
-        if (!CLIENT->Is_CinematicPlaying() || CLIENT->Is_CinematicPaused())
-            Enter_FreeCameraEditPreview(false);
-        else
-            Request_CinematicPreviewRefresh(false);
+        Request_CinematicPreviewRefresh(false);
     }
 
     if (requestOpenKeyPopup)
@@ -2059,8 +2349,10 @@ void Cinematic_Tool::Render_TrackList()
 
     if (ImGui::Button("Remove Track"))
     {
+        int removedTrackIndex = -1;
         if (CINEMATIC_TRACK* selectedTrack = Get_SelectedTrack())
         {
+            removedTrackIndex = _selectedTrackIndex;
             _sequence.cinematicTracks.erase(_sequence.cinematicTracks.begin() + _selectedTrackIndex);
             _selectedKeyIndex = -1;
         }
@@ -2070,8 +2362,21 @@ void Cinematic_Tool::Render_TrackList()
             if (relativeTrackIndex >= 0 &&
                 relativeTrackIndex < static_cast<int>(_sequence.actorRelativeCameraTracks.size()))
             {
+                removedTrackIndex = Get_ActorRelativeTrackStartIndex(_sequence) + relativeTrackIndex;
                 _sequence.actorRelativeCameraTracks.erase(_sequence.actorRelativeCameraTracks.begin() + relativeTrackIndex);
                 _selectedActorRelativeCameraKeyIndex = -1;
+            }
+        }
+
+        if (removedTrackIndex >= 0)
+        {
+            const int maxTrackIndex = std::max(Get_CinematicCameraTrackCount(_sequence) - 1, 0);
+            for (auto& shot : _sequence.cameraShots)
+            {
+                if (shot.trackIndex == removedTrackIndex)
+                    shot.trackIndex = std::clamp(shot.trackIndex, 0, maxTrackIndex);
+                else if (shot.trackIndex > removedTrackIndex)
+                    --shot.trackIndex;
             }
         }
 
@@ -2687,7 +2992,7 @@ void Cinematic_Tool::Render_SelectedActorRelativeCameraKeyframeEditor(CINEMATIC_
 
 void Cinematic_Tool::Render_SelectedModifierKeyframeEditor(CameraKeyframe& keyframe)
 {
-    const float maxTime = Evaluate_CinematicSequenceTime(_sequence, _sequence.endFrame);
+    const float maxTime = Evaluate_CinematicSequenceTime(_sequence, static_cast<float>(_sequence.endFrame));
     bool needsSort = false;
     bool previewChanged = false;
 
@@ -3008,10 +3313,7 @@ void Cinematic_Tool::Render_PreviewState()
         _currentFrame = std::clamp(_currentFrame, _sequence.startFrame, _sequence.endFrame);
         _currentFrameExact = static_cast<float>(_currentFrame);
         _useExactFramePreview = false;
-        if (!isPlaying || isPaused)
-            Enter_FreeCameraEditPreview(false);
-        else
-            Request_CinematicPreviewRefresh(false);
+        Request_CinematicPreviewRefresh(false);
     }
 
     ImGui::SetNextItemWidth(140.f);
@@ -3026,11 +3328,7 @@ void Cinematic_Tool::Render_PreviewState()
             _sequence.startFrame,
             _sequence.endFrame);
         _useExactFramePreview = true;
-
-        if (!isPlaying || isPaused)
-            Enter_FreeCameraEditPreview(false);
-        else
-            Request_CinematicPreviewRefresh(false);
+        Request_CinematicPreviewRefresh(false);
     }
 
     const char* previewButtonLabel = "Play Preview";
@@ -3076,7 +3374,7 @@ void Cinematic_Tool::Render_PreviewState()
     CINEMATIC_KEYFRAME* rightKey = nullptr;
 
     if (selectedTrack != nullptr)
-        Find_SurroundingKeyFrames(selectedTrack, _currentFrame, leftKey, rightKey);
+        Find_SurroundingKeyFrames(selectedTrack, static_cast<float>(_currentFrame), leftKey, rightKey);
 
     const int keyCount = selectedTrack ? static_cast<int>(selectedTrack->keyframes.size()) : 0;
 
@@ -3108,6 +3406,7 @@ void Cinematic_Tool::Clamp_Selection()
 {
     const int cinematicTrackCount = static_cast<int>(_sequence.cinematicTracks.size());
     const int actorRelativeTrackCount = static_cast<int>(_sequence.actorRelativeCameraTracks.size());
+    const int cameraShotCount = static_cast<int>(_sequence.cameraShots.size());
     const int eventCount = static_cast<int>(_sequence.eventTrack.size());
     const int actorTransformTrackCount = static_cast<int>(_sequence.actorTransformTracks.size());
     const int totalTrackCount =
@@ -3122,6 +3421,7 @@ void Cinematic_Tool::Clamp_Selection()
         _selectedTrackIndex = 0;
         _selectedKeyIndex = -1;
         _selectedEventIndex = -1;
+        _selectedCameraShotIndex = -1;
         _selectedActorRelativeCameraTrackIndex = -1;
         _selectedActorRelativeCameraKeyIndex = -1;
         _selectedActorTransformTrackIndex = -1;
@@ -3130,12 +3430,23 @@ void Cinematic_Tool::Clamp_Selection()
     }
 
     _selectedTrackIndex = std::clamp(_selectedTrackIndex, 0, std::max(totalTrackCount - 1, 0));
+    _selectedCameraShotIndex = std::clamp(_selectedCameraShotIndex, -1, cameraShotCount - 1);
     _selectedEventIndex = std::clamp(_selectedEventIndex, -1, eventCount - 1);
-    _selectedActorRelativeCameraTrackIndex = std::clamp(
-        _selectedActorRelativeCameraTrackIndex,
-        -1,
-        actorRelativeTrackCount - 1);
-    _selectedActorTransformTrackIndex = std::clamp(_selectedActorTransformTrackIndex, -1, actorTransformTrackCount - 1);
+    if (Is_SelectedActorRelativeCameraTrack())
+        _selectedActorRelativeCameraTrackIndex = Get_SelectedActorRelativeCameraTrackIndex();
+    else
+        _selectedActorRelativeCameraTrackIndex = std::clamp(_selectedActorRelativeCameraTrackIndex, -1, actorRelativeTrackCount - 1);
+
+    const int actorTransformTrackStart = Get_ActorTransformTrackStartIndex(_sequence);
+    if (_selectedTrackIndex >= actorTransformTrackStart &&
+        _selectedTrackIndex < actorTransformTrackStart + actorTransformTrackCount)
+    {
+        _selectedActorTransformTrackIndex = _selectedTrackIndex - actorTransformTrackStart;
+    }
+    else
+    {
+        _selectedActorTransformTrackIndex = std::clamp(_selectedActorTransformTrackIndex, -1, actorTransformTrackCount - 1);
+    }
 
     if (_selectedActorRelativeCameraTrackIndex >= 0 &&
         _selectedActorRelativeCameraTrackIndex < actorRelativeTrackCount)
@@ -3614,13 +3925,14 @@ void Cinematic_Tool::Clear_AllSequenceKeyframes()
     for (auto& track : _sequence.cinematicTracks)
         track.keyframes.clear();
     _sequence.modifierClip = {};
-
+    _sequence.cameraShots.clear();
     for (auto& track : _sequence.actorRelativeCameraTracks)
         track.keyframes.clear();
     for (auto& actorTrack : _sequence.actorTransformTracks)
         actorTrack.keyframes.clear();
 
     _selectedKeyIndex = -1;
+    _selectedCameraShotIndex = -1;
     _selectedActorRelativeCameraKeyIndex = -1;
     _selectedActorTransformKeyIndex = -1;
     _currentFrame = std::clamp(_currentFrame, _sequence.startFrame, _sequence.endFrame);
@@ -3641,6 +3953,7 @@ void Cinematic_Tool::Reset_ToNewSequence()
     _selectedKeyIndex = -1;
     _selectedSequenceFileIndex = -1;
     _selectedEventIndex = -1;
+    _selectedCameraShotIndex = -1;
     _selectedActorRelativeCameraTrackIndex = -1;
     _selectedActorRelativeCameraKeyIndex = -1;
     _selectedActorTransformTrackIndex = -1;
@@ -3698,6 +4011,7 @@ void Cinematic_Tool::Load_SelectedSequenceFile()
     _selectedTrackIndex = 0;
     _selectedKeyIndex = -1;
     _selectedEventIndex = -1;
+    _selectedCameraShotIndex = -1;
     _selectedActorRelativeCameraTrackIndex = -1;
     _selectedActorRelativeCameraKeyIndex = -1;
     _selectedActorTransformTrackIndex = -1;
@@ -3791,11 +4105,30 @@ void Cinematic_Tool::Apply_CurrentFramePose()
         return;
 
     CAMERAPOSE camPose{};
-    if (CINEMATIC_TRACK* track = Get_SelectedTrack())
+    CINEMATIC_TRACK* shotTrack = nullptr;
+    CINEMATIC_ACTOR_RELATIVE_CAMERA_TRACK* shotActorRelativeTrack = nullptr;
+    const float previewFrameExact = _useExactFramePreview ? _currentFrameExact : static_cast<float>(_currentFrame);
+    const bool useCameraShotPreview = Resolve_CameraShotTrack(_sequence, previewFrameExact, shotTrack, shotActorRelativeTrack);
+    if (useCameraShotPreview && shotTrack != nullptr)
     {
         CINEMATIC_KEYFRAME* leftKey = nullptr;
         CINEMATIC_KEYFRAME* rightKey = nullptr;
-        camPose = Evaluate_CinematicPose(track, _currentFrame, leftKey, rightKey);
+        camPose = Evaluate_CinematicPose(shotTrack, previewFrameExact, leftKey, rightKey);
+    }
+    else if (useCameraShotPreview && shotActorRelativeTrack != nullptr)
+    {
+        if (shotActorRelativeTrack->targetId.empty())
+            return;
+
+        Shared<GameObject> actor = CLIENT->Get_CinematicBoundActor(shotActorRelativeTrack->targetId);
+        if (!Build_ActorRelativeCameraPose(*shotActorRelativeTrack, _currentFrame, actor, camPose))
+            return;
+    }
+    else if (CINEMATIC_TRACK* track = Get_SelectedTrack())
+    {
+        CINEMATIC_KEYFRAME* leftKey = nullptr;
+        CINEMATIC_KEYFRAME* rightKey = nullptr;
+        camPose = Evaluate_CinematicPose(track, previewFrameExact, leftKey, rightKey);
     }
     else if (CINEMATIC_ACTOR_RELATIVE_CAMERA_TRACK* actorRelativeTrack = Get_SelectedActorRelativeCameraTrack())
     {
@@ -3811,8 +4144,8 @@ void Cinematic_Tool::Apply_CurrentFramePose()
         return;
     }
 
-    const Client::CameraModifierSample modifierSample = Evaluate_CinematicModifierSample(_sequence, _currentFrame);
-    const float sequenceTime = Evaluate_CinematicSequenceTime(_sequence, _currentFrame);
+    const Client::CameraModifierSample modifierSample = Evaluate_CinematicModifierSample(_sequence, static_cast<float>(_currentFrame));
+    const float sequenceTime = Evaluate_CinematicSequenceTime(_sequence, static_cast<float>(_currentFrame));
 
     freeCamera->Get_Transform()->Set_WorldPosition(camPose.position);
     freeCamera->Get_Transform()->Set_RotationEuler(camPose.rotation);

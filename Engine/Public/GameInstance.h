@@ -9,6 +9,7 @@
 #include "Debug_Types.h"
 #include "Engine_Constants.h"
 #include "ScreenFx_Manager.h"
+#include "Shadow.h"
 #include <string_view>
 #include <utility>
 #include "DelegateHub.h"
@@ -16,7 +17,6 @@
 #include "Log_Define.h"
 #ifdef _DEBUG
 #include "Print_Manager.h"
-#include "Shadow.h"
 #endif
 
 #pragma endregion
@@ -30,6 +30,7 @@ struct RenderViewHotspotSnapshot;
 class Event_Bus;
 class Graphic_Device;
 struct ShadowCascadeDebugInfo;
+struct ShadowCascadeInfluenceVolume;
 class Timer_Manager;
 class Level_Manager;
 class Prototype_Manager;
@@ -137,6 +138,7 @@ public:
     void Stop_WorldTimeSlow();
 
     float Get_WorldTimeScale() const { return _worldTimeScale; }
+    float Get_WorldTimeScaleRestoreBase() const { return _isWorldTimeSlowActive ? _worldTimeScaleBeforeSlow : _worldTimeScale; }
     float Get_UnscaledTimeDelta() const { return _unscaledTimeDelta; }
     float Get_WorldTimeDelta() const { return _worldTimeDelta; }
 

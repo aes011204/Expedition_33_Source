@@ -21,6 +21,8 @@ public:
 private:
     vector<Vec3> _patrolPoints = {};
     uint32 _curIndex = 0;
+    bool _hasPatrolProgress = false;
+    bool _resumePatrolProgressAfterHit = false;
     Vec3 _lastSamplePos = Vec3::Zero;
     float _stuckAccum = 0.f;
     bool _usingBypassTarget = false;

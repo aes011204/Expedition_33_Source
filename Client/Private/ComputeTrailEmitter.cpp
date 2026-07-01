@@ -329,6 +329,7 @@ HRESULT ComputeTrailEmitter::Reset_ForEffectReplay()
     _drawSegmentCount = 0u;
     _materialElapsedTime = 0.f;
     _visibleTrailLength = 1.f;
+    _sampleSerialCounter = 0u;
 
     if (nullptr != _computeArgsOutput)
         CHECK_FAILED(Reset_IndirectArgs(), E_FAIL);
@@ -777,7 +778,7 @@ void ComputeTrailEmitter::Insert_TrailSamplesForFrame(const EffectTrailSample& t
 
 void ComputeTrailEmitter::Insert_TrailSample(const EffectTrailSample& trailSample, float age)
 {
-    _history.insert(_history.begin(), TrailHistorySample{ trailSample, max(0.f, age) });
+    _history.insert(_history.begin(), TrailHistorySample{ trailSample, max(0.f, age), _sampleSerialCounter++ });
 }
 
 void ComputeTrailEmitter::Build_RenderSamples(vector<TrailRenderSample>& outSamples) const
@@ -787,7 +788,7 @@ void ComputeTrailEmitter::Build_RenderSamples(vector<TrailRenderSample>& outSamp
         return;
 
     outSamples.reserve(Compute_MaxRenderSegmentCount() + 1u);
-    outSamples.push_back(TrailRenderSample{ Build_SmoothedHistorySample(0), _history.front().age, 0.f });
+    outSamples.push_back(TrailRenderSample{ Build_SmoothedHistorySample(0), _history.front().age, 0.f, _history.front().serial });
 
     const uint32 maxIntervalSubdivision = max(1u, _desc.curveSubdivision);
     const float sampleSpacing = max(1e-3f, _desc.sampleSpacing);
@@ -812,6 +813,7 @@ void ComputeTrailEmitter::Build_RenderSamples(vector<TrailRenderSample>& outSamp
             TrailRenderSample renderSample{};
             renderSample.sample = EffectAssetRuntimeLoad::Catmull_RomTrailSample(p0, p1, p2, p3, ratio);
             renderSample.age = _history[index].age + (_history[index + 1u].age - _history[index].age) * ratio;
+            renderSample.serial = _history[index].serial;
             outSamples.push_back(renderSample);
         }
     }
@@ -915,6 +917,17 @@ HRESULT ComputeTrailEmitter::Update_ComputeInput()
             1.f
         );
         payload.sampleParams = Vec4(renderSample.age, renderSample.distanceFromHead, 0.f, 0.f);
+        const Vec3 coreColorRgb = Sample_ParticleLifeCoreColorRgbUniformModulation(
+            _desc.material.coreColorRgbModulation,
+            Vec3{
+                _desc.material.coreEmissive.coreColor.x,
+                _desc.material.coreEmissive.coreColor.y,
+                _desc.material.coreEmissive.coreColor.z
+            },
+            _effectPlaybackSeed,
+            renderSample.serial
+        );
+        payload.coreColorRgb = Vec4(coreColorRgb.x, coreColorRgb.y, coreColorRgb.z, 0.f);
         payloads.push_back(payload);
     }
 
@@ -1052,7 +1065,7 @@ HRESULT ComputeTrailEmitter::Bind_ShaderResources()
 
     const float emitterPhase = Client::Compute_MaterialScalarModulationPhase(_materialElapsedTime, _desc.playback.duration);
     const EffectRequiredMaterialRuntimeDesc material =
-        Resolve_EmitterTimeMaterialUniformParameterModulation(_desc.material, emitterPhase);
+        Resolve_EmitterTimeMaterialUniformParameterModulation(_desc.material, emitterPhase, _effectPlaybackSeed);
 
     CHECK_FAILED(_shader->Bind_RawValue("g_Tint", &material.tint, sizeof(Vec4)), E_FAIL);
 
@@ -1156,6 +1169,10 @@ HRESULT ComputeTrailEmitter::Bind_ShaderResources()
         EffectAssetRuntimeLoad::Bind_MaterialScalarModulationPayload(_shader.get(), material.scalarModulation, emitterPhase),
         E_FAIL
     );
+    CHECK_FAILED(
+        Bind_CoreColorRgbModulationShaderPayload(_shader.get(), material.coreColorRgbModulation, emitterPhase, _effectPlaybackSeed),
+        E_FAIL
+    );
     CHECK_FAILED(_shader->Bind_RawValue("g_OpacitySource", &opacitySourceIndex, sizeof(opacitySourceIndex)), E_FAIL);
 
     const EffectMaterialAdditiveContributionData& additive = _desc.material.additive;
@@ -1192,7 +1209,7 @@ HRESULT ComputeTrailEmitter::Bind_DistortionResources()
 {
     const float emitterPhase = Client::Compute_MaterialScalarModulationPhase(_materialElapsedTime, _desc.playback.duration);
     const EffectRequiredMaterialRuntimeDesc material =
-        Resolve_EmitterTimeMaterialUniformParameterModulation(_desc.material, emitterPhase);
+        Resolve_EmitterTimeMaterialUniformParameterModulation(_desc.material, emitterPhase, _effectPlaybackSeed);
 
     if (nullptr != _flowTexture)
         CHECK_FAILED(_flowTexture->Bind_ShaderResourceView(_shader.get(), "g_FlowTexture", 0), E_FAIL);
@@ -1225,6 +1242,7 @@ HRESULT ComputeTrailEmitter::Bind_DistortionResources()
     CHECK_FAILED(_shader->Bind_RawValue("g_FlowUVScrollSpeed", &material.flowUVScrollSpeed, sizeof(material.flowUVScrollSpeed)), E_FAIL);
     CHECK_FAILED(_shader->Bind_RawValue("g_FlowUVTilingMode", &flowUVTilingMode, sizeof(flowUVTilingMode)), E_FAIL);
     CHECK_FAILED(_shader->Bind_RawValue("g_FlowUVRotation", &flowUVRotation, sizeof(flowUVRotation)), E_FAIL);
+    CHECK_FAILED(EffectAssetRuntimeLoad::Bind_MaterialScalarModulationPayload(_shader.get(), material.scalarModulation, emitterPhase), E_FAIL);
 
     return S_OK;
 }
@@ -1326,6 +1344,7 @@ void ComputeTrailEmitter::Free()
     _drawSegmentCount = 0u;
     _materialElapsedTime = 0.f;
     _visibleTrailLength = 1.f;
+    _sampleSerialCounter = 0u;
 
     _shader.reset();
     _computeShader.reset();

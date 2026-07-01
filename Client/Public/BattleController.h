@@ -124,6 +124,8 @@ public:
     bool Is_BattleEntering() const { return _isBattleEntering; } // 배틀 진입 시작
     bool Is_BattleIntroPresentationActive() const { return _isBattleEntering || _isWaitingBattleTransition; }
 
+    bool Is_BattleFieldActiveOrEntering(uint32 fieldId) const;
+
     Shared<SkillScript> Get_CurrentScript() const { return _curScript; }
     void Clear_CurrentScript() { _curScript.reset(); }
 
@@ -247,12 +249,13 @@ private:
 
     // 몬스터 약점공격 보너스 데미지
     bool    Try_ApplyFreeAimWeakPointBonus(const BattleFreeAimHitTarget& hitTarget, const BattleChar& attacker);
-    void    Capture_PreBattleBGM();
-    void    Restore_PreBattleBGM();
 
     bool    Update_BattleTutorialGate(float timeDelta);
+    int32   Find_EnemyTargetPreviewIndex(const vector<BattleChar>& aliveEnemies) const;
 
-    int32 Find_EnemyTargetPreviewIndex(const vector<BattleChar>& aliveEnemies) const;
+public:
+    void    Capture_PreBattleBGM();
+    void    Restore_PreBattleBGM();
 
 private:
     // World의 SkillTree 상태를 읽어서 battle에서 사용할 스킬 세팅
@@ -335,8 +338,11 @@ private: /* 전투 AP */
 
     void Apply_VictoryRewardExp(uint32 rewardExp);
 
-    void Play_EnemyTargetedStart(const BattleChar& target);
+    void Play_EnemyTargetedStart(const vector<BattleChar>& targets);
     void Play_EnemyTargetedEnd();
+
+    void Request_BattleSpawnRotationReturn(const BattleChar& target, float duration = 0.2f);
+    void Update_BattleSpawnRotationReturns(float timeDelta);
 
 private:
     bool _battleEnded = {};
@@ -416,9 +422,10 @@ private:
     uint32 _lastVictoryRewardExp = 0;
     vector<string> _lastVictoryRewardPictosIds{};
     wstring _preBattleBGM{};
+    bool _hasCapturedPreBattleBGM = false;
 
-    BattleChar  _enemyTurnTargetedActor = {};
-    bool        _hasEnemyTurnTargetedActor = false;
+    vector<BattleChar> _enemyTurnTargetedActors = {};
+    vector<BattleSpawnRotationReturn> _battleSpawnRotationReturns = {};
 
     // 전투 튜토리얼
     Shared<BattleTutorialController> _battleTutorialController{};
@@ -430,6 +437,7 @@ private:
     bool          _isWaitingTurnStartStatusHit = false;
 
     uint32      _activeBattleFieldID = 0;
+
 
 public:
     static Shared<BattleController> Create();

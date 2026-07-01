@@ -331,7 +331,11 @@ namespace EffectAssetRuntimeLoad::Material
                     Read_Vec3(*minIter, minValue);
                 if (const auto maxIter = payload->find("maxValue"); maxIter != payload->end())
                     Read_Vec3(*maxIter, maxValue);
-                value = (minValue + maxValue) * 0.5f;
+                target.curve.uniformEnabled = true;
+                target.curve.uniformMin = minValue;
+                target.curve.uniformMax = maxValue;
+                target.curve.uniformSeed = Read_RandomSeedDesc(*payload);
+                continue;
             }
 
             target.curve.keyCount = 2;

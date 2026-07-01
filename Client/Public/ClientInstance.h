@@ -82,6 +82,10 @@ public:
     static void Set_DebugDisableGrassInstancedRender(bool disabled);
     static bool Is_DebugDisableMapStaticMeshRender();
     static void Set_DebugDisableMapStaticMeshRender(bool disabled);
+    static void Request_DebugMapInstancedVisibleCountReadback();
+    static uint32 Get_DebugMapInstancedVisibleCountReadbackRequestId();
+    static bool Is_DebugForceGestralPalisadeInstancedCull();
+    static void Set_DebugForceGestralPalisadeInstancedCull(bool enabled);
     static bool Is_DebugDisableMapInstancedMeshShadow();
     static void Set_DebugDisableMapInstancedMeshShadow(bool disabled);
     static bool Is_DebugUseMapInstancedMeshShadowLOD();
@@ -197,6 +201,8 @@ public: /* For.Battle_Controller */
 
     bool Is_BattleActive() const;
     bool Is_BattleEntering() const;
+
+    bool Is_PotatoBagBattleActive() const;
 
 public: /*For.Camera Director*/
     void Request_GamePlay();
@@ -320,6 +326,7 @@ public: /* Unlock Manager */
 
 public:
     const DialogueData* FindDialogueData(const string& dialogueKey) const;
+    
 
   public:
     void StartDialogue(const DialogueRequest& request);
@@ -337,7 +344,9 @@ public:
     void Request_InteractionPrompt(const void* sourceId, const Vec3& worldAnchor);
     void Clear_InteractionPrompt(const void* sourceId);
     bool Try_GetInteractionPromptAnchor(Vec3& outWorldAnchor) const;
-    
+
+    void Set_DialogueOverride(const string& sourceDialogueKey, const string& targetDialogueKey);
+
 public: /* Battle Followup Manager */
      BattleFollowupManager* Get_BattleFollowupManager() const { return _battleFollowupManager.get(); }
 

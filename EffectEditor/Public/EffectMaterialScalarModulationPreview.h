@@ -26,6 +26,7 @@ MaterialParameterModulationPreviewResult Evaluate_MaterialParameterModulationPre
     const EffectMaterialVec2ModulationRuntimeDesc& vec2Modulation,
     const EffectMaterialScalarModulationRuntimeDesc& modulation,
     float previewPhase,
+    uint32 effectPlaybackSeed,
     bool evaluateParticleLife);
 MaterialScalarModulationPreviewResult Evaluate_MaterialScalarModulationPreview(
     const EffectMaterialInstanceData& baseMaterial,
@@ -33,6 +34,7 @@ MaterialScalarModulationPreviewResult Evaluate_MaterialScalarModulationPreview(
     const EffectMaterialVec2ModulationRuntimeDesc& vec2Modulation,
     const EffectMaterialScalarModulationRuntimeDesc& modulation,
     float previewPhase,
+    uint32 effectPlaybackSeed,
     bool evaluateParticleLife);
 
 NS_END

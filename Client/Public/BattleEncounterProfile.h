@@ -8,6 +8,7 @@ NS_BEGIN(Client)
 namespace BattleEncounterIds
 {
     inline constexpr uint32 LancelierTutorial = 99;
+    inline constexpr uint32 PotatoBagGradientTutorial = 100;
 }
 
 struct BattleEncounterProfile

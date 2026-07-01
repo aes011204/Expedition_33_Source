@@ -20,6 +20,7 @@ public:
     HRESULT Initialize_Prototype() override;
     HRESULT Initialize(void* arg) override;
     void Update(float timeDelta) override;
+    Shared<Mon_WeakPoint> Get_BattleWeakPoint() const override { return _weak; }
 
 protected:
     HRESULT Ready_PartObjects();

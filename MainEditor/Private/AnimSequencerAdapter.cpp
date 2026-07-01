@@ -389,6 +389,7 @@ void AnimSequencerAdapter::Draw_NotifyRow(int32 trackIndex, ImDrawList* drawList
         {
             clickedAnyItem = true;
             const bool ctrlPressed = io.KeyCtrl;
+            const bool keepExistingSelection = !ctrlPressed && selected && _view->_selectedNotifyIds.size() > 1;
             _view->Begin_PendingNotifyUndo();
 
             if (ctrlPressed)
@@ -405,6 +406,10 @@ void AnimSequencerAdapter::Draw_NotifyRow(int32 trackIndex, ImDrawList* drawList
                     _view->_selectedNotifyId = entry.id;
                 }
             }
+            else if (keepExistingSelection)
+            {
+                _view->_selectedNotifyId = entry.id;
+            }
             else
             {
                 _view->_selectedNotifyIds.clear();
@@ -416,6 +421,21 @@ void AnimSequencerAdapter::Draw_NotifyRow(int32 trackIndex, ImDrawList* drawList
             _view->_selectedNotifyTrackIndex = trackIndex;
             _view->_sequencerSelectedRow = kSequencerNotifyHeaderRow + 1 + trackIndex;
             _draggingNotifyId = entry.id;
+            _notifyDragStartFrame = frame;
+            _notifyDragStartTrackIndex = trackIndex;
+            _notifyDragEntries.clear();
+            _notifyDragEntries.reserve(_view->_selectedNotifyIds.size());
+            for (const AnimNotifyEventEntry& dragEntry : animationData->notifies)
+            {
+                if (!_view->Is_NotifySelected(dragEntry.id))
+                    continue;
+
+                const int32 dragStartFrame = std::clamp(
+                    TimeSec_ToFrame(dragEntry.timeSec, fps),
+                    GetFrameMin(),
+                    max(GetFrameMin(), GetFrameMax() - 1));
+                _notifyDragEntries.push_back({ dragEntry.id, dragStartFrame, dragEntry.trackIndex });
+            }
         }
 
         if (_draggingNotifyId == entry.id && isLeftDragging)
@@ -430,14 +450,50 @@ void AnimSequencerAdapter::Draw_NotifyRow(int32 trackIndex, ImDrawList* drawList
                 Get_NotifyTrackCount(animationData),
                 rc,
                 mousePos.y);
+            const int32 requestedFrameDelta = clampedFrame - _notifyDragStartFrame;
+            const int32 requestedTrackDelta = targetTrackIndex - _notifyDragStartTrackIndex;
+            int32 minFrameDelta = GetFrameMin() - _notifyDragStartFrame;
+            int32 maxFrameDelta = maxNotifyFrame - _notifyDragStartFrame;
+            const int32 maxTrackIndex = max(0, Get_NotifyTrackCount(animationData) - 1);
 
-            entry.timeSec = std::clamp(
-                Frame_ToTimeSec(clampedFrame, fps),
-                0.f,
-                animationLengthSec);
-            entry.trackIndex = targetTrackIndex;
+            for (const NotifyDragEntry& dragEntry : _notifyDragEntries)
+            {
+                minFrameDelta = max(minFrameDelta, GetFrameMin() - dragEntry.startFrame);
+                maxFrameDelta = min(maxFrameDelta, maxNotifyFrame - dragEntry.startFrame);
+            }
 
-            _view->_sequencerCurrentFrame = clampedFrame;
+            const int32 appliedFrameDelta = std::clamp(requestedFrameDelta, minFrameDelta, maxFrameDelta);
+            float primaryTimeSec = Frame_ToTimeSec(clampedFrame, fps);
+
+            for (AnimNotifyEventEntry& moveEntry : animationData->notifies)
+            {
+                const auto dragIt = std::find_if(
+                    _notifyDragEntries.begin(),
+                    _notifyDragEntries.end(),
+                    [&moveEntry](const NotifyDragEntry& dragEntry)
+                    {
+                        return dragEntry.id == moveEntry.id;
+                    });
+
+                if (dragIt == _notifyDragEntries.end())
+                    continue;
+
+                const int32 movedFrame = dragIt->startFrame + appliedFrameDelta;
+                const int32 movedTrackIndex = std::clamp(dragIt->startTrackIndex + requestedTrackDelta, 0, maxTrackIndex);
+                moveEntry.timeSec = std::clamp(
+                    Frame_ToTimeSec(movedFrame, fps),
+                    0.f,
+                    animationLengthSec);
+                moveEntry.trackIndex = movedTrackIndex;
+
+                if (moveEntry.id == _draggingNotifyId)
+                    primaryTimeSec = moveEntry.timeSec;
+            }
+
+            _view->_sequencerCurrentFrame = std::clamp(
+                TimeSec_ToFrame(primaryTimeSec, fps),
+                GetFrameMin(),
+                maxNotifyFrame);
             _view->_selectedNotifyTrackIndex = targetTrackIndex;
             _view->_sequencerSelectedRow = kSequencerNotifyHeaderRow + 1 + targetTrackIndex;
             _view->_isDirty = true;
@@ -446,7 +502,7 @@ void AnimSequencerAdapter::Draw_NotifyRow(int32 trackIndex, ImDrawList* drawList
             if (_view->_sourceMode == Animation_View::SourceMode::LiveModel && playbackModel != nullptr)
             {
                 playbackModel->Set_AnimationPaused(true);
-                playbackModel->Set_CurrentAnimationTimeSec(entry.timeSec);
+                playbackModel->Set_CurrentAnimationTimeSec(primaryTimeSec);
                 playbackModel->Refresh_CurrentAnimationPose();
             }
         }
@@ -458,6 +514,7 @@ void AnimSequencerAdapter::Draw_NotifyRow(int32 trackIndex, ImDrawList* drawList
     {
         AnimNotify_Parser::Sort_And_Clamp(*animationData, animationLengthSec);
         _draggingNotifyId = -1;
+        _notifyDragEntries.clear();
         _view->Commit_PendingNotifyUndo();
     }
 

@@ -262,7 +262,7 @@ namespace
 			},
 			{
 				HeroId::Maelle,
-				{ "Spark", "Percee", "FleureFury", "SwordBallet", "Stendhal", "Pyrolyse" }
+				{ "Spark", "Percee", "FleureFury", "SwordBallet", "Pyrolyse", "Stendhal" }
 			},
 		};
 
@@ -484,7 +484,7 @@ RuntimeRuleStateIO::RuleState RuntimeRuleStateService::Build_GestralVillageStart
 	{
 		{ HeroId::Gustave, "Gustave", { "LumiereAssault", "UnleashedCharge", "MarkingShot", "Shatter", "PerfectBreak" } },
 		{ HeroId::Lune, "Lune", { "Immolation", "IceGust", "Thunderfall", "TerraQuake", "CripplingTsunami" } },
-		{ HeroId::Maelle, "Maelle", { "Spark", "Percee", "FleureFury", "SwordBallet", "Stendhal" } },
+		{ HeroId::Maelle, "Maelle", { "Spark", "Percee", "FleureFury", "SwordBallet", "Pyrolyse" } },
 	};
 
 	for (const auto& hero : heroes)
@@ -514,11 +514,92 @@ RuntimeRuleStateIO::RuleState RuntimeRuleStateService::Build_GestralVillageStart
 	return ruleState;
 }
 
+RuntimeRuleStateIO::RuleState RuntimeRuleStateService::Build_BishopStartUnlocks()
+{
+	RuntimeRuleStateIO::RuleState ruleState = Build_GestralVillageStartUnlocks();
+
+	ruleState.inventoryJson["unlocked_pictos"] = json::array({
+		"EnergisingTurn",
+		});
+
+	for (RuntimeCheckpointIO::HeroState& heroState : ruleState.heroes)
+	{
+		if (!heroState.statJson.is_object())
+			continue;
+
+		// Bishop 시작 상태는 Gestral 입장 세팅을 쓰되 Roulette만 전투 장착에서 제외한다.
+		heroState.statJson["equipped_pictos_ids"] = json::array({
+			"EnergisingTurn",
+			"",
+			"",
+			});
+	}
+
+	return ruleState;
+}
+
+RuntimeRuleStateIO::RuleState RuntimeRuleStateService::Build_PotatoBagStartUnlocks()
+{
+    RuntimeRuleStateIO::RuleState ruleState{};
+
+	ruleState.inventoryJson = Build_SelectedWeaponInventoryJson({
+		{ "Gustave", "Tireso" },
+		{ "Lune", "Snowim" },
+		{ "Maelle", "Plenum" },
+		});
+
+    const struct
+	{
+		HeroId heroId;
+		const char* characterId;
+		const char* weaponId;
+		vector<const char*> skillKeys;
+	} heroes[] =
+	{
+		{ HeroId::Gustave, "Gustave", "Tireso", { "LumiereAssault", "UnleashedCharge", "MarkingShot", "Shatter", "PerfectBreak", "AngelsEye" } },
+		{ HeroId::Lune, "Lune", "Snowim", { "Immolation", "IceGust", "Thunderfall", "TerraQuake", "CripplingTsunami", "SkyBreak" } },
+		{ HeroId::Maelle, "Maelle", "Plenum", { "Spark", "Percee", "FleureFury", "SwordBallet", "Pyrolyse", "Stendhal" } },
+	};
+
+	for (const auto& hero : heroes)
+	{
+		RuntimeCheckpointIO::HeroState heroState = Build_HeroSkillState({ hero.heroId, hero.skillKeys });
+
+		const GameDataTable::WeaponDesc* weaponDesc =
+			CLIENT->Get_WeaponDesc(hero.characterId, hero.weaponId);
+
+		if (weaponDesc != nullptr)
+		{
+			heroState.statJson["equipped_weapon_id"] = weaponDesc->weaponId;
+			heroState.statJson["equipped_weapon_power"] =
+				CLIENT->Resolve_WeaponPower(hero.characterId, weaponDesc->weaponId);
+		}
+
+		ruleState.heroes.emplace_back(std::move(heroState));
+	}
+
+	return ruleState;
+}
+
+RuntimeRuleStateIO::RuleState RuntimeRuleStateService::Build_DuallistStartUnlocks()
+{
+    return Build_PotatoBagStartUnlocks();
+}
+
 RuntimeRuleStateIO::RuleState RuntimeRuleStateService::Build_SimonStartUnlocks()
 {
-	RuntimeRuleStateIO::RuleState ruleState{};
+	RuntimeRuleStateIO::RuleState ruleState = Build_PotatoBagStartUnlocks();
 
-	// TODO : 시몽 들어갈 때 해금 상태 정하기. 그냥 전부 다 해금하고 세팅하면 될거같음.
+	ruleState.costumeJson = Build_CostumeSaveJson(true, true);
+	ruleState.costumeJson["current"] = json::array({
+		json{{"hero_id", "Gustave"}, {"preset_id", "Potato"}},
+		json{{"hero_id", "Lune"}, {"preset_id", "Baguette"}},
+		json{{"hero_id", "Maelle"}, {"preset_id", "Baguette"}},
+		});
+
+	ruleState.unlockManagerJson = Build_HeroUnlockSaveJson(
+		{ kRuleMimeCostume, kRulePotatoCostume, kRuleFirstTutorialUnlockParty },
+		{ HeroId::Gustave, HeroId::Lune, HeroId::Maelle });
 
 	return ruleState;
 }

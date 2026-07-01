@@ -68,6 +68,7 @@ private: //## Data::ModuleDetail
     SpawnModuleDetail _spawnModuleDetail{};
     LifetimeModuleDetail _lifetimeModuleDetail{};
     InitialLocationModuleDetail _initialLocationModuleDetail{};
+    RibbonOrientationModuleDetail _ribbonOrientationModuleDetail{};
     SphereLocationModuleDetail _sphereLocationModuleDetail{};
     PlaneRadialLocationModuleDetail _planeRadialLocationModuleDetail{};
     CylinderLocationModuleDetail _cylinderLocationModuleDetail{};
@@ -92,6 +93,7 @@ private: //## Data::ModuleDetail
     RotationRateScaleByLifeModuleDetail _rotationRateScaleByLifeModuleDetail{};
     InitialMeshRotationModuleDetail _initialMeshRotationModuleDetail{};
     MeshRotationOverLifeModuleDetail _meshRotationOverLifeModuleDetail{};
+    MeshDirectionAlignOverLifeModuleDetail _meshDirectionAlignOverLifeModuleDetail{};
     InitialMeshRotationRateModuleDetail _initialMeshRotationRateModuleDetail{};
     MeshRotationRateScaleByLifeModuleDetail _meshRotationRateScaleByLifeModuleDetail{};
     InitialColorModuleDetail _initialColorModuleDetail{};

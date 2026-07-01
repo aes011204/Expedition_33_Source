@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 #include "Player_State.h"
 
 NS_BEGIN(Client)

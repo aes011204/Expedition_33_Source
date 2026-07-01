@@ -110,6 +110,7 @@ void BattleTutorialController::Reset_ForBattle(uint32 encounterId, const Shared<
     _tutorialEnemyActionCount = 0;
     _isTutorialOpen = false;
     _blockBattleUpdate = false;
+    _pauseBattlePresentation = false;
     _isTutorialSoundPaused = false;
     _hasPendingRequest = false;
     _pendingElapsedSec = 0.f;
@@ -158,6 +159,9 @@ BattleTutorialStep BattleTutorialController::Get_CommandFocusStep() const
 
     if (_activeStep == BattleTutorialStep::Skill || _sequenceStage == TutorialSequenceStage::WaitingLumiereAssaultCommand)
         return BattleTutorialStep::Skill;
+
+    if (_activeStep == BattleTutorialStep::FreeAim || _sequenceStage == TutorialSequenceStage::WaitingFreeAimInput)
+        return BattleTutorialStep::FreeAim;
 
     return BattleTutorialStep::END;
 }
@@ -278,6 +282,7 @@ void BattleTutorialController::Open_Tutorial(const BattleTutorialRequest& reques
 
     _isTutorialOpen = true;
     _blockBattleUpdate = request.blockInput;
+    _pauseBattlePresentation = request.pauseBattle;
     _activeStep = request.step;
 
     if (request.pauseBattle)
@@ -310,6 +315,7 @@ void BattleTutorialController::Close_Tutorial()
 
     _isTutorialOpen = false;
     _blockBattleUpdate = false;
+    _pauseBattlePresentation = false;
     _activeStep = BattleTutorialStep::END;
 
     OnTutorialClosed.Broadcast();
@@ -328,6 +334,7 @@ void BattleTutorialController::Reset_RuntimeState()
     _tutorialEnemyActionCount = 0;
     _isTutorialOpen = false;
     _blockBattleUpdate = false;
+    _pauseBattlePresentation = false;
     _isTutorialSoundPaused = false;
     _hasPendingRequest = false;
     _pendingElapsedSec = 0.f;

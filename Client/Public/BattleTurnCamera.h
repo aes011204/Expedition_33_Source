@@ -74,7 +74,9 @@ public:
     void Set_BattlePlaneYaw(float yawDegrees) { _battlePlaneYawDegrees = yawDegrees; }
     void Reset_RuntimeState();
     void Set_IsClipPreview(bool boolean) { _isClipPreview = boolean; }
+    void Set_RuntimePausedByTutorial(bool paused) { _isRuntimePausedByTutorial = paused; }
 
+    void Reset_FreeAimRotation(float baseYaw);
     void Update_FreeAimRotation(float timeDelta);
     Vec3 Get_AimOrigin() const;                // 히트스캔 시작 위치
     Vec3 Get_AimDirection() const;             // 히트스캔 방향
@@ -270,6 +272,7 @@ private:
     bool                 _isWideMode = false;
     bool                 _hasWideAnchor = false;
     bool                 _isFirstUpdate = true;
+    bool                 _isRuntimePausedByTutorial = false;
 
     // DOF_MODIFY 
     bool                 _battleDOFPresetApplied = false;
@@ -282,6 +285,7 @@ private:
     Vec3                 _wideAnchorHeroCenter = Vec3::Zero;
     float                _wideAnchorYawDegrees = 0.f;
     float                _battlePlaneYawDegrees = 0.f;
+    float                _freeAimBaseYaw = 0.f;
     Vec3                 _enemyPos;
     Vec3                 _playerPos;
 

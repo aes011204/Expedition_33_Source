@@ -2417,6 +2417,7 @@ void Renderer::Capture_RenderViewHotspotCandidate(RenderGroup renderGroup, const
     }
 
     entry.renderHotspotInstanceCount = gameObject->Get_RenderHotspotInstanceCount();
+    entry.hasInstancedMeshStats = gameObject->Get_RenderHotspotInstancedMeshStats(entry.instancedMeshStats);
 
     _hotspotPendingSnapshot.entries.emplace_back(move(entry));
     ++_hotspotPendingSnapshot.totalSubmissions;

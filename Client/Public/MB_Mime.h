@@ -28,10 +28,9 @@ public:
         float& damage,
         AttackType attackType) const override;
 
-    bool Try_ApplyBattleBreakOnDamage(const DamageAppliedInfo& info) override;
+    bool Try_ApplyBattleBreakOnDamage(const DamageAppliedInfo& info, bool canTriggerBreak) override;
 
 protected:
-    bool Try_GetDamageFeedbackSocketWorldPosition(Vec3& outWorldPos) const override;
     HRESULT Ready_PartObjects();
 
 private:

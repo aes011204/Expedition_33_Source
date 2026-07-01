@@ -10,6 +10,10 @@
 #include "MapAmbientVisibility.h"
 #include "BattleStartSpawner.h"
 #include "RuntimeRuleStateService.h"
+#include "ColliderCom.h"
+#include "NPC_Base.h"
+#include "Player_WorldBase.h"
+#include "MovementCom.h"
 
 namespace
 {
@@ -128,7 +132,17 @@ void Level_GestralVillage::BeginPlay()
 
 void Level_GestralVillage::Update(float fTimeDelta)
 {
+    // 감자자루 NPC 앞으로 순간이동
+    if (GAME->KeyDown(KEY_TYPE::KEY_9))
+    {
+        auto active = CLIENT->Get_ActiveHero();
+        CHECK_NULL(active);
 
+        active->Get_Transform()->Set_WorldPosition(Vec3(6.33f, -6.73, 2.7f));
+
+        if (auto movement = active->Get_Component<MovementCom>())
+            movement->Sync_RuntimePositionToTransform();
+    }
 }
 
 HRESULT Level_GestralVillage::Render()
@@ -180,7 +194,7 @@ HRESULT Level_GestralVillage::Ready_Lights()
 
         if (FAILED(GAME->Update_ShadowLight(ShadowDesc)))
             return E_FAIL;
-        
+
         // 카메라 close/normal/far 모드에 따라서 그림자 구간을 동적 조절하기 위한 프리셋 설정
         ShadowCascadePresetSet cascadePresets{};
         cascadePresets.close.focusNear = 0.1f;
@@ -347,11 +361,11 @@ HRESULT Level_GestralVillage::Ready_Layer_NPC(const wstring& strLayerTag)
     CHECK_NULL(chad, E_FAIL);
 
     const Shared<GameObject> sumo = Spawn_Prefab::Prefab("NPC_Sumo")
-    .AtLevel(ETOI(LevelType::GestralVillage))
-    .InLayer(strLayerTag)
-    .Position(Vec3(4.36f, -6.4f, 11.05f))
-    .Rotation(Vec3(0.f, 180.f, 0.f))
-    .Spawn();
+        .AtLevel(ETOI(LevelType::GestralVillage))
+        .InLayer(strLayerTag)
+        .Position(Vec3(4.36f, -6.4f, 11.05f))
+        .Rotation(Vec3(0.f, 180.f, 0.f))
+        .Spawn();
 
     CHECK_NULL(chad, E_FAIL);
 
@@ -364,6 +378,11 @@ HRESULT Level_GestralVillage::Ready_Layer_NPC(const wstring& strLayerTag)
         .Spawn();
 
     CHECK_NULL(dance, E_FAIL);
+
+    auto buff = dynamic_pointer_cast<NPC_Base>(dance);
+    CHECK_NULL(buff, E_FAIL);
+
+    buff->Set_FightVisible(false);
 
     return S_OK;
 }
@@ -403,11 +422,11 @@ HRESULT Level_GestralVillage::Ready_Layer_ETC(const wstring& strLayerTag)
         symbolDesc.cullEnabled = true;
 
         CHECK_FAILED(GAME->Add_GameObject(
-                ETOI(LevelType::Static),
-                TEXT("GameObject_MapAmbientVisibility"),
-                ETOI(LevelType::GestralVillage),
-                TEXT("Layer_AmbientVisibility"),
-                &symbolDesc),
+            ETOI(LevelType::Static),
+            TEXT("GameObject_MapAmbientVisibility"),
+            ETOI(LevelType::GestralVillage),
+            TEXT("Layer_AmbientVisibility"),
+            &symbolDesc),
             E_FAIL);
 
         MapAmbientVisibility::MAP_AMBIENT_VISIBILITY_DESC caveDesc{};
@@ -424,14 +443,14 @@ HRESULT Level_GestralVillage::Ready_Layer_ETC(const wstring& strLayerTag)
         caveDesc.cullEnabled = true;
 
         CHECK_FAILED(GAME->Add_GameObject(
-                ETOI(LevelType::Static),
-                TEXT("GameObject_MapAmbientVisibility"),
-                ETOI(LevelType::GestralVillage),
-                TEXT("Layer_AmbientVisibility"),
-                &caveDesc),
+            ETOI(LevelType::Static),
+            TEXT("GameObject_MapAmbientVisibility"),
+            ETOI(LevelType::GestralVillage),
+            TEXT("Layer_AmbientVisibility"),
+            &caveDesc),
             E_FAIL);
     }
-    
+
     // 감자자루 스폰
     auto potatobag = Spawn_Prefab::Prefab(Constants::Prefab::BSS_Gestral_PotatoBag)
         .AtLevel(ETOI(LevelType::GestralVillage))
@@ -444,6 +463,92 @@ HRESULT Level_GestralVillage::Ready_Layer_ETC(const wstring& strLayerTag)
     CHECK_NULL(_bssPotatoBag, E_FAIL);
 
     _bssPotatoBag->Set_SpawnerId(Constants::Value::potatoBagBattleStartSpawnerId);
+
+    const Shared<GameObject> upDownRope = Spawn_Prefab::Prefab("ETC/WorldUpDownRopeSpot")
+        .AtLevel(ETOI(LevelType::GestralVillage))
+        .InLayer(strLayerTag)
+        .Position(Vec3(-25.5f, 3.f, 90.5f))
+        .Spawn();
+
+    CHECK_NULL(upDownRope, E_FAIL);
+
+    const Shared<GameObject> grapplingRope = Spawn_Prefab::Prefab("ETC/WorldGrapplingRopeSpot")
+        .AtLevel(ETOI(LevelType::GestralVillage))
+        .InLayer(strLayerTag)
+        .Position(Vec3(-25.9f, 17.5f, 76.5f))
+        .Rotation(Vec3(0.f, -90.f, 0.f))
+        .Scale(Vec3(1.f, 1.f, 1.f))
+        .Spawn();
+
+    CHECK_NULL(grapplingRope, E_FAIL);
+
+    if (const Shared<ColliderCom> gateCollider = grapplingRope->Get_Component<ColliderCom>(TEXT("Com_RopeGateCollider")))
+    {
+        ColliderShapeDesc gateShapeDesc = gateCollider->Get_ShapeDesc();
+        gateShapeDesc.center = Vec3(0.220f, -1.500f, 9.420f);
+        gateShapeDesc.extents = Vec3(2.000f, 1.000f, 0.500f);
+        gateCollider->Set_ShapeDesc(gateShapeDesc);
+    }
+
+    if (const Shared<ColliderCom> landingCollider = grapplingRope->Get_Component<ColliderCom>(TEXT("Com_GrappleLandingDebugCollider")))
+    {
+        ColliderShapeDesc landingShapeDesc = landingCollider->Get_ShapeDesc();
+        landingShapeDesc.center = Vec3(0.f, 0.480f, 0.f);
+        landingShapeDesc.radius = 0.350f;
+        landingCollider->Set_ShapeDesc(landingShapeDesc);
+    }
+
+    const Shared<GameObject> grapplingRope2 = Spawn_Prefab::Prefab("ETC/WorldGrapplingRopeSpot")
+        .AtLevel(ETOI(LevelType::GestralVillage))
+        .InLayer(strLayerTag)
+        .Position(Vec3(-45.f, 9.f, 77.5f))
+        .Rotation(Vec3(0.f, 0.f, 0.f))
+        .Scale(Vec3(1.f, 1.f, 1.f))
+        .Spawn();
+
+    CHECK_NULL(grapplingRope2, E_FAIL);
+
+    if (const Shared<ColliderCom> gateCollider = grapplingRope2->Get_Component<ColliderCom>(TEXT("Com_RopeGateCollider")))
+    {
+        ColliderShapeDesc gateShapeDesc = gateCollider->Get_ShapeDesc();
+        gateShapeDesc.center = Vec3(12.320f, 9.790f, -3.020f);
+        gateShapeDesc.extents = Vec3(1.220f, 1.000f, 2.210f);
+        gateCollider->Set_ShapeDesc(gateShapeDesc);
+    }
+
+    if (const Shared<ColliderCom> landingCollider = grapplingRope2->Get_Component<ColliderCom>(TEXT("Com_GrappleLandingDebugCollider")))
+    {
+        ColliderShapeDesc landingShapeDesc = landingCollider->Get_ShapeDesc();
+        landingShapeDesc.center = Vec3(0.f, 0.500f, 0.f);
+        landingShapeDesc.radius = 0.350f;
+        landingCollider->Set_ShapeDesc(landingShapeDesc);
+    }
+
+    const Shared<GameObject> grapplingRope3 = Spawn_Prefab::Prefab("ETC/WorldGrapplingRopeSpot")
+        .AtLevel(ETOI(LevelType::GestralVillage))
+        .InLayer(strLayerTag)
+        .Position(Vec3(-66.15f, 14.f, 60.5f))
+        .Rotation(Vec3(0.f, -6.5f, 0.f))
+        .Scale(Vec3(1.f, 1.f, 1.f))
+        .Spawn();
+
+    CHECK_NULL(grapplingRope3, E_FAIL);
+
+    if (const Shared<ColliderCom> gateCollider = grapplingRope3->Get_Component<ColliderCom>(TEXT("Com_RopeGateCollider")))
+    {
+        ColliderShapeDesc gateShapeDesc = gateCollider->Get_ShapeDesc();
+        gateShapeDesc.center = Vec3(11.000f, 0.570f, 2.530f);
+        gateShapeDesc.extents = Vec3(1.290f, 1.140f, 2.080f);
+        gateCollider->Set_ShapeDesc(gateShapeDesc);
+    }
+
+    if (const Shared<ColliderCom> landingCollider = grapplingRope3->Get_Component<ColliderCom>(TEXT("Com_GrappleLandingDebugCollider")))
+    {
+        ColliderShapeDesc landingShapeDesc = landingCollider->Get_ShapeDesc();
+        landingShapeDesc.center = Vec3(-1.370f, 0.800f, 0.060f);
+        landingShapeDesc.radius = 0.350f;
+        landingCollider->Set_ShapeDesc(landingShapeDesc);
+    }
 
     return S_OK;
 }
@@ -476,7 +581,7 @@ Shared<Level_GestralVillage> Level_GestralVillage::Create(const ComPtr<Device>& 
 void Level_GestralVillage::Free()
 {
     GAME->Set_VolumetricLightShaftZones(VolumetricLightShaftZoneCB{});
-    
+
     if (_editorPlayRuntimeHandle.IsValid())
     {
         GAME->Get_DelegateHub().OnEditorPlayRuntime.Remove(_editorPlayRuntimeHandle);

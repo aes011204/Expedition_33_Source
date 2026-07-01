@@ -13,6 +13,7 @@ struct ParticleInstanceVertex
     float4 endColor;
     float4 subUVRect;
     float2 spriteTiltDegrees;
+    float4 coreColorRgb;
 };
 
 struct ParticleLifecycleState
@@ -103,6 +104,10 @@ cbuffer ComputePointParticleParams : register(b0)
     float4 g_ColorOverLifeAlphaCurveLeaveBlock1;
     float4 g_ColorOverLifeAlphaCurveModes;
     float4 g_ColorOverLifeAlphaCurveModesBlock1;
+    float4 g_CoreColorRgbParticleLifeUniformParams; // x: enabled
+    float4 g_CoreColorRgbParticleLifeUniformMin;
+    float4 g_CoreColorRgbParticleLifeUniformMax;
+    uint4 g_CoreColorRgbParticleLifeUniformSeed;    // x: seed salt after playback-seed resolution
     float4 g_SubUVParams;                        // x/y: rows/cols, z: playback mode, w: frames per second
     float4 g_SubUVFrameParams;                   // x/y: start/end frame, z: loop, w: enabled
     float4 g_SubUVFrameCurveTimes;               // SubUV frame curve key times
@@ -264,6 +269,61 @@ cbuffer ComputePointParticleParams : register(b0)
     uint4 g_CylinderLocationSeedSalts;           // x: radius, y: height, z: angle
     float4 g_CylinderOrientationParams;          // x: enabled, y: target kind, z: orientation mode, w: follow orbit over life
     float4 g_CylinderOrientationAngles;          // x: tilt degrees, y: roll offset degrees
+    float4 g_InitialVelocityScaleByLifeCurveTimes;
+    float4 g_InitialVelocityScaleByLifeCurveTimesBlock1;
+    float4 g_InitialVelocityScaleByLifeCurveValues;
+    float4 g_InitialVelocityScaleByLifeCurveValuesBlock1;
+    float4 g_InitialVelocityScaleByLifeCurveArriveTangents;
+    float4 g_InitialVelocityScaleByLifeCurveArriveTangentsBlock1;
+    float4 g_InitialVelocityScaleByLifeCurveLeaveTangents;
+    float4 g_InitialVelocityScaleByLifeCurveLeaveTangentsBlock1;
+    float4 g_InitialVelocityScaleByLifeCurveModes;
+    float4 g_InitialVelocityScaleByLifeCurveModesBlock1;
+    float4 g_InitialVelocityScaleByLifeCurveParams; // x: key count, y: enabled
+    float4 g_InitialRadialVelocityScaleByLifeCurveTimes;
+    float4 g_InitialRadialVelocityScaleByLifeCurveTimesBlock1;
+    float4 g_InitialRadialVelocityScaleByLifeCurveValues;
+    float4 g_InitialRadialVelocityScaleByLifeCurveValuesBlock1;
+    float4 g_InitialRadialVelocityScaleByLifeCurveArriveTangents;
+    float4 g_InitialRadialVelocityScaleByLifeCurveArriveTangentsBlock1;
+    float4 g_InitialRadialVelocityScaleByLifeCurveLeaveTangents;
+    float4 g_InitialRadialVelocityScaleByLifeCurveLeaveTangentsBlock1;
+    float4 g_InitialRadialVelocityScaleByLifeCurveModes;
+    float4 g_InitialRadialVelocityScaleByLifeCurveModesBlock1;
+    float4 g_InitialRadialVelocityScaleByLifeCurveParams; // x: key count, y: enabled
+    float4 g_VelocityConeScaleByLifeCurveTimes;
+    float4 g_VelocityConeScaleByLifeCurveTimesBlock1;
+    float4 g_VelocityConeScaleByLifeCurveValues;
+    float4 g_VelocityConeScaleByLifeCurveValuesBlock1;
+    float4 g_VelocityConeScaleByLifeCurveArriveTangents;
+    float4 g_VelocityConeScaleByLifeCurveArriveTangentsBlock1;
+    float4 g_VelocityConeScaleByLifeCurveLeaveTangents;
+    float4 g_VelocityConeScaleByLifeCurveLeaveTangentsBlock1;
+    float4 g_VelocityConeScaleByLifeCurveModes;
+    float4 g_VelocityConeScaleByLifeCurveModesBlock1;
+    float4 g_VelocityConeScaleByLifeCurveParams; // x: key count, y: enabled
+    float4 g_SourceMotionVelocityScaleByLifeCurveTimes;
+    float4 g_SourceMotionVelocityScaleByLifeCurveTimesBlock1;
+    float4 g_SourceMotionVelocityScaleByLifeCurveValues;
+    float4 g_SourceMotionVelocityScaleByLifeCurveValuesBlock1;
+    float4 g_SourceMotionVelocityScaleByLifeCurveArriveTangents;
+    float4 g_SourceMotionVelocityScaleByLifeCurveArriveTangentsBlock1;
+    float4 g_SourceMotionVelocityScaleByLifeCurveLeaveTangents;
+    float4 g_SourceMotionVelocityScaleByLifeCurveLeaveTangentsBlock1;
+    float4 g_SourceMotionVelocityScaleByLifeCurveModes;
+    float4 g_SourceMotionVelocityScaleByLifeCurveModesBlock1;
+    float4 g_SourceMotionVelocityScaleByLifeCurveParams; // x: key count, y: enabled
+    float4 g_AccelerationIntegratedVelocityScaleByLifeCurveTimes;
+    float4 g_AccelerationIntegratedVelocityScaleByLifeCurveTimesBlock1;
+    float4 g_AccelerationIntegratedVelocityScaleByLifeCurveValues;
+    float4 g_AccelerationIntegratedVelocityScaleByLifeCurveValuesBlock1;
+    float4 g_AccelerationIntegratedVelocityScaleByLifeCurveArriveTangents;
+    float4 g_AccelerationIntegratedVelocityScaleByLifeCurveArriveTangentsBlock1;
+    float4 g_AccelerationIntegratedVelocityScaleByLifeCurveLeaveTangents;
+    float4 g_AccelerationIntegratedVelocityScaleByLifeCurveLeaveTangentsBlock1;
+    float4 g_AccelerationIntegratedVelocityScaleByLifeCurveModes;
+    float4 g_AccelerationIntegratedVelocityScaleByLifeCurveModesBlock1;
+    float4 g_AccelerationIntegratedVelocityScaleByLifeCurveParams; // x: key count, y: enabled
 };
 
 RWStructuredBuffer<ParticleInstanceVertex> OutputData : register(u0);
@@ -984,42 +1044,264 @@ float EvaluateRotationRateScaleByLifeAverage(float lifeProgress)
     );
 }
 
-float EvaluateVelocityScaleByLife(float lifeProgress)
+float EvaluateVelocityScaleByLifeChannel(
+    float lifeProgress,
+    float4 times,
+    float4 timesBlock1,
+    float4 values,
+    float4 valuesBlock1,
+    float4 arriveTangents,
+    float4 arriveTangentsBlock1,
+    float4 leaveTangents,
+    float4 leaveTangentsBlock1,
+    float4 modes,
+    float4 modesBlock1,
+    float4 params)
 {
-    const uint keyCount = max(1u, min(kEffectDistributionCurveMaxKeys, (uint)g_VelocityScaleByLifeCurveParams.x));
-    return EvaluateCompactCurve(
+    float result = 1.0f;
+    if (params.y != 0.0f)
+    {
+        const uint keyCount = max(1u, min(kEffectDistributionCurveMaxKeys, (uint)params.x));
+        result = max(
+            0.0f,
+            EvaluateCompactCurve(
+                lifeProgress,
+                keyCount,
+                times,
+                timesBlock1,
+                values,
+                valuesBlock1,
+                arriveTangents,
+                arriveTangentsBlock1,
+                leaveTangents,
+                leaveTangentsBlock1,
+                modes,
+                modesBlock1,
+                1.0f
+            )
+        );
+    }
+
+    return result;
+}
+
+float EvaluateVelocityScaleByLifeChannelAverage(
+    float lifeProgress,
+    float4 times,
+    float4 timesBlock1,
+    float4 values,
+    float4 valuesBlock1,
+    float4 arriveTangents,
+    float4 arriveTangentsBlock1,
+    float4 leaveTangents,
+    float4 leaveTangentsBlock1,
+    float4 modes,
+    float4 modesBlock1,
+    float4 params)
+{
+    float result = 1.0f;
+    if (params.y != 0.0f)
+    {
+        const uint keyCount = max(1u, min(kEffectDistributionCurveMaxKeys, (uint)params.x));
+        result = max(
+            0.0f,
+            EvaluateCompactCurveAverage(
+                lifeProgress,
+                keyCount,
+                times,
+                timesBlock1,
+                values,
+                valuesBlock1,
+                arriveTangents,
+                arriveTangentsBlock1,
+                leaveTangents,
+                leaveTangentsBlock1,
+                modes,
+                modesBlock1
+            )
+        );
+    }
+
+    return result;
+}
+
+float EvaluateInitialVelocityScaleByLife(float lifeProgress)
+{
+    return EvaluateVelocityScaleByLifeChannel(
         lifeProgress,
-        keyCount,
-        g_VelocityScaleByLifeCurveTimes,
-        g_VelocityScaleByLifeCurveTimesBlock1,
-        g_VelocityScaleByLifeCurveValues,
-        g_VelocityScaleByLifeCurveValuesBlock1,
-        g_VelocityScaleByLifeCurveArriveTangents,
-        g_VelocityScaleByLifeCurveArriveTangentsBlock1,
-        g_VelocityScaleByLifeCurveLeaveTangents,
-        g_VelocityScaleByLifeCurveLeaveTangentsBlock1,
-        g_VelocityScaleByLifeCurveModes,
-        g_VelocityScaleByLifeCurveModesBlock1,
-        lerp(g_VelocityScaleByLife.x, g_VelocityScaleByLife.y, lifeProgress)
+        g_InitialVelocityScaleByLifeCurveTimes,
+        g_InitialVelocityScaleByLifeCurveTimesBlock1,
+        g_InitialVelocityScaleByLifeCurveValues,
+        g_InitialVelocityScaleByLifeCurveValuesBlock1,
+        g_InitialVelocityScaleByLifeCurveArriveTangents,
+        g_InitialVelocityScaleByLifeCurveArriveTangentsBlock1,
+        g_InitialVelocityScaleByLifeCurveLeaveTangents,
+        g_InitialVelocityScaleByLifeCurveLeaveTangentsBlock1,
+        g_InitialVelocityScaleByLifeCurveModes,
+        g_InitialVelocityScaleByLifeCurveModesBlock1,
+        g_InitialVelocityScaleByLifeCurveParams
     );
 }
 
-float EvaluateVelocityScaleByLifeAverage(float lifeProgress)
+float EvaluateInitialVelocityScaleByLifeAverage(float lifeProgress)
 {
-    const uint keyCount = max(1u, min(kEffectDistributionCurveMaxKeys, (uint)g_VelocityScaleByLifeCurveParams.x));
-    return EvaluateCompactCurveAverage(
+    return EvaluateVelocityScaleByLifeChannelAverage(
         lifeProgress,
-        keyCount,
-        g_VelocityScaleByLifeCurveTimes,
-        g_VelocityScaleByLifeCurveTimesBlock1,
-        g_VelocityScaleByLifeCurveValues,
-        g_VelocityScaleByLifeCurveValuesBlock1,
-        g_VelocityScaleByLifeCurveArriveTangents,
-        g_VelocityScaleByLifeCurveArriveTangentsBlock1,
-        g_VelocityScaleByLifeCurveLeaveTangents,
-        g_VelocityScaleByLifeCurveLeaveTangentsBlock1,
-        g_VelocityScaleByLifeCurveModes,
-        g_VelocityScaleByLifeCurveModesBlock1
+        g_InitialVelocityScaleByLifeCurveTimes,
+        g_InitialVelocityScaleByLifeCurveTimesBlock1,
+        g_InitialVelocityScaleByLifeCurveValues,
+        g_InitialVelocityScaleByLifeCurveValuesBlock1,
+        g_InitialVelocityScaleByLifeCurveArriveTangents,
+        g_InitialVelocityScaleByLifeCurveArriveTangentsBlock1,
+        g_InitialVelocityScaleByLifeCurveLeaveTangents,
+        g_InitialVelocityScaleByLifeCurveLeaveTangentsBlock1,
+        g_InitialVelocityScaleByLifeCurveModes,
+        g_InitialVelocityScaleByLifeCurveModesBlock1,
+        g_InitialVelocityScaleByLifeCurveParams
+    );
+}
+
+float EvaluateInitialRadialVelocityScaleByLife(float lifeProgress)
+{
+    return EvaluateVelocityScaleByLifeChannel(
+        lifeProgress,
+        g_InitialRadialVelocityScaleByLifeCurveTimes,
+        g_InitialRadialVelocityScaleByLifeCurveTimesBlock1,
+        g_InitialRadialVelocityScaleByLifeCurveValues,
+        g_InitialRadialVelocityScaleByLifeCurveValuesBlock1,
+        g_InitialRadialVelocityScaleByLifeCurveArriveTangents,
+        g_InitialRadialVelocityScaleByLifeCurveArriveTangentsBlock1,
+        g_InitialRadialVelocityScaleByLifeCurveLeaveTangents,
+        g_InitialRadialVelocityScaleByLifeCurveLeaveTangentsBlock1,
+        g_InitialRadialVelocityScaleByLifeCurveModes,
+        g_InitialRadialVelocityScaleByLifeCurveModesBlock1,
+        g_InitialRadialVelocityScaleByLifeCurveParams
+    );
+}
+
+float EvaluateInitialRadialVelocityScaleByLifeAverage(float lifeProgress)
+{
+    return EvaluateVelocityScaleByLifeChannelAverage(
+        lifeProgress,
+        g_InitialRadialVelocityScaleByLifeCurveTimes,
+        g_InitialRadialVelocityScaleByLifeCurveTimesBlock1,
+        g_InitialRadialVelocityScaleByLifeCurveValues,
+        g_InitialRadialVelocityScaleByLifeCurveValuesBlock1,
+        g_InitialRadialVelocityScaleByLifeCurveArriveTangents,
+        g_InitialRadialVelocityScaleByLifeCurveArriveTangentsBlock1,
+        g_InitialRadialVelocityScaleByLifeCurveLeaveTangents,
+        g_InitialRadialVelocityScaleByLifeCurveLeaveTangentsBlock1,
+        g_InitialRadialVelocityScaleByLifeCurveModes,
+        g_InitialRadialVelocityScaleByLifeCurveModesBlock1,
+        g_InitialRadialVelocityScaleByLifeCurveParams
+    );
+}
+
+float EvaluateVelocityConeScaleByLife(float lifeProgress)
+{
+    return EvaluateVelocityScaleByLifeChannel(
+        lifeProgress,
+        g_VelocityConeScaleByLifeCurveTimes,
+        g_VelocityConeScaleByLifeCurveTimesBlock1,
+        g_VelocityConeScaleByLifeCurveValues,
+        g_VelocityConeScaleByLifeCurveValuesBlock1,
+        g_VelocityConeScaleByLifeCurveArriveTangents,
+        g_VelocityConeScaleByLifeCurveArriveTangentsBlock1,
+        g_VelocityConeScaleByLifeCurveLeaveTangents,
+        g_VelocityConeScaleByLifeCurveLeaveTangentsBlock1,
+        g_VelocityConeScaleByLifeCurveModes,
+        g_VelocityConeScaleByLifeCurveModesBlock1,
+        g_VelocityConeScaleByLifeCurveParams
+    );
+}
+
+float EvaluateVelocityConeScaleByLifeAverage(float lifeProgress)
+{
+    return EvaluateVelocityScaleByLifeChannelAverage(
+        lifeProgress,
+        g_VelocityConeScaleByLifeCurveTimes,
+        g_VelocityConeScaleByLifeCurveTimesBlock1,
+        g_VelocityConeScaleByLifeCurveValues,
+        g_VelocityConeScaleByLifeCurveValuesBlock1,
+        g_VelocityConeScaleByLifeCurveArriveTangents,
+        g_VelocityConeScaleByLifeCurveArriveTangentsBlock1,
+        g_VelocityConeScaleByLifeCurveLeaveTangents,
+        g_VelocityConeScaleByLifeCurveLeaveTangentsBlock1,
+        g_VelocityConeScaleByLifeCurveModes,
+        g_VelocityConeScaleByLifeCurveModesBlock1,
+        g_VelocityConeScaleByLifeCurveParams
+    );
+}
+
+float EvaluateSourceMotionVelocityScaleByLife(float lifeProgress)
+{
+    return EvaluateVelocityScaleByLifeChannel(
+        lifeProgress,
+        g_SourceMotionVelocityScaleByLifeCurveTimes,
+        g_SourceMotionVelocityScaleByLifeCurveTimesBlock1,
+        g_SourceMotionVelocityScaleByLifeCurveValues,
+        g_SourceMotionVelocityScaleByLifeCurveValuesBlock1,
+        g_SourceMotionVelocityScaleByLifeCurveArriveTangents,
+        g_SourceMotionVelocityScaleByLifeCurveArriveTangentsBlock1,
+        g_SourceMotionVelocityScaleByLifeCurveLeaveTangents,
+        g_SourceMotionVelocityScaleByLifeCurveLeaveTangentsBlock1,
+        g_SourceMotionVelocityScaleByLifeCurveModes,
+        g_SourceMotionVelocityScaleByLifeCurveModesBlock1,
+        g_SourceMotionVelocityScaleByLifeCurveParams
+    );
+}
+
+float EvaluateSourceMotionVelocityScaleByLifeAverage(float lifeProgress)
+{
+    return EvaluateVelocityScaleByLifeChannelAverage(
+        lifeProgress,
+        g_SourceMotionVelocityScaleByLifeCurveTimes,
+        g_SourceMotionVelocityScaleByLifeCurveTimesBlock1,
+        g_SourceMotionVelocityScaleByLifeCurveValues,
+        g_SourceMotionVelocityScaleByLifeCurveValuesBlock1,
+        g_SourceMotionVelocityScaleByLifeCurveArriveTangents,
+        g_SourceMotionVelocityScaleByLifeCurveArriveTangentsBlock1,
+        g_SourceMotionVelocityScaleByLifeCurveLeaveTangents,
+        g_SourceMotionVelocityScaleByLifeCurveLeaveTangentsBlock1,
+        g_SourceMotionVelocityScaleByLifeCurveModes,
+        g_SourceMotionVelocityScaleByLifeCurveModesBlock1,
+        g_SourceMotionVelocityScaleByLifeCurveParams
+    );
+}
+
+float EvaluateAccelerationIntegratedVelocityScaleByLife(float lifeProgress)
+{
+    return EvaluateVelocityScaleByLifeChannel(
+        lifeProgress,
+        g_AccelerationIntegratedVelocityScaleByLifeCurveTimes,
+        g_AccelerationIntegratedVelocityScaleByLifeCurveTimesBlock1,
+        g_AccelerationIntegratedVelocityScaleByLifeCurveValues,
+        g_AccelerationIntegratedVelocityScaleByLifeCurveValuesBlock1,
+        g_AccelerationIntegratedVelocityScaleByLifeCurveArriveTangents,
+        g_AccelerationIntegratedVelocityScaleByLifeCurveArriveTangentsBlock1,
+        g_AccelerationIntegratedVelocityScaleByLifeCurveLeaveTangents,
+        g_AccelerationIntegratedVelocityScaleByLifeCurveLeaveTangentsBlock1,
+        g_AccelerationIntegratedVelocityScaleByLifeCurveModes,
+        g_AccelerationIntegratedVelocityScaleByLifeCurveModesBlock1,
+        g_AccelerationIntegratedVelocityScaleByLifeCurveParams
+    );
+}
+
+float EvaluateAccelerationIntegratedVelocityScaleByLifeAverage(float lifeProgress)
+{
+    return EvaluateVelocityScaleByLifeChannelAverage(
+        lifeProgress,
+        g_AccelerationIntegratedVelocityScaleByLifeCurveTimes,
+        g_AccelerationIntegratedVelocityScaleByLifeCurveTimesBlock1,
+        g_AccelerationIntegratedVelocityScaleByLifeCurveValues,
+        g_AccelerationIntegratedVelocityScaleByLifeCurveValuesBlock1,
+        g_AccelerationIntegratedVelocityScaleByLifeCurveArriveTangents,
+        g_AccelerationIntegratedVelocityScaleByLifeCurveArriveTangentsBlock1,
+        g_AccelerationIntegratedVelocityScaleByLifeCurveLeaveTangents,
+        g_AccelerationIntegratedVelocityScaleByLifeCurveLeaveTangentsBlock1,
+        g_AccelerationIntegratedVelocityScaleByLifeCurveModes,
+        g_AccelerationIntegratedVelocityScaleByLifeCurveModesBlock1,
+        g_AccelerationIntegratedVelocityScaleByLifeCurveParams
     );
 }
 
@@ -1067,6 +1349,35 @@ float3 SampleRange3(float3 minValue, float3 maxValue, uint seed)
         maxValue,
         float3(Hash01(seed), Hash01(seed + 17u), Hash01(seed + 31u))
     );
+}
+
+float3 SampleCoreColorRgbParticleLifeUniform(uint respawnSeed)
+{
+    float3 result = float3(1.0f, 0.85f, 0.45f);
+
+    if (g_CoreColorRgbParticleLifeUniformParams.x >= 0.5f)
+    {
+        const uint seed = g_CoreColorRgbParticleLifeUniformSeed.x + respawnSeed * 3571u;
+        result = float3(
+            lerp(
+                min(g_CoreColorRgbParticleLifeUniformMin.x, g_CoreColorRgbParticleLifeUniformMax.x),
+                max(g_CoreColorRgbParticleLifeUniformMin.x, g_CoreColorRgbParticleLifeUniformMax.x),
+                Hash01(seed + 1u)
+            ),
+            lerp(
+                min(g_CoreColorRgbParticleLifeUniformMin.y, g_CoreColorRgbParticleLifeUniformMax.y),
+                max(g_CoreColorRgbParticleLifeUniformMin.y, g_CoreColorRgbParticleLifeUniformMax.y),
+                Hash01(seed + 2u)
+            ),
+            lerp(
+                min(g_CoreColorRgbParticleLifeUniformMin.z, g_CoreColorRgbParticleLifeUniformMax.z),
+                max(g_CoreColorRgbParticleLifeUniformMin.z, g_CoreColorRgbParticleLifeUniformMax.z),
+                Hash01(seed + 3u)
+            )
+        );
+    }
+
+    return result;
 }
 
 float2 SampleRange2(float2 minValue, float2 maxValue, uint seed)
@@ -1735,11 +2046,14 @@ void CS_Main(uint3 dispatchThreadId : SV_DispatchThreadID)
     const float3 orbitSpawnOffset = ApplyOrbitOverLife(spawnOffset, lifeProgress);
     const float3 spawnPosition = g_Center.xyz + orbitSpawnOffset;
     float3 initialVelocity = float3(0.0f, 0.0f, 0.0f);
+    float3 initialRadialVelocity = float3(0.0f, 0.0f, 0.0f);
+    float3 velocityCone = float3(0.0f, 0.0f, 0.0f);
+    float3 sourceMotionVelocity = float3(0.0f, 0.0f, 0.0f);
 
     if (g_MotionFlags.y != 0.0f)
     {
         const float3 sampledVelocity = SampleRange3(g_InitialVelocityMin.xyz, g_InitialVelocityMax.xyz, initialVelocitySeed + 503u);
-        initialVelocity += g_MotionFlags.z != 0.0f ? sampledVelocity : ResolveEmitterBasisVector(sampledVelocity);
+        initialVelocity = g_MotionFlags.z != 0.0f ? sampledVelocity : ResolveEmitterBasisVector(sampledVelocity);
     }
 
     if (g_MotionFlags.w != 0.0f)
@@ -1768,7 +2082,7 @@ void CS_Main(uint3 dispatchThreadId : SV_DispatchThreadID)
                           ? normalizedCenterRadialDirection
                           : radialDirection / radialDirectionLength;
         const float radialSpeed = lerp(g_MotionRadialSpeedDrag.x, g_MotionRadialSpeedDrag.y, Hash01(initialRadialVelocitySeed + 509u));
-        initialVelocity += radialDirection * radialSpeed;
+        initialRadialVelocity += radialDirection * radialSpeed;
     }
 
     if (g_MotionSpaceFlags.y != 0.0f)
@@ -1778,17 +2092,26 @@ void CS_Main(uint3 dispatchThreadId : SV_DispatchThreadID)
                                      ? sampledConeDirection
                                      : ResolveEmitterBasisVector(sampledConeDirection);
         const float coneSpeed = lerp(g_VelocityConeSpeed.x, g_VelocityConeSpeed.y, Hash01(velocityConeSeed + 1747u));
-        initialVelocity += coneDirection * coneSpeed;
+        velocityCone += coneDirection * coneSpeed;
     }
 
     if (g_SourceMotionVelocityParams.x != 0.0f)
     {
         const uint sourceMotionVelocitySeed = seed + g_SourceMotionVelocitySeedSalts.x;
-        initialVelocity += ResolveSourceMotionVelocity(g_SourceMotionVelocity.xyz, sourceMotionVelocitySeed);
+        sourceMotionVelocity += ResolveSourceMotionVelocity(g_SourceMotionVelocity.xyz, sourceMotionVelocitySeed);
     }
 
     const float drag = max(0.0f, lerp(g_MotionRadialSpeedDrag.z, g_MotionRadialSpeedDrag.w, Hash01(dragSeed + 607u)));
-    const float velocityScale = EvaluateVelocityScaleByLifeAverage(lifeProgress);
+    const float initialVelocityScaleAverage = EvaluateInitialVelocityScaleByLifeAverage(lifeProgress);
+    const float initialRadialVelocityScaleAverage = EvaluateInitialRadialVelocityScaleByLifeAverage(lifeProgress);
+    const float velocityConeScaleAverage = EvaluateVelocityConeScaleByLifeAverage(lifeProgress);
+    const float sourceMotionVelocityScaleAverage = EvaluateSourceMotionVelocityScaleByLifeAverage(lifeProgress);
+    const float accelerationIntegratedVelocityScaleAverage = EvaluateAccelerationIntegratedVelocityScaleByLifeAverage(lifeProgress);
+    const float initialVelocityScale = EvaluateInitialVelocityScaleByLife(lifeProgress);
+    const float initialRadialVelocityScale = EvaluateInitialRadialVelocityScaleByLife(lifeProgress);
+    const float velocityConeScale = EvaluateVelocityConeScaleByLife(lifeProgress);
+    const float sourceMotionVelocityScale = EvaluateSourceMotionVelocityScaleByLife(lifeProgress);
+    const float accelerationIntegratedVelocityScale = EvaluateAccelerationIntegratedVelocityScaleByLife(lifeProgress);
     const float dragTime = drag > 0.0001f ? (1.0f - exp(-drag * lifeAge)) / drag : lifeAge;
     const float dragDecay = drag > 0.0001f ? exp(-drag * lifeAge) : 1.0f;
     const bool accelerationInWorldSpace = g_AccelerationCurveParams.z != 0.0f;
@@ -1829,9 +2152,21 @@ void CS_Main(uint3 dispatchThreadId : SV_DispatchThreadID)
         }
     }
 
-    const float3 motionOffset = initialVelocity * velocityScale * dragTime + accelerationOffset;
-    const float currentVelocityScale = EvaluateVelocityScaleByLife(lifeProgress);
-    const float3 currentVelocity = initialVelocity * currentVelocityScale * dragDecay + accelerationVelocity;
+    const float3 scaledInitialVelocityOffset =
+        initialVelocity * initialVelocityScaleAverage +
+        initialRadialVelocity * initialRadialVelocityScaleAverage +
+        velocityCone * velocityConeScaleAverage +
+        sourceMotionVelocity * sourceMotionVelocityScaleAverage;
+    const float3 scaledAccelerationOffset = accelerationOffset * accelerationIntegratedVelocityScaleAverage;
+    const float3 motionOffset = scaledInitialVelocityOffset * dragTime + scaledAccelerationOffset;
+    const float3 scaledCurrentVelocity =
+        initialVelocity * initialVelocityScale +
+        initialRadialVelocity * initialRadialVelocityScale +
+        velocityCone * velocityConeScale +
+        sourceMotionVelocity * sourceMotionVelocityScale;
+    const float3 currentVelocity =
+        scaledCurrentVelocity * dragDecay +
+        accelerationVelocity * accelerationIntegratedVelocityScale;
     const float currentVelocityLength = length(currentVelocity);
     const float3 velocityAlignmentHint = currentVelocityLength < 0.0001f
                                          ? float3(0.0f, 0.0f, 0.0f)
@@ -1933,6 +2268,7 @@ void CS_Main(uint3 dispatchThreadId : SV_DispatchThreadID)
     const float4 particleColor = EvaluateColorOverLife(lifeProgress, lerp(legacyStartColor, legacyEndColor, lifeProgress));
     instance.startColor = particleColor;
     instance.endColor = particleColor;
+    instance.coreColorRgb = float4(SampleCoreColorRgbParticleLifeUniform(seed), 0.0f);
     instance.subUVRect = float4(u0, v0, u0 + invCols, v0 + invRows);
     instance.spriteTiltDegrees = spriteTiltDegrees;
 

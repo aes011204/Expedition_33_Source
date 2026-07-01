@@ -161,6 +161,11 @@ const AuthoringModuleMetadata& Get_AuthoringModuleMetadata(AuthoringModuleType t
         L"수명에 따른 메시 회전",
         L"수명 진행률 기준 메시 XYZ 추가 회전"
     };
+    static const AuthoringModuleMetadata meshDirectionAlignOverLife{
+        "MeshDirectionAlignOverLife",
+        L"수명에 따른 메시 방향 정렬",
+        L"수명 진행률 기준 목표 방향 정렬"
+    };
     static const AuthoringModuleMetadata initialMeshRotationRate{
         "Initial Mesh Rotation Rate",
         L"초기 메시 회전 속도",
@@ -253,6 +258,16 @@ const AuthoringModuleMetadata& Get_AuthoringModuleMetadata(AuthoringModuleType t
         false,
         true
     };
+    static const AuthoringModuleMetadata ribbonOrientation{
+        "RibbonOrientation",
+        L"리본 방향",
+        L"리본 폭 방향 기준축 / 펼침 각도",
+        true,
+        true,
+        false,
+        false,
+        false
+    };
     static const AuthoringModuleMetadata materialScalarModulation{
         "MaterialScalarModulation",
         L"머티리얼 변조",
@@ -322,6 +337,8 @@ const AuthoringModuleMetadata& Get_AuthoringModuleMetadata(AuthoringModuleType t
         return initialMeshRotation;
     case AuthoringModuleType::MeshRotationOverLife:
         return meshRotationOverLife;
+    case AuthoringModuleType::MeshDirectionAlignOverLife:
+        return meshDirectionAlignOverLife;
     case AuthoringModuleType::InitialMeshRotationRate:
         return initialMeshRotationRate;
     case AuthoringModuleType::MeshRotationRateScaleByLife:
@@ -344,6 +361,8 @@ const AuthoringModuleMetadata& Get_AuthoringModuleMetadata(AuthoringModuleType t
         return sourceHistorySpriteTrailPathFollow;
     case AuthoringModuleType::SourceHistorySpriteTrailPathReplay:
         return sourceHistorySpriteTrailPathReplay;
+    case AuthoringModuleType::RibbonOrientation:
+        return ribbonOrientation;
     case AuthoringModuleType::MaterialScalarModulation:
         return materialScalarModulation;
     }

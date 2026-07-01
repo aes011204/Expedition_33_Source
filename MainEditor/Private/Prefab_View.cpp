@@ -30,6 +30,7 @@
 #include "Mon_Dualliste_Sword_R.h"
 #include "Mon_Simon_Weapon.h"
 #include "PartObject.h"
+#include "Player_WorldBase.h"
 #include "imgui_internal.h"
 #include "AnimState_View.h"
 #include "BattleTurnCameraPoseUtils.h"
@@ -218,6 +219,7 @@ void Prefab_View::Update(float timeDelta)
 {
     Editor_Window::Update(timeDelta);
     Handle_GizmoShortcut();
+    Handle_PreviewAnimationShortcut();
 
     if (EDITOR->IsPlaying())
         return;
@@ -362,6 +364,7 @@ void Prefab_View::Pre_Render()
     if (_showPrefabCollider)
         Draw_PreviewColliders(_previewObject);
 
+    Draw_ParkourProbePreview();
     Draw_PreviewGrid();
     Draw_MonsterPatrolPointPreview();
     Draw_MonsterBattleSpawnPreview();
@@ -520,6 +523,28 @@ void Prefab_View::Handle_GizmoShortcut()
     }
 }
 
+void Prefab_View::Handle_PreviewAnimationShortcut()
+{
+    if (!_isFocused)
+        return;
+
+    if (GAME->KeyPress(KEY_TYPE::RBUTTON))
+        return;
+
+    const ImGuiIO& io = ImGui::GetIO();
+    if (io.WantTextInput || ImGui::IsAnyItemActive())
+        return;
+
+    if (!ImGui::IsKeyPressed(ImGuiKey_Space, false))
+        return;
+
+    Shared<ModelCom> bodyModel = Find_PreviewBodyModel();
+    if (bodyModel == nullptr || bodyModel->Get_NumAnimations() == 0)
+        return;
+
+    bodyModel->Set_AnimationPaused(!bodyModel->Is_AnimationPaused());
+}
+
 bool Prefab_View::CanSave() const
 {
     return _previewObject != nullptr && !_prefabPath.empty();
@@ -649,6 +674,9 @@ void Prefab_View::Close_Prefab()
     if (animStateView != nullptr)
         animStateView->Clear_LivePreviewBinding(_previewObject);
 
+    if (_previewObject != nullptr)
+        _previewObject->Free(); // 프리뷰 CCT/컴포넌트를 명시 해제해서 월드 플레이 시작 후 PhysX에 남지 않게 한다.
+
     _prefabName.clear();
     _prefabPath.clear();
     _sourceStaticClass.clear();
@@ -756,6 +784,19 @@ Shared<ModelCom> Prefab_View::Find_FirstModelComponent() const
     };
 
     return findRecursive(_previewObject);
+}
+
+Shared<ModelCom> Prefab_View::Find_PreviewBodyModel() const
+{
+    Shared<ContainerObject> rootContainer = dynamic_pointer_cast<ContainerObject>(_previewObject);
+    if (rootContainer == nullptr)
+        return nullptr;
+
+    PartObject* bodyPart = rootContainer->Get_PartObject(L"Part_Body");
+    if (bodyPart == nullptr)
+        return nullptr;
+
+    return bodyPart->Get_Component<ModelCom>();
 }
 
 void Prefab_View::Prepare_AnimationViewSiblingDock()
@@ -945,6 +986,8 @@ void Prefab_View::Compile_PreviewObject()
             EDITOR->Get_Notification()->Add_Notification_With_Type(NotifyType::Warning, "프리펩 Compile 실패: {}", _prefabName);
         return;
     }
+
+    oldPreviewObject->Free(); // Compile로 버리는 이전 프리뷰의 CCT를 PhysX controller manager에서 제거한다.
 
     _previewObject = compiledObject;
     _previewHasBegunPlay = false;
@@ -1334,8 +1377,12 @@ bool Prefab_View::Draw_PlayerBattleWeaponSelector(const Shared<GameObject>& root
             const bool selected = weapon.weaponId == player->Get_ActiveWeaponPreviewId();
             if (ImGui::Selectable(label.c_str(), selected))
             {
-                if (FAILED(player->Apply_WeaponPreviewById(weapon.weaponId)) &&
-                    EDITOR->Get_Notification())
+                if (SUCCEEDED(player->Apply_WeaponPreviewById(weapon.weaponId)))
+                {
+                    if (Shared<Animation_View> animationView = dynamic_pointer_cast<Animation_View>(EDITOR->Get_Window(L"Animation")))
+                        animationView->Refresh_LivePreviewBinding(rootObject);
+                }
+                else if (EDITOR->Get_Notification())
                 {
                     EDITOR->Get_Notification()->Add_Notification_With_Type(
                         NotifyType::Warning,
@@ -2367,6 +2414,60 @@ void Prefab_View::Draw_PreviewColliders(const Shared<GameObject>& gameObject) co
 #endif
 }
 
+void Prefab_View::Draw_ParkourProbePreview() const
+{
+#if defined(_DEBUG) || defined(_EDITOR)
+    if (_previewObject == nullptr)
+        return;
+
+    Shared<GameObject> selectedObject = Find_GameObjectByKey(_previewObject, _selectedObjectKey);
+    if (selectedObject == nullptr)
+        selectedObject = _previewObject;
+
+    Shared<Client::Player_WorldBase> player = dynamic_pointer_cast<Client::Player_WorldBase>(selectedObject);
+    if (player == nullptr)
+        return;
+
+    const Shared<TransformCom> transform = selectedObject->Get_Transform();
+    if (transform == nullptr)
+        return;
+
+    const Matrix worldMatrix = transform->Get_WorldMatrix();
+
+    Vec3 look = transform->Get_WorldForward();
+    look.y = 0.f;
+    if (look.LengthSquared() <= 0.0001f)
+        look = Vec3::Look;
+    else
+        look.Normalize();
+
+    auto drawRay = [look](const Vec3& start, float distance, const Color& color)
+    {
+        if (distance <= 0.f)
+            return;
+
+        DebugLineDesc desc{};
+        desc.start = start;
+        desc.end = start + look * distance;
+        desc.style.color = color;
+        desc.style.depthEnabled = false;
+        GAME->Draw_DebugLine(desc);
+    };
+
+    drawRay(
+        Vec3::Transform(player->Get_ParkourLowProbeCenter(), worldMatrix),
+        player->Get_ParkourLowProbeDistance(),
+        Color(0.45f, 0.75f, 1.f, 1.f));
+
+    drawRay(
+        Vec3::Transform(player->Get_ParkourHighProbeCenter(), worldMatrix),
+        player->Get_ParkourHighProbeDistance(),
+        Color(1.f, 0.55f, 1.f, 1.f));
+
+    GAME->Render_DebugOverlay();
+#endif
+}
+
 void Prefab_View::Draw_PreviewGrid() const
 {
     if (!_showPreviewGrid)
@@ -2919,7 +3020,10 @@ bool Prefab_View::Try_ResolveTrailAnchorWorldPosition(
     if (boneMatrix == nullptr)
         return false;
 
-    const Matrix anchorWorldMatrix = *boneMatrix * combinedWorldMatrix;
+    const Matrix anchorLocalMatrix = modelCom->Get_ModelType() == ModelType::NonAnim
+        ? Matrix::Identity
+        : *boneMatrix;
+    const Matrix anchorWorldMatrix = anchorLocalMatrix * combinedWorldMatrix;
     outWorldPosition = Vec3::Transform(anchor.localPosition, anchorWorldMatrix);
     return true;
 }
@@ -2971,7 +3075,10 @@ bool Prefab_View::Try_ResolveSourceAnchorWorldPosition(
     if (boneMatrix == nullptr)
         return false;
 
-    const Matrix anchorWorldMatrix = *boneMatrix * combinedWorldMatrix;
+    const Matrix anchorLocalMatrix = modelCom->Get_ModelType() == ModelType::NonAnim
+        ? Matrix::Identity
+        : *boneMatrix;
+    const Matrix anchorWorldMatrix = anchorLocalMatrix * combinedWorldMatrix;
     outWorldPosition = Vec3::Transform(anchor.localPosition, anchorWorldMatrix);
     return true;
 }

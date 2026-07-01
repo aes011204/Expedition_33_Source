@@ -11,6 +11,8 @@
 #include "TransformCom.h"
 #include "EffectCom.h"
 
+#include <algorithm>
+
 namespace
 {
     constexpr uint32 kReactionConsumeKeyStride = 16;
@@ -164,7 +166,10 @@ bool BattleReactionController::TryInput(BattleReactionType type, uint32 consumeK
     _result = type;
 
     if (type == BattleReactionType::Jump)
-        GAME->Set_WorldTimeScale(.1f);
+    {
+        LOG_INFO("Jump Time Scale");
+        GAME->Set_WorldTimeScale(0.15f);
+    }
 
     return true;
 }
@@ -240,13 +245,14 @@ void BattleReactionController::ResetJumpCounterSequence()
     _jumpCounterStarted = false;
 }
 
-void BattleReactionController::NotifyJumpCounterWindowBegin()
+void BattleReactionController::NotifyJumpCounterWindowBegin(float worldTimeScale)
 {
     if (_jumpCounterState != JumpCounterState::JumpSucceeded)
         return;
 
     _jumpCounterState = JumpCounterState::CounterWindowOpen;
     OpenWindow(BattleReactionType::JumpCounter);
+    GAME->Set_WorldTimeScale(clamp(worldTimeScale, 0.01f, 1.f));
 }
 
 void BattleReactionController::NotifyJumpCounterWindowEnd()
@@ -433,6 +439,12 @@ BattleReactionController::BattleReactionInputResult BattleReactionController::Su
 
             if (allowCounterOnSuccess)
                 _pendingParryCounterTarget = context.counterTarget;
+
+            // 단체 패링이어도 HitStop, Sound는 한번만 재생
+            if (auto battle = CLIENT->Get_BattleController())
+                battle->Play_BattleHitStop(0.08f, 0.08f);
+
+			GAME->Play_SoundCue(Constants::SoundCue::Battle_Parry_Success);
         }
 
         for (const BattleChar& target : inputTargets)
@@ -447,9 +459,6 @@ BattleReactionController::BattleReactionInputResult BattleReactionController::Su
 
             if (success && target.actor != nullptr)
             {
-                if (auto battle = CLIENT->Get_BattleController())
-                    battle->Play_BattleHitStop(0.08f, 0.08f);
-
                 Play_TargetOwnerEffect(
                     target,
                     L"Effects\\Assets\\Player\\Player_Counter.effect.json",
@@ -458,12 +467,11 @@ BattleReactionController::BattleReactionInputResult BattleReactionController::Su
             }
 
             if (success &&
-                result.apRewardAmount == 0 &&
                 target.actor != nullptr &&
                 target.statCom != nullptr &&
                 target.statCom->Is_Player())
             {
-                result.apRewardTarget = target;
+                result.apRewardTargets.push_back(target);
                 result.apRewardAmount = 1;
                 result.apRewardReason = EAPChangeReason::Parry;
             }
@@ -1028,9 +1036,18 @@ void BattleReactionController::StartCounter(ModelCom* sourceModel)
         ? BattleAnimType::JumpCounter
         : BattleAnimType::Counter;
 
+	const bool isGroupCounter =
+		counterAnimType == BattleAnimType::Counter &&
+		_reactionAnimTargets.size() >= 2;
+
+	// 단체 카운터 시에는, 애니메이션 변경
+	  const BattleAnimType resolvedCounterAnimType =
+        isGroupCounter
+        ? BattleAnimType::GroupCounter
+        : counterAnimType;
+
     for (const BattleChar& target : _reactionAnimTargets)
     {
-
         if (_reactionAnimTargets.size() >= 2)
         {
             // 위치 순간이동하고 카운터 시작 
@@ -1070,7 +1087,7 @@ void BattleReactionController::StartCounter(ModelCom* sourceModel)
         }
         target.ModelCom->Set_RootMotionEnabled(true);
 
-        if (!target.ModelCom->Set_AnimationByState(ETOI(counterAnimType), 0.12f, false))
+        if (!target.ModelCom->Set_AnimationByState(ETOI(resolvedCounterAnimType), 0.12f, false))
             return;
     }
 
@@ -1093,11 +1110,8 @@ void BattleReactionController::ApplyCounterDamage(ModelCom* sourceModel)
     if (_isCounterDamageApplied)
         return;
 
-
     if (_counterDamageTarget.actor == nullptr || _counterDamageTarget.statCom == nullptr)
         return;
-
-    constexpr float counterDamage = 50.f;
 
     uint32 hitCount = 0;
 
@@ -1106,10 +1120,14 @@ void BattleReactionController::ApplyCounterDamage(ModelCom* sourceModel)
         if (target.actor == nullptr || target.statCom == nullptr)
             continue;
 
+        const float counterDamage =
+            DamageSystem::CalculatePlayerAttackDamage(target, 1.f);
+
         DamageSystem::ApplyDamage(counterDamage, target, _counterDamageTarget, AttackType::Counter);
         ++hitCount;
     }
-    // 단체 패링이여도 한번만 들어가게
+
+    // 단체 카운터여도 이팩트는 한번만 들어가게
     if (hitCount > 0)
     {
         Play_TargetOwnerEffect(
@@ -1128,21 +1146,36 @@ void BattleReactionController::BeginCounterTimeSection(ModelCom* sourceModel, fl
     if (!CanApplyCounterTimeSection(sourceModel))
         return;
 
-    if (!_isCounterTimeSectionActive)
-        _counterTimeSectionRestoreScale = GAME->Get_WorldTimeScale();
+    if (std::find_if(_counterTimeSectionModels.begin(), _counterTimeSectionModels.end(),
+        [sourceModel](const Shared<ModelCom>& model)
+        {
+            return model.get() == sourceModel;
+        }) != _counterTimeSectionModels.end())
+    {
+        return;
+    }
 
-    _isCounterTimeSectionActive = true;
-
+    Shared<ModelCom> sectionModel = nullptr;
     for (const BattleChar& target : _reactionAnimTargets)
     {
         if (target.ModelCom.get() == sourceModel)
         {
-            _counterTimeSectionModel = target.ModelCom;
+            sectionModel = target.ModelCom;
             break;
         }
     }
 
-    GAME->Set_WorldTimeScale(worldTimeScale);
+    if (sectionModel == nullptr)
+        return;
+
+    if (!_isCounterTimeSectionActive)
+    {
+        _counterTimeSectionRestoreScale = GAME->Get_WorldTimeScale();
+        GAME->Set_WorldTimeScale(worldTimeScale); // 단체 패링에서는 첫 notify만 월드 배속을 잡는다.
+    }
+
+    _isCounterTimeSectionActive = true;
+    _counterTimeSectionModels.push_back(sectionModel);
     sourceModel->Set_FrameSpeed(counterFrameSpeed);
 }
 
@@ -1151,17 +1184,26 @@ void BattleReactionController::EndCounterTimeSection(ModelCom* sourceModel)
     if (!_isCounterTimeSectionActive)
         return;
 
-    if (_counterTimeSectionModel != nullptr && sourceModel != _counterTimeSectionModel.get())
+    auto it = std::find_if(_counterTimeSectionModels.begin(), _counterTimeSectionModels.end(),
+        [sourceModel](const Shared<ModelCom>& model)
+        {
+            return model.get() == sourceModel;
+        });
+
+    if (it == _counterTimeSectionModels.end())
         return;
 
-    if (_counterTimeSectionModel)
-        _counterTimeSectionModel->Set_FrameSpeed(1.f);
+    if (*it)
+        (*it)->Set_FrameSpeed(1.f);
+
+    _counterTimeSectionModels.erase(it);
+
+    if (!_counterTimeSectionModels.empty())
+        return;
 
     GAME->Set_WorldTimeScale(_counterTimeSectionRestoreScale);
-
     _isCounterTimeSectionActive = false;
     _counterTimeSectionRestoreScale = 1.f;
-    _counterTimeSectionModel = nullptr;
 }
 
 bool BattleReactionController::Is_GroupParryActive() const
@@ -1337,15 +1379,18 @@ bool BattleReactionController::CanApplyCounterTimeSection(ModelCom* sourceModel)
 
 void BattleReactionController::ResetCounterTimeSection()
 {
-    if (_counterTimeSectionModel)
-        _counterTimeSectionModel->Set_FrameSpeed(1.f);
+    for (const Shared<ModelCom>& model : _counterTimeSectionModels)
+    {
+        if (model)
+            model->Set_FrameSpeed(1.f);
+    }
 
     if (_isCounterTimeSectionActive)
         GAME->Set_WorldTimeScale(_counterTimeSectionRestoreScale);
 
     _isCounterTimeSectionActive = false;
     _counterTimeSectionRestoreScale = 1.f;
-    _counterTimeSectionModel = nullptr;
+    _counterTimeSectionModels.clear();
 }
 
 BattleReactionController::ReactionInputContext BattleReactionController::BuildReactionInputContext(

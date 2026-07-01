@@ -32,6 +32,7 @@ public:
     bool Is_CinematicDriven() const { return _isCinematicDriven; }
     bool Should_FacePlayerOnDialogueStart() const { return _facePlayerOnDialogueStart; }
     bool Uses_InteractionTrigger() const { return _useInteractionTrigger; }
+    bool Is_FightVisible() const { return _fightVisible; }
 
     void Set_PatrolPoints(vector<Vec3> patrolPoints) { _PatrolPoints = std::move(patrolPoints); }
     const vector<Vec3>& Get_PatrolPoints() const { return _PatrolPoints; }
@@ -45,6 +46,9 @@ public:
 
     // Restore monster state after battle exit.
     void   Restore_AfterBattleExit();
+
+public:
+    void Set_FightVisible(bool visible) { _fightVisible = visible; }
 
 protected:
     virtual HRESULT Ready_Components();
@@ -73,6 +77,9 @@ protected:
     Vec3 _dialogueVisualBaseLocalPosition = Vec3::Zero;
     bool _hasDialogueVisualBaseLocalPosition = false;
     Shared<Trigger_Interaction> _sharedTrigger = {};
+
+    bool    _fightVisible = false;
+
 public:
     void Free() override;
 

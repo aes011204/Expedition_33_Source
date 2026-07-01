@@ -35,6 +35,7 @@ enum class AuthoringModuleType : uint8
     RotationRateScaleByLife,
     InitialMeshRotation,
     MeshRotationOverLife,
+    MeshDirectionAlignOverLife,
     InitialMeshRotationRate,
     MeshRotationRateScaleByLife,
     InitialColor,
@@ -46,6 +47,7 @@ enum class AuthoringModuleType : uint8
     SpawnPerUnit,
     SourceHistorySpriteTrailPathFollow,
     SourceHistorySpriteTrailPathReplay,
+    RibbonOrientation,
     MaterialScalarModulation,
 };
 
@@ -629,6 +631,8 @@ struct RibbonTypeData
     bool autoLifeFade{ false };                                   // sample age 기준 alpha fade를 적용해 기존 tail이 사라지는 과정을 보이게 할지 결정한다.
     bool tailCollapseOnIdle{ true };                              // source가 느리거나 멈췄을 때 history sample을 source 쪽으로 당길지 결정한다.
     float tailCollapseSpeed{ 10.f };                              // idle tail collapse 보간 속도다.
+    bool useManualRoll{ false };                                  // true면 tangent 기준으로 ribbon 펼침 방향을 추가 회전한다.
+    float manualRollDegrees{ 0.f };                               // useManualRoll일 때 적용할 tangent 기준 펼침 각도다.
 };
 
 // Source history path 위에 짧은 sprite/card stamp를 찍는 editor 저장 payload다.
@@ -765,6 +769,21 @@ struct LifetimeModuleData
 struct InitialLocationModuleData
 {
     Vector3DistributionData location{ Vector3DistributionData::Make_Constant(Vec3{ 0.f, 0.f, 0.f }) };
+};
+
+enum class RibbonSpreadBasis : uint8
+{
+    CameraFacing,
+    ViewUp,
+    WorldUp,
+    SourceUp,
+    SourceRight,
+};
+
+struct RibbonOrientationModuleData
+{
+    RibbonSpreadBasis spreadBasis{ RibbonSpreadBasis::CameraFacing };
+    float spreadAngleDegrees{ 0.f };
 };
 
 enum class SphereLocationSpawnMode : uint8
@@ -1003,9 +1022,32 @@ struct DragModuleData
     FloatDistributionData drag{ FloatDistributionData::Make_Constant(0.f) };
 };
 
+enum class VelocityOverLifeApplyChannel : uint8
+{
+    InitialVelocity,
+    InitialRadialVelocity,
+    VelocityCone,
+    SourceMotionVelocity,
+    AccelerationIntegratedVelocity,
+};
+
+inline constexpr uint32 kVelocityOverLifeApplyChannelInitialVelocityMask{ 1u << 0 };
+inline constexpr uint32 kVelocityOverLifeApplyChannelInitialRadialVelocityMask{ 1u << 1 };
+inline constexpr uint32 kVelocityOverLifeApplyChannelVelocityConeMask{ 1u << 2 };
+inline constexpr uint32 kVelocityOverLifeApplyChannelSourceMotionVelocityMask{ 1u << 3 };
+inline constexpr uint32 kVelocityOverLifeApplyChannelAccelerationIntegratedVelocityMask{ 1u << 4 };
+inline constexpr uint32 kVelocityOverLifeApplyChannelAllMask{
+    kVelocityOverLifeApplyChannelInitialVelocityMask |
+    kVelocityOverLifeApplyChannelInitialRadialVelocityMask |
+    kVelocityOverLifeApplyChannelVelocityConeMask |
+    kVelocityOverLifeApplyChannelSourceMotionVelocityMask |
+    kVelocityOverLifeApplyChannelAccelerationIntegratedVelocityMask
+};
+
 struct VelocityOverLifeModuleData
 {
     FloatDistributionData scaleOverLife{ FloatDistributionData::Make_ConstantCurve(1.f, 1.f) };
+    uint32 applyChannelMask{ kVelocityOverLifeApplyChannelAllMask };
 };
 
 enum class EffectOrbitPivotMode : uint8
@@ -1076,6 +1118,39 @@ struct InitialMeshRotationModuleData
 struct MeshRotationOverLifeModuleData
 {
     Vector3DistributionData rotationOverLife{ Vector3DistributionData::Make_ConstantCurve(Vec3{ 0.f, 0.f, 0.f }) };
+};
+
+enum class MeshDirectionAlignTargetMode : uint8
+{
+    Direction,
+    Point,
+};
+
+enum class MeshDirectionAlignSpace : uint8
+{
+    Local,
+    World,
+};
+
+enum class MeshDirectionAlignBlendMode : uint8
+{
+    Linear,
+    EaseIn,
+    EaseOut,
+    EaseInOut,
+};
+
+struct MeshDirectionAlignOverLifeModuleData
+{
+    MeshDirectionAlignTargetMode targetMode{ MeshDirectionAlignTargetMode::Direction };
+    MeshDirectionAlignSpace space{ MeshDirectionAlignSpace::World };
+    Vec3 target{ 0.f, 0.f, 1.f };
+    PlaneRadialOrientationAxis meshForwardAxis{ PlaneRadialOrientationAxis::PositiveZ };
+    PlaneRadialOrientationAxis meshUpAxis{ PlaneRadialOrientationAxis::PositiveY };
+    FloatDistributionData alignmentProgress{ FloatDistributionData::Make_ConstantCurve(0.f, 0.f) };
+    FloatDistributionData randomDelay{ FloatDistributionData::Make_Constant(0.f) };
+    FloatDistributionData randomWeightScale{ FloatDistributionData::Make_Constant(1.f) };
+    MeshDirectionAlignBlendMode blendMode{ MeshDirectionAlignBlendMode::Linear };
 };
 
 struct InitialMeshRotationRateModuleData
@@ -1293,6 +1368,7 @@ using AuthoringModuleData = variant<
     RotationRateScaleByLifeModuleData,
     InitialMeshRotationModuleData,
     MeshRotationOverLifeModuleData,
+    MeshDirectionAlignOverLifeModuleData,
     InitialMeshRotationRateModuleData,
     MeshRotationRateScaleByLifeModuleData,
     InitialColorModuleData,
@@ -1304,6 +1380,7 @@ using AuthoringModuleData = variant<
     SpawnPerUnitModuleData,
     SourceHistorySpriteTrailPathFollowModuleData,
     SourceHistorySpriteTrailPathReplayModuleData,
+    RibbonOrientationModuleData,
     MaterialScalarModulationModuleData>;
 
 struct AuthoringModule

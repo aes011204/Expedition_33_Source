@@ -30,6 +30,8 @@
 namespace
 {
     constexpr float kDuallisteBGMFadeOutDuration = 1.f;
+
+    constexpr wchar_t kHealTintEffect[] = L"Effects\\Assets\\Item\\HealTint_G.effect.json";
 }
 
 IMPLEMENT_REFLECTION(SoulLikeController)
@@ -45,9 +47,6 @@ IMPLEMENT_REFLECTION(SoulLikeController)
     PROPERTY_VEC3("플레이어 스폰 회전", _playerSpawnRotation, 1.f);
     PROPERTY_STRING("몬스터 프리팹", _monsterPrefab);
     PROPERTY_FLOAT("몬스터 스폰 거리", _monsterSpawnDistance, 0.f, 20.f, 0.1f);
-
-    PROPERTY_FLOAT("플레이어 최대 체력", _playerMaxHp, 1.f, 9999.f, 1.f);
-    PROPERTY_FLOAT("몬스터 최대 체력", _monsterMaxHp, 1.f, 9999.f, 1.f);
 
     PROPERTY_FLOAT("진입 연출 지연 시간", _enterFxDelay, 0.f, 5.f, 0.05f);
     PROPERTY_BOOL("디버그 3번키 시작 사용", _enableDebugKeyStart);
@@ -82,9 +81,7 @@ SoulLikeController::SoulLikeController(const SoulLikeController& prototype)
     , _monsterPrefab(prototype._monsterPrefab)
     , _monsterSpawnDistance(prototype._monsterSpawnDistance)
     , _enterFxDelay(prototype._enterFxDelay)
-    , _playerMaxHp(prototype._playerMaxHp)
     , _enableDebugKeyStart(prototype._enableDebugKeyStart)
-    , _monsterMaxHp(prototype._monsterMaxHp)
     , _playerHitPushDistance(prototype._playerHitPushDistance)
     , _playerHitPushDuration(prototype._playerHitPushDuration)
     , _playerHitStopTimeScale(prototype._playerHitStopTimeScale)
@@ -576,6 +573,44 @@ void SoulLikeController::Apply_JumpCounterDamage()
     _jumpCounterAttackStarted = false;
 }
 
+bool SoulLikeController::Try_ApplyHealingPotion(const Shared<SL_Maelle>& player)
+{
+    if (player == nullptr)
+        return false;
+
+    if (player != _player.lock())
+        return false; // 현재 SL 전투 플레이어가 아닌 notify는 무시한다.
+
+    if (_healingPotionCount == 0)
+        return false;
+
+    const Shared<PlayerStatCom> playerStat =
+        dynamic_pointer_cast<PlayerStatCom>(player->Get_Stat());
+
+    if (playerStat == nullptr)
+        return false;
+
+    CombatStatCom::RuntimeCombatStat& runtimeStat = playerStat->Get_RuntimeStat();
+    const float maxHp = max(playerStat->Get_StatInfo().maxHp, 1.f);
+    const float curHp = clamp(runtimeStat.CurHp, 0.f, maxHp);
+
+    if (curHp >= maxHp)
+        return false;
+
+    PlayEffectDesc effectDesc{};
+    effectDesc.effectName = kHealTintEffect;
+    effectDesc.spawnBasisTarget = player;
+    effectDesc.localOffset = Vec3(0.f, 0.f, 0.f);
+    effectDesc.scale = Vec3(1.f, 1.f, 1.f);
+
+    CLIENT->Play_Effect(effectDesc);
+
+    runtimeStat.CurHp = clamp(curHp + (maxHp * kHealingPotionHealRatio), 0.f, maxHp);
+    --_healingPotionCount;
+
+    return true;
+}
+
 float SoulLikeController::Get_EstherGaugeRatio() const
 {
     return _estherManager ? _estherManager->Get_GaugeRatio() : 0.f;
@@ -820,9 +855,8 @@ bool SoulLikeController::Spawn_Player()
 
     player->Apply_WorldSkillKeys(soulLikeSkillKeys);
 
-    const Shared<PlayerStatCom> playerStat = dynamic_pointer_cast<PlayerStatCom>(player->Get_Stat());
-    const float playerMaxHp = playerStat ? playerStat->Get_PlayerRuntimeStat().CurMaxHp : _playerMaxHp;
-    player->Reset_CombatHp(playerMaxHp);
+    if (const Shared<PlayerStatCom> playerStat = dynamic_pointer_cast<PlayerStatCom>(player->Get_Stat()))
+        player->Reset_CombatHp(playerStat->Get_PlayerRuntimeStat().CurMaxHp);
 
     _player = player;
 
@@ -881,19 +915,6 @@ bool SoulLikeController::Spawn_Monster(const Shared<SL_Maelle>& player)
     Shared<SL_Base> opponent = dynamic_pointer_cast<SL_Base>(monsterObject);
     if (opponent == nullptr)
         return false;
-
-    Shared<MonsterStatCom> monsterStat = dynamic_pointer_cast<MonsterStatCom>(opponent->Get_Stat());
-    if (monsterStat != nullptr)
-    {
-        auto& desc = monsterStat->Get_MonsterDesc();
-
-        monsterStat->Set_RuntimeCombatProfile(
-            _monsterMaxHp,
-            desc.maxAp,
-            desc.physicalAttack,
-            desc.physicalDefense,
-            desc.speed);
-    }
 
     _monster = opponent;
 
@@ -1329,34 +1350,7 @@ bool SoulLikeController::Update_HealingPotion(const Shared<SL_Maelle>& player,
     if (!GAME->KeyDown(KEY_TYPE::KEY_1))
         return false;
 
-    if (_healingPotionCount == 0)
-        return false;
-
-    const SL_PlayerState currentState = stateMachine->Get_CurrentSoulLikeState();
-    if (currentState != SL_PlayerState::Idle &&
-        currentState != SL_PlayerState::Run &&
-        currentState != SL_PlayerState::Sprint)
-    {
-        return false; // 포션은 이동 가능한 기본 상태에서만
-    }
-
-    const Shared<PlayerStatCom> playerStat =
-        dynamic_pointer_cast<PlayerStatCom>(player->Get_Stat());
-
-    if (playerStat == nullptr)
-        return false;
-
-    CombatStatCom::RuntimeCombatStat& runtimeStat = playerStat->Get_RuntimeStat();
-    const float maxHp = max(playerStat->Get_StatInfo().maxHp, 1.f);
-    const float curHp = clamp(runtimeStat.CurHp, 0.f, maxHp);
-
-    if (curHp >= maxHp)
-        return false;
-
-    runtimeStat.CurHp = clamp(curHp + (maxHp * kHealingPotionHealRatio), 0.f, maxHp);
-    --_healingPotionCount;
-
-    return true;
+    return stateMachine->Change_State(SL_PlayerState::UseItem);
 }
 
 bool SoulLikeController::Update_Esther()

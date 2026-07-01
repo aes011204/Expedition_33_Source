@@ -67,7 +67,6 @@ void Skill_Lune_Immolation::Execute(const Skill_Data& skill, const BattleAction&
 
     battle->Try_ApplySkillBuff(skill, target);
 
-    // TEMP. 이거 일단 임시. 프로토 타입 이후 제대로 구조잡기. 근데 그냥 이렇게 코드로 제어해도 될거같기도 하고
     if (target.actor != nullptr)
     {
         BattleHitSequenceRunner::HitEffectDesc effectDesc{};
@@ -132,22 +131,14 @@ void Skill_Lune_Thunderfall::Execute(const Skill_Data& skill, const BattleAction
     effectDesc.hitSoundCue = L"Lune_Thunderfall_Hit";
     effectDesc.scale = { 1.3f, 1.3f, 1.3f };
 
-    DamageSystem::ApplyDamage(hitDamage, attacker, target, attackType); // 첫 타 호출 시점은 AN_Attack
-    Internal::Play_TargetHitEffect(target, effectDesc);
-    Internal::Play_TargetHitSound(target, effectDesc.hitSoundCue);
-
-    const int32 remainingHits = hitCount - 1; // hitCount에서 한대 때렸으니까 -1
-    if (remainingHits <= 0)
-        return;
-
     auto battle = CLIENT->Get_BattleController();
     if (battle == nullptr)
         return;
 
-    battle->Get_HitSequenceRunner().Begin_RepeatedHit(
+    battle->Get_HitSequenceRunner().Begin_RepeatedHitWithImmediateFirstHit(
         attacker,
         target,
-        remainingHits, // 이미 첫 타를 넣었으므로 남은 5타만 예약한다.
+        hitCount,
         0.3f,
         hitDamage,
         attackType,
@@ -201,6 +192,14 @@ void Skill_Lune_CripplingTsunami::Execute(const Skill_Data& skill, const BattleA
 
     const float damage = DamageSystem::CalculatePlayerAttackDamage(attacker, skill.powerMultiplier);
     DamageSystem::ApplyDamage(damage, attacker, curTargets, attackType);
+
+    auto battle = CLIENT->Get_BattleController();
+    CHECK_NULL(battle);
+
+    for (const BattleChar& target : curTargets)
+    {
+        battle->Try_ApplySkillBuff(skill, target);
+    }
 }
 
 Shared<Skill_Lune_CripplingTsunami> Skill_Lune_CripplingTsunami::Create()

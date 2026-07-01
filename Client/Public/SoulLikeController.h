@@ -103,11 +103,14 @@ public:
     float Get_PlayerHitPushDuration() const { return _playerHitPushDuration; }
 
     uint32 Get_HealingPotionCount() const { return _healingPotionCount; }
+    bool   Try_ApplyHealingPotion(const Shared<SL_Maelle>& player);
+
     float Get_EstherGaugeRatio() const;
 
     bool    Notify_EstherAttack(GameObject* notifyOwner);
 
     bool    Is_VictoryCameraBlocked() const;
+
 
 private:
     void    Request_SoulLikeCamera(bool alignBehindPlayer = false);
@@ -161,9 +164,6 @@ private:
     Vec3   _overridePlayerSpawnRotation = Vec3::Zero;
     Vec3   _overrideMonsterSpawnPosition = Vec3::Zero;
     Vec3   _overrideMonsterSpawnRotation = Vec3::Zero;
-
-    float  _playerMaxHp = 100.f;
-    float  _monsterMaxHp = 500.f;
 
     float  _enterFxDelay = 0.6f;
     float  _victorySlowDuration = 0.6f;

@@ -3,6 +3,7 @@
 #include "ClientInstance.h"
 #include "Client_Constants.h"
 #include "MapAmbientVisibility.h"
+#include "MovementCom.h"
 #include "PlayableParts.h"
 #include "Player_WorldBase.h"
 #include "PuzzleController.h"
@@ -14,12 +15,23 @@
 
 namespace
 {
-    // 시네마틱 연출 트리거 위치
+    // 보스 시네마틱 연출 트리거 위치
     constexpr Vec3 kCinematicTriggerSpawnPosition = Vec3(78.61f, 22.06f, -14.58f);
 
+    // 튜토리얼 창병 시네마틱 연출 트리거 위치
+    constexpr Vec3 kTutoalCinematicTriggerSpawnPosition = Vec3(-64.56f, 19.4f, -109.29f);
+
+    // 창병 전투 시작 위치
+    constexpr Vec3 kLancelierBattlePosition = Vec3(-39.12f, 19.1f, -93.1f);
+    constexpr Vec3 kLancelierBattleRotation = Vec3(0.f, 33.6f, 0.f);
+
+    // 방패병 전투 시작 위치
+    constexpr Vec3 kPortierBattlePosition = Vec3(-35.03f, 19.42f, -33.65f);
+    constexpr Vec3 kPortierBattleRotation = Vec3(0.f, 0.f, 0.f);
+
     // 보스 전투 시작 위치
-    constexpr Vec3 kBossBattlePosition = Vec3(134.35f, 21.82f, -1.11f);
-    constexpr Vec3 kBossBattleRotation = Vec3(0.f, 67.5f, 0.f);
+    constexpr Vec3 kBossBattlePosition = Vec3(123.46f, 21.82f, -9.67f);
+    constexpr Vec3 kBossBattleRotation = Vec3(0.f, 0.f, 0.f);
 
     VolumetricLightShaftZoneCB Build_GamePlayLightShaftZones()
     {
@@ -79,16 +91,16 @@ HRESULT Level_GamePlay::Initialize()
     if (FAILED(Ready_Layer_Monster(TEXT("Layer_Monster"))))
         return E_FAIL;
 
-    if(FAILED(Ready_Layer_Puzzle(TEXT("Layer_Puzzle")))) 
-        return E_FAIL;
-    
-    if(FAILED(Ready_Layer_Trigger(TEXT("Layer_Trigger"))))
+    if (FAILED(Ready_Layer_Puzzle(TEXT("Layer_Puzzle"))))
         return E_FAIL;
 
-    if(FAILED(Ready_Layer_BattleStartSpawner(TEXT("Layer_BattleStartSpawner"))))
+    if (FAILED(Ready_Layer_Trigger(TEXT("Layer_Trigger"))))
         return E_FAIL;
 
-    if(FAILED(Ready_Layer_AmbientVisibility(TEXT("Layer_BattleStartSpawner"))))
+    if (FAILED(Ready_Layer_BattleStartSpawner(TEXT("Layer_BattleStartSpawner"))))
+        return E_FAIL;
+
+    if (FAILED(Ready_Layer_AmbientVisibility(TEXT("Layer_BattleStartSpawner"))))
         return E_FAIL;
 
     // 안개, 빛 설정
@@ -126,6 +138,9 @@ void Level_GamePlay::Update(float fTimeDelta)
         CHECK_NULL(active);
 
         active->Get_Transform()->Set_WorldPosition(Vec3(75.44f, 21.99f, -14.77f));
+
+        if (auto movement = active->Get_Component<MovementCom>())
+            movement->Sync_RuntimePositionToTransform();
     }
 
 }
@@ -197,7 +212,7 @@ HRESULT Level_GamePlay::Ready_Lights()
 
         if (FAILED(GAME->Update_ShadowLight(ShadowDesc)))
             return E_FAIL;
-        
+
         // 카메라 close/normal/far 모드에 따라서 그림자 구간을 동적 조절하기 위한 프리셋 설정
         ShadowCascadePresetSet cascadePresets{};
         cascadePresets.close.focusNear = 0.1f;
@@ -226,19 +241,19 @@ HRESULT Level_GamePlay::Ready_Lights()
 
 HRESULT Level_GamePlay::Ready_Layer_Puzzle(const wstring& strLayerTag)
 {
-    for(size_t i = 0; i < 3 ; i++)
+    for (size_t i = 0; i < 3; i++)
     {
         //Shared<GameObject> object;
         //CHECK_FAILED(GAME->Add_GameObject(ETOI(LevelType::Static), L"GameObject_EyeTarget", ETOI(LevelType::GamePlay), L"Layer_EyeTarget", object), E_FAIL);
         //if(object != nullptr && object->Get_Transform() != nullptr)
         //    object->Get_Transform()->Set_WorldPosition(Vec3(-109.f + 10.f * static_cast<float>(i), 21.f, -133.5f));
-        
+
         auto eyeTarget = Spawn_Prefab::Prefab(Constants::Prefab::Eye_Target /* L"Eye_Target" */)
             .AtLevel(ETOI(LevelType::GamePlay))
             .InLayer(L"Layer_EyeTarget")
             .Position(Vec3(-109.f + 10.f * static_cast<float>(i), 21.f, -133.5f))
             .Spawn();
-    
+
     }
 
     //퍼즐 컨트롤러
@@ -262,18 +277,39 @@ HRESULT Level_GamePlay::Ready_Layer_Puzzle(const wstring& strLayerTag)
 
 HRESULT Level_GamePlay::Ready_Layer_Trigger(const wstring& strLayerTag)
 {
-    Shared<GameObject> spawned = Spawn_Prefab::Prefab(Constants::Prefab::Trigger_Cinematic)
-        .AtLevel(ETOI(LevelType::GamePlay))
-        .InLayer(L"Layer_GameObject")
-        .Position(kCinematicTriggerSpawnPosition)
-        .Spawn();
-
-    const Shared<Trigger_Cinematic> trigger = dynamic_pointer_cast<Trigger_Cinematic>(spawned);
-    if (trigger != nullptr)
+    // 주교 시네마틱 트리거
     {
-        trigger->Set_SequenceFileId(Constants::Cinematic::BishopCinematicFileId);
-        trigger->Set_StartBattleOnComplete(true, "Boss");
+        Shared<GameObject> spawned = Spawn_Prefab::Prefab(Constants::Prefab::Trigger_Cinematic)
+            .AtLevel(ETOI(LevelType::GamePlay))
+            .InLayer(L"Layer_GameObject")
+            .Position(kCinematicTriggerSpawnPosition)
+            .Spawn();
+
+        const Shared<Trigger_Cinematic> trigger = dynamic_pointer_cast<Trigger_Cinematic>(spawned);
+        if (trigger != nullptr)
+        {
+            trigger->Set_SequenceFileId(Constants::Cinematic::BishopCinematicFileId);
+            trigger->Set_StartBattleOnComplete(true, "Boss");
+        }
+
     }
+
+    {
+        Shared<GameObject> tutorialSpawned = Spawn_Prefab::Prefab(Constants::Prefab::Trigger_Cinematic)
+            .AtLevel(ETOI(LevelType::GamePlay))
+            .InLayer(L"Layer_GameObject")
+            .Position(kTutoalCinematicTriggerSpawnPosition)
+            .Spawn();
+
+        const Shared<Trigger_Cinematic> tutorialTrigger = dynamic_pointer_cast<Trigger_Cinematic>(tutorialSpawned);
+        if (tutorialTrigger != nullptr)
+        {
+            tutorialTrigger->Set_SequenceFileId(Constants::Cinematic::TutorialCinematicFileId);
+            tutorialTrigger->Set_StartBattleOnComplete(true, "Lancelier");
+        }
+    }
+
+
 
     return S_OK;
 }
@@ -281,20 +317,20 @@ HRESULT Level_GamePlay::Ready_Layer_Trigger(const wstring& strLayerTag)
 HRESULT Level_GamePlay::Ready_Layer_BattleStartSpawner(const wstring& strLayerTag)
 {
     // 튜토리얼 렌서러
-    //auto tutorialStart = Spawn_Prefab::Prefab(Constants::Prefab::BattleStartSpawner_Boss)
-    //    .AtLevel(ETOI(LevelType::GamePlay))
-    //    .InLayer(strLayerTag)
-    //    .Position(kBossBattlePosition)
-    //    .Rotation(kBossBattleRotation)
-    //    .Spawn();
+    auto tutorialStart = Spawn_Prefab::Prefab(Constants::Prefab::BSS_Gameplay01)
+        .AtLevel(ETOI(LevelType::GamePlay))
+        .InLayer(strLayerTag)
+        .Position(kLancelierBattlePosition)
+        .Rotation(kLancelierBattleRotation)
+        .Spawn();
 
     // 방패병
-    //auto portierStart = Spawn_Prefab::Prefab(Constants::Prefab::BattleStartSpawner_Boss)
-    //    .AtLevel(ETOI(LevelType::GamePlay))
-    //    .InLayer(strLayerTag)
-    //    .Position(kBossBattlePosition)
-    //    .Rotation(kBossBattleRotation)
-    //    .Spawn();
+    auto portierStart = Spawn_Prefab::Prefab(Constants::Prefab::BSS_Gameplay02)
+        .AtLevel(ETOI(LevelType::GamePlay))
+        .InLayer(strLayerTag)
+        .Position(kPortierBattlePosition)
+        .Rotation(kPortierBattleRotation)
+        .Spawn();
 
     // 보스 전투 시작 스포너
     auto bishopStart = Spawn_Prefab::Prefab(Constants::Prefab::BattleStartSpawner_Boss)
@@ -362,8 +398,20 @@ void Level_GamePlay::Respawn_CinematicTrigger()
         trigger->Set_StartBattleOnComplete(true, "Boss");
     }
 
-}
+    Shared<GameObject> tutorialSpawned = Spawn_Prefab::Prefab(Constants::Prefab::Trigger_Cinematic)
+        .AtLevel(ETOI(LevelType::GamePlay))
+        .InLayer(L"Layer_GameObject")
+        .Position(kTutoalCinematicTriggerSpawnPosition)
+        .Spawn();
 
+    const Shared<Trigger_Cinematic> tutorialTrigger = dynamic_pointer_cast<Trigger_Cinematic>(tutorialSpawned);
+    if (tutorialTrigger != nullptr)
+    {
+        tutorialTrigger->Set_SequenceFileId(Constants::Cinematic::TutorialCinematicFileId);
+        tutorialTrigger->Set_StartBattleOnComplete(true, "Lancelier");
+    }
+
+}
 
 HRESULT Level_GamePlay::Ready_Layer_UI(const wstring& strLayerTag)
 {
@@ -434,7 +482,7 @@ HRESULT Level_GamePlay::Ready_Layer_BackGround(const wstring& strLayerTag)
     skyBoxDesc.tint = Vec4(1.604023f, 0.887117f, 0.631814f, 1.f);
     skyBoxDesc.brightness = 500.f;
     skyBoxDesc.contrast = 1.524392f;
-    skyBoxDesc.noiseStrength = 0.25f;   
+    skyBoxDesc.noiseStrength = 0.25f;
     skyBoxDesc.speed = 0.001f;
     skyBoxDesc.scale = 1.f;
 
@@ -469,7 +517,7 @@ HRESULT Level_GamePlay::Ready_Layer_Monster(const wstring& strLayerTag)
 
 HRESULT Level_GamePlay::Ready_Layer_Player(const wstring& strLayerTag)
 {
-    //Vec3 startPos = Vec3(-465.f, 50.f, 65.f);
+    // 플레이어 시작 위치만 지정
     Vec3 startPos = Vec3(-87.f, 19.47f, -132.94f);
     CHECK_FAILED(CLIENT->Initialize_Hero(ETOI(LevelType::GamePlay), strLayerTag, startPos), E_FAIL);
 

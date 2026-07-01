@@ -262,6 +262,9 @@ namespace
         if (focusStep == BattleTutorialStep::Skill)
             return sourceName == "Button_BattleCommand_Skill" ? 1.f : kBattleWorldCommandTutorialDimAlpha;
 
+        if (focusStep == BattleTutorialStep::FreeAim)
+            return sourceName == "Button_BattleCommand_Shot" ? 1.f : kBattleWorldCommandTutorialDimAlpha;
+
         return 1.f;
     }
 
