@@ -161,7 +161,7 @@ public:
 
     void StartCounter(ModelCom* sourceModel);
     void ApplyCounterDamage(ModelCom* sourceModel);
-    void NotifyJumpCounterWindowBegin();
+    void NotifyJumpCounterWindowBegin(float worldTimeScale = 0.15f);
     void NotifyJumpCounterWindowEnd();
     bool TryStartQueuedJumpCounter(ModelCom* sourceModel);
     bool Try_GetJumpCounterTarget(BattleChar& outTarget) const;

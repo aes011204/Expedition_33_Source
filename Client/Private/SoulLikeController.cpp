@@ -48,9 +48,6 @@ IMPLEMENT_REFLECTION(SoulLikeController)
     PROPERTY_STRING("몬스터 프리팹", _monsterPrefab);
     PROPERTY_FLOAT("몬스터 스폰 거리", _monsterSpawnDistance, 0.f, 20.f, 0.1f);
 
-    PROPERTY_FLOAT("플레이어 최대 체력", _playerMaxHp, 1.f, 9999.f, 1.f);
-    PROPERTY_FLOAT("몬스터 최대 체력", _monsterMaxHp, 1.f, 9999.f, 1.f);
-
     PROPERTY_FLOAT("진입 연출 지연 시간", _enterFxDelay, 0.f, 5.f, 0.05f);
     PROPERTY_BOOL("디버그 3번키 시작 사용", _enableDebugKeyStart);
 
@@ -84,9 +81,7 @@ SoulLikeController::SoulLikeController(const SoulLikeController& prototype)
     , _monsterPrefab(prototype._monsterPrefab)
     , _monsterSpawnDistance(prototype._monsterSpawnDistance)
     , _enterFxDelay(prototype._enterFxDelay)
-    , _playerMaxHp(prototype._playerMaxHp)
     , _enableDebugKeyStart(prototype._enableDebugKeyStart)
-    , _monsterMaxHp(prototype._monsterMaxHp)
     , _playerHitPushDistance(prototype._playerHitPushDistance)
     , _playerHitPushDuration(prototype._playerHitPushDuration)
     , _playerHitStopTimeScale(prototype._playerHitStopTimeScale)
@@ -860,9 +855,8 @@ bool SoulLikeController::Spawn_Player()
 
     player->Apply_WorldSkillKeys(soulLikeSkillKeys);
 
-    const Shared<PlayerStatCom> playerStat = dynamic_pointer_cast<PlayerStatCom>(player->Get_Stat());
-    const float playerMaxHp = playerStat ? playerStat->Get_PlayerRuntimeStat().CurMaxHp : _playerMaxHp;
-    player->Reset_CombatHp(playerMaxHp);
+    if (const Shared<PlayerStatCom> playerStat = dynamic_pointer_cast<PlayerStatCom>(player->Get_Stat()))
+        player->Reset_CombatHp(playerStat->Get_PlayerRuntimeStat().CurMaxHp);
 
     _player = player;
 
@@ -921,19 +915,6 @@ bool SoulLikeController::Spawn_Monster(const Shared<SL_Maelle>& player)
     Shared<SL_Base> opponent = dynamic_pointer_cast<SL_Base>(monsterObject);
     if (opponent == nullptr)
         return false;
-
-    Shared<MonsterStatCom> monsterStat = dynamic_pointer_cast<MonsterStatCom>(opponent->Get_Stat());
-    if (monsterStat != nullptr)
-    {
-        auto& desc = monsterStat->Get_MonsterDesc();
-
-        monsterStat->Set_RuntimeCombatProfile(
-            _monsterMaxHp,
-            desc.maxAp,
-            desc.physicalAttack,
-            desc.physicalDefense,
-            desc.speed);
-    }
 
     _monster = opponent;
 

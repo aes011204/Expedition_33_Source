@@ -581,11 +581,25 @@ RuntimeRuleStateIO::RuleState RuntimeRuleStateService::Build_PotatoBagStartUnloc
 	return ruleState;
 }
 
+RuntimeRuleStateIO::RuleState RuntimeRuleStateService::Build_DuallistStartUnlocks()
+{
+    return Build_PotatoBagStartUnlocks();
+}
+
 RuntimeRuleStateIO::RuleState RuntimeRuleStateService::Build_SimonStartUnlocks()
 {
-	RuntimeRuleStateIO::RuleState ruleState{};
+	RuntimeRuleStateIO::RuleState ruleState = Build_PotatoBagStartUnlocks();
 
-	// TODO : 시몽 들어갈 때 해금 상태 정하기. 그냥 전부 다 해금하고 세팅하면 될거같음.
+	ruleState.costumeJson = Build_CostumeSaveJson(true, true);
+	ruleState.costumeJson["current"] = json::array({
+		json{{"hero_id", "Gustave"}, {"preset_id", "Potato"}},
+		json{{"hero_id", "Lune"}, {"preset_id", "Baguette"}},
+		json{{"hero_id", "Maelle"}, {"preset_id", "Baguette"}},
+		});
+
+	ruleState.unlockManagerJson = Build_HeroUnlockSaveJson(
+		{ kRuleMimeCostume, kRulePotatoCostume, kRuleFirstTutorialUnlockParty },
+		{ HeroId::Gustave, HeroId::Lune, HeroId::Maelle });
 
 	return ruleState;
 }

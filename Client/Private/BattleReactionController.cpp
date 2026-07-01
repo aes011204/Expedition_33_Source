@@ -166,7 +166,10 @@ bool BattleReactionController::TryInput(BattleReactionType type, uint32 consumeK
     _result = type;
 
     if (type == BattleReactionType::Jump)
-        GAME->Set_WorldTimeScale(.1f);
+    {
+        LOG_INFO("Jump Time Scale");
+        GAME->Set_WorldTimeScale(0.15f);
+    }
 
     return true;
 }
@@ -242,13 +245,14 @@ void BattleReactionController::ResetJumpCounterSequence()
     _jumpCounterStarted = false;
 }
 
-void BattleReactionController::NotifyJumpCounterWindowBegin()
+void BattleReactionController::NotifyJumpCounterWindowBegin(float worldTimeScale)
 {
     if (_jumpCounterState != JumpCounterState::JumpSucceeded)
         return;
 
     _jumpCounterState = JumpCounterState::CounterWindowOpen;
     OpenWindow(BattleReactionType::JumpCounter);
+    GAME->Set_WorldTimeScale(clamp(worldTimeScale, 0.01f, 1.f));
 }
 
 void BattleReactionController::NotifyJumpCounterWindowEnd()

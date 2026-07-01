@@ -3,6 +3,7 @@
 #include "AnimationNotifyEditor.h"
 #include "AnimSequencerAdapter.h"
 #include "AnimNotify_Parser.h"
+#include "ANS_JumpCounter.h"
 #include "ANS_Trail.h"
 #include "ANS_WorldTimeScale.h"
 #include "AnimationModifier.h"
@@ -5751,15 +5752,39 @@ Animation_View::PreviewWorldTimeScaleState Animation_View::Resolve_PreviewWorldT
     {
         if (entry.notifyState == nullptr)
             continue;
-        if (entry.notifyState->Get_TypeName() != "ANS_WorldTimeScale")
-            continue;
         if (currentTimeSec < entry.startSec)
             continue;
         if (currentTimeSec > entry.startSec + entry.durationSec)
             continue;
 
-        Shared<Client::ANS_WorldTimeScale> worldTimeScaleState = dynamic_pointer_cast<Client::ANS_WorldTimeScale>(entry.notifyState);
-        if (worldTimeScaleState == nullptr)
+        float resolvedWorldTimeScale = 1.f;
+        bool resolvedScaleEffects = true;
+        bool resolved = false;
+
+        if (entry.notifyState->Get_TypeName() == "ANS_WorldTimeScale")
+        {
+            Shared<Client::ANS_WorldTimeScale> worldTimeScaleState =
+                dynamic_pointer_cast<Client::ANS_WorldTimeScale>(entry.notifyState);
+            if (worldTimeScaleState == nullptr)
+                continue;
+
+            resolvedWorldTimeScale = worldTimeScaleState->Get_WorldTimeScale();
+            resolvedScaleEffects = worldTimeScaleState->Should_ScalePreviewEffects();
+            resolved = true;
+        }
+        else if (entry.notifyState->Get_TypeName() == "ANS_JumpCounter")
+        {
+            Shared<Client::ANS_JumpCounter> jumpCounterState =
+                dynamic_pointer_cast<Client::ANS_JumpCounter>(entry.notifyState);
+            if (jumpCounterState == nullptr)
+                continue;
+
+            resolvedWorldTimeScale = jumpCounterState->Get_JumpCounterWorldTimeScale();
+            resolvedScaleEffects = true;
+            resolved = true;
+        }
+
+        if (!resolved)
             continue;
 
         if (entry.startSec < selectedStartSec)
@@ -5769,8 +5794,8 @@ Animation_View::PreviewWorldTimeScaleState Animation_View::Resolve_PreviewWorldT
 
         selectedStartSec = entry.startSec;
         selectedId = entry.id;
-        result.worldTimeScale = max(0.f, worldTimeScaleState->Get_WorldTimeScale());
-        result.scaleEffects = worldTimeScaleState->Should_ScalePreviewEffects();
+        result.worldTimeScale = max(0.f, resolvedWorldTimeScale);
+        result.scaleEffects = resolvedScaleEffects;
     }
 
     return result;

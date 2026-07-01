@@ -53,14 +53,26 @@ public:
         float hitDamage,
         AttackType attackType,
         const HitEffectDesc& hitEffect = {});
+    void Begin_RepeatedHitWithImmediateFirstHit(
+        const BattleChar& attacker,
+        const BattleChar& target,
+        int32 hitCount,
+        float interval,
+        float hitDamage,
+        AttackType attackType,
+        const HitEffectDesc& hitEffect = {});
 
     void Clear();
 
     bool Is_Active() const { return _pending.active; }
     const PendingHitSequence& Get_Pending() const { return _pending; }
+    bool Is_ApplyingHitSequenceDamage() const { return _isApplyingHitSequenceDamage; }
+    bool Is_CurrentHitSequenceDamageFinal() const { return _isCurrentHitSequenceDamageFinal; }
 
 private:
     PendingHitSequence _pending{};
+    bool _isApplyingHitSequenceDamage = false;
+    bool _isCurrentHitSequenceDamageFinal = false;
 
 private:
     // 예약된 반복 타격이 실제 적용된 직후, 설정된 경우에만 타겟 기준 히트 이펙트를 1회 재생한다.

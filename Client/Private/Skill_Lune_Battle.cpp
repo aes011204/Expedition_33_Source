@@ -131,22 +131,14 @@ void Skill_Lune_Thunderfall::Execute(const Skill_Data& skill, const BattleAction
     effectDesc.hitSoundCue = L"Lune_Thunderfall_Hit";
     effectDesc.scale = { 1.3f, 1.3f, 1.3f };
 
-    DamageSystem::ApplyDamage(hitDamage, attacker, target, attackType); // 첫 타 호출 시점은 AN_Attack
-    Internal::Play_TargetHitEffect(target, effectDesc);
-    Internal::Play_TargetHitSound(target, effectDesc.hitSoundCue);
-
-    const int32 remainingHits = hitCount - 1; // hitCount에서 한대 때렸으니까 -1
-    if (remainingHits <= 0)
-        return;
-
     auto battle = CLIENT->Get_BattleController();
     if (battle == nullptr)
         return;
 
-    battle->Get_HitSequenceRunner().Begin_RepeatedHit(
+    battle->Get_HitSequenceRunner().Begin_RepeatedHitWithImmediateFirstHit(
         attacker,
         target,
-        remainingHits, // 이미 첫 타를 넣었으므로 남은 5타만 예약한다.
+        hitCount,
         0.3f,
         hitDamage,
         attackType,

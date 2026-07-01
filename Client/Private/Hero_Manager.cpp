@@ -769,7 +769,21 @@ void Hero_Manager::Move_FollowerTo(const Shared<Player_WorldBase>& follower, uin
     const Vec3 delta = targetPos - currentPos;
     const float distance = delta.Length();
 
-    if (distance >= _teleportReseatDistance)
+    bool shouldTeleportReseat = distance >= _teleportReseatDistance;
+
+    if (auto activeHero = Get_ActiveHero())
+    {
+        if (auto activeTr = activeHero->Get_Transform())
+        {
+            Vec3 activeDelta = activeTr->Get_WorldPosition() - currentPos;
+            activeDelta.y = 0.f;
+            shouldTeleportReseat =
+                shouldTeleportReseat ||
+                activeDelta.Length() >= _teleportReseatDistance; // Active와 직접 멀어진 경우도 따라잡기 대신 재배치한다.
+        }
+    }
+
+    if (shouldTeleportReseat)
     {
         tr->Set_WorldPosition(targetPos); // 너무 멀어지면, follow가 쓰던 같은 지면 보정 위치로 재배치
 

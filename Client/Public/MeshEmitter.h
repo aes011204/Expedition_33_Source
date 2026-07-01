@@ -86,6 +86,7 @@ private: //## Types::PlaybackRuntime
         Vec3 baseScale{ 1.f, 1.f, 1.f };         // life curve 적용 전 초기 mesh scale이다.
         Vec3 spawnOffset{};                      // OrbitOverLife가 회전시킬 emitter-local spawn offset이다.
         Vec3 spawnPosition{};                    // 기존 motion 누적량을 분리하기 위한 spawn 기준 위치다.
+        Quat spawnTransformRotation{ Quat::Identity }; // world-space particle이 spawn될 때의 effect root 회전이다.
         Quat spawnOrientation{ Quat::Identity }; // radial orientation module에서 만든 spawn 기준 mesh 회전이다.
         bool spawnOrientationEnabled{ false };   // spawn 기준 radial mesh 회전이 실제 적용 가능한지 나타낸다.
         Vec3 rotationRadians{};                  // 현재 particle 회전값이다.
