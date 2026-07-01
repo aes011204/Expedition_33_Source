@@ -2740,15 +2740,16 @@ HRESULT BattleController::Ready_BattleTurnCamera()
     if (_battleTurnCamera != nullptr &&
         (_battleTurnCamera->Is_MarkDestroy() || _battleTurnCamera->Get_Transform() == nullptr))
     {
-        _battleTurnCamera.reset(); // 레벨 전환으로 Free된 카메라는 다음 전투에서 새로 잡아야 한다.
+        _battleTurnCamera.reset();
     }
 
     if (_battleTurnCamera == nullptr)
     {
+        // 카메라 재사용 X
         auto camera = GAME->Get_CameraByType(ObjectType::BattleTurnCamera);
 
         if (camera != nullptr && (camera->Is_MarkDestroy() || camera->Get_Transform() == nullptr))
-            camera.reset(); // Camera_Manager에 남은 비정상 카메라는 재사용하지 않는다.
+            camera.reset();
 
         if (camera)
             _battleTurnCamera = dynamic_pointer_cast<BattleTurnCamera>(camera);

@@ -506,17 +506,7 @@ bool BattleTurnCamera::Try_CaptureWideAnchor(Vec3& outHeroCenter, float& outYawD
         return false;
 
     outHeroCenter /= static_cast<float>(heroCount);
-
-    Shared<GameObject> yawBaseActor = nullptr;
-    if (_heroes.size() > 1 && _heroes[1].actor && _heroes[1].actor->Get_Transform())
-        yawBaseActor = _heroes[1].actor;
-    else if (!_heroes.empty() && _heroes[0].actor && _heroes[0].actor->Get_Transform())
-        yawBaseActor = _heroes[0].actor;
-
-    if (yawBaseActor == nullptr)
-        return false;
-
-    outYawDegrees = yawBaseActor->Get_Transform()->Get_RotationEuler().y;
+    outYawDegrees = Resolve_BattlePlaneYaw();
     return true;
 }
 
@@ -1042,31 +1032,31 @@ bool BattleTurnCamera::Evaluate_ShotRequestPose(
 {
     switch (request.mode)
     {
-
     case BattleCameraMode::PLAYERATTACK:
         {
-           if(request.subject == nullptr || request.opponent == nullptr)
-               return false;
+            if (request.subject == nullptr || request.opponent == nullptr)
+                return false;
 
-           //Vec3 subjectPos = request.subject->Get_Transform()->Get_WorldPosition();
-           //Vec3 opponentPos = request.opponent->Get_Transform()->Get_WorldPosition();
+            Vec3 subjectPos = _playerAttackSubjectPos;
+            Vec3 opponentPos = _playerAttackOpponentPos;
 
-           Vec3 subjectPos = _playerAttackSubjectPos;
-           Vec3 opponentPos = _playerAttackOpponentPos;
+            const float yawBase = Resolve_YawBaseForPresetMode(request);
 
-           return Evaluate_BattleTurnPlayerAttackRelationPose(
-           subjectPos,
-           opponentPos,
-           preset,
-           clipSample,
-           clipTime,
-           outPose);
-
+            return Evaluate_BattleTurnPlayerAttackBattlePlanePose(
+                subjectPos,
+                opponentPos,
+                preset,
+                clipSample,
+                yawBase,
+                clipTime,
+                outPose);
         }
+
     case BattleCameraMode::WIDE:
         {
             return Evaluate_WidePose(preset.camera.fovy, outPose);
         }
+
     case BattleCameraMode::ENEMYATTACK:
         {
             if (request.subject == nullptr || request.opponent == nullptr)
@@ -1078,6 +1068,7 @@ bool BattleTurnCamera::Evaluate_ShotRequestPose(
                 subjectPos = request.subject->Get_Transform()->Get_WorldPosition();
             if (opponentPos.LengthSquared() <= 0.0001f)
                 opponentPos = request.opponent->Get_Transform()->Get_WorldPosition();
+
             return Evaluate_BattleTurnEnemyAttackPose(
                 subjectPos,
                 opponentPos,
@@ -1086,23 +1077,24 @@ bool BattleTurnCamera::Evaluate_ShotRequestPose(
                 clipTime,
                 outPose);
         }
+
     default:
         {
-        if (request.subject == nullptr)
-            return false;
+            if (request.subject == nullptr)
+                return false;
 
-        const Vec3 subjectPos = request.subject->Get_Transform()->Get_WorldPosition();
-        const float yawBase = Resolve_YawBaseForPresetMode(request);
-        return Evaluate_BattleTurnPresetPose(
-            subjectPos,
-            preset,
-            clipSample,
-            yawBase,
-            _pitch,
-            smoothedTargetPos,
-            clipTime,
-            outPose);
+            const Vec3 subjectPos = request.subject->Get_Transform()->Get_WorldPosition();
+            const float yawBase = Resolve_YawBaseForPresetMode(request);
 
+            return Evaluate_BattleTurnPresetPose(
+                subjectPos,
+                preset,
+                clipSample,
+                yawBase,
+                _pitch,
+                smoothedTargetPos,
+                clipTime,
+                outPose);
         }
     }
 }
@@ -1114,25 +1106,8 @@ float BattleTurnCamera::Resolve_BattlePlaneYaw() const
 
 float BattleTurnCamera::Resolve_YawBaseForPresetMode(const BattleShotRequest& request) const
 { 
-    auto resolveSubjectFacingYaw = [&]() -> float
-    {
-        if (request.subject == nullptr || request.subject->Get_Transform() == nullptr)
-            return Resolve_BattlePlaneYaw();
-
-        Vec3 forward = request.subject->Get_Transform()->Get_WorldForward();
-        forward.y = 0.f;
-        if (forward.LengthSquared() <= 0.0001f)
-            return Resolve_BattlePlaneYaw();
-
-        forward.Normalize();
-        return XMConvertToDegrees(atan2f(forward.x, forward.z));
-    };
-
     switch (request.mode)
     {
-    case BattleCameraMode::SELECTSKILL:
-        return resolveSubjectFacingYaw();
-
     case BattleCameraMode::AIM:
         return _freeAimBaseYaw + _yaw;
 
@@ -1140,6 +1115,7 @@ float BattleTurnCamera::Resolve_YawBaseForPresetMode(const BattleShotRequest& re
     case BattleCameraMode::ENEMYFOCUS:
     case BattleCameraMode::PLAYERATTACK:
     case BattleCameraMode::SELECTITEM:
+    case BattleCameraMode::SELECTSKILL:
     case BattleCameraMode::PARRY:
     case BattleCameraMode::BATTLEINTRO:
         return Resolve_BattlePlaneYaw();

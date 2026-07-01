@@ -1044,7 +1044,6 @@ void BattleReactionController::StartCounter(ModelCom* sourceModel)
 
     for (const BattleChar& target : _reactionAnimTargets)
     {
-
         if (_reactionAnimTargets.size() >= 2)
         {
             // 위치 순간이동하고 카운터 시작 
