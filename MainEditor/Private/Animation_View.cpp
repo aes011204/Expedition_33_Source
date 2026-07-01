@@ -36,6 +36,8 @@
 #include "Mon_Simon_Hair.h"
 #include "imgui_internal.h"
 #include "Notification_Manager.h"
+#include "PartObject.h"
+#include "Player_BattleBase.h"
 #include "Weapon.h"
 #include "Mon_Dualliste_Sword_L.h"
 #include "Mon_Dualliste_Sword_R.h"
@@ -1220,6 +1222,45 @@ void Animation_View::Clear_LivePreviewBinding(const Shared<GameObject>& previewR
     Clear_NotifyUndoHistory();
 }
 
+void Animation_View::Refresh_LivePreviewBinding(const Shared<GameObject>& previewRoot)
+{
+    if (_sourceMode != SourceMode::LiveModel || _liveModelCom == nullptr)
+        return;
+
+    if (previewRoot != nullptr)
+    {
+        const Shared<GameObject> currentPreviewRoot = Resolve_RootPreviewObject(_liveModelCom->Get_Owner());
+        if (currentPreviewRoot != previewRoot)
+            return;
+    }
+
+    const Shared<ModelCom> previousPlaybackModel = Get_PlaybackModel();
+    const float currentTimeSec = previousPlaybackModel != nullptr
+        ? previousPlaybackModel->Get_CurrentAnimationTimeSec()
+        : 0.f;
+
+    Reset_PreviewTrailEffect();
+    Reset_PreviewSourceHistoryEffect();
+    Reset_PreviewWeaponRotateStates();
+    Reset_PreviewWeaponEchoStates();
+    Reset_PreviewSLDodgeMoveStates();
+    Reset_PreviewRootControllerStates();
+    Reset_PreviewPlayEffectStates();
+    Reset_PreviewScreenFxCueStates();
+    Reset_PreviewAnimSpeedStates();
+
+    Refresh_LiveModelTargets();
+    Rebuild_PreviewClone(); // Prefab_View의 Change Weapon Preview 파트 변경을 Animation View 복제본에 다시 태운다.
+    Sync_PreviewAnimationSelection(false);
+
+    if (Shared<ModelCom> playbackModel = Get_PlaybackModel())
+    {
+        playbackModel->Set_CurrentAnimationTimeSec(currentTimeSec);
+        playbackModel->Play_Animation(0.f);
+        _sequencerCurrentFrame = static_cast<int32>(std::round(currentTimeSec * static_cast<float>(Get_CurrentAnimationFps())));
+    }
+}
+
 void Animation_View::Rebuild_PreviewClone()
 {
     Reset_PreviewClone();
@@ -1241,6 +1282,16 @@ void Animation_View::Rebuild_PreviewClone()
 
     PreviewObjectHelpers::Disable_PreviewAnimNotifyExecution(_previewRootObject);
     PreviewObjectHelpers::Prime_PreviewObject(_previewRootObject);
+
+    const Shared<Client::Player_BattleBase> liveBattlePlayer = dynamic_pointer_cast<Client::Player_BattleBase>(liveRootObject);
+    const Shared<Client::Player_BattleBase> previewBattlePlayer = dynamic_pointer_cast<Client::Player_BattleBase>(_previewRootObject);
+    if (liveBattlePlayer != nullptr && previewBattlePlayer != nullptr)
+    {
+        const string previewWeaponId = liveBattlePlayer->Get_ActiveWeaponPreviewId();
+        if (!previewWeaponId.empty())
+            previewBattlePlayer->Apply_WeaponPreviewById(previewWeaponId); // PB To_Json은 Part_Weapon*을 제외하므로 복제본에 현재 프리뷰 무기를 다시 붙인다.
+    }
+
     Lock_PreviewObjectToOrigin(_previewRootObject);
 
     const Shared<GameObject> previewOwnerObject =
@@ -6935,10 +6986,23 @@ bool Animation_View::Try_ResolveTrailAnchorWorldPosition(
         return false;
 
     Shared<GameObject> ownerObject = playbackModel->Get_Owner();
+    if (Shared<PartObject> ownerPart = dynamic_pointer_cast<PartObject>(ownerObject))
+    {
+        const Matrix anchorLocalMatrix = playbackModel->Get_ModelType() == ModelType::NonAnim
+            ? Matrix::Identity
+            : *boneMatrix;
+        const Matrix anchorWorldMatrix = anchorLocalMatrix * ownerPart->Get_CombinedWorldMatrix();
+        outWorldPosition = Vec3::Transform(anchor.localPosition, anchorWorldMatrix);
+        return true;
+    }
+
     Shared<TransformCom> ownerTransform = ownerObject ? ownerObject->Get_Transform() : nullptr;
     const Matrix ownerWorldMatrix = ownerTransform ? ownerTransform->Get_WorldMatrix() : Matrix::Identity;
 
-    const Matrix anchorWorldMatrix = *boneMatrix * ownerWorldMatrix;
+    const Matrix anchorLocalMatrix = playbackModel->Get_ModelType() == ModelType::NonAnim
+        ? Matrix::Identity
+        : *boneMatrix;
+    const Matrix anchorWorldMatrix = anchorLocalMatrix * ownerWorldMatrix;
     outWorldPosition = Vec3::Transform(anchor.localPosition, anchorWorldMatrix);
     return true;
 }
@@ -6973,7 +7037,10 @@ bool Animation_View::Try_ResolvePreviewTrailAnchorWorldPosition(
     if (boneMatrix == nullptr)
         return false;
 
-    const Matrix anchorWorldMatrix = *boneMatrix * trailPart->Get_CombinedWorldMatrix();
+    const Matrix anchorLocalMatrix = weaponModel->Get_ModelType() == ModelType::NonAnim
+        ? Matrix::Identity
+        : *boneMatrix;
+    const Matrix anchorWorldMatrix = anchorLocalMatrix * trailPart->Get_CombinedWorldMatrix();
     outWorldPosition = Vec3::Transform(anchor.localPosition, anchorWorldMatrix);
     return true;
 }
@@ -7030,7 +7097,10 @@ bool Animation_View::Try_ResolvePreviewWeaponAnchorWorldPosition(
     if (boneMatrix == nullptr)
         return false;
 
-    const Matrix sourceWorldMatrix = *boneMatrix * weaponPart->Get_CombinedWorldMatrix();
+    const Matrix sourceLocalMatrix = weaponModel->Get_ModelType() == ModelType::NonAnim
+        ? Matrix::Identity
+        : *boneMatrix;
+    const Matrix sourceWorldMatrix = sourceLocalMatrix * weaponPart->Get_CombinedWorldMatrix();
     outWorldPosition = Vec3::Transform(anchor->localPosition + localOffset, sourceWorldMatrix);
     return true;
 }

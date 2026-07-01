@@ -329,6 +329,17 @@ public:
         DetailPropertyContext& detailContext);
 };
 
+// MeshDirectionAlignOverLife module의 target-facing alignment authoring row를 그린다.
+class MeshDirectionAlignOverLifeModuleDetail
+{
+public:
+    bool Draw(
+        AuthoringEmitter& emitter,
+        AuthoringModule& module,
+        MeshDirectionAlignOverLifeModuleData& data,
+        DetailPropertyContext& detailContext);
+};
+
 // InitialMeshRotationRate module의 mesh angular velocity authoring row를 그린다.
 class InitialMeshRotationRateModuleDetail
 {

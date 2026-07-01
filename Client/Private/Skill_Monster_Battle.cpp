@@ -4,6 +4,7 @@
 #include "BattleHitSequenceRunner.h"
 #include "ClientInstance.h"
 #include "CombatStatCom.h"
+#include "ContainerObject.h"
 #include "DamageSystem.h"
 #include "EffectCom.h"
 #include "GameInstance.h"
@@ -32,6 +33,48 @@ namespace Internal
         effectDesc.followTarget = false;
 
         effectCom->Play_Effect(effectDesc);
+    }
+
+    void Restore_SpawnedActorVisibility(const Shared<GameObject>& actor)
+    {
+        if (actor == nullptr)
+            return;
+
+        const Shared<ContainerObject> container = dynamic_pointer_cast<ContainerObject>(actor);
+        if (container != nullptr)
+        {
+            for (const auto& [partTag, partObject] : container->Get_PartObjects())
+            {
+                UNREFERENCED_PARAMETER(partTag);
+
+                if (partObject == nullptr)
+                    continue;
+
+                partObject->Set_Visible(true);
+
+                if (const Shared<EffectCom> partEffect = partObject->Get_Component<EffectCom>())
+                    partEffect->Start_SwitchDissolve(0.35f, "T_Perlin_Noise_M");
+            }
+        }
+
+        actor->Set_Visible(true);
+
+        if (const Shared<EffectCom> actorEffect = actor->Get_Component<EffectCom>())
+            actorEffect->Start_SwitchDissolve(0.35f, "T_Perlin_Noise_M");
+    }
+
+    bool Contains_Actor(const vector<BattleChar>& actors, const Shared<GameObject>& target)
+    {
+        if (target == nullptr)
+            return false;
+
+        for (const BattleChar& actor : actors)
+        {
+            if (actor.actor == target)
+                return true;
+        }
+
+        return false;
     }
 }
 
@@ -206,6 +249,8 @@ void Base_Mon_Spawn::Execute(const Skill_Data& skill, const BattleAction& action
         if (summoner == nullptr || summoner->Get_Transform() == nullptr)
             return;
 
+        const vector<BattleChar> enemiesBeforeSpawn = CLIENT->Get_BattleController()->Get_AllEnemies();
+
         const Shared<TransformCom> summonerTransform = summoner->Get_Transform();
         const Vec3 right = summonerTransform->Get_WorldRight();
         const Vec3 pos = summonerTransform->Get_Position();
@@ -213,6 +258,18 @@ void Base_Mon_Spawn::Execute(const Skill_Data& skill, const BattleAction& action
 
         CLIENT->Get_BattleController()->Spawn_BattleChar(false, "MB_Abbest", pos + right * 4.f, yawDeg);
         CLIENT->Get_BattleController()->Spawn_BattleChar(false, "MB_Abbest", pos - right * 4.f, yawDeg);
+
+        const vector<BattleChar> enemiesAfterSpawn = CLIENT->Get_BattleController()->Get_AllEnemies();
+        for (const BattleChar& spawnedEnemy : enemiesAfterSpawn)
+        {
+            if (spawnedEnemy.actor == nullptr)
+                continue;
+
+            if (Internal::Contains_Actor(enemiesBeforeSpawn, spawnedEnemy.actor))
+                continue;
+
+            Internal::Restore_SpawnedActorVisibility(spawnedEnemy.actor);
+        }
     }
 }
 

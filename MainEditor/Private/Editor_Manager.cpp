@@ -822,6 +822,9 @@ void Editor_Manager::Render_RuleStateButtons()
     if (ImGui::MenuItem("튜토리얼 후 플레이어 해금 상태 저장"))
         Save_RuleStatePreset(RuleStatePreset::FirstTutorialHeroUnlocks);
 
+    if (ImGui::MenuItem("비숍 시작 상태 저장"))
+        Save_RuleStatePreset(RuleStatePreset::BishopStartUnlocks);
+
     if (ImGui::MenuItem("최종 스킬 세팅 해금 상태 저장"))
         Save_RuleStatePreset(RuleStatePreset::FinalSkillSetupUnlocks);
 }
@@ -938,6 +941,8 @@ bool Editor_Manager::Save_RuleStatePreset(RuleStatePreset preset)
         saved = EDITOR->Save_AllWeaponUnlockRuleState(ruleStatePath);
     else if (preset == RuleStatePreset::FirstTutorialHeroUnlocks)
         saved = EDITOR->Save_FirstTutorialHeroUnlockRuleState(ruleStatePath);
+    else if (preset == RuleStatePreset::BishopStartUnlocks)
+        saved = EDITOR->Save_BishopStartRuleState(ruleStatePath);
     else if (preset == RuleStatePreset::FinalSkillSetupUnlocks)
         saved = EDITOR->Save_FinalSkillSetupUnlockRuleState(ruleStatePath);
     else
@@ -1021,6 +1026,9 @@ fs::path Editor_Manager::Resolve_RuleStatePath(RuleStatePreset preset) const
 
     case RuleStatePreset::FirstTutorialHeroUnlocks:
         return ruleStateDir / L"Rule_FirstTutorialHeroUnlocks.rule.bin";
+
+    case RuleStatePreset::BishopStartUnlocks:
+        return ruleStateDir / L"Rule_BishopStart.rule.bin";
 
     case RuleStatePreset::FinalSkillSetupUnlocks:
         return ruleStateDir / L"Rule_FinalSkillSetupUnlocks.rule.bin";

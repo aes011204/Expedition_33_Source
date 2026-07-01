@@ -542,10 +542,21 @@ EBattleEndResult BattleController::OnExitBattleField(EBattleEndResult result)
 
     if (result == EBattleEndResult::Victory)
     {
+        const bool isBishopCinematicBGM =
+            GAME->Get_CurrentBGM() == Constants::SoundBGM::BishopBattleBossMain;
+
         if (Is_TutorialBattleEncounter(_activeBattleFieldID))
+        {
             GAME->Stop_SoundChannel(SoundChannel::BGM);
+        }
+        else if (isBishopCinematicBGM)  // 주교잡고나서는 Victory 브금
+        {
+            GAME->Play_BGM(Constants::SoundBGM::BishopBattleBossVictory, 1.f, true, 0.f);
+        }
         else
+        {
             Restore_PreBattleBGM();
+        }
 
         _isWaitingVictoryConfirm = true;
         _isBattleEntering = false;
@@ -1185,6 +1196,9 @@ void BattleController::SetCharInitPos()
             Vec3 rot = transform->Get_RotationEuler();
             rot.y = XMConvertToDegrees(atan2f(dir.x, dir.z));
             transform->Set_RotationEuler(rot);
+
+            if (_battleSpawnRegistry)
+                _battleSpawnRegistry->Update_SpawnPose(hero.actor);
         }
     }
 
@@ -2726,15 +2740,16 @@ HRESULT BattleController::Ready_BattleTurnCamera()
     if (_battleTurnCamera != nullptr &&
         (_battleTurnCamera->Is_MarkDestroy() || _battleTurnCamera->Get_Transform() == nullptr))
     {
-        _battleTurnCamera.reset(); // 레벨 전환으로 Free된 카메라는 다음 전투에서 새로 잡아야 한다.
+        _battleTurnCamera.reset();
     }
 
     if (_battleTurnCamera == nullptr)
     {
+        // 카메라 재사용 X
         auto camera = GAME->Get_CameraByType(ObjectType::BattleTurnCamera);
 
         if (camera != nullptr && (camera->Is_MarkDestroy() || camera->Get_Transform() == nullptr))
-            camera.reset(); // Camera_Manager에 남은 비정상 카메라는 재사용하지 않는다.
+            camera.reset();
 
         if (camera)
             _battleTurnCamera = dynamic_pointer_cast<BattleTurnCamera>(camera);
@@ -2994,11 +3009,17 @@ void BattleController::Complete_BattleField()
         }
     }
 
-    GAME->Play_BGM(
-        hasBossEnemy ? Constants::SoundBGM::BattleBossBGM : Constants::SoundBGM::BattleNormalBGM,
-        1.f,
-        true,
-        0.f);
+    const bool isBishopCinematicBGM =
+        GAME->Get_CurrentBGM() == Constants::SoundBGM::BishopBattleBossMain;
+
+    if (!isBishopCinematicBGM)
+    {
+        GAME->Play_BGM(
+            hasBossEnemy ? Constants::SoundBGM::BattleBossBGM : Constants::SoundBGM::BattleNormalBGM,
+            1.f,
+            true,
+            0.f);
+    }
 
     // 초기 플레이 순서 지정
     Build_InitialTurnQueue(_pendingBattleIsPlayerAdvantage);
@@ -3098,16 +3119,25 @@ bool BattleController::Try_ApplyFreeAimWeakPointBonus(const BattleFreeAimHitTarg
 
 void BattleController::Capture_PreBattleBGM()
 {
+    if (_hasCapturedPreBattleBGM)
+        return;
+
     _preBattleBGM = GAME->Get_CurrentBGM();
+    _hasCapturedPreBattleBGM = true;
 }
 
 void BattleController::Restore_PreBattleBGM()
 {
-    if (_preBattleBGM.empty())
+    if (!_hasCapturedPreBattleBGM)
         return;
 
-    GAME->Play_BGM(_preBattleBGM, 1.f, true, 0.f);
+    if (_preBattleBGM.empty())
+        GAME->Stop_SoundChannel(SoundChannel::BGM, 0.f);
+    else
+        GAME->Play_BGM(_preBattleBGM, 1.f, true, 0.f);
+
     _preBattleBGM.clear();
+    _hasCapturedPreBattleBGM = false;
 }
 
 bool BattleController::Update_BattleTutorialGate(float timeDelta)

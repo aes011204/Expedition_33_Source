@@ -844,6 +844,45 @@ struct MeshTransformRuntimeDesc
     MeshVector3CurveRuntimeDesc angularVelocityScaleByLife{};        // angular velocity Vec3 배율이다.
 };
 
+enum class EffectMeshDirectionAlignTargetMode : uint8
+{
+    Direction,
+    Point,
+};
+
+enum class EffectMeshDirectionAlignSpace : uint8
+{
+    Local,
+    World,
+};
+
+enum class EffectMeshDirectionAlignBlendMode : uint8
+{
+    Linear,
+    EaseIn,
+    EaseOut,
+    EaseInOut,
+};
+
+// MeshDirectionAlignOverLife 모듈이 mesh 최종 orientation에 적용하는 target-facing payload다.
+struct MeshDirectionAlignRuntimeDesc
+{
+    bool enabled{ false };                                                        // 모듈 연결 여부다.
+    EffectMeshDirectionAlignTargetMode targetMode{ EffectMeshDirectionAlignTargetMode::Direction };
+    EffectMeshDirectionAlignSpace space{ EffectMeshDirectionAlignSpace::World };
+    Vec3 target{ 0.f, 0.f, 1.f };                                                 // Direction이면 벡터, Point면 위치다.
+    PointParticlePlaneRadialOrientationAxis meshForwardAxis{
+        PointParticlePlaneRadialOrientationAxis::PositiveZ };                     // target direction에 맞출 mesh local 축이다.
+    PointParticlePlaneRadialOrientationAxis meshUpAxis{
+        PointParticlePlaneRadialOrientationAxis::PositiveY };                     // target frame 안정화에 사용할 mesh local up 축이다.
+    PointParticleFloatCurveRuntimeDesc alignmentProgress{};                       // life progress 기준 0..1 정렬 weight curve다.
+    Vec2 randomDelay{ 0.f, 0.f };                                                 // spawn 시 샘플되는 normalized life 지연 범위다.
+    PointParticleRandomSeedRuntimeDesc randomDelaySeed{};                         // randomDelay sample seed salt다.
+    Vec2 randomWeightScale{ 1.f, 1.f };                                           // spawn 시 샘플되는 최종 weight 배율 범위다.
+    PointParticleRandomSeedRuntimeDesc randomWeightScaleSeed{};                   // randomWeightScale sample seed salt다.
+    EffectMeshDirectionAlignBlendMode blendMode{ EffectMeshDirectionAlignBlendMode::Linear };
+};
+
 // mesh emitter가 clone 시점에 받는 model/instance draw용 runtime payload다.
 struct MeshEmitterDesc : public GameObject::GAMEOBJECT_DESC
 {
@@ -874,6 +913,7 @@ struct MeshEmitterDesc : public GameObject::GAMEOBJECT_DESC
     PointParticlePlaneRadialOrientationDesc planeRadialOrientation{};   // PlaneRadialOrientation 모듈에서 mesh radial frame 회전으로 소비하는 payload다.
     PointParticleCylinderOrientationDesc cylinderOrientation{};          // CylinderOrientation 모듈에서 cylinder frame 회전으로 소비하는 payload다.
     MeshTransformRuntimeDesc meshTransform{};                           // Mesh 전용 Vec3 scale/rotation payload다.
+    MeshDirectionAlignRuntimeDesc meshDirectionAlign{};                  // MeshDirectionAlignOverLife 모듈에서 최종 방향 정렬로 소비하는 payload다.
 };
 
 using EffectEmitterConcreteDesc = variant<
