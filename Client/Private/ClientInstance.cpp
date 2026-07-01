@@ -1289,7 +1289,7 @@ bool ClientInstance::Request_DialogueBattlePotatoBag()
 
     OnEnterBattleField(
         Constants::Value::potatoBagEncounterId,
-        true,
+        false,
         Resolve_BattleEncounterHeroIds(Constants::Value::potatoBagEncounterId),
         battleMonsterSpawnDescs,
         nullptr,
@@ -1952,6 +1952,14 @@ bool ClientInstance::Try_GetInteractionPromptAnchor(Vec3& outWorldAnchor) const
 
     outWorldAnchor = _interactionPromptWorldAnchor;
     return true;
+}
+
+void ClientInstance::Set_DialogueOverride(const string& sourceDialogueKey, const string& targetDialogueKey)
+{
+    if (_dialogueManager == nullptr)
+        return;
+
+    _dialogueManager->Set_DialogueOverride(sourceDialogueKey, targetDialogueKey);
 }
 
 HRESULT ClientInstance::Ready_ResourceLoader()

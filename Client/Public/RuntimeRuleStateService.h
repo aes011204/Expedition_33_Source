@@ -21,6 +21,7 @@ public:
     static RuntimeRuleStateIO::RuleState Build_GestralVillageStartUnlocks();
     static RuntimeRuleStateIO::RuleState Build_BishopStartUnlocks();
     static RuntimeRuleStateIO::RuleState Build_PotatoBagStartUnlocks();
+    static RuntimeRuleStateIO::RuleState Build_DuallistStartUnlocks();
 
     static RuntimeRuleStateIO::RuleState Build_SimonStartUnlocks();
 

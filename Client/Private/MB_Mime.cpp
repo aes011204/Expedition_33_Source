@@ -76,7 +76,7 @@ void MB_Mime::Adjust_IncomingBattleDamage(const BattleChar& attacker, float& dam
     damage *= kMimeUnbrokenDamageMultiplier;
 }
 
-bool MB_Mime::Try_ApplyBattleBreakOnDamage(const DamageAppliedInfo& info)
+bool MB_Mime::Try_ApplyBattleBreakOnDamage(const DamageAppliedInfo& info, bool canTriggerBreak)
 {
     if (_combatStat == nullptr || info.damage <= 0.f)
         return false;
@@ -93,6 +93,9 @@ bool MB_Mime::Try_ApplyBattleBreakOnDamage(const DamageAppliedInfo& info)
     _combatStat->Add_Break(info.damage * kMimeBreakDamageRate); // 실제로 깎인 HP 피해량만큼 파괴 게이지를 누적한다.
 
     if (_combatStat->Get_CurBreak() < _combatStat->Get_MaxBreak())
+        return false;
+
+    if (!canTriggerBreak)
         return false;
 
     _combatStat->SetBreak(true);
