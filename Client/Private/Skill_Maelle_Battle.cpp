@@ -85,6 +85,11 @@ void Skill_Maelle_FleureFury::Execute(const Skill_Data& skill, const BattleActio
 
     const float damage = DamageSystem::CalculatePlayerAttackDamage(attacker, skill.powerMultiplier);
     DamageSystem::ApplyDamage(damage, attacker, target, attackType);
+
+    auto battle = CLIENT->Get_BattleController();
+    CHECK_NULL(battle);
+
+    battle->Try_ApplySkillBuff(skill, target);
     
     // 임시로 명인태세
     if (attacker.mechanismCom != nullptr)
@@ -162,7 +167,7 @@ void Skill_Maelle_SwordBallet::Execute(const Skill_Data& skill, const BattleActi
 
     const float damage = DamageSystem::CalculatePlayerAttackDamage(attacker, skill.powerMultiplier);
     DamageSystem::ApplyDamage(damage, attacker, target, attackType);
-    
+
     // 임시로 명인태세
     if (attacker.mechanismCom != nullptr)
         attacker.mechanismCom->Set_MaelleStance(BattleMechanismCom::MaelleStance::Virtuose);

@@ -2,6 +2,7 @@
 #include "GameInstance.h"
 #include "MapLoader.h"
 #include "ClientInstance.h"
+#include "RuntimeRuleStateService.h"
 #include "TargetCamera.h"
 #include "SoulLikeController.h"
 
@@ -21,6 +22,9 @@ HRESULT Level_Stage01::Initialize()
     CHECK_FAILED(Ready_Layer_Player(TEXT("Layer_Player")), E_FAIL);
     CHECK_FAILED(Ready_Layer_Camera(TEXT("Layer_Camera")), E_FAIL);
     CHECK_FAILED(Ready_Layer_UI(TEXT("Layer_UI")), E_FAIL);
+
+    RuntimeRuleStateService::Apply_ToCurrentRuntime(
+        RuntimeRuleStateService::Build_SimonStartUnlocks(), false);
 
     GAME->Play_BGM(Constants::SoundBGM::SpringBGM, 1.f, true, 0.f);
 

@@ -23,6 +23,9 @@ public:
     bool IsActive() const { return _isActive; }
     bool IsInteractLocked() const { return _waitInteractKeyRelease; }
 
+    void Set_DialogueOverride(const string& sourceDialogueKey, const string& targetDialogueKey);
+    string Resolve_DialogueKey(const string& dialogueKey) const;
+
 private:
     void AlignDialogueActors();
     void SelectChoice();
@@ -48,6 +51,8 @@ private:
     float               _lastAnimationOffsetY = 0.f;
     string              _startAnimationKey;
     float               _startAnimationOffsetY = 0.f;
+
+    umap<string, string> _dialogueOverrides{};
 
 public:
     static Unique<DialogueManager> Create();

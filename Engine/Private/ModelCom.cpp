@@ -201,6 +201,7 @@ void ModelCom::Set_Animation(uint32 animIndex, bool isLoop, float startFrame)
     _nextAnimStateIndex = UINT32_MAX;
     _isAnimLoop = isLoop;
     _isBlending = false;
+    Clear_SameAnimationBlend();
     _isFinished = false;
     Apply_StartFrameWithPlaySection(_currentAnimIndex, _isAnimLoop, startFrame);
 
@@ -225,6 +226,7 @@ bool ModelCom::Set_AnimationByState(uint32 stateIndex, bool isLoop, float startF
     _currentAnimIndex = animIndex;
     _isAnimLoop = isLoop;
     _isBlending = false;
+    Clear_SameAnimationBlend();
     _isFinished = false;
     Apply_StartFrameWithPlaySection(_currentAnimIndex, _isAnimLoop, startFrame);
 
@@ -238,6 +240,7 @@ void ModelCom::Set_Animation(uint32 animIndex, float blendDuration, bool isLoop,
 
     _skipInitialBlendSourceNotify =
         !_hasExplicitAnimation && _currentAnimIndex != animIndex;
+    Begin_SameAnimationBlendIfNeeded(animIndex, blendDuration);
     _hasExplicitAnimation = true;
     _nextAnimStateIndex = UINT32_MAX;
     _nextAnimIndex = animIndex;
@@ -286,6 +289,7 @@ bool ModelCom::Set_AnimationByState(uint32 stateIndex, float blendDuration, bool
     const uint32 animIndex = _stateAnimIndices[stateIndex];
     _skipInitialBlendSourceNotify =
         !_hasExplicitAnimation && _currentAnimIndex != animIndex;
+    Begin_SameAnimationBlendIfNeeded(animIndex, blendDuration);
     _hasExplicitAnimation = true;
     _nextAnimStateIndex = stateIndex;
     _nextAnimIndex = animIndex;
@@ -316,6 +320,7 @@ bool ModelCom::Set_AnimationByStateTimeSec(uint32 stateIndex, float blendDuratio
         _currentAnimIndex = animIndex;
         _isAnimLoop = isLoop;
         _isBlending = false;
+        Clear_SameAnimationBlend();
         _isFinished = false;
         Apply_StartTimeSecWithPlaySection(_currentAnimIndex, _isAnimLoop, startTimeSec);
 
@@ -325,6 +330,7 @@ bool ModelCom::Set_AnimationByStateTimeSec(uint32 stateIndex, float blendDuratio
 
     _skipInitialBlendSourceNotify =
         !_hasExplicitAnimation && _currentAnimIndex != animIndex;
+    Begin_SameAnimationBlendIfNeeded(animIndex, blendDuration);
     _hasExplicitAnimation = true;
     _nextAnimStateIndex = stateIndex;
     _nextAnimIndex = animIndex;
@@ -1607,6 +1613,14 @@ const AnimNotifyData* ModelCom::Find_AnimNotifyDataByState(uint32 stateIndex)
     return AnimNotify_Parser::Find_Animation(_animNotifyAsset, animationName);
 }
 
+const AnimNotifyData* ModelCom::Find_CurrentAnimNotifyData()
+{
+    if (!Ensure_AnimNotifyAssetLoaded())
+        return nullptr;
+
+    return Find_CurrentNotifyAnimation();
+}
+
 bool ModelCom::Ensure_AnimNotifyAssetLoaded()
 {
     if (_isAnimNotifyAssetLoaded)
@@ -2230,6 +2244,88 @@ void ModelCom::Begin_AnimationPipeline(float timeDelta, AnimPipelineContext& out
     outContext.rootIndex = _isRootMotion ? _rootNodeIndex : -1;
 }
 
+bool ModelCom::Should_UseSameAnimationBlend(uint32 animIndex, float blendDuration) const
+{
+    if (blendDuration <= 0.f || !_hasExplicitAnimation)
+        return false;
+
+    if (animIndex >= _animations.size())
+        return false;
+
+    return _currentAnimIndex == animIndex;
+}
+
+void ModelCom::Begin_SameAnimationBlendIfNeeded(uint32 animIndex, float blendDuration)
+{
+    if (!Should_UseSameAnimationBlend(animIndex, blendDuration))
+    {
+        Clear_SameAnimationBlend();
+        return;
+    }
+
+    Capture_SameAnimationBlendSourcePose();
+    _isSameAnimationBlending = !_sameAnimationBlendSourceLocalMatrices.empty();
+}
+
+void ModelCom::Clear_SameAnimationBlend()
+{
+    _isSameAnimationBlending = false;
+    _sameAnimationBlendSourceLocalMatrices.clear();
+}
+
+void ModelCom::Capture_SameAnimationBlendSourcePose()
+{
+    _sameAnimationBlendSourceLocalMatrices.clear();
+    _sameAnimationBlendSourceLocalMatrices.reserve(_bones.size());
+
+    for (const Shared<Bone>& bone : _bones)
+    {
+        if (bone != nullptr)
+            _sameAnimationBlendSourceLocalMatrices.push_back(bone->Get_TransformationMatrix());
+        else
+            _sameAnimationBlendSourceLocalMatrices.push_back(Matrix::Identity);
+    }
+}
+
+void ModelCom::Apply_SameAnimationBlendPose(float blendRatio, int32 rootNodeIndex)
+{
+    if (_sameAnimationBlendSourceLocalMatrices.size() != _bones.size())
+        return;
+
+    for (uint32 boneIndex = 0; boneIndex < _bones.size(); ++boneIndex)
+    {
+        if (_bones[boneIndex] == nullptr)
+            continue;
+
+        RootMotionFrame source{};
+        RootMotionFrame target{};
+
+        Matrix sourceMatrix = _sameAnimationBlendSourceLocalMatrices[boneIndex];
+        sourceMatrix.Decompose(
+            source.scale,
+            source.rotation,
+            source.position);
+
+        Matrix targetMatrix = _bones[boneIndex]->Get_TransformationMatrix();
+        targetMatrix.Decompose(
+            target.scale,
+            target.rotation,
+            target.position);
+
+        const Vec3 blendedScale = Vec3::Lerp(source.scale, target.scale, blendRatio);
+        const Quat blendedRotation = Quat::Slerp(source.rotation, target.rotation, blendRatio);
+        const Vec3 blendedPosition = Vec3::Lerp(source.position, target.position, blendRatio);
+
+        Matrix blendedMatrix{};
+        if (static_cast<int32>(boneIndex) == rootNodeIndex)
+            blendedMatrix = XMMatrixAffineTransformation(blendedScale, Vec3::Zero, blendedRotation, Vec3::Zero);
+        else
+            blendedMatrix = XMMatrixAffineTransformation(blendedScale, Vec3::Zero, blendedRotation, blendedPosition);
+
+        _bones[boneIndex]->Update_TransformationMatrix(blendedMatrix);
+    }
+}
+
 bool ModelCom::Step_SampleAnimationPose(const AnimPipelineContext& context)
 {
     if (!_isSkeletal || _animations.empty())
@@ -2247,9 +2343,44 @@ bool ModelCom::Step_SampleAnimationPose(const AnimPipelineContext& context)
             ? clamp(_blendElapsedTime / _blendDuration, 0.f, 1.f)
             : 1.f;
 
-        if (ratio >= 1.f)
+        if (_isSameAnimationBlending && ratio < 1.f)
+        {
+            _isFinished = _animations[_nextAnimIndex]->Update_TransformationMatrices(
+                context.adjustedTimeDelta,
+                _bones,
+                _isAnimLoop,
+                context.rootIndex);
+
+            if (context.rootIndex >= 0)
+            {
+                const RootMotionFrame sourceDelta{};
+                const auto& targetDelta = _animations[_nextAnimIndex]->Get_TransformVelocity(context.rootIndex);
+
+                _rootOriginalFrameVelocity.position = Vec3::Lerp(sourceDelta.position, targetDelta.position, ratio);
+                _rootOriginalFrameVelocity.rotation = Quat::Slerp(sourceDelta.rotation, targetDelta.rotation, ratio);
+            }
+            else
+            {
+                _rootOriginalFrameVelocity = {};
+            }
+
+            Apply_SameAnimationBlendPose(ratio, context.rootIndex);
+
+            _blendElapsedTime += context.adjustedTimeDelta;
+            if (_blendElapsedTime >= _blendDuration)
+            {
+                _isBlending = false;
+                Clear_SameAnimationBlend();
+                _skipInitialBlendSourceNotify = false;
+                _currentAnimIndex = _nextAnimIndex;
+                _currentAnimStateIndex = _nextAnimStateIndex;
+                _isFinished = (!_isAnimLoop && _animations[_currentAnimIndex]->Get_Progress() >= 1.f);
+            }
+        }
+        else if (ratio >= 1.f)
         {
             _isBlending = false;
+            Clear_SameAnimationBlend();
             _skipInitialBlendSourceNotify = false;
             _currentAnimIndex = _nextAnimIndex;
             _currentAnimStateIndex = _nextAnimStateIndex;
@@ -2288,6 +2419,7 @@ bool ModelCom::Step_SampleAnimationPose(const AnimPipelineContext& context)
             if (_blendElapsedTime >= _blendDuration)
             {
                 _isBlending = false;
+                Clear_SameAnimationBlend();
                 _skipInitialBlendSourceNotify = false;
                 _currentAnimIndex = _nextAnimIndex;
                 _currentAnimStateIndex = _nextAnimStateIndex;
@@ -2860,6 +2992,7 @@ void ModelCom::Reset_ModelData()
     _isFinished = false;
     _isAnimLoop = false;
     _isBlending = false;
+    Clear_SameAnimationBlend();
     _hasExplicitAnimation = false;
     _skipInitialBlendSourceNotify = false;
     _currentAnimIndex = 0;
@@ -2935,6 +3068,7 @@ void ModelCom::Free()
     _mappedAnimIndices.clear();
     _stateAnimIndices.clear();
     _animations.clear();
+    Clear_SameAnimationBlend();
     _materials.clear();
     _meshes.clear();
     _bones.clear();

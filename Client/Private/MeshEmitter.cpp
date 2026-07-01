@@ -1660,6 +1660,10 @@ void MeshEmitter::Activate_Particle(MeshParticleState& particle, uint32 seed, ui
     particle.position = spawnPosition;
     particle.spawnOffset = spawnOffset;
     particle.spawnPosition = spawnPosition;
+    particle.spawnTransformRotation =
+        (!_useLocalSpace && _transformCom != nullptr)
+        ? _transformCom->Get_WorldRotationQuaternion()
+        : Quat::Identity; // world-space particle은 spawn 당시 root 회전만 바깥 transform으로 고정한다.
     const SourceMotionVelocityContext sourceMotionContext{
         .sourceVelocity = _sourceMotionVelocity,
         .tangent = _sourceMotionTangent,
@@ -1857,6 +1861,10 @@ Matrix MeshEmitter::Build_InstanceMatrix(const MeshParticleState& particle) cons
     rotation.Normalize();
 
     const Matrix scaleMatrix = Matrix::CreateScale(scale);
+    const Matrix spawnTransformRotationMatrix =
+        (!_useLocalSpace && _transformCom != nullptr && !particle.spawnOrientationEnabled)
+        ? Matrix::CreateFromQuaternion(particle.spawnTransformRotation)
+        : Matrix::Identity; // radial orientation은 이미 Resolve_LocalVector 경로에서 root 회전을 반영한다.
     const Vec3 orbitOffset = Evaluate_OrbitOffset(particle, lifeProgress);
     const Vec3 motionOffset = particle.position - particle.spawnPosition;
     Vec3 emitterPosition{};
@@ -1883,7 +1891,7 @@ Matrix MeshEmitter::Build_InstanceMatrix(const MeshParticleState& particle) cons
                     Internal::Resolve_MeshPlaneAlignmentMatrix(_desc.meshTransform.alignment)
                 );
                 alignment.Normalize();
-                candidateOrientation = rotation * alignment;
+                candidateOrientation = rotation * alignment * particle.spawnTransformRotation;
             }
             candidateOrientation.Normalize();
 
@@ -1918,6 +1926,7 @@ Matrix MeshEmitter::Build_InstanceMatrix(const MeshParticleState& particle) cons
             scaleMatrix *
             rotationMatrix *
             Internal::Resolve_MeshPlaneAlignmentMatrix(_desc.meshTransform.alignment) *
+            spawnTransformRotationMatrix *
             translationMatrix;
     }
 

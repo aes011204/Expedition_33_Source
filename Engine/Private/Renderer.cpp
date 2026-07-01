@@ -376,6 +376,11 @@ void Renderer::Render_Shadow()
         return;
     }
 
+    if (_useCachedInstancedShadow && !_hasInstancedShadowCache)
+    {
+        Bake_CachedInstancedShadow();
+    }
+
     Render_DynamicShadow();
 #ifdef _DEBUG
     Sync_ShadowDebugTargets();
@@ -672,6 +677,10 @@ void Renderer::Render_CombinedHDR()
     COMBINEDHDR_RETURN_LOG_IF_FAILED(
         GAME->Bind_RT_ShaderResource(_deferredShader, "g_LightDepthTexture", RT::LightDepth),
         L"Render_CombinedHDR:FAIL Bind_RT_ShaderResource(g_LightDepthTexture)");
+
+    COMBINEDHDR_RETURN_LOG_IF_FAILED(
+        GAME->Bind_RT_ShaderResource(_deferredShader, "g_CachedInstancedShadowMap", RT::CachedInstancedShadow),
+        L"Render_CombinedHDR:FAIL Bind_RT_ShaderResource(g_CachedInstancedShadowMap)");
 
     COMBINEDHDR_RETURN_LOG_IF_FAILED(
         GAME->Bind_RT_ShaderResource(_deferredShader, "g_EmissiveTexture", RT::Emissive),
@@ -2272,6 +2281,8 @@ void Renderer::Render_DynamicShadow()
 
     Change_ViewportDesc(_shadowMapSize.width, _shadowMapSize.height);
 
+    const bool skipBakeables = _useCachedInstancedShadow && _hasInstancedShadowCache;
+
     for (uint32 cascadeIndex = 0; cascadeIndex < cascadeCount; ++cascadeIndex)
     {
         if (FAILED(GAME->Set_ActiveShadowCascade(cascadeIndex)))
@@ -2292,6 +2303,11 @@ void Renderer::Render_DynamicShadow()
             // Shadow projection box가 아니라 별도 influence volume으로 caster를 판정한다.
             if (gameObject != nullptr && Should_RenderDynamicShadowObject(gameObject, cascadeIndex))
             {
+                if (skipBakeables && gameObject->Is_InstancedMeshShadowBakeable())
+                {
+                    continue;
+                }
+
                 gameObject->Render_Shadow();
                 Add_RenderCall();
                 ++_hotspotPendingSnapshot.shadowRenderedCount;
@@ -2343,6 +2359,93 @@ bool Renderer::Should_RenderDynamicShadowObject(const Shared<GameObject>& gameOb
         return true;
 
     return GAME->Is_Visible_In_ShadowInfluenceVolume(objectBounds, cascadeIndex);
+}
+
+void Renderer::Bake_CachedInstancedShadow()
+{
+    const LIGHT_DESC* lightDesc = GAME->Get_PrimaryShadowLightDesc();
+    if (lightDesc == nullptr)
+    {
+        return;
+    }
+
+    bool hasBounds = false;
+    BoundingBox aggregateBounds{};
+    for (auto& renderObject : _renderGroups[ETOI(RenderGroup::Shadow)])
+    {
+        const Shared<GameObject> go = renderObject.lock();
+        if (!go || !go->Is_InstancedMeshShadowBakeable())
+        {
+            continue;
+        }
+        BoundingBox bounds{};
+        if (go->Try_Get_ShadowWorldBounds(bounds))
+        {
+            if (!hasBounds)
+            {
+                aggregateBounds = bounds;
+                hasBounds = true;
+            }
+
+            else
+            {
+                BoundingBox::CreateMerged(aggregateBounds, aggregateBounds, bounds);
+            }
+        }
+    }
+    if (!hasBounds)
+    {
+        return;
+    }
+
+    Vec3 lightDir{ lightDesc->direction.x, lightDesc->direction.y, lightDesc->direction.z };
+    lightDir.Normalize();
+    const Vec3 center = aggregateBounds.Center;
+    const Vec3 eye = center - lightDir * 1000.f;
+    const Vec3 up = (fabsf(lightDir.y) > 0.9f) ? Vec3(1, 0, 0) : Vec3(0, 1, 0);
+    const Matrix lightView = XMMatrixLookAtLH(eye, center, up);
+
+    Vec3 corners[8];
+    aggregateBounds.GetCorners(corners);
+    float minX = FLT_MAX, maxX = -FLT_MAX;
+    float minY = FLT_MAX, maxY = -FLT_MAX;
+    float minZ = FLT_MAX, maxZ = -FLT_MAX;
+    for (const Vec3& c : corners)
+    {
+        const Vec3 lc = Vec3::Transform(c, lightView);
+        minX = min(minX, lc.x); maxX = max(maxX, lc.x);
+        minY = min(minY, lc.y); maxY = max(maxY, lc.y);
+        minZ = min(minZ, lc.z); maxZ = max(maxZ, lc.z);
+    }
+    minX -= 10.f; maxX += 10.f;
+    minY -= 10.f; maxY += 10.f;
+    minZ -= 50.f;
+    const Matrix lightProj = XMMatrixOrthographicOffCenterLH(minX, maxX, minY, maxY, minZ, maxZ + 50.f);
+    _cachedShadowViewProj = lightView * lightProj;
+
+    GAME->Push_BakeShadowTransform(lightView, lightProj);
+
+    const uint32 originWidth = _screenSize.width;
+    const uint32 originHeight = _screenSize.height;
+    Change_ViewportDesc(_shadowMapSize.width, _shadowMapSize.height);
+
+    if (SUCCEEDED(GAME->Begin_MRT(MRT::CachedInstancedShadowObjects, UseDSV, ClearRTV)))
+    {
+        for (auto& renderObject : _renderGroups[ETOI(RenderGroup::Shadow)])
+        {
+            const Shared<GameObject> go = renderObject.lock();
+            if (go && go->Is_InstancedMeshShadowBakeable())
+            {
+                go->Render_Shadow();
+                Add_RenderCall();
+            }
+        }
+        GAME->End_MRT();
+    }
+
+    GAME->Pop_BakeShadowTransform();
+    Change_ViewportDesc(originWidth, originHeight);
+    _hasInstancedShadowCache = true;
 }
 
 #ifdef _DEBUG

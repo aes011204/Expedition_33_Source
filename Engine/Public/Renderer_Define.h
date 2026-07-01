@@ -77,6 +77,9 @@ namespace RT
     inline constexpr const wchar_t* Specular = L"Target_Specular";
 
     inline constexpr const wchar_t* LightDepth = L"Target_LightDepth";              // Dynamic Shadow
+
+    inline constexpr const wchar_t* CachedInstancedShadow = L"Target_CachedInstancedShadow";
+
 #ifdef _DEBUG
     inline constexpr const wchar_t* LightDepthDebug0 = L"Target_LightDepth_Debug0";
     inline constexpr const wchar_t* LightDepthDebug1 = L"Target_LightDepth_Debug1";
@@ -121,6 +124,7 @@ namespace MRT
     inline constexpr const wchar_t* SSAOBlur = L"MRT_SSAOBlur";
     inline constexpr const wchar_t* LightAcc = L"MRT_LightAcc";
     inline constexpr const wchar_t* ShadowObjects = L"MRT_ShadowObjects";
+    inline constexpr const wchar_t* CachedInstancedShadowObjects = L"MRT_CachedInstancedShadowObjects";
     inline constexpr const wchar_t* HDR = L"MRT_HDRColor";
     inline constexpr const wchar_t* HDRColorOnly = L"MRT_HDRColorOnly";
     inline constexpr const wchar_t* DistortionField = L"MRT_DistortionField";

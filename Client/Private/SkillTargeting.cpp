@@ -82,7 +82,8 @@ void SkillTargeting::Update(float timeDelta)
     if (GAME->KeyDown(KEY_TYPE::ESCAPE))
     {
         EvtBattlePresentation event;
-        event.cameraMode = BattleCameraMode::PLAYERFOCUS;
+        event.cameraMode = BattleCameraMode::SELECTSKILL;
+        event.presetId = magic_enum::enum_name(owner->Get_TurnActionRequest().actor.heroId);
         event.subject = owner->Get_TurnActionRequest().actor.actor;
         GAME->Get_EventBus().Publish(event);
 

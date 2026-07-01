@@ -273,8 +273,9 @@ void GameplayUI_Battle::Update_Input()
         {
             if (auto tutorialController = _battleController->Get_BattleTutorialController())
             {
-                // 회피/카운터는 Q/E 입력이 실제 전투 처리까지 이어지고, 나머지는 F로 닫는다.
-                if (tutorialController->Can_CloseByConfirmInput() && GAME->KeyDown(KEY_TYPE::F))
+                // 회피/카운터는 Q/E 입력이 실제 전투 처리까지 이어지고, 나머지는 F/Space로 닫는다.
+                if (tutorialController->Can_CloseByConfirmInput() &&
+                    (GAME->KeyDown(KEY_TYPE::F) || GAME->KeyDown(KEY_TYPE::SPACE)))
                 {
                     tutorialController->Close_Tutorial();
                 }
@@ -2109,13 +2110,41 @@ void GameplayUI_Battle::Update_BattleGradientGauge(float timeDelta)
     if (_battleGradientGauge == nullptr)
         return;
 
-    if (!_isBattleUiActive || !_isPlayerTurnUiActive || !_hasCurrentPlayerTurnActor)
+    if (!_isBattleUiActive)
     {
         _battleGradientGauge->Close();
         return;
     }
 
-    _battleGradientGauge->Update_ForActor(_currentPlayerTurnActor);
+    const BattleChar* gaugeActor = nullptr;
+    if (_isPlayerTurnUiActive && _hasCurrentPlayerTurnActor && _currentPlayerTurnActor.statCom != nullptr)
+    {
+        gaugeActor = &_currentPlayerTurnActor;
+    }
+    else if (_battleController != nullptr)
+    {
+        for (const BattleChar& hero : _battleController->Get_BattleHeroes())
+        {
+            if (hero.statCom == nullptr)
+                continue;
+
+            string gradientSkillKey{};
+            if (hero.statCom->Try_GetSkillKeyBySlot(GradientSkill::SlotIndex, gradientSkillKey))
+            {
+                gaugeActor = &hero;
+                break;
+            }
+        }
+    }
+
+    if (gaugeActor == nullptr)
+    {
+        _battleGradientGauge->Close();
+        return;
+    }
+
+    _battleGradientGauge->Update_ForActor(*gaugeActor);
+    _battleGradientGauge->Update(timeDelta);
 }
 
 void GameplayUI_Battle::Update_BattleVictory(float timeDelta)

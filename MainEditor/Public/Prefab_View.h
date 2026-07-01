@@ -54,6 +54,7 @@ private:
 
 private:
     void Handle_GizmoShortcut();
+    void Handle_PreviewAnimationShortcut();
     void Draw_Header();
     void Draw_StructurePanel();
     void Draw_PreviewPanel();
@@ -90,6 +91,7 @@ private:
     void Draw_SelectedWeaponSourceAnchorPreview() const;
 
     Shared<ModelCom> Find_FirstModelComponent() const;
+    Shared<ModelCom> Find_PreviewBodyModel() const;
     void Prepare_AnimationViewSiblingDock();
 
     void Open_PendingAnimationView();

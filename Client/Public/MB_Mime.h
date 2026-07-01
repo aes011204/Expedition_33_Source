@@ -28,7 +28,7 @@ public:
         float& damage,
         AttackType attackType) const override;
 
-    bool Try_ApplyBattleBreakOnDamage(const DamageAppliedInfo& info) override;
+    bool Try_ApplyBattleBreakOnDamage(const DamageAppliedInfo& info, bool canTriggerBreak) override;
 
 protected:
     HRESULT Ready_PartObjects();
