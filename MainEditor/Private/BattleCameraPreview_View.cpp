@@ -892,8 +892,8 @@ void BattleCameraPreview_View::Render()
         ImGui::Separator();
 
         const float availableHeight = ImGui::GetContentRegionAvail().y;
-        const float minTopSectionHeight = 280.f;
-        const float maxTopSectionHeight = std::max(minTopSectionHeight, availableHeight - 170.f);
+        const float minTopSectionHeight = 240.f;
+        const float maxTopSectionHeight = std::max(minTopSectionHeight, availableHeight - 260.f);
         _topSectionHeight = std::clamp(_topSectionHeight, minTopSectionHeight, maxTopSectionHeight);
 
         if (ImGui::BeginChild("BattleCameraPreviewTopSection", ImVec2(0.f, _topSectionHeight), false))
@@ -2609,9 +2609,9 @@ void BattleCameraPreview_View::Render_SkillShotTimeline()
 
     const float timelineDurationSec = std::max(Get_PreviewSkillSequenceDuration(), Get_BattleClipAuthoringDurationSec());
     const float drawWidth = std::max(ImGui::GetContentRegionAvail().x, 320.f);
-    const float phaseHeight = 28.f;
-    const float shotHeight = 34.f;
-    const float timelineHeight = phaseHeight + shotHeight + 36.f;
+    const float phaseHeight = 40.f;
+    const float shotHeight = 46.f;
+    const float timelineHeight = phaseHeight + shotHeight + 48.f;
     const ImVec2 canvasSize(drawWidth, timelineHeight);
 
     ImGui::BeginChild("BattleSkillShotTimelineCanvas", canvasSize, true, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
@@ -2949,6 +2949,13 @@ void BattleCameraPreview_View::Render_SkillShotTimeline()
 
 void BattleCameraPreview_View::Render_BattleClipSequencer()
 {
+    const float sequencerHeight = std::max(320.f, ImGui::GetContentRegionAvail().y);
+    if (!ImGui::BeginChild("BattleClipSequencerArea", ImVec2(0.f, sequencerHeight), true))
+    {
+        ImGui::EndChild();
+        return;
+    }
+
     bool consumedKeyClick = false;
     bool requestOpenInsertPopup = false;
     bool requestRemoveKeyPopup = false;
@@ -3013,6 +3020,8 @@ void BattleCameraPreview_View::Render_BattleClipSequencer()
         Sync_PreviewTimeFromTimeline();
         _previewDirty = true;
     }
+
+    ImGui::EndChild();
 }
 
 void BattleCameraPreview_View::Render_SelectedBattleClipKeyframe()
@@ -3346,6 +3355,7 @@ void BattleCameraPreview_View::Apply_PreviewAnimation(float previewTimeSec)
     model->Set_CurrentAnimationTimeSec(animationTimeSec);
     model->Refresh_CurrentAnimationPose();
     Update_PreviewPlayEffectNotifies(previousAnimationTimeSec, animationTimeSec);
+    Preview_SoundAtCurrentFrameIfNeeded(animationTimeSec);
 }
 
 void BattleCameraPreview_View::Apply_BattleCameraPreviewPose(float previewTimeSec)

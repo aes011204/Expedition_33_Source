@@ -1,6 +1,5 @@
-#include "pch.h"
+﻿#include "pch.h"
 #include "BattleCameraPreview_View.h"
-
 #include "AnimNotify.h"
 #include "AnimNotifyState.h"
 #include "ClientInstance.h"
@@ -11,6 +10,8 @@
 
 namespace
 {
+constexpr float kPreviewSoundFrameToleranceSec = 1.f / 120.f;
+
 bool Is_PreviewNotifyTimeInRange(float targetTime, float previousTime, float currentTime, bool wrapped, bool includeStartEdge)
 {
     if (!wrapped)
@@ -51,6 +52,53 @@ Vec3 JsonToVec3(const json& value, const Vec3& fallback = Vec3::Zero)
 
 namespace MainEditor
 {
+void BattleCameraPreview_View::Preview_SoundAtCurrentFrameIfNeeded(float currentTimeSec)
+{
+    if (_timelinePlaying)
+        return;
+
+    Shared<ModelCom> model = Resolve_PreviewSubjectModel();
+    Shared<GameObject> previewRootObject = Resolve_PreviewBattleActor(_previewContext.subjectSide);
+    if (model == nullptr || previewRootObject == nullptr)
+        return;
+
+    const char* animationNamePtr = model->Get_AnimationName(model->Get_CurrentAnimationIndex());
+    if (animationNamePtr == nullptr || *animationNamePtr == '\0')
+        return;
+
+    const string animationName = animationNamePtr;
+    const bool animationChanged = _previewSoundAuditionAnimationName != animationName;
+    if (!animationChanged && _previewSoundAuditionFrame == _battleClipCurrentFrame)
+        return;
+
+    const AnimNotifyData* animationData = model->Find_CurrentAnimNotifyData();
+    if (animationData == nullptr)
+        return;
+
+    AnimNotifyContext context{};
+    context.owner = previewRootObject.get();
+    context.model = model.get();
+    context.animationName = animationName;
+    context.previousTimeSec = currentTimeSec;
+    context.currentTimeSec = currentTimeSec;
+    context.deltaTime = 0.f;
+    context.isPreview = true;
+
+    for (const AnimNotifyEventEntry& entry : animationData->notifies)
+    {
+        if (entry.notify == nullptr || entry.notify->Get_TypeName() != "AN_PlaySound")
+            continue;
+
+        if (fabsf(entry.timeSec - currentTimeSec) > kPreviewSoundFrameToleranceSec)
+            continue;
+
+        entry.notify->Execute(context);
+    }
+
+    _previewSoundAuditionFrame = _battleClipCurrentFrame;
+    _previewSoundAuditionAnimationName = animationName;
+}
+
 void BattleCameraPreview_View::Update_PreviewPlayEffectNotifies(float previousTimeSec, float currentTimeSec)
 {
     Shared<ModelCom> model = Resolve_PreviewSubjectModel();
@@ -84,7 +132,7 @@ void BattleCameraPreview_View::Update_PreviewPlayEffectNotifies(float previousTi
         previousTimeSec = std::max(0.f, _previewPlayEffectPreviousTimeSec);
     }
 
-    const AnimNotifyData* animationData = model->Find_AnimNotifyDataByState(model->Get_AnimationStateIndex());
+    const AnimNotifyData* animationData = model->Find_CurrentAnimNotifyData();
     if (animationData == nullptr)
     {
         _previewPlayEffectAnimationName = animationName;
@@ -295,6 +343,8 @@ void BattleCameraPreview_View::Reset_PreviewPlayEffectState()
     _previewPlayEffectAnimationName.clear();
     _previewPlayEffectPreviousTimeSec = 0.f;
     _previewPlayEffectIncludeStartEdge = true;
+    _previewSoundAuditionFrame = -1;
+    _previewSoundAuditionAnimationName.clear();
     _previewPlayEffectSubjectSide = _previewContext.subjectSide;
     _previewPlayEffectSubjectSlot = _previewContext.subjectSlot;
 

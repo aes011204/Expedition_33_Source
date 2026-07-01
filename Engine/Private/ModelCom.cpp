@@ -1613,6 +1613,14 @@ const AnimNotifyData* ModelCom::Find_AnimNotifyDataByState(uint32 stateIndex)
     return AnimNotify_Parser::Find_Animation(_animNotifyAsset, animationName);
 }
 
+const AnimNotifyData* ModelCom::Find_CurrentAnimNotifyData()
+{
+    if (!Ensure_AnimNotifyAssetLoaded())
+        return nullptr;
+
+    return Find_CurrentNotifyAnimation();
+}
+
 bool ModelCom::Ensure_AnimNotifyAssetLoaded()
 {
     if (_isAnimNotifyAssetLoaded)

@@ -187,6 +187,7 @@ public: /* AnimNotify */
     void    Set_CurrentAnimationTimeSec(float timeSec);
     void    Refresh_CurrentAnimationPose();
     const AnimNotifyData* Find_AnimNotifyDataByState(uint32 stateIndex);
+    const AnimNotifyData* Find_CurrentAnimNotifyData();
 
     // 현재 모델의 notify asset lazy-load
     bool    Ensure_AnimNotifyAssetLoaded();

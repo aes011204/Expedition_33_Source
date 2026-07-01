@@ -150,6 +150,7 @@ private:
     void Apply_PreviewContext();
     void Apply_PreviewAnimation(float previewTimeSec);
     void Update_PreviewPlayEffectNotifies(float previousTimeSec, float currentTimeSec);
+    void Preview_SoundAtCurrentFrameIfNeeded(float currentTimeSec);
     void Reset_PreviewPlayEffectState();
     void Apply_BattleCameraPreviewPose(float previewTimeSec);
     float Get_CurrentPreviewAnimationDurationSec() const;
@@ -297,13 +298,15 @@ private:
     string _previewPlayEffectAnimationName{};
     float _previewPlayEffectPreviousTimeSec = 0.f;
     bool _previewPlayEffectIncludeStartEdge = true;
+    int _previewSoundAuditionFrame = -1;
+    string _previewSoundAuditionAnimationName{};
     PreviewSlotSide _previewPlayEffectSubjectSide = PreviewSlotSide::Hero;
     int _previewPlayEffectSubjectSlot = 1;
     vector<PreviewPlayEffectStateRuntime> _previewPlayEffectStateRuntimes{};
     bool _animationListDirty = true;
     bool _previewSkillPhaseBlocksDirty = true;
     bool _timelinePlaying = false;
-    float _topSectionHeight = 420.f;
+    float _topSectionHeight = 340.f;
     uint32 _previewWidth = 1;
     uint32 _previewHeight = 1;
     bool _isPreviewHovered = false;

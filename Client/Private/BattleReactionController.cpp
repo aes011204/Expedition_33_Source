@@ -1079,6 +1079,7 @@ void BattleReactionController::StartCounter(ModelCom* sourceModel)
             event.subject = _reactionAnimTargets[_reactionAnimTargets.size() / 2].actor;
             event.presetId = "AoE";
             event.clipId = "AoE";
+            event.useClip = true;
             GAME->Get_EventBus().Publish(event);
         }
         target.ModelCom->Set_RootMotionEnabled(true);
