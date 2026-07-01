@@ -32,6 +32,7 @@ enum class EffectMaterialFamily : uint32
 {
     Default = 0,      // 기존 color/coverage 중심 effect material family다.
     SpriteDistortion, // scene color snapshot을 screen-space offset으로 다시 샘플링하는 sprite distortion family다.
+    MeshGlass,        // mesh 표면에 투명도, rim, fake light 반사를 입히는 mesh 전용 glass family다.
     END,
 };
 
@@ -165,6 +166,20 @@ struct EffectMaterialInstanceData
     float distortionShapeRadius{ 0.45f };                                              // sprite UV 중심에서 shape 기준 반경이다.
     float distortionShapeThickness{ 0.10f };                                           // Ring은 UV 폭, ShockwaveRing은 screen pixel half-width다.
     float distortionShapeSoftness{ 0.15f };                                            // Ring은 UV falloff, ShockwaveRing은 screen pixel falloff다.
+    float glassAlpha{ 0.18f };                                                         // MeshGlass 기본 표면 투명도다.
+    float glassAlphaPower{ 1.f };                                                      // MeshGlass texture coverage sharpen/soften 보정이다.
+    float glassNormalStrength{ 1.f };                                                  // MeshGlass model normal 반응 강도다.
+    Color glassRimColor{ 1.f, 1.f, 1.f, 1.f };                                         // MeshGlass view-angle rim 색상이다.
+    float glassRimIntensity{ 1.5f };                                                   // MeshGlass rim 밝기 배율이다.
+    float glassRimPower{ 3.f };                                                        // MeshGlass rim falloff 곡선의 날카로움이다.
+    Vec3 glassLightDirection{ -0.35f, 0.65f, -0.65f };                                 // MeshGlass world-space fake light 방향이다.
+    Color glassLightColor{ 1.f, 1.f, 1.f, 1.f };                                       // MeshGlass fake light 색상이다.
+    float glassLightIntensity{ 1.2f };                                                 // MeshGlass fake light 밝기 배율이다.
+    float glassSpecularPower{ 48.f };                                                  // MeshGlass highlight 날카로움이다.
+    float glassSpecularSoftness{ 1.f };                                                // MeshGlass highlight 폭 보정이다.
+    float glassMainInfluence{ 0.25f };                                                 // MeshGlass main texture tint/pattern 반영 강도다.
+    float glassNoiseBreakup{ 0.35f };                                                  // MeshGlass noise texture breakup 강도다.
+    float glassMaskStrength{ 1.f };                                                    // MeshGlass mask coverage 강도다.
     bool twoSided{ false };                                                            // render state 후보 값이다. 소비하지 않는 renderer에서는 보존만 한다.
     uint32 subUVRows{ 1 };                                                             // atlas row 수다.
     uint32 subUVCols{ 1 };                                                             // atlas column 수다.

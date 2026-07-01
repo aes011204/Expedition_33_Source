@@ -1203,8 +1203,10 @@
     <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectMaterialPreviewDistortion.hlsl" />
     <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectMesh.hlsl" />
     <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectMeshDistortion.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectMeshGlass.hlsl" />
     <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectMeshPreview.hlsl" />
     <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectMeshPreviewDistortion.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectMeshPreviewGlass.hlsl" />
     <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectRibbonDistortion.hlsl" />
     <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectSprite.hlsl" />
     <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectTrail.hlsl" />
