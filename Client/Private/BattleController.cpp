@@ -71,6 +71,9 @@ namespace
 
     constexpr char kNpcSumoDialogueKey[] = "NPC_Sumo";
     constexpr char kNpcSumoAfterPotatoBagDialogueKey[] = "NPC_Sumo_AfterPotatoBag";
+
+    constexpr float kSkillPresentationDissolveDuration = 0.12f;
+    constexpr char kSkillPresentationDissolveNoise[] = "T_Perlin_Noise_M";
 }
 
 BattleController::BattleController()
@@ -688,6 +691,8 @@ void BattleController::EndTurn()
     if (_qteController)
         _qteController->FailIfActive(); // 턴이 먼저 끝나면 열린 QTE는 QTEController에서 실패로 확정한다.
 
+    Restore_SkillPresentationHeroVisibility(); // 턴 종료 경로에서 PLAYERATTACK 숨김이 다음 턴까지 남지 않게 복구한다.
+
     _isActionExecuting = false;
 
     // 이번 적 턴에서 공격하는 플레이어 Targeted End 애니메이션 재생
@@ -778,6 +783,8 @@ void BattleController::EndTurn()
 
 void BattleController::StartTurn()
 {
+    Restore_SkillPresentationHeroVisibility(); // 이전 턴의 스킬 연출 숨김이 비정상 경로로 남아도 새 턴 시작 전에 복구한다.
+
     _isActionExecuting = false; // 선택 대기 상태에서는 executor 완료 여부로 턴을 넘기지 않는다.
     _requestEndTurnOnCurrentActorDeath = false;
     Clear_DelayedEchoAttackSteps();
@@ -1477,7 +1484,92 @@ HRESULT BattleController::Ready_Delegates()
         _reactionController.OnReactionSucceeded.Add(
             this, &BattleController::Handle_ReactionSucceededForResult);
 
+    _battlePresentationHandle = GAME->Get_EventBus().Subscribe<EvtBattlePresentation>(
+        [this](const EvtBattlePresentation& event)
+        {
+            Handle_BattlePresentationEvent(event);
+        });
+
     return S_OK;
+}
+
+void BattleController::Handle_BattlePresentationEvent(const EvtBattlePresentation& event)
+{
+    if (!_isBattleActive || _battleEnded)
+    {
+        Restore_SkillPresentationHeroVisibility(); // 전투 종료 뒤 들어온 카메라 이벤트는 숨김 상태만 정리한다.
+        return;
+    }
+
+    Sync_SkillPresentationHeroVisibility(event.cameraMode, event.subject);
+}
+
+void BattleController::Sync_SkillPresentationHeroVisibility(BattleCameraMode cameraMode,
+    const Shared<Engine::Character>& subject)
+{
+    if (cameraMode != BattleCameraMode::PLAYERATTACK || subject == nullptr)
+    {
+        Restore_SkillPresentationHeroVisibility(); // 스킬 공격 구도가 아니면 이전에 숨긴 플레이어를 자연스럽게 복구한다.
+        return;
+    }
+
+    if (_skillPresentationSubject == subject && !_skillPresentationHiddenHeroes.empty())
+        return; // 같은 스킬 연출 중 반복 이벤트가 와도 dissolve를 다시 시작하지 않는다.
+
+    Restore_SkillPresentationHeroVisibility(); // 다른 공격자로 넘어가기 전, 이전 공격자의 숨김 목록을 먼저 닫는다.
+
+    _skillPresentationSubject = subject;
+
+    for (const BattleChar& hero : _heroes)
+    {
+        if (hero.actor == nullptr || hero.statCom == nullptr)
+            continue;
+
+        if (hero.actor == subject)
+            continue; // 현재 스킬을 쓰는 플레이어는 카메라 주체라서 숨기지 않는다.
+
+        if (hero.statCom->Get_AliveStatus() == EAliveStatus::Dead)
+            continue; // 사망 캐릭터는 기존 사망 처리 visibility를 건드리지 않는다.
+
+        const bool wasVisible = hero.actor->Is_Visible();
+        _skillPresentationHiddenHeroes.push_back({ hero.actor, wasVisible });
+
+        if (wasVisible)
+            Begin_SkillPresentationVanish(hero.actor); // 화면에 보이던 대상만 dissolve-out을 시작한다.
+    }
+}
+
+void BattleController::Restore_SkillPresentationHeroVisibility()
+{
+    for (const SkillPresentationHiddenHero& hiddenHero : _skillPresentationHiddenHeroes)
+    {
+        if (hiddenHero.actor == nullptr || !hiddenHero.wasVisible)
+            continue;
+
+        hiddenHero.actor->Set_Visible(true); // vanish 완료로 꺼진 actor를 먼저 켠 뒤 reveal dissolve를 재생한다.
+        Begin_SkillPresentationReveal(hiddenHero.actor);
+    }
+
+    _skillPresentationHiddenHeroes.clear();
+    _skillPresentationSubject = nullptr;
+}
+
+void BattleController::Begin_SkillPresentationVanish(const Shared<GameObject>& actor)
+{
+    if (actor == nullptr)
+        return;
+
+    if (const Shared<EffectCom> effectCom = actor->Get_Component<EffectCom>())
+        effectCom->Start_VanishDissolve(kSkillPresentationDissolveDuration, kSkillPresentationDissolveNoise, true);
+}
+
+void BattleController::Begin_SkillPresentationReveal(const Shared<GameObject>& actor)
+{
+    if (actor == nullptr)
+        return;
+
+    if (const Shared<EffectCom> effectCom = actor->Get_Component<EffectCom>())
+        effectCom->Start_SwitchDissolve(kSkillPresentationDissolveDuration, kSkillPresentationDissolveNoise);
 }
 
 void BattleController::Set_TargetPreview(const BattleChar& target)
@@ -2969,6 +3061,7 @@ void BattleController::Clear_DelayedEchoAttackSteps()
 void BattleController::Clear_BattleRuntimeState()
 {
     // 전투 종료/ F4로 게임 Stop할 때
+    Restore_SkillPresentationHeroVisibility(); // 전투 종료/F4 Stop 정리 시 숨김 상태가 런타임 밖으로 새지 않게 먼저 복구한다.
 
     for (BattleChar& hero : _heroes)
     {
@@ -3473,7 +3566,6 @@ void BattleController::Continue_StartTurnAfterStatusEffects()
 
         EvtBattlePresentation event{};
         event.cameraMode = BattleCameraMode::PLAYERFOCUS;
-        event.presetId = magic_enum::enum_name(_currentTurnActor.heroId);
         event.subject = _currentTurnActor.actor;
         LOG_INFO("[BattleCamTrace] Publish PLAYERFOCUS from BattleController::Continue_StartTurnAfterStatusEffects");
         GAME->Get_EventBus().Publish(event);
@@ -3665,6 +3757,12 @@ void BattleController::Free()
         _reactionController.OnReactionSucceeded.Remove(_reactionSucceededResultHandle);
 
     _reactionSucceededResultHandle.Reset();
+
+    if (_battlePresentationHandle.IsValid())
+    {
+        GAME->Get_EventBus().Unsubscribe(_battlePresentationHandle);
+        _battlePresentationHandle = {}; // EvtHandle은 Reset()이 없어서 빈 값으로 초기화한다.
+    }
 
     auto ReleaseCtrl = [](auto& ctrl)
         {

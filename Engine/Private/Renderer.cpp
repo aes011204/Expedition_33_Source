@@ -2282,15 +2282,48 @@ void Renderer::Render_DynamicShadow()
     Change_ViewportDesc(_shadowMapSize.width, _shadowMapSize.height);
 
     const bool skipBakeables = _useCachedInstancedShadow && _hasInstancedShadowCache;
+    bool forceUpdateAllCascades = !_dynamicShadowCascadeTemporalUpdateEnabled ||
+        GAME->Consume_ForceRenderAllShadowCascades();
+    if (_dynamicShadowCascadeTemporalUpdateEnabled)
+    {
+        if (Shared<Camera> activeCamera = GAME->Get_ActiveCamera())
+        {
+            if (activeCamera->Get_Transform())
+            {
+                const Vec3 cameraPosition = activeCamera->Get_Transform()->Get_WorldPosition();
+                if (!_hasLastShadowTemporalCameraPosition ||
+                    (cameraPosition - _lastShadowTemporalCameraPosition).LengthSquared() > 100.f)
+                {
+                    forceUpdateAllCascades = true;
+                }
+
+                _lastShadowTemporalCameraPosition = cameraPosition;
+                _hasLastShadowTemporalCameraPosition = true;
+            }
+            else
+            {
+                _hasLastShadowTemporalCameraPosition = false;
+                forceUpdateAllCascades = true;
+            }
+        }
+        else
+        {
+            _hasLastShadowTemporalCameraPosition = false;
+            forceUpdateAllCascades = true;
+        }
+    }
 
     for (uint32 cascadeIndex = 0; cascadeIndex < cascadeCount; ++cascadeIndex)
     {
+        if (_dynamicShadowCascadeTemporalUpdateEnabled &&
+            !forceUpdateAllCascades &&
+            !Should_UpdateDynamicShadowCascade(cascadeIndex))
+        {
+            continue;
+        }
+
         if (FAILED(GAME->Set_ActiveShadowCascade(cascadeIndex)))
             continue;
-
-        // cascade에 따라 특정 프레임만 업데이트 하려고 했는데 mismtach 가 심해서 주석 처리.
-        //if (!Should_UpdateDynamicShadowCascade(cascadeIndex))
-        //    continue;
 
         if (GAME->Get_ShadowTransformMatrix(D3DTS::View) == nullptr || GAME->Get_ShadowTransformMatrix(D3DTS::Proj) == nullptr)
             continue;
@@ -2317,6 +2350,7 @@ void Renderer::Render_DynamicShadow()
         }
 
         CHECK_FAILED(GAME->End_MRT());
+        CHECK_FAILED(GAME->Commit_RenderedShadowCascade(cascadeIndex));
     }
 
     _renderGroups[ETOI(RenderGroup::Shadow)].clear();

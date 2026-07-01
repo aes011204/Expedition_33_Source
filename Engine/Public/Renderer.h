@@ -34,8 +34,20 @@ public:
     void    Sync_ViewportDependentState(uint32 width, uint32 height);
     uint32  Get_RenderCall() const;
     bool    Try_GetRenderViewHotspotSnapshot(RenderViewHotspotSnapshot& outSnapshot) const;
-    void    Set_ShadowEnabled(bool enabled) { _shadowEnabled = enabled; }
+    void    Set_ShadowEnabled(bool enabled)
+    {
+        if (_shadowEnabled != enabled)
+            _hasLastShadowTemporalCameraPosition = false;
+        _shadowEnabled = enabled;
+    }
     bool    Is_ShadowEnabled() const { return _shadowEnabled; }
+    void    Set_DynamicShadowCascadeTemporalUpdateEnabled(bool enabled)
+    {
+        if (_dynamicShadowCascadeTemporalUpdateEnabled != enabled)
+            _hasLastShadowTemporalCameraPosition = false;
+        _dynamicShadowCascadeTemporalUpdateEnabled = enabled;
+    }
+    bool    Is_DynamicShadowCascadeTemporalUpdateEnabled() const { return _dynamicShadowCascadeTemporalUpdateEnabled; }
     void    Set_RenderOnlyPreviewMode(bool enabled) { _renderOnlyPreviewMode = enabled; }
     bool    Is_RenderOnlyPreviewMode() const { return _renderOnlyPreviewMode; }
     void    Set_RenderEnvironment(bool enabled) { _renderEnvironment = enabled; }
@@ -174,6 +186,7 @@ private:
     IBLDebugMode                    _iblDebugMode = IBLDebugMode::Default;
 
     bool                            _shadowEnabled = true;
+    bool                            _dynamicShadowCascadeTemporalUpdateEnabled = true;
     bool                            _renderOnlyPreviewMode = false;
     bool                            _renderEnvironment = false;
 
@@ -197,6 +210,8 @@ private:
 
 private:
     uint64                          _shadowFrameIndex = 0;
+    bool                            _hasLastShadowTemporalCameraPosition = false;
+    Vec3                            _lastShadowTemporalCameraPosition = Vec3::Zero;
 
     ViewportSize                    _screenSize{};
     ViewportSize                    _shadowMapSize = { 2048, 2048 };

@@ -432,6 +432,9 @@ bool DialogueManager::ExecuteLineAction(const string& action)
         if (spawned != nullptr)
             spawned->Set_RuntimeAuthoringLoaded(true);
 
+        if (const Shared<NPC_Base> npc = dynamic_pointer_cast<NPC_Base>(npcObject))
+            npc->Remove_InteractionTrigger();
+
         if (npcObject != nullptr && !npcObject->Is_MarkDestroy())
             GAME->Remove_GameObject(GAME->Current_LevelIndex(), npcObject);
 

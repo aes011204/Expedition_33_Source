@@ -8,6 +8,8 @@
 #include "BattleReactionController.h"
 #include "BattleHitSequenceRunner.h"
 #include "BattleQTEController.h"
+#include "CameraPresetTypes.h"
+#include "Event_Struct.h"
 
 NS_BEGIN(Engine)
 class Character;
@@ -31,6 +33,8 @@ class SkillTreeCom;
 class BattleTutorialController;
 class BattleResultRecoder;
 class PictosBattleSystem;
+
+struct EvtBattlePresentation;
 
 class BattleController : public Base
 {
@@ -137,6 +141,15 @@ public:
     void Handle_EditorStopRuntime();
     // void Handle_TargetPreviewChanged(const BattleChar* target);
     HRESULT Ready_Delegates();
+
+private:
+    void Handle_BattlePresentationEvent(const EvtBattlePresentation& event);
+    void Sync_SkillPresentationHeroVisibility(
+            BattleCameraMode cameraMode,
+            const Shared<Engine::Character>& subject);
+    void Restore_SkillPresentationHeroVisibility();
+    void Begin_SkillPresentationVanish(const Shared<GameObject>& actor);
+    void Begin_SkillPresentationReveal(const Shared<GameObject>& actor);
 
 public: /* 타겟팅 중인 적 세팅 */
     void                Set_TargetPreview(const BattleChar& target);
@@ -304,6 +317,7 @@ public: /* Delegate */
     FDelegateHandle                 _damageAppliedHandle{};
     FDelegateHandle                 _editorStopHandle = {};
     FDelegateHandle                 _reactionSucceededResultHandle{};
+    EvtHandle                       _battlePresentationHandle{}; // Event_Bus 구독 핸들이라 FDelegateHandle이 아니라 EvtHandle을 쓴다.
 
 private:
     BattleChar                      _currentTurnActor = {};
@@ -438,6 +452,15 @@ private:
 
     uint32      _activeBattleFieldID = 0;
 
+private:
+    struct SkillPresentationHiddenHero
+    {
+        Shared<GameObject> actor{};
+        bool wasVisible = false; // 연출 전 visibility를 저장해 원래 숨겨진 대상은 복구 때 새로 켜지 않게 한다.
+    };
+
+    vector<SkillPresentationHiddenHero> _skillPresentationHiddenHeroes = {};
+    Shared<Engine::Character> _skillPresentationSubject = nullptr;
 
 public:
     static Shared<BattleController> Create();
