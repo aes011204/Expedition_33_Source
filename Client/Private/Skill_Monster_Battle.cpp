@@ -154,6 +154,89 @@ void Base_Mon_Attack_Projectile::Free()
     SkillScript::Free();
 }
 
+Potato_Fire_Skill::Potato_Fire_Skill()
+{
+}
+
+void Potato_Fire_Skill::Execute(const Skill_Data& skill, const BattleAction& action, AttackType attackType)
+{
+    UNREFERENCED_PARAMETER(attackType);
+
+    if (CurIndex >= skill.targetingType.size())
+    {
+        LOG_ERROR("ERROR_Potato_Fire_Skill_ OutofRange");
+        return;
+    }
+    const BattleChar& attacker = action.Get_CurChar();
+    const float damage = DamageSystem::CalculatePlayerAttackDamage(attacker, skill.powerMultiplier);
+
+    DamageSystem::ApplyDamage(damage, action.GetCurStepTarget(), attackType);
+
+    const auto& curTargets = action.GetCurStepTarget();
+    if (!curTargets.empty())
+    {
+        BattleHitSequenceRunner::HitEffectDesc effectDesc{};
+        effectDesc.effectName = L"PotatoBag_Fire_Attack";
+        effectDesc.localOffset = Vec3(0.f, 0.f, 0.f);
+
+        for (const BattleChar& target : curTargets)
+            Internal::Play_TargetHitEffect(target, effectDesc);
+    }
+
+    CurIndex++;
+}
+
+Shared<Potato_Fire_Skill> Potato_Fire_Skill::Create()
+{
+    return make_shared<Potato_Fire_Skill>();
+}
+
+void Potato_Fire_Skill::Free()
+{
+    SkillScript::Free();
+}
+
+Potato_Thunder_Skill::Potato_Thunder_Skill()
+{
+}
+
+void Potato_Thunder_Skill::Execute(const Skill_Data& skill, const BattleAction& action, AttackType attackType)
+{
+    UNREFERENCED_PARAMETER(attackType);
+
+    if (CurIndex >= skill.targetingType.size())
+    {
+        LOG_ERROR("ERROR_Potato_Thunder_Skill_ OutofRange");
+        return;
+    }
+    const BattleChar& attacker = action.Get_CurChar();
+    const float damage = DamageSystem::CalculatePlayerAttackDamage(attacker, skill.powerMultiplier);
+
+    DamageSystem::ApplyDamage(damage, action.GetCurStepTarget(), attackType);
+
+    const auto& curTargets = action.GetCurStepTarget();
+    if (!curTargets.empty() && curTargets.front().actor != nullptr)
+    {
+        BattleHitSequenceRunner::HitEffectDesc effectDesc{};
+        effectDesc.effectName = L"PotatoBag_Thunder_Attack";
+        effectDesc.localOffset = Vec3(0.f, 0.f, 0.f);
+
+        Internal::Play_TargetHitEffect(curTargets.front(), effectDesc);
+    }
+
+    CurIndex++;
+}
+
+Shared<Potato_Thunder_Skill> Potato_Thunder_Skill::Create()
+{
+    return make_shared<Potato_Thunder_Skill>();
+}
+
+void Potato_Thunder_Skill::Free()
+{
+    SkillScript::Free();
+}
+
 Bishop_Spear::Bishop_Spear()
 {
 }
