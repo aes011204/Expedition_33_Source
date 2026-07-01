@@ -512,6 +512,8 @@ static const char* Get_MaterialScalarTargetLabel(MaterialScalarModulationTargetF
         return "AlphaErosion";
     case MaterialScalarModulationTargetField::AlphaCutoff:
         return "AlphaCutoff";
+    case MaterialScalarModulationTargetField::AlphaMultiplier:
+        return "AlphaMultiplier";
     case MaterialScalarModulationTargetField::CoreIntensity:
         return "CoreIntensity";
     case MaterialScalarModulationTargetField::OuterIntensity:

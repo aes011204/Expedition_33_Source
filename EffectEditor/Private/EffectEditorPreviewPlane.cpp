@@ -153,7 +153,7 @@ HRESULT EffectEditorPreviewPlane::Bind_ShaderResources()
 
     const Vec4 tint{ 1.f, 1.f, 1.f, 1.f };
     const Vec4 effectMeshParams{ 1.f, 1.f, 0.f, 0.f };
-    const Vec4 effectMeshAlphaParams{ 0.f, 0.f, 0.f, 0.f };
+    const Vec4 effectMeshAlphaParams{ 0.f, 0.f, 0.f, 1.f };
     const Vec4 effectMeshMainUVParams{ kMainUVScale.x, kMainUVScale.y, 0.f, 0.f };
     const Vec4 effectMeshNoiseUVParams{ 1.f, 1.f, 0.f, 0.f };
     const Vec4 effectMeshMaskUVParams{ 1.f, 1.f, 0.f, 0.f };

@@ -121,6 +121,7 @@ struct EffectMaterialInstanceData
 
     float intensity{ 1.f };       // sprite 밝기/발광감 계수다.
     float opacityPower{ 1.f };    // opacity source(alpha/red/luminance)의 sharpening 계수다.
+    float alphaMultiplier{ 1.f }; // 최종 effect alpha에 곱할 투명도 배율이다.
     float noiseStrength{ 0.f };   // noise modulation 강도다.
     float alphaCutoff{ 0.f };     // alpha cutoff 후보 값이다. 소비하지 않는 renderer에서는 보존만 한다.
     float alphaErosion{ 0.f };    // mask/noise 기반 alpha erosion 후보 값이다. 소비하지 않는 renderer에서는 보존만 한다.

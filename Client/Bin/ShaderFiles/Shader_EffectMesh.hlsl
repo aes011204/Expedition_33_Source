@@ -12,7 +12,7 @@ cbuffer cbEffectMeshMaterial : register(b2)
 {
     float4 g_Tint = { 1.f, 1.f, 1.f, 1.f };
     float4 g_EffectMeshParams = { 1.f, 1.f, 0.f, 0.f };                 // x: intensity, y: opacityPower, z: noiseStrength, w: useNoise
-    float4 g_EffectMeshAlphaParams = { 0.f, 0.f, 0.f, 0.f };            // x: alphaCutoff, y: alphaErosion, z: useMask, w: reserved
+    float4 g_EffectMeshAlphaParams = { 0.f, 0.f, 0.f, 1.f };            // x: alphaCutoff, y: alphaErosion, z: useMask, w: alphaMultiplier
     float4 g_EffectMeshMainUVParams = { 1.f, 1.f, 0.f, 0.f };           // xy: scale, zw: scroll speed
     float4 g_EffectMeshNoiseUVParams = { 1.f, 1.f, 0.f, 0.f };
     float4 g_EffectMeshMaskUVParams = { 1.f, 1.f, 0.f, 0.f };
@@ -68,6 +68,7 @@ cbuffer cbEffectMeshMaterial : register(b2)
     float4 g_EffectMaterialCoreColorRgbModulationKeyLeaveTangentsBBlock1[8];
     float4 g_EffectMaterialCoreColorRgbModulationKeyModes[8];
     float4 g_EffectMaterialCoreColorRgbModulationKeyModesBlock1[8];
+    float4 g_EffectMeshModelMaterialFlags = { 0.f, 0.f, 0.f, 0.f };      // x: BaseColor, y: Normal, z: Emissive
     int g_OpacitySource = 0;
     float g_EffectMeshMaterialTime = 0.f;
     float2 g_EffectMeshPadding;
@@ -78,6 +79,8 @@ cbuffer cbEffectMeshMaterial : register(b2)
 Texture2D g_Texture : register(t0);
 Texture2D g_NoiseTexture : register(t1);
 Texture2D g_MaskTexture : register(t2);
+Texture2D g_ModelNormalTexture : register(t3);
+Texture2D g_ModelEmissiveTexture : register(t4);
 
 float Resolve_EffectMeshAxisUV(float rawValue, float transformedValue, float policy)
 {
@@ -145,6 +148,46 @@ float4 Sample_EffectMeshMaskTexture(float2 uv, float2 policy)
     return g_MaskTexture.Sample(LinearClampSampler, Apply_EffectMeshAxisAddress(uv, policy));
 }
 
+float3 Decode_EffectMeshModelNormal(float4 normalTexel)
+{
+    const float2 normalXY = normalTexel.rg * 2.f - 1.f;
+    return normalize(float3(normalXY, sqrt(saturate(1.f - dot(normalXY, normalXY)))));
+}
+
+float3 Resolve_EffectMeshModelNormal(float2 uv, float2 policy, float3 normal, float3 tangent, float3 binormal)
+{
+    if (g_EffectMeshModelMaterialFlags.y <= 0.5f)
+        return normalize(normal);
+
+    const float3 tangentNormal = Decode_EffectMeshModelNormal(g_ModelNormalTexture.Sample(LinearClampSampler, Apply_EffectMeshAxisAddress(uv, policy)));
+    const float3 resolvedTangent = normalize(tangent);
+    const float3 resolvedBinormal = normalize(binormal);
+    const float3 resolvedNormal = normalize(normal);
+    return normalize(
+        tangentNormal.x * resolvedTangent +
+        tangentNormal.y * resolvedBinormal +
+        tangentNormal.z * resolvedNormal
+    );
+}
+
+float3 Apply_EffectMeshModelNormalLighting(float3 color, float3 normal)
+{
+    if (g_EffectMeshModelMaterialFlags.y <= 0.5f)
+        return color;
+
+    const float3 lightDirection = normalize(float3(0.35f, 0.65f, -0.6f));
+    const float lighting = 0.55f + 0.65f * saturate(dot(normalize(normal), lightDirection));
+    return color * lighting;
+}
+
+float3 Resolve_EffectMeshModelEmissive(float2 uv, float2 policy, float3 modulationColor)
+{
+    if (g_EffectMeshModelMaterialFlags.z <= 0.5f)
+        return float3(0.f, 0.f, 0.f);
+
+    return g_ModelEmissiveTexture.Sample(LinearClampSampler, Apply_EffectMeshAxisAddress(uv, policy)).rgb * modulationColor;
+}
+
 struct VS_IN
 {
     float3 vPosition : POSITION;
@@ -169,6 +212,8 @@ struct VS_OUT
     float4 vInstanceColor : COLOR0;
     float2 vLifeTime : TEXCOORD2;
     float4 vCoreColorRgb : TEXCOORD3;
+    float3 vTangent : TEXCOORD4;
+    float3 vBinormal : TEXCOORD5;
 };
 
 VS_OUT VS_MAIN(VS_IN In)
@@ -180,6 +225,8 @@ VS_OUT VS_MAIN(VS_IN In)
     Out.vPosition = mul(float4(In.vPosition, 1.f), mul(mPreWorld, mul(g_ViewMatrix, g_ProjMatrix)));
     Out.vTexcoord = In.vTexcoord;
     Out.vNormal = normalize(mul(float4(In.vNormal, 0.f), mPreWorld)).xyz;
+    Out.vTangent = normalize(mul(float4(In.vTangent, 0.f), mPreWorld)).xyz;
+    Out.vBinormal = normalize(mul(float4(In.vBinormal, 0.f), mPreWorld)).xyz;
     Out.vInstanceColor = In.vInstanceColor;
     Out.vLifeTime = In.vLifeTime;
     Out.vCoreColorRgb = In.vCoreColorRgb;
@@ -243,7 +290,11 @@ EffectMaterialSurface Resolve_EffectMeshSurface(VS_OUT In)
         g_EffectMeshCoreEmissiveParams.w
     );
     surfaceInput.opacitySource = g_OpacitySource;
-    return EffectMeshCommon_ResolveSurface(surfaceInput);
+    EffectMaterialSurface surface = EffectMeshCommon_ResolveSurface(surfaceInput);
+    const float3 modelNormal = Resolve_EffectMeshModelNormal(mainUV, mainUVPolicy, In.vNormal, In.vTangent, In.vBinormal);
+    surface.color = Apply_EffectMeshModelNormalLighting(surface.color, modelNormal);
+    surface.color += Resolve_EffectMeshModelEmissive(mainUV, mainUVPolicy, In.vInstanceColor.rgb * g_Tint.rgb);
+    return surface;
 }
 
 PS_OUT PS_ALPHA(VS_OUT In)
@@ -326,7 +377,11 @@ PS_OUT PS_ADDITIVE(VS_OUT In)
         g_EffectMeshCoreEmissiveParams.w
     );
     additiveInput.opacitySource = g_OpacitySource;
-    Out.color = float4(EffectMeshCommon_ResolveAdditiveContribution(additiveInput), 1.f);
+    float3 additiveColor = EffectMeshCommon_ResolveAdditiveContribution(additiveInput);
+    const float3 modelNormal = Resolve_EffectMeshModelNormal(mainUV, mainUVPolicy, In.vNormal, In.vTangent, In.vBinormal);
+    additiveColor = Apply_EffectMeshModelNormalLighting(additiveColor, modelNormal);
+    additiveColor += Resolve_EffectMeshModelEmissive(mainUV, mainUVPolicy, In.vInstanceColor.rgb * g_Tint.rgb) * max(resolvedIntensity, 0.f);
+    Out.color = float4(additiveColor, 1.f);
     return Out;
 }
 

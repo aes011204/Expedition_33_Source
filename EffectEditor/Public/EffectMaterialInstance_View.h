@@ -55,7 +55,8 @@ public:
         bool* outRestartPreview,
         EffectMaterialTwoSidedDisplayMode twoSidedDisplayMode = EffectMaterialTwoSidedDisplayMode::EditableImplemented,
         EffectMaterialDistortionShapeControlMode distortionShapeControlMode = EffectMaterialDistortionShapeControlMode::Editable,
-        const EffectMaterialRenderPolicyBinding* renderPolicyBinding = nullptr);
+        const EffectMaterialRenderPolicyBinding* renderPolicyBinding = nullptr,
+        const char* mainTextureSourceLockTooltip = nullptr);
 
 public: //## Behavior::Selection
     void Open_Instance(uint32 emitterId, uint32 moduleId);
