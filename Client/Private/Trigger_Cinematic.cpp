@@ -1,9 +1,12 @@
 ﻿#include "Trigger_Cinematic.h"
+
+#include "BattleController.h"
 #include "Client_Constants.h"
 #include "ColliderCom.h"
 #include "Bounding_AABB.h"
 #include "ClientInstance.h"
 #include "Monster_WorldBase.h"
+#include "RuntimeRuleStateService.h"
 
 IMPLEMENT_REFLECTION(Trigger_Cinematic)
 {
@@ -68,16 +71,28 @@ void Trigger_Cinematic::OnBeginOverlap(Shared<ColliderCom> self, Shared<Collider
         self->Set_IsActive(false);
         self->Clear_Overlap();
 
-        const wstring sequencePath = Constants::Cinematic::RuntimeJson_Dir + _sequenceFileId;
+		const wstring sequencePath = Constants::Cinematic::RuntimeJson_Dir + _sequenceFileId;
+        const bool isBishopCinematic =
+            _sequenceFileId == Constants::Cinematic::BishopCinematicFileId;
+
+        if (isBishopCinematic)
+        {
+            if (const Shared<BattleController> battleController = CLIENT->Get_BattleController())
+                battleController->Capture_PreBattleBGM();
+
+            GAME->Play_BGM(Constants::SoundBGM::BishopBattleBossMain, 1.f, true, 0.f);
+        }
 
         CLIENT->Clear_CinematicCompletedCallbacks();
 
         if (_startBattleOnComplete)
         {
             const string battleTargetId = _battleTargetId;
+            const bool applyBishopStartRuleState =
+                _sequenceFileId == Constants::Cinematic::BishopCinematicFileId;
 
             CLIENT->Add_CinematicCompletedCallback(
-                [battleTargetId]()
+                [battleTargetId, applyBishopStartRuleState]()
                 {
                     const Shared<GameObject> boundActor = CLIENT->Get_CinematicBoundActor(battleTargetId);
                     const Shared<Monster_WorldBase> worldMonster = dynamic_pointer_cast<Monster_WorldBase>(boundActor);
@@ -85,6 +100,12 @@ void Trigger_Cinematic::OnBeginOverlap(Shared<ColliderCom> self, Shared<Collider
                     {
                         LOG_WARN("[Trigger_Cinematic] Battle start skipped: cinematic target '{}' is not a world monster.", battleTargetId);
                         return;
+                    }
+
+                    if (applyBishopStartRuleState)
+                    {
+                        RuntimeRuleStateService::Apply_ToCurrentRuntime(
+                            RuntimeRuleStateService::Build_BishopStartUnlocks(), false);
                     }
 
                     worldMonster->Begin_BattleFromCinematic(false); // 시네마틱 종료 진입은 월드액션 선공이 아니며, 내부에서 즉시 전투로 들어간다.

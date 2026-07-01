@@ -728,14 +728,25 @@ void ComputeSourceHistorySpriteTrailEmitter::Update_StampMotion(Stamp& stamp, fl
         return;
 
     const float lifeProgress = clamp(stamp.age / max(0.0001f, stamp.lifetime), 0.f, 1.f);
-    const float velocityScale = Evaluate_VelocityScaleByLife(lifeProgress);
-    const Vec3 acceleration = Evaluate_AccelerationByLife(stamp, lifeProgress) * velocityScale;
-    stamp.velocity += acceleration * timeDelta;
+    const float accelerationScale = Evaluate_VelocityScaleByLifeChannel(
+        _desc.motion.accelerationIntegratedVelocityScaleByLife,
+        lifeProgress
+    );
+    const Vec3 acceleration = Evaluate_AccelerationByLife(stamp, lifeProgress) * accelerationScale;
+    stamp.accelerationIntegratedVelocity += acceleration * timeDelta;
 
     if (stamp.drag > 0.f)
-        stamp.velocity *= expf(-stamp.drag * timeDelta);
+    {
+        const float dragDecay = expf(-stamp.drag * timeDelta);
+        stamp.initialVelocity *= dragDecay;
+        stamp.initialRadialVelocity *= dragDecay;
+        stamp.velocityCone *= dragDecay;
+        stamp.sourceMotionVelocity *= dragDecay;
+        stamp.accelerationIntegratedVelocity *= dragDecay;
+    }
 
-    stamp.center += stamp.velocity * velocityScale * timeDelta;
+    stamp.velocity = Evaluate_ScaledVelocityChannels(stamp, lifeProgress);
+    stamp.center += stamp.velocity * timeDelta;
 }
 
 void ComputeSourceHistorySpriteTrailEmitter::Insert_HistorySample(
@@ -1412,7 +1423,7 @@ void ComputeSourceHistorySpriteTrailEmitter::Push_Stamp(
     stamp.initialAngularVelocityRadians = Sample_InitialAngularVelocity(stampSerial);
     stamp.initialTiltDegrees = Sample_InitialTilt(stampSerial);
     stamp.tiltOverLifeDegrees = Sample_TiltOverLife(stampSerial);
-    stamp.velocity = Sample_InitialVelocity(stampSerial, stamp.center, sourceMotionContext);
+    Sample_InitialVelocityChannels(stamp, stampSerial, stamp.center, sourceMotionContext);
     stamp.acceleration = Sample_Acceleration(stampSerial);
     stamp.drag = Sample_Drag(stampSerial);
     stamp.pathFollowActive = _desc.pathFollow.enabled && !_desc.pathReplay.enabled;
@@ -1944,13 +1955,21 @@ Vec2 ComputeSourceHistorySpriteTrailEmitter::Sample_TiltOverLife(uint32 stampSer
     );
 }
 
-Vec3 ComputeSourceHistorySpriteTrailEmitter::Sample_InitialVelocity(
+void ComputeSourceHistorySpriteTrailEmitter::Sample_InitialVelocityChannels(
+    Stamp& stamp,
     uint32 stampSerial,
     const Vec3& spawnCenter,
     const SourceMotionVelocityContext& sourceMotionContext) const
 {
+    stamp.velocity = Vec3{};
+    stamp.initialVelocity = Vec3{};
+    stamp.initialRadialVelocity = Vec3{};
+    stamp.velocityCone = Vec3{};
+    stamp.sourceMotionVelocity = Vec3{};
+    stamp.accelerationIntegratedVelocity = Vec3{};
+
     if (!_desc.motion.enabled)
-        return Vec3{};
+        return;
 
     const auto resolve_local_vector = [this](const Vec3& localVector) -> Vec3
     {
@@ -1963,7 +1982,6 @@ Vec3 ComputeSourceHistorySpriteTrailEmitter::Sample_InitialVelocity(
     };
 
     const Vec3 tangent = Internal::Normalize_OrFallback(sourceMotionContext.tangent, Vec3{ 1.f, 0.f, 0.f });
-    Vec3 velocity{};
     if (_desc.motion.initialVelocityEnabled)
     {
         const Vec3 sampledVelocity = Sample_VectorRange(
@@ -1973,7 +1991,7 @@ Vec3 ComputeSourceHistorySpriteTrailEmitter::Sample_InitialVelocity(
             stampSerial,
             503u
         );
-        velocity += _desc.motion.initialVelocityInWorldSpace ? sampledVelocity : resolve_local_vector(sampledVelocity);
+        stamp.initialVelocity += _desc.motion.initialVelocityInWorldSpace ? sampledVelocity : resolve_local_vector(sampledVelocity);
     }
 
     if (_desc.motion.initialRadialVelocityEnabled)
@@ -2031,7 +2049,7 @@ Vec3 ComputeSourceHistorySpriteTrailEmitter::Sample_InitialVelocity(
             stampSerial,
             509u
         );
-        velocity += radialDirection * radialSpeed;
+        stamp.initialRadialVelocity += radialDirection * radialSpeed;
     }
 
     if (_desc.motion.velocityConeEnabled)
@@ -2053,7 +2071,7 @@ Vec3 ComputeSourceHistorySpriteTrailEmitter::Sample_InitialVelocity(
             stampSerial,
             1747u
         );
-        velocity += coneDirection * coneSpeed;
+        stamp.velocityCone += coneDirection * coneSpeed;
     }
 
     if (_desc.motion.sourceMotionVelocityEnabled)
@@ -2063,7 +2081,7 @@ Vec3 ComputeSourceHistorySpriteTrailEmitter::Sample_InitialVelocity(
             _desc.motion.sourceMotionVelocityDirectionMode == PointParticleSourceMotionVelocityDirectionMode::SourceVelocityDirection ||
             _desc.motion.sourceMotionVelocityDirectionMode == PointParticleSourceMotionVelocityDirectionMode::SourceVelocityOpposite;
         if (requiresSourceVelocity && !sourceMotionContext.sourceVelocityValid)
-            return velocity;
+            return;
 
         const float sourceSpeed =
             sourceMotionContext.sourceVelocityValid ? sourceMotionContext.sourceVelocity.Length() : 0.f;
@@ -2138,18 +2156,16 @@ Vec3 ComputeSourceHistorySpriteTrailEmitter::Sample_InitialVelocity(
 
         if (_desc.motion.sourceMotionVelocityDirectionMode == PointParticleSourceMotionVelocityDirectionMode::InheritSourceVelocity)
         {
-            velocity += sourceMotionContext.sourceVelocity * _desc.motion.sourceMotionVelocitySourceSpeedScale;
-            velocity += normalizedSourceVelocity * sampledSpeed;
+            stamp.sourceMotionVelocity += sourceMotionContext.sourceVelocity * _desc.motion.sourceMotionVelocitySourceSpeedScale;
+            stamp.sourceMotionVelocity += normalizedSourceVelocity * sampledSpeed;
         }
         else
         {
             const float resolvedSpeed =
                 sampledSpeed + sourceSpeed * _desc.motion.sourceMotionVelocitySourceSpeedScale;
-            velocity += resolvedDirection * resolvedSpeed;
+            stamp.sourceMotionVelocity += resolvedDirection * resolvedSpeed;
         }
     }
-
-    return velocity;
 }
 
 Vec3 ComputeSourceHistorySpriteTrailEmitter::Sample_Acceleration(uint32 stampSerial) const
@@ -2477,28 +2493,62 @@ Vec2 ComputeSourceHistorySpriteTrailEmitter::Evaluate_SpriteTiltOverLife(const S
     };
 }
 
-float ComputeSourceHistorySpriteTrailEmitter::Evaluate_VelocityScaleByLife(float lifeProgress) const
+float ComputeSourceHistorySpriteTrailEmitter::Evaluate_VelocityScaleByLifeChannel(
+    const PointParticleFloatCurveRuntimeDesc& curve,
+    float lifeProgress) const
 {
     if (!_desc.motion.enabled)
         return 1.f;
+    if (!curve.enabled)
+        return 1.f;
 
-    const float fallbackScale = lerp(_desc.motion.velocityScaleByLife.x, _desc.motion.velocityScaleByLife.y, lifeProgress);
     const float curveScale = Evaluate_CompactCurve(
         lifeProgress,
-        _desc.motion.velocityScaleByLifeCurveTimes,
-        _desc.motion.velocityScaleByLifeCurveTimesBlock1,
-        _desc.motion.velocityScaleByLifeCurveValues,
-        _desc.motion.velocityScaleByLifeCurveValuesBlock1,
-        _desc.motion.velocityScaleByLifeCurveArriveTangents,
-        _desc.motion.velocityScaleByLifeCurveArriveTangentsBlock1,
-        _desc.motion.velocityScaleByLifeCurveLeaveTangents,
-        _desc.motion.velocityScaleByLifeCurveLeaveTangentsBlock1,
-        _desc.motion.velocityScaleByLifeCurveModes,
-        _desc.motion.velocityScaleByLifeCurveModesBlock1,
-        _desc.motion.velocityScaleByLifeCurveKeyCount,
-        fallbackScale
+        curve.curveKeyTimes,
+        curve.curveKeyTimesBlock1,
+        curve.curveKeyValues,
+        curve.curveKeyValuesBlock1,
+        curve.curveKeyArriveTangents,
+        curve.curveKeyArriveTangentsBlock1,
+        curve.curveKeyLeaveTangents,
+        curve.curveKeyLeaveTangentsBlock1,
+        curve.curveKeyModes,
+        curve.curveKeyModesBlock1,
+        curve.curveKeyCount,
+        1.f
     );
     return max(0.f, curveScale);
+}
+
+Vec3 ComputeSourceHistorySpriteTrailEmitter::Evaluate_ScaledVelocityChannels(const Stamp& stamp, float lifeProgress) const
+{
+    const float initialVelocityScale = Evaluate_VelocityScaleByLifeChannel(
+        _desc.motion.initialVelocityScaleByLife,
+        lifeProgress
+    );
+    const float initialRadialVelocityScale = Evaluate_VelocityScaleByLifeChannel(
+        _desc.motion.initialRadialVelocityScaleByLife,
+        lifeProgress
+    );
+    const float velocityConeScale = Evaluate_VelocityScaleByLifeChannel(
+        _desc.motion.velocityConeScaleByLife,
+        lifeProgress
+    );
+    const float sourceMotionVelocityScale = Evaluate_VelocityScaleByLifeChannel(
+        _desc.motion.sourceMotionVelocityScaleByLife,
+        lifeProgress
+    );
+    const float accelerationIntegratedVelocityScale = Evaluate_VelocityScaleByLifeChannel(
+        _desc.motion.accelerationIntegratedVelocityScaleByLife,
+        lifeProgress
+    );
+
+    return
+        stamp.initialVelocity * initialVelocityScale +
+        stamp.initialRadialVelocity * initialRadialVelocityScale +
+        stamp.velocityCone * velocityConeScale +
+        stamp.sourceMotionVelocity * sourceMotionVelocityScale +
+        stamp.accelerationIntegratedVelocity * accelerationIntegratedVelocityScale;
 }
 
 Vec3 ComputeSourceHistorySpriteTrailEmitter::Evaluate_AccelerationByLife(const Stamp& stamp, float lifeProgress) const

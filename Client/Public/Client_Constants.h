@@ -558,6 +558,9 @@ namespace Client::Constants::SoundBGM
         L"BGM/Gestral/MUS_ForgottenBattlefield_BT_Dualliste_PhaseTransition.wav";
     constexpr const wchar_t* DuallisteBattlePhase2Main =
         L"BGM/Gestral/MUS_ForgottenBattlefield_BT_Dualliste_Phase2_Main.wav";
+
+    constexpr const wchar_t* BishopBattleBossMain = L"BGM/SpringMeadow/MUS_SpringMeadows_BT_Boss_Main.wav";
+    constexpr const wchar_t* BishopBattleBossVictory = L"BGM/SpringMeadow/MUS_SpringMeadows_BT_Boss_VictoryScreen.wav";
 }
 
 namespace Client::Constants::Cinematic
@@ -565,6 +568,7 @@ namespace Client::Constants::Cinematic
     inline constexpr wchar_t RuntimeJson_Dir[] = L"../../../Client/Bin/Resources/Data/json/Cinematics/";
     inline constexpr wchar_t BridgeCinematic[] = L"../../../Client/Bin/Resources/Data/json/Cinematics/Bridge.json";
     inline constexpr wchar_t BishopCinematicFileId[] = L"Bishop_Cinematic_2.json";
+    inline constexpr wchar_t TutorialCinematicFileId[] = L"Lancelier_Intro.json";
 
     inline constexpr wchar_t Dualliste_Intro[] = L"Dualliste_1.json";
     inline constexpr wchar_t Dualliste_PhaseChange[] = L"Dualliste.json";

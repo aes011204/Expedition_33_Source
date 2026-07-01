@@ -60,8 +60,8 @@ private:
     Shared<UI_Image>            _breakGauge{};
     Shared<UI_Text>             _bossNameText{};
     Shared<UI_Text>             _bossNameBgText{};
-    array<Shared<UI_Base>, 3>   _shieldIcons{};
-    array<float, 3>             _shieldIconCloseTimers{};
+    array<Shared<UI_Base>, 5>   _shieldIcons{};
+    array<float, 5>             _shieldIconCloseTimers{};
 
     BattleChar _displayTarget{};
     bool       _hasDisplayTarget = false;
@@ -74,7 +74,7 @@ private:
 
     static constexpr float kDelayedHpLerpSpeed = 3.5f;
     static constexpr float kBrokenShieldAnimationDurationSec = 1.f;
-    static constexpr uint32 kMaxBossShieldIconCount = 3;
+    static constexpr uint32 kMaxBossShieldIconCount = 5;
 
 public:
     static Unique<UI_BossHpBar> Create(uint32 levelIndex);

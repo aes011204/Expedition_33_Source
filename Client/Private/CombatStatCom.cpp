@@ -120,7 +120,17 @@ bool CombatStatCom::Try_ConsumeAP(uint32 value)
 
 void CombatStatCom::Add_GradientGauge(uint32 value)
 {
-    _gradientGaugeStack = min(_gradientGaugeStack + value, GradientSkill::MaxGaugeStacks);
+    const uint32 maxProgress =
+        GradientSkill::MaxGaugeStacks * GradientSkill::GaugeProgressPerStack;
+
+    const uint32 currentProgress =
+        _gradientGaugeStack * GradientSkill::GaugeProgressPerStack +
+        _gradientGaugeProgressTick;
+
+    const uint32 nextProgress = min(currentProgress + value, maxProgress);
+
+    _gradientGaugeStack = nextProgress / GradientSkill::GaugeProgressPerStack;
+    _gradientGaugeProgressTick = nextProgress % GradientSkill::GaugeProgressPerStack;
 }
 
 bool CombatStatCom::Try_ConsumeGradientGauge(uint32 value)

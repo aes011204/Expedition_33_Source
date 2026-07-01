@@ -215,6 +215,11 @@ bool GameplayUI::Open_WeaponUpgrade()
     return _worldUI && _worldUI->Request_WeaponUpgrade();
 }
 
+bool GameplayUI::Open_ArenaCharacterSelect()
+{
+    return _worldUI && _worldUI->Request_ArenaCharacterSelect();
+}
+
 void GameplayUI::Queue_GetChromaPresentation(uint32 chromaAmount)
 {
     if (_worldUI)

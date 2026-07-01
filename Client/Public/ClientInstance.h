@@ -326,6 +326,7 @@ public: /* Unlock Manager */
 
 public:
     const DialogueData* FindDialogueData(const string& dialogueKey) const;
+    
 
   public:
     void StartDialogue(const DialogueRequest& request);
@@ -343,7 +344,9 @@ public:
     void Request_InteractionPrompt(const void* sourceId, const Vec3& worldAnchor);
     void Clear_InteractionPrompt(const void* sourceId);
     bool Try_GetInteractionPromptAnchor(Vec3& outWorldAnchor) const;
-    
+
+    void Set_DialogueOverride(const string& sourceDialogueKey, const string& targetDialogueKey);
+
 public: /* Battle Followup Manager */
      BattleFollowupManager* Get_BattleFollowupManager() const { return _battleFollowupManager.get(); }
 

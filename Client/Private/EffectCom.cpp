@@ -1661,7 +1661,10 @@ bool EffectCom::Try_ResolveTrailAnchorWorldPosition(
     if (boneMatrix == nullptr)
         return false;
 
-    const Matrix anchorWorldMatrix = *boneMatrix * trailPart.Get_CombinedWorldMatrix();
+    const Matrix anchorLocalMatrix = weaponModel->Get_ModelType() == ModelType::NonAnim
+        ? Matrix::Identity
+        : *boneMatrix;
+    const Matrix anchorWorldMatrix = anchorLocalMatrix * trailPart.Get_CombinedWorldMatrix();
     outWorldPosition = Vec3::Transform(anchor.localPosition, anchorWorldMatrix);
     return true;
 }
@@ -1715,7 +1718,10 @@ bool EffectCom::Try_ResolveWeaponAnchorWorldPosition(
     if (boneMatrix == nullptr)
         return false;
 
-    const Matrix sourceWorldMatrix = *boneMatrix * weaponPart.Get_CombinedWorldMatrix();
+    const Matrix sourceLocalMatrix = weaponModel->Get_ModelType() == ModelType::NonAnim
+        ? Matrix::Identity
+        : *boneMatrix;
+    const Matrix sourceWorldMatrix = sourceLocalMatrix * weaponPart.Get_CombinedWorldMatrix();
     outWorldPosition = Vec3::Transform(anchor->localPosition + localOffset, sourceWorldMatrix);
     return true;
 }

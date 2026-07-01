@@ -82,7 +82,7 @@ void SkillTargeting::Update(float timeDelta)
     if (GAME->KeyDown(KEY_TYPE::ESCAPE))
     {
         EvtBattlePresentation event;
-        event.cameraMode = BattleCameraMode::PLAYERFOCUS;
+        event.cameraMode = BattleCameraMode::SELECTSKILL;
         event.subject = owner->Get_TurnActionRequest().actor.actor;
         GAME->Get_EventBus().Publish(event);
 

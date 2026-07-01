@@ -1002,12 +1002,7 @@ namespace UIEditor
             ImVec2 selectedObjectMin = ImVec2(0.f, 0.f);
             ImVec2 selectedObjectMax = ImVec2(0.f, 0.f);
             bool selectedObjectIsLocked = false;
-            const bool useInteractionTextLod =
-                _isPanningViewport ||
-                _draggingObjectId != 0 ||
-                _resizingObjectId != 0 ||
-                _isBoxSelecting ||
-                (viewportInputAllowed && io.MouseWheel != 0.f);
+            const bool useInteractionTextLod = false;
 
             Draw_ViewportItems(
                 drawList,

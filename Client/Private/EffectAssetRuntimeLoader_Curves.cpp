@@ -1399,6 +1399,88 @@ namespace EffectAssetRuntimeLoad::Curves
         }
     }
 
+    void Fill_VelocityScaleByLifeChannelPayload(PointParticleFloatCurveRuntimeDesc& desc, const json& velocityOverLife)
+    {
+        const auto scaleOverLifeIter = velocityOverLife.find("scaleOverLife");
+        float startValue{ 1.f };
+        float endValue{ 1.f };
+        if (scaleOverLifeIter == velocityOverLife.end())
+        {
+            startValue = Read_Float(velocityOverLife, "scaleStart", startValue);
+            endValue = Read_Float(velocityOverLife, "scaleEnd", endValue);
+        }
+        else
+        {
+            startValue = Evaluate_FloatDistributionMin(*scaleOverLifeIter, startValue);
+            endValue = Evaluate_FloatDistributionMax(*scaleOverLifeIter, endValue);
+        }
+
+        desc.enabled = true;
+        desc.curveKeyCount = 2u;
+        desc.curveKeyTimes = Vec4{ 0.f, 1.f, 0.f, 0.f };
+        desc.curveKeyTimesBlock1 = Vec4{};
+        desc.curveKeyValues = Vec4{ startValue, endValue, 0.f, 0.f };
+        desc.curveKeyValuesBlock1 = Vec4{};
+        desc.curveKeyArriveTangents = Vec4{};
+        desc.curveKeyArriveTangentsBlock1 = Vec4{};
+        desc.curveKeyLeaveTangents = Vec4{};
+        desc.curveKeyLeaveTangentsBlock1 = Vec4{};
+        desc.curveKeyModes = Vec4{ 1.f, 1.f, 0.f, 0.f };
+        desc.curveKeyModesBlock1 = Vec4{};
+
+        if (scaleOverLifeIter == velocityOverLife.end())
+            return;
+
+        const json* payload = Find_DistributionPayload(*scaleOverLifeIter);
+        if (payload == nullptr || "ConstantCurve" != Read_String(*scaleOverLifeIter, "mode"))
+            return;
+
+        const auto keysIter = payload->find("keys");
+        if (keysIter == payload->end() || !keysIter->is_array() || keysIter->empty())
+            return;
+
+        vector<const json*> keys{};
+        keys.reserve(keysIter->size());
+        for (const json& key : *keysIter)
+            keys.push_back(&key);
+        ranges::sort(keys, [](const json* lhs, const json* rhs) { return Read_Float(*lhs, "time") < Read_Float(*rhs, "time"); });
+
+        const uint32 keyCount = min(::Engine::kEffectDistributionCurveMaxKeys, static_cast<uint32>(keys.size()));
+        if (keyCount == 0u)
+            return;
+
+        desc.curveKeyCount = keyCount;
+        desc.curveKeyTimes = Vec4{};
+        desc.curveKeyTimesBlock1 = Vec4{};
+        desc.curveKeyValues = Vec4{};
+        desc.curveKeyValuesBlock1 = Vec4{};
+        desc.curveKeyArriveTangents = Vec4{};
+        desc.curveKeyArriveTangentsBlock1 = Vec4{};
+        desc.curveKeyLeaveTangents = Vec4{};
+        desc.curveKeyLeaveTangentsBlock1 = Vec4{};
+        desc.curveKeyModes = Vec4{};
+        desc.curveKeyModesBlock1 = Vec4{};
+        for (uint32 index = 0; index < keyCount; ++index)
+        {
+            const json& key = *keys[index];
+            Fill_FloatCurveKeyComponent(
+                desc.curveKeyTimes,
+                desc.curveKeyTimesBlock1,
+                desc.curveKeyValues,
+                desc.curveKeyValuesBlock1,
+                desc.curveKeyArriveTangents,
+                desc.curveKeyArriveTangentsBlock1,
+                desc.curveKeyLeaveTangents,
+                desc.curveKeyLeaveTangentsBlock1,
+                desc.curveKeyModes,
+                desc.curveKeyModesBlock1,
+                index,
+                key,
+                1.f
+            );
+        }
+    }
+
     void Fill_VelocityConePayload(PointParticleMotionDesc& desc, const json& velocityCone)
     {
         desc.velocityConeEnabled = true;

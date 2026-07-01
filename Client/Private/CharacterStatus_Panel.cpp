@@ -447,7 +447,8 @@ bool CharacterStatus_Panel::Adjust_PendingStat(StatType type, int32 value)
 	if (statInfo.CurStatPoint <= static_cast<uint32>(usedPendingPoint))
         return false; // 남은 포인트가 없으면 더 못 올림
 
-    pendingValue += value;
+	const uint32 remainingPoint = statInfo.CurStatPoint - static_cast<uint32>(usedPendingPoint);
+    pendingValue += static_cast<int32>(remainingPoint); // > 버튼은 현재 남은 스탯 포인트를 해당 스탯에 전부 예약한다.
     return true;
 }
 

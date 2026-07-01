@@ -68,6 +68,9 @@ namespace
     constexpr wchar_t kHealTintEffect[] = L"Effects\\Assets\\Item\\HealTint_G.effect.json";
     constexpr wchar_t kEnergyTintEffect[] = L"Effects\\Assets\\Item\\HealTint_B.effect.json";
     constexpr wchar_t kReviveTintEffect[] = L"Effects\\Assets\\Item\\HealTint_P.effect.json";
+
+    constexpr char kNpcSumoDialogueKey[] = "NPC_Sumo";
+    constexpr char kNpcSumoAfterPotatoBagDialogueKey[] = "NPC_Sumo_AfterPotatoBag";
 }
 
 BattleController::BattleController()
@@ -480,6 +483,19 @@ EBattleEndResult BattleController::OnExitBattleField(EBattleEndResult result)
             defeatedEnemyKeys.emplace_back(sourcePrefabName);
         }
 
+        {
+            const bool defeatedPotatoBag =
+                find(defeatedEnemyKeys.begin(), defeatedEnemyKeys.end(), Constants::Prefab::MB_PotatoBag) !=
+                defeatedEnemyKeys.end();
+
+            if (_activeBattleFieldID == Constants::Value::potatoBagEncounterId && defeatedPotatoBag)
+            {
+                CLIENT->Set_DialogueOverride(
+                    kNpcSumoDialogueKey,
+                    kNpcSumoAfterPotatoBagDialogueKey);
+            }
+        }
+
         vector<HeroId> victoryHeroIds{};
         victoryHeroIds.reserve(_heroes.size());
 
@@ -542,10 +558,21 @@ EBattleEndResult BattleController::OnExitBattleField(EBattleEndResult result)
 
     if (result == EBattleEndResult::Victory)
     {
+        const bool isBishopCinematicBGM =
+            GAME->Get_CurrentBGM() == Constants::SoundBGM::BishopBattleBossMain;
+
         if (Is_TutorialBattleEncounter(_activeBattleFieldID))
+        {
             GAME->Stop_SoundChannel(SoundChannel::BGM);
+        }
+        else if (isBishopCinematicBGM)  // 주교잡고나서는 Victory 브금
+        {
+            GAME->Play_BGM(Constants::SoundBGM::BishopBattleBossVictory, 1.f, true, 0.f);
+        }
         else
+        {
             Restore_PreBattleBGM();
+        }
 
         _isWaitingVictoryConfirm = true;
         _isBattleEntering = false;
@@ -719,6 +746,25 @@ void BattleController::EndTurn()
         : max(actor.statCom->Get_Speed(), 1.f);
 
     _buffSystem->ProcessTurnEnd(_currentTurnActor);
+
+    string gradientSkillKey{};
+    if (actor.statCom->Is_Player() &&
+        actor.statCom->Try_GetSkillKeyBySlot(GradientSkill::SlotIndex, gradientSkillKey))
+    {
+        for (const BattleChar& hero : _heroes)
+        {
+            if (hero.statCom == nullptr)
+                continue;
+
+            if (hero.statCom->Get_AliveStatus() == EAliveStatus::Dead)
+                continue;
+
+            string heroGradientSkillKey{};
+            if (hero.statCom->Try_GetSkillKeyBySlot(GradientSkill::SlotIndex, heroGradientSkillKey))
+                hero.statCom->Add_GradientGauge(GradientSkill::GaugeGainPerTurn);
+        }
+    }
+
     OnTurnEnded.Broadcast(_currentTurnActor); // 턴 종료 신호
 
     // 죽은애들은 큐에 다시 안들어가게
@@ -1185,6 +1231,9 @@ void BattleController::SetCharInitPos()
             Vec3 rot = transform->Get_RotationEuler();
             rot.y = XMConvertToDegrees(atan2f(dir.x, dir.z));
             transform->Set_RotationEuler(rot);
+
+            if (_battleSpawnRegistry)
+                _battleSpawnRegistry->Update_SpawnPose(hero.actor);
         }
     }
 
@@ -1708,7 +1757,17 @@ void BattleController::Execute_Skill()
         actor.statCom->Try_ConsumeAP(apCost);
 
     if (isGradientSkill)
-        actor.statCom->Try_ConsumeGradientGauge(GradientSkill::GaugeCostPerUse);
+    {
+        for (const BattleChar& hero : _heroes)
+        {
+            if (hero.statCom == nullptr)
+                continue;
+
+            string heroGradientSkillKey{};
+            if (hero.statCom->Try_GetSkillKeyBySlot(GradientSkill::SlotIndex, heroGradientSkillKey))
+                hero.statCom->Try_ConsumeGradientGauge(GradientSkill::GaugeCostPerUse);
+        }
+    }
 
     action.InitActionDirection();
 
@@ -2408,8 +2467,28 @@ void BattleController::Handle_DamageApplied(const DamageAppliedInfo& info)
 
     if (info.damage > 0.f && info.target.actor)
     {
+        // 스턴 스킬인지 확인
+        const bool isStunSkill =
+            _turnAction.GetType() == EBattleContext::Skill &&
+            _turnAction.GetSkillData().buff == Buffs::Stun;
+
+        // 막타인지 Step 확인해서 체크
+        const vector<BattleAction::AttackStep>& steps = _turnAction.GetSteps();
+        const uint32 curStepIndex = _turnAction.GetCurStepIndex();
+        const bool isLastActionStep =
+            !steps.empty() && curStepIndex < steps.size() && curStepIndex + 1 >= steps.size();
+
+        const bool isFinalSkillDamage =
+            _hitSequenceRunner.Is_ApplyingHitSequenceDamage()
+            ? _hitSequenceRunner.Is_CurrentHitSequenceDamageFinal()
+            : isLastActionStep;
+
+        const bool canTriggerBattleBreak =
+            isStunSkill &&
+            isFinalSkillDamage;
+
         const bool enteredBreak =
-            info.target.actor->Try_ApplyBattleBreakOnDamage(info);
+            info.target.actor->Try_ApplyBattleBreakOnDamage(info, canTriggerBattleBreak);
 
         _reactionController.Notify_TargetDamaged(info.target);
 
@@ -2602,7 +2681,7 @@ void BattleController::Apply_Buff(const BattleChar& target, Buffs buffId, uint32
         PlayEffectDesc effectDesc{};
         effectDesc.effectName = Constants::Effect::BreakEffect;
         effectDesc.spawnBasisTarget = target.actor;
-        effectDesc.localOffset = Vec3(0.f, 1.7f, 1.5f);
+        effectDesc.localOffset = Vec3(0.f, 1.7f, 0.3f);
         effectDesc.scale = Vec3(1.f, 1.f, 1.f);
         CLIENT->Play_Effect(effectDesc);
     }
@@ -2621,6 +2700,9 @@ bool BattleController::Try_ApplySkillBuff(const Skill_Data& skill, const BattleC
     if (skill.buff == Buffs::None || skill.buffDurationTurn <= 0)
         return false;
 
+    if (skill.buff == Buffs::Stun)
+        return false;
+
     if (skill.ailmentChance <= 0.f)
         return false;
 
@@ -2628,11 +2710,6 @@ bool BattleController::Try_ApplySkillBuff(const Skill_Data& skill, const BattleC
         return false;
 
     Apply_Buff(target, skill.buff, 1, skill.buffDurationTurn);
-
-    if (skill.buff == Buffs::Stun && target.ModelCom)
-    {
-        target.ModelCom->Set_AnimationByState(ETOI(BattleAnimType::Stun_Enter), 0.2f, false);
-    }
 
     return true;
 }
@@ -2670,7 +2747,15 @@ void BattleController::Complete_TurnStartStatusAnnounce()
         _processedTurnStartStatuses.push_back(Buffs::Stun);
 
         if (_buffSystem->Try_ConsumeStunOnTurnStart(actor))
+        {
+            if (const auto monsterStat = dynamic_pointer_cast<MonsterStatCom>(actor.statCom))
+            {
+                monsterStat->SetBreak(false);
+                monsterStat->Clear_Break();
+            }
+
             BattleAnimUtils::Play_BattleIdle(actor, 0.2f);
+        }
 
         _processedTurnStartStatuses.clear();
         _isWaitingTurnStartStatusHit = false;
@@ -2726,15 +2811,16 @@ HRESULT BattleController::Ready_BattleTurnCamera()
     if (_battleTurnCamera != nullptr &&
         (_battleTurnCamera->Is_MarkDestroy() || _battleTurnCamera->Get_Transform() == nullptr))
     {
-        _battleTurnCamera.reset(); // 레벨 전환으로 Free된 카메라는 다음 전투에서 새로 잡아야 한다.
+        _battleTurnCamera.reset();
     }
 
     if (_battleTurnCamera == nullptr)
     {
+        // 카메라 재사용 X
         auto camera = GAME->Get_CameraByType(ObjectType::BattleTurnCamera);
 
         if (camera != nullptr && (camera->Is_MarkDestroy() || camera->Get_Transform() == nullptr))
-            camera.reset(); // Camera_Manager에 남은 비정상 카메라는 재사용하지 않는다.
+            camera.reset();
 
         if (camera)
             _battleTurnCamera = dynamic_pointer_cast<BattleTurnCamera>(camera);
@@ -2994,11 +3080,17 @@ void BattleController::Complete_BattleField()
         }
     }
 
-    GAME->Play_BGM(
-        hasBossEnemy ? Constants::SoundBGM::BattleBossBGM : Constants::SoundBGM::BattleNormalBGM,
-        1.f,
-        true,
-        0.f);
+    const bool isBishopCinematicBGM =
+        GAME->Get_CurrentBGM() == Constants::SoundBGM::BishopBattleBossMain;
+
+    if (!isBishopCinematicBGM)
+    {
+        GAME->Play_BGM(
+            hasBossEnemy ? Constants::SoundBGM::BattleBossBGM : Constants::SoundBGM::BattleNormalBGM,
+            1.f,
+            true,
+            0.f);
+    }
 
     // 초기 플레이 순서 지정
     Build_InitialTurnQueue(_pendingBattleIsPlayerAdvantage);
@@ -3098,16 +3190,25 @@ bool BattleController::Try_ApplyFreeAimWeakPointBonus(const BattleFreeAimHitTarg
 
 void BattleController::Capture_PreBattleBGM()
 {
+    if (_hasCapturedPreBattleBGM)
+        return;
+
     _preBattleBGM = GAME->Get_CurrentBGM();
+    _hasCapturedPreBattleBGM = true;
 }
 
 void BattleController::Restore_PreBattleBGM()
 {
-    if (_preBattleBGM.empty())
+    if (!_hasCapturedPreBattleBGM)
         return;
 
-    GAME->Play_BGM(_preBattleBGM, 1.f, true, 0.f);
+    if (_preBattleBGM.empty())
+        GAME->Stop_SoundChannel(SoundChannel::BGM, 0.f);
+    else
+        GAME->Play_BGM(_preBattleBGM, 1.f, true, 0.f);
+
     _preBattleBGM.clear();
+    _hasCapturedPreBattleBGM = false;
 }
 
 bool BattleController::Update_BattleTutorialGate(float timeDelta)
@@ -3249,9 +3350,28 @@ bool BattleController::Try_BeginTurnStartStatusAnnounce()
                 buffId) != _processedTurnStartStatuses.end();
         };
 
+    const auto publishTurnStartStatusFocus = [this]()
+        {
+            if (_currentTurnActor.actor == nullptr || _currentTurnActor.statCom == nullptr)
+                return;
+
+            EvtBattlePresentation event{};
+            event.cameraMode = _currentTurnActor.statCom->Is_Player()
+                ? BattleCameraMode::PLAYERFOCUS
+                : BattleCameraMode::ENEMYFOCUS;
+            event.subject = _currentTurnActor.actor;
+
+            if (!_currentTurnActor.statCom->Is_Player())
+                event.presetId = _currentTurnActor.actor->Get_SourcePrefabName();
+
+            GAME->Get_EventBus().Publish(event);
+        };
+
     if (!isProcessed(Buffs::Burn) &&
         _buffSystem->Has_TurnStartBurn(_currentTurnActor))
     {
+        publishTurnStartStatusFocus();
+
         _pendingTurnStartStatusBuff = Buffs::Burn;
         _pendingTurnStartStatusActor = _currentTurnActor;
         OnTurnStartStatusAnnounceRequested.Broadcast(_currentTurnActor, Buffs::Burn);
@@ -3262,6 +3382,8 @@ bool BattleController::Try_BeginTurnStartStatusAnnounce()
     if (!isProcessed(Buffs::Stun) &&
         _buffSystem->Has_Buff(_currentTurnActor, Buffs::Stun))
     {
+        publishTurnStartStatusFocus();
+
         _pendingTurnStartStatusBuff = Buffs::Stun;
         _pendingTurnStartStatusActor = _currentTurnActor;
         OnTurnStartStatusAnnounceRequested.Broadcast(_currentTurnActor, Buffs::Stun);
@@ -3317,12 +3439,6 @@ void BattleController::Continue_StartTurnAfterStatusEffects()
         {
             // 최대 AP라 실제 증가가 없으면 안띄우기
             OnBattleApChanged.Broadcast(actor, gainedAp, EAPChangeReason::TurnStart);
-        }
-
-        string gradientSkillKey{};
-        if (actor.statCom->Try_GetSkillKeyBySlot(GradientSkill::SlotIndex, gradientSkillKey))
-        {
-            actor.statCom->Add_GradientGauge(GradientSkill::GaugeGainPerTurn);
         }
 
         _battleFSM->Change_State(BattleTurnState::ChooseAction);
@@ -3565,3 +3681,4 @@ void BattleController::Free()
 
     Base::Free();
 }
+
