@@ -44,6 +44,7 @@ namespace EffectAssetRuntimeLoad::Material
 
         materialDesc.intensity = Read_Float(material, "intensity", materialDesc.intensity);
         materialDesc.opacityPower = Read_Float(material, "opacityPower", materialDesc.opacityPower);
+        materialDesc.alphaMultiplier = Read_Float(material, "alphaMultiplier", materialDesc.alphaMultiplier);
         materialDesc.noiseStrength = Read_Float(material, "noiseStrength", materialDesc.noiseStrength);
         materialDesc.alphaCutoff = Read_Float(material, "alphaCutoff", materialDesc.alphaCutoff);
         materialDesc.alphaErosion = Read_Float(material, "alphaErosion", materialDesc.alphaErosion);

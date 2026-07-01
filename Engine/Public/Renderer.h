@@ -40,6 +40,11 @@ public:
     bool    Is_RenderOnlyPreviewMode() const { return _renderOnlyPreviewMode; }
     void    Set_RenderEnvironment(bool enabled) { _renderEnvironment = enabled; }
     bool    Is_RenderEnvironment() const { return _renderEnvironment; }
+    void    Set_UseInstancedShadowCache(bool enabled) { _useCachedInstancedShadow = enabled; }
+    bool    Is_UseInstancedShadowCache() const { return _useCachedInstancedShadow; }
+    void    Request_BakeCachedInstancedShadow() { _hasInstancedShadowCache = false; }
+    bool    Has_InstancedShadowCache() const { return _hasInstancedShadowCache; }
+    const Matrix& Get_CachedShadowViewProj() const { return _cachedShadowViewProj; }
 
     const Shared<PostProcessPipeline>& Get_PostProcessPipeline() const
     {
@@ -142,6 +147,7 @@ private: /* 그림자 */
     void Render_DynamicShadow();        // 기존 Render Shadow 로직 이동
     bool Should_UpdateDynamicShadowCascade(uint32 cascadeIndex) const;
     bool Should_RenderDynamicShadowObject(const Shared<GameObject>& gameObject, uint32 cascadeIndex) const;
+    void Bake_CachedInstancedShadow();
 #ifdef _DEBUG
     void Sync_ShadowDebugTargets();
 #endif
@@ -170,6 +176,10 @@ private:
     bool                            _shadowEnabled = true;
     bool                            _renderOnlyPreviewMode = false;
     bool                            _renderEnvironment = false;
+
+    bool                            _useCachedInstancedShadow = false;
+    bool                            _hasInstancedShadowCache = false;
+    Matrix                          _cachedShadowViewProj = {};
 
     Matrix                          _pipelineWorldMatrix;
     Matrix                          _PipelineViewMatrix;

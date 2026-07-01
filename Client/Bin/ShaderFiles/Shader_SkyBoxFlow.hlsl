@@ -31,6 +31,7 @@ VS_OUT VS_Default(VS_IN In)
     float4x4 matWVP = mul(matWV, g_ProjMatrix);
 
     Out.Position = mul(float4(In.Position, 1.f), matWVP);
+    Out.Position.z = Out.Position.w;
     Out.Texcoord = In.Texcoord;
 
     return Out;

@@ -260,6 +260,8 @@ private: //## Helper::Setup
 private: //## Helper::Render
     // mesh effect shader에 texture와 material 파라미터를 바인딩한다.
     HRESULT Bind_EffectMaterialResources();
+    // 현재 mesh가 사용할 model material texture source를 바인딩한다.
+    HRESULT Bind_ModelMaterialResourcesForMesh(uint32 meshIndex, uint32 materialIndex);
     // mesh distortion field shader에 flow 파라미터를 바인딩한다.
     HRESULT Bind_DistortionResources();
     // 현재 material family가 mesh distortion 경로인지 확인한다.

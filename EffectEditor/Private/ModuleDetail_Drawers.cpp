@@ -602,6 +602,8 @@ namespace Internal
             return "AlphaErosion";
         case MaterialScalarModulationTargetField::AlphaCutoff:
             return "AlphaCutoff";
+        case MaterialScalarModulationTargetField::AlphaMultiplier:
+            return "AlphaMultiplier";
         case MaterialScalarModulationTargetField::CoreIntensity:
             return "CoreIntensity";
         case MaterialScalarModulationTargetField::OuterIntensity:
@@ -742,6 +744,7 @@ namespace Internal
                 MaterialScalarModulationTargetField::NoiseStrength,
                 MaterialScalarModulationTargetField::AlphaErosion,
                 MaterialScalarModulationTargetField::AlphaCutoff,
+                MaterialScalarModulationTargetField::AlphaMultiplier,
                 MaterialScalarModulationTargetField::CoreIntensity,
                 MaterialScalarModulationTargetField::OuterIntensity,
                 MaterialScalarModulationTargetField::CoreColor,
@@ -1985,6 +1988,7 @@ namespace Internal
             Is_SameColor(lhs.tint, rhs.tint) &&
             NearlyEqual(lhs.intensity, rhs.intensity) &&
             NearlyEqual(lhs.opacityPower, rhs.opacityPower) &&
+            NearlyEqual(lhs.alphaMultiplier, rhs.alphaMultiplier) &&
             NearlyEqual(lhs.noiseStrength, rhs.noiseStrength) &&
             NearlyEqual(lhs.alphaCutoff, rhs.alphaCutoff) &&
             NearlyEqual(lhs.alphaErosion, rhs.alphaErosion) &&
