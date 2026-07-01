@@ -140,6 +140,8 @@ private: //## Static Values
     static constexpr auto kEffectMeshShaderId{ "Shader_EffectMesh" };
     // mesh distortion field output 전용 shader id다.
     static constexpr auto kEffectMeshDistortionShaderId{ "Shader_EffectMeshDistortion" };
+    // mesh glass surface 전용 shader id다.
+    static constexpr auto kEffectMeshGlassShaderId{ "Shader_EffectMeshGlass" };
     // main texture 미지정 시 사용할 fallback texture다.
     static constexpr auto kFallbackTexturePath{ "Effects/Textures/Shared/DefaultTexture.dds" };
     // main texture alpha를 opacity로 사용한다.
@@ -266,6 +268,8 @@ private: //## Helper::Render
     HRESULT Bind_DistortionResources();
     // 현재 material family가 mesh distortion 경로인지 확인한다.
     bool Is_DistortionFamily() const;
+    // 현재 material family가 mesh glass surface 경로인지 확인한다.
+    bool Is_MeshGlassFamily() const;
     // particle state를 instanced draw world matrix로 변환한다.
     Matrix Build_InstanceMatrix(const MeshParticleState& particle) const;
     Vec3 Resolve_ParticleWorldPosition(const MeshParticleState& particle) const;
