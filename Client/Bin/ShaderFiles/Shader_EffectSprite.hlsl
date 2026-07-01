@@ -10,7 +10,7 @@ cbuffer cbEffectSpriteMaterial : register(b2)
 {
     float4 g_Tint = { 1.f, 1.f, 1.f, 1.f };
     float4 g_EffectSpriteParams = { 1.f, 1.f, 0.f, 0.f };                 // x: authored energy scalar, y: opacityPower, z: noiseStrength, w: useNoise
-    float4 g_EffectSpriteAlphaParams = { 0.f, 0.f, 0.f, 0.f };            // x: alphaCutoff, y: alphaErosion, z: useMask, w: reserved
+    float4 g_EffectSpriteAlphaParams = { 0.f, 0.f, 0.f, 1.f };            // x: alphaCutoff, y: alphaErosion, z: useMask, w: alphaMultiplier
     float4 g_EffectSpriteMainUVParams = { 1.f, 1.f, 0.f, 0.f };           // xy: scale, zw: scroll speed
     float4 g_EffectSpriteNoiseUVParams = { 1.f, 1.f, 0.f, 0.f };
     float4 g_EffectSpriteMaskUVParams = { 1.f, 1.f, 0.f, 0.f };
@@ -559,7 +559,7 @@ EffectMaterialSurface Resolve_EffectMaterialSurface(PS_IN In)
     }
 
     const float maskCoverage = Effect_ApplyAlphaErosion(maskAlpha, maskAlpha * noiseFactor, alphaErosion);
-    const float shapeCoverage = Effect_BuildCoverage(selectedOpacity, opacityPower, maskCoverage, noiseFactor, 1.f);
+    const float shapeCoverage = Effect_BuildCoverage(selectedOpacity, opacityPower, maskCoverage, noiseFactor, g_EffectSpriteAlphaParams.w);
     const float3 baseColor = Effect_ApplyCoreEmissiveShaping(
         symbol.rgb * particleColor.rgb * g_Tint.rgb,
         resolvedCoreEmissiveColor,
@@ -669,7 +669,7 @@ PS_OUT PS_ADDITIVE(PS_IN In)
     }
 
     const float maskCoverage = Effect_ApplyAlphaErosion(maskAlpha, maskAlpha * noiseFactor, alphaErosion);
-    const float coverageBase = saturate(maskCoverage * noiseFactor);
+    const float coverageBase = saturate(maskCoverage * noiseFactor * g_EffectSpriteAlphaParams.w);
     const float additiveLifeAlpha = saturate(particleColor.a * g_Tint.a);
     const int colorSource = (int)g_EffectSpriteAdditiveParams.x;
     const int amountSource = (int)g_EffectSpriteAdditiveParams.y;

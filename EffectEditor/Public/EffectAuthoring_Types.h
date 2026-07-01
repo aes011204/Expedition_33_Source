@@ -1287,6 +1287,7 @@ enum class MaterialScalarModulationTargetField : uint8
     NoiseUVScrollSpeedScale,
     MaskUVScrollSpeedScale,
     FlowUVScrollSpeedScale,
+    AlphaMultiplier,
 };
 
 enum class MaterialVec2ModulationTargetField : uint8

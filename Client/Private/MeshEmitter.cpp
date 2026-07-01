@@ -513,6 +513,9 @@ HRESULT MeshEmitter::Render()
     {
         const uint32 materialIndex = _model->Get_MeshMaterialIndex(meshIndex);
 
+        if (!Is_DistortionFamily())
+            CHECK_FAILED_THROTTLED(Bind_ModelMaterialResourcesForMesh(meshIndex, materialIndex), 60, E_FAIL);
+
         if (FAILED(_shader->Begin(passIndex)))
         {
             LOG_WARN_THROTTLED(
@@ -1025,7 +1028,7 @@ HRESULT MeshEmitter::Bind_EffectMaterialResources()
         clamp(material.alphaCutoff, 0.f, 1.f),
         clamp(material.alphaErosion, 0.f, 1.f),
         _maskTexture != nullptr ? 1.f : 0.f,
-        0.f
+        clamp(material.alphaMultiplier, 0.f, 1.f)
     );
     const Vec4 effectMeshMainUVParams = Vec4(material.mainUVScale.x, material.mainUVScale.y, material.mainUVScrollSpeed.x, material.mainUVScrollSpeed.y);
     const Vec4 effectMeshNoiseUVParams = Vec4(material.noiseUVScale.x, material.noiseUVScale.y, material.noiseUVScrollSpeed.x, material.noiseUVScrollSpeed.y);
@@ -1110,6 +1113,59 @@ HRESULT MeshEmitter::Bind_EffectMaterialResources()
         E_FAIL
     );
     CHECK_FAILED_THROTTLED(_shader->Bind_RawValue("g_OpacitySource", &_opacitySourceIndex, sizeof(_opacitySourceIndex)), 60, E_FAIL);
+    return S_OK;
+}
+
+HRESULT MeshEmitter::Bind_ModelMaterialResourcesForMesh(uint32 meshIndex, uint32 materialIndex)
+{
+    CHECK_NULL(_texture, E_FAIL);
+
+    Vec4 modelMaterialFlags = Vec4::Zero;
+    if (!_desc.useModelMaterials || _model == nullptr)
+    {
+        CHECK_FAILED_THROTTLED(_shader->Bind_SRV("g_ModelNormalTexture", nullptr), 60, E_FAIL);
+        CHECK_FAILED_THROTTLED(_shader->Bind_SRV("g_ModelEmissiveTexture", nullptr), 60, E_FAIL);
+        CHECK_FAILED_THROTTLED(
+            _shader->Bind_RawValue("g_EffectMeshModelMaterialFlags", &modelMaterialFlags, sizeof(modelMaterialFlags)),
+            60,
+            E_FAIL
+        );
+        return S_OK;
+    }
+
+    if (SUCCEEDED(_model->Bind_Material(_shader.get(), "g_Texture", meshIndex, MaterialTextureSlot::BaseColor)))
+    {
+        modelMaterialFlags.x = 1.f;
+    }
+    else
+    {
+        LOG_WARN_THROTTLED(
+            60,
+            "MeshEmitter model material BaseColor missing; using effect material main texture fallback. emitter='{}', meshIndex={}, materialIndex={}, modelGuid='{}', modelPath='{}'",
+            _emitterName,
+            meshIndex,
+            materialIndex,
+            _desc.modelGuid,
+            _desc.modelPath
+        );
+        CHECK_FAILED_THROTTLED(_texture->Bind_ShaderResourceView(_shader.get(), "g_Texture", 0), 60, E_FAIL);
+    }
+
+    if (SUCCEEDED(_model->Bind_Material(_shader.get(), "g_ModelNormalTexture", meshIndex, MaterialTextureSlot::Normal)))
+        modelMaterialFlags.y = 1.f;
+    else
+        CHECK_FAILED_THROTTLED(_shader->Bind_SRV("g_ModelNormalTexture", nullptr), 60, E_FAIL);
+
+    if (SUCCEEDED(_model->Bind_Material(_shader.get(), "g_ModelEmissiveTexture", meshIndex, MaterialTextureSlot::Emissive)))
+        modelMaterialFlags.z = 1.f;
+    else
+        CHECK_FAILED_THROTTLED(_shader->Bind_SRV("g_ModelEmissiveTexture", nullptr), 60, E_FAIL);
+
+    CHECK_FAILED_THROTTLED(
+        _shader->Bind_RawValue("g_EffectMeshModelMaterialFlags", &modelMaterialFlags, sizeof(modelMaterialFlags)),
+        60,
+        E_FAIL
+    );
     return S_OK;
 }
 

@@ -27,6 +27,7 @@ inline void Copy_EffectMaterialInstanceToRuntimeDesc(
     outMaterial.tint = material.tint;
     outMaterial.intensity = material.intensity;
     outMaterial.opacityPower = material.opacityPower;
+    outMaterial.alphaMultiplier = material.alphaMultiplier;
     outMaterial.noiseStrength = material.noiseStrength;
     outMaterial.alphaCutoff = material.alphaCutoff;
     outMaterial.alphaErosion = material.alphaErosion;

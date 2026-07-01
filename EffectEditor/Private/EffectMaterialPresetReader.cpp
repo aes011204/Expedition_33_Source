@@ -320,6 +320,7 @@ bool Read(const fs::path& filePath, EffectMaterialInstanceData& outMaterial)
     material.tint = read_color("tint", defaultMaterial.tint);
     material.intensity = read_float("intensity", defaultMaterial.intensity);
     material.opacityPower = read_float("opacityPower", defaultMaterial.opacityPower);
+    material.alphaMultiplier = read_float("alphaMultiplier", defaultMaterial.alphaMultiplier);
     material.noiseStrength = read_float("noiseStrength", defaultMaterial.noiseStrength);
     material.alphaCutoff = read_float("alphaCutoff", defaultMaterial.alphaCutoff);
     material.alphaErosion = read_float("alphaErosion", defaultMaterial.alphaErosion);

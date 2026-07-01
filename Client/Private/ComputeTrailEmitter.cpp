@@ -1079,7 +1079,7 @@ HRESULT ComputeTrailEmitter::Bind_ShaderResources()
         clamp(material.alphaCutoff, 0.f, 1.f),
         clamp(material.alphaErosion, 0.f, 1.f),
         nullptr != _maskTexture ? 1.f : 0.f,
-        0.f
+        clamp(material.alphaMultiplier, 0.f, 1.f)
     );
     const Vec4 effectTrailMainUVParams = Vec4(
         material.mainUVScale.x,

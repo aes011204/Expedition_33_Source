@@ -1020,6 +1020,7 @@ namespace Internal
         root["tint"] = To_Json(data.tint);
         root["intensity"] = data.intensity;
         root["opacityPower"] = data.opacityPower;
+        root["alphaMultiplier"] = data.alphaMultiplier;
         root["noiseStrength"] = data.noiseStrength;
         root["alphaCutoff"] = data.alphaCutoff;
         root["alphaErosion"] = data.alphaErosion;
@@ -1107,6 +1108,7 @@ namespace Internal
         Fill_TexturePathHintFromGuid(outData.flowTextureGuid, outData.flowTexturePath);
         Read_NumberField(root, "intensity", outData.intensity);
         Read_NumberField(root, "opacityPower", outData.opacityPower);
+        Read_NumberField(root, "alphaMultiplier", outData.alphaMultiplier);
         Read_NumberField(root, "noiseStrength", outData.noiseStrength);
         Read_NumberField(root, "alphaCutoff", outData.alphaCutoff);
         Read_NumberField(root, "alphaErosion", outData.alphaErosion);

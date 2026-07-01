@@ -400,8 +400,9 @@ namespace Internal
         return false;
     }
 
-    bool Draw_TextureSlotBody(string& textureGuid, string& texturePath)
+    bool Draw_TextureSlotBody(string& textureGuid, string& texturePath, const char* sourceLockTooltip = nullptr)
     {
+        const bool sourceLocked = sourceLockTooltip != nullptr && sourceLockTooltip[0] != '\0';
         constexpr float browseButtonWidth{ 28.f };
         const float spacing = ImGui::GetStyle().ItemSpacing.x;
         const float slotWidth = max(96.f, ImGui::GetContentRegionAvail().x - browseButtonWidth - spacing);
@@ -409,12 +410,16 @@ namespace Internal
 
         const ImGuiPayload* activePayload = ImGui::GetDragDropPayload();
         const bool isTextureDragging =
+            !sourceLocked &&
             activePayload != nullptr &&
             activePayload->IsDataType(kEffectTexturePayloadType);
 
+        if (sourceLocked)
+            ImGui::BeginDisabled();
+
         ImGui::InvisibleButton("##TextureDropSlot", slotSize);
         bool changed = false;
-        if (ImGui::BeginDragDropTarget())
+        if (!sourceLocked && ImGui::BeginDragDropTarget())
         {
             if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(
                 kEffectTexturePayloadType,
@@ -429,17 +434,23 @@ namespace Internal
 
         const ImVec2 slotMin = ImGui::GetItemRectMin();
         const ImVec2 slotMax = ImGui::GetItemRectMax();
-        const bool isHovered = ImGui::IsItemHovered();
+        const bool isHovered = ImGui::IsItemHovered(sourceLocked ? ImGuiHoveredFlags_AllowWhenDisabled : ImGuiHoveredFlags_None);
         const bool isWarningReference = Is_WarningTextureReference(textureGuid, texturePath);
-        const ImU32 fillColor = isWarningReference
-                                ? (isHovered || isTextureDragging ? IM_COL32(58, 32, 34, 255) : IM_COL32(34, 22, 24, 255))
-                                : isHovered || isTextureDragging ? IM_COL32(34, 42, 58, 255) : IM_COL32(22, 25, 32, 255);
-        const ImU32 borderColor = isWarningReference
-                                  ? IM_COL32(214, 86, 96, 255)
-                                  : isHovered || isTextureDragging ? IM_COL32(116, 156, 235, 255) : IM_COL32(78, 88, 108, 255);
-        const ImU32 textColor = isWarningReference
-                                ? IM_COL32(255, 190, 196, 255)
-                                : IM_COL32(220, 226, 238, 255);
+        const ImU32 fillColor = sourceLocked
+                                ? IM_COL32(24, 25, 29, 255)
+                                : isWarningReference
+                                  ? (isHovered || isTextureDragging ? IM_COL32(58, 32, 34, 255) : IM_COL32(34, 22, 24, 255))
+                                  : isHovered || isTextureDragging ? IM_COL32(34, 42, 58, 255) : IM_COL32(22, 25, 32, 255);
+        const ImU32 borderColor = sourceLocked
+                                  ? IM_COL32(58, 62, 72, 255)
+                                  : isWarningReference
+                                    ? IM_COL32(214, 86, 96, 255)
+                                    : isHovered || isTextureDragging ? IM_COL32(116, 156, 235, 255) : IM_COL32(78, 88, 108, 255);
+        const ImU32 textColor = sourceLocked
+                                ? IM_COL32(142, 148, 160, 255)
+                                : isWarningReference
+                                  ? IM_COL32(255, 190, 196, 255)
+                                  : IM_COL32(220, 226, 238, 255);
 
         ImDrawList* drawList = ImGui::GetWindowDrawList();
         drawList->AddRectFilled(slotMin, slotMax, fillColor, 4.f);
@@ -454,11 +465,12 @@ namespace Internal
         );
         drawList->PopClipRect();
 
-        if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayShort))
+        if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayShort | (sourceLocked ? ImGuiHoveredFlags_AllowWhenDisabled : ImGuiHoveredFlags_None)))
         {
-            const string tooltip =
-                "Content Browser의 .png / .dds를 드롭하면 현재 instance texture reference로 지정합니다.\n\n" +
-                Make_TextureReferenceTooltip(textureGuid, texturePath);
+            const string tooltip = sourceLocked
+                                   ? string{ sourceLockTooltip } + "\n\n" + Make_TextureReferenceTooltip(textureGuid, texturePath)
+                                   : "Content Browser의 .png / .dds를 드롭하면 현재 instance texture reference로 지정합니다.\n\n" +
+                                     Make_TextureReferenceTooltip(textureGuid, texturePath);
             ImGui::SetTooltip("%s", tooltip.c_str());
         }
 
@@ -472,8 +484,11 @@ namespace Internal
                 changed = Try_AssignTextureFromFile(pickedFilePath, textureGuid, texturePath);
         }
         ImGui::PopStyleVar(2);
-        if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayShort))
-            ImGui::SetTooltip("텍스처 파일 선택");
+        if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayShort | (sourceLocked ? ImGuiHoveredFlags_AllowWhenDisabled : ImGuiHoveredFlags_None)))
+            ImGui::SetTooltip("%s", sourceLocked ? sourceLockTooltip : "텍스처 파일 선택");
+
+        if (sourceLocked)
+            ImGui::EndDisabled();
 
         return changed;
     }
@@ -486,17 +501,19 @@ namespace Internal
         string& texturePath,
         const string& defaultGuid,
         const string& defaultPath,
-        const char* tooltip = nullptr)
+        const char* tooltip = nullptr,
+        const char* sourceLockTooltip = nullptr)
     {
+        const bool sourceLocked = sourceLockTooltip != nullptr && sourceLockTooltip[0] != '\0';
         ImGui::PushID(label);
         detailContext.Draw_PropertyLabel(label, tooltip);
 
         constexpr ImVec2 thumbnailSize{ 44.f, 44.f };
         Draw_TextureThumbnail(textureCache, textureGuid, texturePath, thumbnailSize);
         ImGui::SameLine();
-        bool changed = Draw_TextureSlotBody(textureGuid, texturePath);
+        bool changed = Draw_TextureSlotBody(textureGuid, texturePath, sourceLockTooltip);
 
-        const bool resetClicked = detailContext.Draw_ResetButton(textureGuid != defaultGuid || texturePath != defaultPath);
+        const bool resetClicked = detailContext.Draw_ResetButton(!sourceLocked && (textureGuid != defaultGuid || texturePath != defaultPath));
         if (resetClicked)
         {
             textureGuid = defaultGuid;
@@ -1308,7 +1325,8 @@ bool EffectMaterialInstance_View::Draw_InstanceProperties(
     bool* outRestartPreview,
     EffectMaterialTwoSidedDisplayMode twoSidedDisplayMode,
     EffectMaterialDistortionShapeControlMode distortionShapeControlMode,
-    const EffectMaterialRenderPolicyBinding* renderPolicyBinding)
+    const EffectMaterialRenderPolicyBinding* renderPolicyBinding,
+    const char* mainTextureSourceLockTooltip)
 {
     const EffectMaterialInstanceData defaultData{};
     const EffectMaterialBlendMode effectiveBlendMode =
@@ -1330,7 +1348,8 @@ bool EffectMaterialInstance_View::Draw_InstanceProperties(
                 material.mainTexturePath,
                 defaultData.mainTextureGuid,
                 defaultData.mainTexturePath,
-                "최종 색과 opacity의 기본 texture입니다. 비워두면 material shader의 fallback 입력을 사용합니다."
+                "최종 색과 opacity의 기본 texture입니다. 비워두면 material shader의 fallback 입력을 사용합니다.",
+                mainTextureSourceLockTooltip
             );
             changed |= Internal::Draw_StringComboProperty(
                 detailPropertyContext,
