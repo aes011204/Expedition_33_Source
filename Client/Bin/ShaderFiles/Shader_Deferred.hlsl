@@ -383,7 +383,8 @@ PS_OUT_HDR_WITH_MASK PS_CombinedHDR(PS_IN In)
     // Shadow
     float4 worldPos = WorldPos;
     float viewDepth = Get_ViewZ(In.Texcoord);
-    float finalShadow = SampleDynamicShadowAmount(worldPos, viewDepth);;
+    float finalShadow = max(SampleDynamicShadowAmount(worldPos, viewDepth),
+                            SampleCachedInstancedShadowAmount(worldPos));
 
     if (finalShadow > 0.f)
     {
