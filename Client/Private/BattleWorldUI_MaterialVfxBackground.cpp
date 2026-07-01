@@ -10,6 +10,7 @@
 #include "ShaderCom.h"
 #include "Texture.h"
 #include "TransformCom.h"
+#include "UI_Image.h"
 #include "VIBuffer_Rect.h"
 
 NS_BEGIN(Client)
@@ -27,6 +28,8 @@ namespace
     constexpr float kBattleWorldVfxBackgroundRadiansToDegrees = 57.29577951308232f;
     constexpr float kBattleWorldVfxBackgroundItemScreenXOffset = -0.55f;
     constexpr float kBattleWorldVfxBackgroundSkillScreenXOffset = -0.35f;
+    constexpr wchar_t kBattleWorldVfxBackgroundProxyImagePrototypeTag[] =
+        L"BattleWorldUI_MaterialVfxBackground_ProxyImage";
     constexpr bool kBattleWorldVfxBackgroundIgnoreWicSrgb = true;
     const Vec2 kBattleWorldVfxBackgroundDefaultWorldSize = Vec2(1.f, 1.f);
     const Vec4 kBattleWorldVfxBackgroundWorldColor = Vec4(1.24f, 1.14f, 0.93f, 1.f);
@@ -60,6 +63,7 @@ namespace
         Shared<Texture> baseTexture{};
         Shared<Texture> maskTexture{};
         Shared<Texture> noiseTexture{};
+        wstring proxyTexturePath{};
         Vec2 pixelSize = Vec2(500.f, 500.f);
         Vec4 color = Vec4(1.f, 1.f, 1.f, 1.f);
         Vec4 materialColor = Vec4(1.f, 0.12f, 0.95f, 1.f);
@@ -355,6 +359,54 @@ namespace
         return !textureGuid.empty() || !texturePath.empty();
     }
 
+    wstring Resolve_BackgroundRuntimeResourcePath(const string& path)
+    {
+        if (path.empty())
+            return {};
+
+        string normalizedPath = path;
+        replace(normalizedPath.begin(), normalizedPath.end(), '\\', '/');
+
+        string loweredPath = normalizedPath;
+        transform(loweredPath.begin(), loweredPath.end(), loweredPath.begin(),
+            [](unsigned char value) { return static_cast<char>(tolower(value)); });
+
+        string resourceRelativePath = normalizedPath;
+        constexpr const char* resourcePrefix = "../bin/resources/";
+        constexpr const char* binResourcePrefix = "bin/resources/";
+        constexpr const char* resourcesPrefix = "resources/";
+
+        auto startsWith = [](const string& text, const char* prefix)
+            {
+                return text.rfind(prefix, 0) == 0;
+            };
+
+        if (startsWith(loweredPath, resourcePrefix))
+            resourceRelativePath = normalizedPath.substr(strlen(resourcePrefix));
+        else if (startsWith(loweredPath, binResourcePrefix))
+            resourceRelativePath = normalizedPath.substr(strlen(binResourcePrefix));
+        else if (startsWith(loweredPath, resourcesPrefix))
+            resourceRelativePath = normalizedPath.substr(strlen(resourcesPrefix));
+
+        return (fs::path(GAME->Get_AssetRoot()) / fs::path(String::ToWString(resourceRelativePath))).lexically_normal().wstring();
+    }
+
+    wstring Resolve_BackgroundTexturePath(const string& textureGuid, const string& texturePath)
+    {
+        if (!textureGuid.empty())
+        {
+            const wstring guidPath = GAME->Resolve_AssetPath(textureGuid);
+            if (!guidPath.empty() && fs::exists(guidPath))
+                return guidPath;
+        }
+
+        const wstring fallbackPath = Resolve_BackgroundRuntimeResourcePath(texturePath);
+        if (!fallbackPath.empty() && fs::exists(fallbackPath))
+            return fallbackPath;
+
+        return {};
+    }
+
     uint32 Parse_MaterialVfxMode(const string& modeName)
     {
         const string mode = String::ToLowerCopy(modeName);
@@ -424,6 +476,7 @@ namespace
         BattleWorldVfxBackgroundDef def{};
         const string textureGuid = Read_JsonString(*imageNode, "textureGuid");
         const string texturePath = Read_JsonString(*imageNode, "texturePath");
+        def.proxyTexturePath = Resolve_BackgroundTexturePath(textureGuid, texturePath);
         def.baseTexture = BattleWorldUI_JsonTextureResolver::Load_TextureFromUITextureRef(
             device,
             context,
@@ -840,6 +893,137 @@ namespace
             cameraTransform->Get_WorldForward() * screenPosition.z;
     }
 
+    bool Is_FiniteProxyValue(const Vec2& value)
+    {
+        return std::isfinite(value.x) && std::isfinite(value.y);
+    }
+
+    bool Try_ProjectWorldPointForProxy(const Vec3& worldPos, Vec2& outScreenPos)
+    {
+        const Matrix* view = GAME->Get_Transform(D3DTS::View);
+        const Matrix* proj = GAME->Get_Transform(D3DTS::Proj);
+        if (view == nullptr || proj == nullptr)
+            return false;
+
+        const float viewportWidth = static_cast<float>(max(1u, GAME->Get_ViewportWidth()));
+        const float viewportHeight = static_cast<float>(max(1u, GAME->Get_ViewportHeight()));
+        const Matrix viewProj = (*view) * (*proj);
+
+        Vec4 clip{};
+        Vec4::Transform(Vec4(worldPos.x, worldPos.y, worldPos.z, 1.f), viewProj, clip);
+        if (clip.w <= 0.00001f)
+            return false;
+
+        const float ndcX = clip.x / clip.w;
+        const float ndcY = clip.y / clip.w;
+        const float ndcZ = clip.z / clip.w;
+        if (!std::isfinite(ndcX) || !std::isfinite(ndcY) || !std::isfinite(ndcZ))
+            return false;
+
+        if (ndcZ < 0.f || ndcZ > 1.f)
+            return false;
+
+        outScreenPos.x = (ndcX * 0.5f + 0.5f) * viewportWidth;
+        outScreenPos.y = (-ndcY * 0.5f + 0.5f) * viewportHeight;
+        return Is_FiniteProxyValue(outScreenPos);
+    }
+
+    bool Try_ProjectWorldUIPlaneToProxyTransform(
+        const Matrix& worldMatrix,
+        Vec2& outPosition,
+        Vec2& outSize,
+        float& outRotationRadians)
+    {
+        const Vec3 worldCenter = Vec3::Transform(Vec3(0.f, 0.f, 0.f), worldMatrix);
+        const Vec3 worldLeft = Vec3::Transform(Vec3(-0.5f, 0.f, 0.f), worldMatrix);
+        const Vec3 worldRight = Vec3::Transform(Vec3(0.5f, 0.f, 0.f), worldMatrix);
+        const Vec3 worldTop = Vec3::Transform(Vec3(0.f, 0.5f, 0.f), worldMatrix);
+        const Vec3 worldBottom = Vec3::Transform(Vec3(0.f, -0.5f, 0.f), worldMatrix);
+
+        Vec2 screenCenter{};
+        Vec2 screenLeft{};
+        Vec2 screenRight{};
+        Vec2 screenTop{};
+        Vec2 screenBottom{};
+        if (!Try_ProjectWorldPointForProxy(worldCenter, screenCenter) ||
+            !Try_ProjectWorldPointForProxy(worldLeft, screenLeft) ||
+            !Try_ProjectWorldPointForProxy(worldRight, screenRight) ||
+            !Try_ProjectWorldPointForProxy(worldTop, screenTop) ||
+            !Try_ProjectWorldPointForProxy(worldBottom, screenBottom))
+        {
+            return false;
+        }
+
+        const Vec2 widthVector = screenRight - screenLeft;
+        const Vec2 heightVector = screenTop - screenBottom;
+        const float width = widthVector.Length();
+        const float height = heightVector.Length();
+        if (!std::isfinite(width) || !std::isfinite(height) || width <= 1.f || height <= 1.f)
+            return false;
+
+        outPosition = screenCenter;
+        outSize = Vec2(width, height);
+        outRotationRadians = atan2f(widthVector.y, widthVector.x);
+        return
+            Is_FiniteProxyValue(outPosition) &&
+            Is_FiniteProxyValue(outSize) &&
+            std::isfinite(outRotationRadians);
+    }
+
+    HRESULT Ensure_BackgroundProxyImage(
+        const BattleWorldVfxBackgroundDef& backgroundDef,
+        Shared<UI_Image>& proxyImage)
+    {
+        if (proxyImage != nullptr)
+            return S_OK;
+
+        if (backgroundDef.proxyTexturePath.empty() || !fs::exists(backgroundDef.proxyTexturePath))
+        {
+            LOG_WARN("BattleWorldUI material vfx background proxy texture missing. path='{}'",
+                String::ToString(backgroundDef.proxyTexturePath));
+            return E_FAIL;
+        }
+
+        constexpr uint32 staticLevelIndex = ETOI(LevelType::Static);
+        if (!GAME->Has_Prototype(staticLevelIndex, kBattleWorldVfxBackgroundProxyImagePrototypeTag))
+        {
+            CHECK_FAILED(GAME->Add_Prototype(
+                staticLevelIndex,
+                kBattleWorldVfxBackgroundProxyImagePrototypeTag,
+                UI_Image::Create()), E_FAIL);
+        }
+
+        UI_Image::UI_IMAGE_DESC desc{};
+        desc.texturePath = backgroundDef.proxyTexturePath;
+        desc.transformDesc.size = Vec2(100.f, 100.f);
+        desc.transformDesc.scale = Vec2(1.f, 1.f);
+        desc.transformDesc.pivot = Vec2(0.5f, 0.5f);
+        desc.transformDesc.anchorMin = Vec2(0.f, 0.f);
+        desc.transformDesc.anchorMax = Vec2(0.f, 0.f);
+        desc.imageRenderMode = UI_Image::ImageRenderMode::Normal;
+        desc.renderGroup = UI_RenderGroup::Background;
+        desc.sortOrder = 0;
+        desc.isOpenOnCreate = false;
+
+        Shared<UI_Base> createdBase{};
+        CHECK_FAILED(GAME->Add_UI(
+            staticLevelIndex,
+            kBattleWorldVfxBackgroundProxyImagePrototypeTag,
+            &desc,
+            &createdBase), E_FAIL);
+
+        proxyImage = dynamic_pointer_cast<UI_Image>(createdBase);
+        CHECK_NULL(proxyImage, E_FAIL);
+
+        return S_OK;
+    }
+
+    void Close_BackgroundProxyImage(const Shared<UI_Image>& proxyImage)
+    {
+        if (proxyImage != nullptr)
+            proxyImage->Close();
+    }
+
     HRESULT Bind_WorldUIPlaneShaderState(
         ShaderCom* shader,
         const Matrix& worldMatrix,
@@ -1093,6 +1277,11 @@ namespace
             return _renderTarget->Bind_ShaderResource(shader, name);
         }
 
+        ShaderResourceView* Get_ShaderResourceView() const
+        {
+            return _renderTarget != nullptr ? _renderTarget->Get_SRV() : nullptr;
+        }
+
         static Unique<RenderTargetComposedMaterialVfxBackground> Create(
             const ComPtr<Device>& device,
             const ComPtr<Context>& context,
@@ -1146,6 +1335,7 @@ struct BattleWorldUI_MaterialVfxBackground::Impl
     BattleWorldSurfaceAnimState introAnim{};
     Vec3 introStartOffset = Vec3::Zero;
     Matrix worldMatrix = Matrix::Identity;
+    Shared<UI_Image> proxyImage{};
     bool visible = false;
 };
 
@@ -1254,6 +1444,7 @@ void BattleWorldUI_MaterialVfxBackground::Show_ForBattleState(
     {
         Set_Visible(false);
         _impl->visible = false;
+        Close_BackgroundProxyImage(_impl->proxyImage);
         return;
     }
 
@@ -1275,8 +1466,50 @@ void BattleWorldUI_MaterialVfxBackground::Show_ForBattleState(
             1.f) *
         Matrix::CreateRotationZ(placementTuning.rollRadians) *
         Resolve_CameraBillboardMatrix(position);
-    _impl->visible = true;
 
+    const BattleWorldSurfaceAnimRenderState renderState =
+        Apply_BattleWorldSurfaceAnim(
+            _impl->introAnim,
+            _impl->worldMatrix,
+            kBattleWorldVfxBackgroundWorldColor,
+            _impl->introStartOffset);
+
+    Vec2 proxyPosition{};
+    Vec2 proxySize{};
+    float proxyRotationRadians = 0.f;
+    if (FAILED(Ensure_BackgroundProxyImage(_impl->backgroundDef, _impl->proxyImage)) ||
+        _impl->proxyImage == nullptr ||
+        FAILED(_impl->proxyImage->Set_ExternalShaderResource(_impl->surface->Get_ShaderResourceView())) ||
+        !Try_ProjectWorldUIPlaneToProxyTransform(renderState.worldMatrix, proxyPosition, proxySize, proxyRotationRadians))
+    {
+        Set_Visible(false);
+        _impl->visible = false;
+        Close_BackgroundProxyImage(_impl->proxyImage);
+        return;
+    }
+
+    if (!_impl->proxyImage->Is_Open())
+        _impl->proxyImage->Open();
+
+    UI_Transform* proxyTransform = _impl->proxyImage->Get_Transform();
+    if (proxyTransform == nullptr)
+    {
+        Set_Visible(false);
+        _impl->visible = false;
+        Close_BackgroundProxyImage(_impl->proxyImage);
+        return;
+    }
+
+    proxyTransform->Set_Position(proxyPosition);
+    proxyTransform->Set_Size(proxySize);
+    proxyTransform->Set_Scale(Vec2(1.f, 1.f));
+    proxyTransform->Set_Pivot(Vec2(0.5f, 0.5f));
+    proxyTransform->Set_Anchor(Vec2(0.f, 0.f));
+    proxyTransform->Set_RotationRadians(proxyRotationRadians);
+    _impl->proxyImage->Set_Color(renderState.color);
+    _impl->proxyImage->Set_AlphaMultiplier(1.f);
+
+    _impl->visible = true;
     Set_Visible(true);
 }
 
@@ -1289,6 +1522,7 @@ void BattleWorldUI_MaterialVfxBackground::Hide()
 
     _impl->hasIntroKey = false;
     _impl->visible = false;
+    Close_BackgroundProxyImage(_impl->proxyImage);
 }
 
 LevelType BattleWorldUI_MaterialVfxBackground::Get_EditorWorldPlacementLevelType() const
@@ -1450,11 +1684,6 @@ void BattleWorldUI_MaterialVfxBackground::Reset_EditorWorldPlacementTuning()
 void BattleWorldUI_MaterialVfxBackground::Late_Update(float timeDelta)
 {
     UNREFERENCED_PARAMETER(timeDelta);
-
-    if (!Is_Visible())
-        return;
-
-    GAME->Add_RenderGroup(RenderGroup::UIEffect, GetSharedPtr<GameObject>());
 }
 
 HRESULT BattleWorldUI_MaterialVfxBackground::Render()
@@ -1490,6 +1719,13 @@ Shared<GameObject> BattleWorldUI_MaterialVfxBackground::Clone(void* arg)
 
 void BattleWorldUI_MaterialVfxBackground::Free()
 {
+    if (_impl != nullptr && _impl->proxyImage != nullptr)
+    {
+        _impl->proxyImage->Close();
+        GAME->Remove_UI(_impl->proxyImage);
+        _impl->proxyImage.reset();
+    }
+
     __super::Free();
 
     _impl.reset();
