@@ -50,6 +50,7 @@ private:
     void Render_EventTrack();
     void Render_ActorRelativeCameraTracks();
     void Render_ActorTransformTracks();
+    void Render_PartRotationTracks();
     void Render_SelectedKeyframePopup();
     void Render_InsertKeyframePopup();
     void Render_RemoveKeyframePopup();
@@ -74,6 +75,7 @@ private:
     bool Sync_PreviewSequenceToRunner();
     void Request_CinematicPreviewRefresh(bool rebuildContext = false);
     void Sort_AllActorTransformTrackKeyframes();
+    void Sort_AllPartRotationTrackKeyframes();
     void Sync_FreeCameraToCinematicPreviewPose();
     void Enter_FreeCameraEditPreview(bool requestViewportFocus = true);
     void Clear_PendingInsertRequest();
@@ -81,6 +83,7 @@ private:
     void Insert_BattleClipKeyAtFrame(int trackIndex, int frame);
     void Apply_CurrentBattleClipPreview();
     bool Try_CaptureSelectedActorTransform(Vec3& outPosition, Vec3& outRotation) const;
+    bool Try_CaptureSelectedPartRotation(Vec3& outRotation) const;
     bool Try_CaptureSelectedActorRelativeCameraValues(
         float& outDistance,
         float& outHeight,
@@ -97,12 +100,16 @@ private:
     CINEMATIC_KEYFRAME* Get_SelectedKeyframe();
     CINEMATIC_ACTOR_RELATIVE_CAMERA_TRACK* Get_SelectedActorRelativeCameraTrack();
     CINEMATIC_ACTOR_RELATIVE_CAMERA_KEYFRAME* Get_SelectedActorRelativeCameraKeyframe();
+    CINEMATIC_PART_ROTATION_TRACK* Get_SelectedPartRotationTrack();
+    CINEMATIC_PART_ROTATION_KEYFRAME* Get_SelectedPartRotationKeyframe();
     CameraTrack* Get_SelectedModifierTrack();
     CameraKeyframe* Get_SelectedModifierKeyframe();
     bool Is_SelectedActorRelativeCameraTrack() const;
     int Get_SelectedActorRelativeCameraTrackIndex() const;
     bool Is_SelectedModifierTrack() const;
     int Get_SelectedModifierTrackIndex() const;
+    bool Is_SelectedPartRotationTrack() const;
+    int Get_SelectedPartRotationTrackIndex() const;
     CameraTrack* Get_SelectedBattleClipTrack();
     CameraKeyframe* Get_SelectedBattleClipKeyframe();
     Shared<Client::BattleTurnCamera> Get_BattleTurnCamera() const;
@@ -131,6 +138,8 @@ private:
     int                                  _selectedActorRelativeCameraKeyIndex = -1;
     int                                  _selectedActorTransformTrackIndex = -1;
     int                                  _selectedActorTransformKeyIndex = -1;
+    int                                  _selectedPartRotationTrackIndex = -1;
+    int                                  _selectedPartRotationKeyIndex = -1;
     int                                  _currentFrame = 0;
     float                                _currentFrameExact = 0.f;
     bool                                 _useExactFramePreview = false;

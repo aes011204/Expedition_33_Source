@@ -11,6 +11,9 @@
 #include "CombatStatCom.h"
 #include "GradientSkill.h"
 
+#include "BattleSpawnRegistry.h"
+#include "BattleTurnCamera.h"
+
 NS_BEGIN(Client)
 
 ChooseAction::ChooseAction(const Shared<BattleController>& owner)
@@ -155,12 +158,27 @@ void ChooseAction::Update(float timeDelta)
     if (GAME->KeyDown(KEY_TYPE::RBUTTON)) // 조준
     {
         if (!GAME->Is_ActiveCameraType(ObjectType::BattleTurnCamera))
-        {
-            LOG_DEBUG("ChooseAction: FreeAimTargeting blocked because active camera is not BattleTurnCamera");
             return;
-        }
 
         owner->Get_TurnActionRequest().type = EBattleContext::FreeAimShoot;
+
+        const BattleChar& actor = owner->Get_TurnActionRequest().actor;
+
+        if (const auto battleCamera = owner->Get_BattleTurnCamera())
+        {
+            float freeAimBaseYaw = 0.f;
+
+            if (const auto spawnRegistry = owner->Get_BattleSpawnRegistry())
+            {
+                if (actor.actor != nullptr)
+                {
+                    if (const BattleSpawnRegistry::BattleEntry* spawnEntry = spawnRegistry->Find_SpawnEntry(actor.actor))
+                        freeAimBaseYaw = spawnEntry->spawnRotation.y;
+                }
+            }
+
+            battleCamera->Reset_FreeAimRotation(freeAimBaseYaw);
+        }
 
         EvtBattlePresentation event;
         event.cameraMode = BattleCameraMode::AIM;

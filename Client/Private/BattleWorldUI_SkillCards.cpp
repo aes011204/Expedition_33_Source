@@ -598,7 +598,7 @@ namespace
             case 1: return { "Panel_Percee", "Percee", true };
             case 2: return { "Panel_FleureFury", "FleureFury", true };
             case 3: return { "Panel_SwordBallet", "SwordBallet", true };
-            case 4: return { "Panel_Stendhal", "Stendhal", true };
+            case 4: return { "Panel_Pyrolyse", "Pyrolyse", true };
             default: break;
             }
             break;

@@ -29,11 +29,17 @@ void BattleHitSequenceRunner::Update(float timeDelta)
     {
         _pending.elapsed -= _pending.hitInterval;
 
+        _isApplyingHitSequenceDamage = true;
+        _isCurrentHitSequenceDamageFinal = _pending.remainingHits == 1; // 지연 다단히트는 마지막 예약 타격에서만 파괴를 허용한다.
+
         DamageSystem::ApplyDamage(
             _pending.hitDamage,
             _pending.attacker,
             _pending.target,
             _pending.attackType);
+
+        _isApplyingHitSequenceDamage = false;
+        _isCurrentHitSequenceDamageFinal = false;
 
         Play_HitEffect(_pending.target, _pending.hitEffect);
         Play_HitSound(_pending.target, _pending.hitEffect.hitSoundCue);
@@ -79,9 +85,63 @@ void BattleHitSequenceRunner::Begin_RepeatedHit(
     _pending.hitEffect = hitEffect;
 }
 
+void BattleHitSequenceRunner::Begin_RepeatedHitWithImmediateFirstHit(
+    const BattleChar& attacker,
+    const BattleChar& target,
+    int32 hitCount,
+    float interval,
+    float hitDamage,
+    AttackType attackType,
+    const HitEffectDesc& hitEffect)
+{
+    Clear();
+
+    if (target.actor == nullptr || target.statCom == nullptr)
+        return;
+
+    if (hitCount <= 0)
+        return;
+
+    if (interval <= 0.f)
+        return;
+
+    if (hitDamage <= 0.f)
+        return;
+
+    _isApplyingHitSequenceDamage = true;
+    _isCurrentHitSequenceDamageFinal = hitCount == 1; // 즉시 첫 타도 다단히트 전체 기준 마지막 여부로 판단한다.
+
+    DamageSystem::ApplyDamage(
+        hitDamage,
+        attacker,
+        target,
+        attackType);
+
+    _isApplyingHitSequenceDamage = false;
+    _isCurrentHitSequenceDamageFinal = false;
+
+    Play_HitEffect(target, hitEffect);
+    Play_HitSound(target, hitEffect.hitSoundCue);
+
+    const int32 remainingHits = hitCount - 1;
+    if (remainingHits <= 0)
+        return;
+
+    Begin_RepeatedHit(
+        attacker,
+        target,
+        remainingHits,
+        interval,
+        hitDamage,
+        attackType,
+        hitEffect);
+}
+
 void BattleHitSequenceRunner::Clear()
 {
     _pending = {};
+    _isApplyingHitSequenceDamage = false;
+    _isCurrentHitSequenceDamageFinal = false;
 }
 
 void BattleHitSequenceRunner::Play_HitEffect(const BattleChar& target, const HitEffectDesc& hitEffect) const

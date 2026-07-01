@@ -31,7 +31,7 @@ public:
         float& damage,
         AttackType attackType) const;
 
-    virtual bool Try_ApplyBattleBreakOnDamage(const DamageAppliedInfo& info);
+    virtual bool Try_ApplyBattleBreakOnDamage(const DamageAppliedInfo& info, bool canTriggerBreak);
 
     void    Set_BattleColliderActive(bool isActive);
     bool    Is_BattleColliderActive() const;

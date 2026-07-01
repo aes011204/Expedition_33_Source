@@ -35,7 +35,7 @@ private:
     Shared<ColliderCom> _colliderCom{};
     Shared<EffectCom>   _effectCom{};
 
-    LevelType _targetLevel = LevelType::GamePlay;
+    LevelType _targetLevel = LevelType::GameEntry;
     float _effectScale = 2.0f;
     bool _transitionRequested = false;
 

@@ -192,10 +192,10 @@ void UI_BattleSystem_TurnOrder::Set_TurnOrderPreview(const vector<TurnOrderEntry
             }
         }
 
-        if (_isAnimationPlaybackEnabled && slotChanged)
+        if (_isAnimationPlaybackEnabled && slotChanged && playTurnStartBatch)
             Play_SlotPortraitIntro(slot, entry.isEnemy);
 
-        if (_isAnimationPlaybackEnabled && isCurrentTurn && slotChanged)
+        if (_isAnimationPlaybackEnabled && isCurrentTurn && slotChanged && playTurnStartBatch)
             Play_CurrentTurnPulse(entry.isEnemy);
 
         slot.lastPortraitGuid = entry.portraitGuid;
@@ -226,7 +226,7 @@ void UI_BattleSystem_TurnOrder::Clear_TurnOrderPreview()
 void UI_BattleSystem_TurnOrder::Notify_TurnStarted()
 {
     _isAnimationPlaybackEnabled = true;
-    _isFrameIntroPending = true;
+    _isFrameIntroPending = false; // 턴 전환마다 TurnOrder 전체 intro가 다시 재생되어 꺼졌다 켜지는 느낌을 막는다.
 }
 
 void UI_BattleSystem_TurnOrder::Set_AnimationPlaybackEnabled(bool enabled)

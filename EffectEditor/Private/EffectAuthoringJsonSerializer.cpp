@@ -32,6 +32,62 @@ namespace Internal
         return true;
     }
 
+    uint32 To_VelocityOverLifeApplyChannelMask(VelocityOverLifeApplyChannel channel)
+    {
+        switch (channel)
+        {
+        case VelocityOverLifeApplyChannel::InitialVelocity:
+            return kVelocityOverLifeApplyChannelInitialVelocityMask;
+        case VelocityOverLifeApplyChannel::InitialRadialVelocity:
+            return kVelocityOverLifeApplyChannelInitialRadialVelocityMask;
+        case VelocityOverLifeApplyChannel::VelocityCone:
+            return kVelocityOverLifeApplyChannelVelocityConeMask;
+        case VelocityOverLifeApplyChannel::SourceMotionVelocity:
+            return kVelocityOverLifeApplyChannelSourceMotionVelocityMask;
+        case VelocityOverLifeApplyChannel::AccelerationIntegratedVelocity:
+            return kVelocityOverLifeApplyChannelAccelerationIntegratedVelocityMask;
+        default:
+            return 0u;
+        }
+    }
+
+    json To_JsonVelocityOverLifeApplyChannels(uint32 mask)
+    {
+        json channels = json::array();
+        const VelocityOverLifeApplyChannel candidates[] = {
+            VelocityOverLifeApplyChannel::InitialVelocity,
+            VelocityOverLifeApplyChannel::InitialRadialVelocity,
+            VelocityOverLifeApplyChannel::VelocityCone,
+            VelocityOverLifeApplyChannel::SourceMotionVelocity,
+            VelocityOverLifeApplyChannel::AccelerationIntegratedVelocity,
+        };
+
+        for (const VelocityOverLifeApplyChannel channel : candidates)
+        {
+            if ((mask & To_VelocityOverLifeApplyChannelMask(channel)) != 0u)
+                channels.push_back(To_EnumToken(channel));
+        }
+
+        return channels;
+    }
+
+    uint32 Read_VelocityOverLifeApplyChannelMask(const json& root)
+    {
+        const auto iter = root.find("applyChannels");
+        if (iter == root.end() || !iter->is_array())
+            return kVelocityOverLifeApplyChannelAllMask;
+
+        uint32 mask = 0u;
+        for (const json& channelNode : *iter)
+        {
+            VelocityOverLifeApplyChannel channel{};
+            if (Try_ReadEnumToken(channelNode, channel))
+                mask |= To_VelocityOverLifeApplyChannelMask(channel);
+        }
+
+        return mask != 0u ? mask : kVelocityOverLifeApplyChannelAllMask;
+    }
+
     EffectTextureUVTilingMode Resolve_CompatibleUVTilingMode(const EffectMaterialUVAxisPolicy& policy)
     {
         return policy.uPolicy == policy.vPolicy ? policy.uPolicy : EffectTextureUVTilingMode::Wrap;
@@ -2370,6 +2426,7 @@ namespace Internal
     {
         json root = json::object();
         root["scaleOverLife"] = To_Json(data.scaleOverLife);
+        root["applyChannels"] = To_JsonVelocityOverLifeApplyChannels(data.applyChannelMask);
         return root;
     }
 
@@ -2382,14 +2439,17 @@ namespace Internal
         if (scaleOverLifeIter != root.end())
         {
             From_Json(*scaleOverLifeIter, outData.scaleOverLife);
-            return;
+        }
+        else
+        {
+            float scaleStart{ 1.f };
+            float scaleEnd{ 1.f };
+            Read_NumberField(root, "scaleStart", scaleStart);
+            Read_NumberField(root, "scaleEnd", scaleEnd);
+            outData.scaleOverLife = FloatDistributionData::Make_ConstantCurve(scaleStart, scaleEnd);
         }
 
-        float scaleStart{ 1.f };
-        float scaleEnd{ 1.f };
-        Read_NumberField(root, "scaleStart", scaleStart);
-        Read_NumberField(root, "scaleEnd", scaleEnd);
-        outData.scaleOverLife = FloatDistributionData::Make_ConstantCurve(scaleStart, scaleEnd);
+        outData.applyChannelMask = Read_VelocityOverLifeApplyChannelMask(root);
     }
 
     json To_Json(const OrbitOverLifeModuleData& data)
@@ -2569,6 +2629,46 @@ namespace Internal
         const auto iter = root.find("rotationOverLife");
         if (root.is_object() && iter != root.end())
             From_Json(*iter, outData.rotationOverLife);
+    }
+
+    json To_Json(const MeshDirectionAlignOverLifeModuleData& data)
+    {
+        json root = json::object();
+        root["targetMode"] = To_EnumToken(data.targetMode);
+        root["space"] = To_EnumToken(data.space);
+        root["target"] = To_Json(data.target);
+        root["meshForwardAxis"] = To_EnumToken(data.meshForwardAxis);
+        root["meshUpAxis"] = To_EnumToken(data.meshUpAxis);
+        root["alignmentProgress"] = To_Json(data.alignmentProgress);
+        root["randomDelay"] = To_Json(data.randomDelay);
+        root["randomWeightScale"] = To_Json(data.randomWeightScale);
+        root["blendMode"] = To_EnumToken(data.blendMode);
+        return root;
+    }
+
+    void From_Json(const json& root, MeshDirectionAlignOverLifeModuleData& outData)
+    {
+        if (!root.is_object())
+            return;
+
+        if (const auto iter = root.find("targetMode"); iter != root.end())
+            Try_ReadEnumToken(*iter, outData.targetMode);
+        if (const auto iter = root.find("space"); iter != root.end())
+            Try_ReadEnumToken(*iter, outData.space);
+        if (const auto iter = root.find("target"); iter != root.end())
+            Read_Vec3(*iter, outData.target);
+        if (const auto iter = root.find("meshForwardAxis"); iter != root.end())
+            Try_ReadEnumToken(*iter, outData.meshForwardAxis);
+        if (const auto iter = root.find("meshUpAxis"); iter != root.end())
+            Try_ReadEnumToken(*iter, outData.meshUpAxis);
+        if (const auto iter = root.find("alignmentProgress"); iter != root.end())
+            From_Json(*iter, outData.alignmentProgress);
+        if (const auto iter = root.find("randomDelay"); iter != root.end())
+            From_Json(*iter, outData.randomDelay);
+        if (const auto iter = root.find("randomWeightScale"); iter != root.end())
+            From_Json(*iter, outData.randomWeightScale);
+        if (const auto iter = root.find("blendMode"); iter != root.end())
+            Try_ReadEnumToken(*iter, outData.blendMode);
     }
 
     json To_Json(const InitialMeshRotationRateModuleData& data)
@@ -3249,6 +3349,9 @@ json EffectAuthoringJsonSerializer::To_Json(const AuthoringModule& module)
     case AuthoringModuleType::MeshRotationOverLife:
         root["data"] = Internal::To_Json(get<MeshRotationOverLifeModuleData>(module.data));
         break;
+    case AuthoringModuleType::MeshDirectionAlignOverLife:
+        root["data"] = Internal::To_Json(get<MeshDirectionAlignOverLifeModuleData>(module.data));
+        break;
     case AuthoringModuleType::InitialMeshRotationRate:
         root["data"] = Internal::To_Json(get<InitialMeshRotationRateModuleData>(module.data));
         break;
@@ -3416,6 +3519,9 @@ bool EffectAuthoringJsonSerializer::From_Json(const json& root, AuthoringModule&
         case AuthoringModuleType::MeshRotationOverLife:
             Internal::From_Json(*dataIter, get<MeshRotationOverLifeModuleData>(module.data));
             break;
+        case AuthoringModuleType::MeshDirectionAlignOverLife:
+            Internal::From_Json(*dataIter, get<MeshDirectionAlignOverLifeModuleData>(module.data));
+            break;
         case AuthoringModuleType::InitialMeshRotationRate:
             Internal::From_Json(*dataIter, get<InitialMeshRotationRateModuleData>(module.data));
             break;
@@ -3571,6 +3677,8 @@ AuthoringModuleData EffectAuthoringJsonSerializer::Make_DefaultModuleDataForRest
         return InitialMeshRotationModuleData{};
     case AuthoringModuleType::MeshRotationOverLife:
         return MeshRotationOverLifeModuleData{};
+    case AuthoringModuleType::MeshDirectionAlignOverLife:
+        return MeshDirectionAlignOverLifeModuleData{};
     case AuthoringModuleType::InitialMeshRotationRate:
         return InitialMeshRotationRateModuleData{};
     case AuthoringModuleType::MeshRotationRateScaleByLife:

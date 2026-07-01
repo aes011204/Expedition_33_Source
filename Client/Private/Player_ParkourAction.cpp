@@ -89,13 +89,13 @@ bool Player_ParkourAction::EnterInvoke()
     Refresh_BodyPlayer();
     if (_bodyPlayer == nullptr || _controllerCom == nullptr || _stateCom == nullptr || _movementCom == nullptr)
     {
-        LOG_WARN("[Parkour] Reject Enter: missing required component");
+        //LOG_WARN("[Parkour] Reject Enter: missing required component");
         return false;
     }
 
     if (!_hasPreparedRequest)
     {
-        LOG_WARN("[Parkour] Reject Enter: missing prepared request");
+        //LOG_WARN("[Parkour] Reject Enter: missing prepared request");
         return false;
     }
 
@@ -104,10 +104,10 @@ bool Player_ParkourAction::EnterInvoke()
     _prevRootMotionRatio = 0.f;
     _hasActiveRequest = true;
 
-    LOG_WARN("[Parkour] Enter {}: start=({:.2f},{:.2f},{:.2f}) target=({:.2f},{:.2f},{:.2f})",
-        Get_ParkourActionName(_request.actionType),
-        _request.startPoint.x, _request.startPoint.y, _request.startPoint.z,
-        _request.targetPoint.x, _request.targetPoint.y, _request.targetPoint.z);
+    //LOG_WARN("[Parkour] Enter {}: start=({:.2f},{:.2f},{:.2f}) target=({:.2f},{:.2f},{:.2f})",
+    //    Get_ParkourActionName(_request.actionType),
+    //    _request.startPoint.x, _request.startPoint.y, _request.startPoint.z,
+    //    _request.targetPoint.x, _request.targetPoint.y, _request.targetPoint.z);
 
     if (auto owner = _owner.lock())
     {
@@ -207,9 +207,9 @@ void Player_ParkourAction::Update(float timeDelta)
     {
         if (remain > kParkourFinishDistance)
         {
-            LOG_WARN("[Parkour] Finish with remaining distance. remain={:.2f}, target=({:.2f},{:.2f},{:.2f})",
-                remain,
-                _request.targetPoint.x, _request.targetPoint.y, _request.targetPoint.z);
+            //LOG_WARN("[Parkour] Finish with remaining distance. remain={:.2f}, target=({:.2f},{:.2f},{:.2f})",
+            //    remain,
+            //    _request.targetPoint.x, _request.targetPoint.y, _request.targetPoint.z);
         }
 
         _movementCom->Force_Land();
@@ -263,14 +263,14 @@ bool Player_ParkourAction::Build_ParkourRequestAtHeight(
     auto owner = _owner.lock();
     if (owner == nullptr)
     {
-        LOG_WARN("[Parkour] Reject {}: missing owner", actionName);
+        //LOG_WARN("[Parkour] Reject {}: missing owner", actionName);
         return false;
     }
 
     auto ownerTransform = owner->Get_Transform();
     if (ownerTransform == nullptr)
     {
-        LOG_WARN("[Parkour] Reject {}: missing owner transform", actionName);
+        //LOG_WARN("[Parkour] Reject {}: missing owner transform", actionName);
         return false;
     }
 
@@ -291,12 +291,12 @@ bool Player_ParkourAction::Build_ParkourRequestAtHeight(
         return true;
     }
 
-    LOG_WARN("[Parkour] Reject {}: probe failed. localHeight={:.2f}, origin=({:.2f},{:.2f},{:.2f}), dir=({:.2f},{:.2f},{:.2f}) distance={:.2f}",
-        actionName,
-        probeHeight,
-        frontOrigin.x, frontOrigin.y, frontOrigin.z,
-        forward.x, forward.y, forward.z,
-        kParkourProbeDistance);
+    //LOG_WARN("[Parkour] Reject {}: probe failed. localHeight={:.2f}, origin=({:.2f},{:.2f},{:.2f}), dir=({:.2f},{:.2f},{:.2f}) distance={:.2f}",
+    //    actionName,
+    //    probeHeight,
+    //    frontOrigin.x, frontOrigin.y, frontOrigin.z,
+    //    forward.x, forward.y, forward.z,
+    //    kParkourProbeDistance);
 
     return false;
 }
@@ -314,11 +314,11 @@ bool Player_ParkourAction::Build_ParkourRequestFromProbe(
     if (!GAME->Raycast_Environment(frontOrigin, forward, frontDistance, frontHit) ||
         !Is_EnvironmentHit(frontHit))
     {
-        LOG_WARN("[Parkour] Reject {}: front ray miss. origin=({:.2f},{:.2f},{:.2f}) dir=({:.2f},{:.2f},{:.2f}) distance={:.2f}",
-            actionName,
-            frontOrigin.x, frontOrigin.y, frontOrigin.z,
-            forward.x, forward.y, forward.z,
-            frontDistance);
+        //LOG_WARN("[Parkour] Reject {}: front ray miss. origin=({:.2f},{:.2f},{:.2f}) dir=({:.2f},{:.2f},{:.2f}) distance={:.2f}",
+        //    actionName,
+        //    frontOrigin.x, frontOrigin.y, frontOrigin.z,
+        //    forward.x, forward.y, forward.z,
+        //    frontDistance);
         return false;
     }
 
@@ -329,10 +329,10 @@ bool Player_ParkourAction::Build_ParkourRequestFromProbe(
     if (!GAME->Raycast_Environment(topProbeOrigin, Vec3(0.f, -1.f, 0.f), kParkourTopProbeDownDistance, topHit) ||
         !Is_EnvironmentHit(topHit))
     {
-        LOG_WARN("[Parkour] Reject {}: top ray miss. origin=({:.2f},{:.2f},{:.2f}) distance={:.2f}",
-            actionName,
-            topProbeOrigin.x, topProbeOrigin.y, topProbeOrigin.z,
-            kParkourTopProbeDownDistance);
+        //LOG_WARN("[Parkour] Reject {}: top ray miss. origin=({:.2f},{:.2f},{:.2f}) distance={:.2f}",
+        //    actionName,
+        //    topProbeOrigin.x, topProbeOrigin.y, topProbeOrigin.z,
+        //    kParkourTopProbeDownDistance);
         return false;
     }
 
@@ -340,13 +340,13 @@ bool Player_ParkourAction::Build_ParkourRequestFromProbe(
     const float targetHeight = topHit.position.y - start.y;
     if (actionType == ParkourActionType::LowMantle && targetHeight > kLowParkourMaxTargetHeight)
     {
-        LOG_WARN("[Parkour] Reject {}: target too high for Low. height={:.2f}, max={:.2f}, target=({:.2f},{:.2f},{:.2f})",
-            actionName,
-            targetHeight,
-            kLowParkourMaxTargetHeight,
-            topHit.position.x,
-            topHit.position.y,
-            topHit.position.z);
+        //LOG_WARN("[Parkour] Reject {}: target too high for Low. height={:.2f}, max={:.2f}, target=({:.2f},{:.2f},{:.2f})",
+        //    actionName,
+        //    targetHeight,
+        //    kLowParkourMaxTargetHeight,
+        //    topHit.position.x,
+        //    topHit.position.y,
+        //    topHit.position.z);
         return false;
     }
 
@@ -355,14 +355,14 @@ bool Player_ParkourAction::Build_ParkourRequestFromProbe(
     outRequest.faceDir = forward;
     outRequest.actionType = actionType;
 
-    LOG_WARN("[Parkour] Accept {}: start=({:.2f},{:.2f},{:.2f}) target=({:.2f},{:.2f},{:.2f}) height={:.2f} rayY={:.2f} diff={:.2f} tolerance={:.2f}",
-        actionName,
-        outRequest.startPoint.x, outRequest.startPoint.y, outRequest.startPoint.z,
-        outRequest.targetPoint.x, outRequest.targetPoint.y, outRequest.targetPoint.z,
-        targetHeight,
-        frontOrigin.y,
-        yDiff,
-        kParkourGroundYTolerance);
+    //LOG_WARN("[Parkour] Accept {}: start=({:.2f},{:.2f},{:.2f}) target=({:.2f},{:.2f},{:.2f}) height={:.2f} rayY={:.2f} diff={:.2f} tolerance={:.2f}",
+    //    actionName,
+    //    outRequest.startPoint.x, outRequest.startPoint.y, outRequest.startPoint.z,
+    //    outRequest.targetPoint.x, outRequest.targetPoint.y, outRequest.targetPoint.z,
+    //    targetHeight,
+    //    frontOrigin.y,
+    //    yDiff,
+    //    kParkourGroundYTolerance);
 
     return true;
 }

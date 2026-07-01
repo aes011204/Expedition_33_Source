@@ -75,17 +75,25 @@ private: //## Types::PlaybackRuntime
         float age{};                             // spawn 이후 누적된 particle age다.
         float lifeMax{ 1.f };                    // 이 particle에 배정된 최대 lifetime이다.
         Vec3 position{};                         // local-space면 emitter 기준, world-space면 world 기준 현재 위치다.
-        Vec3 velocity{};                         // position과 같은 simulation space에서 누적되는 현재 속도다.
+        Vec3 velocity{};                         // direction align 등이 참조하는 최종 frame velocity cache다.
+        Vec3 initialVelocity{};                  // InitialVelocity channel의 drag 누적 속도다.
+        Vec3 initialRadialVelocity{};            // InitialRadialVelocity channel의 drag 누적 속도다.
+        Vec3 velocityCone{};                     // VelocityCone channel의 drag 누적 속도다.
+        Vec3 sourceMotionVelocity{};             // SourceMotionVelocity channel의 drag 누적 속도다.
+        Vec3 accelerationIntegratedVelocity{};   // AccelerationIntegratedVelocity channel의 누적 속도다.
         Vec3 acceleration{};                     // particle별 초기 acceleration sample 값이다.
         float drag{};                            // 매 frame velocity 감쇠에 사용할 drag 계수다.
         Vec3 baseScale{ 1.f, 1.f, 1.f };         // life curve 적용 전 초기 mesh scale이다.
         Vec3 spawnOffset{};                      // OrbitOverLife가 회전시킬 emitter-local spawn offset이다.
         Vec3 spawnPosition{};                    // 기존 motion 누적량을 분리하기 위한 spawn 기준 위치다.
+        Quat spawnTransformRotation{ Quat::Identity }; // world-space particle이 spawn될 때의 effect root 회전이다.
         Quat spawnOrientation{ Quat::Identity }; // radial orientation module에서 만든 spawn 기준 mesh 회전이다.
         bool spawnOrientationEnabled{ false };   // spawn 기준 radial mesh 회전이 실제 적용 가능한지 나타낸다.
         Vec3 rotationRadians{};                  // 현재 particle 회전값이다.
         Quat rotationQuat{ Quat::Identity };     // world-space angular velocity 경로가 누적하는 현재 회전이다.
         Vec3 angularVelocityRadians{};           // 현재 particle 회전 속도다.
+        float directionAlignRandomDelay{ 0.f };  // MeshDirectionAlignOverLife 정렬 시작 normalized life 지연이다.
+        float directionAlignWeightScale{ 1.f };  // MeshDirectionAlignOverLife 최종 weight 배율이다.
         Vec4 startColor{ 1.f, 1.f, 1.f, 1.f };   // InitialColor에서 정한 particle 시작 색상이다.
         Vec4 endColor{ 1.f, 1.f, 1.f, 1.f };     // ColorOverLife endpoint 보간에 사용할 particle 끝 색상이다.
         Vec3 coreColorRgb{ 1.f, 0.85f, 0.45f };   // Core Color RGB Uniform+ParticleLife 생성 시점 샘플이다.
@@ -172,6 +180,8 @@ private: //## Data::Desc
     mutable bool _planeRadialMeshOrientationFallbackLogged{ false };
     // cylinder radial mesh axis fallback warning을 emitter당 한 번만 남긴다.
     mutable bool _cylinderRadialMeshOrientationFallbackLogged{ false };
+    // MeshDirectionAlignOverLife fallback warning을 emitter당 한 번만 남긴다.
+    mutable bool _meshDirectionAlignFallbackLogged{ false };
 
 private: //## Data::ParticleRuntime
     // active/inactive mesh particle slot 배열이다.
@@ -312,8 +322,11 @@ private: //## Helper::SamplingEvaluation
     Quat Build_PlaneRadialMeshOrientation(const PlaneRadialSample& sample, bool& outEnabled) const;
     // CylinderLocation sample frame을 mesh radial orientation용 회전으로 낮춘다.
     Quat Build_CylinderMeshOrientation(const CylinderRadialSample& sample, bool& outEnabled) const;
-    // velocity/radial velocity를 합친 초기 속도를 sample한다.
-    Vec3 Sample_InitialVelocity(
+    float Evaluate_DirectionAlignWeight(float lifeProgress, const MeshParticleState& particle) const;
+    Quat Build_MeshDirectionAlignTargetOrientation(const MeshParticleState& particle, const Vec3& visualPosition, bool& outEnabled) const;
+    // velocity channel별 초기 속도를 sample한다.
+    void Sample_InitialVelocityChannels(
+        MeshParticleState& particle,
         const Vec3& spawnPosition,
         const PlaneRadialSample& planeRadialSample,
         const SourceMotionVelocityContext& sourceMotionContext,
@@ -338,8 +351,10 @@ private: //## Helper::SamplingEvaluation
     Vec3 Sample_InitialRotation(uint32 seed) const;
     // mesh initial rotation rate range에서 시작 각속도를 sample한다.
     Vec3 Sample_InitialAngularVelocity(uint32 seed) const;
-    // velocity scale-by-life curve를 평가한다.
-    float Evaluate_VelocityScaleByLife(float lifeProgress) const;
+    // velocity channel별 scale-by-life curve를 평가한다.
+    float Evaluate_VelocityScaleByLifeChannel(const PointParticleFloatCurveRuntimeDesc& curve, float lifeProgress) const;
+    // 현재 channel state와 VelocityOverLife channel scale을 합쳐 최종 이동 속도를 계산한다.
+    Vec3 Evaluate_ScaledVelocityChannels(const MeshParticleState& particle, float lifeProgress) const;
     // acceleration curve가 있으면 선택된 time basis 기준 절대 가속을 평가한다.
     Vec3 Evaluate_AccelerationByLife(const MeshParticleState& particle, float lifeProgress) const;
     // mesh scale-by-life curve를 평가한다.
@@ -378,6 +393,8 @@ private: //## Helper::SamplingEvaluation
     // local/world space 정책에 따라 벡터 기준 좌표계를 변환한다.
     Vec3 Resolve_LocalVector(const Vec3& localVector) const;
     Vec3 Resolve_WorldVectorToSimulation(const Vec3& worldVector) const;
+    Vec3 Resolve_LocalPoint(const Vec3& localPoint) const;
+    Vec3 Resolve_WorldPointToSimulation(const Vec3& worldPoint) const;
     // deterministic seed 기반 0..1 난수를 반환한다.
     float Random01(uint32 seed) const;
     // deterministic seed 기반 범위 난수를 반환한다.
