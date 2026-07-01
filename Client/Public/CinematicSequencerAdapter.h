@@ -18,6 +18,8 @@ public:
         int* selectedActorRelativeKeyIndex,
         int* selectedActorTransformTrackIndex,
         int* selectedActorTransformKeyIndex,
+        int* selectedPartRotationTrackIndex,
+        int* selectedPartRotationKeyIndex,
         int* currentFrame,
         bool* consumedKeyClick,
         bool* requestOpenKeyPopup,
@@ -49,6 +51,8 @@ private:
     int* _selectedActorRelativeKeyIndex = nullptr;
     int* _selectedActorTransformTrackIndex = nullptr;
     int* _selectedActorTransformKeyIndex = nullptr;
+    int* _selectedPartRotationTrackIndex = nullptr;
+    int* _selectedPartRotationKeyIndex = nullptr;
     int* _currentFrame = nullptr;
     bool* _consumedKeyClick = nullptr;
     bool* _requestOpenKeyPopup = nullptr;

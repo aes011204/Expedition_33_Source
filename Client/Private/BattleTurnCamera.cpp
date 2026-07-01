@@ -21,6 +21,7 @@ namespace
 {
     // DOF_MODIFY 
     constexpr char kBattleDOFOwnerTag[] = "BattleTurn";
+    constexpr float kMaxFormationYawBiasDegrees = 35.f;
 
     constexpr wchar_t kBattleClipShakeDebugSlot[] =
     L"[BattleClipShake] anim={:.3f} sample={:.3f} shakeT={:.3f} amp={:.3f}";
@@ -117,6 +118,17 @@ DOFTransitionDesc Build_BattleDOFTransition()
     transition.easing = DOFTransitionEasing::EaseInOut;
     transition.duration = 0.35f;
     return transition;
+}
+
+float NormalizeAngleDegrees(float angle)
+{
+    while (angle > 180.f)
+        angle -= 360.f;
+
+    while (angle < -180.f)
+        angle += 360.f;
+
+    return angle;
 }
 
 }
@@ -1104,6 +1116,57 @@ float BattleTurnCamera::Resolve_BattlePlaneYaw() const
     return _battlePlaneYawDegrees;
 }
 
+int BattleTurnCamera::Resolve_EnemyIndexForActor(const Shared<Character>& actor) const
+{
+    if (actor == nullptr)
+        return -1;
+
+    const Shared<CombatStatCom> actorStatCom = actor->Get_Component<CombatStatCom>();
+    for (int i = 0; i < static_cast<int>(_enemies.size()); ++i)
+    {
+        const BattleChar& enemy = _enemies[i];
+        const bool isSameActor = enemy.actor.get() == actor.get();
+        const bool isSameStatCom = actorStatCom != nullptr && enemy.statCom.get() == actorStatCom.get();
+        if (isSameActor || isSameStatCom)
+            return i;
+    }
+
+    return -1;
+}
+
+float BattleTurnCamera::Resolve_EnemyFormationYawBiasDegrees(const Shared<Character>& enemyActor) const
+{
+    const int enemyIndex = Resolve_EnemyIndexForActor(enemyActor);
+    if (enemyIndex < 0)
+        return 0.f;
+
+    const Shared<TransformCom> enemyTransform =
+        _enemies[enemyIndex].actor != nullptr ? _enemies[enemyIndex].actor->Get_Transform() :
+        (enemyActor != nullptr ? enemyActor->Get_Transform() : nullptr);
+    if (enemyTransform == nullptr)
+        return 0.f;
+
+    const float expectedFacingYaw = NormalizeAngleDegrees(Resolve_BattlePlaneYaw() + 180.f);
+    const float enemyYaw = NormalizeAngleDegrees(enemyTransform->Get_RotationEuler().y);
+    const float rawBias = NormalizeAngleDegrees(enemyYaw - expectedFacingYaw);
+    return std::clamp(rawBias, -kMaxFormationYawBiasDegrees, kMaxFormationYawBiasDegrees);
+}
+
+float BattleTurnCamera::Resolve_RequestFormationYawBiasDegrees(const BattleShotRequest& request) const
+{
+    switch (request.mode)
+    {
+    case BattleCameraMode::ENEMYFOCUS:
+        return Resolve_EnemyFormationYawBiasDegrees(request.subject);
+
+    case BattleCameraMode::PLAYERATTACK:
+        return Resolve_EnemyFormationYawBiasDegrees(request.opponent);
+
+    default:
+        return 0.f;
+    }
+}
+
 float BattleTurnCamera::Resolve_YawBaseForPresetMode(const BattleShotRequest& request) const
 { 
     switch (request.mode)
@@ -1112,13 +1175,15 @@ float BattleTurnCamera::Resolve_YawBaseForPresetMode(const BattleShotRequest& re
         return _freeAimBaseYaw + _yaw;
 
     case BattleCameraMode::PLAYERFOCUS:
-    case BattleCameraMode::ENEMYFOCUS:
-    case BattleCameraMode::PLAYERATTACK:
     case BattleCameraMode::SELECTITEM:
     case BattleCameraMode::SELECTSKILL:
     case BattleCameraMode::PARRY:
     case BattleCameraMode::BATTLEINTRO:
         return Resolve_BattlePlaneYaw();
+
+    case BattleCameraMode::ENEMYFOCUS:
+    case BattleCameraMode::PLAYERATTACK:
+        return Resolve_BattlePlaneYaw() + Resolve_RequestFormationYawBiasDegrees(request);
 
     default:
         return _yaw;

@@ -3471,6 +3471,7 @@ void BattleController::Continue_StartTurnAfterStatusEffects()
 
         EvtBattlePresentation event{};
         event.cameraMode = BattleCameraMode::PLAYERFOCUS;
+        event.presetId = magic_enum::enum_name(_currentTurnActor.heroId);
         event.subject = _currentTurnActor.actor;
         LOG_INFO("[BattleCamTrace] Publish PLAYERFOCUS from BattleController::Continue_StartTurnAfterStatusEffects");
         GAME->Get_EventBus().Publish(event);

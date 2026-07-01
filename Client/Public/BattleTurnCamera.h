@@ -195,6 +195,9 @@ private:
         const BattleCameraClipSample& clipSample,
         EvaluatedPose& outPose) const;
     float Resolve_BattlePlaneYaw() const;
+    int Resolve_EnemyIndexForActor(const Shared<Character>& actor) const;
+    float Resolve_EnemyFormationYawBiasDegrees(const Shared<Character>& enemyActor) const;
+    float Resolve_RequestFormationYawBiasDegrees(const BattleShotRequest& request) const;
     float Resolve_YawBaseForPresetMode(const BattleShotRequest& request) const;
     bool Try_CaptureWideAnchor(Vec3& outHeroCenter, float& outYawDegrees) const;
     BattleCameraPreset* Find_PresetStorage(BattleCameraMode cameraMode);
