@@ -29,11 +29,12 @@ namespace Internal
         const float safeDuration = max(previewDuration, kMinDuration);
         const float positiveElapsedTime = max(elapsedTime, 0.f);
         const float cycleTime = std::fmod(positiveElapsedTime, safeDuration);
+        const float phase = cycleTime / safeDuration;
 
         return MaterialPreviewTime{
             safeDuration,
             cycleTime,
-            cycleTime / safeDuration
+            phase
         };
     }
 
@@ -814,7 +815,7 @@ HRESULT EffectMaterialPreviewRenderer::Render_PreviewMesh(const EffectMaterialIn
         clamp(material.alphaCutoff, 0.f, 1.f),
         clamp(material.alphaErosion, 0.f, 1.f),
         _maskTexture != nullptr ? 1.f : 0.f,
-        0.f
+        clamp(material.alphaMultiplier, 0.f, 1.f)
     );
     const Vec4 effectMaterialPreviewMainUVParams = Vec4(
         material.mainUVScale.x,
@@ -1075,7 +1076,7 @@ HRESULT EffectMaterialPreviewRenderer::Render_DistortionPreviewMesh(const Effect
         clamp(material.alphaCutoff, 0.f, 1.f),
         clamp(material.alphaErosion, 0.f, 1.f),
         _maskTexture != nullptr ? 1.f : 0.f,
-        0.f
+        clamp(material.alphaMultiplier, 0.f, 1.f)
     );
     const Vec4 mainUVParams = Vec4(
         material.mainUVScale.x,

@@ -11,7 +11,7 @@ cbuffer cbEffectDistortionSpriteMaterial : register(b2)
 {
     float4 g_Tint = { 1.f, 1.f, 1.f, 1.f };
     float4 g_EffectSpriteParams = { 1.f, 1.f, 0.f, 0.f };
-    float4 g_EffectSpriteAlphaParams = { 0.f, 0.f, 0.f, 0.f };
+    float4 g_EffectSpriteAlphaParams = { 0.f, 0.f, 0.f, 1.f };
     float4 g_EffectSpriteMainUVParams = { 1.f, 1.f, 0.f, 0.f };
     float4 g_EffectSpriteNoiseUVParams = { 1.f, 1.f, 0.f, 0.f };
     float4 g_EffectSpriteMaskUVParams = { 1.f, 1.f, 0.f, 0.f };
@@ -567,7 +567,7 @@ PS_OUT PS_MAIN(PS_IN In)
     }
 
     const float maskCoverage = Effect_ApplyAlphaErosion(maskAlpha, maskAlpha * noiseFactor, alphaErosion);
-    const float materialCoverage = Effect_BuildCoverage(selectedOpacity, opacityPower, maskCoverage, noiseFactor, particleColor.a * g_Tint.a);
+    const float materialCoverage = Effect_BuildCoverage(selectedOpacity, opacityPower, maskCoverage, noiseFactor, particleColor.a * g_Tint.a * g_EffectSpriteAlphaParams.w);
     if (materialCoverage < max(alphaCutoff, 0.01f))
         discard;
 

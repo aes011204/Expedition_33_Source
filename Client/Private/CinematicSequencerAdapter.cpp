@@ -108,7 +108,7 @@ int GetActorTransformTrackStartIndex(const CINEMATIC_SEQUENCE* sequence)
     if (sequence == nullptr)
         return -1;
 
-    return static_cast<int>(sequence->cinematicTracks.size()) + kModifierTrackCount + kEventTrackCount;
+    return GetEventTrackIndex(sequence) + kEventTrackCount;
 }
 
 bool IsActorTransformTrackIndex(const CINEMATIC_SEQUENCE* sequence, int index)
@@ -127,6 +127,32 @@ int GetActorTransformTrackOffset(const CINEMATIC_SEQUENCE* sequence, int index)
         return -1;
 
     return index - GetActorTransformTrackStartIndex(sequence);
+}
+
+int GetPartRotationTrackStartIndex(const CINEMATIC_SEQUENCE* sequence)
+{
+    if (sequence == nullptr)
+        return -1;
+
+    return GetActorTransformTrackStartIndex(sequence) + static_cast<int>(sequence->actorTransformTracks.size());
+}
+
+bool IsPartRotationTrackIndex(const CINEMATIC_SEQUENCE* sequence, int index)
+{
+    if (sequence == nullptr)
+        return false;
+
+    const int startIndex = GetPartRotationTrackStartIndex(sequence);
+    return index >= startIndex &&
+        index < startIndex + static_cast<int>(sequence->partRotationTracks.size());
+}
+
+int GetPartRotationTrackOffset(const CINEMATIC_SEQUENCE* sequence, int index)
+{
+    if (!IsPartRotationTrackIndex(sequence, index))
+        return -1;
+
+    return index - GetPartRotationTrackStartIndex(sequence);
 }
 
 bool* GetPreviewToggleForTrack(
@@ -149,6 +175,9 @@ bool* GetPreviewToggleForTrack(
         return eventTrackEnabled;
 
     if (IsActorTransformTrackIndex(sequence, index))
+        return actorTransformTrackEnabled;
+
+    if (IsPartRotationTrackIndex(sequence, index))
         return actorTransformTrackEnabled;
 
     return nullptr;
@@ -420,6 +449,8 @@ void DrawKeyMarkers(
     int* selectedActorRelativeKeyIndex,
     int* selectedActorTransformTrackIndex,
     int* selectedActorTransformKeyIndex,
+    int* selectedPartRotationTrackIndex,
+    int* selectedPartRotationKeyIndex,
     int* currentFrame,
     bool* consumedKeyClick,
     bool* requestOpenKeyPopup,
@@ -744,6 +775,110 @@ void DrawKeyMarkers(
             ImGui::GetWindowDrawList()->AddPolyline(diamond, 4, outlineColor, ImDrawFlags_Closed, isSelected ? 3.f : 2.f);
         }
     }
+    else if (IsPartRotationTrackIndex(sequence, index))
+    {
+        const int frameRange = std::max(frameMax - frameMin, 1);
+        const int partTrackIndex = GetPartRotationTrackOffset(sequence, index);
+        auto& track = sequence->partRotationTracks[partTrackIndex];
+
+        for (int keyIndex = 0; keyIndex < static_cast<int>(track.keyframes.size()); ++keyIndex)
+        {
+            auto& keyframe = track.keyframes[keyIndex];
+            const float normalized = static_cast<float>(keyframe.frame - frameMin) / static_cast<float>(frameRange);
+            const float markerX = std::max(rc.Min.x, std::min(rc.Min.x + normalized * (rc.Max.x - rc.Min.x), rc.Max.x));
+            const float centerY = (rc.Min.y + rc.Max.y) * 0.5f;
+            const bool isSelected =
+                selectedPartRotationTrackIndex != nullptr &&
+                selectedPartRotationKeyIndex != nullptr &&
+                *selectedPartRotationTrackIndex == partTrackIndex &&
+                *selectedPartRotationKeyIndex == keyIndex;
+
+            const float handleHalfWidth = isSelected ? 9.f : 7.f;
+            const float handleHalfHeight = isSelected ? 10.f : 8.f;
+            const ImRect handleRect(
+                ImVec2(markerX - handleHalfWidth, centerY - handleHalfHeight),
+                ImVec2(markerX + handleHalfWidth, centerY + handleHalfHeight));
+            const bool isHovered = ImGui::IsMouseHoveringRect(handleRect.Min, handleRect.Max, false);
+            if (isHovered)
+                isHoveringAnyKey = true;
+
+            if (isHovered && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
+            {
+                if (selectedTrackIndex != nullptr)
+                    *selectedTrackIndex = index;
+                if (selectedPartRotationTrackIndex != nullptr)
+                    *selectedPartRotationTrackIndex = partTrackIndex;
+                if (selectedPartRotationKeyIndex != nullptr)
+                    *selectedPartRotationKeyIndex = keyIndex;
+                if (currentFrame != nullptr)
+                    *currentFrame = keyframe.frame;
+                if (consumedKeyClick != nullptr)
+                    *consumedKeyClick = true;
+
+                g_keyDragState.trackIndex = index;
+                g_keyDragState.keyIndex = keyIndex;
+            }
+
+            if (isHovered && ImGui::IsMouseClicked(ImGuiMouseButton_Right))
+            {
+                if (selectedTrackIndex != nullptr)
+                    *selectedTrackIndex = index;
+                if (selectedPartRotationTrackIndex != nullptr)
+                    *selectedPartRotationTrackIndex = partTrackIndex;
+                if (selectedPartRotationKeyIndex != nullptr)
+                    *selectedPartRotationKeyIndex = keyIndex;
+                if (requestRemoveKeyPopup != nullptr)
+                    *requestRemoveKeyPopup = true;
+            }
+
+            if (isHovered && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
+            {
+                if (requestOpenKeyPopup != nullptr)
+                    *requestOpenKeyPopup = true;
+            }
+
+            const bool isDraggingThisKey =
+                g_keyDragState.trackIndex == index &&
+                g_keyDragState.keyIndex == keyIndex &&
+                ImGui::IsMouseDown(ImGuiMouseButton_Left);
+
+            if (isDraggingThisKey)
+            {
+                const float mouseX = std::max(rc.Min.x, std::min(ImGui::GetIO().MousePos.x, rc.Max.x));
+                const float normalizedMouse = (mouseX - rc.Min.x) / std::max(rc.Max.x - rc.Min.x, 1.f);
+                const int rawFrame = frameMin + static_cast<int>(std::lround(normalizedMouse * static_cast<float>(frameRange)));
+
+                int minFrame = frameMin;
+                int maxFrame = frameMax;
+                if (keyIndex > 0)
+                    minFrame = std::max(minFrame, track.keyframes[keyIndex - 1].frame);
+                if (keyIndex + 1 < static_cast<int>(track.keyframes.size()))
+                    maxFrame = std::min(maxFrame, track.keyframes[keyIndex + 1].frame);
+
+                keyframe.frame = std::clamp(rawFrame, minFrame, maxFrame);
+                if (currentFrame != nullptr)
+                    *currentFrame = keyframe.frame;
+            }
+
+            const ImU32 lineColor = isSelected ? 0xFFF6E3FF : 0xFFD7A6F0;
+            const ImU32 fillColor = isSelected ? 0xFFA94CD0 : (isHovered ? 0xFFE5C1F6 : 0xFFB774D8);
+            const ImU32 outlineColor = isSelected ? 0xFF4B1265 : 0xFF552A68;
+            const ImVec2 markerTop(markerX, rc.Min.y + 3.f);
+            const ImVec2 markerBottom(markerX, rc.Max.y - 3.f);
+            const ImVec2 diamond[4] =
+            {
+                ImVec2(markerX, centerY - handleHalfHeight),
+                ImVec2(markerX + handleHalfWidth, centerY),
+                ImVec2(markerX, centerY + handleHalfHeight),
+                ImVec2(markerX - handleHalfWidth, centerY)
+            };
+
+            ImGui::GetWindowDrawList()->AddLine(markerTop, markerBottom, outlineColor, 6.f);
+            ImGui::GetWindowDrawList()->AddLine(markerTop, markerBottom, lineColor, 3.f);
+            ImGui::GetWindowDrawList()->AddConvexPolyFilled(diamond, 4, fillColor);
+            ImGui::GetWindowDrawList()->AddPolyline(diamond, 4, outlineColor, ImDrawFlags_Closed, isSelected ? 3.f : 2.f);
+        }
+    }
 
     const bool isRowHovered = allowSelection && ImGui::IsMouseHoveringRect(rc.Min, rc.Max, false);
     if (isRowHovered &&
@@ -763,6 +898,15 @@ void DrawKeyMarkers(
                 *selectedActorTransformTrackIndex = GetActorTransformTrackOffset(sequence, index);
             if (selectedActorTransformKeyIndex != nullptr)
                 *selectedActorTransformKeyIndex = -1;
+        }
+        else if (IsPartRotationTrackIndex(sequence, index))
+        {
+            if (selectedTrackIndex != nullptr)
+                *selectedTrackIndex = index;
+            if (selectedPartRotationTrackIndex != nullptr)
+                *selectedPartRotationTrackIndex = GetPartRotationTrackOffset(sequence, index);
+            if (selectedPartRotationKeyIndex != nullptr)
+                *selectedPartRotationKeyIndex = -1;
         }
         else if (IsActorRelativeTrackIndex(sequence, index))
         {
@@ -801,6 +945,8 @@ CinematicSequencerAdapter::CinematicSequencerAdapter(
     int* selectedActorRelativeKeyIndex,
     int* selectedActorTransformTrackIndex,
     int* selectedActorTransformKeyIndex,
+    int* selectedPartRotationTrackIndex,
+    int* selectedPartRotationKeyIndex,
     int* currentFrame,
     bool* consumedKeyClick,
     bool* requestOpenKeyPopup,
@@ -820,6 +966,8 @@ CinematicSequencerAdapter::CinematicSequencerAdapter(
     , _selectedActorRelativeKeyIndex(selectedActorRelativeKeyIndex)
     , _selectedActorTransformTrackIndex(selectedActorTransformTrackIndex)
     , _selectedActorTransformKeyIndex(selectedActorTransformKeyIndex)
+    , _selectedPartRotationTrackIndex(selectedPartRotationTrackIndex)
+    , _selectedPartRotationKeyIndex(selectedPartRotationKeyIndex)
     , _currentFrame(currentFrame)
     , _consumedKeyClick(consumedKeyClick)
     , _requestOpenKeyPopup(requestOpenKeyPopup)
@@ -853,7 +1001,8 @@ int CinematicSequencerAdapter::GetItemCount() const
         static_cast<int>(_sequence->actorRelativeCameraTracks.size()) +
         kModifierTrackCount +
         kEventTrackCount +
-        static_cast<int>(_sequence->actorTransformTracks.size());
+        static_cast<int>(_sequence->actorTransformTracks.size()) +
+        static_cast<int>(_sequence->partRotationTracks.size());
 }
 
 const char* CinematicSequencerAdapter::GetItemLabel(int index) const
@@ -881,6 +1030,12 @@ const char* CinematicSequencerAdapter::GetItemLabel(int index) const
         return _sequence->actorTransformTracks[actorTrackIndex].name.c_str();
     }
 
+    if (IsPartRotationTrackIndex(_sequence, index))
+    {
+        const int partTrackIndex = GetPartRotationTrackOffset(_sequence, index);
+        return _sequence->partRotationTracks[partTrackIndex].name.c_str();
+    }
+
     if (IsModifierTrackIndex(_sequence, index))
         return GetModifierTrackLabel(GetModifierTrackIndex(_sequence, index));
 
@@ -904,6 +1059,8 @@ void CinematicSequencerAdapter::Get(int index, int** start, int** end, int* type
     {
         if (IsEventTrackIndex(_sequence, index))
             *color = 0xFFE58A2B;
+        else if (IsPartRotationTrackIndex(_sequence, index))
+            *color = 0xFFB774D8;
         else if (IsActorTransformTrackIndex(_sequence, index))
             *color = 0xFF6FCF4A;
         else if (IsActorRelativeTrackIndex(_sequence, index))
@@ -984,6 +1141,8 @@ void CinematicSequencerAdapter::CustomDraw(int index, ImDrawList* draw_list, con
         _selectedActorRelativeKeyIndex,
         _selectedActorTransformTrackIndex,
         _selectedActorTransformKeyIndex,
+        _selectedPartRotationTrackIndex,
+        _selectedPartRotationKeyIndex,
         _currentFrame,
         _consumedKeyClick,
         _requestOpenKeyPopup,
@@ -1012,6 +1171,8 @@ void CinematicSequencerAdapter::CustomDrawCompact(int index, ImDrawList* draw_li
         _selectedActorRelativeKeyIndex,
         _selectedActorTransformTrackIndex,
         _selectedActorTransformKeyIndex,
+        _selectedPartRotationTrackIndex,
+        _selectedPartRotationKeyIndex,
         _currentFrame,
         _consumedKeyClick,
         _requestOpenKeyPopup,

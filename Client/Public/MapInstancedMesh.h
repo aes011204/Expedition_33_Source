@@ -64,6 +64,7 @@ public:
     virtual uint32 Get_RenderHotspotInstanceCount() const override { return _instanceCount; }
     virtual wstring Get_RenderHotspotSourceModelPath() const override { return _modelPath; }
     virtual bool Get_RenderHotspotInstancedMeshStats(RenderHotspotInstancedMeshStats& outStats) const override;
+    virtual bool Is_InstancedMeshShadowBakeable() const override { return true; }
 
     virtual json To_Json() const override;
     virtual void From_Json(const json& node) override;

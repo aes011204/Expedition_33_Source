@@ -885,17 +885,24 @@ HRESULT MapInstancedMesh::CreateCullBuffers(const vector<Matrix>& matrices, cons
 
 HRESULT MapInstancedMesh::Render_Shadow()
 {
+    if (GAME->Is_UseInstancedShadowCache() && GAME->Has_InstancedShadowCache())
+    {
+        return S_OK;
+    }
+
     if (_shader == nullptr || _lodModels[0] == nullptr || _instanceCount == 0)
     {
         return S_OK;
     }
 
-    if (GAME->Get_ActiveShadowCascade() > _maxShadowCascade)
+    const bool isBaking = GAME->Is_BakingInstancedShadow();
+
+    if (!isBaking && GAME->Get_ActiveShadowCascade() > _maxShadowCascade)
     {
         return S_OK;
     }
 
-    const uint32 cascadeIndex = GAME->Get_ActiveShadowCascade();
+    const uint32 cascadeIndex = isBaking ? 0u : GAME->Get_ActiveShadowCascade();
     uint32 shadowLod = Resolve_ShadowLodIndex(cascadeIndex);
     if (!_lodModels[shadowLod])
     {
@@ -909,6 +916,7 @@ HRESULT MapInstancedMesh::Render_Shadow()
     }
 
     bool useShadowIndirect =
+        !isBaking &&
         _shadowCullShader &&
         _shadowVisibleVB &&
         _shadowIndirectArgsBuffers[shadowLod].size() >= numMeshes;

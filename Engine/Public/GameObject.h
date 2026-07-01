@@ -34,6 +34,7 @@ public:
     virtual HRESULT Render();
     virtual HRESULT Render_Shadow() { return S_OK; }
     virtual HRESULT RenderPickingID(uint32 id) { return S_OK; }
+    virtual bool Is_InstancedMeshShadowBakeable() const { return false; }
 
     // Shadow Pass 컬링용 월드 Bounds 넘겨주기
     virtual bool Try_Get_ShadowWorldBounds(BoundingBox& outWorldBounds) const { return false;}

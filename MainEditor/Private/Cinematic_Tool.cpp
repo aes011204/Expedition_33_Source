@@ -7,6 +7,7 @@
 #include "BattleController.h"
 #include "ClientInstance.h"
 #include "Character.h"
+#include "ContainerObject.h"
 #include "GameInstance.h"
 #include "Helper_String.h"
 #include "ModelCom.h"
@@ -122,6 +123,49 @@ bool Evaluate_ActorTransformTrackPose(
             static_cast<float>(right.frame - left.frame);
         outPosition = Vec3::Lerp(left.position, right.position, t);
         outRotation = Vec3::Lerp(left.rotation, right.rotation, t);
+        return true;
+    }
+
+    return false;
+}
+
+bool Evaluate_PartRotationTrackPose(
+    const CINEMATIC_PART_ROTATION_TRACK& track,
+    int currentFrame,
+    Vec3& outRotation)
+{
+    if (!track.enabled || track.keyframes.empty())
+        return false;
+
+    const auto& keyframes = track.keyframes;
+    if (currentFrame <= keyframes.front().frame)
+    {
+        outRotation = keyframes.front().rotation;
+        return true;
+    }
+
+    if (currentFrame >= keyframes.back().frame)
+    {
+        outRotation = keyframes.back().rotation;
+        return true;
+    }
+
+    for (size_t i = 0; i + 1 < keyframes.size(); ++i)
+    {
+        const auto& left = keyframes[i];
+        const auto& right = keyframes[i + 1];
+        if (currentFrame < left.frame || currentFrame > right.frame)
+            continue;
+
+        if (left.frame == right.frame)
+        {
+            outRotation = right.rotation;
+            return true;
+        }
+
+        const float t = static_cast<float>(currentFrame - left.frame) /
+            static_cast<float>(right.frame - left.frame);
+        outRotation = LerpCinematicRotationDegreesShortest(left.rotation, right.rotation, t);
         return true;
     }
 
@@ -268,6 +312,11 @@ int Get_EventTrackIndex(const CINEMATIC_SEQUENCE& sequence)
 int Get_ActorTransformTrackStartIndex(const CINEMATIC_SEQUENCE& sequence)
 {
     return Get_EventTrackIndex(sequence) + CinematicSequencerAdapter::kEventTrackCount;
+}
+
+int Get_PartRotationTrackStartIndex(const CINEMATIC_SEQUENCE& sequence)
+{
+    return Get_ActorTransformTrackStartIndex(sequence) + static_cast<int>(sequence.actorTransformTracks.size());
 }
 
 string Build_CameraTrackLabel(const CINEMATIC_SEQUENCE& sequence, int trackIndex)
@@ -1143,6 +1192,7 @@ void Cinematic_Tool::Render_RightPanel()
             Render_TrackList();
             Render_ActorRelativeCameraTracks();
             Render_ActorTransformTracks();
+            Render_PartRotationTracks();
             ImGui::EndTabItem();
         }
 
@@ -1921,6 +1971,298 @@ void Cinematic_Tool::Render_ActorTransformTracks()
         });
 }
 
+void Cinematic_Tool::Render_PartRotationTracks()
+{
+    Draw_SectionHeader("Part Rotation Tracks");
+
+    if (ImGui::Button("Add Part Rotation Track"))
+    {
+        CINEMATIC_PART_ROTATION_TRACK track{};
+        track.name = "Part Rotation Track " + std::to_string(_sequence.partRotationTracks.size());
+        _sequence.partRotationTracks.push_back(track);
+        _selectedPartRotationTrackIndex = static_cast<int>(_sequence.partRotationTracks.size()) - 1;
+        _selectedPartRotationKeyIndex = -1;
+        _selectedTrackIndex = Get_PartRotationTrackStartIndex(_sequence) + _selectedPartRotationTrackIndex;
+    }
+
+    ImGui::SameLine();
+    const bool canRemoveTrack =
+        _selectedPartRotationTrackIndex >= 0 &&
+        _selectedPartRotationTrackIndex < static_cast<int>(_sequence.partRotationTracks.size());
+    if (!canRemoveTrack)
+        ImGui::BeginDisabled();
+
+    if (ImGui::Button("Remove Part Rotation Track"))
+    {
+        _sequence.partRotationTracks.erase(
+            _sequence.partRotationTracks.begin() + _selectedPartRotationTrackIndex);
+        _selectedPartRotationTrackIndex = std::clamp(
+            _selectedPartRotationTrackIndex,
+            -1,
+            static_cast<int>(_sequence.partRotationTracks.size()) - 1);
+        _selectedPartRotationKeyIndex = -1;
+        _selectedTrackIndex = std::clamp(
+            _selectedTrackIndex,
+            0,
+            std::max(Get_PartRotationTrackStartIndex(_sequence) + static_cast<int>(_sequence.partRotationTracks.size()) - 1, 0));
+    }
+
+    if (!canRemoveTrack)
+        ImGui::EndDisabled();
+
+    if (ImGui::BeginListBox("##PartRotationTrackList", ImVec2(-FLT_MIN, 100.f)))
+    {
+        for (int i = 0; i < static_cast<int>(_sequence.partRotationTracks.size()); ++i)
+        {
+            const auto& track = _sequence.partRotationTracks[i];
+            const string label = track.name.empty() ? ("Part Rotation " + std::to_string(i)) : track.name;
+            if (ImGui::Selectable(label.c_str(), _selectedPartRotationTrackIndex == i))
+            {
+                _selectedPartRotationTrackIndex = i;
+                _selectedPartRotationKeyIndex = -1;
+                _selectedTrackIndex = Get_PartRotationTrackStartIndex(_sequence) + i;
+            }
+        }
+
+        ImGui::EndListBox();
+    }
+
+    if (!canRemoveTrack)
+        return;
+
+    auto& track = _sequence.partRotationTracks[_selectedPartRotationTrackIndex];
+
+    char trackNameBuffer[128]{};
+    strncpy_s(trackNameBuffer, track.name.c_str(), _TRUNCATE);
+    if (ImGui::InputText("part rotation track name", trackNameBuffer, static_cast<size_t>(_countof(trackNameBuffer))))
+        track.name = trackNameBuffer;
+
+    char targetBuffer[128]{};
+    strncpy_s(targetBuffer, track.targetId.c_str(), _TRUNCATE);
+    if (ImGui::InputText("part rotation target id", targetBuffer, static_cast<size_t>(_countof(targetBuffer))))
+    {
+        track.targetId = targetBuffer;
+        Request_CinematicPreviewRefresh(false);
+    }
+
+    char partTagBuffer[128]{};
+    strncpy_s(partTagBuffer, track.partTag.c_str(), _TRUNCATE);
+    if (ImGui::InputText("part tag", partTagBuffer, static_cast<size_t>(_countof(partTagBuffer))))
+    {
+        track.partTag = partTagBuffer;
+        Request_CinematicPreviewRefresh(false);
+    }
+
+    if (ImGui::Checkbox("part rotation track enabled", &track.enabled))
+        Request_CinematicPreviewRefresh(false);
+
+    Vec3 runtimeRotation = Vec3::Zero;
+    const bool hasRuntimePartRotation = Try_CaptureSelectedPartRotation(runtimeRotation);
+    if (hasRuntimePartRotation)
+    {
+        ImGui::TextDisabled("runtime part rotation : Rot(%.2f, %.2f, %.2f)",
+            runtimeRotation.x,
+            runtimeRotation.y,
+            runtimeRotation.z);
+    }
+    else
+    {
+        ImGui::TextDisabled("runtime part rotation : unavailable");
+    }
+
+    if (ImGui::Button("Add Part Rotation Key"))
+    {
+        CINEMATIC_PART_ROTATION_KEYFRAME keyframe{};
+        keyframe.frame = _currentFrame;
+
+        Vec3 previewRotation = Vec3::Zero;
+        if (hasRuntimePartRotation)
+            keyframe.rotation = runtimeRotation;
+        else if (Evaluate_PartRotationTrackPose(track, _currentFrame, previewRotation))
+            keyframe.rotation = previewRotation;
+
+        for (int i = 0; i < static_cast<int>(track.keyframes.size()); ++i)
+        {
+            if (track.keyframes[i].frame != keyframe.frame)
+                continue;
+
+            track.keyframes[i].rotation = keyframe.rotation;
+            _selectedPartRotationKeyIndex = i;
+            Request_CinematicPreviewRefresh(false);
+            return;
+        }
+
+        track.keyframes.push_back(keyframe);
+        std::sort(track.keyframes.begin(), track.keyframes.end(),
+            [](const CINEMATIC_PART_ROTATION_KEYFRAME& lhs, const CINEMATIC_PART_ROTATION_KEYFRAME& rhs)
+            {
+                return lhs.frame < rhs.frame;
+            });
+
+        for (int i = 0; i < static_cast<int>(track.keyframes.size()); ++i)
+        {
+            if (track.keyframes[i].frame == keyframe.frame)
+            {
+                _selectedPartRotationKeyIndex = i;
+                break;
+            }
+        }
+
+        Request_CinematicPreviewRefresh(false);
+    }
+
+    ImGui::SameLine();
+    const CINEMATIC_PART_ROTATION_KEYFRAME* previousPartKeyframe = nullptr;
+    for (const auto& candidate : track.keyframes)
+    {
+        if (candidate.frame >= _currentFrame)
+            continue;
+
+        if (previousPartKeyframe == nullptr || candidate.frame > previousPartKeyframe->frame)
+            previousPartKeyframe = &candidate;
+    }
+
+    if (previousPartKeyframe == nullptr)
+        ImGui::BeginDisabled();
+
+    if (ImGui::Button("Duplicate Prev Part Key"))
+    {
+        CINEMATIC_PART_ROTATION_KEYFRAME keyframe = *previousPartKeyframe;
+        keyframe.frame = _currentFrame;
+
+        bool replaced = false;
+        for (int i = 0; i < static_cast<int>(track.keyframes.size()); ++i)
+        {
+            if (track.keyframes[i].frame != keyframe.frame)
+                continue;
+
+            track.keyframes[i] = keyframe;
+            _selectedPartRotationKeyIndex = i;
+            replaced = true;
+            break;
+        }
+
+        if (!replaced)
+        {
+            track.keyframes.push_back(keyframe);
+            std::sort(track.keyframes.begin(), track.keyframes.end(),
+                [](const CINEMATIC_PART_ROTATION_KEYFRAME& lhs, const CINEMATIC_PART_ROTATION_KEYFRAME& rhs)
+                {
+                    return lhs.frame < rhs.frame;
+                });
+
+            for (int i = 0; i < static_cast<int>(track.keyframes.size()); ++i)
+            {
+                if (track.keyframes[i].frame == keyframe.frame)
+                {
+                    _selectedPartRotationKeyIndex = i;
+                    break;
+                }
+            }
+        }
+
+        Request_CinematicPreviewRefresh(false);
+    }
+
+    if (previousPartKeyframe == nullptr)
+        ImGui::EndDisabled();
+
+    ImGui::SameLine();
+    const bool canRemoveKey =
+        _selectedPartRotationKeyIndex >= 0 &&
+        _selectedPartRotationKeyIndex < static_cast<int>(track.keyframes.size());
+    if (!canRemoveKey)
+        ImGui::BeginDisabled();
+
+    if (ImGui::Button("Remove Part Rotation Key"))
+    {
+        track.keyframes.erase(track.keyframes.begin() + _selectedPartRotationKeyIndex);
+        _selectedPartRotationKeyIndex = std::clamp(
+            _selectedPartRotationKeyIndex,
+            -1,
+            static_cast<int>(track.keyframes.size()) - 1);
+        Request_CinematicPreviewRefresh(false);
+    }
+
+    if (!canRemoveKey)
+        ImGui::EndDisabled();
+
+    if (ImGui::BeginListBox("##PartRotationKeyList", ImVec2(-FLT_MIN, 120.f)))
+    {
+        for (int i = 0; i < static_cast<int>(track.keyframes.size()); ++i)
+        {
+            const auto& keyframe = track.keyframes[i];
+            char label[160]{};
+            sprintf_s(label, "Frame %d | Rot(%.1f, %.1f, %.1f)",
+                keyframe.frame,
+                keyframe.rotation.x,
+                keyframe.rotation.y,
+                keyframe.rotation.z);
+
+            if (ImGui::Selectable(label, _selectedPartRotationKeyIndex == i))
+            {
+                _selectedPartRotationKeyIndex = i;
+                _currentFrame = keyframe.frame;
+                _isPreviewDirty = true;
+            }
+        }
+
+        ImGui::EndListBox();
+    }
+
+    if (!canRemoveKey)
+        return;
+
+    auto& keyframe = track.keyframes[_selectedPartRotationKeyIndex];
+
+    if (!hasRuntimePartRotation)
+        ImGui::BeginDisabled();
+
+    if (ImGui::Button("Capture From Runtime Part"))
+    {
+        keyframe.rotation = runtimeRotation;
+        Request_CinematicPreviewRefresh(false);
+    }
+
+    if (!hasRuntimePartRotation)
+        ImGui::EndDisabled();
+
+    if (ImGui::DragInt("part rotation key frame", &keyframe.frame, 1.f, _sequence.startFrame, _sequence.endFrame))
+    {
+        keyframe.frame = std::clamp(keyframe.frame, _sequence.startFrame, _sequence.endFrame);
+        _currentFrame = keyframe.frame;
+        Request_CinematicPreviewRefresh(false);
+    }
+
+    if (ImGui::DragFloat3("part rotation", &keyframe.rotation.x, 0.1f))
+        Request_CinematicPreviewRefresh(false);
+
+    const char* interpolationLabel = magic_enum::enum_name(keyframe.interpolation).data();
+    if (ImGui::BeginCombo("part rotation interpolation", interpolationLabel))
+    {
+        for (InterpolationMode mode : magic_enum::enum_values<InterpolationMode>())
+        {
+            const bool isSelected = keyframe.interpolation == mode;
+            if (ImGui::Selectable(magic_enum::enum_name(mode).data(), isSelected))
+            {
+                keyframe.interpolation = mode;
+                Request_CinematicPreviewRefresh(false);
+            }
+
+            if (isSelected)
+                ImGui::SetItemDefaultFocus();
+        }
+
+        ImGui::EndCombo();
+    }
+
+    std::sort(track.keyframes.begin(), track.keyframes.end(),
+        [](const CINEMATIC_PART_ROTATION_KEYFRAME& lhs, const CINEMATIC_PART_ROTATION_KEYFRAME& rhs)
+        {
+            return lhs.frame < rhs.frame;
+        });
+}
+
 void Cinematic_Tool::Render_LoadSequencePopup()
 {
     if (_requestOpenLoadSequencePopup)
@@ -2253,6 +2595,8 @@ void Cinematic_Tool::Render_ImSequencer()
         &_selectedActorRelativeCameraKeyIndex,
         &_selectedActorTransformTrackIndex,
         &_selectedActorTransformKeyIndex,
+        &_selectedPartRotationTrackIndex,
+        &_selectedPartRotationKeyIndex,
         &_currentFrame,
         &consumedKeyClick,
         &requestOpenKeyPopup,
@@ -2784,6 +3128,58 @@ void Cinematic_Tool::Render_SelectedKeyframe()
         return;
     }
 
+    if (CINEMATIC_PART_ROTATION_KEYFRAME* partKeyframe = Get_SelectedPartRotationKeyframe())
+    {
+        const bool shouldExpandEditor = _requestOpenSelectedKeyPopup;
+        if (shouldExpandEditor)
+        {
+            ImGui::SetNextItemOpen(true, ImGuiCond_Always);
+            _requestOpenSelectedKeyPopup = false;
+        }
+
+        const bool isEditorOpen = ImGui::CollapsingHeader("Selected Part Rotation Keyframe", ImGuiTreeNodeFlags_None);
+        if (!isEditorOpen)
+            return;
+
+        if (shouldExpandEditor)
+            ImGui::SetScrollHereY();
+
+        ImGui::TextDisabled("Track %d | Key %d", _selectedTrackIndex, _selectedPartRotationKeyIndex);
+        ImGui::Separator();
+
+        if (ImGui::DragInt("part rotation key frame", &partKeyframe->frame, 1.f, _sequence.startFrame, _sequence.endFrame))
+        {
+            partKeyframe->frame = std::clamp(partKeyframe->frame, _sequence.startFrame, _sequence.endFrame);
+            _currentFrame = partKeyframe->frame;
+            Request_CinematicPreviewRefresh(false);
+        }
+
+        if (ImGui::DragFloat3("part rotation", &partKeyframe->rotation.x, 0.1f))
+            Request_CinematicPreviewRefresh(false);
+
+        const char* interpolationLabel = magic_enum::enum_name(partKeyframe->interpolation).data();
+        if (ImGui::BeginCombo("part rotation interpolation", interpolationLabel))
+        {
+            for (InterpolationMode mode : magic_enum::enum_values<InterpolationMode>())
+            {
+                const bool isSelected = partKeyframe->interpolation == mode;
+                if (ImGui::Selectable(magic_enum::enum_name(mode).data(), isSelected))
+                {
+                    partKeyframe->interpolation = mode;
+                    Request_CinematicPreviewRefresh(false);
+                }
+
+                if (isSelected)
+                    ImGui::SetItemDefaultFocus();
+            }
+
+            ImGui::EndCombo();
+        }
+
+        Sort_AllPartRotationTrackKeyframes();
+        return;
+    }
+
     CINEMATIC_KEYFRAME* keyframe = Get_SelectedKeyframe();
     if (keyframe == nullptr)
     {
@@ -3152,6 +3548,8 @@ void Cinematic_Tool::Render_InsertKeyframePopup()
     const int modifierTrackEnd = modifierTrackStart + CinematicSequencerAdapter::kModifierTrackCount;
     const int actorTrackStart = Get_ActorTransformTrackStartIndex(_sequence);
     const int actorTrackEnd = actorTrackStart + static_cast<int>(_sequence.actorTransformTracks.size());
+    const int partRotationTrackStart = Get_PartRotationTrackStartIndex(_sequence);
+    const int partRotationTrackEnd = partRotationTrackStart + static_cast<int>(_sequence.partRotationTracks.size());
 
     const bool isActorRelativeInsert =
         _pendingInsertTrackIndex >= actorRelativeTrackStart &&
@@ -3162,6 +3560,9 @@ void Cinematic_Tool::Render_InsertKeyframePopup()
     const bool isActorTransformInsert =
         _pendingInsertTrackIndex >= actorTrackStart &&
         _pendingInsertTrackIndex < actorTrackEnd;
+    const bool isPartRotationInsert =
+        _pendingInsertTrackIndex >= partRotationTrackStart &&
+        _pendingInsertTrackIndex < partRotationTrackEnd;
     const bool isCameraTrackInsert =
         _pendingInsertTrackIndex >= 0 &&
         _pendingInsertTrackIndex < cinematicTrackCount;
@@ -3171,7 +3572,8 @@ void Cinematic_Tool::Render_InsertKeyframePopup()
 
     const bool canInsertFromCamera =
         _hasPendingInsertRequest &&
-        (isModifierInsert || isActorTransformInsert || isActorRelativeInsert || (isCameraTrackInsert && _hasPendingInsertPose)) &&
+        (isModifierInsert || isActorTransformInsert || isPartRotationInsert || isActorRelativeInsert ||
+            (isCameraTrackInsert && _hasPendingInsertPose)) &&
         _pendingInsertTrackIndex >= 0;
 
     if (!canInsertFromCamera)
@@ -3244,6 +3646,32 @@ void Cinematic_Tool::Render_RemoveKeyframePopup()
                 selectedTrack->keyframes.erase(selectedTrack->keyframes.begin() + _selectedActorRelativeCameraKeyIndex);
                 _selectedActorRelativeCameraKeyIndex = std::clamp(
                     _selectedActorRelativeCameraKeyIndex,
+                    -1,
+                    static_cast<int>(selectedTrack->keyframes.size()) - 1);
+                _isPreviewDirty = true;
+            }
+
+            ImGui::CloseCurrentPopup();
+        }
+
+        if (ImGui::Button("Cancel"))
+            ImGui::CloseCurrentPopup();
+
+        ImGui::EndPopup();
+        return;
+    }
+
+    if (CINEMATIC_PART_ROTATION_KEYFRAME* partKeyframe = Get_SelectedPartRotationKeyframe())
+    {
+        UNREFERENCED_PARAMETER(partKeyframe);
+
+        if (ImGui::Button("Remove Keyframe Here"))
+        {
+            if (CINEMATIC_PART_ROTATION_TRACK* selectedTrack = Get_SelectedPartRotationTrack())
+            {
+                selectedTrack->keyframes.erase(selectedTrack->keyframes.begin() + _selectedPartRotationKeyIndex);
+                _selectedPartRotationKeyIndex = std::clamp(
+                    _selectedPartRotationKeyIndex,
                     -1,
                     static_cast<int>(selectedTrack->keyframes.size()) - 1);
                 _isPreviewDirty = true;
@@ -3409,12 +3837,14 @@ void Cinematic_Tool::Clamp_Selection()
     const int cameraShotCount = static_cast<int>(_sequence.cameraShots.size());
     const int eventCount = static_cast<int>(_sequence.eventTrack.size());
     const int actorTransformTrackCount = static_cast<int>(_sequence.actorTransformTracks.size());
+    const int partRotationTrackCount = static_cast<int>(_sequence.partRotationTracks.size());
     const int totalTrackCount =
         cinematicTrackCount +
         actorRelativeTrackCount +
         CinematicSequencerAdapter::kModifierTrackCount +
         CinematicSequencerAdapter::kEventTrackCount +
-        actorTransformTrackCount;
+        actorTransformTrackCount +
+        partRotationTrackCount;
 
     if (totalTrackCount == 0)
     {
@@ -3426,6 +3856,8 @@ void Cinematic_Tool::Clamp_Selection()
         _selectedActorRelativeCameraKeyIndex = -1;
         _selectedActorTransformTrackIndex = -1;
         _selectedActorTransformKeyIndex = -1;
+        _selectedPartRotationTrackIndex = -1;
+        _selectedPartRotationKeyIndex = -1;
         return;
     }
 
@@ -3446,6 +3878,17 @@ void Cinematic_Tool::Clamp_Selection()
     else
     {
         _selectedActorTransformTrackIndex = std::clamp(_selectedActorTransformTrackIndex, -1, actorTransformTrackCount - 1);
+    }
+
+    const int partRotationTrackStart = Get_PartRotationTrackStartIndex(_sequence);
+    if (_selectedTrackIndex >= partRotationTrackStart &&
+        _selectedTrackIndex < partRotationTrackStart + partRotationTrackCount)
+    {
+        _selectedPartRotationTrackIndex = _selectedTrackIndex - partRotationTrackStart;
+    }
+    else
+    {
+        _selectedPartRotationTrackIndex = std::clamp(_selectedPartRotationTrackIndex, -1, partRotationTrackCount - 1);
     }
 
     if (_selectedActorRelativeCameraTrackIndex >= 0 &&
@@ -3474,6 +3917,20 @@ void Cinematic_Tool::Clamp_Selection()
     else
     {
         _selectedActorTransformKeyIndex = -1;
+    }
+
+    if (_selectedPartRotationTrackIndex >= 0 &&
+        _selectedPartRotationTrackIndex < partRotationTrackCount)
+    {
+        const auto& partTrack = _sequence.partRotationTracks[_selectedPartRotationTrackIndex];
+        _selectedPartRotationKeyIndex = std::clamp(
+            _selectedPartRotationKeyIndex,
+            -1,
+            static_cast<int>(partTrack.keyframes.size()) - 1);
+    }
+    else
+    {
+        _selectedPartRotationKeyIndex = -1;
     }
 
     if (Is_SelectedModifierTrack())
@@ -3507,6 +3964,30 @@ void Cinematic_Tool::Clamp_Selection()
         else
         {
             _selectedActorRelativeCameraKeyIndex = -1;
+        }
+
+        _selectedKeyIndex = -1;
+        return;
+    }
+
+    if (Is_SelectedPartRotationTrack())
+    {
+        if (CINEMATIC_PART_ROTATION_TRACK* selectedPartTrack = Get_SelectedPartRotationTrack())
+        {
+            if (selectedPartTrack->keyframes.empty())
+            {
+                _selectedPartRotationKeyIndex = -1;
+                return;
+            }
+
+            _selectedPartRotationKeyIndex = std::clamp(
+                _selectedPartRotationKeyIndex,
+                0,
+                static_cast<int>(selectedPartTrack->keyframes.size()) - 1);
+        }
+        else
+        {
+            _selectedPartRotationKeyIndex = -1;
         }
 
         _selectedKeyIndex = -1;
@@ -3717,6 +4198,8 @@ void Cinematic_Tool::Insert_KeyframeAtFrame(int trackIndex, int frame)
     const int modifierTrackEnd = modifierTrackStart + CinematicSequencerAdapter::kModifierTrackCount;
     const int actorTrackStart = Get_ActorTransformTrackStartIndex(_sequence);
     const int actorTrackEnd = actorTrackStart + static_cast<int>(_sequence.actorTransformTracks.size());
+    const int partRotationTrackStart = Get_PartRotationTrackStartIndex(_sequence);
+    const int partRotationTrackEnd = partRotationTrackStart + static_cast<int>(_sequence.partRotationTracks.size());
 
     if (trackIndex >= actorRelativeTrackStart && trackIndex < actorRelativeTrackEnd)
     {
@@ -3809,6 +4292,55 @@ void Cinematic_Tool::Insert_KeyframeAtFrame(int trackIndex, int frame)
             if (actorTrack.keyframes[i].frame == frame)
             {
                 _selectedActorTransformKeyIndex = i;
+                break;
+            }
+        }
+
+        _isPreviewDirty = true;
+        return;
+    }
+
+    if (trackIndex >= partRotationTrackStart && trackIndex < partRotationTrackEnd)
+    {
+        const int partTrackIndex = trackIndex - partRotationTrackStart;
+        auto& partTrack = _sequence.partRotationTracks[partTrackIndex];
+        frame = std::clamp(frame, _sequence.startFrame, _sequence.endFrame);
+
+        for (int i = 0; i < static_cast<int>(partTrack.keyframes.size()); ++i)
+        {
+            if (partTrack.keyframes[i].frame == frame)
+            {
+                _selectedTrackIndex = trackIndex;
+                _selectedKeyIndex = -1;
+                _selectedPartRotationTrackIndex = partTrackIndex;
+                _selectedPartRotationKeyIndex = i;
+                _currentFrame = frame;
+                _isPreviewDirty = true;
+                return;
+            }
+        }
+
+        CINEMATIC_PART_ROTATION_KEYFRAME keyframe{};
+        keyframe.frame = frame;
+        Evaluate_PartRotationTrackPose(partTrack, frame, keyframe.rotation);
+
+        partTrack.keyframes.push_back(keyframe);
+        std::sort(partTrack.keyframes.begin(), partTrack.keyframes.end(),
+            [](const CINEMATIC_PART_ROTATION_KEYFRAME& lhs, const CINEMATIC_PART_ROTATION_KEYFRAME& rhs)
+            {
+                return lhs.frame < rhs.frame;
+            });
+
+        _selectedTrackIndex = trackIndex;
+        _selectedKeyIndex = -1;
+        _selectedPartRotationTrackIndex = partTrackIndex;
+        _currentFrame = frame;
+
+        for (int i = 0; i < static_cast<int>(partTrack.keyframes.size()); ++i)
+        {
+            if (partTrack.keyframes[i].frame == frame)
+            {
+                _selectedPartRotationKeyIndex = i;
                 break;
             }
         }
@@ -3930,11 +4462,14 @@ void Cinematic_Tool::Clear_AllSequenceKeyframes()
         track.keyframes.clear();
     for (auto& actorTrack : _sequence.actorTransformTracks)
         actorTrack.keyframes.clear();
+    for (auto& partTrack : _sequence.partRotationTracks)
+        partTrack.keyframes.clear();
 
     _selectedKeyIndex = -1;
     _selectedCameraShotIndex = -1;
     _selectedActorRelativeCameraKeyIndex = -1;
     _selectedActorTransformKeyIndex = -1;
+    _selectedPartRotationKeyIndex = -1;
     _currentFrame = std::clamp(_currentFrame, _sequence.startFrame, _sequence.endFrame);
     _lastPreviewFrame = -1;
     _lastPreviewTrackIndex = -1;
@@ -3958,6 +4493,8 @@ void Cinematic_Tool::Reset_ToNewSequence()
     _selectedActorRelativeCameraKeyIndex = -1;
     _selectedActorTransformTrackIndex = -1;
     _selectedActorTransformKeyIndex = -1;
+    _selectedPartRotationTrackIndex = -1;
+    _selectedPartRotationKeyIndex = -1;
     _currentFrame = std::clamp(_sequence.startFrame, _sequence.startFrame, _sequence.endFrame);
     _currentFrameExact = static_cast<float>(_currentFrame);
     _useExactFramePreview = false;
@@ -4016,6 +4553,8 @@ void Cinematic_Tool::Load_SelectedSequenceFile()
     _selectedActorRelativeCameraKeyIndex = -1;
     _selectedActorTransformTrackIndex = -1;
     _selectedActorTransformKeyIndex = -1;
+    _selectedPartRotationTrackIndex = -1;
+    _selectedPartRotationKeyIndex = -1;
     Clamp_Selection();
     _lastPreviewFrame = -1;
     _lastPreviewTrackIndex = -1;
@@ -4171,6 +4710,7 @@ void Cinematic_Tool::Apply_CurrentFramePose()
 bool Cinematic_Tool::Sync_PreviewSequenceToRunner()
 {
     Sort_AllActorTransformTrackKeyframes();
+    Sort_AllPartRotationTrackKeyframes();
 
     int previewTrackIndex = -1;
     if (_selectedTrackIndex >= 0 &&
@@ -4265,6 +4805,18 @@ void Cinematic_Tool::Sort_AllActorTransformTrackKeyframes()
     {
         std::sort(track.keyframes.begin(), track.keyframes.end(),
             [](const CINEMATIC_ACTOR_TRANSFORM_KEYFRAME& lhs, const CINEMATIC_ACTOR_TRANSFORM_KEYFRAME& rhs)
+            {
+                return lhs.frame < rhs.frame;
+            });
+    }
+}
+
+void Cinematic_Tool::Sort_AllPartRotationTrackKeyframes()
+{
+    for (auto& track : _sequence.partRotationTracks)
+    {
+        std::sort(track.keyframes.begin(), track.keyframes.end(),
+            [](const CINEMATIC_PART_ROTATION_KEYFRAME& lhs, const CINEMATIC_PART_ROTATION_KEYFRAME& rhs)
             {
                 return lhs.frame < rhs.frame;
             });
@@ -4411,6 +4963,38 @@ bool Cinematic_Tool::Try_CaptureSelectedActorTransform(Vec3& outPosition, Vec3& 
     return true;
 }
 
+bool Cinematic_Tool::Try_CaptureSelectedPartRotation(Vec3& outRotation) const
+{
+    if (_selectedPartRotationTrackIndex < 0 ||
+        _selectedPartRotationTrackIndex >= static_cast<int>(_sequence.partRotationTracks.size()))
+    {
+        return false;
+    }
+
+    const auto& track = _sequence.partRotationTracks[_selectedPartRotationTrackIndex];
+    if (track.targetId.empty() || track.partTag.empty())
+        return false;
+
+    Shared<GameObject> actor = CLIENT->Get_CinematicBoundActor(track.targetId);
+    if (actor == nullptr)
+        return false;
+
+    const auto container = dynamic_pointer_cast<ContainerObject>(actor);
+    if (container == nullptr)
+        return false;
+
+    PartObject* part = container->Get_PartObject(String::ToWString(track.partTag));
+    if (part == nullptr)
+        return false;
+
+    Shared<TransformCom> transform = part->Get_Transform();
+    if (transform == nullptr)
+        return false;
+
+    outRotation = transform->Get_RotationEuler();
+    return true;
+}
+
 CINEMATIC_TRACK* Cinematic_Tool::Get_SelectedTrack()
 {
     if (_selectedTrackIndex < 0 || _selectedTrackIndex >= static_cast<int>(_sequence.cinematicTracks.size()))
@@ -4469,6 +5053,30 @@ CINEMATIC_ACTOR_RELATIVE_CAMERA_KEYFRAME* Cinematic_Tool::Get_SelectedActorRelat
     return &selectedTrack->keyframes[_selectedActorRelativeCameraKeyIndex];
 }
 
+CINEMATIC_PART_ROTATION_TRACK* Cinematic_Tool::Get_SelectedPartRotationTrack()
+{
+    const int trackIndex = Get_SelectedPartRotationTrackIndex();
+    if (trackIndex < 0 || trackIndex >= static_cast<int>(_sequence.partRotationTracks.size()))
+        return nullptr;
+
+    return &_sequence.partRotationTracks[trackIndex];
+}
+
+CINEMATIC_PART_ROTATION_KEYFRAME* Cinematic_Tool::Get_SelectedPartRotationKeyframe()
+{
+    CINEMATIC_PART_ROTATION_TRACK* selectedTrack = Get_SelectedPartRotationTrack();
+    if (selectedTrack == nullptr)
+        return nullptr;
+
+    if (_selectedPartRotationKeyIndex < 0 ||
+        _selectedPartRotationKeyIndex >= static_cast<int>(selectedTrack->keyframes.size()))
+    {
+        return nullptr;
+    }
+
+    return &selectedTrack->keyframes[_selectedPartRotationKeyIndex];
+}
+
 bool Cinematic_Tool::Is_SelectedModifierTrack() const
 {
     return _selectedTrackIndex >= Get_ModifierTrackStartIndex(_sequence) &&
@@ -4496,6 +5104,20 @@ CameraTrack* Cinematic_Tool::Get_SelectedModifierTrack()
     case 6: return &_sequence.modifierClip.shakeStrengthScale;
     default: return nullptr;
     }
+}
+
+bool Cinematic_Tool::Is_SelectedPartRotationTrack() const
+{
+    return _selectedTrackIndex >= Get_PartRotationTrackStartIndex(_sequence) &&
+        _selectedTrackIndex < Get_PartRotationTrackStartIndex(_sequence) + static_cast<int>(_sequence.partRotationTracks.size());
+}
+
+int Cinematic_Tool::Get_SelectedPartRotationTrackIndex() const
+{
+    if (!Is_SelectedPartRotationTrack())
+        return -1;
+
+    return _selectedTrackIndex - Get_PartRotationTrackStartIndex(_sequence);
 }
 
 CameraKeyframe* Cinematic_Tool::Get_SelectedModifierKeyframe()

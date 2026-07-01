@@ -26,6 +26,7 @@ Texture2D g_AmbientTexture;
 Texture2D g_SpecularTexture;
 Texture2D g_DepthTexture;
 Texture2DArray g_LightDepthTexture;
+Texture2D g_CachedInstancedShadowMap;
 Texture2D g_MaterialTexture;
 Texture2D g_EmissiveTexture;
 Texture2D g_SSAOTexture;
@@ -182,6 +183,27 @@ float SampleDynamicShadowAmount(float4 worldPos, float viewDepth)
     }
 
     return shadowAmount;
+}
+
+float SampleCachedInstancedShadowAmount(float4 worldPos)
+{
+    if (g_UseCachedInstancedShadow == 0u)
+        return 0.f;
+
+    float4 shadowPos = mul(worldPos, g_CachedShadowViewProjMatrix);
+    if (shadowPos.w <= 0.f)
+        return 0.f;
+
+    float2 shadowUV;
+    shadowUV.x = (shadowPos.x / shadowPos.w) * 0.5f + 0.5f;
+    shadowUV.y = (shadowPos.y / shadowPos.w) * -0.5f + 0.5f;
+    float currentDepth = shadowPos.z / shadowPos.w;
+
+    if (any(shadowUV < 0.f) || any(shadowUV > 1.f))
+        return 0.f;
+
+    float storedDepth = g_CachedInstancedShadowMap.Sample(PointClampSampler, shadowUV).x;
+    return (storedDepth + g_Bias < currentDepth) ? 1.f : 0.f;
 }
 
 float3 GetCascadeDebugColor(uint cascadeIndex)

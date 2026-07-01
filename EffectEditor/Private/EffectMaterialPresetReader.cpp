@@ -195,6 +195,19 @@ bool Read(const fs::path& filePath, EffectMaterialInstanceData& outMaterial)
         };
     };
 
+    const auto read_vec3 = [&](const char* key, const Vec3& defaultValue) -> Vec3
+    {
+        const auto iter = root.find(key);
+        if (iter == root.end() || !iter->is_array() || iter->size() < 3)
+            return defaultValue;
+
+        return Vec3{
+            iter->at(0).is_number() ? iter->at(0).get<float>() : defaultValue.x,
+            iter->at(1).is_number() ? iter->at(1).get<float>() : defaultValue.y,
+            iter->at(2).is_number() ? iter->at(2).get<float>() : defaultValue.z
+        };
+    };
+
     const auto read_color_node = [](const json& node, const Color& defaultValue) -> Color
     {
         if (node.is_object())
@@ -320,6 +333,7 @@ bool Read(const fs::path& filePath, EffectMaterialInstanceData& outMaterial)
     material.tint = read_color("tint", defaultMaterial.tint);
     material.intensity = read_float("intensity", defaultMaterial.intensity);
     material.opacityPower = read_float("opacityPower", defaultMaterial.opacityPower);
+    material.alphaMultiplier = read_float("alphaMultiplier", defaultMaterial.alphaMultiplier);
     material.noiseStrength = read_float("noiseStrength", defaultMaterial.noiseStrength);
     material.alphaCutoff = read_float("alphaCutoff", defaultMaterial.alphaCutoff);
     material.alphaErosion = read_float("alphaErosion", defaultMaterial.alphaErosion);
@@ -380,6 +394,20 @@ bool Read(const fs::path& filePath, EffectMaterialInstanceData& outMaterial)
     material.distortionShapeRadius = read_float("distortionShapeRadius", defaultMaterial.distortionShapeRadius);
     material.distortionShapeThickness = read_float("distortionShapeThickness", defaultMaterial.distortionShapeThickness);
     material.distortionShapeSoftness = read_float("distortionShapeSoftness", defaultMaterial.distortionShapeSoftness);
+    material.glassAlpha = read_float("glassAlpha", defaultMaterial.glassAlpha);
+    material.glassAlphaPower = read_float("glassAlphaPower", defaultMaterial.glassAlphaPower);
+    material.glassNormalStrength = read_float("glassNormalStrength", defaultMaterial.glassNormalStrength);
+    material.glassRimColor = read_color("glassRimColor", defaultMaterial.glassRimColor);
+    material.glassRimIntensity = read_float("glassRimIntensity", defaultMaterial.glassRimIntensity);
+    material.glassRimPower = read_float("glassRimPower", defaultMaterial.glassRimPower);
+    material.glassLightDirection = read_vec3("glassLightDirection", defaultMaterial.glassLightDirection);
+    material.glassLightColor = read_color("glassLightColor", defaultMaterial.glassLightColor);
+    material.glassLightIntensity = read_float("glassLightIntensity", defaultMaterial.glassLightIntensity);
+    material.glassSpecularPower = read_float("glassSpecularPower", defaultMaterial.glassSpecularPower);
+    material.glassSpecularSoftness = read_float("glassSpecularSoftness", defaultMaterial.glassSpecularSoftness);
+    material.glassMainInfluence = read_float("glassMainInfluence", defaultMaterial.glassMainInfluence);
+    material.glassNoiseBreakup = read_float("glassNoiseBreakup", defaultMaterial.glassNoiseBreakup);
+    material.glassMaskStrength = read_float("glassMaskStrength", defaultMaterial.glassMaskStrength);
 
     if (const auto additiveIter = root.find("additive"); additiveIter != root.end() && additiveIter->is_object())
     {
