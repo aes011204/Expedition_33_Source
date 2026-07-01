@@ -94,6 +94,13 @@ private:
         string clipId{};
     };
 
+    struct PreviewPlayEffectStateRuntime
+    {
+        int32 stateId = 0;
+        Shared<AnimNotifyState> notifyState{};
+        string payloadJson{};
+    };
+
     enum class TimelineEditorTab : uint8
     {
         ClipTimeline,
@@ -141,7 +148,9 @@ private:
     void Render_LoadAuthoringFilePopup();
     void Draw_PreviewGrid() const;
     void Apply_PreviewContext();
-    void Apply_PreviewAnimation(float previewTimeSec) const;
+    void Apply_PreviewAnimation(float previewTimeSec);
+    void Update_PreviewPlayEffectNotifies(float previousTimeSec, float currentTimeSec);
+    void Reset_PreviewPlayEffectState();
     void Apply_BattleCameraPreviewPose(float previewTimeSec);
     float Get_CurrentPreviewAnimationDurationSec() const;
     float Get_BattleClipAuthoringDurationSec() const;
@@ -285,6 +294,12 @@ private:
     bool _previewDirty = false;
     bool _previewObjectsDirty = true;
     bool _previewObjectsBegunPlay = false;
+    string _previewPlayEffectAnimationName{};
+    float _previewPlayEffectPreviousTimeSec = 0.f;
+    bool _previewPlayEffectIncludeStartEdge = true;
+    PreviewSlotSide _previewPlayEffectSubjectSide = PreviewSlotSide::Hero;
+    int _previewPlayEffectSubjectSlot = 1;
+    vector<PreviewPlayEffectStateRuntime> _previewPlayEffectStateRuntimes{};
     bool _animationListDirty = true;
     bool _previewSkillPhaseBlocksDirty = true;
     bool _timelinePlaying = false;

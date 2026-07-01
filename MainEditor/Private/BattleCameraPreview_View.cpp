@@ -7,6 +7,8 @@
 #include "BattleTurnCamera.h"
 #include "BattleTurnCameraPoseUtils.h"
 #include "ClientInstance.h"
+#include "AnimNotify.h"
+#include "AnimNotifyState.h"
 #include "ContainerObject.h"
 #include "Editor_Camera_Free.h"
 #include "GameInstance.h"
@@ -19,6 +21,7 @@
 #include "SkyCloudCard.h"
 #include "Spawn_Prefab.h"
 #include "TransformCom.h"
+#include "PreviewObjectHelpers.h"
 #include "magic_enum/magic_enum.hpp"
 #include <algorithm>
 #include <cctype>
@@ -248,6 +251,25 @@ bool Is_BattleClipTrackSorted(const CameraTrack& track)
     }
 
     return true;
+}
+
+bool Is_PreviewNotifyTimeInRange(float targetTime, float previousTime, float currentTime, bool wrapped, bool includeStartEdge)
+{
+    if (!wrapped)
+    {
+        if (includeStartEdge)
+            return previousTime <= targetTime + 1e-4f && targetTime <= currentTime + 1e-4f;
+
+        if (previousTime <= 1e-4f && targetTime <= 1e-4f)
+            return targetTime <= currentTime;
+
+        return previousTime < targetTime && targetTime <= currentTime;
+    }
+
+    if (includeStartEdge)
+        return targetTime >= previousTime - 1e-4f || targetTime <= currentTime + 1e-4f;
+
+    return targetTime > previousTime || targetTime <= currentTime + 1e-4f;
 }
 
 bool Uses_RuntimeBattleClip(BattleCameraMode mode)
@@ -827,6 +849,10 @@ void BattleCameraPreview_View::Pre_Render()
             skyCloudCard->Late_Update(dt);
     }
 
+    PreviewObjectHelpers::Tick_AttachedPreviewEffects(_previewHeroObject, dt);
+    PreviewObjectHelpers::Tick_AttachedPreviewEffects(_previewEnemyObject, dt);
+    PreviewObjectHelpers::Tick_AttachedPreviewEffects(_previewNpcObject, dt);
+
     Position_PreviewObjects();
     if (_previewEnabled)
         Update_PreviewAttackActorMotion(_previewContext.timeSec);
@@ -1259,6 +1285,10 @@ void BattleCameraPreview_View::Rebuild_PreviewObjects()
     if (Is_PreviewSideInUse(PreviewSlotSide::Npc) && !npcPrefabName.empty())
         _previewNpcObject = GAME->Instantiate_GameObjectJson(Client::Spawn_Prefab::Resolve_PrefabPath(npcPrefabName));
 
+    PreviewObjectHelpers::Disable_PreviewAnimNotifyExecution(_previewHeroObject);
+    PreviewObjectHelpers::Disable_PreviewAnimNotifyExecution(_previewEnemyObject);
+    PreviewObjectHelpers::Disable_PreviewAnimNotifyExecution(_previewNpcObject);
+
     _previewObjectsDirty = false;
     _previewObjectsBegunPlay = false;
     _animationListDirty = true;
@@ -1270,6 +1300,7 @@ void BattleCameraPreview_View::Rebuild_PreviewObjects()
 
 void BattleCameraPreview_View::Clear_PreviewObjects()
 {
+    Reset_PreviewPlayEffectState();
     _previewHeroObject.reset();
     _previewEnemyObject.reset();
     _previewNpcObject.reset();
@@ -3271,7 +3302,7 @@ void BattleCameraPreview_View::Apply_PreviewContext()
     _previewDirty = false;
 }
 
-void BattleCameraPreview_View::Apply_PreviewAnimation(float previewTimeSec) const
+void BattleCameraPreview_View::Apply_PreviewAnimation(float previewTimeSec)
 {
     Shared<ModelCom> model = Resolve_PreviewSubjectModel();
     if (model == nullptr)
@@ -3311,8 +3342,10 @@ void BattleCameraPreview_View::Apply_PreviewAnimation(float previewTimeSec) cons
     if (previewTimeMode == BattleCameraClipTimeMode::Independent)
         animationTimeSec = std::clamp(animationTimeSec, 0.f, std::max(0.f, model->Get_CurrentAnimationDurationSec()));
 
+    const float previousAnimationTimeSec = model->Get_CurrentAnimationTimeSec();
     model->Set_CurrentAnimationTimeSec(animationTimeSec);
     model->Refresh_CurrentAnimationPose();
+    Update_PreviewPlayEffectNotifies(previousAnimationTimeSec, animationTimeSec);
 }
 
 void BattleCameraPreview_View::Apply_BattleCameraPreviewPose(float previewTimeSec)

@@ -274,6 +274,13 @@ public: /* Compute Shader */
     const vector<Matrix>& Get_CombinedBoneMatrixCache() const { return _combinedBoneMatrixCache; } 
 
 private:
+    bool    Should_UseSameAnimationBlend(uint32 animIndex, float blendDuration) const;
+    void    Begin_SameAnimationBlendIfNeeded(uint32 animIndex, float blendDuration);
+    void    Clear_SameAnimationBlend();
+    void    Capture_SameAnimationBlendSourcePose();
+    void    Apply_SameAnimationBlendPose(float blendRatio, int32 rootNodeIndex);
+
+private:
     HRESULT Ensure_AnimationComputeSource();
 
 public: // Animation Bone Modifier 기능
@@ -321,6 +328,7 @@ private: /* For Animation Control */
     bool                                _isFinished{ false };
     bool						        _isAnimLoop{ false };
     bool                                _isBlending{ false };
+    bool                                _isSameAnimationBlending{ false };
     bool                                _hasExplicitAnimation{ false };          // 모델 생성 직후 기본 0번 애니와 실제 재생 요청을 구분한다.
     bool                                _skipInitialBlendSourceNotify{ false };  // 첫 블렌드 동안 기본 0번 애니 notify가 새지 않게 막는다.
     uint32						        _currentAnimIndex{ 0 };
@@ -330,6 +338,7 @@ private: /* For Animation Control */
     float                               _frameSpeed{ 1.f };
     float                               _blendDuration{ 0.f };
     float                               _blendElapsedTime{ 0.f };
+    vector<Matrix>                      _sameAnimationBlendSourceLocalMatrices;
 
 private: /* For Root Motion */
     bool                                _isRootMotion{ false };
