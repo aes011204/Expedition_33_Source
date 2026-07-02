@@ -2,6 +2,48 @@
 #include "BattleMechanismCom.h"
 #include "DamageSystem.h"
 #include "ClientInstance.h"
+#include "EffectCom.h"
+
+namespace Internal
+{
+    static void Play_TargetHitEffect(const BattleChar& target, const BattleHitSequenceRunner::HitEffectDesc& hitEffect)
+    {
+        if (!hitEffect.Is_Valid() || target.actor == nullptr)
+            return;
+
+        const Shared<EffectCom> effectCom = target.actor->Get_Component<EffectCom>();
+        if (effectCom == nullptr)
+            return;
+
+        EffectCom::EffectPlayDesc effectDesc{};
+        effectDesc.levelIndex = GAME->Current_LevelIndex();
+        effectDesc.effectName = hitEffect.effectName;
+        effectDesc.target = EffectCom::EffectPlayTarget::OwnerRoot;
+        effectDesc.localOffset = hitEffect.localOffset;
+        effectDesc.localRotation = hitEffect.localRotation;
+        effectDesc.scale = hitEffect.scale;
+        effectDesc.followTarget = false;
+
+        effectCom->Play_Effect(effectDesc);
+    }
+
+    static void Play_TargetHitSound(const BattleChar& target, const wstring& hitSoundCue)
+    {
+        if (hitSoundCue.empty())
+            return;
+
+        Vec3 soundPosition = Vec3::Zero;
+        const Vec3* soundPositionPtr = nullptr;
+
+        if (target.actor != nullptr && target.actor->Get_Transform() != nullptr)
+        {
+            soundPosition = target.actor->Get_Transform()->Get_WorldPosition();
+            soundPositionPtr = &soundPosition;
+        }
+
+        GAME->Play_SoundCue(hitSoundCue, soundPositionPtr);
+    }
+}
 
 /* 공격 태세 */
 void Skill_Maelle_OffensiveSwitch::Execute(const Skill_Data& skill, const BattleAction& action, AttackType attackType)
@@ -39,6 +81,15 @@ void Skill_Maelle_Percee::Execute(const Skill_Data& skill, const BattleAction& a
 
     const float damage = DamageSystem::CalculatePlayerAttackDamage(attacker, skill.powerMultiplier);
     DamageSystem::ApplyDamage(damage, attacker, target, attackType);
+
+    if (target.actor != nullptr)
+    {
+        BattleHitSequenceRunner::HitEffectDesc effectDesc{};
+        effectDesc.effectName = L"Maelle_Procee";
+        effectDesc.localOffset = Vec3(0.f, 0.f, 0.f);
+
+        Internal::Play_TargetHitEffect(target, effectDesc);
+    }
 
     if (attacker.mechanismCom != nullptr)
         attacker.mechanismCom->Set_MaelleStance(BattleMechanismCom::MaelleStance::Defensive);
