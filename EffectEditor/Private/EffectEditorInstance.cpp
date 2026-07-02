@@ -116,6 +116,13 @@ HRESULT EffectEditorInstance::Initialize_Editor(const EffectEditorDesc& editorDe
     _isTrailPreviewVisible = false;
     _isPreviewPlaneVisible = false;
     _trailPreviewAnimationSpeed = kDefaultTrailPreviewAnimationSpeed;
+    _trailPreviewCharacterSlot = TrailPreviewCharacterSlot::Player;
+    _trailPreviewMotion = TrailPreviewMotion::Auto;
+    _trailPreviewManualAnimationName.clear();
+    Reset_TrailPreviewLocalOffsets();
+    _monsterTrailPreviewBaseLocalOffset = kDefaultMonsterTrailPreviewLocalOffset;
+    _monsterTrailPreviewTipLocalOffset = kDefaultMonsterTrailPreviewLocalOffset;
+    _monsterSourceHistorySpriteTrailPreviewSourceLocalOffset = kDefaultMonsterTrailPreviewLocalOffset;
     _isEffectInfluenceOutlineEnabled = false;
     ComputeSpriteEmitter::Set_InfluenceOutlineDebugEnabled(false);
     _hasClientPostProcessSnapshot = false;
@@ -183,6 +190,13 @@ void EffectEditorInstance::Release_Editor()
     _autoReplayPreviewElapsedTime = 0.f;
     _isDefaultSkyboxEnabled = true;
     _isTrailPreviewVisible = false;
+    _trailPreviewCharacterSlot = TrailPreviewCharacterSlot::Player;
+    _trailPreviewMotion = TrailPreviewMotion::Auto;
+    _trailPreviewManualAnimationName.clear();
+    Reset_TrailPreviewLocalOffsets();
+    _monsterTrailPreviewBaseLocalOffset = kDefaultMonsterTrailPreviewLocalOffset;
+    _monsterTrailPreviewTipLocalOffset = kDefaultMonsterTrailPreviewLocalOffset;
+    _monsterSourceHistorySpriteTrailPreviewSourceLocalOffset = kDefaultMonsterTrailPreviewLocalOffset;
     _postProcessOptions = Get_DefaultPostProcessOptions();
     _hasClientPostProcessSnapshot = false;
     _clientPostProcessSnapshot = {};
@@ -321,6 +335,58 @@ bool EffectEditorInstance::Is_SourceHistorySpriteTrailPreviewGateOpen(float sour
         _sourceHistorySpriteTrailPreviewGateEndRatio,
         sourceRatio
     );
+}
+
+Vec3 EffectEditorInstance::Get_TrailPreviewBaseLocalOffset() const
+{
+    return _trailPreviewCharacterSlot == TrailPreviewCharacterSlot::Monster
+           ? _monsterTrailPreviewBaseLocalOffset
+           : _playerTrailPreviewBaseLocalOffset;
+}
+
+Vec3 EffectEditorInstance::Get_TrailPreviewTipLocalOffset() const
+{
+    return _trailPreviewCharacterSlot == TrailPreviewCharacterSlot::Monster
+           ? _monsterTrailPreviewTipLocalOffset
+           : _playerTrailPreviewTipLocalOffset;
+}
+
+Vec3 EffectEditorInstance::Get_TrailPreviewSourceLocalOffset() const
+{
+    return Get_SourceHistorySpriteTrailPreviewSourceLocalOffset();
+}
+
+Vec3 EffectEditorInstance::Get_SourceHistorySpriteTrailPreviewSourceLocalOffset() const
+{
+    return _trailPreviewCharacterSlot == TrailPreviewCharacterSlot::Monster
+           ? _monsterSourceHistorySpriteTrailPreviewSourceLocalOffset
+           : _playerSourceHistorySpriteTrailPreviewSourceLocalOffset;
+}
+
+Vec3 EffectEditorInstance::Get_DefaultTrailPreviewBaseLocalOffset() const
+{
+    return _trailPreviewCharacterSlot == TrailPreviewCharacterSlot::Monster
+           ? kDefaultMonsterTrailPreviewLocalOffset
+           : kDefaultTrailPreviewBaseLocalOffset;
+}
+
+Vec3 EffectEditorInstance::Get_DefaultTrailPreviewTipLocalOffset() const
+{
+    return _trailPreviewCharacterSlot == TrailPreviewCharacterSlot::Monster
+           ? kDefaultMonsterTrailPreviewLocalOffset
+           : kDefaultTrailPreviewTipLocalOffset;
+}
+
+Vec3 EffectEditorInstance::Get_DefaultTrailPreviewSourceLocalOffset() const
+{
+    return Get_DefaultSourceHistorySpriteTrailPreviewSourceLocalOffset();
+}
+
+Vec3 EffectEditorInstance::Get_DefaultSourceHistorySpriteTrailPreviewSourceLocalOffset() const
+{
+    return _trailPreviewCharacterSlot == TrailPreviewCharacterSlot::Monster
+           ? kDefaultMonsterTrailPreviewLocalOffset
+           : kDefaultTrailPreviewSourceLocalOffset;
 }
 
 EffectEditorPostProcessOptions EffectEditorInstance::Get_DefaultPostProcessOptions() const
@@ -652,6 +718,36 @@ void EffectEditorInstance::Set_TrailPreviewAnimationSpeed(float speed)
     );
 }
 
+void EffectEditorInstance::Set_TrailPreviewCharacterSlot(TrailPreviewCharacterSlot slot)
+{
+    if (_trailPreviewCharacterSlot == slot)
+        return;
+
+    _trailPreviewCharacterSlot = slot;
+    Reset_TrailPreviewGate();
+    Request_RestartPreview();
+}
+
+void EffectEditorInstance::Set_TrailPreviewMotion(TrailPreviewMotion motion)
+{
+    if (_trailPreviewMotion == motion)
+        return;
+
+    _trailPreviewMotion = motion;
+    Reset_TrailPreviewGate();
+    Request_RestartPreview();
+}
+
+void EffectEditorInstance::Set_TrailPreviewManualAnimationName(string animationName)
+{
+    if (_trailPreviewManualAnimationName == animationName)
+        return;
+
+    _trailPreviewManualAnimationName = std::move(animationName);
+    Reset_TrailPreviewGate();
+    Request_RestartPreview();
+}
+
 void EffectEditorInstance::Set_EffectInfluenceOutlineEnabled(bool enabled)
 {
     _isEffectInfluenceOutlineEnabled = enabled;
@@ -662,8 +758,15 @@ void EffectEditorInstance::Set_TrailPreviewLocalOffsets(
     const Vec3& baseLocalOffset,
     const Vec3& tipLocalOffset)
 {
-    _trailPreviewBaseLocalOffset = baseLocalOffset;
-    _trailPreviewTipLocalOffset = tipLocalOffset;
+    if (_trailPreviewCharacterSlot == TrailPreviewCharacterSlot::Monster)
+    {
+        _monsterTrailPreviewBaseLocalOffset = baseLocalOffset;
+        _monsterTrailPreviewTipLocalOffset = tipLocalOffset;
+        return;
+    }
+
+    _playerTrailPreviewBaseLocalOffset = baseLocalOffset;
+    _playerTrailPreviewTipLocalOffset = tipLocalOffset;
 }
 
 void EffectEditorInstance::Set_TrailPreviewLocalOffsets(
@@ -677,14 +780,28 @@ void EffectEditorInstance::Set_TrailPreviewLocalOffsets(
 
 void EffectEditorInstance::Set_SourceHistorySpriteTrailPreviewSourceLocalOffset(const Vec3& sourceLocalOffset)
 {
-    _sourceHistorySpriteTrailPreviewSourceLocalOffset = sourceLocalOffset;
+    if (_trailPreviewCharacterSlot == TrailPreviewCharacterSlot::Monster)
+    {
+        _monsterSourceHistorySpriteTrailPreviewSourceLocalOffset = sourceLocalOffset;
+        return;
+    }
+
+    _playerSourceHistorySpriteTrailPreviewSourceLocalOffset = sourceLocalOffset;
 }
 
 void EffectEditorInstance::Reset_TrailPreviewLocalOffsets()
 {
-    _trailPreviewBaseLocalOffset = kDefaultTrailPreviewBaseLocalOffset;
-    _trailPreviewTipLocalOffset = kDefaultTrailPreviewTipLocalOffset;
-    _sourceHistorySpriteTrailPreviewSourceLocalOffset = kDefaultTrailPreviewSourceLocalOffset;
+    if (_trailPreviewCharacterSlot == TrailPreviewCharacterSlot::Monster)
+    {
+        _monsterTrailPreviewBaseLocalOffset = kDefaultMonsterTrailPreviewLocalOffset;
+        _monsterTrailPreviewTipLocalOffset = kDefaultMonsterTrailPreviewLocalOffset;
+        _monsterSourceHistorySpriteTrailPreviewSourceLocalOffset = kDefaultMonsterTrailPreviewLocalOffset;
+        return;
+    }
+
+    _playerTrailPreviewBaseLocalOffset = kDefaultTrailPreviewBaseLocalOffset;
+    _playerTrailPreviewTipLocalOffset = kDefaultTrailPreviewTipLocalOffset;
+    _playerSourceHistorySpriteTrailPreviewSourceLocalOffset = kDefaultTrailPreviewSourceLocalOffset;
 }
 
 void EffectEditorInstance::Set_PreviewEmitterTransformEnabled(uint32 emitterId, bool enabled)

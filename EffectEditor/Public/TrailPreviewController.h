@@ -8,7 +8,9 @@ NS_END
 
 NS_BEGIN(EffectEditor)
 
+class TrailPreviewMonsterObject;
 class TrailPreviewPlayerObject;
+enum class TrailPreviewCharacterSlot;
 
 // Trail preview player animation state와 source ratio를 제어한다.
 class TrailPreviewController final : public GameObject
@@ -17,6 +19,7 @@ public:
     struct PreviewDesc : public GAMEOBJECT_DESC
     {
         Shared<TrailPreviewPlayerObject> player{};
+        Shared<TrailPreviewMonsterObject> monster{};
     };
 
 public:
@@ -31,13 +34,16 @@ public:
     void Update(float timeDelta) override;
 
 public:
-    bool Try_GetAttackAnimationRatio(float& outRatio) const;
+    bool Try_GetCurrentMotionRatio(float& outRatio) const;
+    void Get_AnimationNames(vector<string>& outNames) const;
 
 private: //## Types::Animation
-    enum class PreviewAnimationMode
+    enum class AppliedMotion
     {
-        Rest,
-        Attack,
+        None,
+        AutoRest,
+        AutoAttack,
+        Manual,
     };
 
 private: //## Static Values
@@ -46,16 +52,28 @@ private: //## Static Values
 
 private: //## Data::Animation
     Weak<TrailPreviewPlayerObject> _player{};
-    PreviewAnimationMode _currentMode{ PreviewAnimationMode::Rest };
+    Weak<TrailPreviewMonsterObject> _monster{};
+    AppliedMotion _currentMotion{ AppliedMotion::None };
+    TrailPreviewCharacterSlot _currentSlot{};
+    string _currentManualAnimationName{};
     bool _animationInitialized{ false };
 
 private: //## Helper::Animation
     void Set_PlayerVisible(bool visible);
+    void Set_MonsterVisible(bool visible);
     void Reset_PreviewPose();
     Shared<ModelCom> Get_BodyModel() const;
-    void Ensure_AnimationMode(PreviewAnimationMode mode);
+    Shared<ModelCom> Get_PlayerBodyModel() const;
+    Shared<ModelCom> Get_MonsterBodyModel() const;
+    void Ensure_CurrentMotion();
+    void Ensure_AutoMotion(const Shared<ModelCom>& bodyModel);
+    void Ensure_Animation(const Shared<ModelCom>& bodyModel, AppliedMotion motion, const string& animationName, bool loop);
     void Apply_AnimationSpeed(const Shared<ModelCom>& bodyModel) const;
     bool Has_Animation(const Shared<ModelCom>& model, const char* animationName) const;
+    TrailPreviewCharacterSlot Get_CurrentSlot() const;
+    string Resolve_AutoAnimationName(const Shared<ModelCom>& bodyModel, TrailPreviewCharacterSlot slot, bool playAttack) const;
+    string Resolve_FirstExistingAnimationName(const Shared<ModelCom>& bodyModel, const initializer_list<const char*>& candidates) const;
+    bool Try_GetCurrentAnimationRatio(const Shared<ModelCom>& bodyModel, float& outRatio) const;
 
 public:
     static Shared<TrailPreviewController> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);

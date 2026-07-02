@@ -118,6 +118,12 @@
     <ClCompile Include="..\Private\TrailPreviewPlayerObject.cpp">
       <Filter>05. EditorOnly Object\Trail Preview Object\Preview Player</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\TrailPreviewSampleRouter.cpp">
+      <Filter>05. EditorOnly Object\Trail Preview Object\Controller</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\TrailPreviewMonsterObject.cpp">
+      <Filter>05. EditorOnly Object\Trail Preview Object\Preview Player</Filter>
+    </ClCompile>
     <ClCompile Include="..\Private\MeshDataPreview_View.cpp">
       <Filter>02. View\Mesh Effect Preview</Filter>
     </ClCompile>
@@ -274,6 +280,12 @@
       <Filter>05. EditorOnly Object\Trail Preview Object\Preview Weapon</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\TrailPreviewPlayerObject.h">
+      <Filter>05. EditorOnly Object\Trail Preview Object\Preview Player</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\TrailPreviewSampleRouter.h">
+      <Filter>05. EditorOnly Object\Trail Preview Object\Controller</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\TrailPreviewMonsterObject.h">
       <Filter>05. EditorOnly Object\Trail Preview Object\Preview Player</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\MeshDataPreview_View.h">
