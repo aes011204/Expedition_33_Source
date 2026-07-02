@@ -66,6 +66,9 @@ public:
     virtual bool Get_RenderHotspotInstancedMeshStats(RenderHotspotInstancedMeshStats& outStats) const override;
     virtual bool Is_InstancedMeshShadowBakeable() const override { return true; }
 
+    bool Is_MapVisible() const { return _visible; }
+    void Set_MapVisible(bool visible) { _visible = visible; }
+
     virtual json To_Json() const override;
     virtual void From_Json(const json& node) override;
 

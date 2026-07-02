@@ -5,6 +5,7 @@
 #include "RuntimeRuleStateService.h"
 #include "TargetCamera.h"
 #include "SoulLikeController.h"
+#include "SkyBoxFlow.h"
 
 namespace
 {
@@ -24,6 +25,7 @@ HRESULT Level_Stage01::Initialize()
     CHECK_FAILED(Ready_Layer_Player(TEXT("Layer_Player")), E_FAIL);
     CHECK_FAILED(Ready_Layer_Camera(TEXT("Layer_Camera")), E_FAIL);
     CHECK_FAILED(Ready_Layer_UI(TEXT("Layer_UI")), E_FAIL);
+    CHECK_FAILED(Ready_Layer_BackGround(TEXT("Layer_BackGround")), E_FAIL);
 
     RuntimeRuleStateService::Apply_ToCurrentRuntime(
         RuntimeRuleStateService::Build_SimonStartUnlocks(), false);
@@ -44,11 +46,14 @@ void Level_Stage01::BeginPlay()
 
     // Particle
     PlayEffectDesc ParticlDesc{};
-    desc.effectName = kParticelEffectName;
-    desc.worldPosition = Vec3(219.52f, -4023.47f, 52.33f);
-    desc.scale = Vec3(1.f, 1.f, 1.f);
-
+    ParticlDesc.effectName = kParticelEffectName;
+    ParticlDesc.worldPosition = Vec3(219.52f, -4023.47f, 52.33f);
+    ParticlDesc.scale = Vec3(1.f, 1.f, 1.f);
     CLIENT->Play_Effect(ParticlDesc);
+
+    ParticlDesc.worldPosition = Vec3(200.29f, -4023.47f, 106.4f);
+    CLIENT->Play_Effect(ParticlDesc);
+
 
     CLIENT->Capture_InitialWorldSnapshot();
 }
@@ -91,7 +96,7 @@ HRESULT Level_Stage01::Ready_Lights()
 HRESULT Level_Stage01::Ready_Layer_Player(const wstring& strLayerTag)
 {
     Vec3 startPos = Vec3(60.93f, 3.63f, -0.93f);
-    Vec3 startRot = Vec3(0.f, -90.f, 0.f);
+    Vec3 startRot = Vec3(0.f, 90.f, 0.f);
 
     CHECK_FAILED(CLIENT->Initialize_Hero(ETOI(LevelType::Stage01), strLayerTag, startPos, startRot), E_FAIL);
 
@@ -149,6 +154,33 @@ HRESULT Level_Stage01::Ready_Layer_Camera(const wstring& strLayerTag)
 HRESULT Level_Stage01::Ready_Layer_UI(const wstring& strLayerTag)
 {
     CHECK_FAILED(CLIENT->Initialize_GameplayUI(ETOI(LevelType::Stage01)), E_FAIL);
+
+    return S_OK;
+}
+
+HRESULT Level_Stage01::Ready_Layer_BackGround(const wstring& strLayerTag)
+{
+    SkyBoxFlow::SKYBOXFLOW_DESC skyBoxDesc{};
+    skyBoxDesc.modelTag = TEXT("Model_SM_Skybox_Mesh");
+    skyBoxDesc.shaderTag = TEXT("Shader_SkyBoxFlow");
+    skyBoxDesc.skyTextureTag = TEXT("Texture_SkyBox_Simon");
+    skyBoxDesc.flowTextureTag = TEXT("Texture_SkyBox_Flow03");
+
+    skyBoxDesc.tint = Vec4(1.604023f, 0.887117f, 0.631814f, 1.f);
+    skyBoxDesc.brightness = 500.f;
+    skyBoxDesc.contrast = 1.524392f;
+    skyBoxDesc.noiseStrength = 0.25f;
+    skyBoxDesc.speed = 0.001f;
+    skyBoxDesc.scale = 1.f;
+
+    CHECK_FAILED(
+        GAME->Add_GameObject(
+            ETOI(LevelType::Stage01),
+            TEXT("GameObject_SkyBoxFlow_Stage01"),
+            ETOI(LevelType::Stage01),
+            strLayerTag,
+            &skyBoxDesc),
+        E_FAIL);
 
     return S_OK;
 }
