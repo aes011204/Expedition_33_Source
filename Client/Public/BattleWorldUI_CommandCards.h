@@ -32,6 +32,8 @@ public:
     void    Free() override;
 
 public:
+    LevelType Get_EditorWorldPlacementLevelType() const override;
+    void Set_EditorWorldPlacementLevelType(LevelType levelType) override;
     HeroId Get_EditorWorldPlacementHeroId() const override;
     void Set_EditorWorldPlacementHeroId(HeroId heroId) override;
     RuntimeWorldUIPlacementTuning Get_EditorWorldPlacementTuning() const override;

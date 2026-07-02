@@ -1314,6 +1314,7 @@ void BattleTurnCamera::Update_PoseTransition(float timeDelta)
     Apply_ClipShake(blended, clipSample, _clipShakeTime);
     Apply_RuntimeShake(blended, timeDelta);
     Apply_EvaluatedPoseWithDOF(blended, _poseTransition.targetRequest.mode);
+    GAME->UpdateFrustum(*GAME->Get_Transform(D3DTS::View), *GAME->Get_Transform(D3DTS::Proj));
 
     if (t < 1.f)
         return;

@@ -351,7 +351,9 @@ namespace Internal
             prototypeTag == L"Shader_VtxMeshInstanceExact" ||
             prototypeTag == L"Shader_EffectMesh" ||
             prototypeTag == L"Shader_EffectMeshDistortion" ||
+            prototypeTag == L"Shader_EffectMeshGlass" ||
             prototypeTag == L"Shader_EffectMeshPreviewDistortion" ||
+            prototypeTag == L"Shader_EffectMeshPreviewGlass" ||
             prototypeTag == L"Shader_EffectMeshPreview";
     }
 

@@ -513,6 +513,9 @@ HRESULT MeshEmitter::Render()
     {
         const uint32 materialIndex = _model->Get_MeshMaterialIndex(meshIndex);
 
+        if (!Is_DistortionFamily())
+            CHECK_FAILED_THROTTLED(Bind_ModelMaterialResourcesForMesh(meshIndex, materialIndex), 60, E_FAIL);
+
         if (FAILED(_shader->Begin(passIndex)))
         {
             LOG_WARN_THROTTLED(
@@ -887,7 +890,12 @@ HRESULT MeshEmitter::Ready_Components()
 
 HRESULT MeshEmitter::Ready_Shader()
 {
-    const wstring shaderId = String::ToWString(Is_DistortionFamily() ? kEffectMeshDistortionShaderId : kEffectMeshShaderId);
+    const char* shaderTag = kEffectMeshShaderId;
+    if (Is_DistortionFamily())
+        shaderTag = kEffectMeshDistortionShaderId;
+    else if (Is_MeshGlassFamily())
+        shaderTag = kEffectMeshGlassShaderId;
+    const wstring shaderId = String::ToWString(shaderTag);
     if (nullptr != _shader && _loadedShaderPrototypeTag == shaderId)
         return S_OK;
 
@@ -1025,7 +1033,7 @@ HRESULT MeshEmitter::Bind_EffectMaterialResources()
         clamp(material.alphaCutoff, 0.f, 1.f),
         clamp(material.alphaErosion, 0.f, 1.f),
         _maskTexture != nullptr ? 1.f : 0.f,
-        0.f
+        clamp(material.alphaMultiplier, 0.f, 1.f)
     );
     const Vec4 effectMeshMainUVParams = Vec4(material.mainUVScale.x, material.mainUVScale.y, material.mainUVScrollSpeed.x, material.mainUVScrollSpeed.y);
     const Vec4 effectMeshNoiseUVParams = Vec4(material.noiseUVScale.x, material.noiseUVScale.y, material.noiseUVScrollSpeed.x, material.noiseUVScrollSpeed.y);
@@ -1103,13 +1111,103 @@ HRESULT MeshEmitter::Bind_EffectMaterialResources()
     CHECK_FAILED_THROTTLED(_shader->Bind_RawValue("g_EffectMeshAdditiveFlags", &effectMeshAdditiveFlags, sizeof(effectMeshAdditiveFlags)), 60, E_FAIL);
     CHECK_FAILED_THROTTLED(_shader->Bind_RawValue("g_EffectMeshCoreEmissiveParams", &effectMeshCoreEmissiveParams, sizeof(effectMeshCoreEmissiveParams)), 60, E_FAIL);
     CHECK_FAILED_THROTTLED(_shader->Bind_RawValue("g_EffectMeshCoreEmissiveColor", &effectMeshCoreEmissiveColor, sizeof(effectMeshCoreEmissiveColor)), 60, E_FAIL);
-    CHECK_FAILED_THROTTLED(Bind_MaterialScalarModulationShaderPayloadToShader(_shader.get(), material.scalarModulation, emitterPhase), 60, E_FAIL);
+    if (Is_MeshGlassFamily())
+    {
+        const Vec4 glassSurfaceParams{
+            max(0.f, material.glassAlpha),
+            max(0.0001f, material.glassAlphaPower),
+            max(0.f, material.glassNormalStrength),
+            clamp(material.glassMainInfluence, 0.f, 1.f)
+        };
+        const Vec4 glassRimParams{
+            max(0.f, material.glassRimIntensity),
+            max(0.0001f, material.glassRimPower),
+            clamp(material.glassNoiseBreakup, 0.f, 1.f),
+            clamp(material.glassMaskStrength, 0.f, 1.f)
+        };
+        const Vec4 glassLightDirection{
+            material.glassLightDirection.x,
+            material.glassLightDirection.y,
+            material.glassLightDirection.z,
+            max(0.f, material.glassLightIntensity)
+        };
+        const Vec4 glassSpecularParams{
+            max(0.0001f, material.glassSpecularPower),
+            max(0.0001f, material.glassSpecularSoftness),
+            0.f,
+            0.f
+        };
+
+        CHECK_FAILED_THROTTLED(_shader->Bind_RawValue("g_EffectMeshGlassSurfaceParams", &glassSurfaceParams, sizeof(glassSurfaceParams)), 60, E_FAIL);
+        CHECK_FAILED_THROTTLED(_shader->Bind_RawValue("g_EffectMeshGlassRimColor", &material.glassRimColor, sizeof(material.glassRimColor)), 60, E_FAIL);
+        CHECK_FAILED_THROTTLED(_shader->Bind_RawValue("g_EffectMeshGlassRimParams", &glassRimParams, sizeof(glassRimParams)), 60, E_FAIL);
+        CHECK_FAILED_THROTTLED(_shader->Bind_RawValue("g_EffectMeshGlassLightDirection", &glassLightDirection, sizeof(glassLightDirection)), 60, E_FAIL);
+        CHECK_FAILED_THROTTLED(_shader->Bind_RawValue("g_EffectMeshGlassLightColor", &material.glassLightColor, sizeof(material.glassLightColor)), 60, E_FAIL);
+        CHECK_FAILED_THROTTLED(_shader->Bind_RawValue("g_EffectMeshGlassSpecularParams", &glassSpecularParams, sizeof(glassSpecularParams)), 60, E_FAIL);
+    }
+    if (!Is_MeshGlassFamily())
+    {
+        CHECK_FAILED_THROTTLED(Bind_MaterialScalarModulationShaderPayloadToShader(_shader.get(), material.scalarModulation, emitterPhase), 60, E_FAIL);
+        CHECK_FAILED_THROTTLED(
+            Bind_CoreColorRgbModulationShaderPayload(_shader.get(), material.coreColorRgbModulation, emitterPhase, _effectPlaybackSeed),
+            60,
+            E_FAIL
+        );
+    }
+    CHECK_FAILED_THROTTLED(_shader->Bind_RawValue("g_OpacitySource", &_opacitySourceIndex, sizeof(_opacitySourceIndex)), 60, E_FAIL);
+    return S_OK;
+}
+
+HRESULT MeshEmitter::Bind_ModelMaterialResourcesForMesh(uint32 meshIndex, uint32 materialIndex)
+{
+    CHECK_NULL(_texture, E_FAIL);
+
+    Vec4 modelMaterialFlags = Vec4::Zero;
+    if (!_desc.useModelMaterials || _model == nullptr)
+    {
+        CHECK_FAILED_THROTTLED(_shader->Bind_SRV("g_ModelNormalTexture", nullptr), 60, E_FAIL);
+        CHECK_FAILED_THROTTLED(_shader->Bind_SRV("g_ModelEmissiveTexture", nullptr), 60, E_FAIL);
+        CHECK_FAILED_THROTTLED(
+            _shader->Bind_RawValue("g_EffectMeshModelMaterialFlags", &modelMaterialFlags, sizeof(modelMaterialFlags)),
+            60,
+            E_FAIL
+        );
+        return S_OK;
+    }
+
+    if (SUCCEEDED(_model->Bind_Material(_shader.get(), "g_Texture", meshIndex, MaterialTextureSlot::BaseColor)))
+    {
+        modelMaterialFlags.x = 1.f;
+    }
+    else
+    {
+        LOG_WARN_THROTTLED(
+            60,
+            "MeshEmitter model material BaseColor missing; using effect material main texture fallback. emitter='{}', meshIndex={}, materialIndex={}, modelGuid='{}', modelPath='{}'",
+            _emitterName,
+            meshIndex,
+            materialIndex,
+            _desc.modelGuid,
+            _desc.modelPath
+        );
+        CHECK_FAILED_THROTTLED(_texture->Bind_ShaderResourceView(_shader.get(), "g_Texture", 0), 60, E_FAIL);
+    }
+
+    if (SUCCEEDED(_model->Bind_Material(_shader.get(), "g_ModelNormalTexture", meshIndex, MaterialTextureSlot::Normal)))
+        modelMaterialFlags.y = 1.f;
+    else
+        CHECK_FAILED_THROTTLED(_shader->Bind_SRV("g_ModelNormalTexture", nullptr), 60, E_FAIL);
+
+    if (SUCCEEDED(_model->Bind_Material(_shader.get(), "g_ModelEmissiveTexture", meshIndex, MaterialTextureSlot::Emissive)))
+        modelMaterialFlags.z = 1.f;
+    else
+        CHECK_FAILED_THROTTLED(_shader->Bind_SRV("g_ModelEmissiveTexture", nullptr), 60, E_FAIL);
+
     CHECK_FAILED_THROTTLED(
-        Bind_CoreColorRgbModulationShaderPayload(_shader.get(), material.coreColorRgbModulation, emitterPhase, _effectPlaybackSeed),
+        _shader->Bind_RawValue("g_EffectMeshModelMaterialFlags", &modelMaterialFlags, sizeof(modelMaterialFlags)),
         60,
         E_FAIL
     );
-    CHECK_FAILED_THROTTLED(_shader->Bind_RawValue("g_OpacitySource", &_opacitySourceIndex, sizeof(_opacitySourceIndex)), 60, E_FAIL);
     return S_OK;
 }
 
@@ -1158,6 +1256,11 @@ HRESULT MeshEmitter::Bind_DistortionResources()
 bool MeshEmitter::Is_DistortionFamily() const
 {
     return _desc.material.materialFamily == EffectMaterialFamily::SpriteDistortion;
+}
+
+bool MeshEmitter::Is_MeshGlassFamily() const
+{
+    return _desc.material.materialFamily == EffectMaterialFamily::MeshGlass;
 }
 
 HRESULT MeshEmitter::Ready_InstanceBuffer()
@@ -3155,6 +3258,8 @@ RenderGroup MeshEmitter::Resolve_RenderGroup() const
 
     if (Is_DistortionFamily())
         return RenderGroup::Distortion;
+    if (Is_MeshGlassFamily())
+        return RenderGroup::Blend;
 
     return _desc.material.blendMode == EffectMaterialBlendMode::Masked
            ? RenderGroup::EffectMasked
@@ -3164,6 +3269,8 @@ RenderGroup MeshEmitter::Resolve_RenderGroup() const
 uint32 MeshEmitter::Resolve_ShaderPassIndex() const
 {
     if (Is_DistortionFamily())
+        return 0u;
+    if (Is_MeshGlassFamily())
         return 0u;
 
     const bool additive = _desc.material.blendMode == EffectMaterialBlendMode::Additive;

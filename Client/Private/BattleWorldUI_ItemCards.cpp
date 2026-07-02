@@ -1,6 +1,7 @@
 #include "BattleWorldUI_ItemCards.h"
 
 #include "BattleWorldUI_JsonTextureResolver.h"
+#include "BattleWorldUI_LevelPlacement.h"
 #include "BattleWorldUI_PlacementUtils.h"
 #include "BattleWorldUI_SurfaceAnim.h"
 #include "Camera.h"
@@ -301,6 +302,21 @@ namespace
             tunings[heroIndex] = Make_DefaultItemWorldPlacementTuning(static_cast<HeroId>(heroIndex));
 
         return tunings;
+    }
+
+    using BattleWorldItemWorldPlacementLevelTunings =
+        array<
+            array<BattleWorldItemWorldPlacementTuning, kBattleWorldItemPlacementHeroCount>,
+            BattleWorldUILevelPlacement::kLevelCount>;
+
+    BattleWorldItemWorldPlacementLevelTunings Make_DefaultItemWorldPlacementLevelTunings()
+    {
+        BattleWorldItemWorldPlacementLevelTunings levelTunings{};
+        const auto defaultTunings = Make_DefaultItemWorldPlacementTunings();
+        for (auto& levelTuning : levelTunings)
+            levelTuning = defaultTunings;
+
+        return levelTunings;
     }
 
     struct BattleWorldItemJsonObject
@@ -1462,9 +1478,36 @@ namespace
         return tuning;
     }
 
+    bool Try_ReadItemWorldPlacementCharacters(
+        const json& root,
+        array<BattleWorldItemWorldPlacementTuning, kBattleWorldItemPlacementHeroCount>& tunings)
+    {
+        const auto charactersIter = root.find("characters");
+        if (charactersIter == root.end() || !charactersIter->is_object())
+            return false;
+
+        for (const auto& [heroName, heroNode] : charactersIter->items())
+        {
+            if (!heroNode.is_object())
+                continue;
+
+            HeroId heroId = HeroId::END;
+            if (!Try_ParsePlacementHeroJsonName(heroName, heroId))
+            {
+                LOG_WARN("BattleWorldUI item placement json has unknown character. character='{}'", heroName);
+                continue;
+            }
+
+            const uint32 heroIndex = Resolve_PlacementHeroIndex(heroId);
+            tunings[heroIndex] = Read_ItemWorldPlacementTuningNode(heroNode, tunings[heroIndex]);
+        }
+
+        return true;
+    }
+
     bool Try_LoadItemWorldPlacementTunings(
         const fs::path& jsonPath,
-        array<BattleWorldItemWorldPlacementTuning, kBattleWorldItemPlacementHeroCount>& outTunings)
+        BattleWorldItemWorldPlacementLevelTunings& outTunings)
     {
         if (!fs::exists(jsonPath))
             return false;
@@ -1483,33 +1526,44 @@ namespace
             return false;
         }
 
-        auto tunings = Make_DefaultItemWorldPlacementTunings();
-        if (const auto charactersIter = root.find("characters");
-            charactersIter != root.end() && charactersIter->is_object())
+        auto tunings = Make_DefaultItemWorldPlacementLevelTunings();
+        if (const auto levelsIter = root.find("levels");
+            levelsIter != root.end() && levelsIter->is_object())
         {
-            for (const auto& [heroName, heroNode] : charactersIter->items())
+            for (const auto& [levelName, levelNode] : levelsIter->items())
             {
-                if (!heroNode.is_object())
+                if (!levelNode.is_object())
                     continue;
 
-                HeroId heroId = HeroId::END;
-                if (!Try_ParsePlacementHeroJsonName(heroName, heroId))
+                LevelType levelType = LevelType::END;
+                if (!BattleWorldUILevelPlacement::Try_ParseLevelJsonName(levelName, levelType))
                 {
-                    LOG_WARN("BattleWorldUI item placement json has unknown character. character='{}'", heroName);
+                    LOG_WARN("BattleWorldUI item placement json has unknown level. level='{}'", levelName);
                     continue;
                 }
 
-                const uint32 heroIndex = Resolve_PlacementHeroIndex(heroId);
-                tunings[heroIndex] = Read_ItemWorldPlacementTuningNode(heroNode, tunings[heroIndex]);
+                const uint32 levelIndex = BattleWorldUILevelPlacement::Resolve_LevelIndex(levelType);
+                Try_ReadItemWorldPlacementCharacters(levelNode, tunings[levelIndex]);
             }
+        }
+        else if (const auto charactersIter = root.find("characters");
+            charactersIter != root.end() && charactersIter->is_object())
+        {
+            auto legacyTunings = Make_DefaultItemWorldPlacementTunings();
+            Try_ReadItemWorldPlacementCharacters(root, legacyTunings);
+            for (auto& levelTuning : tunings)
+                levelTuning = legacyTunings;
         }
         else
         {
             // Backward compatibility for the first single-profile tuning file.
             const BattleWorldItemWorldPlacementTuning flatTuning =
                 Read_ItemWorldPlacementTuningNode(root, BattleWorldItemWorldPlacementTuning{});
-            for (auto& tuning : tunings)
-                tuning = flatTuning;
+            for (auto& levelTuning : tunings)
+            {
+                for (auto& tuning : levelTuning)
+                    tuning = flatTuning;
+            }
         }
 
         outTunings = tunings;
@@ -1546,18 +1600,26 @@ namespace
     }
 
     bool Write_ItemWorldPlacementTuningsToFile(
-        const array<BattleWorldItemWorldPlacementTuning, kBattleWorldItemPlacementHeroCount>& tunings,
+        const BattleWorldItemWorldPlacementLevelTunings& tunings,
         fs::file_time_type* outWriteTime)
     {
         const fs::path jsonPath = Resolve_ItemWorldPlacementJsonPath();
 
         json root = json::object();
-        root["characters"] = json::object();
-        for (uint32 heroIndex = 0; heroIndex < kBattleWorldItemPlacementHeroCount; ++heroIndex)
+        root["levels"] = json::object();
+        for (uint32 levelIndex = 0; levelIndex < BattleWorldUILevelPlacement::kLevelCount; ++levelIndex)
         {
-            const HeroId heroId = static_cast<HeroId>(heroIndex);
-            root["characters"][To_PlacementHeroJsonName(heroId)] =
-                To_ItemWorldPlacementTuningJson(tunings[heroIndex]);
+            const LevelType levelType = BattleWorldUILevelPlacement::Get_LevelByIndex(levelIndex);
+            json levelNode = json::object();
+            levelNode["characters"] = json::object();
+            for (uint32 heroIndex = 0; heroIndex < kBattleWorldItemPlacementHeroCount; ++heroIndex)
+            {
+                const HeroId heroId = static_cast<HeroId>(heroIndex);
+                levelNode["characters"][To_PlacementHeroJsonName(heroId)] =
+                    To_ItemWorldPlacementTuningJson(tunings[levelIndex][heroIndex]);
+            }
+
+            root["levels"][BattleWorldUILevelPlacement::To_LevelJsonName(levelType)] = std::move(levelNode);
         }
 
         error_code errorCode{};
@@ -1638,7 +1700,7 @@ namespace
     }
 
     void Reload_ItemWorldPlacementTuningIfNeeded(
-        array<BattleWorldItemWorldPlacementTuning, kBattleWorldItemPlacementHeroCount>& tunings,
+        BattleWorldItemWorldPlacementLevelTunings& tunings,
         fs::file_time_type& knownWriteTime,
         bool& hasKnownFile)
     {
@@ -1647,7 +1709,7 @@ namespace
         {
             if (hasKnownFile)
             {
-                tunings = Make_DefaultItemWorldPlacementTunings();
+                tunings = Make_DefaultItemWorldPlacementLevelTunings();
                 knownWriteTime = {};
                 hasKnownFile = false;
                 LOG_INFO("BattleWorldUI item placement json removed. using defaults.");
@@ -1663,7 +1725,7 @@ namespace
         if (hasKnownFile && writeTime == knownWriteTime)
             return;
 
-        array<BattleWorldItemWorldPlacementTuning, kBattleWorldItemPlacementHeroCount> loadedTunings{};
+        BattleWorldItemWorldPlacementLevelTunings loadedTunings{};
         knownWriteTime = writeTime;
         hasKnownFile = true;
 
@@ -2087,10 +2149,12 @@ struct BattleWorldUI_ItemCards::Impl
     Shared<VIBuffer_Rect> viBuffer{};
     array<BattleWorldItemCardTemplate, kBattleWorldItemSlotCount> templates{};
     array<BattleWorldItemCardInstance, kBattleWorldItemSlotCount> cards{};
-    array<BattleWorldItemWorldPlacementTuning, kBattleWorldItemPlacementHeroCount> placementTunings =
-        Make_DefaultItemWorldPlacementTunings();
+    BattleWorldItemWorldPlacementLevelTunings placementTunings =
+        Make_DefaultItemWorldPlacementLevelTunings();
     fs::file_time_type placementTuningWriteTime{};
     bool hasPlacementTuningFile = false;
+    LevelType activePlacementLevelType = LevelType::END;
+    LevelType editorPlacementLevelType = LevelType::END;
     HeroId activePlacementHeroId = HeroId::END;
     HeroId editorPlacementHeroId = HeroId::END;
     BattleTurnState introState = BattleTurnState::None;
@@ -2169,8 +2233,14 @@ HRESULT BattleWorldUI_ItemCards::Warmup_ForBattleState(BattleItemType selectedIt
     if (_impl == nullptr)
         return E_FAIL;
 
+    const LevelType placementLevelType =
+        BattleWorldUILevelPlacement::Normalize_LevelType(static_cast<LevelType>(GAME->Current_LevelIndex()));
+    const uint32 placementLevelIndex = BattleWorldUILevelPlacement::Resolve_LevelIndex(placementLevelType);
     const HeroId placementHeroId = Normalize_PlacementHeroId(actorHeroId);
     const uint32 placementHeroIndex = Resolve_PlacementHeroIndex(placementHeroId);
+    _impl->activePlacementLevelType = placementLevelType;
+    if (_impl->editorPlacementLevelType == LevelType::END)
+        _impl->editorPlacementLevelType = placementLevelType;
     _impl->activePlacementHeroId = placementHeroId;
     if (_impl->editorPlacementHeroId == HeroId::END)
         _impl->editorPlacementHeroId = placementHeroId;
@@ -2200,7 +2270,7 @@ HRESULT BattleWorldUI_ItemCards::Warmup_ForBattleState(BattleItemType selectedIt
             Resolve_ItemPresentation(
                 slotIndex,
                 card.def,
-                _impl->placementTunings[placementHeroIndex],
+                _impl->placementTunings[placementLevelIndex][placementHeroIndex],
                 BattleTurnState::ChooseItem,
                 selectedItemType);
 
@@ -2241,8 +2311,14 @@ void BattleWorldUI_ItemCards::Show_ForBattleState(
         return;
     }
 
+    const LevelType placementLevelType =
+        BattleWorldUILevelPlacement::Normalize_LevelType(static_cast<LevelType>(GAME->Current_LevelIndex()));
+    const uint32 placementLevelIndex = BattleWorldUILevelPlacement::Resolve_LevelIndex(placementLevelType);
     const HeroId placementHeroId = Normalize_PlacementHeroId(actorHeroId);
     const uint32 placementHeroIndex = Resolve_PlacementHeroIndex(placementHeroId);
+    _impl->activePlacementLevelType = placementLevelType;
+    if (_impl->editorPlacementLevelType == LevelType::END)
+        _impl->editorPlacementLevelType = placementLevelType;
     _impl->activePlacementHeroId = placementHeroId;
     if (_impl->editorPlacementHeroId == HeroId::END)
         _impl->editorPlacementHeroId = placementHeroId;
@@ -2291,7 +2367,7 @@ void BattleWorldUI_ItemCards::Show_ForBattleState(
             Resolve_ItemPresentation(
                 slotIndex,
                 card.def,
-                _impl->placementTunings[placementHeroIndex],
+                _impl->placementTunings[placementLevelIndex][placementHeroIndex],
                 currentState,
                 selectedItemType);
 
@@ -2349,6 +2425,28 @@ void BattleWorldUI_ItemCards::Hide()
         card.visible = false;
 }
 
+LevelType BattleWorldUI_ItemCards::Get_EditorWorldPlacementLevelType() const
+{
+    if (_impl == nullptr)
+        return LevelType::Stage01;
+
+    if (_impl->editorPlacementLevelType != LevelType::END)
+        return BattleWorldUILevelPlacement::Normalize_LevelType(_impl->editorPlacementLevelType);
+
+    if (_impl->activePlacementLevelType != LevelType::END)
+        return BattleWorldUILevelPlacement::Normalize_LevelType(_impl->activePlacementLevelType);
+
+    return LevelType::Stage01;
+}
+
+void BattleWorldUI_ItemCards::Set_EditorWorldPlacementLevelType(LevelType levelType)
+{
+    if (_impl == nullptr)
+        return;
+
+    _impl->editorPlacementLevelType = BattleWorldUILevelPlacement::Normalize_LevelType(levelType);
+}
+
 HeroId BattleWorldUI_ItemCards::Get_EditorWorldPlacementHeroId() const
 {
     if (_impl == nullptr)
@@ -2376,8 +2474,9 @@ RuntimeWorldUIPlacementTuning BattleWorldUI_ItemCards::Get_EditorWorldPlacementT
     if (_impl == nullptr)
         return To_EditorWorldPlacementTuning(Make_DefaultItemWorldPlacementTuning(HeroId::Gustave));
 
+    const uint32 levelIndex = BattleWorldUILevelPlacement::Resolve_LevelIndex(Get_EditorWorldPlacementLevelType());
     const uint32 heroIndex = Resolve_PlacementHeroIndex(Get_EditorWorldPlacementHeroId());
-    return To_EditorWorldPlacementTuning(_impl->placementTunings[heroIndex]);
+    return To_EditorWorldPlacementTuning(_impl->placementTunings[levelIndex][heroIndex]);
 }
 
 void BattleWorldUI_ItemCards::Set_EditorWorldPlacementTuning(
@@ -2387,8 +2486,9 @@ void BattleWorldUI_ItemCards::Set_EditorWorldPlacementTuning(
     if (_impl == nullptr)
         return;
 
+    const uint32 levelIndex = BattleWorldUILevelPlacement::Resolve_LevelIndex(Get_EditorWorldPlacementLevelType());
     const uint32 heroIndex = Resolve_PlacementHeroIndex(Get_EditorWorldPlacementHeroId());
-    _impl->placementTunings[heroIndex] = From_EditorWorldPlacementTuning(tuning);
+    _impl->placementTunings[levelIndex][heroIndex] = From_EditorWorldPlacementTuning(tuning);
 
     if (!saveImmediately)
         return;
@@ -2409,14 +2509,14 @@ void BattleWorldUI_ItemCards::Reload_EditorWorldPlacementTuning()
     const fs::path jsonPath = Resolve_ItemWorldPlacementJsonPath();
     if (!fs::exists(jsonPath))
     {
-        _impl->placementTunings = Make_DefaultItemWorldPlacementTunings();
+        _impl->placementTunings = Make_DefaultItemWorldPlacementLevelTunings();
         _impl->placementTuningWriteTime = {};
         _impl->hasPlacementTuningFile = false;
         LOG_INFO("BattleWorldUI item placement json reload requested, but file is missing. using defaults.");
         return;
     }
 
-    array<BattleWorldItemWorldPlacementTuning, kBattleWorldItemPlacementHeroCount> loadedTunings{};
+    BattleWorldItemWorldPlacementLevelTunings loadedTunings{};
     if (!Try_LoadItemWorldPlacementTunings(jsonPath, loadedTunings))
         return;
 
@@ -2435,7 +2535,8 @@ void BattleWorldUI_ItemCards::Reset_EditorWorldPlacementTuning()
         return;
 
     const HeroId heroId = Get_EditorWorldPlacementHeroId();
-    _impl->placementTunings[Resolve_PlacementHeroIndex(heroId)] =
+    const uint32 levelIndex = BattleWorldUILevelPlacement::Resolve_LevelIndex(Get_EditorWorldPlacementLevelType());
+    _impl->placementTunings[levelIndex][Resolve_PlacementHeroIndex(heroId)] =
         Make_DefaultItemWorldPlacementTuning(heroId);
     if (Write_ItemWorldPlacementTuningsToFile(
         _impl->placementTunings,

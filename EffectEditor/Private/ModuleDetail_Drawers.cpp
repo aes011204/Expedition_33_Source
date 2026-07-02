@@ -602,6 +602,8 @@ namespace Internal
             return "AlphaErosion";
         case MaterialScalarModulationTargetField::AlphaCutoff:
             return "AlphaCutoff";
+        case MaterialScalarModulationTargetField::AlphaMultiplier:
+            return "AlphaMultiplier";
         case MaterialScalarModulationTargetField::CoreIntensity:
             return "CoreIntensity";
         case MaterialScalarModulationTargetField::OuterIntensity:
@@ -742,6 +744,7 @@ namespace Internal
                 MaterialScalarModulationTargetField::NoiseStrength,
                 MaterialScalarModulationTargetField::AlphaErosion,
                 MaterialScalarModulationTargetField::AlphaCutoff,
+                MaterialScalarModulationTargetField::AlphaMultiplier,
                 MaterialScalarModulationTargetField::CoreIntensity,
                 MaterialScalarModulationTargetField::OuterIntensity,
                 MaterialScalarModulationTargetField::CoreColor,
@@ -1382,7 +1385,7 @@ namespace Internal
 
         const uint32 currentMask = currentData.applyChannelMask != 0u
                                    ? currentData.applyChannelMask
-                                   : kVelocityOverLifeApplyChannelAllMask;
+                                   : kVelocityOverLifeApplyChannelDefaultMask;
         for (const AuthoringModule& module : emitter.modules)
         {
             if (module.id == currentModule.id || module.type != AuthoringModuleType::VelocityOverLife || !module.enabled)
@@ -1394,7 +1397,7 @@ namespace Internal
 
             const uint32 otherMask = data->applyChannelMask != 0u
                                      ? data->applyChannelMask
-                                     : kVelocityOverLifeApplyChannelAllMask;
+                                     : kVelocityOverLifeApplyChannelDefaultMask;
             if ((currentMask & otherMask) != 0u)
                 return true;
         }
@@ -1409,7 +1412,7 @@ namespace Internal
     {
         bool changed = false;
         if (mask == 0u)
-            mask = kVelocityOverLifeApplyChannelAllMask;
+            mask = kVelocityOverLifeApplyChannelDefaultMask;
 
         ImGui::PushID("VelocityOverLifeApplyChannels");
         detailContext.Draw_PropertyLabel(
@@ -1985,6 +1988,7 @@ namespace Internal
             Is_SameColor(lhs.tint, rhs.tint) &&
             NearlyEqual(lhs.intensity, rhs.intensity) &&
             NearlyEqual(lhs.opacityPower, rhs.opacityPower) &&
+            NearlyEqual(lhs.alphaMultiplier, rhs.alphaMultiplier) &&
             NearlyEqual(lhs.noiseStrength, rhs.noiseStrength) &&
             NearlyEqual(lhs.alphaCutoff, rhs.alphaCutoff) &&
             NearlyEqual(lhs.alphaErosion, rhs.alphaErosion) &&

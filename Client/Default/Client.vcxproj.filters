@@ -1666,7 +1666,13 @@
     <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectMesh.hlsl">
       <Filter>97. ShaderFiles\Effect</Filter>
     </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectMeshGlass.hlsl">
+      <Filter>97. ShaderFiles\Effect</Filter>
+    </FxCompile>
     <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectMeshPreview.hlsl">
+      <Filter>97. ShaderFiles\Effect</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectMeshPreviewGlass.hlsl">
       <Filter>97. ShaderFiles\Effect</Filter>
     </FxCompile>
     <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectSprite.hlsl">
