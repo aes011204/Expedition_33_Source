@@ -3558,10 +3558,36 @@ HRESULT GameInstance::Set_ActiveShadowCascade(uint32 cascadeIndex)
     return _shadow->Set_ActiveCascade(cascadeIndex);
 }
 
+HRESULT GameInstance::Commit_RenderedShadowCascade(uint32 cascadeIndex)
+{
+    CHECK_NULL(_shadow, E_FAIL);
+    return _shadow->Commit_RenderedCascade(cascadeIndex);
+}
+
+bool GameInstance::Consume_ForceRenderAllShadowCascades()
+{
+    if (!_shadow)
+        return true;
+
+    return _shadow->Consume_ForceRenderAllCascades();
+}
+
 void GameInstance::Set_ShadowEnabled(bool enabled)
 {
     CHECK_NULL(_renderer);
     _renderer->Set_ShadowEnabled(enabled);
+}
+
+void GameInstance::Set_DynamicShadowCascadeTemporalUpdateEnabled(bool enabled)
+{
+    CHECK_NULL(_renderer);
+    _renderer->Set_DynamicShadowCascadeTemporalUpdateEnabled(enabled);
+}
+
+bool GameInstance::Is_DynamicShadowCascadeTemporalUpdateEnabled() const
+{
+    CHECK_NULL(_renderer, false);
+    return _renderer->Is_DynamicShadowCascadeTemporalUpdateEnabled();
 }
 
 uint32 GameInstance::Get_ShadowCascadeCount() const

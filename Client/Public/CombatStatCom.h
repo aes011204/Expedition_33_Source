@@ -126,6 +126,7 @@ public: /* AP */
 
     void Add_AP(uint32 value);          // AP 즉시 회복
     bool Try_ConsumeAP(uint32 value);   // AP 즉시 소모 부족하면 false
+    void Set_CurAp(uint32 value);
 
 public: /* Gradient Gauge */
     uint32 Get_GradientGaugeStack() const { return _gradientGaugeStack; }

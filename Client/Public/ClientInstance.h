@@ -163,6 +163,7 @@ public: /* For.Hero Manager */
     void Restore_PartyFormationAfterEditorStop();
 
     bool    Is_ActiveHero(const Shared<GameObject>& target) const;
+    void    Warp_PartyToFormation(const Vec3& anchorPos, const Vec3& anchorRot);
 
 public: /* For.Gameplay UI */
     HRESULT Initialize_GameplayUI(uint32 levelIndex);

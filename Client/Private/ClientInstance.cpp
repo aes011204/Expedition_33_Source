@@ -791,6 +791,11 @@ bool ClientInstance::Is_ActiveHero(const Shared<GameObject>& target) const
     return _heroManager->Is_ActiveHero(target);
 }
 
+void ClientInstance::Warp_PartyToFormation(const Vec3& anchorPos, const Vec3& anchorRot)
+{
+    return _heroManager->Warp_PartyToFormation(anchorPos, anchorRot);
+}
+
 HRESULT ClientInstance::Initialize_GameplayUI(uint32 levelIndex)
 {
     Clear_GameplayUI();
@@ -1717,6 +1722,7 @@ bool ClientInstance::Play_Effect(const PlayEffectDesc& desc)
     acquireDesc.worldPosition = spawnWorldPosition;
     acquireDesc.worldRotation = spawnWorldRotation;
     acquireDesc.scale = desc.scale;
+    acquireDesc.playbackSpeed = desc.playbackSpeed;
 
     EffectInstancePool::AttachedHandle handle{};
     if (FAILED(_effectInstancePool->Acquire(acquireDesc, handle)))

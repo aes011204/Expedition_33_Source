@@ -30,8 +30,10 @@
 namespace
 {
     constexpr float kDuallisteBGMFadeOutDuration = 1.f;
-
     constexpr wchar_t kHealTintEffect[] = L"Effects\\Assets\\Item\\HealTint_G.effect.json";
+
+    constexpr char kNpcGolgraDialogueKey[] = "NPC_Golgra";
+    constexpr char kNpcGolgraAfterDuallisteDialogueKey[] = "NPC_Golgra_AfterDualliste";
 }
 
 IMPLEMENT_REFLECTION(SoulLikeController)
@@ -64,6 +66,10 @@ IMPLEMENT_REFLECTION(SoulLikeController)
 
     PROPERTY_FLOAT("공격 히트스탑 시간 배율", _playerAttackHitStopTimeScale, 0.f, 1.f, 0.01f);
     PROPERTY_FLOAT("공격 히트스탑 지속 시간", _playerAttackHitStopDuration, 0.f, 1.f, 0.01f);
+
+    // 전투 승리 후 이동할 위치
+    PROPERTY_VEC3("승리 이동 위치", _victoryPosition);
+    PROPERTY_VEC3("승리 이동 회전", _victoryRotation);
 
     return true;
 }
@@ -244,8 +250,21 @@ void SoulLikeController::Confirm_Victory()
     if (_state != BattleState::Victory)
         return;
 
+    const bool shouldReturnToGolgraFront = Is_DuallisteBattle();
+
     Sync_PlayerResultToWorld();
     End_Battle();
+
+    if (shouldReturnToGolgraFront)
+    {
+        CLIENT->Warp_PartyToFormation(_victoryPosition, _victoryRotation);
+
+        CLIENT->Set_DialogueOverride(
+            kNpcGolgraDialogueKey,
+            kNpcGolgraAfterDuallisteDialogueKey);
+    }
+        
+
 }
 
 void SoulLikeController::Handle_BattleShotNotify(

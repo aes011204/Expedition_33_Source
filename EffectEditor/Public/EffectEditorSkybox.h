@@ -27,7 +27,8 @@ public:
 private: //## Data::Components
     Shared<ShaderCom> _shader{};
     Shared<VIBuffer_Cube> _viBuffer{};
-    Shared<Texture> _texture{};
+    Shared<Texture> _defaultTexture{};
+    Shared<Texture> _blackTexture{};
 
 private: //## Helper::Render
     HRESULT Ready_Components();

@@ -28,6 +28,7 @@ public:
 
 public:
     void OnBeginOverlap(Shared<ColliderCom> self, Shared<ColliderCom> other) override;
+    bool Should_ApplySerializedPart(const wstring& partTag, const json& partObjectJson) const override;
 
 protected:
     HRESULT Ready_Components() override;

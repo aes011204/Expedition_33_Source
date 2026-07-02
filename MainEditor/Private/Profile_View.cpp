@@ -549,6 +549,10 @@ void Profile_View::Draw_Render_Isolation()
     if (ImGui::Checkbox("Disable Dynamic Shadow Render Pass", &disableDynamicShadowPass))
         Client::ClientInstance::Set_DebugDisableDynamicShadowRenderPass(disableDynamicShadowPass);
 
+    bool temporalShadowCascadeUpdate = GAME->Is_DynamicShadowCascadeTemporalUpdateEnabled();
+    if (ImGui::Checkbox("Use Dynamic Shadow Cascade Temporal Update (Default)", &temporalShadowCascadeUpdate))
+        GAME->Set_DynamicShadowCascadeTemporalUpdateEnabled(temporalShadowCascadeUpdate);
+
     bool disableMapInstanced = Client::ClientInstance::Is_DebugDisableMapInstancedMeshRender();
     if (ImGui::Checkbox("Disable MapInstancedMesh", &disableMapInstanced))
         Client::ClientInstance::Set_DebugDisableMapInstancedMeshRender(disableMapInstanced);

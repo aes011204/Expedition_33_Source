@@ -97,6 +97,7 @@ public: //## Accessor::Runtime
 
 public: //## Accessor::PreviewOption
     bool Is_AutoReplayPreviewEnabled() const { return _autoReplayPreviewEnabled; }
+    bool Is_DefaultSkyboxEnabled() const { return _isDefaultSkyboxEnabled; }
     bool Is_TrailPreviewVisible() const { return _isTrailPreviewVisible; }
     bool Is_PreviewPlaneVisible() const { return _isPreviewPlaneVisible; }
     TrailPreviewGateMode Get_TrailPreviewGateMode() const { return _trailPreviewGateMode; }
@@ -181,6 +182,7 @@ public: //## Behavior::RuntimeControl
 
 public: //## Behavior::PreviewOption
     void Set_AutoReplayPreviewEnabled(bool enabled);
+    void Set_DefaultSkyboxEnabled(bool enabled);
     void Set_TrailPreviewVisible(bool visible);
     void Set_PreviewPlaneVisible(bool visible);
     void Set_TrailPreviewGateMode(TrailPreviewGateMode mode);
@@ -319,6 +321,7 @@ private: //## Data::Runtime
     wstring _copiedLayerTag{};
 
 private: //## Data::PreviewOption
+    bool _isDefaultSkyboxEnabled{ true };
     bool _isTrailPreviewVisible{ false };
     bool _isPreviewPlaneVisible{ false };
     TrailPreviewGateMode _trailPreviewGateMode{ TrailPreviewGateMode::Window };

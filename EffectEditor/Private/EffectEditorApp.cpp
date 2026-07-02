@@ -327,6 +327,7 @@ namespace Internal
     {
         return
             prototypeTag == L"Texture_Effect_EditorSkybox" ||
+            prototypeTag == L"Texture_Effect_BlackSkybox" ||
             prototypeTag == L"Texture_Effect_DefaultTexture" ||
             prototypeTag == L"Texture_Effect_Clouds4";
     }

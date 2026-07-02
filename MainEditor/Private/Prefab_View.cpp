@@ -28,6 +28,7 @@
 #include "WeaponPrefabLoader.h"
 #include "Mon_Dualliste_Sword_L.h"
 #include "Mon_Dualliste_Sword_R.h"
+#include "Mon_PotatoBag_Weapon.h"
 #include "Mon_Simon_Weapon.h"
 #include "PartObject.h"
 #include "Player_WorldBase.h"
@@ -128,6 +129,29 @@ void Resolve_MaxWideOffsets(
         outBackOffset = selectDominantOffset(outBackOffset, spawnDesc.wideBackOffset);
         outHeightOffset = selectDominantOffset(outHeightOffset, spawnDesc.wideHeightOffset);
         outLookHeightOffset = selectDominantOffset(outLookHeightOffset, spawnDesc.wideLookHeightOffset);
+    }
+}
+
+void Resolve_MaxEnemyGroupOffsets(
+    const vector<Client::BattleMonsterSpawnDesc>& spawnDescs,
+    float& outBackOffset,
+    float& outHeightOffset,
+    float& outLookHeightOffset)
+{
+    auto selectDominantOffset = [](float current, float candidate)
+    {
+        return fabsf(candidate) > fabsf(current) ? candidate : current;
+    };
+
+    outBackOffset = 0.f;
+    outHeightOffset = 0.f;
+    outLookHeightOffset = 0.f;
+
+    for (const Client::BattleMonsterSpawnDesc& spawnDesc : spawnDescs)
+    {
+        outBackOffset = selectDominantOffset(outBackOffset, spawnDesc.enemyGroupBackOffset);
+        outHeightOffset = selectDominantOffset(outHeightOffset, spawnDesc.enemyGroupHeightOffset);
+        outLookHeightOffset = selectDominantOffset(outLookHeightOffset, spawnDesc.enemyGroupLookHeightOffset);
     }
 }
 
@@ -1505,6 +1529,8 @@ void Prefab_View::Draw_SelectedWeaponSourceAnchorPanel(const Shared<GameObject>&
         anchorsPtr = &swordL->Get_SourceHistoryAnchors();
     else if (Shared<Client::Mon_Dualliste_Sword_R> swordR = dynamic_pointer_cast<Client::Mon_Dualliste_Sword_R>(weaponObject))
         anchorsPtr = &swordR->Get_SourceHistoryAnchors();
+    else if (Shared<Client::Mon_PotatoBag_Weapon> potatoBagWeapon = dynamic_pointer_cast<Client::Mon_PotatoBag_Weapon>(weaponObject))
+        anchorsPtr = &potatoBagWeapon->Get_SourceHistoryAnchors();
 
     if (anchorsPtr == nullptr)
         return;
@@ -1831,6 +1857,36 @@ bool Prefab_View::Draw_MonsterBattlePrefabList(const Shared<GameObject>& selecte
         if (ImGui::DragFloat("##BattleMonsterWideLookHeightOffset", &wideLookHeightOffset, 0.05f))
         {
             spawnDescs[i].wideLookHeightOffset = wideLookHeightOffset;
+            changed = true;
+        }
+
+        float enemyGroupBackOffset = spawnDescs[i].enemyGroupBackOffset;
+        ImGui::Text("EnemyGroup Back");
+        ImGui::SameLine(BattlePrefabLabelWidth);
+        ImGui::SetNextItemWidth(max(80.f, ImGui::GetContentRegionAvail().x));
+        if (ImGui::DragFloat("##BattleMonsterEnemyGroupBackOffset", &enemyGroupBackOffset, 0.05f))
+        {
+            spawnDescs[i].enemyGroupBackOffset = enemyGroupBackOffset;
+            changed = true;
+        }
+
+        float enemyGroupHeightOffset = spawnDescs[i].enemyGroupHeightOffset;
+        ImGui::Text("EnemyGroup Height");
+        ImGui::SameLine(BattlePrefabLabelWidth);
+        ImGui::SetNextItemWidth(max(80.f, ImGui::GetContentRegionAvail().x));
+        if (ImGui::DragFloat("##BattleMonsterEnemyGroupHeightOffset", &enemyGroupHeightOffset, 0.05f))
+        {
+            spawnDescs[i].enemyGroupHeightOffset = enemyGroupHeightOffset;
+            changed = true;
+        }
+
+        float enemyGroupLookHeightOffset = spawnDescs[i].enemyGroupLookHeightOffset;
+        ImGui::Text("EnemyGroup Look Height");
+        ImGui::SameLine(BattlePrefabLabelWidth);
+        ImGui::SetNextItemWidth(max(80.f, ImGui::GetContentRegionAvail().x));
+        if (ImGui::DragFloat("##BattleMonsterEnemyGroupLookHeightOffset", &enemyGroupLookHeightOffset, 0.05f))
+        {
+            spawnDescs[i].enemyGroupLookHeightOffset = enemyGroupLookHeightOffset;
             changed = true;
         }
 
@@ -2546,7 +2602,8 @@ void Prefab_View::Draw_SelectedWeaponTrailAnchorPreview() const
     if (dynamic_pointer_cast<Client::Weapon>(selectedObject) == nullptr &&
         dynamic_pointer_cast<Client::Mon_Dualliste_Sword_L>(selectedObject) == nullptr &&
         dynamic_pointer_cast<Client::Mon_Dualliste_Sword_R>(selectedObject) == nullptr &&
-        dynamic_pointer_cast<Client::Mon_Simon_Weapon>(selectedObject) == nullptr)
+        dynamic_pointer_cast<Client::Mon_Simon_Weapon>(selectedObject) == nullptr &&
+        dynamic_pointer_cast<Client::Mon_PotatoBag_Weapon>(selectedObject) == nullptr)
         return;
 
     if (_selectedWeaponTrailModelGuid.empty())
@@ -2624,6 +2681,8 @@ void Prefab_View::Draw_SelectedWeaponSourceAnchorPreview() const
         anchors = &swordL->Get_SourceHistoryAnchors();
     else if (Shared<Client::Mon_Dualliste_Sword_R> swordR = dynamic_pointer_cast<Client::Mon_Dualliste_Sword_R>(selectedObject))
         anchors = &swordR->Get_SourceHistoryAnchors();
+    else if (Shared<Client::Mon_PotatoBag_Weapon> potatoBagWeapon = dynamic_pointer_cast<Client::Mon_PotatoBag_Weapon>(selectedObject))
+        anchors = &potatoBagWeapon->Get_SourceHistoryAnchors();
 
     if (selectedObject == nullptr || anchors == nullptr || anchors->empty())
         return;
@@ -2959,6 +3018,8 @@ bool Prefab_View::Try_GetSelectedWeaponModel(const Shared<GameObject>& selectedO
         outModel = swordR->Get_Model();
     else if (Shared<Client::Mon_Simon_Weapon> simonWeapon = dynamic_pointer_cast<Client::Mon_Simon_Weapon>(selectedObject))
         outModel = simonWeapon->Get_Model();
+    else if (Shared<Client::Mon_PotatoBag_Weapon> potatoBagWeapon = dynamic_pointer_cast<Client::Mon_PotatoBag_Weapon>(selectedObject))
+        outModel = potatoBagWeapon->Get_Model();
     else
         return false;
 
@@ -2998,6 +3059,11 @@ bool Prefab_View::Try_ResolveTrailAnchorWorldPosition(
     {
         modelCom = swordR->Get_Model();
         combinedWorldMatrix = swordR->Get_CombinedWorldMatrix();
+    }
+    else if (Shared<Client::Mon_PotatoBag_Weapon> potatoBagWeapon = dynamic_pointer_cast<Client::Mon_PotatoBag_Weapon>(selectedObject))
+    {
+        modelCom = potatoBagWeapon->Get_Model();
+        combinedWorldMatrix = potatoBagWeapon->Get_CombinedWorldMatrix();
     }
     else if (Shared<Client::Mon_Simon_Weapon> simonWeapon = dynamic_pointer_cast<Client::Mon_Simon_Weapon>(selectedObject))
     {
@@ -3058,6 +3124,11 @@ bool Prefab_View::Try_ResolveSourceAnchorWorldPosition(
     {
         modelCom = swordR->Get_Model();
         combinedWorldMatrix = swordR->Get_CombinedWorldMatrix();
+    }
+    else if (Shared<Client::Mon_PotatoBag_Weapon> potatoBagWeapon = dynamic_pointer_cast<Client::Mon_PotatoBag_Weapon>(weaponObject))
+    {
+        modelCom = potatoBagWeapon->Get_Model();
+        combinedWorldMatrix = potatoBagWeapon->Get_CombinedWorldMatrix();
     }
     else
     {
