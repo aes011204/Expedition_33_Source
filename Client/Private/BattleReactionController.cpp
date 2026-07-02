@@ -655,7 +655,7 @@ void BattleReactionController::UpdateAnimation(float timeDelta)
             allFinished = false;
             break;
         }
-    }
+    }                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          
 
     if (!allFinished)
     {

@@ -70,7 +70,7 @@ namespace Internal
                 {
                     const Shared<TrailPreviewController> previewController = _previewController.lock();
                     if (nullptr == previewController ||
-                        !previewController->Try_GetAttackAnimationRatio(sourceRatio))
+                        !previewController->Try_GetCurrentMotionRatio(sourceRatio))
                         return false;
                 }
 
@@ -409,7 +409,7 @@ void EffectEditorPreviewRuntime::Update_PreviewTrailStrokes(float timeDelta)
         const Shared<TrailPreviewController> trailPreviewController = _trailPreviewController.lock();
         const bool hasSourceRatio =
             nullptr != trailPreviewController &&
-            trailPreviewController->Try_GetAttackAnimationRatio(sourceRatio);
+            trailPreviewController->Try_GetCurrentMotionRatio(sourceRatio);
 
         if (!hasSourceRatio)
         {

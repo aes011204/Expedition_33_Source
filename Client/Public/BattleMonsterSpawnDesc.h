@@ -35,6 +35,9 @@ struct BattleMonsterSpawnDesc
     float wideBackOffset = 0.f;
     float wideHeightOffset = 0.f;
     float wideLookHeightOffset = 0.f;
+    float enemyGroupBackOffset = 0.f;
+    float enemyGroupHeightOffset = 0.f;
+    float enemyGroupLookHeightOffset = 0.f;
 
     BattleMonsterStatSnapshot statSnapshot{};
 };
