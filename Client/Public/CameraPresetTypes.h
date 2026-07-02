@@ -215,3 +215,9 @@ struct BattleCameraPreset
     float        lookHeight;
     float        pivotHeight;
 };
+
+struct SkillPresentationHiddenHero
+{
+    Shared<GameObject> actor{};
+    bool wasVisible = false;
+};

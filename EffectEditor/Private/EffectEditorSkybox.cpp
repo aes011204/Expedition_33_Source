@@ -2,6 +2,7 @@
 #include "EffectEditorSkybox.h"
 
 #include "Camera.h"
+#include "EffectEditorInstance.h"
 #include "GameInstance.h"
 #include "ShaderCom.h"
 #include "Texture.h"
@@ -47,7 +48,8 @@ HRESULT EffectEditorSkybox::Render()
 
 HRESULT EffectEditorSkybox::Ready_Components()
 {
-    CHECK_FAILED(Add_Component(ETOI(LevelType::Static), L"Texture_Effect_EditorSkybox", _texture), E_FAIL);
+    CHECK_FAILED(Add_Component(ETOI(LevelType::Static), L"Texture_Effect_EditorSkybox", _defaultTexture), E_FAIL);
+    CHECK_FAILED(Add_Component(ETOI(LevelType::Static), L"Texture_Effect_BlackSkybox", _blackTexture), E_FAIL);
     CHECK_FAILED(Add_Component(ETOI(LevelType::Static), L"Shader_VtxCube", _shader), E_FAIL);
     CHECK_FAILED(Add_Component(ETOI(LevelType::Static), L"VIBuffer_Cube", _viBuffer), E_FAIL);
 
@@ -67,7 +69,11 @@ HRESULT EffectEditorSkybox::Bind_ShaderResources()
     CHECK_FAILED(_transformCom->Bind_ShaderResource(_shader.get(), "g_WorldMatrix"), E_FAIL);
     CHECK_FAILED(GAME->Bind_TransformMatrix(D3DTS::View, _shader.get(), "g_ViewMatrix"), E_FAIL);
     CHECK_FAILED(GAME->Bind_TransformMatrix(D3DTS::Proj, _shader.get(), "g_ProjMatrix"), E_FAIL);
-    CHECK_FAILED(_texture->Bind_ShaderResourceView(_shader.get(), "g_Texture", 0), E_FAIL);
+
+    const bool useDefaultSkybox = EDITOR == nullptr || EDITOR->Is_DefaultSkyboxEnabled();
+    const Shared<Texture>& texture = useDefaultSkybox ? _defaultTexture : _blackTexture;
+    CHECK_NULL(texture, E_FAIL);
+    CHECK_FAILED(texture->Bind_ShaderResourceView(_shader.get(), "g_Texture", 0), E_FAIL);
 
     return S_OK;
 }

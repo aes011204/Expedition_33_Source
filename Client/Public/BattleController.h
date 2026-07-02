@@ -8,6 +8,8 @@
 #include "BattleReactionController.h"
 #include "BattleHitSequenceRunner.h"
 #include "BattleQTEController.h"
+#include "CameraPresetTypes.h"
+#include "Event_Struct.h"
 
 NS_BEGIN(Engine)
 class Character;
@@ -31,6 +33,8 @@ class SkillTreeCom;
 class BattleTutorialController;
 class BattleResultRecoder;
 class PictosBattleSystem;
+
+struct EvtBattlePresentation;
 
 class BattleController : public Base
 {
@@ -138,6 +142,22 @@ public:
     // void Handle_TargetPreviewChanged(const BattleChar* target);
     HRESULT Ready_Delegates();
 
+    void Handle_InfiniteAp();
+
+private:
+    void Handle_BattlePresentationEvent(const EvtBattlePresentation& event);
+    void Sync_SkillPresentationHeroVisibility(
+            BattleCameraMode cameraMode,
+            const Shared<Character>& subject,
+            const Shared<Character>& opponent);
+    void Refresh_SkillPresentationHeroVisibility(float timeDelta);
+    bool Should_HideHeroForSkillPresentation(
+            const Shared<Character>& visibleHero,
+            const Shared<Character>& candidate) const;
+    void Restore_SkillPresentationHeroVisibility();
+    void Begin_SkillPresentationVanish(const Shared<GameObject>& actor);
+    void Begin_SkillPresentationReveal(const Shared<GameObject>& actor);
+
 public: /* 타겟팅 중인 적 세팅 */
     void                Set_TargetPreview(const BattleChar& target);
     void                Clear_TargetPreview();
@@ -166,6 +186,7 @@ public:
     void Begin_FreeAimShot(const BattleAction& shotAction);
     void Finish_FreeAimShot();
     bool Is_FreeAimShotPlaying() const { return _isFreeAimShotPlaying; }
+    void Notify_CanFreeAimShoot();
 
     // 초상화 세팅
     vector<BattleChar> Get_TurnOrderPreview(uint32 maxCount = 8) const;
@@ -239,7 +260,7 @@ private:
     // DOF_MODIFY 
     void    Begin_BattleDOFOverride();
     void    End_BattleDOFOverride();
-    Engine::DOFTransitionDesc Build_BattleDOFRestoreTransition();
+    DOFTransitionDesc Build_BattleDOFRestoreTransition();
     void    Restore_WorldCamera();
     void    Clear_BattleRuntimeState();
     void    Push_TurnEntry(const BattleChar& actor, float nextTime);
@@ -305,6 +326,7 @@ public: /* Delegate */
     FDelegateHandle                 _damageAppliedHandle{};
     FDelegateHandle                 _editorStopHandle = {};
     FDelegateHandle                 _reactionSucceededResultHandle{};
+    EvtHandle                       _battlePresentationHandle{}; // Event_Bus 구독 핸들이라 FDelegateHandle이 아니라 EvtHandle을 쓴다.
 
 private:
     BattleChar                      _currentTurnActor = {};
@@ -317,6 +339,8 @@ private:
     bool _isBattleEntering = { false };
     bool _hasRequestedBattleEnterCamera = false;
     bool _autoParryEnabled = false;
+
+    bool _debugInfinitePlayerAPEnabled = false;
 
     int currentTurnIndex = {};
 
@@ -439,6 +463,25 @@ private:
 
     uint32      _activeBattleFieldID = 0;
 
+private:
+    struct SkillPresentationHiddenHero
+    {
+        struct PartVisibility
+        {
+            Shared<GameObject> part{};
+            bool wasVisible = false;
+        };
+
+        Shared<GameObject> actor{};
+        bool wasVisible = false; // 연출 전 visibility를 저장해 원래 숨겨진 대상은 복구 때 새로 켜지 않게 한다.
+        float hiddenElapsedSec = 0.f;
+        bool visibilityForcedOff = false;
+        vector<PartVisibility> partVisibilities{};
+    };
+
+    vector<SkillPresentationHiddenHero> _skillPresentationHiddenHeroes = {};
+    Shared<Character> _skillPresentationSubject = nullptr;
+    Shared<Character> _skillPresentationVisibleHero = nullptr;
 
 public:
     static Shared<BattleController> Create();

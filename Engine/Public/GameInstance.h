@@ -506,7 +506,11 @@ public: /* For.Shadow */
     HRESULT                 Bind_ShadowCB(Shared<ShaderCom> shader);
     HRESULT                 Get_ShadowCBSnapshot(ShadowCB& outShadowCB) const;
     HRESULT                 Set_ActiveShadowCascade(uint32 cascadeIndex);
+    HRESULT                 Commit_RenderedShadowCascade(uint32 cascadeIndex);
+    bool                    Consume_ForceRenderAllShadowCascades();
     void                    Set_ShadowEnabled(bool enabled);
+    void                    Set_DynamicShadowCascadeTemporalUpdateEnabled(bool enabled);
+    bool                    Is_DynamicShadowCascadeTemporalUpdateEnabled() const;
     uint32                  Get_ShadowCascadeCount() const;
     HRESULT                 Set_ShadowCascadeLevel(CascadeLevel level);
     CascadeLevel            Get_ShadowCascadeLevel() const;

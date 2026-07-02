@@ -23,8 +23,27 @@ namespace Internal
     constexpr auto kEffectAuthoringSaveDefaultFolder = L"../../../Client/Bin/Resources/Effects/Assets";
     constexpr auto kEffectAuthoringSaveDefaultFileName = L"NewEffect.effect.json";
     constexpr auto kEffectAuthoringExtension = L".effect.json";
+    constexpr auto kSoloPreviewIcon = ICON_FA_BULLSEYE;
     constexpr auto kPreviewTransformIcon = ICON_FA_UP_DOWN_LEFT_RIGHT;
     constexpr ImU32 kCurveEditorFocusBarColor = IM_COL32(80, 170, 205, 255);
+
+    bool Uses_ParticleEmitterSource(const AuthoringEmitter& emitter)
+    {
+        if (emitter.typeData.kind == AuthoringTypeDataKind::Ribbon)
+        {
+            const RibbonTypeData* ribbonData = get_if<RibbonTypeData>(&emitter.typeData.payload);
+            return ribbonData != nullptr && ribbonData->sourceMode == SourceHistoryRibbonSourceMode::ParticleEmitter;
+        }
+
+        if (emitter.typeData.kind == AuthoringTypeDataKind::SourceHistorySpriteTrail)
+        {
+            const SourceHistorySpriteTrailTypeData* spriteTrailData =
+                get_if<SourceHistorySpriteTrailTypeData>(&emitter.typeData.payload);
+            return spriteTrailData != nullptr && spriteTrailData->sourceMode == SourceHistoryRibbonSourceMode::ParticleEmitter;
+        }
+
+        return false;
+    }
 
     const char* Build_PreviewTransformTooltip(const AuthoringEmitter& emitter, bool canUse)
     {
@@ -554,6 +573,22 @@ void Emitter_View::Add()
     }
 }
 
+vector<AuthoringEmitter> Emitter_View::Build_PreviewEmitters() const
+{
+    vector<AuthoringEmitter> previewEmitters = _emitters;
+    if (!_soloPreviewEmitterId.has_value())
+        return previewEmitters;
+
+    const uint32 soloEmitterId = _soloPreviewEmitterId.value();
+    for (AuthoringEmitter& emitter : previewEmitters)
+    {
+        if (emitter.id != soloEmitterId)
+            emitter.enabled = false;
+    }
+
+    return previewEmitters;
+}
+
 AuthoringEmitter* Emitter_View::Find_Emitter(uint32 emitterId)
 {
     for (AuthoringEmitter& emitter : _emitters)
@@ -636,6 +671,7 @@ void Emitter_View::Restore_AuthoringSnapshot(const AuthoringSnapshot& snapshot)
     _nextAuthoringId = snapshot.nextAuthoringId;
 
     Sync_AllEmitterMirrors();
+    Sanitize_SoloPreviewState();
     Sanitize_PreviewTransformState();
     Mark_AllPreviewDirty();
     Clamp_Selection();
@@ -697,6 +733,7 @@ bool Emitter_View::Restore_AuthoringDocumentJson(const json& root)
     _nextAuthoringId = nextAuthoringId;
 
     Sync_AllEmitterMirrors();
+    Clear_SoloPreviewEmitter();
     Sanitize_PreviewTransformState();
     Mark_AllPreviewDirty();
     Clamp_Selection();
@@ -2787,8 +2824,60 @@ void Emitter_View::Sync_AllEmitterMirrors()
         Sync_EmitterMirror(emitter);
 }
 
+bool Emitter_View::Is_SoloPreviewActive() const
+{
+    return _soloPreviewEmitterId.has_value();
+}
+
+bool Emitter_View::Is_SoloPreviewEmitter(uint32 emitterId) const
+{
+    return _soloPreviewEmitterId.has_value() && _soloPreviewEmitterId.value() == emitterId;
+}
+
+void Emitter_View::Toggle_SoloPreviewEmitter(uint32 emitterId)
+{
+    const AuthoringEmitter* emitter = Find_Emitter(emitterId);
+    if (emitter == nullptr || !emitter->enabled)
+        return;
+
+    if (Is_SoloPreviewEmitter(emitterId))
+        _soloPreviewEmitterId.reset();
+    else
+        _soloPreviewEmitterId = emitterId;
+
+    if (EDITOR != nullptr)
+        EDITOR->Request_RestartPreview();
+}
+
+void Emitter_View::Clear_SoloPreviewEmitter()
+{
+    _soloPreviewEmitterId.reset();
+}
+
+void Emitter_View::Sanitize_SoloPreviewState()
+{
+    if (!_soloPreviewEmitterId.has_value())
+        return;
+
+    const uint32 soloEmitterId = _soloPreviewEmitterId.value();
+    const AuthoringEmitter* emitter = nullptr;
+    for (const AuthoringEmitter& candidate : _emitters)
+    {
+        if (candidate.id == soloEmitterId)
+        {
+            emitter = &candidate;
+            break;
+        }
+    }
+
+    if (emitter == nullptr || !emitter->enabled)
+        _soloPreviewEmitterId.reset();
+}
+
 void Emitter_View::Sanitize_PreviewTransformState()
 {
+    Sanitize_SoloPreviewState();
+
     if (EDITOR != nullptr)
         EDITOR->Sanitize_PreviewEmitterTransforms(_emitters);
 }
@@ -3313,6 +3402,18 @@ void Emitter_View::Draw_EmitterContextMenu(size_t emitterIndex)
     string emitterPasteReason{};
     const bool canPasteEmitter = Can_PasteEmitterAfter(emitterIndex, &emitterPasteReason);
 
+    const bool soloPreviewActive = Is_SoloPreviewActive();
+    if (!soloPreviewActive)
+        ImGui::BeginDisabled();
+    if (ImGui::MenuItem("Solo 해제") && soloPreviewActive)
+    {
+        Clear_SoloPreviewEmitter();
+        if (EDITOR != nullptr)
+            EDITOR->Request_RestartPreview();
+    }
+    if (!soloPreviewActive)
+        ImGui::EndDisabled();
+
     if (ImGui::BeginMenu("이미터"))
     {
         if (ImGui::MenuItem("이미터 복사"))
@@ -3484,6 +3585,20 @@ void Emitter_View::Draw_EmitterBoard()
         {
             string blankPasteReason{};
             const bool canPasteEmitterToEnd = Can_PasteEmitterToEnd(&blankPasteReason);
+            const bool soloPreviewActive = Is_SoloPreviewActive();
+
+            if (!soloPreviewActive)
+                ImGui::BeginDisabled();
+            if (ImGui::MenuItem("Solo 해제") && soloPreviewActive)
+            {
+                Clear_SoloPreviewEmitter();
+                if (EDITOR != nullptr)
+                    EDITOR->Request_RestartPreview();
+            }
+            if (!soloPreviewActive)
+                ImGui::EndDisabled();
+
+            ImGui::Separator();
 
             if (ImGui::Selectable("새 이미터"))
             {
@@ -3576,6 +3691,7 @@ void Emitter_View::Draw_EmitterColumn(size_t emitterIndex, AuthoringEmitter& emi
             headerCursor.y + kEmitterHeaderHeight - ImGui::GetFrameHeight() - headerPaddingY
         )
     );
+    const float badgeSize = ImGui::GetFrameHeight();
     ImGui::PushID("EmitterEnabled");
     bool nextEmitterEnabled = emitter.enabled;
     if (ImGui::Checkbox("##Enabled", &nextEmitterEnabled))
@@ -3583,9 +3699,66 @@ void Emitter_View::Draw_EmitterColumn(size_t emitterIndex, AuthoringEmitter& emi
         const AuthoringSnapshot beforeEmitterEnabledSnapshot = Capture_AuthoringSnapshot();
         emitter.enabled = nextEmitterEnabled;
         emitter.previewDirty = true;
+        const bool disabledSoloPreviewTarget = !emitter.enabled && Is_SoloPreviewEmitter(emitter.id);
+        if (disabledSoloPreviewTarget)
+            Clear_SoloPreviewEmitter();
         MarkDirty();
         const AuthoringSnapshot afterSnapshot = Capture_AuthoringSnapshot();
         Execute_AuthoringSnapshotCommand(beforeEmitterEnabledSnapshot, afterSnapshot, "Toggle Emitter Enabled");
+        if (disabledSoloPreviewTarget && EDITOR != nullptr)
+            EDITOR->Request_RestartPreview();
+    }
+    ImGui::PopID();
+
+    ImGui::SameLine(0.f, 4.f);
+    ImGui::PushID("SoloPreview");
+    const bool canUseSoloPreview = emitter.enabled;
+    const bool soloPreviewEnabled = Is_SoloPreviewEmitter(emitter.id);
+    if (soloPreviewEnabled)
+    {
+        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.18f, 0.42f, 0.82f, 1.f));
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.22f, 0.50f, 0.92f, 1.f));
+        ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.16f, 0.36f, 0.72f, 1.f));
+    }
+    if (!canUseSoloPreview)
+        ImGui::BeginDisabled();
+    if (ImGui::Button("##SoloPreviewButton", ImVec2(badgeSize, badgeSize)) && canUseSoloPreview)
+    {
+        Select_Emitter(emitterIndex);
+        Toggle_SoloPreviewEmitter(emitter.id);
+    }
+    const ImVec2 soloBadgeMin = ImGui::GetItemRectMin();
+    const ImVec2 soloBadgeMax = ImGui::GetItemRectMax();
+    const ImVec2 soloLabelSize = ImGui::CalcTextSize(Internal::kSoloPreviewIcon);
+    const ImVec2 soloLabelPos{
+        soloBadgeMin.x + (soloBadgeMax.x - soloBadgeMin.x - soloLabelSize.x) * 0.5f,
+        soloBadgeMin.y + (soloBadgeMax.y - soloBadgeMin.y - soloLabelSize.y) * 0.5f
+    };
+    const ImVec4 soloLabelColor =
+        canUseSoloPreview
+        ? ImGui::GetStyleColorVec4(ImGuiCol_Text)
+        : ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled);
+    ImGui::GetWindowDrawList()->AddText(
+        soloLabelPos,
+        ImGui::ColorConvertFloat4ToU32(soloLabelColor),
+        Internal::kSoloPreviewIcon
+    );
+    if (!canUseSoloPreview)
+        ImGui::EndDisabled();
+    if (soloPreviewEnabled)
+        ImGui::PopStyleColor(3);
+    if (ImGui::IsItemHovered(canUseSoloPreview ? ImGuiHoveredFlags_None : ImGuiHoveredFlags_AllowWhenDisabled))
+    {
+        string tooltip{};
+        if (!canUseSoloPreview)
+            tooltip = "Emitter is disabled. Enable it before solo preview.";
+        else
+        {
+            tooltip = soloPreviewEnabled ? "Solo preview enabled.\nOnly this emitter is sent to preview." : "Solo preview";
+            if (Internal::Uses_ParticleEmitterSource(emitter))
+                tooltip += "\nStrict solo excludes ParticleEmitter sources, so this emitter may preview empty or differently.";
+        }
+        ImGui::SetTooltip("%s", tooltip.c_str());
     }
     ImGui::PopID();
 
@@ -3593,7 +3766,6 @@ void Emitter_View::Draw_EmitterColumn(size_t emitterIndex, AuthoringEmitter& emi
     ImGui::PushID("PreviewTransform");
     const bool canUsePreviewTransform = EffectEditorInstance::Can_UsePreviewEmitterTransform(emitter);
     const bool previewTransformEnabled = EDITOR != nullptr && EDITOR->Is_PreviewEmitterTransformEnabled(emitter.id);
-    const float badgeSize = ImGui::GetFrameHeight();
     if (previewTransformEnabled)
     {
         ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.18f, 0.42f, 0.82f, 1.f));

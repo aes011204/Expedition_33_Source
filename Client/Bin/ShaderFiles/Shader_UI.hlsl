@@ -377,6 +377,13 @@ PS_OUT PS_MATERIAL_VFX(PS_IN In)
     return Out;
 }
 
+PS_OUT PS_MATERIAL_VFX_FILL_RATIO(PS_IN In)
+{
+    PS_OUT Out = PS_MATERIAL_VFX(In);
+    Out.vColor.a *= Compute_FillVisible(In.vTexcoord);
+    return Out;
+}
+
 float Sample_ButtonSheenBrush(float2 uv)
 {
     const float4 sampleColor = g_Texture.Sample(LinearClampSampler, uv);
@@ -432,4 +439,5 @@ technique11 DefaultTechnique
     PASS_RS_DS_BS_VP(PatternOverlayFillRatioPass, RS_UI, DSS_None, BS_AlphaBlend, VS_MAIN, PS_PATTERN_OVERLAY_FILL_RATIO) // 6
     PASS_RS_DS_BS_VP(MaterialVfxPass, RS_UI, DSS_None, BS_AlphaBlend, VS_MAIN, PS_MATERIAL_VFX) // 7
     PASS_RS_DS_BS_VP(ButtonSheenPass, RS_UI, DSS_None, BS_AlphaBlend, VS_MAIN, PS_BUTTON_SHEEN) // 8
+    PASS_RS_DS_BS_VP(MaterialVfxFillRatioPass, RS_UI, DSS_None, BS_AlphaBlend, VS_MAIN, PS_MATERIAL_VFX_FILL_RATIO) // 9
 }

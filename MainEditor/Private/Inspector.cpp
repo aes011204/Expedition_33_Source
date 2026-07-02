@@ -10,6 +10,7 @@
 #include "Inspector_Factory.h"
 #include "ModelCom.h"
 #include "ClientInstance.h"
+#include "BattleWorldUI_LevelPlacement.h"
 #include "GameplayUI.h"
 #include "GameplayUI_Types.h"
 #include "IRuntimeUI_EditorTarget.h"
@@ -856,6 +857,34 @@ void Inspector::Draw_RuntimeWorldUIPlacementInspector(
     ImGui::TextDisabled("종류: World Placement");
     ImGui::Separator();
 
+    Client::LevelType selectedLevelType = target->Get_EditorWorldPlacementLevelType();
+    ImGui::AlignTextToFramePadding();
+    ImGui::TextDisabled("Level");
+    ImGui::SameLine(InspectorLabelWidth);
+    ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+    if (ImGui::BeginCombo(
+        "##RuntimeWorldPlacementLevel",
+        Client::BattleWorldUILevelPlacement::To_LevelEditorLabel(selectedLevelType)))
+    {
+        for (uint32 levelIndex = 0; levelIndex < Client::BattleWorldUILevelPlacement::kLevelCount; ++levelIndex)
+        {
+            const Client::LevelType levelType =
+                Client::BattleWorldUILevelPlacement::Get_LevelByIndex(levelIndex);
+            const bool selected =
+                Client::BattleWorldUILevelPlacement::Normalize_LevelType(selectedLevelType) == levelType;
+            if (ImGui::Selectable(Client::BattleWorldUILevelPlacement::To_LevelEditorLabel(levelType), selected))
+            {
+                target->Set_EditorWorldPlacementLevelType(levelType);
+                selectedLevelType = levelType;
+            }
+
+            if (selected)
+                ImGui::SetItemDefaultFocus();
+        }
+
+        ImGui::EndCombo();
+    }
+
     Client::HeroId selectedHeroId = target->Get_EditorWorldPlacementHeroId();
     ImGui::AlignTextToFramePadding();
     ImGui::TextDisabled("Character");
@@ -888,7 +917,7 @@ void Inspector::Draw_RuntimeWorldUIPlacementInspector(
             selectedVariantIndex = 0;
 
         ImGui::AlignTextToFramePadding();
-        ImGui::TextDisabled("Page");
+        ImGui::TextDisabled("Page/State");
         ImGui::SameLine(InspectorLabelWidth);
         ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
         if (ImGui::BeginCombo(

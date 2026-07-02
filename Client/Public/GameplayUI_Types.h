@@ -9,6 +9,7 @@ NS_END
 NS_BEGIN(Client)
 
 class IRuntimeUI_EditorTarget;
+enum class LevelType;
 
 enum class RuntimeUIEntryKind
 {
@@ -44,6 +45,8 @@ class IRuntimeWorldUI_EditorTarget
 public:
     virtual ~IRuntimeWorldUI_EditorTarget() = default;
 
+    virtual LevelType Get_EditorWorldPlacementLevelType() const = 0;
+    virtual void Set_EditorWorldPlacementLevelType(LevelType levelType) = 0;
     virtual HeroId Get_EditorWorldPlacementHeroId() const { return HeroId::END; }
     virtual void Set_EditorWorldPlacementHeroId(HeroId) {}
     virtual uint32 Get_EditorWorldPlacementVariantCount() const { return 0; }

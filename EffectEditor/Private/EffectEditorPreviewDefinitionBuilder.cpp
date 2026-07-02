@@ -1920,7 +1920,7 @@ namespace Internal
             if (data == nullptr)
                 continue;
 
-            const uint32 mask = data->applyChannelMask != 0u ? data->applyChannelMask : kVelocityOverLifeApplyChannelAllMask;
+            const uint32 mask = data->applyChannelMask != 0u ? data->applyChannelMask : kVelocityOverLifeApplyChannelDefaultMask;
             for (uint32 index = 0u; index < 5u; ++index)
             {
                 if ((mask & channelMasks[index]) != 0u && owners[index] == nullptr)

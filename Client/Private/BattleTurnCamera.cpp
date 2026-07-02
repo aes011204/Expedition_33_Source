@@ -24,7 +24,7 @@ namespace
     constexpr float kMaxFormationYawBiasDegrees = 35.f;
 
     constexpr wchar_t kBattleClipShakeDebugSlot[] =
-    L"[BattleClipShake] anim={:.3f} sample={:.3f} shakeT={:.3f} amp={:.3f}";
+        L"[BattleClipShake] anim={:.3f} sample={:.3f} shakeT={:.3f} amp={:.3f}";
 
 BattleCameraClipTimeMode Get_DefaultBattleCameraClipTimeMode(BattleCameraMode cameraMode)
 {
@@ -73,8 +73,6 @@ bool Is_PlayerNearClipBattleCameraMode(BattleCameraMode mode)
     case BattleCameraMode::PLAYERFOCUS:
     case BattleCameraMode::ENEMYFOCUS:
     case BattleCameraMode::ENEMYGROUP:
-    case BattleCameraMode::PLAYERATTACK:
-    case BattleCameraMode::ENEMYATTACK:
     case BattleCameraMode::SELECTITEM:
     case BattleCameraMode::SELECTSKILL:
     case BattleCameraMode::PARRY:
@@ -1412,6 +1410,7 @@ void BattleTurnCamera::Update_PoseTransition(float timeDelta)
     Apply_ClipShake(blended, clipSample, _clipShakeTime);
     Apply_RuntimeShake(blended, timeDelta);
     Apply_EvaluatedPoseWithDOF(blended, _poseTransition.targetRequest.mode);
+    GAME->UpdateFrustum(*GAME->Get_Transform(D3DTS::View), *GAME->Get_Transform(D3DTS::Proj));
 
     if (t < 1.f)
         return;

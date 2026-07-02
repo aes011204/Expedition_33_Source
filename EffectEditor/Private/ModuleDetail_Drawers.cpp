@@ -1385,7 +1385,7 @@ namespace Internal
 
         const uint32 currentMask = currentData.applyChannelMask != 0u
                                    ? currentData.applyChannelMask
-                                   : kVelocityOverLifeApplyChannelAllMask;
+                                   : kVelocityOverLifeApplyChannelDefaultMask;
         for (const AuthoringModule& module : emitter.modules)
         {
             if (module.id == currentModule.id || module.type != AuthoringModuleType::VelocityOverLife || !module.enabled)
@@ -1397,7 +1397,7 @@ namespace Internal
 
             const uint32 otherMask = data->applyChannelMask != 0u
                                      ? data->applyChannelMask
-                                     : kVelocityOverLifeApplyChannelAllMask;
+                                     : kVelocityOverLifeApplyChannelDefaultMask;
             if ((currentMask & otherMask) != 0u)
                 return true;
         }
@@ -1412,7 +1412,7 @@ namespace Internal
     {
         bool changed = false;
         if (mask == 0u)
-            mask = kVelocityOverLifeApplyChannelAllMask;
+            mask = kVelocityOverLifeApplyChannelDefaultMask;
 
         ImGui::PushID("VelocityOverLifeApplyChannels");
         detailContext.Draw_PropertyLabel(
