@@ -59,6 +59,57 @@ namespace
     bool g_debugUseMapInstancedMeshShadowLOD = false;
     bool g_debugDisableGrassInstancedShadow = false;
     bool g_debugDisableMapStaticMeshShadow = false;
+    bool g_potatoBagArenaRenderGateReady = false;
+    bool g_potatoBagArenaRenderGateDebugVisible = false;
+    bool g_potatoBagArenaInstancedShadowOverrideActive = false;
+    bool g_potatoBagArenaSavedUseInstancedShadowCache = false;
+    Vec3 g_potatoBagArenaOrigin = Vec3::Zero;
+    Vec3 g_potatoBagArenaRight = Vec3::Right;
+    Vec3 g_potatoBagArenaForward = Vec3::Forward;
+    constexpr Vec3 kPotatoBagArenaGateExtents = Vec3(36.f, 28.f, 58.f);
+
+    Quat Build_PotatoBagArenaGateRotation()
+    {
+        Vec3 forward = g_potatoBagArenaForward;
+        forward.y = 0.f;
+        if (forward.LengthSquared() <= 0.0001f)
+        {
+            Vec3 right = g_potatoBagArenaRight;
+            right.y = 0.f;
+            if (right.LengthSquared() > 0.0001f)
+            {
+                right.Normalize();
+                forward = Vec3(right.z, 0.f, -right.x);
+            }
+            else
+            {
+                forward = Vec3::Forward;
+            }
+        }
+        else
+        {
+            forward.Normalize();
+        }
+
+        return Quat::CreateFromYawPitchRoll(atan2f(forward.x, forward.z), 0.f, 0.f);
+    }
+
+    BoundingOrientedBox Build_PotatoBagArenaGateBox()
+    {
+        return BoundingOrientedBox(
+            g_potatoBagArenaOrigin,
+            kPotatoBagArenaGateExtents,
+            Build_PotatoBagArenaGateRotation());
+    }
+
+    void Restore_PotatoBagArenaShadowOverrides()
+    {
+        if (!g_potatoBagArenaInstancedShadowOverrideActive)
+            return;
+
+        GAME->Set_UseInstancedShadowCache(g_potatoBagArenaSavedUseInstancedShadowCache);
+        g_potatoBagArenaInstancedShadowOverrideActive = false;
+    }
 
     bool Should_CaptureReplayWorldObject(const wstring& layerTag, const Shared<GameObject>& gameObject)
     {
@@ -303,6 +354,8 @@ void ClientInstance::Update_Client(float timeDelta)
     if (_battleController)
         _battleController->Update(timeDelta);
 
+    Update_PotatoBagArenaMapInstancedShadowOverride();
+
     if (_gamePlayUI)
         _gamePlayUI->Update(timeDelta);
 
@@ -445,6 +498,86 @@ bool ClientInstance::Is_DebugDisableMapStaticMeshShadow()
 void ClientInstance::Set_DebugDisableMapStaticMeshShadow(bool disabled)
 {
     g_debugDisableMapStaticMeshShadow = disabled;
+}
+
+void ClientInstance::Set_PotatoBagArenaMapRenderGateBasis(const Vec3& origin, const Vec3& right, const Vec3& forward)
+{
+    g_potatoBagArenaOrigin = origin;
+    g_potatoBagArenaRight = right;
+    g_potatoBagArenaForward = forward;
+    g_potatoBagArenaRenderGateReady = true;
+}
+
+void ClientInstance::Clear_PotatoBagArenaMapRenderGateBasis()
+{
+    Restore_PotatoBagArenaShadowOverrides();
+
+    g_potatoBagArenaRenderGateReady = false;
+    g_potatoBagArenaRenderGateDebugVisible = false;
+}
+
+bool ClientInstance::Is_PotatoBagArenaMapRenderGateActive()
+{
+    const Shared<ClientInstance>& instance = ClientInstance::GetInstance();
+
+    return g_potatoBagArenaRenderGateReady &&
+        GAME->Current_LevelIndex() == ETOI(LevelType::GestralVillage) &&
+        instance != nullptr &&
+        instance->Is_PotatoBagBattleActive();
+}
+
+bool ClientInstance::Should_RenderMapObjectInPotatoBagArena(const BoundingBox& worldBounds)
+{
+    if (!Is_PotatoBagArenaMapRenderGateActive())
+        return true;
+
+    return Build_PotatoBagArenaGateBox().Intersects(worldBounds);
+}
+
+bool ClientInstance::Should_RenderMapInstanceInPotatoBagArena(const BoundingSphere& worldSphere)
+{
+    if (!Is_PotatoBagArenaMapRenderGateActive())
+        return true;
+
+    return Build_PotatoBagArenaGateBox().Intersects(worldSphere);
+}
+
+void ClientInstance::Update_PotatoBagArenaMapInstancedShadowOverride()
+{
+    const bool shouldDisableInstancedShadow = Is_PotatoBagArenaMapRenderGateActive();
+
+    if (shouldDisableInstancedShadow)
+    {
+        if (!g_potatoBagArenaInstancedShadowOverrideActive)
+        {
+            g_potatoBagArenaSavedUseInstancedShadowCache = GAME->Is_UseInstancedShadowCache();
+            GAME->Set_UseInstancedShadowCache(false);
+            g_potatoBagArenaInstancedShadowOverrideActive = true;
+        }
+        return;
+    }
+
+    Restore_PotatoBagArenaShadowOverrides();
+}
+
+void ClientInstance::Toggle_PotatoBagArenaMapRenderGateDebug()
+{
+    g_potatoBagArenaRenderGateDebugVisible = !g_potatoBagArenaRenderGateDebugVisible;
+}
+
+void ClientInstance::Draw_PotatoBagArenaMapRenderGateDebug()
+{
+    if (!g_potatoBagArenaRenderGateDebugVisible || !Is_PotatoBagArenaMapRenderGateActive())
+        return;
+
+    DebugBoxDesc desc{};
+    desc.center = g_potatoBagArenaOrigin;
+    desc.extents = kPotatoBagArenaGateExtents;
+    desc.rotation = Build_PotatoBagArenaGateRotation();
+    desc.style.color = Color(0.2f, 1.f, 0.35f, 1.f);
+    desc.style.depthEnabled = false;
+
+    GAME->Draw_DebugBox(desc);
 }
 
 HRESULT ClientInstance::Ready_StaticResources()
@@ -1803,7 +1936,7 @@ void ClientInstance::Clear_RuntimeEffects()
         return;
 
     // 월드에 남아있는 이팩트들 제거
-    _effectInstancePool->Clear();
+    _effectInstancePool->Discard_All();
 }
 
 void ClientInstance::Notify_FreeAimShotHit()

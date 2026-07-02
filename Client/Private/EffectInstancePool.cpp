@@ -236,6 +236,25 @@ uint32 EffectInstancePool::Discard_AllInactive()
     return discardedCount;
 }
 
+uint32 EffectInstancePool::Discard_All()
+{
+    uint32 discardedCount = 0;
+
+    for (PooledInstance& entry : _entries)
+    {
+        if (entry.instance)
+        {
+            entry.instance->Stop();
+            GAME->Remove_GameObject(entry.layerLevelIndex, static_pointer_cast<GameObject>(entry.instance));
+        }
+
+        ++discardedCount;
+    }
+
+    _entries.clear();
+    return discardedCount;
+}
+
 EffectInstancePool::DebugSummary EffectInstancePool::Get_DebugSummary() const
 {
     DebugSummary summary{};

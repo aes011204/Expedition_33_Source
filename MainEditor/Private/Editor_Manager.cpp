@@ -454,7 +454,7 @@ void Editor_Manager::Handle_Shortcuts()
         ImGui::IsKeyPressed(ImGuiKey_Keypad0, false))
     {
         Shared<Client::BattleController> battle = CLIENT != nullptr ? CLIENT->Get_BattleController() : nullptr;
-        if (battle)
+        if (battle && !battle->Should_UpdateRuntime())
             battle->Set_AutoParryEnabled(!battle->Is_AutoParryEnabled());
 
         return;

@@ -131,6 +131,11 @@ void BattleController::Update(float timeDelta)
     // 8번 누르면 AP 무한
     Handle_InfiniteAp();
 
+    if (GAME->KeyDown(KEY_TYPE::KEY_0))
+    {
+        Set_AutoParryEnabled(!Is_AutoParryEnabled());
+    }
+
     if (Update_BattleTutorialGate(timeDelta))
         return;
 

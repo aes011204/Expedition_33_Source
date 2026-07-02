@@ -94,6 +94,14 @@ public:
     static void Set_DebugDisableGrassInstancedShadow(bool disabled);
     static bool Is_DebugDisableMapStaticMeshShadow();
     static void Set_DebugDisableMapStaticMeshShadow(bool disabled);
+    static void Set_PotatoBagArenaMapRenderGateBasis(const Vec3& origin, const Vec3& right, const Vec3& forward);
+    static void Clear_PotatoBagArenaMapRenderGateBasis();
+    static bool Is_PotatoBagArenaMapRenderGateActive();
+    static bool Should_RenderMapObjectInPotatoBagArena(const BoundingBox& worldBounds);
+    static bool Should_RenderMapInstanceInPotatoBagArena(const BoundingSphere& worldSphere);
+    static void Update_PotatoBagArenaMapInstancedShadowOverride();
+    static void Toggle_PotatoBagArenaMapRenderGateDebug();
+    static void Draw_PotatoBagArenaMapRenderGateDebug();
 
 public: /* 플레이어 찾기 -> 일단 임시 */
     Shared<GameObject> Find_Player(uint32 levelIndex);

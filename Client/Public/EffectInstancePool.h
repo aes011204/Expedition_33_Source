@@ -76,6 +76,8 @@ public: //## Debug::EditorSession
     void Discard_Inactive(const wstring& effectName);
     // [MainEditor Reload Data용] 다음 재생이 디스크의 최신 .effect.json을 다시 읽도록 쉬고 있는 모든 effect entry를 버린다.
     uint32 Discard_AllInactive();
+    // [MainEditor Stop용] active/idle 여부와 무관하게 runtime effect instance를 레이어에서 제거한다.
+    uint32 Discard_All();
     DebugSummary Get_DebugSummary() const;
 
     // 같은 이팩트를 count개 미리 생성해서 idle 상태로 돌려두기

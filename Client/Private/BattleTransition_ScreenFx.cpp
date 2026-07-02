@@ -27,6 +27,11 @@ IMPLEMENT_REFLECTION(BattleTransition_ScreenFx)
     return true;
 }
 
+BattleTransition_ScreenFx::~BattleTransition_ScreenFx()
+{
+    Release_RoseFlare();
+}
+
 HRESULT BattleTransition_ScreenFx::Initialize(ScreenFxDesc* desc)
 {
     if (FAILED(ScreenFx_Instance::Initialize(desc)))
@@ -122,6 +127,18 @@ void BattleTransition_ScreenFx::RoseFlare()
         acquireDesc.worldPosition = Vec3(0.f, 0.f, 0.f);
         effectPool->Acquire(acquireDesc, _roseFlareHandle);
     }
+}
+
+void BattleTransition_ScreenFx::Release_RoseFlare()
+{
+    if (_roseFlareHandle.effectObject == nullptr)
+        return;
+
+    EffectInstancePool* effectPool = CLIENT->Get_EffectInstancePool();
+    if (effectPool != nullptr)
+        effectPool->Release(_roseFlareHandle);
+
+    _roseFlareHandle = {};
 }
 
 Shared<BattleTransition_ScreenFx> BattleTransition_ScreenFx::Create(BattleTransitionDesc* desc)
