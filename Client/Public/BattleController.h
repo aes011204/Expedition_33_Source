@@ -146,6 +146,7 @@ public: /* 타겟팅 중인 적 세팅 */
     bool                Ensure_EnemyTargetPreview();
     bool                Move_EnemyTargetPreview(int32 direction);
     void                Publish_TargetPreviewEnemyFocus() const;
+    void                Publish_TargetPreviewEnemyGroup() const;
 
 public:
     bool                Is_PlayerTurnActive() const;

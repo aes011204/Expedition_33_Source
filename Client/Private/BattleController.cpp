@@ -1572,6 +1572,13 @@ void BattleController::Publish_TargetPreviewEnemyFocus() const
     GAME->Get_EventBus().Publish(event);
 }
 
+void BattleController::Publish_TargetPreviewEnemyGroup() const
+{
+    EvtBattlePresentation event{};
+    event.cameraMode = BattleCameraMode::ENEMYGROUP;
+    GAME->Get_EventBus().Publish(event);
+}
+
 int32 BattleController::Find_EnemyTargetPreviewIndex(const vector<BattleChar>& aliveEnemies) const
 {
     const BattleChar* preview = Get_TargetPreview();

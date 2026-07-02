@@ -58,6 +58,9 @@ namespace
             { "wide_back_offset", desc.wideBackOffset },
             { "wide_height_offset", desc.wideHeightOffset },
             { "wide_look_height_offset", desc.wideLookHeightOffset },
+            { "enemy_group_back_offset", desc.enemyGroupBackOffset },
+            { "enemy_group_height_offset", desc.enemyGroupHeightOffset },
+            { "enemy_group_look_height_offset", desc.enemyGroupLookHeightOffset },
         };
     }
 
@@ -78,6 +81,9 @@ namespace
         outDesc.wideBackOffset = value.value("wide_back_offset", 0.f);
         outDesc.wideHeightOffset = value.value("wide_height_offset", 0.f);
         outDesc.wideLookHeightOffset = value.value("wide_look_height_offset", 0.f);
+        outDesc.enemyGroupBackOffset = value.value("enemy_group_back_offset", 0.f);
+        outDesc.enemyGroupHeightOffset = value.value("enemy_group_height_offset", 0.f);
+        outDesc.enemyGroupLookHeightOffset = value.value("enemy_group_look_height_offset", 0.f);
 
         return true;
     }
