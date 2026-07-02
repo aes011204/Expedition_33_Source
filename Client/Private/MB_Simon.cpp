@@ -58,6 +58,9 @@ HRESULT MB_Simon::Initialize(void* arg)
     // Skill2  -> 짧은 콤보
 
     // 2페
+    // Skill_5  -> 캠퍼스에서 제거
+    // Skill07  -> 빛의 속도로 공격
+    // Skill_3  -> 뤼미에르의 검이 공격
 
     return S_OK;
 }

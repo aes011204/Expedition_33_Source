@@ -49,9 +49,9 @@ void Level_Stage01::BeginPlay()
 
     // Particle
     PlayEffectDesc ParticlDesc{};
-    desc.effectName = kParticelEffectName;
-    desc.worldPosition = Vec3(219.52f, -4023.47f, 52.33f);
-    desc.scale = Vec3(1.f, 1.f, 1.f);
+    ParticlDesc.effectName = kParticelEffectName;
+    ParticlDesc.worldPosition = Vec3(219.52f, -4023.47f, 52.33f);
+    ParticlDesc.scale = Vec3(1.f, 1.f, 1.f);
 
     CLIENT->Play_Effect(ParticlDesc);
 
