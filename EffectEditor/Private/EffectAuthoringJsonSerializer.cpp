@@ -75,7 +75,7 @@ namespace Internal
     {
         const auto iter = root.find("applyChannels");
         if (iter == root.end() || !iter->is_array())
-            return kVelocityOverLifeApplyChannelAllMask;
+            return kVelocityOverLifeApplyChannelDefaultMask;
 
         uint32 mask = 0u;
         for (const json& channelNode : *iter)
@@ -85,7 +85,7 @@ namespace Internal
                 mask |= To_VelocityOverLifeApplyChannelMask(channel);
         }
 
-        return mask != 0u ? mask : kVelocityOverLifeApplyChannelAllMask;
+        return mask != 0u ? mask : kVelocityOverLifeApplyChannelDefaultMask;
     }
 
     EffectTextureUVTilingMode Resolve_CompatibleUVTilingMode(const EffectMaterialUVAxisPolicy& policy)

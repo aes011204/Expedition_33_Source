@@ -118,6 +118,14 @@ bool CombatStatCom::Try_ConsumeAP(uint32 value)
     return true;
 }
 
+void CombatStatCom::Set_CurAp(uint32 value)
+{
+    auto& runtime = Get_RuntimeStat();
+    const uint32 maxAp = Get_StatInfo().maxAp;
+
+    runtime.CurAp = min(value, maxAp);
+}
+
 void CombatStatCom::Add_GradientGauge(uint32 value)
 {
     const uint32 maxProgress =

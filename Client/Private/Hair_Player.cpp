@@ -281,17 +281,20 @@ void Hair_Player::Update(float timeDelta)
 
 void Hair_Player::Late_Update(float timeDelta)
 {
+    if (!Is_Visible())
+        return;
+
     Shared<GameObject> owner = Get_Owner();
     if (!owner)
     {
         return;
     }
 
-    if (Casts_DynamicShadow() && Is_Visible())
-        GAME->Add_RenderGroup(RenderGroup::Shadow, GetSharedPtr<GameObject>());
-
     if (!owner->Is_Visible())
         return;
+
+    if (Casts_DynamicShadow())
+        GAME->Add_RenderGroup(RenderGroup::Shadow, GetSharedPtr<GameObject>());
 
     GAME->Add_RenderGroup(RenderGroup::NonBlend, GetSharedPtr<GameObject>());
     GAME->Add_RenderGroup(RenderGroup::Blend, GetSharedPtr<GameObject>());
@@ -300,6 +303,10 @@ void Hair_Player::Late_Update(float timeDelta)
 HRESULT Hair_Player::Render()
 {
     ENGINE_PROFILE_SCOPE_DETAIL("Player::Hair::Render");
+
+    const Shared<GameObject> owner = Get_Owner();
+    if (!Is_Visible() || owner == nullptr || !owner->Is_Visible())
+        return S_OK;
 
     if (FAILED(Bind_ShaderResources()))
         return E_FAIL;

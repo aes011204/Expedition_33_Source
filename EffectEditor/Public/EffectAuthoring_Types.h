@@ -1043,11 +1043,14 @@ inline constexpr uint32 kVelocityOverLifeApplyChannelAllMask{
     kVelocityOverLifeApplyChannelSourceMotionVelocityMask |
     kVelocityOverLifeApplyChannelAccelerationIntegratedVelocityMask
 };
+inline constexpr uint32 kVelocityOverLifeApplyChannelDefaultMask{
+    kVelocityOverLifeApplyChannelAllMask & ~kVelocityOverLifeApplyChannelAccelerationIntegratedVelocityMask
+};
 
 struct VelocityOverLifeModuleData
 {
     FloatDistributionData scaleOverLife{ FloatDistributionData::Make_ConstantCurve(1.f, 1.f) };
-    uint32 applyChannelMask{ kVelocityOverLifeApplyChannelAllMask };
+    uint32 applyChannelMask{ kVelocityOverLifeApplyChannelDefaultMask };
 };
 
 enum class EffectOrbitPivotMode : uint8

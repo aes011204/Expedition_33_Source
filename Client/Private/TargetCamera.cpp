@@ -309,7 +309,13 @@ bool TargetCamera::Try_GetTargetTransform(Shared<TransformCom>& outTargetTransfo
 
 void TargetCamera::Update_SmoothedTargetPosition(const Vec3& targetPos, float timeDelta)
 {
-    if (_currentState == TargetCameraMode::AIM)
+    Shared<TransformCom> targetTransformCom;
+    Try_GetTargetTransform(targetTransformCom);
+
+    const bool isParkourVerticalLagHolding = Is_ParkourVerticalLagHolding(targetTransformCom);
+    const bool isParkourVerticalLagActive = Is_ParkourVerticalLagActive(targetTransformCom);
+
+    if (_currentState == TargetCameraMode::AIM && !isParkourVerticalLagActive)
     {
         constexpr float kAimTargetFollowSpeed = 28.f;
 
@@ -323,6 +329,10 @@ void TargetCamera::Update_SmoothedTargetPosition(const Vec3& targetPos, float ti
     constexpr float kHorizontalSettleDistanceSq = 0.0004f;
     constexpr float kTargetStillYFrameDelta = 0.005f;
     constexpr float kVerticalSettleDistance = 0.035f;
+    constexpr float kParkourVerticalReleaseSpeedMin = 1.1f;
+    constexpr float kParkourVerticalReleaseSpeedMax = 1.85f;
+    constexpr float kParkourVerticalReleaseSpeedRange = 0.75f;
+    constexpr float kParkourVerticalReleaseFinishDistance = 0.06f;
 
     const Vec3 targetDelta = targetPos - _prevTargetPos;
     const float horizontalFollowT = Evaluate_TargetFollowT(
@@ -346,8 +356,36 @@ void TargetCamera::Update_SmoothedTargetPosition(const Vec3& targetPos, float ti
         _smoothedTargetPos.z = lerp(_smoothedTargetPos.z, targetPos.z, horizontalFollowT);
     }
 
+    if (isParkourVerticalLagHolding)
+        return;
+
     const float yDelta = fabsf(targetPos.y - _smoothedTargetPos.y);
     const float targetYFrameDelta = fabsf(targetDelta.y);
+
+    if (isParkourVerticalLagActive)
+    {
+        if (yDelta <= kParkourVerticalReleaseFinishDistance)
+        {
+            _smoothedTargetPos.y = targetPos.y;
+            Clear_ParkourVerticalLag(true);
+        }
+        else
+        {
+            const float releaseBlend = clamp(yDelta / kParkourVerticalReleaseSpeedRange, 0.f, 1.f);
+            const float releaseSpeed = lerp(
+                kParkourVerticalReleaseSpeedMin,
+                kParkourVerticalReleaseSpeedMax,
+                releaseBlend);
+
+            _smoothedTargetPos.y = Math::Lerp_Damp(
+                _smoothedTargetPos.y,
+                targetPos.y,
+                releaseSpeed,
+                timeDelta);
+        }
+
+        return;
+    }
 
     if (yDelta <= 0.0001f ||
         (targetYFrameDelta <= kTargetStillYFrameDelta && yDelta <= kVerticalSettleDistance))
@@ -362,6 +400,58 @@ void TargetCamera::Update_SmoothedTargetPosition(const Vec3& targetPos, float ti
             _currentSettings.verticalFollowSpeed,
             timeDelta);
     }
+}
+
+void TargetCamera::Begin_ParkourVerticalLag(const Shared<TransformCom>& targetTransform)
+{
+    if (targetTransform == nullptr)
+        return;
+
+    _parkourVerticalLagTarget = targetTransform;
+    _parkourVerticalLagHolding = true;
+    _parkourVerticalLagReleasing = false;
+}
+
+void TargetCamera::End_ParkourVerticalLag(const Shared<TransformCom>& targetTransform)
+{
+    const Shared<TransformCom> lagTarget = _parkourVerticalLagTarget.lock();
+    if (lagTarget == nullptr || lagTarget == targetTransform)
+    {
+        _parkourVerticalLagHolding = false;
+        _parkourVerticalLagReleasing = lagTarget != nullptr;
+        if (lagTarget == nullptr)
+            Clear_ParkourVerticalLag();
+    }
+}
+
+bool TargetCamera::Is_ParkourVerticalLagActive(const Shared<TransformCom>& targetTransform) const
+{
+    const Shared<TransformCom> lagTarget = _parkourVerticalLagTarget.lock();
+    return lagTarget != nullptr &&
+        lagTarget == targetTransform &&
+        (_parkourVerticalLagHolding || _parkourVerticalLagReleasing);
+}
+
+bool TargetCamera::Is_ParkourVerticalLagHolding(const Shared<TransformCom>& targetTransform) const
+{
+    const Shared<TransformCom> lagTarget = _parkourVerticalLagTarget.lock();
+    return lagTarget != nullptr &&
+        lagTarget == targetTransform &&
+        _parkourVerticalLagHolding;
+}
+
+void TargetCamera::Clear_ParkourVerticalLag(bool preserveCollisionDistance)
+{
+    if (preserveCollisionDistance && _transformCom != nullptr && _currentLookTarget.LengthSquared() > 0.0001f)
+    {
+        const Vec3 cameraToLookTarget = _transformCom->Get_WorldPosition() - _currentLookTarget;
+        if (cameraToLookTarget.LengthSquared() > 0.0001f)
+            _collisionDistance = cameraToLookTarget.Length();
+    }
+
+    _parkourVerticalLagTarget.reset();
+    _parkourVerticalLagHolding = false;
+    _parkourVerticalLagReleasing = false;
 }
 
 void TargetCamera::Update_FromCurrentSettings(float timeDelta)
@@ -397,6 +487,7 @@ void TargetCamera::Update_FromCurrentSettings(float timeDelta)
 
     const Vec3 prevSmoothedTargetPos = _smoothedTargetPos;
     Update_SmoothedTargetPosition(targetPos, timeDelta);
+    const bool isParkourVerticalLagActive = Is_ParkourVerticalLagActive(targetTransformCom);
     const bool smoothedTargetMoved =
         (_smoothedTargetPos - prevSmoothedTargetPos).LengthSquared() > 0.000025f;
 
@@ -404,6 +495,7 @@ void TargetCamera::Update_FromCurrentSettings(float timeDelta)
     Vec3 framingPos = pivotPos + rightDir * _currentSettings.aimOffset;
     Vec3 desiredPos = framingPos + orbitOffset + Vec3::Up * _currentSettings.heightOffset + rightDir * _currentSettings.sideOffset;
     Vec3 lookTarget = framingPos + Vec3::Up * _currentSettings.lookHeight;
+    Vec3 collisionDesiredPos = desiredPos;
 
     _currentLookTarget = lookTarget;
 
@@ -411,10 +503,16 @@ void TargetCamera::Update_FromCurrentSettings(float timeDelta)
 
     Vec3 newPos = desiredPos;
 
-    if (_currentSettings.doCollisionTest)
+    if (isParkourVerticalLagActive)
+    {
+        _collisionQueryAccum = 0.f;
+        _hasCollisionQueryCache = false;
+        _collisionDistance = -1.f;
+    }
+    else if (_currentSettings.doCollisionTest)
     {
         const float sweepStartDeltaSq = (collisionStart - _lastCollisionSweepStart).LengthSquared();
-        const float desiredPosDeltaSq = (desiredPos - _lastCollisionDesiredPos).LengthSquared();
+        const float desiredPosDeltaSq = (collisionDesiredPos - _lastCollisionDesiredPos).LengthSquared();
 
         const bool movedEnoughForImmediateQuery =
             sweepStartDeltaSq > 0.0004f ||
@@ -425,11 +523,11 @@ void TargetCamera::Update_FromCurrentSettings(float timeDelta)
         {
             _collisionQueryAccum = 0.f;
 
-            newPos = Resolve_Collision(collisionStart, desiredPos, timeDelta);
+            newPos = Resolve_Collision(collisionStart, collisionDesiredPos, timeDelta);
 
             _hasCollisionQueryCache = true;
             _lastCollisionSweepStart = collisionStart;
-            _lastCollisionDesiredPos = desiredPos;
+            _lastCollisionDesiredPos = collisionDesiredPos;
             _lastCollisionResolvedPos = newPos;
         }
         else
@@ -440,10 +538,10 @@ void TargetCamera::Update_FromCurrentSettings(float timeDelta)
             {
                 _collisionQueryAccum = 0.f;
 
-                newPos = Resolve_Collision(collisionStart, desiredPos, timeDelta);
+                newPos = Resolve_Collision(collisionStart, collisionDesiredPos, timeDelta);
 
                 _lastCollisionSweepStart = collisionStart;
-                _lastCollisionDesiredPos = desiredPos;
+                _lastCollisionDesiredPos = collisionDesiredPos;
                 _lastCollisionResolvedPos = newPos;
             }
             else
@@ -486,6 +584,7 @@ void TargetCamera::Reset_RuntimeCameraState()
     _collisionQueryAccum = 0.f;
     _hasCollisionQueryCache = false;
     _collisionDistance = -1.f;
+    Clear_ParkourVerticalLag();
     Reset_RuntimeShake();
 
     Shared<TransformCom> targetTransformCom;
@@ -681,6 +780,7 @@ void TargetCamera::Change_Mode(TargetCameraMode mode)
         Reset_RuntimeShake();
 
     _currentState = mode;
+    Clear_ParkourVerticalLag();
 
     _collisionQueryAccum = 0.f;
     _hasCollisionQueryCache = false;
@@ -753,6 +853,7 @@ bool TargetCamera::Try_GetFlatMoveBasis(Vec3& outForward, Vec3& outRight) const
 void TargetCamera::SetTargetTransform(Shared<TransformCom> targetTransform)
 {
     _targetTransformCom = targetTransform;
+    Clear_ParkourVerticalLag();
 
     if (targetTransform)
     {

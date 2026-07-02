@@ -10,6 +10,7 @@
 #include "PlayerControllerCom.h"
 #include "PlayerStateMachineCom.h"
 #include "Player_WorldBase.h"
+#include "TargetCamera.h"
 #include "TransformCom.h"
 
 namespace
@@ -228,6 +229,18 @@ void Player_ParkourAction::LateUpdate(float timeDelta)
 
 void Player_ParkourAction::ExitInvoke()
 {
+    if (const Shared<Player_WorldBase> owner = _owner.lock())
+    {
+        if (const Shared<TransformCom> transform = owner->Get_Transform())
+        {
+            if (const Shared<TargetCamera> targetCamera =
+                dynamic_pointer_cast<TargetCamera>(GAME->Get_CameraByType(ObjectType::TargetCamera)))
+            {
+                targetCamera->End_ParkourVerticalLag(transform);
+            }
+        }
+    }
+
     if (_controllerCom != nullptr)
         _controllerCom->Set_RigidControl(PlayerControllerCom::RigidControl{});
 

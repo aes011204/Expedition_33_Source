@@ -67,6 +67,7 @@ namespace Client
         Vec3 localOffset    = Vec3::Zero;
         Vec3 localRotation  = Vec3::Zero;
         Vec3 scale          = Vec3::One;
+        float playbackSpeed = 1.f;
     };
 
 }

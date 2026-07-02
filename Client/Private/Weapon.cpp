@@ -5,6 +5,8 @@
 #include "Client_Constants.h"
 #include "AnimComputeRuntime.h" 
 #include "ComputeShaderCom.h"   
+#include "EffectCom.h"
+#include "SwitchDissolveFeature.h"
 
 IMPLEMENT_REFLECTION(Weapon)
 {
@@ -177,8 +179,8 @@ HRESULT Weapon::Render()
     if (FAILED(Bind_ShaderResources()))
         return E_FAIL;
 
-    if (FAILED(_shader->Reset_DrawFeatures()))
-        return E_FAIL;
+    if (FAILED(EffectCom::Bind_DrawFeatures(Get_Owner(), _shader.get(), DrawFeatureFlagDissolve)))
+        return E_FAIL; // owner EffectCom의 dissolve 상태를 무기에도 적용해 몸과 같이 사라지게 한다.
 
     const uint32 numMeshes = static_cast<uint32>(_model->Get_NumMeshes());
 

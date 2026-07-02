@@ -136,7 +136,7 @@ bool Character_BattleBase::Try_GetDamageFeedbackWorldPosition(Vec3& outWorldPos)
                     const float localHeight = max(localMax.y - localMin.y, 0.f);
 
                     Vec3 localAnchor = localCenter;
-                    localAnchor.y = localMin.y + localHeight * 0.68f; // 몬스터 몸통 상단 근처에 데미지 숫자를 띄운다.
+                    localAnchor.y = localMin.y + localHeight * 0.56f; // 데미지 숫자가 너무 위로 튀지 않게 몬스터 몸통 중앙 근처에 잡는다.
 
                     outWorldPos = Vec3::Transform(localAnchor, body->Get_CombinedWorldMatrix());
                     return true;

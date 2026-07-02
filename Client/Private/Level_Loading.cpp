@@ -22,6 +22,8 @@ Level_Loading::Level_Loading(const ComPtr<Device>& device, const ComPtr<Context>
 HRESULT Level_Loading::Initialize(LevelType eNextLevelID)
 {
     GAME->Set_InputBlocked(true); // 로딩 중에는 에디터 입력 정책이 마우스를 다시 중앙 고정하지 못하게 한다.
+    GAME->Clear_Lights();
+    MapLoader::Clear_CachedLights();
 
     _nextLevel = eNextLevelID;
     _loadingStartTime = chrono::steady_clock::now();
