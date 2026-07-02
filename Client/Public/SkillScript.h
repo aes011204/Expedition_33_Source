@@ -12,6 +12,7 @@ public:
 public:
     virtual void Execute(const Skill_Data& skill,
   const BattleAction& action, AttackType attackType) = 0;
+    virtual void Play_GuardedHitEffect(const BattleAction&) { }
 
     using SkillScriptCreateFn = function<Shared<SkillScript>()>;
 

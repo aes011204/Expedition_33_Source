@@ -293,8 +293,15 @@ bool BattleReactionController::Try_GetJumpCounterTarget(BattleChar& outTarget) c
     return true;
 }
 
-bool BattleReactionController::TryConsumeGuard(const BattleChar& target, uint32 stepIndex, uint32 consumeKey)
+bool BattleReactionController::TryConsumeGuard(
+    const BattleChar& target,
+    uint32 stepIndex,
+    uint32 consumeKey,
+    BattleReactionType* outConsumedReaction)
 {
+    if (outConsumedReaction != nullptr)
+        *outConsumedReaction = BattleReactionType::None;
+
     if (target.actor == nullptr || target.statCom == nullptr)
         return false;
 
@@ -325,6 +332,9 @@ bool BattleReactionController::TryConsumeGuard(const BattleChar& target, uint32 
     const bool guarded =
         result == BattleReactionType::Dodge ||
         result == BattleReactionType::Parry;
+
+    if (guarded && outConsumedReaction != nullptr)
+        *outConsumedReaction = result;
 
     if (guarded && result == BattleReactionType::Parry)
     {

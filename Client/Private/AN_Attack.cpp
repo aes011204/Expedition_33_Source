@@ -45,10 +45,13 @@ void AN_Attack::Execute(const AnimNotifyContext& context)
     const BattleChar reactionTarget =
         !curTargets.empty() ? curTargets.front() : turnAction.GetInitTarget();
 
+    BattleReactionType guardedReaction = BattleReactionType::None;
     const bool guarded =
         battle->Get_ReactionController().TryConsumeGuard(
             reactionTarget,
-            sourceStepIndex);
+            sourceStepIndex,
+            UINT32_MAX,
+            &guardedReaction);
 
     const AttackType attackType = ResolveAttackType(turnAction, sourceStepIndex);
     if (!guarded)
@@ -57,6 +60,10 @@ void AN_Attack::Execute(const AnimNotifyContext& context)
             turnAction.GetSkillData(),
             turnAction,
             attackType);
+    }
+    else if (guardedReaction == BattleReactionType::Parry)
+    {
+        battle->Get_CurrentScript()->Play_GuardedHitEffect(turnAction);
     }
 
     // Echo는 원본 공격의 회피/패링 여부와 별개로 별도 판정으로 소비되어야 한다.
