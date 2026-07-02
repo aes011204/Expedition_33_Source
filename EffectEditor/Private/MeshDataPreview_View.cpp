@@ -1671,8 +1671,8 @@ bool MeshDataPreview_View::Render_MaterialInstanceSection(const AuthoringEmitter
         EffectMaterialDistortionShapeControlMode::MeshUnsupported,
         &renderPolicyBinding,
         meshData.useModelMaterials
-            ? "Use Model Materials가 켜져 있어 모델의 BaseColor/Normal/Emissive 슬롯을 사용합니다.\n끄면 이펙트 머티리얼의 Main Texture를 직접 지정할 수 있습니다."
-            : nullptr
+        ? "Use Model Materials가 켜져 있어 모델의 BaseColor/Normal/Emissive 슬롯을 사용합니다.\n끄면 이펙트 머티리얼의 Main Texture를 직접 지정할 수 있습니다."
+        : nullptr
     );
 }
 

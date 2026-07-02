@@ -5,6 +5,7 @@
 #include "EffectEditorInstance.h"
 #include "GameInstance.h"
 #include "Helper_String.h"
+#include "Level_EffectEditor.h"
 #include "MeshDataPreview_View.h"
 
 NS_BEGIN(EffectEditor)
@@ -294,6 +295,181 @@ namespace Internal
         default:
             return "항상";
         }
+    }
+
+    static const char* Get_TrailPreviewCharacterSlotLabel(TrailPreviewCharacterSlot value)
+    {
+        switch (value)
+        {
+        case TrailPreviewCharacterSlot::Player:
+            return "Player";
+        case TrailPreviewCharacterSlot::Monster:
+            return "Monster";
+        default:
+            return "Player";
+        }
+    }
+
+    static const char* Get_TrailPreviewMotionLabel(TrailPreviewMotion value)
+    {
+        switch (value)
+        {
+        case TrailPreviewMotion::Auto:
+            return "Auto";
+        case TrailPreviewMotion::Manual:
+            return "Manual";
+        default:
+            return "Auto";
+        }
+    }
+
+    static void Get_TrailPreviewAnimationNames(vector<string>& outNames)
+    {
+        outNames.clear();
+
+        const Shared<Level> currentLevel = GAME->Current_LevelType();
+        const Shared<Level_EffectEditor> effectEditorLevel = dynamic_pointer_cast<Level_EffectEditor>(currentLevel);
+        if (effectEditorLevel == nullptr)
+            return;
+
+        effectEditorLevel->Get_TrailPreviewAnimationNames(outNames);
+    }
+
+    static bool Draw_TrailPreviewCharacterSlotProperty(
+        DetailPropertyContext& detailContext,
+        TrailPreviewCharacterSlot& value)
+    {
+        static constexpr TrailPreviewCharacterSlot values[] = {
+            TrailPreviewCharacterSlot::Player,
+            TrailPreviewCharacterSlot::Monster,
+        };
+
+        ImGui::PushID("TrailPreviewCharacterSlot");
+        detailContext.Draw_PropertyLabel("프리뷰 대상", "Player는 기존 Gustave/Lanceram, Monster는 Simon preview fixture를 사용합니다.");
+        ImGui::SetNextItemWidth(-FLT_MIN);
+
+        bool changed = false;
+        if (ImGui::BeginCombo("##Value", Get_TrailPreviewCharacterSlotLabel(value)))
+        {
+            for (const TrailPreviewCharacterSlot candidate : values)
+            {
+                const bool selected = value == candidate;
+                if (ImGui::Selectable(Get_TrailPreviewCharacterSlotLabel(candidate), selected))
+                {
+                    value = candidate;
+                    changed = true;
+                }
+
+                if (selected)
+                    ImGui::SetItemDefaultFocus();
+            }
+
+            ImGui::EndCombo();
+        }
+
+        const bool resetClicked = detailContext.Draw_ResetButton(value != TrailPreviewCharacterSlot::Player);
+        ImGui::PopID();
+
+        if (resetClicked)
+        {
+            value = TrailPreviewCharacterSlot::Player;
+            return true;
+        }
+
+        return changed;
+    }
+
+    static bool Draw_TrailPreviewMotionProperty(
+        DetailPropertyContext& detailContext,
+        TrailPreviewMotion& value)
+    {
+        static constexpr TrailPreviewMotion values[] = {
+            TrailPreviewMotion::Auto,
+            TrailPreviewMotion::Manual,
+        };
+
+        ImGui::PushID("TrailPreviewMotion");
+        detailContext.Draw_PropertyLabel("모션 모드", "Auto는 기존 Play/Edit preview 동작을 유지하고, Manual은 선택한 animation의 normalized time을 gate 기준으로 씁니다.");
+        ImGui::SetNextItemWidth(-FLT_MIN);
+
+        bool changed = false;
+        if (ImGui::BeginCombo("##Value", Get_TrailPreviewMotionLabel(value)))
+        {
+            for (const TrailPreviewMotion candidate : values)
+            {
+                const bool selected = value == candidate;
+                if (ImGui::Selectable(Get_TrailPreviewMotionLabel(candidate), selected))
+                {
+                    value = candidate;
+                    changed = true;
+                }
+
+                if (selected)
+                    ImGui::SetItemDefaultFocus();
+            }
+
+            ImGui::EndCombo();
+        }
+
+        const bool resetClicked = detailContext.Draw_ResetButton(value != TrailPreviewMotion::Auto);
+        ImGui::PopID();
+
+        if (resetClicked)
+        {
+            value = TrailPreviewMotion::Auto;
+            return true;
+        }
+
+        return changed;
+    }
+
+    static bool Draw_TrailPreviewManualAnimationProperty(
+        DetailPropertyContext& detailContext,
+        string& value)
+    {
+        vector<string> animationNames;
+        Get_TrailPreviewAnimationNames(animationNames);
+
+        const string previewLabel = value.empty()
+                                    ? "애니메이션 선택"
+                                    : value;
+
+        ImGui::PushID("TrailPreviewManualAnimation");
+        detailContext.Draw_PropertyLabel("수동 애니메이션", "현재 preview 대상 body model에 로드된 animation입니다. 선택한 animation의 normalized time이 gate 기준입니다.");
+        ImGui::SetNextItemWidth(-FLT_MIN);
+
+        bool changed = false;
+        if (ImGui::BeginCombo("##Value", previewLabel.c_str()))
+        {
+            for (const string& animationName : animationNames)
+            {
+                const bool selected = value == animationName;
+                if (ImGui::Selectable(animationName.c_str(), selected))
+                {
+                    value = animationName;
+                    changed = true;
+                }
+
+                if (selected)
+                    ImGui::SetItemDefaultFocus();
+            }
+
+            if (animationNames.empty())
+                ImGui::TextDisabled("트레일 프리뷰를 켜면 animation list를 읽을 수 있습니다.");
+
+            ImGui::EndCombo();
+        }
+
+        const bool resetClicked = detailContext.Draw_ResetButton(!value.empty());
+        ImGui::PopID();
+
+        if (resetClicked)
+        {
+            value.clear();
+            return true;
+        }
+
+        return changed;
     }
 
     static bool Draw_TrailPreviewGateModeProperty(
@@ -1262,6 +1438,9 @@ void Detail_View::Render_TrailPreviewDetail()
     const Vec3 defaultSourceLocalOffset = EDITOR->Get_DefaultSourceHistorySpriteTrailPreviewSourceLocalOffset();
     bool visible = EDITOR->Is_TrailPreviewVisible();
     bool debugRenderEnabled = EDITOR->Is_TrailPreviewDebugRenderEnabled();
+    TrailPreviewCharacterSlot characterSlot = EDITOR->Get_TrailPreviewCharacterSlot();
+    TrailPreviewMotion motion = EDITOR->Get_TrailPreviewMotion();
+    string manualAnimationName = EDITOR->Get_TrailPreviewManualAnimationName();
     float animationSpeed = EDITOR->Get_TrailPreviewAnimationSpeed();
     TrailPreviewGateMode gateMode = EDITOR->Get_TrailPreviewGateMode();
     float gateStartRatio = EDITOR->Get_TrailPreviewGateStartRatio();
@@ -1276,13 +1455,20 @@ void Detail_View::Render_TrailPreviewDetail()
             EDITOR->Set_TrailPreviewVisible(visible);
         if (_detailPropertyContext.Draw_BoolProperty("디버그 렌더", debugRenderEnabled, true, "프리뷰 helper의 기준점과 샘플 흐름을 확인하기 위한 editor-only 표시입니다."))
             EDITOR->Set_TrailPreviewDebugRenderEnabled(debugRenderEnabled);
-        static constexpr AuthoringValueRange kAnimationSpeedRange{ true, true, 0.01f, 10.f };
+        if (Internal::Draw_TrailPreviewCharacterSlotProperty(_detailPropertyContext, characterSlot))
+            EDITOR->Set_TrailPreviewCharacterSlot(characterSlot);
+        if (Internal::Draw_TrailPreviewMotionProperty(_detailPropertyContext, motion))
+            EDITOR->Set_TrailPreviewMotion(motion);
+        if (motion == TrailPreviewMotion::Manual &&
+            Internal::Draw_TrailPreviewManualAnimationProperty(_detailPropertyContext, manualAnimationName))
+            EDITOR->Set_TrailPreviewManualAnimationName(manualAnimationName);
+        static constexpr AuthoringValueRange kAnimationSpeedRange{ true, true, 0.f, 10.f };
         if (_detailPropertyContext.Draw_FloatProperty(
             "애니메이션 배속",
             animationSpeed,
             EDITOR->Get_DefaultTrailPreviewAnimationSpeed(),
             0.01f,
-            "Trail Preview 플레이어 애니메이션 재생 배속입니다.",
+            "Trail Preview 플레이어 애니메이션 재생 배속입니다. 0이면 현재 프레임에서 멈춥니다.",
             &kAnimationSpeedRange
         ))
             EDITOR->Set_TrailPreviewAnimationSpeed(animationSpeed);
@@ -1321,7 +1507,7 @@ void Detail_View::Render_TrailPreviewDetail()
                     "시작 비율",
                     gateStartRatio,
                     EDITOR->Get_DefaultTrailPreviewGateStartRatio(),
-                    "Trail Preview 공격 모션에서 trail sample 공급을 시작할 normalized ratio입니다. 종료 비율보다 크면 loop 경계를 넘는 구간입니다."
+                    "현재 선택된 애니메이션의 normalized time 기준입니다. 타이밍이 맞지 않으면 항상으로 바꾸거나 시작/종료 비율을 조정하세요."
                 );
                 gateWindowChanged |= Internal::Draw_TrailPreviewGateRatioProperty(
                     _detailPropertyContext,
@@ -1329,7 +1515,7 @@ void Detail_View::Render_TrailPreviewDetail()
                     "종료 비율",
                     gateEndRatio,
                     EDITOR->Get_DefaultTrailPreviewGateEndRatio(),
-                    "Trail Preview 공격 모션에서 trail sample 공급을 끝낼 normalized ratio입니다. 시작 비율보다 작으면 loop 초반에서 닫힙니다."
+                    "현재 선택된 애니메이션의 normalized time 기준입니다. 시작 비율보다 작으면 loop 초반에서 닫힙니다."
                 );
                 if (gateWindowChanged)
                     EDITOR->Set_TrailPreviewGateWindow(gateStartRatio, gateEndRatio);
@@ -1373,7 +1559,7 @@ void Detail_View::Render_TrailPreviewDetail()
                     "시작 비율",
                     spriteTrailGateStartRatio,
                     EDITOR->Get_DefaultSourceHistorySpriteTrailPreviewGateStartRatio(),
-                    "공격 모션에서 SourceHistorySpriteTrail source sample 공급을 시작할 normalized ratio입니다. 종료 비율보다 크면 loop 경계를 넘는 구간입니다."
+                    "현재 선택된 애니메이션의 normalized time 기준입니다. 타이밍이 맞지 않으면 항상으로 바꾸거나 시작/종료 비율을 조정하세요."
                 );
                 gateWindowChanged |= Internal::Draw_TrailPreviewGateRatioProperty(
                     _detailPropertyContext,
@@ -1381,7 +1567,7 @@ void Detail_View::Render_TrailPreviewDetail()
                     "종료 비율",
                     spriteTrailGateEndRatio,
                     EDITOR->Get_DefaultSourceHistorySpriteTrailPreviewGateEndRatio(),
-                    "공격 모션에서 SourceHistorySpriteTrail source sample 공급을 끝낼 normalized ratio입니다. 시작 비율보다 작으면 loop 초반에서 닫힙니다."
+                    "현재 선택된 애니메이션의 normalized time 기준입니다. 시작 비율보다 작으면 loop 초반에서 닫힙니다."
                 );
                 if (gateWindowChanged)
                     EDITOR->Set_SourceHistorySpriteTrailPreviewGateWindow(spriteTrailGateStartRatio, spriteTrailGateEndRatio);

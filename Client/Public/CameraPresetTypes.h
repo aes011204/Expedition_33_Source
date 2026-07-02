@@ -23,7 +23,8 @@ enum class BattleCameraMode
   SELECTSKILL,
   PARRY,
   AIM,
-  SELECTPLAYER
+  SELECTPLAYER,
+  ENEMYGROUP,  //적 전체 그룹 샷
 
   // 순서 수정 금지
 };

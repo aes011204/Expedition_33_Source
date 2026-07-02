@@ -129,6 +129,7 @@ void Level_GestralVillage::BeginPlay()
         GAME->Get_DelegateHub().OnEditorPlayRuntime.Add(this, &Level_GestralVillage::Play_MapBGM);
 
     CLIENT->Capture_InitialWorldSnapshot();
+    CLIENT->Queue_LevelAnnounce(LevelType::GestralVillage);
 
     // flame
     PlayEffectDesc desc{};

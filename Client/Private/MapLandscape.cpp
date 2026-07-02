@@ -212,7 +212,11 @@ HRESULT MapLandscape::Render()
     Vec3 localCam = camPos - _transformCom->Get_Position();
     localCam.y = 0.f;
 
-    if (FAILED(_vibuffer->Render_LOD(localCam, _lodDist)))
+    HRESULT landscapeRenderResult = _useLOD
+        ? _vibuffer->Render_LOD(localCam, _lodDist)
+        : _vibuffer->Render_NoLOD();
+
+    if (FAILED(landscapeRenderResult))
     {
         return E_FAIL;
     }
