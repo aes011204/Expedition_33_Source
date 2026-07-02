@@ -173,9 +173,7 @@ bool Try_ResolveCurrentBattleContext(
     return true;
 }
 
-vector<BattleChar> Resolve_EffectBattleTargets(
-    const AnimNotifyContext& context,
-    bool includeDeadTargetsOnAllEnemies)
+vector<BattleChar> Resolve_EffectBattleTargets(const AnimNotifyContext& context)
 {
     Shared<GameObject> notifyOwnerRoot{};
     Shared<BattleController> battle{};
@@ -216,42 +214,64 @@ vector<BattleChar> Resolve_EffectBattleTargets(
     return resolvedTargets;
 }
 
-float Resolve_YawDegFromDirection(const Vec3& direction, float fallbackYawDeg)
+Vec3 NormalizeAxis(Vec3 axis, const Vec3& fallback)
 {
-    Vec3 flattenedDirection = direction;
-    flattenedDirection.y = 0.f;
+    if (axis.LengthSquared() <= 0.000001f)
+        return fallback;
 
-    if (flattenedDirection.LengthSquared() <= 0.0001f)
-        return fallbackYawDeg;
-
-    flattenedDirection.Normalize();
-    return XMConvertToDegrees(atan2f(flattenedDirection.x, flattenedDirection.z));
+    axis.Normalize();
+    return axis;
 }
 
-float Resolve_PitchDegFromDirection(const Vec3& direction, float fallbackPitchDeg)
+bool Try_BuildEffectBasisWorldMatrix(const Matrix& baseWorldMatrix, Matrix& outBasisWorldMatrix)
 {
-    const float horizontalLength = sqrtf(direction.x * direction.x + direction.z * direction.z);
-    if (horizontalLength <= 0.0001f && abs(direction.y) <= 0.0001f)
-        return fallbackPitchDeg;
+    Vec3 baseScale = Vec3::One;
+    Quat baseRotation = Quat::Identity;
+    Vec3 baseTranslation = Vec3::Zero;
+    Matrix decomposableBaseWorldMatrix = baseWorldMatrix;
+    if (!decomposableBaseWorldMatrix.Decompose(baseScale, baseRotation, baseTranslation))
+        return false;
 
-    return XMConvertToDegrees(atan2f(-direction.y, max(horizontalLength, 0.0001f)));
+    const Vec3 basisRight = NormalizeAxis(
+        Vec3(baseWorldMatrix._11, baseWorldMatrix._12, baseWorldMatrix._13),
+        Vec3::Right);
+    const Vec3 basisUp = NormalizeAxis(
+        Vec3(baseWorldMatrix._21, baseWorldMatrix._22, baseWorldMatrix._23),
+        Vec3::Up);
+    const Vec3 basisLook = NormalizeAxis(
+        Vec3(baseWorldMatrix._31, baseWorldMatrix._32, baseWorldMatrix._33),
+        Vec3::Look);
+
+    outBasisWorldMatrix = Matrix::Identity;
+    outBasisWorldMatrix._11 = basisRight.x;
+    outBasisWorldMatrix._12 = basisRight.y;
+    outBasisWorldMatrix._13 = basisRight.z;
+    outBasisWorldMatrix._21 = basisUp.x;
+    outBasisWorldMatrix._22 = basisUp.y;
+    outBasisWorldMatrix._23 = basisUp.z;
+    outBasisWorldMatrix._31 = basisLook.x;
+    outBasisWorldMatrix._32 = basisLook.y;
+    outBasisWorldMatrix._33 = basisLook.z;
+    outBasisWorldMatrix._41 = baseTranslation.x;
+    outBasisWorldMatrix._42 = baseTranslation.y;
+    outBasisWorldMatrix._43 = baseTranslation.z;
+    return true;
 }
 
-void Apply_BattleTargetFacingIfNeeded(
+bool Try_ApplyBattleTargetFacing(
     const AnimNotifyContext& context,
     const EffectCom::EffectPlayDesc& sourceDesc,
     EffectCom::EffectPlayDesc& inOutDesc,
-    bool usePitch,
     const BattleChar* explicitTarget = nullptr)
 {
     Shared<GameObject> notifyOwnerRoot{};
     Shared<BattleController> battle{};
     if (!Try_ResolveCurrentBattleContext(context, notifyOwnerRoot, battle))
-        return;
+        return false;
 
     const BattleChar* currentTarget = explicitTarget ? explicitTarget : Resolve_CurrentBattleTarget(*battle);
     if (currentTarget == nullptr || currentTarget->actor == nullptr || currentTarget->actor->Get_Transform() == nullptr)
-        return;
+        return false;
 
     Matrix baseWorldMatrix = Matrix::Identity;
     if (!Try_ResolveNotifyBaseWorldMatrix(
@@ -261,38 +281,58 @@ void Apply_BattleTargetFacingIfNeeded(
         sourceDesc.socketName,
         baseWorldMatrix))
     {
-        return;
+        return false;
     }
 
-    Matrix rotationBasisMatrix = baseWorldMatrix;
-    if (!sourceDesc.transformInheritance.inheritRotation &&
-        !Try_GetOwnerRootWorldMatrix(notifyOwnerRoot, rotationBasisMatrix))
-    {
-        return;
-    }
+    Matrix basisWorldMatrix = Matrix::Identity;
+    if (!Try_BuildEffectBasisWorldMatrix(baseWorldMatrix, basisWorldMatrix))
+        return false;
 
-    Vec3 baseScale = Vec3::One;
-    Quat baseRotation = Quat::Identity;
-    Vec3 baseTranslation = Vec3::Zero;
-    if (!baseWorldMatrix.Decompose(baseScale, baseRotation, baseTranslation))
-        return;
+    const Vec3 aimOrigin = Vec3::Transform(sourceDesc.localOffset, basisWorldMatrix);
+    Vec3 targetDirection = currentTarget->actor->Get_Transform()->Get_WorldPosition() - aimOrigin;
+    if (targetDirection.LengthSquared() <= 0.000001f)
+        return false;
 
-    const Vec3 basisLook = sourceDesc.transformInheritance.inheritRotation
-                           ? Vec3(baseWorldMatrix._31, baseWorldMatrix._32, baseWorldMatrix._33)
-                           : Vec3(rotationBasisMatrix._31, rotationBasisMatrix._32, rotationBasisMatrix._33);
+    targetDirection.Normalize();
 
-    const Vec3 targetDirection = currentTarget->actor->Get_Transform()->Get_WorldPosition() - baseTranslation;
-    const float basisYawDeg = Resolve_YawDegFromDirection(basisLook, 0.f);
-    const float desiredYawDeg = Resolve_YawDegFromDirection(targetDirection, basisYawDeg);
+    Vec3 upAxis = Vec3::Up;
+    if (abs(targetDirection.Dot(upAxis)) > 1.f - 1e-3f)
+        upAxis = Vec3::Look;
 
-    inOutDesc.localRotation.y += desiredYawDeg - basisYawDeg;
+    Vec3 desiredRight = upAxis.Cross(targetDirection);
+    desiredRight.Normalize();
+    Vec3 desiredUp = targetDirection.Cross(desiredRight);
+    desiredUp.Normalize();
 
-    if (!usePitch)
-        return;
+    Matrix desiredWorldRotation = Matrix::Identity;
+    desiredWorldRotation._11 = desiredRight.x;
+    desiredWorldRotation._12 = desiredRight.y;
+    desiredWorldRotation._13 = desiredRight.z;
+    desiredWorldRotation._21 = desiredUp.x;
+    desiredWorldRotation._22 = desiredUp.y;
+    desiredWorldRotation._23 = desiredUp.z;
+    desiredWorldRotation._31 = targetDirection.x;
+    desiredWorldRotation._32 = targetDirection.y;
+    desiredWorldRotation._33 = targetDirection.z;
 
-    const float basisPitchDeg = Resolve_PitchDegFromDirection(basisLook, 0.f);
-    const float desiredPitchDeg = Resolve_PitchDegFromDirection(targetDirection, basisPitchDeg);
-    inOutDesc.localRotation.x += desiredPitchDeg - basisPitchDeg;
+    basisWorldMatrix._41 = 0.f;
+    basisWorldMatrix._42 = 0.f;
+    basisWorldMatrix._43 = 0.f;
+    Matrix desiredLocalRotation = desiredWorldRotation * basisWorldMatrix.Invert();
+
+    Vec3 localScale = Vec3::One;
+    Quat localRotation = Quat::Identity;
+    Vec3 localTranslation = Vec3::Zero;
+    if (!desiredLocalRotation.Decompose(localScale, localRotation, localTranslation))
+        return false;
+
+    localRotation.Normalize();
+    const Vec3 localEuler = localRotation.ToEuler();
+    inOutDesc.localRotation = Vec3(
+        XMConvertToDegrees(localEuler.x),
+        XMConvertToDegrees(localEuler.y),
+        XMConvertToDegrees(localEuler.z));
+    return true;
 }
 }
 
@@ -310,13 +350,6 @@ IMPLEMENT_REFLECTION(AN_PlayEffectBattleDir)
     PROPERTY_VEC3("Local Rotation", _localRotation);
     PROPERTY_VEC3("Scale", _scale);
     PROPERTY_FLOAT("Playback Speed", _playbackSpeed, 0.f, 10.f, 0.01f);
-    PROPERTY_BOOL("Inherit Position", _inheritPosition);
-    PROPERTY_BOOL("Inherit Rotation", _inheritRotation);
-    PROPERTY_BOOL("Inherit Scale", _inheritScale);
-    PROPERTY_BOOL("Use Pitch", _usePitch);
-    PROPERTY_BOOL("Use Battle Target Yaw Only", _useBattleTargetYawOnly);
-    PROPERTY_INT("AllEnemies Repeat Count", _allEnemiesRepeatCount);
-    PROPERTY_BOOL("Include Dead Targets On AllEnemies", _includeDeadTargetsOnAllEnemies);
 
     return true;
 }
@@ -341,25 +374,10 @@ void AN_PlayEffectBattleDir::Execute(const AnimNotifyContext& context)
     desc.localRotation = _localRotation;
     desc.scale = _scale;
     desc.playbackSpeed = _playbackSpeed;
-    desc.transformInheritance.inheritPosition = _inheritPosition;
-    desc.transformInheritance.inheritRotation = _inheritRotation;
-    desc.transformInheritance.inheritScale = _inheritScale;
+    desc.transformInheritance.inheritPosition = true;
+    desc.transformInheritance.inheritRotation = true;
+    desc.transformInheritance.inheritScale = false;
     desc.followTarget = false;
-
-    EffectCom::EffectPlayDesc battleTargetDesc = desc;
-    Apply_BattleTargetFacingIfNeeded(context, desc, battleTargetDesc, _usePitch);
-
-    if (_useBattleTargetYawOnly)
-    {
-        if (_usePitch)
-            desc.localRotation.x = battleTargetDesc.localRotation.x;
-
-        desc.localRotation.y = battleTargetDesc.localRotation.y;
-    }
-    else
-    {
-        desc.localRotation = battleTargetDesc.localRotation;
-    }
 
     if (context.isPreview)
     {
@@ -368,23 +386,14 @@ void AN_PlayEffectBattleDir::Execute(const AnimNotifyContext& context)
         return;
     }
 
-    const vector<BattleChar> effectTargets =
-        Resolve_EffectBattleTargets(context, _includeDeadTargetsOnAllEnemies);
+    const vector<BattleChar> effectTargets = Resolve_EffectBattleTargets(context);
 
     if (effectTargets.empty())
     {
+        Try_ApplyBattleTargetFacing(context, desc, desc);
         effectCom->Play_Effect(desc);
         return;
     }
-
-    const Shared<BattleController> battle = CLIENT->Get_BattleController();
-    const bool isAllEnemiesStep =
-        battle != nullptr &&
-        battle->Get_TurnAction().GetCurStepIndex() < battle->Get_TurnAction().GetSteps().size() &&
-        (battle->Get_TurnAction().GetCurStep().targetType == TargetType::AllEnemies ||
-         battle->Get_TurnAction().GetCurStep().targetType == TargetType::AllEnemiesJump);
-
-    const int32 repeatCount = isAllEnemiesStep ? max(_allEnemiesRepeatCount, 1) : 1;
 
     for (const BattleChar& target : effectTargets)
     {
@@ -392,22 +401,7 @@ void AN_PlayEffectBattleDir::Execute(const AnimNotifyContext& context)
             continue;
 
         EffectCom::EffectPlayDesc perTargetDesc = desc;
-        EffectCom::EffectPlayDesc perTargetBattleDesc = perTargetDesc;
-        Apply_BattleTargetFacingIfNeeded(context, perTargetDesc, perTargetBattleDesc, _usePitch, &target);
-
-        if (_useBattleTargetYawOnly)
-        {
-            if (_usePitch)
-                perTargetDesc.localRotation.x = perTargetBattleDesc.localRotation.x;
-
-            perTargetDesc.localRotation.y = perTargetBattleDesc.localRotation.y;
-        }
-        else
-        {
-            perTargetDesc.localRotation = perTargetBattleDesc.localRotation;
-        }
-
-        for (int32 repeatIndex = 0; repeatIndex < repeatCount; ++repeatIndex)
-            effectCom->Play_Effect(perTargetDesc);
+        Try_ApplyBattleTargetFacing(context, desc, perTargetDesc, &target);
+        effectCom->Play_Effect(perTargetDesc);
     }
 }
