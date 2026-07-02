@@ -1,6 +1,7 @@
 ﻿#include "BattleWorldUI_CommandCards.h"
 
 #include "BattleWorldUI_JsonTextureResolver.h"
+#include "BattleWorldUI_LevelPlacement.h"
 #include "BattleWorldUI_PlacementUtils.h"
 #include "BattleWorldUI_SurfaceAnim.h"
 #include "Camera.h"
@@ -372,6 +373,21 @@ namespace
             tunings[heroIndex] = Make_DefaultCommandWorldPlacementTuning(static_cast<HeroId>(heroIndex));
 
         return tunings;
+    }
+
+    using BattleWorldCommandWorldPlacementLevelTunings =
+        array<
+            array<BattleWorldCommandWorldPlacementTuning, kBattleWorldCommandPlacementHeroCount>,
+            BattleWorldUILevelPlacement::kLevelCount>;
+
+    BattleWorldCommandWorldPlacementLevelTunings Make_DefaultCommandWorldPlacementLevelTunings()
+    {
+        BattleWorldCommandWorldPlacementLevelTunings levelTunings{};
+        const auto defaultTunings = Make_DefaultCommandWorldPlacementTunings();
+        for (auto& levelTuning : levelTunings)
+            levelTuning = defaultTunings;
+
+        return levelTunings;
     }
 
     string Read_JsonString(const json& node, const char* key, const string& fallback = {})
@@ -1332,9 +1348,36 @@ namespace
         return tuning;
     }
 
+    bool Try_ReadCommandWorldPlacementCharacters(
+        const json& root,
+        array<BattleWorldCommandWorldPlacementTuning, kBattleWorldCommandPlacementHeroCount>& tunings)
+    {
+        const auto charactersIter = root.find("characters");
+        if (charactersIter == root.end() || !charactersIter->is_object())
+            return false;
+
+        for (const auto& [heroName, heroNode] : charactersIter->items())
+        {
+            if (!heroNode.is_object())
+                continue;
+
+            HeroId heroId = HeroId::END;
+            if (!Try_ParseCommandHeroJsonName(heroName, heroId))
+            {
+                LOG_WARN("BattleWorldUI command placement json has unknown character. character='{}'", heroName);
+                continue;
+            }
+
+            const uint32 heroIndex = Resolve_CommandHeroIndex(heroId);
+            tunings[heroIndex] = Read_CommandWorldPlacementTuningNode(heroNode, tunings[heroIndex]);
+        }
+
+        return true;
+    }
+
     bool Try_LoadCommandWorldPlacementTunings(
         const fs::path& jsonPath,
-        array<BattleWorldCommandWorldPlacementTuning, kBattleWorldCommandPlacementHeroCount>& outTunings)
+        BattleWorldCommandWorldPlacementLevelTunings& outTunings)
     {
         if (!fs::exists(jsonPath))
             return false;
@@ -1353,32 +1396,43 @@ namespace
             return false;
         }
 
-        auto tunings = Make_DefaultCommandWorldPlacementTunings();
-        if (const auto charactersIter = root.find("characters");
-            charactersIter != root.end() && charactersIter->is_object())
+        auto tunings = Make_DefaultCommandWorldPlacementLevelTunings();
+        if (const auto levelsIter = root.find("levels");
+            levelsIter != root.end() && levelsIter->is_object())
         {
-            for (const auto& [heroName, heroNode] : charactersIter->items())
+            for (const auto& [levelName, levelNode] : levelsIter->items())
             {
-                if (!heroNode.is_object())
+                if (!levelNode.is_object())
                     continue;
 
-                HeroId heroId = HeroId::END;
-                if (!Try_ParseCommandHeroJsonName(heroName, heroId))
+                LevelType levelType = LevelType::END;
+                if (!BattleWorldUILevelPlacement::Try_ParseLevelJsonName(levelName, levelType))
                 {
-                    LOG_WARN("BattleWorldUI command placement json has unknown character. character='{}'", heroName);
+                    LOG_WARN("BattleWorldUI command placement json has unknown level. level='{}'", levelName);
                     continue;
                 }
 
-                const uint32 heroIndex = Resolve_CommandHeroIndex(heroId);
-                tunings[heroIndex] = Read_CommandWorldPlacementTuningNode(heroNode, tunings[heroIndex]);
+                const uint32 levelIndex = BattleWorldUILevelPlacement::Resolve_LevelIndex(levelType);
+                Try_ReadCommandWorldPlacementCharacters(levelNode, tunings[levelIndex]);
             }
+        }
+        else if (const auto charactersIter = root.find("characters");
+            charactersIter != root.end() && charactersIter->is_object())
+        {
+            auto legacyTunings = Make_DefaultCommandWorldPlacementTunings();
+            Try_ReadCommandWorldPlacementCharacters(root, legacyTunings);
+            for (auto& levelTuning : tunings)
+                levelTuning = legacyTunings;
         }
         else
         {
             const BattleWorldCommandWorldPlacementTuning flatTuning =
                 Read_CommandWorldPlacementTuningNode(root, BattleWorldCommandWorldPlacementTuning{});
-            for (auto& tuning : tunings)
-                tuning = flatTuning;
+            for (auto& levelTuning : tunings)
+            {
+                for (auto& tuning : levelTuning)
+                    tuning = flatTuning;
+            }
         }
 
         outTunings = tunings;
@@ -1415,18 +1469,26 @@ namespace
     }
 
     bool Write_CommandWorldPlacementTuningsToFile(
-        const array<BattleWorldCommandWorldPlacementTuning, kBattleWorldCommandPlacementHeroCount>& tunings,
+        const BattleWorldCommandWorldPlacementLevelTunings& tunings,
         fs::file_time_type* outWriteTime)
     {
         const fs::path jsonPath = Resolve_CommandWorldPlacementJsonPath();
 
         json root = json::object();
-        root["characters"] = json::object();
-        for (uint32 heroIndex = 0; heroIndex < kBattleWorldCommandPlacementHeroCount; ++heroIndex)
+        root["levels"] = json::object();
+        for (uint32 levelIndex = 0; levelIndex < BattleWorldUILevelPlacement::kLevelCount; ++levelIndex)
         {
-            const HeroId heroId = static_cast<HeroId>(heroIndex);
-            root["characters"][To_CommandHeroJsonName(heroId)] =
-                To_CommandWorldPlacementTuningJson(tunings[heroIndex]);
+            const LevelType levelType = BattleWorldUILevelPlacement::Get_LevelByIndex(levelIndex);
+            json levelNode = json::object();
+            levelNode["characters"] = json::object();
+            for (uint32 heroIndex = 0; heroIndex < kBattleWorldCommandPlacementHeroCount; ++heroIndex)
+            {
+                const HeroId heroId = static_cast<HeroId>(heroIndex);
+                levelNode["characters"][To_CommandHeroJsonName(heroId)] =
+                    To_CommandWorldPlacementTuningJson(tunings[levelIndex][heroIndex]);
+            }
+
+            root["levels"][BattleWorldUILevelPlacement::To_LevelJsonName(levelType)] = std::move(levelNode);
         }
 
         error_code errorCode{};
@@ -1521,7 +1583,7 @@ namespace
     }
 
     void Reload_CommandWorldPlacementTuningIfNeeded(
-        array<BattleWorldCommandWorldPlacementTuning, kBattleWorldCommandPlacementHeroCount>& tunings,
+        BattleWorldCommandWorldPlacementLevelTunings& tunings,
         fs::file_time_type& knownWriteTime,
         bool& hasKnownFile)
     {
@@ -1530,7 +1592,7 @@ namespace
         {
             if (hasKnownFile)
             {
-                tunings = Make_DefaultCommandWorldPlacementTunings();
+                tunings = Make_DefaultCommandWorldPlacementLevelTunings();
                 knownWriteTime = {};
                 hasKnownFile = false;
                 LOG_INFO("BattleWorldUI command placement json removed. using defaults.");
@@ -1546,7 +1608,7 @@ namespace
         if (hasKnownFile && writeTime == knownWriteTime)
             return;
 
-        array<BattleWorldCommandWorldPlacementTuning, kBattleWorldCommandPlacementHeroCount> loadedTunings{};
+        BattleWorldCommandWorldPlacementLevelTunings loadedTunings{};
         knownWriteTime = writeTime;
         hasKnownFile = true;
 
@@ -2022,10 +2084,12 @@ struct BattleWorldUI_CommandCards::Impl
     Shared<VIBuffer_Rect> viBuffer{};
     vector<BattleWorldCommandSurfaceTemplate> templates{};
     vector<BattleWorldCommandSurfaceInstance> surfaces{};
-    array<BattleWorldCommandWorldPlacementTuning, kBattleWorldCommandPlacementHeroCount> placementTunings =
-        Make_DefaultCommandWorldPlacementTunings();
+    BattleWorldCommandWorldPlacementLevelTunings placementTunings =
+        Make_DefaultCommandWorldPlacementLevelTunings();
     fs::file_time_type placementTuningWriteTime{};
     bool hasPlacementTuningFile = false;
+    LevelType activePlacementLevelType = LevelType::END;
+    LevelType editorPlacementLevelType = LevelType::END;
     HeroId activePlacementHeroId = HeroId::END;
     HeroId editorPlacementHeroId = HeroId::END;
     BattleTurnState introState = BattleTurnState::None;
@@ -2090,8 +2154,13 @@ HRESULT BattleWorldUI_CommandCards::Warmup_ForBattleState(uint32 curAp, uint32 m
     if (_impl == nullptr)
         return E_FAIL;
 
+    const LevelType placementLevelType =
+        BattleWorldUILevelPlacement::Normalize_LevelType(static_cast<LevelType>(GAME->Current_LevelIndex()));
     const HeroId placementHeroId = Normalize_CommandHeroId(actorHeroId);
     _impl->activePlacementHeroId = placementHeroId;
+    _impl->activePlacementLevelType = placementLevelType;
+    if (_impl->editorPlacementLevelType == LevelType::END)
+        _impl->editorPlacementLevelType = placementLevelType;
     if (_impl->editorPlacementHeroId == HeroId::END)
         _impl->editorPlacementHeroId = placementHeroId;
 
@@ -2160,8 +2229,14 @@ void BattleWorldUI_CommandCards::Show_ForBattleState(
         return;
     }
 
+    const LevelType placementLevelType =
+        BattleWorldUILevelPlacement::Normalize_LevelType(static_cast<LevelType>(GAME->Current_LevelIndex()));
+    const uint32 placementLevelIndex = BattleWorldUILevelPlacement::Resolve_LevelIndex(placementLevelType);
     const HeroId placementHeroId = Normalize_CommandHeroId(actorHeroId);
     const uint32 placementHeroIndex = Resolve_CommandHeroIndex(placementHeroId);
+    _impl->activePlacementLevelType = placementLevelType;
+    if (_impl->editorPlacementLevelType == LevelType::END)
+        _impl->editorPlacementLevelType = placementLevelType;
     _impl->activePlacementHeroId = placementHeroId;
     if (_impl->editorPlacementHeroId == HeroId::END)
         _impl->editorPlacementHeroId = placementHeroId;
@@ -2183,7 +2258,7 @@ void BattleWorldUI_CommandCards::Show_ForBattleState(
         Advance_BattleWorldSurfaceAnim(surface.introAnim, timeDelta);
 
     const BattleWorldCommandWorldPlacementTuning& placementTuning =
-        _impl->placementTunings[placementHeroIndex];
+        _impl->placementTunings[placementLevelIndex][placementHeroIndex];
     const Vec2 rootScale(
         placementTuning.worldSize.x / max(0.01f, kBattleWorldCommandRootWorldSize.x),
         placementTuning.worldSize.y / max(0.01f, kBattleWorldCommandRootWorldSize.y));
@@ -2270,6 +2345,28 @@ void BattleWorldUI_CommandCards::Hide()
         surface.visible = false;
 }
 
+LevelType BattleWorldUI_CommandCards::Get_EditorWorldPlacementLevelType() const
+{
+    if (_impl == nullptr)
+        return LevelType::Stage01;
+
+    if (_impl->editorPlacementLevelType != LevelType::END)
+        return BattleWorldUILevelPlacement::Normalize_LevelType(_impl->editorPlacementLevelType);
+
+    if (_impl->activePlacementLevelType != LevelType::END)
+        return BattleWorldUILevelPlacement::Normalize_LevelType(_impl->activePlacementLevelType);
+
+    return LevelType::Stage01;
+}
+
+void BattleWorldUI_CommandCards::Set_EditorWorldPlacementLevelType(LevelType levelType)
+{
+    if (_impl == nullptr)
+        return;
+
+    _impl->editorPlacementLevelType = BattleWorldUILevelPlacement::Normalize_LevelType(levelType);
+}
+
 HeroId BattleWorldUI_CommandCards::Get_EditorWorldPlacementHeroId() const
 {
     if (_impl == nullptr)
@@ -2297,8 +2394,9 @@ RuntimeWorldUIPlacementTuning BattleWorldUI_CommandCards::Get_EditorWorldPlaceme
     if (_impl == nullptr)
         return To_EditorWorldPlacementTuning(Make_DefaultCommandWorldPlacementTuning(HeroId::Gustave));
 
+    const uint32 levelIndex = BattleWorldUILevelPlacement::Resolve_LevelIndex(Get_EditorWorldPlacementLevelType());
     const uint32 heroIndex = Resolve_CommandHeroIndex(Get_EditorWorldPlacementHeroId());
-    return To_EditorWorldPlacementTuning(_impl->placementTunings[heroIndex]);
+    return To_EditorWorldPlacementTuning(_impl->placementTunings[levelIndex][heroIndex]);
 }
 
 void BattleWorldUI_CommandCards::Set_EditorWorldPlacementTuning(
@@ -2308,8 +2406,9 @@ void BattleWorldUI_CommandCards::Set_EditorWorldPlacementTuning(
     if (_impl == nullptr)
         return;
 
+    const uint32 levelIndex = BattleWorldUILevelPlacement::Resolve_LevelIndex(Get_EditorWorldPlacementLevelType());
     const uint32 heroIndex = Resolve_CommandHeroIndex(Get_EditorWorldPlacementHeroId());
-    _impl->placementTunings[heroIndex] = From_EditorWorldPlacementTuning(tuning);
+    _impl->placementTunings[levelIndex][heroIndex] = From_EditorWorldPlacementTuning(tuning);
 
     if (!saveImmediately)
         return;
@@ -2330,14 +2429,14 @@ void BattleWorldUI_CommandCards::Reload_EditorWorldPlacementTuning()
     const fs::path jsonPath = Resolve_CommandWorldPlacementJsonPath();
     if (!fs::exists(jsonPath))
     {
-        _impl->placementTunings = Make_DefaultCommandWorldPlacementTunings();
+        _impl->placementTunings = Make_DefaultCommandWorldPlacementLevelTunings();
         _impl->placementTuningWriteTime = {};
         _impl->hasPlacementTuningFile = false;
         LOG_INFO("BattleWorldUI command placement json reload requested, but file is missing. using defaults.");
         return;
     }
 
-    array<BattleWorldCommandWorldPlacementTuning, kBattleWorldCommandPlacementHeroCount> loadedTunings{};
+    BattleWorldCommandWorldPlacementLevelTunings loadedTunings{};
     if (!Try_LoadCommandWorldPlacementTunings(jsonPath, loadedTunings))
         return;
 
@@ -2356,7 +2455,8 @@ void BattleWorldUI_CommandCards::Reset_EditorWorldPlacementTuning()
         return;
 
     const HeroId heroId = Get_EditorWorldPlacementHeroId();
-    _impl->placementTunings[Resolve_CommandHeroIndex(heroId)] =
+    const uint32 levelIndex = BattleWorldUILevelPlacement::Resolve_LevelIndex(Get_EditorWorldPlacementLevelType());
+    _impl->placementTunings[levelIndex][Resolve_CommandHeroIndex(heroId)] =
         Make_DefaultCommandWorldPlacementTuning(heroId);
     if (Write_CommandWorldPlacementTuningsToFile(
         _impl->placementTunings,
