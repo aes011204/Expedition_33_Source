@@ -322,7 +322,7 @@ HRESULT Level_GestralVillage::Ready_Layer_BackGround(const wstring& strLayerTag)
 
 HRESULT Level_GestralVillage::Ready_Layer_Player(const wstring& strLayerTag)
 {
-    Vec3 startPos = Vec3(-4.63f, -7.56f, 206.65f);
+    Vec3 startPos = Vec3(-2.64f, -6.63f, 188.43f);
     Vec3 startRot = Vec3(0.f, -173.f, 0.f);
 
     CHECK_FAILED(CLIENT->Initialize_Hero(ETOI(LevelType::GestralVillage), strLayerTag, startPos, startRot), E_FAIL);
