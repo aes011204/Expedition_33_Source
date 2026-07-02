@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "SkillScript.h"
 
@@ -129,6 +129,22 @@ public:
 
 private:
     uint32 CurIndex = {};
+};
+
+class Mime_WallDefense : public SkillScript
+{
+    GENERATED_SKILLSCRIPT(Mime_WallDefense)
+
+public:
+    Mime_WallDefense();
+    virtual ~Mime_WallDefense() = default;
+
+public:
+    virtual void Execute(const Skill_Data& skill, const BattleAction& action, AttackType attackType) override;
+
+public:
+    static Shared<Mime_WallDefense> Create();
+    void Free() override;
 };
 
 NS_END

@@ -185,6 +185,21 @@ void UI_DamageFont::Set_DamageText(int32 damageValue)
         _damageTextBg->Set_Text(text);
 }
 
+Vec2 UI_DamageFont::Resolve_ScreenBaseOffset(const Vec3& worldPos) const
+{
+    const Vec4* cameraPosition = GAME->Get_CamPosition();
+    if (cameraPosition == nullptr)
+        return _damageScreenBaseOffset;
+
+    const Vec3 cameraWorldPos(cameraPosition->x, cameraPosition->y, cameraPosition->z);
+    const float distance = (worldPos - cameraWorldPos).Length();
+    const float range = max(_damageScreenOffsetFarDistance - _damageScreenOffsetCloseDistance, 0.0001f);
+    const float farT = clamp((distance - _damageScreenOffsetCloseDistance) / range, 0.f, 1.f);
+
+    // 가까운 타격은 현재 높이를 유지하고, 먼 타격은 고정 Y 보정을 줄여 숫자가 과하게 위로 뜨지 않게 한다.
+    return _damageScreenBaseOffset + (_damageFarScreenBaseOffset - _damageScreenBaseOffset) * farT;
+}
+
 bool UI_DamageFont::Apply_DamageFontTuning()
 {
     const bool changed =
@@ -206,6 +221,7 @@ bool UI_DamageFont::Apply_DamageFontTuning()
 
     Set_WorldAnchorOffset(_damageWorldAnchorOffset);
     Set_ScreenBaseOffset(_damageScreenBaseOffset);
+    Set_ScreenClamp(true, _damageScreenClampPadding);
     Set_WorldAnchorRandomYRange(_damageWorldAnchorRandomMinY, _damageWorldAnchorRandomMaxY);
 
     _hasAppliedDamageFontTuning = true;

@@ -9,6 +9,7 @@
 #include "EffectCom.h"
 #include "GameInstance.h"
 #include "Monster_BattleBase.h"
+#include "MB_Mime.h"
 
 NS_BEGIN(Client)
 
@@ -345,6 +346,32 @@ Shared<Simon_Debuff> Simon_Debuff::Create()
 }
 
 void Simon_Debuff::Free()
+{
+    SkillScript::Free();
+}
+
+Mime_WallDefense::Mime_WallDefense()
+{
+}
+
+void Mime_WallDefense::Execute(const Skill_Data& skill, const BattleAction& action, AttackType attackType)
+{
+    UNREFERENCED_PARAMETER(skill);
+    UNREFERENCED_PARAMETER(attackType);
+
+    const Shared<MB_Mime> mime = dynamic_pointer_cast<MB_Mime>(action.Get_CurChar().actor);
+    if (mime == nullptr)
+        return;
+
+    mime->Start_WallDamageReduction();
+}
+
+Shared<Mime_WallDefense> Mime_WallDefense::Create()
+{
+    return make_shared<Mime_WallDefense>();
+}
+
+void Mime_WallDefense::Free()
 {
     SkillScript::Free();
 }

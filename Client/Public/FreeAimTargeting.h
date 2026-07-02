@@ -21,6 +21,7 @@ public:
     void Update(float timeDelta) override;
     void LateUpdate(float timeDelta) override;
     void ExitInvoke() override;
+    void Notify_CanFreeAimShoot();
 
 private:
     // 현재 배틀 카메라 기준 히트스캔으로 맞은 적 찾기
@@ -39,6 +40,11 @@ private:
     bool _hasCurrentHitTarget = false;
 
     FreeAimAnimState _freeAimAnimState = FreeAimAnimState::None;
+    bool _canShootDuringCurrentShot = false;
+    bool _isFreeAimExitRButtonArmed = false;
+
+    Vec3 _freeAimStartRotation = Vec3::Zero;
+    bool _hasFreeAimStartRotation = false;
 
 public:
     static Shared<FreeAimTargeting> Create(const Shared<BattleController>& owner);

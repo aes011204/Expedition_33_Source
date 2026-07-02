@@ -160,9 +160,15 @@ void ChooseAction::Update(float timeDelta)
         if (!GAME->Is_ActiveCameraType(ObjectType::BattleTurnCamera))
             return;
 
-        owner->Get_TurnActionRequest().type = EBattleContext::FreeAimShoot;
-
         const BattleChar& actor = owner->Get_TurnActionRequest().actor;
+
+        if (!battleFSM->Change_State(BattleTurnState::FreeAimTargeting))
+            return;
+
+        if (battleFSM->Get_CurrentPlayerState() != BattleTurnState::FreeAimTargeting)
+            return;
+
+        owner->Get_TurnActionRequest().type = EBattleContext::FreeAimShoot;
 
         if (const auto battleCamera = owner->Get_BattleTurnCamera())
         {
@@ -186,7 +192,6 @@ void ChooseAction::Update(float timeDelta)
         //event.presetId = magic_enum::enum_name(owner->Get_TurnActionRequest().actor.heroId);
         GAME->Get_EventBus().Publish(event);
 
-        battleFSM->Change_State(BattleTurnState::FreeAimTargeting);
         return;
     }
 }

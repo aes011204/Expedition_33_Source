@@ -4,6 +4,8 @@
 #include "Material_Types.h"
 #include "ModelCom.h"
 #include "BattleTurnCamera.h"
+#include "EffectCom.h"
+#include "SwitchDissolveFeature.h"
 
 namespace
 {
@@ -79,6 +81,9 @@ void FaceAccessory_Player::Late_Update(float timeDelta)
     if (_shader == nullptr || _model == nullptr)
         return;
 
+    if (!Is_Visible())
+        return;
+
     const Shared<GameObject> owner = Get_Owner();
     if (owner == nullptr || !owner->Is_Visible())
         return;
@@ -94,8 +99,11 @@ HRESULT FaceAccessory_Player::Render()
     if (_shader == nullptr || _model == nullptr)
         return S_OK;
 
-    CHECK_FAILED(Bind_ShaderResources(), E_FAIL); 
-    CHECK_FAILED(_shader->Reset_DrawFeatures(), E_FAIL);
+    const Shared<GameObject> owner = Get_Owner();
+    if (!Is_Visible() || owner == nullptr || !owner->Is_Visible())
+        return S_OK;
+
+    CHECK_FAILED(Bind_ShaderResources(), E_FAIL);
 
     const uint32 numMeshes = static_cast<uint32>(_model->Get_NumMeshes());
 
@@ -110,6 +118,7 @@ HRESULT FaceAccessory_Player::Render()
             continue;
 
         CHECK_FAILED(_shader->Bind_CBufferData(material->Get_CB()), E_FAIL);
+        CHECK_FAILED(EffectCom::Bind_DrawFeatures(owner, _shader.get(), DrawFeatureFlagDissolve), E_FAIL);
         CHECK_FAILED(_shader->Begin(material->Get_PassIndex()), E_FAIL);
 
         CHECK_FAILED(GAME->Bind_PlayerStencilWriteState(true), E_FAIL);
@@ -123,6 +132,9 @@ HRESULT FaceAccessory_Player::Render()
 HRESULT FaceAccessory_Player::Render_Shadow()
 {
     if (_shader == nullptr || _model == nullptr)
+        return S_OK;
+
+    if (!Is_Visible())
         return S_OK;
 
     const Shared<GameObject> owner = Get_Owner();

@@ -96,6 +96,11 @@ private:
                 const Shared<Player_WorldBase>& hero,
                 const Vec3& fromPos,
                 const Vec3& desiredPos) const;
+    bool    Try_ResolveTeleportReseatPosition(
+                const Shared<Player_WorldBase>& hero,
+                const Vec3& fromPos,
+                const Vec3& desiredPos,
+                Vec3& outPosition) const;
 
     void    Apply_ControlRoles();
 
@@ -108,6 +113,8 @@ private:
                 const Shared<Player_WorldBase>& follower,
                 uint32 followerIndex,
                 const Vec3& targetPos,
+                const Vec3& teleportReseatPos,
+                bool hasTeleportReseatPos,
                 bool walkFollow,
                 float timeDelta);
 
@@ -159,7 +166,8 @@ private:
     float _sprintFollowDistance = 2.5f;
     float _sprintFollowReleaseDistance = 1.2f;   // sprint 해제는 더 가까워졌을 때만
     float _sprintFollowMinHoldTime = 0.25f;      // sprint에 들어가면 최소 이 시간은 유지
-    float _teleportReseatDistance  = 6.f;       // Active Hero와 이 거리 이상 벌어지면 보정된 follow 위치로 재배치한다.
+    float _teleportReseatDistance  = 10.f;      // Active Hero와 크게 벌어졌을 때만 보정된 follow 위치로 재배치한다.
+    float _teleportReseatHeightDistance = 3.f;  // 다리/절벽처럼 높이만 크게 벌어진 경우도 재배치한다.
     float _followTargetProbeInterval = 0.05f;
     float _followTargetProbeMoveThreshold = 0.15f;
 

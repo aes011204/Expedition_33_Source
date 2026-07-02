@@ -14,6 +14,7 @@
 #include "ChooseSkill.h"
 #include "ChooseUltimate.h"
 #include "CombatStatCom.h"
+#include "ContainerObject.h"
 #include "Create_Class.h"
 #include "ItemTargeting.h"
 #include "MB_Lancelier.h"
@@ -74,6 +75,8 @@ namespace
 
     constexpr float kSkillPresentationDissolveDuration = 0.12f;
     constexpr char kSkillPresentationDissolveNoise[] = "T_Perlin_Noise_M";
+    constexpr float kSkillPresentationOcclusionDepthMargin = 0.25f;
+    constexpr float kSkillPresentationOcclusionCapsuleRadius = 0.58f;
 }
 
 BattleController::BattleController()
@@ -169,6 +172,8 @@ void BattleController::Update(float timeDelta)
     // 배틀이 완전히 끝남 (배틀턴 나감)
     if (_battleEnded == true)
         return;
+
+    Refresh_SkillPresentationHeroVisibility(timeDelta);
 
     if (_isWaitingTurnStartStatusHit)
     {
@@ -1501,42 +1506,212 @@ void BattleController::Handle_BattlePresentationEvent(const EvtBattlePresentatio
         return;
     }
 
-    Sync_SkillPresentationHeroVisibility(event.cameraMode, event.subject);
+    Sync_SkillPresentationHeroVisibility(event.cameraMode, event.subject, event.opponent);
 }
 
 void BattleController::Sync_SkillPresentationHeroVisibility(BattleCameraMode cameraMode,
-    const Shared<Engine::Character>& subject)
+    const Shared<Character>& subject, const Shared<Character>& opponent)
 {
-    if (cameraMode != BattleCameraMode::PLAYERATTACK || subject == nullptr)
+    const bool isPlayerAttack = cameraMode == BattleCameraMode::PLAYERATTACK;
+    const bool isEnemyAttack = cameraMode == BattleCameraMode::ENEMYATTACK;
+
+    if ((!isPlayerAttack && !isEnemyAttack) || subject == nullptr)
     {
-        Restore_SkillPresentationHeroVisibility(); // 스킬 공격 구도가 아니면 이전에 숨긴 플레이어를 자연스럽게 복구한다.
+        Restore_SkillPresentationHeroVisibility();
         return;
     }
 
-    if (_skillPresentationSubject == subject && !_skillPresentationHiddenHeroes.empty())
-        return; // 같은 스킬 연출 중 반복 이벤트가 와도 dissolve를 다시 시작하지 않는다.
+    if (isEnemyAttack)
+    {
+        const vector<BattleAction::AttackStep>& steps = _turnAction.GetSteps();
+        const uint32 curStepIndex = _turnAction.GetCurStepIndex();
+        if (curStepIndex >= steps.size() || steps[curStepIndex].targets.size() != 1)
+        {
+            Restore_SkillPresentationHeroVisibility();
+            return;
+        }
+    }
 
-    Restore_SkillPresentationHeroVisibility(); // 다른 공격자로 넘어가기 전, 이전 공격자의 숨김 목록을 먼저 닫는다.
+    const Shared<Character> visibleHero = isPlayerAttack ? subject : opponent;
+    if (visibleHero == nullptr)
+    {
+        Restore_SkillPresentationHeroVisibility();
+        return;
+    }
+
+    if (_skillPresentationSubject == subject &&
+        _skillPresentationVisibleHero == visibleHero &&
+        !_skillPresentationHiddenHeroes.empty())
+        return;
+
+    Restore_SkillPresentationHeroVisibility();
 
     _skillPresentationSubject = subject;
+    _skillPresentationVisibleHero = visibleHero;
+    Refresh_SkillPresentationHeroVisibility(0.f);
+}
+
+void BattleController::Refresh_SkillPresentationHeroVisibility(float timeDelta)
+{
+    if (_skillPresentationSubject == nullptr || _skillPresentationVisibleHero == nullptr)
+        return;
+
+    for (auto iter = _skillPresentationHiddenHeroes.begin(); iter != _skillPresentationHiddenHeroes.end();)
+    {
+        const Shared<Character> hiddenActor = dynamic_pointer_cast<Character>(iter->actor);
+        const bool keepHidden =
+            hiddenActor != nullptr &&
+            Should_HideHeroForSkillPresentation(_skillPresentationVisibleHero, hiddenActor);
+
+        if (keepHidden)
+        {
+            iter->hiddenElapsedSec += timeDelta;
+            if (!iter->visibilityForcedOff && iter->hiddenElapsedSec >= kSkillPresentationDissolveDuration)
+            {
+                if (iter->actor != nullptr)
+                    iter->actor->Set_Visible(false);
+
+                for (const SkillPresentationHiddenHero::PartVisibility& partVisibility : iter->partVisibilities)
+                {
+                    if (partVisibility.part != nullptr && partVisibility.wasVisible)
+                        partVisibility.part->Set_Visible(false);
+                }
+
+                iter->visibilityForcedOff = true;
+            }
+
+            ++iter;
+            continue;
+        }
+
+        if (iter->actor != nullptr && iter->wasVisible)
+        {
+            iter->actor->Set_Visible(true);
+            for (const SkillPresentationHiddenHero::PartVisibility& partVisibility : iter->partVisibilities)
+            {
+                if (partVisibility.part != nullptr)
+                    partVisibility.part->Set_Visible(partVisibility.wasVisible);
+            }
+            Begin_SkillPresentationReveal(iter->actor);
+        }
+
+        iter = _skillPresentationHiddenHeroes.erase(iter);
+    }
 
     for (const BattleChar& hero : _heroes)
     {
         if (hero.actor == nullptr || hero.statCom == nullptr)
             continue;
 
-        if (hero.actor == subject)
-            continue; // 현재 스킬을 쓰는 플레이어는 카메라 주체라서 숨기지 않는다.
+        if (hero.actor == _skillPresentationVisibleHero)
+            continue;
 
         if (hero.statCom->Get_AliveStatus() == EAliveStatus::Dead)
-            continue; // 사망 캐릭터는 기존 사망 처리 visibility를 건드리지 않는다.
+            continue;
 
-        const bool wasVisible = hero.actor->Is_Visible();
-        _skillPresentationHiddenHeroes.push_back({ hero.actor, wasVisible });
+        bool alreadyHidden = false;
+        for (const SkillPresentationHiddenHero& hiddenHero : _skillPresentationHiddenHeroes)
+        {
+            if (hiddenHero.actor == hero.actor)
+            {
+                alreadyHidden = true;
+                break;
+            }
+        }
 
-        if (wasVisible)
-            Begin_SkillPresentationVanish(hero.actor); // 화면에 보이던 대상만 dissolve-out을 시작한다.
+        if (alreadyHidden || !Should_HideHeroForSkillPresentation(_skillPresentationVisibleHero, hero.actor))
+            continue;
+
+        SkillPresentationHiddenHero hiddenHero{};
+        hiddenHero.actor = hero.actor;
+        hiddenHero.wasVisible = hero.actor->Is_Visible();
+
+        if (const Shared<ContainerObject> container = dynamic_pointer_cast<ContainerObject>(hero.actor))
+        {
+            for (const auto& [partTag, partObject] : container->Get_PartObjects())
+            {
+                UNREFERENCED_PARAMETER(partTag);
+
+                if (partObject == nullptr)
+                    continue;
+
+                hiddenHero.partVisibilities.push_back({ partObject, partObject->Is_Visible() });
+            }
+        }
+
+        _skillPresentationHiddenHeroes.push_back(hiddenHero);
+
+        if (hiddenHero.wasVisible)
+            Begin_SkillPresentationVanish(hero.actor);
     }
+}
+
+bool BattleController::Should_HideHeroForSkillPresentation(
+    const Shared<Character>& visibleHero,
+    const Shared<Character>& candidate) const
+{
+    if (visibleHero == nullptr || candidate == nullptr)
+        return false;
+
+    if (visibleHero == candidate)
+        return false;
+
+    const Shared<TransformCom> visibleTransform = visibleHero->Get_Transform();
+    const Shared<TransformCom> candidateTransform = candidate->Get_Transform();
+    if (visibleTransform == nullptr || candidateTransform == nullptr)
+        return false;
+
+    const Shared<Camera> activeCamera = GAME->Get_ActiveCamera();
+    const Shared<TransformCom> cameraTransform = activeCamera ? activeCamera->Get_Transform() : nullptr;
+    if (cameraTransform == nullptr)
+        return false;
+
+    const Vec3 cameraPos = cameraTransform->Get_WorldPosition();
+    const Vec3 visibleBasePos = visibleTransform->Get_WorldPosition();
+    const Vec3 candidateBasePos = candidateTransform->Get_WorldPosition();
+    const Vec3 visibleWorldSamples[] =
+    {
+        visibleBasePos + Vec3::Up * 0.55f,
+        visibleBasePos + Vec3::Up * 0.95f,
+        visibleBasePos + Vec3::Up * 1.45f,
+    };
+    const Vec3 candidateWorldSamples[] =
+    {
+        candidateBasePos + Vec3::Up * 0.55f,
+        candidateBasePos + Vec3::Up * 0.95f,
+        candidateBasePos + Vec3::Up * 1.45f,
+    };
+
+    const float occlusionRadiusSq =
+        kSkillPresentationOcclusionCapsuleRadius * kSkillPresentationOcclusionCapsuleRadius;
+    for (const Vec3& visiblePos : visibleWorldSamples)
+    {
+        Vec3 rayToVisible = visiblePos - cameraPos;
+        const float visibleDistance = rayToVisible.Length();
+        if (visibleDistance <= kSkillPresentationOcclusionDepthMargin)
+            continue;
+
+        Vec3 rayDirection = rayToVisible;
+        rayDirection.Normalize();
+
+        for (const Vec3& candidatePos : candidateWorldSamples)
+        {
+            const Vec3 rayToCandidate = candidatePos - cameraPos;
+            const float candidateDistanceOnRay = rayToCandidate.Dot(rayDirection);
+            if (candidateDistanceOnRay <= kSkillPresentationOcclusionDepthMargin)
+                continue;
+
+            if (candidateDistanceOnRay >= visibleDistance - kSkillPresentationOcclusionDepthMargin)
+                continue;
+
+            const Vec3 closestPointOnRay = cameraPos + rayDirection * candidateDistanceOnRay;
+            const Vec3 candidateToRay = candidatePos - closestPointOnRay;
+            if (candidateToRay.LengthSquared() <= occlusionRadiusSq)
+                return true;
+        }
+    }
+
+    return false;
 }
 
 void BattleController::Restore_SkillPresentationHeroVisibility()
@@ -1546,12 +1721,18 @@ void BattleController::Restore_SkillPresentationHeroVisibility()
         if (hiddenHero.actor == nullptr || !hiddenHero.wasVisible)
             continue;
 
-        hiddenHero.actor->Set_Visible(true); // vanish 완료로 꺼진 actor를 먼저 켠 뒤 reveal dissolve를 재생한다.
+        hiddenHero.actor->Set_Visible(true); // 숨김 처리로 꺼진 캐릭터 루트를 먼저 복구한다.
+        for (const SkillPresentationHiddenHero::PartVisibility& partVisibility : hiddenHero.partVisibilities)
+        {
+            if (partVisibility.part != nullptr)
+                partVisibility.part->Set_Visible(partVisibility.wasVisible);
+        }
         Begin_SkillPresentationReveal(hiddenHero.actor);
     }
 
     _skillPresentationHiddenHeroes.clear();
     _skillPresentationSubject = nullptr;
+    _skillPresentationVisibleHero = nullptr;
 }
 
 void BattleController::Begin_SkillPresentationVanish(const Shared<GameObject>& actor)
@@ -1561,6 +1742,21 @@ void BattleController::Begin_SkillPresentationVanish(const Shared<GameObject>& a
 
     if (const Shared<EffectCom> effectCom = actor->Get_Component<EffectCom>())
         effectCom->Start_VanishDissolve(kSkillPresentationDissolveDuration, kSkillPresentationDissolveNoise, true);
+
+    const Shared<ContainerObject> container = dynamic_pointer_cast<ContainerObject>(actor);
+    if (container == nullptr)
+        return;
+
+    for (const auto& [partTag, partObject] : container->Get_PartObjects())
+    {
+        UNREFERENCED_PARAMETER(partTag);
+
+        if (partObject == nullptr || !partObject->Is_Visible())
+            continue;
+
+        if (const Shared<EffectCom> partEffectCom = partObject->Get_Component<EffectCom>())
+            partEffectCom->Start_VanishDissolve(kSkillPresentationDissolveDuration, kSkillPresentationDissolveNoise, true);
+    }
 }
 
 void BattleController::Begin_SkillPresentationReveal(const Shared<GameObject>& actor)
@@ -1570,6 +1766,21 @@ void BattleController::Begin_SkillPresentationReveal(const Shared<GameObject>& a
 
     if (const Shared<EffectCom> effectCom = actor->Get_Component<EffectCom>())
         effectCom->Start_SwitchDissolve(kSkillPresentationDissolveDuration, kSkillPresentationDissolveNoise);
+
+    const Shared<ContainerObject> container = dynamic_pointer_cast<ContainerObject>(actor);
+    if (container == nullptr)
+        return;
+
+    for (const auto& [partTag, partObject] : container->Get_PartObjects())
+    {
+        UNREFERENCED_PARAMETER(partTag);
+
+        if (partObject == nullptr || !partObject->Is_Visible())
+            continue;
+
+        if (const Shared<EffectCom> partEffectCom = partObject->Get_Component<EffectCom>())
+            partEffectCom->Start_SwitchDissolve(kSkillPresentationDissolveDuration, kSkillPresentationDissolveNoise);
+    }
 }
 
 void BattleController::Set_TargetPreview(const BattleChar& target)
@@ -2278,26 +2489,16 @@ void BattleController::Update_BattleSpawnRotationReturns(float timeDelta)
 
 void BattleController::Begin_FreeAimShot(const BattleAction& shotAction)
 {
-    if (_isFreeAimShotPlaying)
-        return;
-
     if (shotAction.Get_CurChar().actor == nullptr)
         return;
 
+    if (shotAction.Get_CurChar().ModelCom == nullptr)
+        return;
+
+    if (!Apply_FreeAimShootAP(shotAction.Get_CurChar()))
+        return;
+
     _freeAimShotAction = shotAction;
-    //_isFreeAimShotPlaying = false;
-
-    if (_freeAimShotAction.Get_CurChar().ModelCom == nullptr)
-    {
-        _freeAimShotAction = {};
-        return;
-    }
-
-    if (!Apply_FreeAimShootAP(_freeAimShotAction.Get_CurChar()))
-    {
-        _freeAimShotAction = {};
-        return;
-    }
 
     // Free Aim은 히트스캔 즉발데미지
     if (_freeAimShotAction.GetInitTarget().actor != nullptr && _freeAimShotAction.GetInitTarget().statCom != nullptr)
@@ -2319,10 +2520,14 @@ void BattleController::Begin_FreeAimShot(const BattleAction& shotAction)
 
     _freeAimShotAction.InitActionDirection();
 
-    _freeAimShotAction.Get_CurChar().ModelCom->Set_AnimationByState(
+    if (!_freeAimShotAction.Get_CurChar().ModelCom->Set_AnimationByState(
         ETOI(BattleAnimType::FreeAim_Shoot),
         0.1f,
-        false);
+        false))
+    {
+        _freeAimShotAction = {};
+        return;
+    }
 
     _isFreeAimShotPlaying = true;
 }
@@ -2344,6 +2549,22 @@ void BattleController::Finish_FreeAimShot()
     _isFreeAimShotPlaying = false;
     _freeAimShotAction = {};
 
+}
+
+void BattleController::Notify_CanFreeAimShoot()
+{
+    if (!_isFreeAimShotPlaying || _battleFSM == nullptr)
+        return;
+
+    if (_battleFSM->Get_CurrentPlayerState() != BattleTurnState::FreeAimTargeting)
+        return;
+
+    const Shared<FreeAimTargeting> freeAimState =
+        dynamic_pointer_cast<FreeAimTargeting>(_battleFSM->Get_CurrentState());
+    if (freeAimState == nullptr)
+        return;
+
+    freeAimState->Notify_CanFreeAimShoot();
 }
 
 void BattleController::OnActionEndNotify()
@@ -2990,10 +3211,10 @@ void BattleController::End_BattleDOFOverride()
     GAME->End_DOFOverrideScope(kBattleDOFOwnerTag, Build_BattleDOFRestoreTransition());
 }
 
-Engine::DOFTransitionDesc BattleController::Build_BattleDOFRestoreTransition()
+DOFTransitionDesc BattleController::Build_BattleDOFRestoreTransition()
 {
-    Engine::DOFTransitionDesc transition{};
-    transition.easing = Engine::DOFTransitionEasing::EaseInOut;
+    DOFTransitionDesc transition{};
+    transition.easing = DOFTransitionEasing::EaseInOut;
     transition.duration = 0.35f;
     return transition;
 }
