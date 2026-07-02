@@ -1092,6 +1092,9 @@
     <ClCompile Include="..\Private\UI_BattleAnnounce.cpp">
       <Filter>02. GameObject\UI</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\UI_LevelAnnounce.cpp">
+      <Filter>02. GameObject\UI</Filter>
+    </ClCompile>
     <ClCompile Include="..\Private\UI_BattleFloatingTextBase.cpp">
       <Filter>02. GameObject\UI</Filter>
     </ClCompile>
@@ -2539,6 +2542,9 @@
       <Filter>02. GameObject\UI</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\UI_BattleAnnounce.h">
+      <Filter>02. GameObject\UI</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\UI_LevelAnnounce.h">
       <Filter>02. GameObject\UI</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\UI_BattleFloatingTextBase.h">

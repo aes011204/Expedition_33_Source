@@ -831,6 +831,12 @@ bool ClientInstance::Is_BattleEnterTransitionPlaying() const
     return _gamePlayUI && _gamePlayUI->Is_BattleEnterTransitionPlaying();
 }
 
+void ClientInstance::Queue_LevelAnnounce(LevelType levelType)
+{
+    if (_gamePlayUI)
+        _gamePlayUI->Queue_LevelAnnounce(levelType);
+}
+
 bool ClientInstance::Request_ScreenFadeTransition(const function<void()>& CoveredAction)
 {
     if (_levelTransitionFade && _levelTransitionFade->Is_Playing())

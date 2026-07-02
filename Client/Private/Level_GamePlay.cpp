@@ -123,6 +123,7 @@ void Level_GamePlay::BeginPlay()
     GAME->Set_VolumetricLightShaftZones(Build_GamePlayLightShaftZones());
 
     CLIENT->Capture_InitialWorldSnapshot();
+    CLIENT->Queue_LevelAnnounce(LevelType::GamePlay);
 }
 
 void Level_GamePlay::Update(float fTimeDelta)
