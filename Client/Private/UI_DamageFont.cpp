@@ -66,15 +66,13 @@ void UI_DamageFont::Play_DamageFont(const BattleChar& target, float damage, uint
 
 void UI_DamageFont::Update(float timeDelta)
 {
-    if (Apply_DamageFontTuning())
-        Refresh_SnapshotScreenPosition();
-
+    Apply_DamageFontTuning();
     UI_BattleFloatingTextBase::Update(timeDelta);
 }
 
 void UI_DamageFont::Apply_EditorReflectionRuntimeTuning()
 {
-    if (Apply_DamageFontTuning())
+    if (Apply_DamageFontTuning() && !Is_Playing())
         Refresh_SnapshotScreenPosition();
 }
 
@@ -221,8 +219,8 @@ bool UI_DamageFont::Apply_DamageFontTuning()
 
     Set_WorldAnchorOffset(_damageWorldAnchorOffset);
     Set_ScreenBaseOffset(_damageScreenBaseOffset);
-    Set_ScreenClamp(true, _damageScreenClampPadding);
     Set_WorldAnchorRandomYRange(_damageWorldAnchorRandomMinY, _damageWorldAnchorRandomMaxY);
+    Set_AnchorMode(AnchorMode::FollowWorld);
 
     _hasAppliedDamageFontTuning = true;
     _appliedDamageLifeTime = _damageLifeTime;

@@ -438,7 +438,7 @@ RuntimeRuleStateIO::RuleState RuntimeRuleStateService::Build_GameplayStartUnlock
 	ruleState.inventoryJson = Build_SelectedWeaponInventoryJson({
 		{ "Gustave", "Lanceram" },
 		});
-	ruleState.inventoryJson["chroma"] = 0;
+	ruleState.inventoryJson["chroma"] = 8109036007402;
 	ruleState.inventoryJson["unlocked_pictos"] = json::array();
 
 	return ruleState;
@@ -548,6 +548,11 @@ RuntimeRuleStateIO::RuleState RuntimeRuleStateService::Build_PotatoBagStartUnloc
 		{ "Maelle", "Plenum" },
 		});
 
+	// 픽토스 해금
+	ruleState.inventoryJson["unlocked_pictos"] = json::array({
+		"WarmingUp",
+		});
+
     const struct
 	{
 		HeroId heroId;
@@ -574,6 +579,13 @@ RuntimeRuleStateIO::RuleState RuntimeRuleStateService::Build_PotatoBagStartUnloc
 			heroState.statJson["equipped_weapon_power"] =
 				CLIENT->Resolve_WeaponPower(hero.characterId, weaponDesc->weaponId);
 		}
+
+		// 장착 픽토스 세팅
+		heroState.statJson["equipped_pictos_ids"] = json::array({
+			"WarmingUp",
+			"",
+			"",
+			});
 
 		ruleState.heroes.emplace_back(std::move(heroState));
 	}

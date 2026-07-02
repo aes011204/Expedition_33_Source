@@ -2563,16 +2563,21 @@ void BattleController::Begin_FreeAimShot(const BattleAction& shotAction)
 
 void BattleController::Finish_FreeAimShot()
 {
-    Clear_CurrentScript();
-    //Clear_TargetPreview();
+    const bool shouldReturnToFreeAimIdle =
+        _battleFSM != nullptr &&
+        _battleFSM->Get_CurrentPlayerState() == BattleTurnState::FreeAimTargeting;
 
-    if (_freeAimShotAction.Get_CurChar().ModelCom)
+    if (shouldReturnToFreeAimIdle)
     {
-        // Free Aim 발사 후에는 Base Idle로 풀지 않고 다시 조준 idle 자세로 복귀. 턴 종료가 안됐으니까
-        _freeAimShotAction.Get_CurChar().ModelCom->Set_AnimationByState(
-            ETOI(BattleAnimType::FreeAim_Idle),
-            0.1f,
-            true);
+        Clear_CurrentScript();
+
+        if (_freeAimShotAction.Get_CurChar().ModelCom)
+        {
+            _freeAimShotAction.Get_CurChar().ModelCom->Set_AnimationByState(
+                ETOI(BattleAnimType::FreeAim_Idle),
+                0.1f,
+                true);
+        }
     }
 
     _isFreeAimShotPlaying = false;

@@ -599,6 +599,7 @@ void GameplayUI_Battle::Handle_BattleStarted(uint32 fieldId, bool isPlayerAdvant
     _battleStartVictoryStats.clear();
     _battleStartVictoryStats = Build_BattleVictoryPlayerStats();
     _battleWorldWarmupHeroFlags.fill(false);
+    _damageFontAlternationIndex = 0;
 
     GAME->Get_ScreenFxManager()->Clear_ScreenEffect();
 
@@ -1024,8 +1025,13 @@ void GameplayUI_Battle::Handle_DamageApplied(const DamageAppliedInfo& info)
     if (selectedSlot == nullptr)
         return;
 
-    stackIndex = min(stackIndex, kDamageFontPoolSize - 1);
-    selectedSlot->Play_DamageFont(target, damage, stackIndex, info.isCritical);
+    constexpr uint32 kDamageFontAlternationBandCount = (kDamageFontPoolSize - 1) / 2;
+    const uint32 activeStackCount = min(stackIndex, kDamageFontPoolSize - 1);
+    const uint32 verticalBand = min(activeStackCount / 2, kDamageFontAlternationBandCount - 1);
+    const bool useRightSide = (_damageFontAlternationIndex++ % 2u) == 0u;
+    const uint32 visualStackIndex = verticalBand * 2u + (useRightSide ? 1u : 2u);
+
+    selectedSlot->Play_DamageFont(target, damage, visualStackIndex, info.isCritical);
 }
 
 void GameplayUI_Battle::Handle_HealApplied(const BattleChar& target, float healAmount)
@@ -2853,6 +2859,7 @@ void GameplayUI_Battle::Reset_BattleUiRuntimeState(bool closeVictoryUi)
     _battleSystemIntroElapsed = 0.f;
     _hasPendingBattleSystemIntroActivation = false;
     _pendingBattleSystemIntroActivationHeroId = HeroId::END;
+    _damageFontAlternationIndex = 0;
 
     Hide_BattleWorldMaterialVfxBackground();
     Hide_BattleWorldCommandCards();

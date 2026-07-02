@@ -29,7 +29,7 @@ public:
     void Open() override;
     void Close() override;
 
-    // 데미지 popup은 시작 위치만 잡고, 이후에는 snapshot screen position 기준으로 rise만 적용한다.
+    // 데미지 popup은 맞은 대상의 world anchor를 따라가며 카메라 회전 중에도 대상 근처에 유지한다.
     void Play_DamageFont(const BattleChar& target, float damage, uint32 stackIndex, bool isCritical);
 
 private:
@@ -65,7 +65,6 @@ private:
     Vec3 _damageWorldAnchorOffset = Vec3(0.f, 0.f, 0.f);
     Vec2 _damageScreenBaseOffset = Vec2(0.f, -36.f);
     Vec2 _damageFarScreenBaseOffset = Vec2(0.f, -12.f);
-    Vec2 _damageScreenClampPadding = Vec2(120.f, 90.f);
     float _damageScreenOffsetCloseDistance = 5.f;
     float _damageScreenOffsetFarDistance = 14.f;
 

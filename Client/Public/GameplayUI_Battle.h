@@ -236,6 +236,7 @@ private:
 private:
     static constexpr uint32 kDamageFontPoolSize = 8; // 폰트 최대 8개까지만
     array<Unique<UI_DamageFont>, kDamageFontPoolSize> _damageFonts{};
+    uint32 _damageFontAlternationIndex = 0;
 
     static constexpr uint32 kDestroyShieldPoolSize = 4;
     array<Unique<UI_DestroyShield>, kDestroyShieldPoolSize> _destroyShields{};
