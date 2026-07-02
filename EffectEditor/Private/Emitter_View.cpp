@@ -5,6 +5,7 @@
 #include "Editor_Context.h"
 #include "EffectAuthoringJsonSerializer.h"
 #include "EffectAuthoringModuleMetadata.h"
+#include "EffectAuthoring_Types.h"
 #include "EffectEditorInstance.h"
 #include "EffectMaterialPresetReader.h"
 #include "GameInstance.h"
@@ -2799,6 +2800,43 @@ void Emitter_View::Mark_AllPreviewDirty()
         emitter.previewDirty = true;
 }
 
+void Emitter_View::Set_AllEmittersEnabled(bool enabled)
+{
+    bool hasChange = false;
+    for (const AuthoringEmitter& emitter : _emitters)
+    {
+        if (emitter.enabled != enabled)
+        {
+            hasChange = true;
+            break;
+        }
+    }
+
+    const bool shouldClearSoloPreview = !enabled && Is_SoloPreviewActive();
+    if (!hasChange && !shouldClearSoloPreview)
+        return;
+
+    Execute_AuthoringEdit(
+        enabled ? "Enable All Emitters" : "Disable All Emitters",
+        [this, enabled, shouldClearSoloPreview]
+        {
+            for (AuthoringEmitter& emitter : _emitters)
+            {
+                emitter.enabled = enabled;
+                emitter.previewDirty = true;
+            }
+
+            if (shouldClearSoloPreview)
+                Clear_SoloPreviewEmitter();
+
+            MarkDirty();
+        }
+    );
+
+    if (shouldClearSoloPreview && EDITOR != nullptr)
+        EDITOR->Request_RestartPreview();
+}
+
 void Emitter_View::Sync_EmitterMirror(AuthoringEmitter& emitter)
 {
     emitter.rendererType = Authoring::Resolve_RendererType(emitter.typeData);
@@ -3402,18 +3440,6 @@ void Emitter_View::Draw_EmitterContextMenu(size_t emitterIndex)
     string emitterPasteReason{};
     const bool canPasteEmitter = Can_PasteEmitterAfter(emitterIndex, &emitterPasteReason);
 
-    const bool soloPreviewActive = Is_SoloPreviewActive();
-    if (!soloPreviewActive)
-        ImGui::BeginDisabled();
-    if (ImGui::MenuItem("Solo 해제") && soloPreviewActive)
-    {
-        Clear_SoloPreviewEmitter();
-        if (EDITOR != nullptr)
-            EDITOR->Request_RestartPreview();
-    }
-    if (!soloPreviewActive)
-        ImGui::EndDisabled();
-
     if (ImGui::BeginMenu("이미터"))
     {
         if (ImGui::MenuItem("이미터 복사"))
@@ -3437,7 +3463,7 @@ void Emitter_View::Draw_EmitterContextMenu(size_t emitterIndex)
         ImGui::EndMenu();
     }
 
-    if (ImGui::BeginMenu("파티클 시스템"))
+    if (ImGui::BeginMenu("새 이미터"))
     {
         if (ImGui::MenuItem("앞에 새 이미터 추가"))
             Queue_EmitterAction(PendingEmitterAction::InsertBefore, emitterIndex);
@@ -3461,6 +3487,28 @@ void Emitter_View::Draw_EmitterContextMenu(size_t emitterIndex)
 
         ImGui::EndMenu();
     }
+
+    ImGui::Separator();
+
+    if (ImGui::MenuItem("모든 이미터 활성화"))
+        Set_AllEmittersEnabled(true);
+
+    if (ImGui::MenuItem("모든 이미터 비활성화"))
+        Set_AllEmittersEnabled(false);
+
+    ImGui::Separator();
+
+    const bool soloPreviewActive = Is_SoloPreviewActive();
+    if (!soloPreviewActive)
+        ImGui::BeginDisabled();
+    if (ImGui::MenuItem("Solo 해제") && soloPreviewActive)
+    {
+        Clear_SoloPreviewEmitter();
+        if (EDITOR != nullptr)
+            EDITOR->Request_RestartPreview();
+    }
+    if (!soloPreviewActive)
+        ImGui::EndDisabled();
 }
 
 void Emitter_View::Draw_TypeDataContextMenu(size_t emitterIndex)
@@ -3585,20 +3633,6 @@ void Emitter_View::Draw_EmitterBoard()
         {
             string blankPasteReason{};
             const bool canPasteEmitterToEnd = Can_PasteEmitterToEnd(&blankPasteReason);
-            const bool soloPreviewActive = Is_SoloPreviewActive();
-
-            if (!soloPreviewActive)
-                ImGui::BeginDisabled();
-            if (ImGui::MenuItem("Solo 해제") && soloPreviewActive)
-            {
-                Clear_SoloPreviewEmitter();
-                if (EDITOR != nullptr)
-                    EDITOR->Request_RestartPreview();
-            }
-            if (!soloPreviewActive)
-                ImGui::EndDisabled();
-
-            ImGui::Separator();
 
             if (ImGui::Selectable("새 이미터"))
             {
@@ -3619,6 +3653,28 @@ void Emitter_View::Draw_EmitterBoard()
                 ImGui::EndDisabled();
             if (!canPasteEmitterToEnd && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled) && !blankPasteReason.empty())
                 ImGui::SetTooltip("%s", blankPasteReason.c_str());
+
+            ImGui::Separator();
+
+            if (ImGui::MenuItem("모든 이미터 활성화"))
+                Set_AllEmittersEnabled(true);
+
+            if (ImGui::MenuItem("모든 이미터 비활성화"))
+                Set_AllEmittersEnabled(false);
+
+            ImGui::Separator();
+
+            const bool soloPreviewActive = Is_SoloPreviewActive();
+            if (!soloPreviewActive)
+                ImGui::BeginDisabled();
+            if (ImGui::MenuItem("Solo 해제") && soloPreviewActive)
+            {
+                Clear_SoloPreviewEmitter();
+                if (EDITOR != nullptr)
+                    EDITOR->Request_RestartPreview();
+            }
+            if (!soloPreviewActive)
+                ImGui::EndDisabled();
 
             ImGui::EndPopup();
         }
