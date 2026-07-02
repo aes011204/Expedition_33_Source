@@ -116,7 +116,7 @@ namespace Internal
     static OverlayRect Compute_DebugOptionOverlayRect(const ImVec2& viewportMin, const ImVec2& viewportMax)
     {
         const OverlayRect previewRect = Compute_PreviewViewportOverlayRect(viewportMin, viewportMax);
-        const ImVec2 panelSize = ImVec2(280.f, 34.f);
+        const ImVec2 panelSize = ImVec2(380.f, 34.f);
         const ImVec2 panelMin = ImVec2(previewRect.max.x - panelSize.x, previewRect.max.y + 8.f);
 
         return {
@@ -463,13 +463,18 @@ void Scene_View::Render_ViewportToolbarOverlay()
     ImGui::PushID("DebugOptionOverlay");
     ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(5.f, 3.f));
 
+    bool defaultSkyboxEnabled = EDITOR->Is_DefaultSkyboxEnabled();
+    if (ImGui::Checkbox("Skybox", &defaultSkyboxEnabled))
+        EDITOR->Set_DefaultSkyboxEnabled(defaultSkyboxEnabled);
+
+    ImGui::SameLine(0.f, 10.f);
     bool previewPlaneVisible = EDITOR->Is_PreviewPlaneVisible();
     if (ImGui::Checkbox("Preview Plane", &previewPlaneVisible))
         EDITOR->Set_PreviewPlaneVisible(previewPlaneVisible);
 
     ImGui::SameLine(0.f, 10.f);
     bool trailPreviewVisible = EDITOR->Is_TrailPreviewVisible();
-    if (ImGui::Checkbox("Preview Object", &trailPreviewVisible))
+    if (ImGui::Checkbox("Trail Preview Obj", &trailPreviewVisible))
         EDITOR->Set_TrailPreviewVisible(trailPreviewVisible);
 
     ImGui::PopStyleVar();

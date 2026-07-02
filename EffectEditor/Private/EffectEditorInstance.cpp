@@ -112,6 +112,7 @@ HRESULT EffectEditorInstance::Initialize_Editor(const EffectEditorDesc& editorDe
     _runtimeTimeScale = 1.f;
     _autoReplayPreviewEnabled = false;
     _autoReplayPreviewElapsedTime = 0.f;
+    _isDefaultSkyboxEnabled = true;
     _isTrailPreviewVisible = false;
     _isPreviewPlaneVisible = false;
     _trailPreviewAnimationSpeed = kDefaultTrailPreviewAnimationSpeed;
@@ -180,6 +181,7 @@ void EffectEditorInstance::Release_Editor()
     _runtimeTimeScale = 1.f;
     _autoReplayPreviewEnabled = false;
     _autoReplayPreviewElapsedTime = 0.f;
+    _isDefaultSkyboxEnabled = true;
     _isTrailPreviewVisible = false;
     _postProcessOptions = Get_DefaultPostProcessOptions();
     _hasClientPostProcessSnapshot = false;
@@ -542,6 +544,11 @@ void EffectEditorInstance::Set_AutoReplayPreviewEnabled(bool enabled)
 
     _autoReplayPreviewEnabled = enabled;
     _autoReplayPreviewElapsedTime = 0.f;
+}
+
+void EffectEditorInstance::Set_DefaultSkyboxEnabled(bool enabled)
+{
+    _isDefaultSkyboxEnabled = enabled;
 }
 
 void EffectEditorInstance::Set_TrailPreviewVisible(bool visible)

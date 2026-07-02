@@ -44,6 +44,7 @@ public: //## Accessor::Authoring
     ParticleSystemAuthoringData& Get_ParticleSystemData() { return _particleSystemData; }
     const ParticleSystemAuthoringData& Get_ParticleSystemData() const { return _particleSystemData; }
     const vector<AuthoringEmitter>& Get_Emitters() const { return _emitters; }
+    vector<AuthoringEmitter> Build_PreviewEmitters() const;
     const optional<fs::path>& Get_CurrentDocumentPath() const { return _currentDocumentPath; }
     AuthoringEmitter* Find_Emitter(uint32 emitterId);
     AuthoringModule* Find_Module(uint32 emitterId, uint32 moduleId);
@@ -160,6 +161,9 @@ private: //## Data::Selection
     bool _selectedTypeData{ false };
     // 현재 선택된 emitter 내부의 module index다. 값이 없으면 emitter header만 선택된 상태다.
     optional<size_t> _selectedModuleIndex{};
+
+private: //## Data::PreviewState
+    optional<uint32> _soloPreviewEmitterId{};
 
 private: //## Data::PendingAction
     PendingEmitterAction _pendingEmitterAction{ PendingEmitterAction::None };
@@ -292,6 +296,11 @@ private: //## Helper::PreviewState
     void Mark_AllPreviewDirty();
     void Sync_EmitterMirror(AuthoringEmitter& emitter);
     void Sync_AllEmitterMirrors();
+    bool Is_SoloPreviewActive() const;
+    bool Is_SoloPreviewEmitter(uint32 emitterId) const;
+    void Toggle_SoloPreviewEmitter(uint32 emitterId);
+    void Clear_SoloPreviewEmitter();
+    void Sanitize_SoloPreviewState();
     void Sanitize_PreviewTransformState();
 
 private: //## Helper::ModulePicker
