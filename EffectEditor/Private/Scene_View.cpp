@@ -70,7 +70,7 @@ namespace Internal
 
     static OverlayRect Compute_GizmoOverlayRect(const ImVec2& viewportMin, const ImVec2& viewportMax)
     {
-        const ImVec2 panelSize = ImVec2(360.f, 34.f);
+        const ImVec2 panelSize = ImVec2(370.f, 34.f);
         const ImVec2 panelMin = ImVec2(viewportMax.x - panelSize.x - 16.f, viewportMin.y + 16.f);
 
         return {
@@ -104,7 +104,7 @@ namespace Internal
 
     static OverlayRect Compute_PreviewViewportOverlayRect(const ImVec2& viewportMin, const ImVec2& viewportMax)
     {
-        const ImVec2 panelSize = ImVec2(352.f, 34.f);
+        const ImVec2 panelSize = ImVec2(370.f, 34.f);
         const ImVec2 panelMin = ImVec2(viewportMax.x - panelSize.x - 16.f, viewportMin.y + 58.f);
 
         return {
@@ -116,7 +116,7 @@ namespace Internal
     static OverlayRect Compute_DebugOptionOverlayRect(const ImVec2& viewportMin, const ImVec2& viewportMax)
     {
         const OverlayRect previewRect = Compute_PreviewViewportOverlayRect(viewportMin, viewportMax);
-        const ImVec2 panelSize = ImVec2(380.f, 34.f);
+        const ImVec2 panelSize = ImVec2(370.f, 34.f);
         const ImVec2 panelMin = ImVec2(previewRect.max.x - panelSize.x, previewRect.max.y + 8.f);
 
         return {
