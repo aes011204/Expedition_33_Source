@@ -30,6 +30,7 @@ public:
     bool Try_Consume_FreeAimWeakPoint() override;
     bool Try_ApplyBattleBreakOnDamage(const DamageAppliedInfo& info, bool canTriggerBreak) override;
     BattlePhase Get_CurPhase() const override;
+    bool Should_ApplySerializedPart(const wstring& partTag, const json& partObjectJson) const override;
 
 protected:
     HRESULT Ready_PartObjects();

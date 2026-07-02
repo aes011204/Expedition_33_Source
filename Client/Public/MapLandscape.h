@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include "Client_Defines.h"
 #include "GameObject.h"
 #include "PhysX_Handle.h"
@@ -32,6 +32,9 @@ public:
     MapLandscape(const ComPtr<Device>& device, const ComPtr<Context>& context);
     MapLandscape(const MapLandscape& prototype);
     virtual ~MapLandscape() = default;
+
+public:
+    void Set_UseLOD(bool useLOD) { _useLOD = useLOD; }
 
 public:
     virtual HRESULT Initialize_Prototype() override;
@@ -76,7 +79,9 @@ private:
     {1.f, 1.f, 1.f, 0},
     };
 
-    float _lodDist[2] = { 50.f, 150.f };
+    float _lodDist[2] = { 100.f, 200.f };
+
+    bool _useLOD = true;
 
 private:
     HRESULT Load_HMap(const wstring& hmapPath, const wstring& texRoot);
