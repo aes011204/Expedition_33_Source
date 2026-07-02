@@ -16,6 +16,7 @@
 namespace
 {
     constexpr uint32 kReactionConsumeKeyStride = 16;
+    constexpr float kAutoJumpCounterInputDelaySec = 0.08f;
 
     size_t ReactionIndex(BattleReactionType type)
     {
@@ -252,6 +253,7 @@ void BattleReactionController::NotifyJumpCounterWindowBegin(float worldTimeScale
 
     _jumpCounterState = JumpCounterState::CounterWindowOpen;
     OpenWindow(BattleReactionType::JumpCounter);
+    _reactionWindowElapsedSec[ReactionIndex(BattleReactionType::JumpCounter)] = 0.f;
     GAME->Set_WorldTimeScale(clamp(worldTimeScale, 0.01f, 1.f));
 }
 
@@ -616,7 +618,13 @@ BattleReactionController::BattleReactionInputResult BattleReactionController::Up
         !turnAction.Get_CurChar().statCom->Is_Player())
     {
         if (IsWindowOpen(BattleReactionType::JumpCounter))
-            return SubmitInput(BattleReactionType::JumpCounter, turnAction);
+        {
+            const size_t index = ReactionIndex(BattleReactionType::JumpCounter);
+            _reactionWindowElapsedSec[index] += max(0.f, GAME->Get_UnscaledTimeDelta());
+
+            if (_reactionWindowElapsedSec[index] >= kAutoJumpCounterInputDelaySec)
+                return SubmitInput(BattleReactionType::JumpCounter, turnAction);
+        }
 
         if (const ReactionInputContext* echoContext = Find_ActiveEchoReactionContext(BattleReactionType::Parry))
             return SubmitInput(*echoContext);
