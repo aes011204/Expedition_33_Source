@@ -56,6 +56,7 @@ void Level_Stage01::BeginPlay()
     CLIENT->Play_Effect(ParticlDesc);
 
     CLIENT->Capture_InitialWorldSnapshot();
+    CLIENT->Queue_LevelAnnounce(LevelType::Stage01);
 }
 
 void Level_Stage01::Update(float fTimeDelta)

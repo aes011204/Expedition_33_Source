@@ -1,6 +1,7 @@
 ﻿#pragma once
 
 #include "Base.h"
+#include "Client_Defines.h"
 #include "CharacterProgression_Panel.h"
 #include "GamePlayMenuFade.h"
 #include "GameplayUI_Types.h"
@@ -19,6 +20,7 @@ class UI_GetClothes;
 class UI_GetWeapon;
 class UI_GetPictos;
 class UI_GetChroma;
+class UI_LevelAnnounce;
 class UI_InteractionPrompt;
 
 class ChangeSkill_Panel;
@@ -53,6 +55,7 @@ public:
     bool    Request_MerchantShop();
     bool    Request_WeaponUpgrade();
     void    Queue_GetChromaPresentation(uint32 chromaAmount);
+    void    Queue_LevelAnnounce(LevelType levelType);
 
 private:
     void    Handle_SavePointAction(SavePoint_Panel::SavePointAction action);
@@ -74,11 +77,13 @@ private:
     void    Try_ShowPendingGetWeapon();
     void    Try_ShowPendingGetPictos();
     void    Try_ShowPendingGetChroma();
+    void    Try_ShowPendingLevelAnnounce(float timeDelta);
     bool    Is_GetCharacterOpen() const;
     bool    Is_GetClothesOpen() const;
     bool    Is_GetWeaponOpen() const;
     bool    Is_GetPictosOpen() const;
     bool    Is_GetChromaOpen() const;
+    bool    Is_LevelAnnounceOpen() const;
     bool    Is_GradientSkillPreviewTestOpen() const;
 
 private:
@@ -112,6 +117,7 @@ private:
     Unique<UI_GetWeapon>                _getWeaponPanel;
     Unique<UI_GetPictos>                _getPictosPanel;
     Unique<UI_GetChroma>                _getChromaPanel;
+    Unique<UI_LevelAnnounce>            _levelAnnouncePanel;
     Unique<UI_Replay>                   _replayPanel;
 
     Unique<UI_ArenaCharacterSelect>     _arenaCharacterSelectPanel;
@@ -126,6 +132,8 @@ private:
     GamePlayMenuFade                    _menuFade{};
     vector<string>                      _pendingGetPictosIds{};
     vector<uint32>                      _pendingGetChromaAmounts{};
+    LevelType                           _pendingLevelAnnounce = LevelType::END;
+    float                               _pendingLevelAnnounceDelay = 0.f;
 
 public:
     static Unique<GameplayUI_World> Create(uint32 levelIndex);

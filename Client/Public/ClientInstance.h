@@ -182,6 +182,7 @@ public: /* For.Gameplay UI */
     void    Play_BattleEnterTransition();
     void    Stop_BattleEnterTransition();
     bool    Is_BattleEnterTransitionPlaying() const;
+    void    Queue_LevelAnnounce(LevelType levelType);
 
 public: /* For.Fade Transition */
     bool Request_ScreenFadeTransition(const function<void()>& CoveredAction);
