@@ -5,6 +5,7 @@
 #include "Mon_WeakPoint.h"
 #include "MonsterStatCom.h"
 #include "EffectCom.h"
+#include "WeaponPrefabLoader.h"
 #include "ModelCom.h"
 
 IMPLEMENT_REFLECTION(MB_PotatoBag)
@@ -91,6 +92,10 @@ Monster_BattleBase::BattlePhase MB_PotatoBag::Get_CurPhase() const
     return BattlePhase::Opening;
 }
 
+bool MB_PotatoBag::Should_ApplySerializedPart(const wstring& partTag, const json& partObjectJson) const
+{
+    return partTag != TEXT("Part_Weapon");
+}
 bool MB_PotatoBag::Enter_NoShieldPhase()
 {
     if (_curPhase == NoShield)
@@ -138,16 +143,23 @@ HRESULT MB_PotatoBag::Ready_PartObjects()
     _body = dynamic_pointer_cast<Mon_PotatoBag_Body>(_partObjects[TEXT("Part_Body")]);
     CHECK_NULL(_body, E_FAIL);
 
+    WeaponPrefabLoader::LoadedWeaponPrefab loadedPrefab{};
+    if (!WeaponPrefabLoader::Load(Constants::Prefab::PotatoBag_Weapon, loadedPrefab, "Mon_PotatoBag_Weapon"))
+        return E_FAIL;
+
     Mon_PotatoBag_Weapon::WEAPON_DESC weaponDesc{};
     weaponDesc.parentMatrix = &_transformCom->Get_WorldMatrix();
-    weaponDesc.modelType = ModelType::NonAnim;
-    weaponDesc.modelTag = L"Model_PotatoBag_Weapon";
+    weaponDesc.modelType = loadedPrefab.modelType;
+    weaponDesc.modelTag = loadedPrefab.modelTag;
     weaponDesc.socketMatrix = _body->Get_SocketBoneMatrixPtr("Weapon_R");
 
+    CHECK_NULL(weaponDesc.socketMatrix, E_FAIL);
     CHECK_FAILED(Add_PartObject(ETOI(LevelType::Static), TEXT("GameObject_PotatoBag_Weapon"), TEXT("Part_Weapon"), &weaponDesc), E_FAIL);
 
     _weapon = dynamic_pointer_cast<Mon_PotatoBag_Weapon>(_partObjects[TEXT("Part_Weapon")]);
     CHECK_NULL(_weapon, E_FAIL);
+    _weapon->From_Json(loadedPrefab.rootJson);
+    _weapon->Set_SourcePrefabName(Constants::Prefab::PotatoBag_Weapon);
 
     Mon_PotatoBag_Shield::SHIELD_DESC shieldDesc{};
     shieldDesc.parentMatrix = &_transformCom->Get_WorldMatrix();

@@ -12,6 +12,7 @@
 #include "TargetCamera.h"
 #include "Trigger_Cinematic.h"
 #include "RuntimeRuleStateService.h"
+#include "MapLandscape.h"
 
 namespace
 {
@@ -102,6 +103,8 @@ HRESULT Level_GamePlay::Initialize()
 
     if (FAILED(Ready_Layer_AmbientVisibility(TEXT("Layer_BattleStartSpawner"))))
         return E_FAIL;
+
+    Disable_LandscapeLOD();
 
     // 안개, 빛 설정
     GAME->Set_RenderEnvironment(true);
@@ -527,6 +530,18 @@ HRESULT Level_GamePlay::Ready_Layer_Player(const wstring& strLayerTag)
 HRESULT Level_GamePlay::Ready_Layer_Effect(const wstring& strLayerTag)
 {
     return S_OK;
+}
+
+void Level_GamePlay::Disable_LandscapeLOD()
+{
+    GAME->Visit_LevelObjects(
+        ETOI(LevelType::GamePlay),
+        [](const wstring&, const Shared<GameObject>& gameObject)
+        {
+            const Shared<MapLandscape> landscape = dynamic_pointer_cast<MapLandscape>(gameObject);
+            if (landscape != nullptr)
+                landscape->Set_UseLOD(false);
+        });
 }
 
 Shared<Level_GamePlay> Level_GamePlay::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)

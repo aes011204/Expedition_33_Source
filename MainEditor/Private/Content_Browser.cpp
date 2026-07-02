@@ -118,6 +118,31 @@ static fs::path ResolvePrefabPortraitThumbnailPath(const fs::path& prefabPath)
     return portraitPath;
 }
 
+static string Resolve_DefaultPrefabNameForCreatePopup(
+    const string& className,
+    const string& displayName,
+    const wstring& targetFolderPath)
+{
+    const string loweredTargetFolder = String::ToLowerCopy(String::ToString(targetFolderPath));
+    const bool isWeaponFolder =
+        loweredTargetFolder.find("prefabs\\weapon") != string::npos ||
+        loweredTargetFolder.find("prefabs/weapons") != string::npos;
+
+    if (!isWeaponFolder)
+        return displayName;
+
+    if (className == "Mon_Simon_Weapon")
+        return "WP_Simon";
+    if (className == "Mon_Dualliste_Sword_L")
+        return "WP_Dualliste_Sword_L";
+    if (className == "Mon_Dualliste_Sword_R")
+        return "WP_Dualliste_Sword_R";
+    if (className == "Mon_PotatoBag_Weapon")
+        return "WP_PotatoBag";
+
+    return displayName;
+}
+
 static fs::path Resolve_ModelPath_FromAnimation(const fs::path& animPath)
 {
     const auto findModelInDirectory = [](const fs::path& directory, const string& preferredStem) -> fs::path
@@ -1020,7 +1045,12 @@ void Content_Browser::Draw_CreatePrefabPopup()
         if (ImGui::Selectable(entry.displayName.c_str(), isSelected))
         {
             _selectedPrefabClass = entry.className;
-            strcpy_s(_createPrefabNameBuffer, entry.displayName.c_str());
+            const string defaultPrefabName =
+                Resolve_DefaultPrefabNameForCreatePopup(
+                    entry.className,
+                    entry.displayName,
+                    _createPrefabTargetFolder);
+            strcpy_s(_createPrefabNameBuffer, defaultPrefabName.c_str());
         }
     }
 
