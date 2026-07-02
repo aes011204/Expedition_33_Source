@@ -105,14 +105,8 @@ void ChooseAction::Update(float timeDelta)
             return;
         }
 
-        // 스킬은 해금돼있어도 게이지 없으면 사용 X
-        if (!owner->Get_TurnActionRequest().actor.statCom->Can_UseGradientGauge())
-        {
-            LOG_INFO("ChooseAction: gradient gauge is empty");
-            return;
-        }
-
-        // 스킬도 있고 게이지도 있으면 선택 상태로 진입
+        // Let the Gradient menu open even when the skill cannot be confirmed yet.
+        // ChooseGradient keeps the final use gate so the card can show its disabled state.
         owner->Get_TurnActionRequest().type = EBattleContext::Skill;
         battleFSM->Change_State(BattleTurnState::ChooseGradient);
 

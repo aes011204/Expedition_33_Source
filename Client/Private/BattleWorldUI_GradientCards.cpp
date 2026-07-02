@@ -148,6 +148,7 @@ namespace
         BattleWorldSurfaceAnimState introAnim{};
         Vec3 introStartOffset = Vec3::Zero;
         bool visible = false;
+        bool dimmed = false;
         bool dirty = true;
     };
 
@@ -1733,6 +1734,7 @@ void BattleWorldUI_GradientCards::Show_ForBattleState(
     const Vec3& anchorWorldPos,
     BattleTurnState currentState,
     HeroId actorHeroId,
+    bool dimmed,
     float timeDelta)
 {
     ENGINE_PROFILE_SCOPE_DETAIL("BattleWorldUI.Gradient.Show");
@@ -1764,6 +1766,7 @@ void BattleWorldUI_GradientCards::Show_ForBattleState(
     for (auto& panel : _impl->panels)
     {
         panel.visible = false;
+        panel.dimmed = false;
         Advance_BattleWorldSurfaceAnim(panel.introAnim, timeDelta);
     }
 
@@ -1807,6 +1810,7 @@ void BattleWorldUI_GradientCards::Show_ForBattleState(
         Resolve_CameraFacingYawRotation(position) *
         Matrix::CreateTranslation(position.x, position.y, position.z);
     panel.visible = true;
+    panel.dimmed = dimmed;
 
     Set_Visible(true);
 }
@@ -1934,13 +1938,12 @@ HRESULT BattleWorldUI_GradientCards::Render()
     if (!Is_Visible() || _impl == nullptr || _impl->shader == nullptr || _impl->viBuffer == nullptr)
         return S_OK;
 
-    const Vec4 color = Vec4(1.f, 1.f, 1.f, 1.f);
-
     for (const auto& panel : _impl->panels)
     {
         if (!panel.visible || panel.surface == nullptr)
             continue;
 
+        const Vec4 color = panel.dimmed ? Vec4(0.65f, 0.65f, 0.65f, 1.f) : Vec4(1.f, 1.f, 1.f, 1.f);
         const BattleWorldSurfaceAnimRenderState renderState =
             Apply_BattleWorldSurfaceAnim(panel.introAnim, panel.worldMatrix, color, panel.introStartOffset);
         CHECK_FAILED(Bind_WorldUIPlaneShaderState(_impl->shader.get(), renderState.worldMatrix, renderState.color), E_FAIL);

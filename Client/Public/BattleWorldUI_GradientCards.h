@@ -18,6 +18,7 @@ public:
         const Vec3& anchorWorldPos,
         BattleTurnState currentState,
         HeroId actorHeroId,
+        bool dimmed,
         float timeDelta);
     HRESULT Warmup_ForBattleState(HeroId actorHeroId);
     void    Hide();

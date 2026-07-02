@@ -142,6 +142,8 @@ public:
     // void Handle_TargetPreviewChanged(const BattleChar* target);
     HRESULT Ready_Delegates();
 
+    void Handle_InfiniteAp();
+
 private:
     void Handle_BattlePresentationEvent(const EvtBattlePresentation& event);
     void Sync_SkillPresentationHeroVisibility(
@@ -336,6 +338,8 @@ private:
     bool _isBattleEntering = { false };
     bool _hasRequestedBattleEnterCamera = false;
     bool _autoParryEnabled = false;
+
+    bool _debugInfinitePlayerAPEnabled = false;
 
     int currentTurnIndex = {};
 

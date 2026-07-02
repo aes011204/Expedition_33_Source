@@ -382,7 +382,7 @@ HRESULT UI_Image::Render()
         if (FAILED(_shader->Bind_RawValue("g_MaterialVfxHasNoise", &materialHasNoise, sizeof(float))))
             return E_FAIL;
 
-        passIndex = 7u;
+        passIndex = _useFillRatio ? 9u : 7u;
     }
     else if (_imageRenderMode == ImageRenderMode::ButtonSheen)
     {

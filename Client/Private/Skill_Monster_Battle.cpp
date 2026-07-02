@@ -97,7 +97,7 @@ void Base_Mon_Attack::Execute(const Skill_Data& skill, const BattleAction& actio
     const BattleChar& attacker = action.Get_CurChar();
     const float damage = DamageSystem::CalculatePlayerAttackDamage(attacker, skill.powerMultiplier);
 
-    DamageSystem::ApplyDamage(damage, action.GetCurStepTarget(), attackType);
+    DamageSystem::ApplyDamage(damage, attacker, action.GetCurStepTarget(), attackType);
 
     CurIndex++;
 }
@@ -130,7 +130,7 @@ void Base_Mon_Attack_Projectile::Execute(const Skill_Data& skill, const BattleAc
     const BattleChar& attacker = action.Get_CurChar();
     const float damage = DamageSystem::CalculatePlayerAttackDamage(attacker, skill.powerMultiplier);
 
-    DamageSystem::ApplyDamage(damage, action.GetCurStepTarget(), attackType);
+    DamageSystem::ApplyDamage(damage, attacker, action.GetCurStepTarget(), attackType);
 
     const auto& curTargets = action.GetCurStepTarget();
     if (!curTargets.empty() && curTargets.front().actor != nullptr)
@@ -172,7 +172,7 @@ void Bishop_Spear::Execute(const Skill_Data& skill, const BattleAction& action, 
     const BattleChar& attacker = action.Get_CurChar();
     const float damage = DamageSystem::CalculatePlayerAttackDamage(attacker, skill.powerMultiplier);
 
-    DamageSystem::ApplyDamage(damage, action.GetCurStepTarget(), attackType);
+    DamageSystem::ApplyDamage(damage, attacker, action.GetCurStepTarget(), attackType);
 
     const auto& curTargets = action.GetCurStepTarget();
     if (!curTargets.empty() && curTargets.front().actor != nullptr)
@@ -302,7 +302,7 @@ void Simon_Combo::Execute(const Skill_Data& skill, const BattleAction& action, A
     const BattleChar& attacker = action.Get_CurChar();
     const float damage = DamageSystem::CalculatePlayerAttackDamage(attacker, skill.powerMultiplier);
 
-    DamageSystem::ApplyDamage(damage, action.GetCurStepTarget(), attackType);
+    DamageSystem::ApplyDamage(damage, attacker, action.GetCurStepTarget(), attackType);
 
     CurIndex++;
 }

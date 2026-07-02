@@ -128,6 +128,9 @@ void BattleController::Update(float timeDelta)
     if (!Should_UpdateRuntime())
         return;
 
+    // 8번 누르면 AP 무한
+    Handle_InfiniteAp();
+
     if (Update_BattleTutorialGate(timeDelta))
         return;
 
@@ -1498,6 +1501,32 @@ HRESULT BattleController::Ready_Delegates()
     return S_OK;
 }
 
+void BattleController::Handle_InfiniteAp()
+{
+    if (_isBattleActive && !_battleEnded)
+    {
+        if (GAME->KeyDown(KEY_TYPE::KEY_8))
+            _debugInfinitePlayerAPEnabled = !_debugInfinitePlayerAPEnabled;
+
+        if (_debugInfinitePlayerAPEnabled)
+        {
+            for (const BattleChar& hero : _heroes)
+            {
+                if (hero.statCom == nullptr || !hero.statCom->Is_Player())
+                    continue;
+
+                const uint32 beforeAp = hero.statCom->Get_CurAP();
+
+                hero.statCom->Set_CurAp(9);
+
+                const uint32 afterAp = hero.statCom->Get_CurAP();
+                if (afterAp > beforeAp)
+                    OnBattleApChanged.Broadcast(hero, afterAp - beforeAp, EAPChangeReason::Debug);
+            }
+        }
+    }
+}
+
 void BattleController::Handle_BattlePresentationEvent(const EvtBattlePresentation& event)
 {
     if (!_isBattleActive || _battleEnded)
@@ -2806,7 +2835,33 @@ void BattleController::Handle_DamageApplied(const DamageAppliedInfo& info)
         _reactionController.Notify_TargetDamaged(info.target);
 
         if (!enteredBreak)
+        {
+            if (info.target.statCom != nullptr &&
+                info.target.statCom->Is_Player() &&
+                info.attacker.actor != nullptr &&
+                info.attacker.actor != info.target.actor)
+            {
+                const Shared<TransformCom> attackerTransform = info.attacker.actor->Get_Transform();
+                const Shared<TransformCom> targetTransform = info.target.actor->Get_Transform();
+
+                if (attackerTransform != nullptr && targetTransform != nullptr)
+                {
+                    Vec3 dir = attackerTransform->Get_Position() - targetTransform->Get_Position();
+                    dir.y = 0.f;
+
+                    if (dir.LengthSquared() > 0.0001f)
+                    {
+                        dir.Normalize();
+
+                        Vec3 rot = targetTransform->Get_RotationEuler();
+                        rot.y = XMConvertToDegrees(atan2f(dir.x, dir.z));
+                        targetTransform->Set_RotationEuler(rot);
+                    }
+                }
+            }
+
             HitAction(info.target, info.attackType, info.isCritical);
+        }
     }
 
     if (info.damage > 0.f &&
@@ -3321,6 +3376,7 @@ void BattleController::Clear_BattleRuntimeState()
     _nextTurnEntrySeq = 0;
     _flag = false;
     _isActionExecuting = false;
+    _debugInfinitePlayerAPEnabled = false;
     _hitSequenceRunner.Clear();
 
     if (_pictosBattleSystem)
