@@ -193,15 +193,10 @@ vector<BattleChar> Resolve_EffectBattleTargets(
 
     if (isAllEnemiesStep)
     {
-        if (includeDeadTargetsOnAllEnemies)
-        {
-            if (turnAction.Get_CurChar().statCom && turnAction.Get_CurChar().statCom->Is_Player())
-                return battle->Get_BattleEnemies();
+        if (turnAction.Get_CurChar().statCom && turnAction.Get_CurChar().statCom->Is_Player())
+            return battle->Get_BattleEnemies();
 
-            return battle->Get_BattleHeroes();
-        }
-
-        return turnAction.GetCurStepTarget();
+        return battle->Get_BattleHeroes();
     }
 
     vector<BattleChar> resolvedTargets{};
@@ -397,8 +392,8 @@ void AN_PlayEffectBattleDir::Execute(const AnimNotifyContext& context)
             continue;
 
         EffectCom::EffectPlayDesc perTargetDesc = desc;
-        EffectCom::EffectPlayDesc perTargetBattleDesc = desc;
-        Apply_BattleTargetFacingIfNeeded(context, desc, perTargetBattleDesc, _usePitch, &target);
+        EffectCom::EffectPlayDesc perTargetBattleDesc = perTargetDesc;
+        Apply_BattleTargetFacingIfNeeded(context, perTargetDesc, perTargetBattleDesc, _usePitch, &target);
 
         if (_useBattleTargetYawOnly)
         {
