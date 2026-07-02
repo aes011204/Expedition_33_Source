@@ -39,6 +39,7 @@ private:
     void Set_ActiveStyle(DamageFontStyle style);
     void Set_DamageText(int32 damageValue);
     bool Apply_DamageFontTuning();
+    Vec2 Resolve_ScreenBaseOffset(const Vec3& worldPos) const override;
 
 private:
     Shared<UI_Base> _normalRoot{};
@@ -58,11 +59,15 @@ private:
     float _damageLifeTime = 1.05f;
     float _damageRiseDistance = 72.f;
 
-    float _damageStackHorizontalOffset = 42.f;
+    float _damageStackHorizontalOffset = 76.f;
     float _damageStackVerticalOffset = 22.f;
 
     Vec3 _damageWorldAnchorOffset = Vec3(0.f, 0.f, 0.f);
-    Vec2 _damageScreenBaseOffset = Vec2(-24.f, -10.f);
+    Vec2 _damageScreenBaseOffset = Vec2(0.f, -36.f);
+    Vec2 _damageFarScreenBaseOffset = Vec2(0.f, -12.f);
+    Vec2 _damageScreenClampPadding = Vec2(120.f, 90.f);
+    float _damageScreenOffsetCloseDistance = 5.f;
+    float _damageScreenOffsetFarDistance = 14.f;
 
     float _damageWorldAnchorRandomMinY = -0.12f;
     float _damageWorldAnchorRandomMaxY = 0.18f;

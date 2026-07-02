@@ -33,6 +33,7 @@ public:
     bool Should_FacePlayerOnDialogueStart() const { return _facePlayerOnDialogueStart; }
     bool Uses_InteractionTrigger() const { return _useInteractionTrigger; }
     bool Is_FightVisible() const { return _fightVisible; }
+    void Remove_InteractionTrigger();
 
     void Set_PatrolPoints(vector<Vec3> patrolPoints) { _PatrolPoints = std::move(patrolPoints); }
     const vector<Vec3>& Get_PatrolPoints() const { return _PatrolPoints; }

@@ -63,6 +63,8 @@ public:
     HRESULT Bind_ShadowCB(Shared<ShaderCom> shader);
     ShadowCB Build_ShadowCB() const;
     HRESULT Set_ActiveCascade(uint32 cascadeIndex);
+    HRESULT Commit_RenderedCascade(uint32 cascadeIndex);
+    bool    Consume_ForceRenderAllCascades();
 
     void    Clear();
 
@@ -96,9 +98,14 @@ private:
     Matrix          _projMatrix = Matrix::Identity;
     Matrix          _cascadeViewMatrices[CascadeCount]{};
     Matrix          _cascadeProjMatrices[CascadeCount]{};
+    Matrix          _renderedCascadeViewMatrices[CascadeCount]{};
+    Matrix          _renderedCascadeProjMatrices[CascadeCount]{};
     ShadowCascadeInfluenceVolume _cascadeInfluenceVolumes[CascadeCount]{};
     float           _cascadeSplits[CascadeCount]{};
+    float           _renderedCascadeSplits[CascadeCount]{};
     ShadowCascadeDebugInfo _cascadeDebugInfos[CascadeCount]{};
+    bool            _hasRenderedCascade[CascadeCount]{};
+    bool            _forceRenderAllCascades = true;
     uint32          _activeCascadeIndex = 0;
 };
 

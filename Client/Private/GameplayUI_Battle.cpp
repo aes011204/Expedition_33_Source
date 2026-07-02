@@ -1183,8 +1183,16 @@ void GameplayUI_Battle::Handle_BattleApChanged(const BattleChar& actor, uint32 a
     if (!_isBattleUiActive)
         return;
 
-    // 패링, 턴 스타트, 평타
-    if (reason != EAPChangeReason::Parry && reason != EAPChangeReason::TurnStart && reason != EAPChangeReason::BaseAttack)
+    const bool shouldShowAddAp =
+        reason == EAPChangeReason::Parry ||
+        reason == EAPChangeReason::TurnStart ||
+        reason == EAPChangeReason::BaseAttack;
+
+    const bool shouldRefreshHud =
+        shouldShowAddAp ||
+        reason == EAPChangeReason::Debug;
+
+    if (!shouldRefreshHud)
         return;
 
     if (amount == 0)
@@ -1211,6 +1219,9 @@ void GameplayUI_Battle::Handle_BattleApChanged(const BattleChar& actor, uint32 a
                 actor.statCom->Get_MaxAP());
         }
     }
+
+    if (!shouldShowAddAp)
+        return;
 
     UI_AddAP* selectedSlot = nullptr;
     UI_AddAP* oldestSlot = nullptr;
@@ -2500,7 +2511,16 @@ void GameplayUI_Battle::Update_BattleWorldGradientCards(
     if (FAILED(Ensure_BattleWorldGradientCards()))
         return;
 
-    _battleWorldGradientCards->Show_ForBattleState(worldPos, currentState, actor.heroId, timeDelta);
+    bool dimmed = !actor.statCom->Can_UseGradientGauge();
+    string gradientSkillKey{};
+    if (actor.statCom->Try_GetSkillKeyBySlot(GradientSkill::SlotIndex, gradientSkillKey))
+    {
+        const Skill_Data* skill = CLIENT->Get_Skill(gradientSkillKey);
+        const uint32 apCost = skill != nullptr && skill->apCost > 0 ? static_cast<uint32>(skill->apCost) : 0u;
+        dimmed = dimmed || actor.statCom->Get_CurAP() < apCost;
+    }
+
+    _battleWorldGradientCards->Show_ForBattleState(worldPos, currentState, actor.heroId, dimmed, timeDelta);
     _battleWorldGradientCards->Late_Update(0.f);
 }
 

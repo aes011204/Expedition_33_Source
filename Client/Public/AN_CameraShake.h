@@ -2,6 +2,7 @@
 #include "AnimNotify.h"
 
 NS_BEGIN(Client)
+
 class AN_CameraShake : public AnimNotify
 {
     GENERATED_ANIM_NOTIFY(AN_CameraShake)

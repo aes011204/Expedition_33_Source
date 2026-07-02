@@ -233,7 +233,6 @@ public:
     BattleCameraClip* Get_MutableClip(BattleCameraMode cameraMode);
     void Reset_ClipPlaybackState();
 
-
 private:
     BattleCameraClipSample   Advance_ActiveClip(float timeDelta, const BattleShotRequest& request);
 

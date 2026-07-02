@@ -31,6 +31,7 @@ namespace
 
     // 픽토스
     constexpr char kPictosRoulette[] = "Roulette";
+    constexpr char kPictosGlassCannon[] = "GlassCannon";
 
     constexpr const char* kBishopRewardPortalPrefab = Constants::Prefab::Portal_BishopReward;
     constexpr const wchar_t* kBishopRewardPortalLayer = L"Layer_Puzzle";
@@ -192,7 +193,14 @@ void Unlock_Manager::Register_DefaultRules()
     }
     // TODO : 쌍검투사 -> 그래디언트 열기
     {
+        UnlockRule rule{};
+        rule.ruleId = kRuleKillDuallisteUnlockSkill;
+        rule.triggerType = TriggerType::EnemyKilled;
+        rule.triggerKey = kEnemyDualliste;
 
+        rule.rewards.emplace_back(Make_PictosReward(kPictosGlassCannon));
+
+        _rules.emplace_back(std::move(rule));
     }
 
     // 비숍 죽이고 포탈 생성 + 룰렛 픽토스 해금

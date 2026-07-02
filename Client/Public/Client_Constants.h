@@ -447,6 +447,8 @@ namespace Client::Constants::Prefab
 
     inline constexpr wchar_t VictorialFlag_Dir[] = L"Data/json/Prefabs/ETC/VictoriaFlag";
 
+    inline constexpr char Item_Pictos_WarmingUp[] = "Item_Pictos_WarmingUp";
+
 #pragma region 플레이어
     // 월드
     inline constexpr char PW_Gustave[]  = "PW_Gustave";
@@ -520,6 +522,7 @@ namespace Client::Constants::Prefab
     inline constexpr char Dualliste_Sword_L[]        = "WP_Dualliste_Sword_L";
     inline constexpr char Dualliste_Sword_R[]        = "WP_Dualliste_Sword_R";
 
+    inline constexpr char PotatoBag_Weapon[] = "WP_PotatoBag";
 
 #pragma endregion
 

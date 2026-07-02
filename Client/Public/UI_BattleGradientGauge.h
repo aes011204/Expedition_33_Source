@@ -31,8 +31,11 @@ private:
 
 private:
     array<Shared<UI_Image>, GradientSkill::MaxGaugeStacks> _stackImages{};
+    array<float, GradientSkill::MaxGaugeStacks> _startFillRatios{};
     array<float, GradientSkill::MaxGaugeStacks> _visualFillRatios{};
     array<float, GradientSkill::MaxGaugeStacks> _targetFillRatios{};
+    float _fillEaseElapsedSec = 0.f;
+    uint32 _lastGaugeStack = GradientSkill::MaxGaugeStacks + 1;
     Shared<UI_Text> _currentCountText{};
     Shared<UI_Text> _currentCountBgText{};
     Shared<UI_Text> _maxCountText{};
