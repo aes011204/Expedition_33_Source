@@ -61,6 +61,17 @@ namespace
         Vec3(114.97f, -3.23f, -1.60f),
         Vec3(109.85f, -3.23f, 0.82f),
     };
+
+    constexpr Vec3 kSymbolLightPosition[] = {
+        Vec3(9.53f, 10.14f, 104.55f),
+        Vec3(11.87f, 10.23f, 99.53f),
+        Vec3(12.9f, 10.53f, 93.59f),
+        Vec3(10.28f, 10.58f, 87.98f),
+        Vec3(-5.59f, 8.9f, 86.44f),
+        Vec3(-7.37f, 8.9f, 91.5f),
+        Vec3(-7.65f, 8.82f, 96.49f),
+        Vec3(-6.46f, 8.9f, 101.09f)
+    };
 }
 
 Level_GestralVillage::Level_GestralVillage(const ComPtr<Device>& device, const ComPtr<Context>& context)
@@ -125,6 +136,12 @@ void Level_GestralVillage::BeginPlay()
     desc.scale = Vec3(1.f, 1.f, 1.f);
 
     for (const auto& pos : kCasinoLightPositions)
+    {
+        desc.worldPosition = pos;
+        CLIENT->Play_Effect(desc);
+    }
+
+    for (const auto& pos : kSymbolLightPosition)
     {
         desc.worldPosition = pos;
         CLIENT->Play_Effect(desc);
@@ -322,7 +339,7 @@ HRESULT Level_GestralVillage::Ready_Layer_BackGround(const wstring& strLayerTag)
 
 HRESULT Level_GestralVillage::Ready_Layer_Player(const wstring& strLayerTag)
 {
-    Vec3 startPos = Vec3(-2.64f, -6.63f, 188.43f);
+    Vec3 startPos = Vec3(-2.f, -5.46f, 183.54f);
     Vec3 startRot = Vec3(0.f, -173.f, 0.f);
 
     CHECK_FAILED(CLIENT->Initialize_Hero(ETOI(LevelType::GestralVillage), strLayerTag, startPos, startRot), E_FAIL);
