@@ -70,7 +70,7 @@ class InitialLocationModuleDetail
 {
 public:
     bool Draw(
-        AuthoringEmitter& emitter,
+        const AuthoringEmitter& emitter,
         AuthoringModule& module,
         InitialLocationModuleData& data,
         DetailPropertyContext& detailContext);
@@ -191,8 +191,8 @@ class VelocityOverLifeModuleDetail
 {
 public:
     bool Draw(
-        AuthoringEmitter& emitter,
-        AuthoringModule& module,
+        const AuthoringEmitter& emitter,
+        const AuthoringModule& module,
         VelocityOverLifeModuleData& data,
         DetailPropertyContext& detailContext);
 };
@@ -334,7 +334,7 @@ class MeshDirectionAlignOverLifeModuleDetail
 {
 public:
     bool Draw(
-        AuthoringEmitter& emitter,
+        const AuthoringEmitter& emitter,
         AuthoringModule& module,
         MeshDirectionAlignOverLifeModuleData& data,
         DetailPropertyContext& detailContext);

@@ -699,12 +699,11 @@ void ComputeTrailEmitter::Update_History(float timeDelta)
         Insert_TrailSamplesForFrame(trailSample);
     }
 
-    if (!sampleAccepted && (provider == nullptr || !_history.empty() || _drawSegmentCount > 0))
+    if (!sampleAccepted && provider == nullptr)
     {
         LOG_WARN_THROTTLED(
             120,
-            "ComputeTrailEmitter failed to acquire trail sample. providerBound={}, history={}, drawSegments={}. Enable Trail Preview and verify preview weapon visibility.",
-            provider != nullptr,
+            "ComputeTrailEmitter has no trail sample provider. history={}, drawSegments={}. Enable Trail Preview and verify preview weapon visibility.",
             static_cast<uint32>(_history.size()),
             _drawSegmentCount
         );

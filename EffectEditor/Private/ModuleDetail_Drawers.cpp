@@ -1433,7 +1433,7 @@ namespace Internal
             bool enabled = (mask & channelMask) != 0u;
             if (ImGui::Checkbox(Get_VelocityOverLifeApplyChannelLabel(channel), &enabled))
             {
-                const uint32 nextMask = enabled ? (mask | channelMask) : (mask & ~channelMask);
+                const uint32 nextMask = enabled ? mask | channelMask : mask & ~channelMask;
                 if (nextMask != 0u)
                 {
                     mask = nextMask;
@@ -3113,7 +3113,7 @@ bool InitialMeshSizeModuleDetail::Draw(AuthoringEmitter&, AuthoringModule&, Init
     return changed;
 }
 
-bool InitialLocationModuleDetail::Draw(AuthoringEmitter& emitter, AuthoringModule&, InitialLocationModuleData& data, DetailPropertyContext& detailContext)
+bool InitialLocationModuleDetail::Draw(const AuthoringEmitter& emitter, AuthoringModule&, InitialLocationModuleData& data, DetailPropertyContext& detailContext)
 {
     const InitialLocationModuleData defaultData{};
     bool changed = false;
@@ -3130,8 +3130,8 @@ bool InitialLocationModuleDetail::Draw(AuthoringEmitter& emitter, AuthoringModul
             true,
             nullptr,
             isRibbon
-                ? "Ribbon이 source history Head에 더하는 emitter local offset입니다."
-                : "spawn 시점에 한 번 샘플되는 emitter origin 기준 local offset입니다."
+            ? "Ribbon이 source history Head에 더하는 emitter local offset입니다."
+            : "spawn 시점에 한 번 샘플되는 emitter origin 기준 local offset입니다."
         );
     }
 
@@ -3788,7 +3788,7 @@ bool DragModuleDetail::Draw(AuthoringEmitter&, const AuthoringModule& module, Dr
     return changed;
 }
 
-bool VelocityOverLifeModuleDetail::Draw(AuthoringEmitter& emitter, AuthoringModule& module, VelocityOverLifeModuleData& data, DetailPropertyContext& detailContext)
+bool VelocityOverLifeModuleDetail::Draw(const AuthoringEmitter& emitter, const AuthoringModule& module, VelocityOverLifeModuleData& data, DetailPropertyContext& detailContext)
 {
     const VelocityOverLifeModuleData defaultData{};
     bool changed = false;
@@ -4255,7 +4255,7 @@ bool MeshRotationOverLifeModuleDetail::Draw(
 }
 
 bool MeshDirectionAlignOverLifeModuleDetail::Draw(
-    AuthoringEmitter& emitter,
+    const AuthoringEmitter& emitter,
     AuthoringModule&,
     MeshDirectionAlignOverLifeModuleData& data,
     DetailPropertyContext& detailContext)
@@ -4276,8 +4276,8 @@ bool MeshDirectionAlignOverLifeModuleDetail::Draw(
                 0.01f,
                 nullptr,
                 data.targetMode == MeshDirectionAlignTargetMode::Point
-                    ? "Point 방식에서는 이 값을 target 위치로 해석합니다."
-                    : "Direction 방식에서는 이 값을 바라볼 방향 벡터로 해석합니다."
+                ? "Point 방식에서는 이 값을 target 위치로 해석합니다."
+                : "Direction 방식에서는 이 값을 바라볼 방향 벡터로 해석합니다."
             );
             changed |= Internal::Draw_PlaneRadialOrientationAxisProperty(
                 detailContext,
@@ -4330,9 +4330,7 @@ bool MeshDirectionAlignOverLifeModuleDetail::Draw(
         if (Internal::Has_EnabledModule(emitter, AuthoringModuleType::MeshRotationOverLife) ||
             Internal::Has_EnabledModule(emitter, AuthoringModuleType::InitialMeshRotationRate) ||
             Internal::Has_EnabledModule(emitter, AuthoringModuleType::MeshRotationRateScaleByLife))
-        {
             ImGui::TextDisabled("기존 메시 회전 모듈은 weight가 낮은 구간에서 함께 보이고, weight가 높아질수록 target 방향에 흡수됩니다.");
-        }
     }
 
     return changed;
