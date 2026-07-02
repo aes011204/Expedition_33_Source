@@ -3740,7 +3740,9 @@ bool BattleController::Try_BeginTurnStartStatusAnnounce()
                 : BattleCameraMode::ENEMYFOCUS;
             event.subject = _currentTurnActor.actor;
 
-            if (!_currentTurnActor.statCom->Is_Player())
+            if (_currentTurnActor.statCom->Is_Player())
+                event.presetId = magic_enum::enum_name(_currentTurnActor.heroId);
+            else
                 event.presetId = _currentTurnActor.actor->Get_SourcePrefabName();
 
             GAME->Get_EventBus().Publish(event);
@@ -3851,6 +3853,7 @@ void BattleController::Continue_StartTurnAfterStatusEffects()
         EvtBattlePresentation event{};
         event.cameraMode = BattleCameraMode::PLAYERFOCUS;
         event.subject = _currentTurnActor.actor;
+        event.presetId = magic_enum::enum_name(_currentTurnActor.heroId);
         LOG_INFO("[BattleCamTrace] Publish PLAYERFOCUS from BattleController::Continue_StartTurnAfterStatusEffects");
         GAME->Get_EventBus().Publish(event);
 
