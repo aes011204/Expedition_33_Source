@@ -1218,6 +1218,17 @@ void Detail_View::Render_ParticleSystemDetail(
         }
         if (EDITOR != nullptr)
         {
+            bool defaultSkyboxEnabled = EDITOR->Is_DefaultSkyboxEnabled();
+            if (_detailPropertyContext.Draw_BoolProperty(
+                "Skybox",
+                defaultSkyboxEnabled,
+                true,
+                "에디터 프리뷰 전용 배경 모드입니다. effect asset에는 저장되지 않습니다."
+            ))
+                EDITOR->Set_DefaultSkyboxEnabled(defaultSkyboxEnabled);
+        }
+        if (EDITOR != nullptr)
+        {
             bool previewPlaneVisible = EDITOR->Is_PreviewPlaneVisible();
             if (_detailPropertyContext.Draw_BoolProperty(
                 "Preview Plane",

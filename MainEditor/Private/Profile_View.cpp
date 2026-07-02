@@ -6,6 +6,7 @@
 #include "EffectInstancePool.h"
 #include "Helper_String.h"
 #include "Renderer_Define.h"
+#include "Camera.h"
 
 #include <cctype>
 #include <cstring>
@@ -248,6 +249,8 @@ void Profile_View::Render()
         _isFocused = ImGui::IsWindowFocused(ImGuiFocusedFlags_ChildWindows);
         _isHovered = ImGui::IsWindowHovered(ImGuiHoveredFlags_ChildWindows);
 
+        Draw_Camera_Debug();
+        ImGui::Separator();
         Draw_Toolbar();
         ImGui::Separator();
         Draw_Frame_Info();
@@ -431,6 +434,59 @@ void Profile_View::Set_RenderCallCount_External(uint32 renderCallCount)
     s_active->_renderCallCount = renderCallCount;
 }
 
+void Profile_View::Draw_Camera_Debug()
+{
+    ImGui::TextUnformatted("Camera Debug");
+
+    const Shared<Engine::Camera> camera = GAME->Get_ActiveCamera();
+
+    if (camera)
+    {
+        ImGui::Text("Current Far: %.1f", camera->Get_Far());
+    }
+    else
+    {
+        ImGui::TextDisabled("No active camera");
+    }
+
+    ImGui::Checkbox("Override Far Plane", &_cameraFarOverrideEnabled);
+
+    if (_cameraFarOverrideEnabled)
+    {
+        ImGui::SetNextItemWidth(200.f);
+        if (ImGui::DragFloat("Far##CameraFar", &_cameraFarOverride, 1.f, 1.f, 2000.f, "%.1f"))
+        {
+            if (camera)
+            {
+                camera->Set_Far(_cameraFarOverride);
+            }
+        }
+    }
+
+    ImGui::Separator();
+    ImGui::TextUnformatted("Instanced Shadow Cache");
+
+    const bool cacheEnabled = GAME->Is_UseInstancedShadowCache();
+    const bool hasBake = GAME->Has_InstancedShadowCache();
+
+    bool cacheToggle = cacheEnabled;
+    if (ImGui::Checkbox("Cache Instanced Shadow##ShadowCache", &cacheToggle))
+    {
+        GAME->Set_UseInstancedShadowCache(cacheToggle);
+    }
+
+    ImGui::SameLine();
+    ImGui::TextDisabled(hasBake ? "(baked)" : "(not baked)");
+
+    if (cacheEnabled)
+    {
+        if (ImGui::Button("Rebake##ShadowRebake"))
+        {
+            GAME->Request_BakeCachedInstancedShadow();
+        }
+    }
+}
+
 void Profile_View::Draw_Toolbar()
 {
     if (ImGui::Checkbox("Capture", &_capture))
@@ -492,6 +548,10 @@ void Profile_View::Draw_Render_Isolation()
     bool disableDynamicShadowPass = Client::ClientInstance::Is_DebugDisableDynamicShadowRenderPass();
     if (ImGui::Checkbox("Disable Dynamic Shadow Render Pass", &disableDynamicShadowPass))
         Client::ClientInstance::Set_DebugDisableDynamicShadowRenderPass(disableDynamicShadowPass);
+
+    bool temporalShadowCascadeUpdate = GAME->Is_DynamicShadowCascadeTemporalUpdateEnabled();
+    if (ImGui::Checkbox("Use Dynamic Shadow Cascade Temporal Update (Default)", &temporalShadowCascadeUpdate))
+        GAME->Set_DynamicShadowCascadeTemporalUpdateEnabled(temporalShadowCascadeUpdate);
 
     bool disableMapInstanced = Client::ClientInstance::Is_DebugDisableMapInstancedMeshRender();
     if (ImGui::Checkbox("Disable MapInstancedMesh", &disableMapInstanced))

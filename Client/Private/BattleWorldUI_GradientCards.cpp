@@ -1,6 +1,7 @@
 #include "BattleWorldUI_GradientCards.h"
 
 #include "BattleWorldUI_JsonTextureResolver.h"
+#include "BattleWorldUI_LevelPlacement.h"
 #include "BattleWorldUI_PlacementUtils.h"
 #include "BattleWorldUI_SurfaceAnim.h"
 #include "Camera.h"
@@ -148,6 +149,7 @@ namespace
         BattleWorldSurfaceAnimState introAnim{};
         Vec3 introStartOffset = Vec3::Zero;
         bool visible = false;
+        bool dimmed = false;
         bool dirty = true;
     };
 
@@ -298,6 +300,21 @@ namespace
             tunings[heroIndex] = Make_DefaultGradientWorldPlacementTuning(static_cast<HeroId>(heroIndex));
 
         return tunings;
+    }
+
+    using BattleWorldGradientWorldPlacementLevelTunings =
+        array<
+            array<BattleWorldGradientWorldPlacementTuning, kBattleWorldGradientPlacementHeroCount>,
+            BattleWorldUILevelPlacement::kLevelCount>;
+
+    BattleWorldGradientWorldPlacementLevelTunings Make_DefaultGradientWorldPlacementLevelTunings()
+    {
+        BattleWorldGradientWorldPlacementLevelTunings levelTunings{};
+        const auto defaultTunings = Make_DefaultGradientWorldPlacementTunings();
+        for (auto& levelTuning : levelTunings)
+            levelTuning = defaultTunings;
+
+        return levelTunings;
     }
 
     string Read_JsonString(const json& node, const char* key, const string& fallback = {})
@@ -1074,9 +1091,36 @@ namespace
         return tuning;
     }
 
+    bool Try_ReadGradientWorldPlacementCharacters(
+        const json& root,
+        array<BattleWorldGradientWorldPlacementTuning, kBattleWorldGradientPlacementHeroCount>& tunings)
+    {
+        const auto charactersIter = root.find("characters");
+        if (charactersIter == root.end() || !charactersIter->is_object())
+            return false;
+
+        for (const auto& [heroName, heroNode] : charactersIter->items())
+        {
+            if (!heroNode.is_object())
+                continue;
+
+            HeroId heroId = HeroId::END;
+            if (!Try_ParsePlacementHeroJsonName(heroName, heroId))
+            {
+                LOG_WARN("BattleWorldUI gradient placement json has unknown character. character='{}'", heroName);
+                continue;
+            }
+
+            const uint32 heroIndex = Resolve_PlacementHeroIndex(heroId);
+            tunings[heroIndex] = Read_GradientWorldPlacementTuningNode(heroNode, tunings[heroIndex]);
+        }
+
+        return true;
+    }
+
     bool Try_LoadGradientWorldPlacementTunings(
         const fs::path& jsonPath,
-        array<BattleWorldGradientWorldPlacementTuning, kBattleWorldGradientPlacementHeroCount>& outTunings)
+        BattleWorldGradientWorldPlacementLevelTunings& outTunings)
     {
         if (!fs::exists(jsonPath))
             return false;
@@ -1095,32 +1139,43 @@ namespace
             return false;
         }
 
-        auto tunings = Make_DefaultGradientWorldPlacementTunings();
-        if (const auto charactersIter = root.find("characters");
-            charactersIter != root.end() && charactersIter->is_object())
+        auto tunings = Make_DefaultGradientWorldPlacementLevelTunings();
+        if (const auto levelsIter = root.find("levels");
+            levelsIter != root.end() && levelsIter->is_object())
         {
-            for (const auto& [heroName, heroNode] : charactersIter->items())
+            for (const auto& [levelName, levelNode] : levelsIter->items())
             {
-                if (!heroNode.is_object())
+                if (!levelNode.is_object())
                     continue;
 
-                HeroId heroId = HeroId::END;
-                if (!Try_ParsePlacementHeroJsonName(heroName, heroId))
+                LevelType levelType = LevelType::END;
+                if (!BattleWorldUILevelPlacement::Try_ParseLevelJsonName(levelName, levelType))
                 {
-                    LOG_WARN("BattleWorldUI gradient placement json has unknown character. character='{}'", heroName);
+                    LOG_WARN("BattleWorldUI gradient placement json has unknown level. level='{}'", levelName);
                     continue;
                 }
 
-                const uint32 heroIndex = Resolve_PlacementHeroIndex(heroId);
-                tunings[heroIndex] = Read_GradientWorldPlacementTuningNode(heroNode, tunings[heroIndex]);
+                const uint32 levelIndex = BattleWorldUILevelPlacement::Resolve_LevelIndex(levelType);
+                Try_ReadGradientWorldPlacementCharacters(levelNode, tunings[levelIndex]);
             }
+        }
+        else if (const auto charactersIter = root.find("characters");
+            charactersIter != root.end() && charactersIter->is_object())
+        {
+            auto legacyTunings = Make_DefaultGradientWorldPlacementTunings();
+            Try_ReadGradientWorldPlacementCharacters(root, legacyTunings);
+            for (auto& levelTuning : tunings)
+                levelTuning = legacyTunings;
         }
         else
         {
             const BattleWorldGradientWorldPlacementTuning flatTuning =
                 Read_GradientWorldPlacementTuningNode(root, BattleWorldGradientWorldPlacementTuning{});
-            for (auto& tuning : tunings)
-                tuning = flatTuning;
+            for (auto& levelTuning : tunings)
+            {
+                for (auto& tuning : levelTuning)
+                    tuning = flatTuning;
+            }
         }
 
         outTunings = tunings;
@@ -1151,18 +1206,26 @@ namespace
     }
 
     bool Write_GradientWorldPlacementTuningsToFile(
-        const array<BattleWorldGradientWorldPlacementTuning, kBattleWorldGradientPlacementHeroCount>& tunings,
+        const BattleWorldGradientWorldPlacementLevelTunings& tunings,
         fs::file_time_type* outWriteTime)
     {
         const fs::path jsonPath = Resolve_GradientWorldPlacementJsonPath();
 
         json root = json::object();
-        root["characters"] = json::object();
-        for (uint32 heroIndex = 0; heroIndex < kBattleWorldGradientPlacementHeroCount; ++heroIndex)
+        root["levels"] = json::object();
+        for (uint32 levelIndex = 0; levelIndex < BattleWorldUILevelPlacement::kLevelCount; ++levelIndex)
         {
-            const HeroId heroId = static_cast<HeroId>(heroIndex);
-            root["characters"][To_PlacementHeroJsonName(heroId)] =
-                To_GradientWorldPlacementTuningJson(tunings[heroIndex]);
+            const LevelType levelType = BattleWorldUILevelPlacement::Get_LevelByIndex(levelIndex);
+            json levelNode = json::object();
+            levelNode["characters"] = json::object();
+            for (uint32 heroIndex = 0; heroIndex < kBattleWorldGradientPlacementHeroCount; ++heroIndex)
+            {
+                const HeroId heroId = static_cast<HeroId>(heroIndex);
+                levelNode["characters"][To_PlacementHeroJsonName(heroId)] =
+                    To_GradientWorldPlacementTuningJson(tunings[levelIndex][heroIndex]);
+            }
+
+            root["levels"][BattleWorldUILevelPlacement::To_LevelJsonName(levelType)] = std::move(levelNode);
         }
 
         error_code errorCode{};
@@ -1238,7 +1301,7 @@ namespace
     }
 
     void Reload_GradientWorldPlacementTuningIfNeeded(
-        array<BattleWorldGradientWorldPlacementTuning, kBattleWorldGradientPlacementHeroCount>& tunings,
+        BattleWorldGradientWorldPlacementLevelTunings& tunings,
         fs::file_time_type& knownWriteTime,
         bool& hasKnownFile)
     {
@@ -1247,7 +1310,7 @@ namespace
         {
             if (hasKnownFile)
             {
-                tunings = Make_DefaultGradientWorldPlacementTunings();
+                tunings = Make_DefaultGradientWorldPlacementLevelTunings();
                 knownWriteTime = {};
                 hasKnownFile = false;
                 LOG_INFO("BattleWorldUI gradient placement json removed. using defaults.");
@@ -1263,7 +1326,7 @@ namespace
         if (hasKnownFile && writeTime == knownWriteTime)
             return;
 
-        array<BattleWorldGradientWorldPlacementTuning, kBattleWorldGradientPlacementHeroCount> loadedTunings{};
+        BattleWorldGradientWorldPlacementLevelTunings loadedTunings{};
         knownWriteTime = writeTime;
         hasKnownFile = true;
 
@@ -1647,10 +1710,12 @@ struct BattleWorldUI_GradientCards::Impl
     Shared<ShaderCom> shader{};
     Shared<VIBuffer_Rect> viBuffer{};
     array<BattleWorldGradientPanelInstance, kBattleWorldGradientPlacementHeroCount> panels{};
-    array<BattleWorldGradientWorldPlacementTuning, kBattleWorldGradientPlacementHeroCount> placementTunings =
-        Make_DefaultGradientWorldPlacementTunings();
+    BattleWorldGradientWorldPlacementLevelTunings placementTunings =
+        Make_DefaultGradientWorldPlacementLevelTunings();
     fs::file_time_type placementTuningWriteTime{};
     bool hasPlacementTuningFile = false;
+    LevelType activePlacementLevelType = LevelType::END;
+    LevelType editorPlacementLevelType = LevelType::END;
     HeroId activePlacementHeroId = HeroId::END;
     HeroId editorPlacementHeroId = HeroId::END;
     BattleTurnState introState = BattleTurnState::None;
@@ -1711,8 +1776,13 @@ HRESULT BattleWorldUI_GradientCards::Warmup_ForBattleState(HeroId actorHeroId)
     if (_impl == nullptr)
         return E_FAIL;
 
+    const LevelType placementLevelType =
+        BattleWorldUILevelPlacement::Normalize_LevelType(static_cast<LevelType>(GAME->Current_LevelIndex()));
     const HeroId placementHeroId = Normalize_PlacementHeroId(actorHeroId);
     const uint32 placementHeroIndex = Resolve_PlacementHeroIndex(placementHeroId);
+    _impl->activePlacementLevelType = placementLevelType;
+    if (_impl->editorPlacementLevelType == LevelType::END)
+        _impl->editorPlacementLevelType = placementLevelType;
     _impl->activePlacementHeroId = placementHeroId;
     if (_impl->editorPlacementHeroId == HeroId::END)
         _impl->editorPlacementHeroId = placementHeroId;
@@ -1733,6 +1803,7 @@ void BattleWorldUI_GradientCards::Show_ForBattleState(
     const Vec3& anchorWorldPos,
     BattleTurnState currentState,
     HeroId actorHeroId,
+    bool dimmed,
     float timeDelta)
 {
     ENGINE_PROFILE_SCOPE_DETAIL("BattleWorldUI.Gradient.Show");
@@ -1743,8 +1814,14 @@ void BattleWorldUI_GradientCards::Show_ForBattleState(
         return;
     }
 
+    const LevelType placementLevelType =
+        BattleWorldUILevelPlacement::Normalize_LevelType(static_cast<LevelType>(GAME->Current_LevelIndex()));
+    const uint32 placementLevelIndex = BattleWorldUILevelPlacement::Resolve_LevelIndex(placementLevelType);
     const HeroId placementHeroId = Normalize_PlacementHeroId(actorHeroId);
     const uint32 placementHeroIndex = Resolve_PlacementHeroIndex(placementHeroId);
+    _impl->activePlacementLevelType = placementLevelType;
+    if (_impl->editorPlacementLevelType == LevelType::END)
+        _impl->editorPlacementLevelType = placementLevelType;
     _impl->activePlacementHeroId = placementHeroId;
     if (_impl->editorPlacementHeroId == HeroId::END)
         _impl->editorPlacementHeroId = placementHeroId;
@@ -1764,6 +1841,7 @@ void BattleWorldUI_GradientCards::Show_ForBattleState(
     for (auto& panel : _impl->panels)
     {
         panel.visible = false;
+        panel.dimmed = false;
         Advance_BattleWorldSurfaceAnim(panel.introAnim, timeDelta);
     }
 
@@ -1786,7 +1864,7 @@ void BattleWorldUI_GradientCards::Show_ForBattleState(
     }
 
     const BattleWorldGradientWorldPlacementTuning& placementTuning =
-        _impl->placementTunings[placementHeroIndex];
+        _impl->placementTunings[placementLevelIndex][placementHeroIndex];
     const Vec3 position =
         anchorWorldPos +
         Resolve_CameraScreenPositionDelta(placementTuning.screenPosition) +
@@ -1807,6 +1885,7 @@ void BattleWorldUI_GradientCards::Show_ForBattleState(
         Resolve_CameraFacingYawRotation(position) *
         Matrix::CreateTranslation(position.x, position.y, position.z);
     panel.visible = true;
+    panel.dimmed = dimmed;
 
     Set_Visible(true);
 }
@@ -1821,6 +1900,28 @@ void BattleWorldUI_GradientCards::Hide()
     _impl->hasIntroKey = false;
     for (auto& panel : _impl->panels)
         panel.visible = false;
+}
+
+LevelType BattleWorldUI_GradientCards::Get_EditorWorldPlacementLevelType() const
+{
+    if (_impl == nullptr)
+        return LevelType::Stage01;
+
+    if (_impl->editorPlacementLevelType != LevelType::END)
+        return BattleWorldUILevelPlacement::Normalize_LevelType(_impl->editorPlacementLevelType);
+
+    if (_impl->activePlacementLevelType != LevelType::END)
+        return BattleWorldUILevelPlacement::Normalize_LevelType(_impl->activePlacementLevelType);
+
+    return LevelType::Stage01;
+}
+
+void BattleWorldUI_GradientCards::Set_EditorWorldPlacementLevelType(LevelType levelType)
+{
+    if (_impl == nullptr)
+        return;
+
+    _impl->editorPlacementLevelType = BattleWorldUILevelPlacement::Normalize_LevelType(levelType);
 }
 
 HeroId BattleWorldUI_GradientCards::Get_EditorWorldPlacementHeroId() const
@@ -1850,8 +1951,9 @@ RuntimeWorldUIPlacementTuning BattleWorldUI_GradientCards::Get_EditorWorldPlacem
     if (_impl == nullptr)
         return To_EditorWorldPlacementTuning(Make_DefaultGradientWorldPlacementTuning(HeroId::Gustave));
 
+    const uint32 levelIndex = BattleWorldUILevelPlacement::Resolve_LevelIndex(Get_EditorWorldPlacementLevelType());
     const uint32 heroIndex = Resolve_PlacementHeroIndex(Get_EditorWorldPlacementHeroId());
-    return To_EditorWorldPlacementTuning(_impl->placementTunings[heroIndex]);
+    return To_EditorWorldPlacementTuning(_impl->placementTunings[levelIndex][heroIndex]);
 }
 
 void BattleWorldUI_GradientCards::Set_EditorWorldPlacementTuning(
@@ -1861,8 +1963,9 @@ void BattleWorldUI_GradientCards::Set_EditorWorldPlacementTuning(
     if (_impl == nullptr)
         return;
 
+    const uint32 levelIndex = BattleWorldUILevelPlacement::Resolve_LevelIndex(Get_EditorWorldPlacementLevelType());
     const uint32 heroIndex = Resolve_PlacementHeroIndex(Get_EditorWorldPlacementHeroId());
-    _impl->placementTunings[heroIndex] = From_EditorWorldPlacementTuning(tuning);
+    _impl->placementTunings[levelIndex][heroIndex] = From_EditorWorldPlacementTuning(tuning);
 
     if (!saveImmediately)
         return;
@@ -1883,14 +1986,14 @@ void BattleWorldUI_GradientCards::Reload_EditorWorldPlacementTuning()
     const fs::path jsonPath = Resolve_GradientWorldPlacementJsonPath();
     if (!fs::exists(jsonPath))
     {
-        _impl->placementTunings = Make_DefaultGradientWorldPlacementTunings();
+        _impl->placementTunings = Make_DefaultGradientWorldPlacementLevelTunings();
         _impl->placementTuningWriteTime = {};
         _impl->hasPlacementTuningFile = false;
         LOG_INFO("BattleWorldUI gradient placement json reload requested, but file is missing. using defaults.");
         return;
     }
 
-    array<BattleWorldGradientWorldPlacementTuning, kBattleWorldGradientPlacementHeroCount> loadedTunings{};
+    BattleWorldGradientWorldPlacementLevelTunings loadedTunings{};
     if (!Try_LoadGradientWorldPlacementTunings(jsonPath, loadedTunings))
         return;
 
@@ -1909,7 +2012,8 @@ void BattleWorldUI_GradientCards::Reset_EditorWorldPlacementTuning()
         return;
 
     const HeroId heroId = Get_EditorWorldPlacementHeroId();
-    _impl->placementTunings[Resolve_PlacementHeroIndex(heroId)] =
+    const uint32 levelIndex = BattleWorldUILevelPlacement::Resolve_LevelIndex(Get_EditorWorldPlacementLevelType());
+    _impl->placementTunings[levelIndex][Resolve_PlacementHeroIndex(heroId)] =
         Make_DefaultGradientWorldPlacementTuning(heroId);
     if (Write_GradientWorldPlacementTuningsToFile(
         _impl->placementTunings,
@@ -1934,13 +2038,12 @@ HRESULT BattleWorldUI_GradientCards::Render()
     if (!Is_Visible() || _impl == nullptr || _impl->shader == nullptr || _impl->viBuffer == nullptr)
         return S_OK;
 
-    const Vec4 color = Vec4(1.f, 1.f, 1.f, 1.f);
-
     for (const auto& panel : _impl->panels)
     {
         if (!panel.visible || panel.surface == nullptr)
             continue;
 
+        const Vec4 color = panel.dimmed ? Vec4(0.65f, 0.65f, 0.65f, 1.f) : Vec4(1.f, 1.f, 1.f, 1.f);
         const BattleWorldSurfaceAnimRenderState renderState =
             Apply_BattleWorldSurfaceAnim(panel.introAnim, panel.worldMatrix, color, panel.introStartOffset);
         CHECK_FAILED(Bind_WorldUIPlaneShaderState(_impl->shader.get(), renderState.worldMatrix, renderState.color), E_FAIL);

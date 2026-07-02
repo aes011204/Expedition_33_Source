@@ -327,6 +327,7 @@ namespace Internal
     {
         return
             prototypeTag == L"Texture_Effect_EditorSkybox" ||
+            prototypeTag == L"Texture_Effect_BlackSkybox" ||
             prototypeTag == L"Texture_Effect_DefaultTexture" ||
             prototypeTag == L"Texture_Effect_Clouds4";
     }
@@ -351,7 +352,9 @@ namespace Internal
             prototypeTag == L"Shader_VtxMeshInstanceExact" ||
             prototypeTag == L"Shader_EffectMesh" ||
             prototypeTag == L"Shader_EffectMeshDistortion" ||
+            prototypeTag == L"Shader_EffectMeshGlass" ||
             prototypeTag == L"Shader_EffectMeshPreviewDistortion" ||
+            prototypeTag == L"Shader_EffectMeshPreviewGlass" ||
             prototypeTag == L"Shader_EffectMeshPreview";
     }
 

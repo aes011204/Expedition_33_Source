@@ -83,6 +83,24 @@ typedef struct CinematicActorTransformTrack
 
 }CINEMATIC_ACTOR_TRANSFORM_TRACK;
 
+typedef struct CinematicPartRotationKeyframe
+{
+    int frame = 0;
+    Vec3 rotation = Vec3::Zero;
+    InterpolationMode interpolation = InterpolationMode::Linear;
+
+}CINEMATIC_PART_ROTATION_KEYFRAME;
+
+typedef struct CinematicPartRotationTrack
+{
+    string targetId;
+    string partTag;
+    string name = "Part Rotation Track";
+    bool enabled = true;
+    vector<CINEMATIC_PART_ROTATION_KEYFRAME> keyframes;
+
+}CINEMATIC_PART_ROTATION_TRACK;
+
 typedef struct CinematicCameraShot
 {
     string name = "Camera Shot";
@@ -159,6 +177,7 @@ typedef struct CinematicSequence
     Client::CameraModifierClip modifierClip;
     vector<CINEMATIC_EVENT> eventTrack;
     vector<CINEMATIC_ACTOR_TRANSFORM_TRACK> actorTransformTracks;
+    vector<CINEMATIC_PART_ROTATION_TRACK> partRotationTracks;
     int    startFrame = 0;
     int    endFrame = 300;
 

@@ -127,6 +127,13 @@ struct alignas(16) ShadowCB
     uint32  cascadeCount = 0;
     uint32  activeCascadeIndex = 0;
     float   shadowPadding0 = 0.f;
+    float   shadowPadding1 = 0.f;
+
+    Matrix cachedShadowViewProjMatrix;
+    uint32 useCachedInstancedShadow = 0;
+    float cachedShadowPad0 = 0.f;
+    float cachedShadowPad1 = 0.f;
+    float cachedShadowPad2 = 0.f;
 }; 
 
 /* ------------------------------------------ */

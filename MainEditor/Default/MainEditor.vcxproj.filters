@@ -70,6 +70,9 @@
     <ClCompile Include="..\private\Camera_Tool.cpp">
       <Filter>01. View</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\BattleCameraPreview_Effects.cpp">
+      <Filter>01. View</Filter>
+    </ClCompile>
     <ClCompile Include="..\Private\BattleCameraPreview_View.cpp">
       <Filter>01. View</Filter>
     </ClCompile>

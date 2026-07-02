@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "Debug_Profile.h"
 #include "Editor_Window.h"
@@ -75,6 +75,7 @@ private:
     };
 
 private:
+    void Draw_Camera_Debug();
     void Draw_Toolbar();
     void Draw_Frame_Info();
     void Draw_Render_Isolation();
@@ -127,6 +128,9 @@ private:
     bool _hasResourceMemorySample = false;
     size_t _peakWorkingSetMb = 0;
     size_t _peakPrivateBytesMb = 0;
+
+    float _cameraFarOverride = 500.f;
+    bool _cameraFarOverrideEnabled = false;
 
 public:
     static Shared<Profile_View> Create();

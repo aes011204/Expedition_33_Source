@@ -34,12 +34,29 @@ public:
     void    Sync_ViewportDependentState(uint32 width, uint32 height);
     uint32  Get_RenderCall() const;
     bool    Try_GetRenderViewHotspotSnapshot(RenderViewHotspotSnapshot& outSnapshot) const;
-    void    Set_ShadowEnabled(bool enabled) { _shadowEnabled = enabled; }
+    void    Set_ShadowEnabled(bool enabled)
+    {
+        if (_shadowEnabled != enabled)
+            _hasLastShadowTemporalCameraPosition = false;
+        _shadowEnabled = enabled;
+    }
     bool    Is_ShadowEnabled() const { return _shadowEnabled; }
+    void    Set_DynamicShadowCascadeTemporalUpdateEnabled(bool enabled)
+    {
+        if (_dynamicShadowCascadeTemporalUpdateEnabled != enabled)
+            _hasLastShadowTemporalCameraPosition = false;
+        _dynamicShadowCascadeTemporalUpdateEnabled = enabled;
+    }
+    bool    Is_DynamicShadowCascadeTemporalUpdateEnabled() const { return _dynamicShadowCascadeTemporalUpdateEnabled; }
     void    Set_RenderOnlyPreviewMode(bool enabled) { _renderOnlyPreviewMode = enabled; }
     bool    Is_RenderOnlyPreviewMode() const { return _renderOnlyPreviewMode; }
     void    Set_RenderEnvironment(bool enabled) { _renderEnvironment = enabled; }
     bool    Is_RenderEnvironment() const { return _renderEnvironment; }
+    void    Set_UseInstancedShadowCache(bool enabled) { _useCachedInstancedShadow = enabled; }
+    bool    Is_UseInstancedShadowCache() const { return _useCachedInstancedShadow; }
+    void    Request_BakeCachedInstancedShadow() { _hasInstancedShadowCache = false; }
+    bool    Has_InstancedShadowCache() const { return _hasInstancedShadowCache; }
+    const Matrix& Get_CachedShadowViewProj() const { return _cachedShadowViewProj; }
 
     const Shared<PostProcessPipeline>& Get_PostProcessPipeline() const
     {
@@ -142,6 +159,7 @@ private: /* 그림자 */
     void Render_DynamicShadow();        // 기존 Render Shadow 로직 이동
     bool Should_UpdateDynamicShadowCascade(uint32 cascadeIndex) const;
     bool Should_RenderDynamicShadowObject(const Shared<GameObject>& gameObject, uint32 cascadeIndex) const;
+    void Bake_CachedInstancedShadow();
 #ifdef _DEBUG
     void Sync_ShadowDebugTargets();
 #endif
@@ -168,8 +186,13 @@ private:
     IBLDebugMode                    _iblDebugMode = IBLDebugMode::Default;
 
     bool                            _shadowEnabled = true;
+    bool                            _dynamicShadowCascadeTemporalUpdateEnabled = true;
     bool                            _renderOnlyPreviewMode = false;
     bool                            _renderEnvironment = false;
+
+    bool                            _useCachedInstancedShadow = false;
+    bool                            _hasInstancedShadowCache = false;
+    Matrix                          _cachedShadowViewProj = {};
 
     Matrix                          _pipelineWorldMatrix;
     Matrix                          _PipelineViewMatrix;
@@ -187,6 +210,8 @@ private:
 
 private:
     uint64                          _shadowFrameIndex = 0;
+    bool                            _hasLastShadowTemporalCameraPosition = false;
+    Vec3                            _lastShadowTemporalCameraPosition = Vec3::Zero;
 
     ViewportSize                    _screenSize{};
     ViewportSize                    _shadowMapSize = { 2048, 2048 };

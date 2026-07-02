@@ -55,10 +55,15 @@ private:
 private:
 #pragma region 구스타브
     Shared<UI_Base> _gustaveRoot{};
+    Shared<UI_Base> _gustaveChargePanel{};
     Shared<UI_Text> _gustaveCurrentChargeText{};
     Shared<UI_Text> _gustaveMaxChargeText{};
+    Shared<UI_Text> _gustaveSlashText{};
 
+    array<Shared<UI_Base>, 10> _gustaveChargeSlots{};
     array<Shared<UI_Base>, 10> _gustaveChargeGlows{};
+    Shared<UI_Base> _gustaveLightning{};
+    Shared<UI_Base> _gustaveFullChargeDeco{};
 
 #pragma endregion
 

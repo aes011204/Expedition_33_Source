@@ -80,7 +80,7 @@ EffectMaterialSurface EffectMeshCommon_ResolveSurface(EffectMeshCommonSurfaceInp
         opacityPower,
         maskCoverage,
         noiseFactor,
-        input.instanceColor.a * input.tint.a
+        input.instanceColor.a * input.tint.a * input.alphaParams.w
     );
     const float3 baseColor = Effect_ApplyCoreEmissiveShaping(
         input.symbol.rgb * input.instanceColor.rgb * input.tint.rgb,
@@ -105,7 +105,7 @@ float3 EffectMeshCommon_ResolveAdditiveContribution(EffectMeshCommonAdditiveInpu
     const float noiseFactor = EffectMeshCommon_ResolveNoiseFactor(input.noiseTexel, input.params, input.sourceParams);
     const float maskAlpha = EffectMeshCommon_ResolveMaskAlpha(input.maskTexel, input.alphaParams, input.sourceParams);
     const float maskCoverage = Effect_ApplyAlphaErosion(maskAlpha, maskAlpha * noiseFactor, alphaErosion);
-    const float coverageBase = saturate(maskCoverage * noiseFactor * input.instanceColor.a * input.tint.a);
+    const float coverageBase = saturate(maskCoverage * noiseFactor * input.instanceColor.a * input.tint.a * input.alphaParams.w);
     const int colorSource = (int)input.additiveParams.x;
     const int amountSource = (int)input.additiveParams.y;
     const int coveragePolicy = (int)input.additiveParams.z;

@@ -75,7 +75,7 @@ namespace Internal
     {
         const auto iter = root.find("applyChannels");
         if (iter == root.end() || !iter->is_array())
-            return kVelocityOverLifeApplyChannelAllMask;
+            return kVelocityOverLifeApplyChannelDefaultMask;
 
         uint32 mask = 0u;
         for (const json& channelNode : *iter)
@@ -85,7 +85,7 @@ namespace Internal
                 mask |= To_VelocityOverLifeApplyChannelMask(channel);
         }
 
-        return mask != 0u ? mask : kVelocityOverLifeApplyChannelAllMask;
+        return mask != 0u ? mask : kVelocityOverLifeApplyChannelDefaultMask;
     }
 
     EffectTextureUVTilingMode Resolve_CompatibleUVTilingMode(const EffectMaterialUVAxisPolicy& policy)
@@ -1020,6 +1020,7 @@ namespace Internal
         root["tint"] = To_Json(data.tint);
         root["intensity"] = data.intensity;
         root["opacityPower"] = data.opacityPower;
+        root["alphaMultiplier"] = data.alphaMultiplier;
         root["noiseStrength"] = data.noiseStrength;
         root["alphaCutoff"] = data.alphaCutoff;
         root["alphaErosion"] = data.alphaErosion;
@@ -1063,6 +1064,20 @@ namespace Internal
         root["distortionShapeRadius"] = data.distortionShapeRadius;
         root["distortionShapeThickness"] = data.distortionShapeThickness;
         root["distortionShapeSoftness"] = data.distortionShapeSoftness;
+        root["glassAlpha"] = data.glassAlpha;
+        root["glassAlphaPower"] = data.glassAlphaPower;
+        root["glassNormalStrength"] = data.glassNormalStrength;
+        root["glassRimColor"] = To_Json(data.glassRimColor);
+        root["glassRimIntensity"] = data.glassRimIntensity;
+        root["glassRimPower"] = data.glassRimPower;
+        root["glassLightDirection"] = To_Json(data.glassLightDirection);
+        root["glassLightColor"] = To_Json(data.glassLightColor);
+        root["glassLightIntensity"] = data.glassLightIntensity;
+        root["glassSpecularPower"] = data.glassSpecularPower;
+        root["glassSpecularSoftness"] = data.glassSpecularSoftness;
+        root["glassMainInfluence"] = data.glassMainInfluence;
+        root["glassNoiseBreakup"] = data.glassNoiseBreakup;
+        root["glassMaskStrength"] = data.glassMaskStrength;
         root["twoSided"] = data.twoSided;
         root["subUVRows"] = data.subUVRows;
         root["subUVCols"] = data.subUVCols;
@@ -1107,6 +1122,7 @@ namespace Internal
         Fill_TexturePathHintFromGuid(outData.flowTextureGuid, outData.flowTexturePath);
         Read_NumberField(root, "intensity", outData.intensity);
         Read_NumberField(root, "opacityPower", outData.opacityPower);
+        Read_NumberField(root, "alphaMultiplier", outData.alphaMultiplier);
         Read_NumberField(root, "noiseStrength", outData.noiseStrength);
         Read_NumberField(root, "alphaCutoff", outData.alphaCutoff);
         Read_NumberField(root, "alphaErosion", outData.alphaErosion);
@@ -1195,6 +1211,23 @@ namespace Internal
         Read_NumberField(root, "distortionShapeRadius", outData.distortionShapeRadius);
         Read_NumberField(root, "distortionShapeThickness", outData.distortionShapeThickness);
         Read_NumberField(root, "distortionShapeSoftness", outData.distortionShapeSoftness);
+        Read_NumberField(root, "glassAlpha", outData.glassAlpha);
+        Read_NumberField(root, "glassAlphaPower", outData.glassAlphaPower);
+        Read_NumberField(root, "glassNormalStrength", outData.glassNormalStrength);
+        if (const auto glassRimColorIter = root.find("glassRimColor"); glassRimColorIter != root.end())
+            Read_Color(*glassRimColorIter, outData.glassRimColor);
+        Read_NumberField(root, "glassRimIntensity", outData.glassRimIntensity);
+        Read_NumberField(root, "glassRimPower", outData.glassRimPower);
+        if (const auto glassLightDirectionIter = root.find("glassLightDirection"); glassLightDirectionIter != root.end())
+            Read_Vec3(*glassLightDirectionIter, outData.glassLightDirection);
+        if (const auto glassLightColorIter = root.find("glassLightColor"); glassLightColorIter != root.end())
+            Read_Color(*glassLightColorIter, outData.glassLightColor);
+        Read_NumberField(root, "glassLightIntensity", outData.glassLightIntensity);
+        Read_NumberField(root, "glassSpecularPower", outData.glassSpecularPower);
+        Read_NumberField(root, "glassSpecularSoftness", outData.glassSpecularSoftness);
+        Read_NumberField(root, "glassMainInfluence", outData.glassMainInfluence);
+        Read_NumberField(root, "glassNoiseBreakup", outData.glassNoiseBreakup);
+        Read_NumberField(root, "glassMaskStrength", outData.glassMaskStrength);
     }
 
     json To_Json(const FloatCurveKeyData& data)

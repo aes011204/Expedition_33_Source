@@ -506,7 +506,11 @@ public: /* For.Shadow */
     HRESULT                 Bind_ShadowCB(Shared<ShaderCom> shader);
     HRESULT                 Get_ShadowCBSnapshot(ShadowCB& outShadowCB) const;
     HRESULT                 Set_ActiveShadowCascade(uint32 cascadeIndex);
+    HRESULT                 Commit_RenderedShadowCascade(uint32 cascadeIndex);
+    bool                    Consume_ForceRenderAllShadowCascades();
     void                    Set_ShadowEnabled(bool enabled);
+    void                    Set_DynamicShadowCascadeTemporalUpdateEnabled(bool enabled);
+    bool                    Is_DynamicShadowCascadeTemporalUpdateEnabled() const;
     uint32                  Get_ShadowCascadeCount() const;
     HRESULT                 Set_ShadowCascadeLevel(CascadeLevel level);
     CascadeLevel            Get_ShadowCascadeLevel() const;
@@ -527,6 +531,15 @@ public: /* For.Shadow */
         const ShadowLightDesc& desc,
         const Shared<Camera>& camera,
         const Vec3& lightDir);
+
+    void Push_BakeShadowTransform(const Matrix& view, const Matrix& proj);
+    bool Is_BakingInstancedShadow() const { return _bakeShadowOverrideActive; }
+    void Pop_BakeShadowTransform();
+    void Set_UseInstancedShadowCache(bool enabled);
+    bool Is_UseInstancedShadowCache() const;
+    void Request_BakeCachedInstancedShadow();
+    bool Has_InstancedShadowCache() const;
+    const Matrix& Get_CachedShadowViewProj() const;
 
 public: /* For.Collision_Manager */
     void Add_Collider(Shared<ColliderCom> collider);
@@ -717,6 +730,10 @@ private:
 
     bool _isPlayerInputBlocked = false;
     bool _isFreeCameraInputEnabled = false;
+
+    bool _bakeShadowOverrideActive = false;
+    Matrix _bakeShadowViewOverride = {};
+    Matrix _bakeShadowProjOverride = {};
 
     bool _isGameplayPaused = false;
     GameplayInputMode _gameplayInputMode = GameplayInputMode::Normal;

@@ -9,7 +9,7 @@ cbuffer cbEffectRibbonMaterial : register(b2)
 {
     float4 g_Tint = { 1.f, 1.f, 1.f, 1.f };
     float4 g_EffectRibbonParams = { 1.f, 1.f, 0.f, 0.f };                 // x: authored energy scalar, y: opacityPower, z: noiseStrength, w: useNoise
-    float4 g_EffectRibbonAlphaParams = { 0.f, 0.f, 0.f, 0.f };            // x: alphaCutoff, y: alphaErosion, z: useMask, w: reserved
+    float4 g_EffectRibbonAlphaParams = { 0.f, 0.f, 0.f, 1.f };            // x: alphaCutoff, y: alphaErosion, z: useMask, w: alphaMultiplier
     float4 g_EffectRibbonMainUVParams = { 1.f, 1.f, 0.f, 0.f };           // xy: scale, zw: scroll speed
     float4 g_EffectRibbonNoiseUVParams = { 1.f, 1.f, 0.f, 0.f };
     float4 g_EffectRibbonMaskUVParams = { 1.f, 1.f, 0.f, 0.f };
@@ -462,7 +462,7 @@ EffectMaterialSurface Resolve_EffectRibbonMaterialSurface(PS_IN In)
         opacityPower,
         coverage,
         breakupNoise,
-        1.f
+        g_EffectRibbonAlphaParams.w
     );
     surface.coverage = shapeCoverage * saturate(In.color.a * g_Tint.a * saturate(In.segmentParams.w) * sideAlpha);
 
@@ -553,7 +553,7 @@ PS_OUT PS_ADDITIVE(PS_IN In)
     const float breakupNoise = lerp(1.f, noiseRaw, noiseStrength);
     const float edgeBreakup = lerp(1.f, noiseRaw, noiseStrength * edgeWeight);
     float coverage = Effect_ApplyAlphaErosion(maskAlpha, maskAlpha * edgeBreakup, alphaErosion);
-    const float coverageBase = saturate(coverage * breakupNoise);
+    const float coverageBase = saturate(coverage * breakupNoise * g_EffectRibbonAlphaParams.w);
     const float additiveLifeAlpha = saturate(In.color.a * g_Tint.a * saturate(In.segmentParams.w) * sideAlpha);
     const float energyVariation = lerp(1.f, lerp(0.75f, 1.25f, noiseRaw), noiseStrength);
     const int colorSource = (int)g_EffectRibbonAdditiveParams.x;
