@@ -115,6 +115,10 @@ private:
         BattleCameraClip* targetActiveClip = nullptr;
         Vec3 targetSmoothedTargetPos = Vec3::Zero;
         Vec3 targetPrevTargetPos = Vec3::Zero;
+        Vec3 targetEnemyAttackSubjectPos = Vec3::Zero;
+        Vec3 targetEnemyAttackOpponentPos = Vec3::Zero;
+        Vec3 targetPlayerAttackSubjectPos = Vec3::Zero;
+        Vec3 targetPlayerAttackOpponentPos = Vec3::Zero;
         Vec3 frozenSubjectPos = {};
         bool hasFrozenPos = false;
     };

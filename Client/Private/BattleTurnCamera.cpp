@@ -249,16 +249,6 @@ HRESULT BattleTurnCamera::Initialize(void* arg)
    _battlePresentationHandle = GAME->Get_EventBus().Subscribe<EvtBattlePresentation>
     ([this](const EvtBattlePresentation& event)
         {
-            const string modeName = string(magic_enum::enum_name(event.cameraMode));
-            // LOG_INFO(
-            //     "[BattleCamTrace] EvtBattlePresentation mode={} presetId={} clipId={} useClip={} subject={} opponent={}",
-            //     modeName.c_str(),
-            //     event.presetId.c_str(),
-            //     event.clipId.c_str(),
-            //     event.useClip,
-            //     event.subject != nullptr,
-            //     event.opponent != nullptr);
-
             Apply_ShotRequest(Build_BattleShotRequestFromEvent(event));
         }
     );
@@ -322,11 +312,9 @@ void BattleTurnCamera::Update(float timeDelta)
     case BattleCameraMode::SELECTITEM:
     case BattleCameraMode::SELECTSKILL:
     case BattleCameraMode::PARRY:
+    case BattleCameraMode::AIM:
         Update_FromCurrentPreset(timeDelta);
         break;
-    case BattleCameraMode::AIM:
-        break;
-
     case BattleCameraMode::ENEMYATTACK:
         Update_EnemyAttackMode(timeDelta);
         break;
@@ -337,14 +325,6 @@ void BattleTurnCamera::Update(float timeDelta)
 
     Update_TransformMatrices();
 
-    const string modeName = string(magic_enum::enum_name(_currentRequest.mode));
-
-   // LOG_INFO(
-   // "[BattleCamTrace] Update prevMode={} prevPresetId={} prevClipId={} activeClip={}",
-   // modeName.c_str(),
-   // _currentRequest.presetId.c_str(),
-   // _currentRequest.clipId.c_str(),
-   // _activeClip != nullptr);
 }
 
 void BattleTurnCamera::Focus_Battle(const vector<BattleChar>& heroes, const vector<BattleChar>& enemies, float timeDelta)
@@ -451,14 +431,6 @@ void BattleTurnCamera::Set_Participants(
 
 void BattleTurnCamera::Reset_RuntimeState()
 {
-    const string modeName = string(magic_enum::enum_name(_currentRequest.mode));
-    // LOG_INFO(
-    //     "[BattleCamTrace] Reset_RuntimeState prevMode={} prevPresetId={} prevClipId={} activeClip={}",
-    //     modeName.c_str(),
-    //     _currentRequest.presetId.c_str(),
-    //     _currentRequest.clipId.c_str(),
-    //     _activeClip != nullptr);
-
     _currentRequest = {};
     _targetTransform.reset();
     _activeClip = nullptr;
@@ -1334,6 +1306,40 @@ bool BattleTurnCamera::Start_PoseTransition(
             return false;
         }
     }
+    else if (request.mode == BattleCameraMode::ENEMYATTACK)
+    {
+        Vec3 subjectPos = _poseTransition.targetEnemyAttackSubjectPos;
+        Vec3 opponentPos = _poseTransition.targetEnemyAttackOpponentPos;
+        if (subjectPos.LengthSquared() <= 0.0001f && request.subject != nullptr && request.subject->Get_Transform() != nullptr)
+            subjectPos = request.subject->Get_Transform()->Get_WorldPosition();
+        if (opponentPos.LengthSquared() <= 0.0001f && request.opponent != nullptr && request.opponent->Get_Transform() != nullptr)
+            opponentPos = request.opponent->Get_Transform()->Get_WorldPosition();
+
+        if (!Evaluate_EnemyAttackPose(subjectPos, opponentPos, preset, BattleCameraClipSample{}, toPose))
+            return false;
+    }
+    else if (request.mode == BattleCameraMode::PLAYERATTACK)
+    {
+        Vec3 subjectPos = _poseTransition.targetPlayerAttackSubjectPos;
+        Vec3 opponentPos = _poseTransition.targetPlayerAttackOpponentPos;
+        if (subjectPos.LengthSquared() <= 0.0001f && request.subject != nullptr && request.subject->Get_Transform() != nullptr)
+            subjectPos = request.subject->Get_Transform()->Get_WorldPosition();
+        if (opponentPos.LengthSquared() <= 0.0001f && request.opponent != nullptr && request.opponent->Get_Transform() != nullptr)
+            opponentPos = request.opponent->Get_Transform()->Get_WorldPosition();
+
+        const float yawBase = Resolve_YawBaseForPresetMode(request);
+        if (!Evaluate_BattleTurnPlayerAttackBattlePlanePose(
+            subjectPos,
+            opponentPos,
+            preset,
+            BattleCameraClipSample{},
+            yawBase,
+            0.f,
+            toPose))
+        {
+            return false;
+        }
+    }
     else if (!Evaluate_ShotRequestPose(request, preset, &targetSmoothedTargetPos, BattleCameraClipSample{}, 0.f, toPose))
     {
         return false;
@@ -1387,13 +1393,37 @@ void BattleTurnCamera::Update_PoseTransition(float timeDelta)
     }
     else
     {
-        hasClippedTargetPose = Evaluate_ShotRequestPose(
-            _poseTransition.targetRequest,
-            _poseTransition.targetPreset,
-            &_poseTransition.targetSmoothedTargetPos,
-            clipSample,
-            _clipShakeTime,
-            clippedTargetPose);
+        if (_poseTransition.targetRequest.mode == BattleCameraMode::ENEMYATTACK)
+        {
+            hasClippedTargetPose = Evaluate_EnemyAttackPose(
+                _poseTransition.targetEnemyAttackSubjectPos,
+                _poseTransition.targetEnemyAttackOpponentPos,
+                _poseTransition.targetPreset,
+                clipSample,
+                clippedTargetPose);
+        }
+        else if (_poseTransition.targetRequest.mode == BattleCameraMode::PLAYERATTACK)
+        {
+            const float yawBase = Resolve_YawBaseForPresetMode(_poseTransition.targetRequest);
+            hasClippedTargetPose = Evaluate_BattleTurnPlayerAttackBattlePlanePose(
+                _poseTransition.targetPlayerAttackSubjectPos,
+                _poseTransition.targetPlayerAttackOpponentPos,
+                _poseTransition.targetPreset,
+                clipSample,
+                yawBase,
+                _clipShakeTime,
+                clippedTargetPose);
+        }
+        else
+        {
+            hasClippedTargetPose = Evaluate_ShotRequestPose(
+                _poseTransition.targetRequest,
+                _poseTransition.targetPreset,
+                &_poseTransition.targetSmoothedTargetPos,
+                clipSample,
+                _clipShakeTime,
+                clippedTargetPose);
+        }
     }
 
     const EvaluatedPose& transitionTargetPose = hasClippedTargetPose
@@ -1425,6 +1455,10 @@ void BattleTurnCamera::Update_PoseTransition(float timeDelta)
     _targetTransform = _currentRequest.subject ? _currentRequest.subject->Get_Transform() : nullptr;
     _smoothedTargetPos = _poseTransition.targetSmoothedTargetPos;
     _prevTargetPos = _poseTransition.targetPrevTargetPos;
+    _enemyPos = _poseTransition.targetEnemyAttackSubjectPos;
+    _playerPos = _poseTransition.targetEnemyAttackOpponentPos;
+    _playerAttackSubjectPos = _poseTransition.targetPlayerAttackSubjectPos;
+    _playerAttackOpponentPos = _poseTransition.targetPlayerAttackOpponentPos;
     _isFirstUpdate = true;
 }
 
@@ -1590,9 +1624,6 @@ void BattleTurnCamera::Apply_ShotRequest(const BattleShotRequest& request)
         nextEnemyAttackOpponentPos = Vec3::Zero;
     }
 
-    _enemyPos = nextEnemyAttackSubjectPos;
-    _playerPos = nextEnemyAttackOpponentPos;
-
     if (request.mode == BattleCameraMode::PLAYERATTACK)
     {
         const bool shouldCapturePlayerAttackAnchor =
@@ -1616,14 +1647,10 @@ void BattleTurnCamera::Apply_ShotRequest(const BattleShotRequest& request)
         nextPlayerAttackOpponentPos = Vec3::Zero;
     }
 
-    _playerAttackSubjectPos = nextPlayerAttackSubjectPos;
-    _playerAttackOpponentPos = nextPlayerAttackOpponentPos;
-
     if (nextPreset.snapOnEnter ||
         request.mode == BattleCameraMode::WIDE ||
         request.mode == BattleCameraMode::ENEMYGROUP ||
-        request.mode == BattleCameraMode::BATTLEINTRO ||
-        request.mode == BattleCameraMode::AIM)
+        request.mode == BattleCameraMode::BATTLEINTRO)
     {
         const BattleCameraMode previousMode = _currentRequest.mode;
         _poseTransition.active = false;
@@ -1639,25 +1666,25 @@ void BattleTurnCamera::Apply_ShotRequest(const BattleShotRequest& request)
             Refresh_RuntimeDriftFromProfile(*drift, previousMode != _currentRequest.mode);
         _smoothedTargetPos = targetSmoothedTargetPos;
         _prevTargetPos = targetPrevTargetPos;
+        _enemyPos = nextEnemyAttackSubjectPos;
+        _playerPos = nextEnemyAttackOpponentPos;
+        _playerAttackSubjectPos = nextPlayerAttackSubjectPos;
+        _playerAttackOpponentPos = nextPlayerAttackOpponentPos;
 
         EvaluatedPose toPose {};
 
         if(Evaluate_ShotRequestPose(_currentRequest, _currentPreset, &_smoothedTargetPos, BattleCameraClipSample{}, _clipShakeTime, toPose ))
         Apply_EvaluatedPoseWithDOF(toPose, _currentRequest.mode);
 
-        const string requestModeName = string(magic_enum::enum_name(request.mode));
-        const string currentModeName = string(magic_enum::enum_name(_currentRequest.mode));
-
-        // LOG_DEBUG(
-        //  "[BattleCamTrace] ApplyShot requestMode={} currentMode={}",
-        //  requestModeName.c_str(),
-        //  currentModeName.c_str());
-
         return;
     }
 
     if ((Should_StartPoseTransition(request)&&!isSamePreset)|| shouldReAnchored)
     {
+        _poseTransition.targetEnemyAttackSubjectPos = nextEnemyAttackSubjectPos;
+        _poseTransition.targetEnemyAttackOpponentPos = nextEnemyAttackOpponentPos;
+        _poseTransition.targetPlayerAttackSubjectPos = nextPlayerAttackSubjectPos;
+        _poseTransition.targetPlayerAttackOpponentPos = nextPlayerAttackOpponentPos;
         if (Start_PoseTransition(
             request,
             nextPreset,
@@ -1695,14 +1722,11 @@ void BattleTurnCamera::Apply_ShotRequest(const BattleShotRequest& request)
         Refresh_RuntimeDriftFromProfile(*drift, previousMode != _currentRequest.mode);
     _smoothedTargetPos = targetSmoothedTargetPos;
     _prevTargetPos = targetPrevTargetPos;
+    _enemyPos = nextEnemyAttackSubjectPos;
+    _playerPos = nextEnemyAttackOpponentPos;
+    _playerAttackSubjectPos = nextPlayerAttackSubjectPos;
+    _playerAttackOpponentPos = nextPlayerAttackOpponentPos;
 
-    const string requestModeName = string(magic_enum::enum_name(request.mode));
-    const string currentModeName = string(magic_enum::enum_name(_currentRequest.mode));
-
-    // LOG_DEBUG(
-    //     "[BattleCamTrace] ApplyShot requestMode={} currentMode={}",
-    //     requestModeName.c_str(),
-    //     currentModeName.c_str());
 }
 
 void BattleTurnCamera::Begin_LiveEdit(BattleCameraMode mode, const Shared<Character>& subject, const Shared<Character>& opponent)
@@ -1802,46 +1826,6 @@ void BattleTurnCamera::Update_FromCurrentPreset(float timeDelta)
     Apply_RuntimeShake(pose,timeDelta);
     Apply_EvaluatedPoseWithDOF(pose, _currentRequest.mode);
     GAME->UpdateFrustum(*GAME->Get_Transform(D3DTS::View), *GAME->Get_Transform(D3DTS::Proj));
-
-    if (_isFirstUpdate &&
-        (_currentRequest.mode == BattleCameraMode::PLAYERFOCUS ||
-            _currentRequest.mode == BattleCameraMode::SELECTSKILL))
-    {
-        float subjectYaw = Resolve_BattlePlaneYaw();
-        if (const Shared<TransformCom> subjectTransform = _currentRequest.subject->Get_Transform())
-        {
-            Vec3 subjectForward = subjectTransform->Get_WorldForward();
-            subjectForward.y = 0.f;
-            if (subjectForward.LengthSquared() > 0.0001f)
-            {
-                subjectForward.Normalize();
-                subjectYaw = XMConvertToDegrees(atan2f(subjectForward.x, subjectForward.z));
-            }
-        }
-
-        const char* logModeTag =
-            _currentRequest.mode == BattleCameraMode::PLAYERFOCUS
-            ? "PLAYERFOCUS"
-            : "SELECTSKILL";
-
-        LOG_INFO(
-            "[BattleCam][{}] presetId={} yawBase={:.3f} subjectYaw={:.3f} planeYaw={:.3f} anchor=({:.3f},{:.3f},{:.3f}) camera=({:.3f},{:.3f},{:.3f}) look=({:.3f},{:.3f},{:.3f}) presetYawOffset={:.3f}",
-            logModeTag,
-            _currentRequest.presetId.c_str(),
-            yawBase,
-            subjectYaw,
-            Resolve_BattlePlaneYaw(),
-            _smoothedTargetPos.x,
-            _smoothedTargetPos.y,
-            _smoothedTargetPos.z,
-            pose.cameraPos.x,
-            pose.cameraPos.y,
-            pose.cameraPos.z,
-            pose.lookTarget.x,
-            pose.lookTarget.y,
-            pose.lookTarget.z,
-            _currentPreset.yawOffset);
-    }
 
     _isFirstUpdate = false;
     _prevTargetPos = _smoothedTargetPos;
