@@ -110,6 +110,7 @@ enum class EffectMaterialScalarModulationTarget : uint32
     NoiseUVScrollSpeedScale = 10,
     MaskUVScrollSpeedScale = 11,
     FlowUVScrollSpeedScale = 12,
+    AlphaMultiplier = 13,
 };
 
 // Material parameter modulation이 조절할 Vec2 material field다.
@@ -285,6 +286,7 @@ struct EffectRequiredMaterialRuntimeDesc
     Vec4 tint{ 1.f, 1.f, 1.f, 1.f };                                          // texture sample에 곱할 tint다.
     float intensity{ 1.f };                                                   // sprite 색상 밝기/발광감 계수다.
     float opacityPower{ 1.f };                                                // opacity sharpening 계수다.
+    float alphaMultiplier{ 1.f };                                             // 최종 effect alpha에 곱할 투명도 배율이다.
     float noiseStrength{ 0.f };                                               // noise modulation 강도다.
     float alphaCutoff{ 0.f };                                                 // Trail 등 지원 renderer가 사용할 alpha discard threshold다.
     float alphaErosion{ 0.f };                                                // mask/noise 기반 alpha erosion 후보 값이다.
@@ -346,6 +348,20 @@ struct EffectRequiredMaterialRuntimeDesc
     float distortionShapeRadius{ 0.45f };                                     // sprite UV 중심에서 shape 기준 반경이다.
     float distortionShapeThickness{ 0.10f };                                  // Ring은 UV 폭, ShockwaveRing은 screen pixel half-width다.
     float distortionShapeSoftness{ 0.15f };                                   // Ring은 UV falloff, ShockwaveRing은 screen pixel falloff다.
+    float glassAlpha{ 0.18f };                                                // MeshGlass 기본 표면 투명도다.
+    float glassAlphaPower{ 1.f };                                             // MeshGlass texture coverage sharpen/soften 보정이다.
+    float glassNormalStrength{ 1.f };                                         // MeshGlass model normal 반응 강도다.
+    Color glassRimColor{ 1.f, 1.f, 1.f, 1.f };                                // MeshGlass view-angle rim 색상이다.
+    float glassRimIntensity{ 1.5f };                                          // MeshGlass rim 밝기 배율이다.
+    float glassRimPower{ 3.f };                                               // MeshGlass rim falloff 곡선의 날카로움이다.
+    Vec3 glassLightDirection{ -0.35f, 0.65f, -0.65f };                        // MeshGlass world-space fake light 방향이다.
+    Color glassLightColor{ 1.f, 1.f, 1.f, 1.f };                              // MeshGlass fake light 색상이다.
+    float glassLightIntensity{ 1.2f };                                        // MeshGlass fake light 밝기 배율이다.
+    float glassSpecularPower{ 48.f };                                         // MeshGlass highlight 날카로움이다.
+    float glassSpecularSoftness{ 1.f };                                       // MeshGlass highlight 폭 보정이다.
+    float glassMainInfluence{ 0.25f };                                        // MeshGlass main texture tint/pattern 반영 강도다.
+    float glassNoiseBreakup{ 0.35f };                                         // MeshGlass noise texture breakup 강도다.
+    float glassMaskStrength{ 1.f };                                           // MeshGlass mask coverage 강도다.
     bool twoSided{ false };                                                   // 지원 renderer가 사용할 양면 렌더 힌트다.
     uint32 subUVRows{ 1 };                                                    // flipbook row 수다.
     uint32 subUVCols{ 1 };                                                    // flipbook column 수다.
@@ -844,6 +860,45 @@ struct MeshTransformRuntimeDesc
     MeshVector3CurveRuntimeDesc angularVelocityScaleByLife{};        // angular velocity Vec3 배율이다.
 };
 
+enum class EffectMeshDirectionAlignTargetMode : uint8
+{
+    Direction,
+    Point,
+};
+
+enum class EffectMeshDirectionAlignSpace : uint8
+{
+    Local,
+    World,
+};
+
+enum class EffectMeshDirectionAlignBlendMode : uint8
+{
+    Linear,
+    EaseIn,
+    EaseOut,
+    EaseInOut,
+};
+
+// MeshDirectionAlignOverLife 모듈이 mesh 최종 orientation에 적용하는 target-facing payload다.
+struct MeshDirectionAlignRuntimeDesc
+{
+    bool enabled{ false };                                                        // 모듈 연결 여부다.
+    EffectMeshDirectionAlignTargetMode targetMode{ EffectMeshDirectionAlignTargetMode::Direction };
+    EffectMeshDirectionAlignSpace space{ EffectMeshDirectionAlignSpace::World };
+    Vec3 target{ 0.f, 0.f, 1.f };                                                 // Direction이면 벡터, Point면 위치다.
+    PointParticlePlaneRadialOrientationAxis meshForwardAxis{
+        PointParticlePlaneRadialOrientationAxis::PositiveZ };                     // target direction에 맞출 mesh local 축이다.
+    PointParticlePlaneRadialOrientationAxis meshUpAxis{
+        PointParticlePlaneRadialOrientationAxis::PositiveY };                     // target frame 안정화에 사용할 mesh local up 축이다.
+    PointParticleFloatCurveRuntimeDesc alignmentProgress{};                       // life progress 기준 0..1 정렬 weight curve다.
+    Vec2 randomDelay{ 0.f, 0.f };                                                 // spawn 시 샘플되는 normalized life 지연 범위다.
+    PointParticleRandomSeedRuntimeDesc randomDelaySeed{};                         // randomDelay sample seed salt다.
+    Vec2 randomWeightScale{ 1.f, 1.f };                                           // spawn 시 샘플되는 최종 weight 배율 범위다.
+    PointParticleRandomSeedRuntimeDesc randomWeightScaleSeed{};                   // randomWeightScale sample seed salt다.
+    EffectMeshDirectionAlignBlendMode blendMode{ EffectMeshDirectionAlignBlendMode::Linear };
+};
+
 // mesh emitter가 clone 시점에 받는 model/instance draw용 runtime payload다.
 struct MeshEmitterDesc : public GameObject::GAMEOBJECT_DESC
 {
@@ -874,6 +929,7 @@ struct MeshEmitterDesc : public GameObject::GAMEOBJECT_DESC
     PointParticlePlaneRadialOrientationDesc planeRadialOrientation{};   // PlaneRadialOrientation 모듈에서 mesh radial frame 회전으로 소비하는 payload다.
     PointParticleCylinderOrientationDesc cylinderOrientation{};          // CylinderOrientation 모듈에서 cylinder frame 회전으로 소비하는 payload다.
     MeshTransformRuntimeDesc meshTransform{};                           // Mesh 전용 Vec3 scale/rotation payload다.
+    MeshDirectionAlignRuntimeDesc meshDirectionAlign{};                  // MeshDirectionAlignOverLife 모듈에서 최종 방향 정렬로 소비하는 payload다.
 };
 
 using EffectEmitterConcreteDesc = variant<

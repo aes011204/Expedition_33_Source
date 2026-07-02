@@ -249,12 +249,13 @@ private:
 
     // 몬스터 약점공격 보너스 데미지
     bool    Try_ApplyFreeAimWeakPointBonus(const BattleFreeAimHitTarget& hitTarget, const BattleChar& attacker);
-    void    Capture_PreBattleBGM();
-    void    Restore_PreBattleBGM();
 
     bool    Update_BattleTutorialGate(float timeDelta);
+    int32   Find_EnemyTargetPreviewIndex(const vector<BattleChar>& aliveEnemies) const;
 
-    int32 Find_EnemyTargetPreviewIndex(const vector<BattleChar>& aliveEnemies) const;
+public:
+    void    Capture_PreBattleBGM();
+    void    Restore_PreBattleBGM();
 
 private:
     // World의 SkillTree 상태를 읽어서 battle에서 사용할 스킬 세팅
@@ -421,6 +422,7 @@ private:
     uint32 _lastVictoryRewardExp = 0;
     vector<string> _lastVictoryRewardPictosIds{};
     wstring _preBattleBGM{};
+    bool _hasCapturedPreBattleBGM = false;
 
     vector<BattleChar> _enemyTurnTargetedActors = {};
     vector<BattleSpawnRotationReturn> _battleSpawnRotationReturns = {};

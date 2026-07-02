@@ -13,12 +13,13 @@ public:
 
 public:
     string Get_TypeName() const override { return "ANS_JumpCounter"; }
+    float Get_JumpCounterWorldTimeScale() const { return _jumpCounterWorldTimeScale; }
     void On_Begin(const AnimNotifyContext& context) override;
     void On_Tick(const AnimNotifyContext& context) override;
     void On_End(const AnimNotifyContext& context) override;
 
 private:
-    float _testValue = 1.f;
+    float _jumpCounterWorldTimeScale = 0.15f;
     bool _startedCounter = false;
 };
 

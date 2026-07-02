@@ -9,7 +9,7 @@ cbuffer cbEffectTrailMaterial : register(b2)
 {
     float4 g_Tint = { 1.f, 1.f, 1.f, 1.f };
     float4 g_EffectTrailParams = { 1.f, 1.f, 0.f, 0.f };                 // x: authored energy scalar, y: opacityPower, z: noiseStrength, w: useNoise
-    float4 g_EffectTrailAlphaParams = { 0.f, 0.f, 0.f, 0.f };            // x: alphaCutoff, y: alphaErosion, z: useMask, w: reserved
+    float4 g_EffectTrailAlphaParams = { 0.f, 0.f, 0.f, 1.f };            // x: alphaCutoff, y: alphaErosion, z: useMask, w: alphaMultiplier
     float4 g_EffectTrailMainUVParams = { 1.f, 1.f, 0.f, 0.f };           // xy: scale, zw: scroll speed
     float4 g_EffectTrailNoiseUVParams = { 1.f, 1.f, 0.f, 0.f };          // xy: scale, zw: scroll speed
     float4 g_EffectTrailMaskUVParams = { 1.f, 1.f, 0.f, 0.f };           // xy: scale, zw: scroll speed
@@ -368,7 +368,7 @@ EffectMaterialSurface Resolve_EffectMaterialSurface(PS_IN In)
         opacityPower,
         coverage,
         breakupNoise,
-        1.f
+        g_EffectTrailAlphaParams.w
     );
     surface.coverage = shapeCoverage * saturate(segmentColor.a * g_Tint.a * saturate(In.segmentParams.z) * sideAlpha);
 
@@ -464,7 +464,7 @@ PS_OUT PS_ADDITIVE(PS_IN In)
     const float breakupNoise = lerp(1.f, noiseRaw, noiseStrength);
     const float edgeBreakup = lerp(1.f, noiseRaw, noiseStrength * edgeWeight);
     float coverage = Effect_ApplyAlphaErosion(maskAlpha, maskAlpha * edgeBreakup, alphaErosion);
-    const float coverageBase = saturate(coverage * breakupNoise);
+    const float coverageBase = saturate(coverage * breakupNoise * g_EffectTrailAlphaParams.w);
     const float additiveLifeAlpha = saturate(segmentColor.a * g_Tint.a * saturate(In.segmentParams.z) * sideAlpha);
     const float energyVariation = lerp(1.f, lerp(0.75f, 1.25f, noiseRaw), noiseStrength);
     const int colorSource = (int)g_EffectTrailAdditiveParams.x;

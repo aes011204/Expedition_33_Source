@@ -193,6 +193,7 @@ if exist "$(ProjectDir)..\..\EngineSDK\lib\$(Configuration)\fmod.dll" xcopy /y /
     <ClCompile Include="..\Private\AnimState_View.cpp" />
     <ClCompile Include="..\private\BT_View.cpp" />
     <ClCompile Include="..\private\Camera_Tool.cpp" />
+    <ClCompile Include="..\Private\BattleCameraPreview_Effects.cpp" />
     <ClCompile Include="..\Private\BattleCameraPreview_View.cpp" />
     <ClCompile Include="..\private\Cinematic_Tool.cpp" />
     <ClCompile Include="..\Private\Collider_Inspector.cpp" />

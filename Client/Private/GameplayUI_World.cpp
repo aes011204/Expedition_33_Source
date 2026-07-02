@@ -28,6 +28,7 @@
 #include "UI_InteractionPrompt.h"
 #include "UI_Replay.h"
 
+#include "RuntimeRuleStateService.h"
 #include "Client_Constants.h"
 #include "GameObject.h"
 #include "Spawn_Prefab.h"
@@ -414,8 +415,15 @@ bool GameplayUI_World::Request_ArenaCharacterSelect()
     if (_arenaCharacterSelectPanel == nullptr)
         return false;
 
+    const bool requestedFromDialogue = CLIENT->IsDialogueInteractLocked();
+
     if (_expeditionStatPanel && _expeditionStatPanel->Is_Open())
-        return false;
+    {
+        if (!requestedFromDialogue)
+            return false;
+
+        _expeditionStatPanel->Close_Immediately();
+    }
 
     if (Get_CurrentMenu() != GameplayMenu::None)
         return false;
@@ -423,7 +431,7 @@ bool GameplayUI_World::Request_ArenaCharacterSelect()
     if (CLIENT->Is_WorldControlSuspended() || CLIENT->Is_BattleEntering())
         return false;
 
-    if (GAME->Is_WorldGameplayInputBlocked())
+    if (GAME->Is_WorldGameplayInputBlocked() && !requestedFromDialogue)
         return false;
 
     Push_Menu(GameplayMenu::ArenaCharacterSelect);
@@ -760,6 +768,8 @@ void GameplayUI_World::Handle_ArenaCharacterSelectAction(UI_ArenaCharacterSelect
         }
 
         Close_AllMenus(true);
+
+        RuntimeRuleStateService::Apply_ToCurrentRuntime(RuntimeRuleStateService::Build_DuallistStartUnlocks(), false);
 
         const wstring sequencePath =
             wstring(Constants::Cinematic::RuntimeJson_Dir) +

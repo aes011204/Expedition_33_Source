@@ -165,9 +165,6 @@ private:
     Vec3   _overrideMonsterSpawnPosition = Vec3::Zero;
     Vec3   _overrideMonsterSpawnRotation = Vec3::Zero;
 
-    float  _playerMaxHp = 100.f;
-    float  _monsterMaxHp = 500.f;
-
     float  _enterFxDelay = 0.6f;
     float  _victorySlowDuration = 0.6f;
     float  _victorySlowTimeScale = 0.12f;

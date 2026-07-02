@@ -23,6 +23,7 @@ namespace Internal
     constexpr auto kWindowName = L"MeshData Preview";
     constexpr auto kMeshShaderId = L"Shader_EffectMeshPreview";
     constexpr auto kMeshDistortionShaderId = L"Shader_EffectMeshPreviewDistortion";
+    constexpr auto kMeshGlassShaderId = L"Shader_EffectMeshPreviewGlass";
     constexpr auto kEffectMaterialPreviewShaderId = L"Shader_EffectMaterialPreview";
     constexpr auto kEffectMaterialPayloadType = "CONTENT_BROWSER_EFFECT_MATERIAL";
     constexpr auto kEffectModelPayloadType = "CONTENT_BROWSER_EFFECT_MODEL";
@@ -256,6 +257,11 @@ namespace Internal
         return material.materialFamily == EffectMaterialFamily::SpriteDistortion;
     }
 
+    bool Is_MeshGlassPreviewFamily(const EffectMaterialInstanceData& material)
+    {
+        return material.materialFamily == EffectMaterialFamily::MeshGlass;
+    }
+
     bool Draw_AssetDropSlot(
         const char* id,
         const char* title,
@@ -464,7 +470,7 @@ struct MeshDataPreview_View::PreviewRenderer
 
         HRESULT hr = Render_CheckerBackground(previewTime.cycleTime);
         if (SUCCEEDED(hr))
-            hr = Draw_Model(meshData.previewScale, effectMaterial, previewTime.cycleTime);
+            hr = Draw_Model(meshData.previewScale, effectMaterial, previewTime.cycleTime, meshData.useModelMaterials);
 
         if (SUCCEEDED(hr))
             hr = sceneResolve->Resolve();
@@ -658,9 +664,11 @@ struct MeshDataPreview_View::PreviewRenderer
 
     bool Ready_Shader(const EffectMaterialInstanceData& material)
     {
-        const wstring requestedShaderId = Internal::Is_MeshDistortionPreviewFamily(material)
-                                          ? Internal::kMeshDistortionShaderId
-                                          : Internal::kMeshShaderId;
+        wstring requestedShaderId = Internal::kMeshShaderId;
+        if (Internal::Is_MeshDistortionPreviewFamily(material))
+            requestedShaderId = Internal::kMeshDistortionShaderId;
+        else if (Internal::Is_MeshGlassPreviewFamily(material))
+            requestedShaderId = Internal::kMeshGlassShaderId;
         if (shader != nullptr && loadedShaderKey == requestedShaderId)
             return true;
 
@@ -670,9 +678,12 @@ struct MeshDataPreview_View::PreviewRenderer
         shader = Internal::Clone_Component<ShaderCom>(ETOI(LevelType::Static), requestedShaderId);
         if (shader == nullptr)
         {
-            statusMessage = requestedShaderId == Internal::kMeshDistortionShaderId
-                            ? "Shader_EffectMeshPreviewDistortion prototype is missing."
-                            : "Shader_EffectMeshPreview prototype is missing.";
+            if (requestedShaderId == Internal::kMeshDistortionShaderId)
+                statusMessage = "Shader_EffectMeshPreviewDistortion prototype is missing.";
+            else if (requestedShaderId == Internal::kMeshGlassShaderId)
+                statusMessage = "Shader_EffectMeshPreviewGlass prototype is missing.";
+            else
+                statusMessage = "Shader_EffectMeshPreview prototype is missing.";
             return false;
         }
 
@@ -777,7 +788,7 @@ struct MeshDataPreview_View::PreviewRenderer
         if (!Ready_Texture(
             material.mainTextureGuid,
             material.mainTexturePath,
-            true,
+            !Internal::Is_MeshGlassPreviewFamily(material),
             mainTexture,
             loadedMainTextureKey,
             "Assigned effect material main texture is missing."
@@ -814,11 +825,12 @@ struct MeshDataPreview_View::PreviewRenderer
             : 1.f;
         const float positiveElapsedTime = max(materialElapsedTime, 0.f);
         const float cycleTime = std::fmod(positiveElapsedTime, safeDuration);
+        const float phase = cycleTime / safeDuration;
 
         return MaterialPreviewTime{
             safeDuration,
             cycleTime,
-            cycleTime / safeDuration
+            phase
         };
     }
 
@@ -862,9 +874,10 @@ struct MeshDataPreview_View::PreviewRenderer
     HRESULT Bind_EffectMaterialResources(const EffectMaterialInstanceData& material, float previewCycleTime)
     {
         CHECK_NULL(shader, E_FAIL);
-        CHECK_NULL(mainTexture, E_FAIL);
-
-        CHECK_FAILED(mainTexture->Bind_ShaderResourceView(shader.get(), "g_Texture", 0), E_FAIL);
+        if (mainTexture != nullptr)
+            CHECK_FAILED(mainTexture->Bind_ShaderResourceView(shader.get(), "g_Texture", 0), E_FAIL);
+        else
+            CHECK_FAILED(shader->Bind_SRV("g_Texture", nullptr), E_FAIL);
 
         if (noiseTexture != nullptr)
             CHECK_FAILED(noiseTexture->Bind_ShaderResourceView(shader.get(), "g_NoiseTexture", 0), E_FAIL);
@@ -888,7 +901,7 @@ struct MeshDataPreview_View::PreviewRenderer
             clamp(material.alphaCutoff, 0.f, 1.f),
             clamp(material.alphaErosion, 0.f, 1.f),
             maskTexture != nullptr ? 1.f : 0.f,
-            0.f
+            clamp(material.alphaMultiplier, 0.f, 1.f)
         );
         const Vec4 effectMeshMainUVParams = Vec4(material.mainUVScale.x, material.mainUVScale.y, material.mainUVScrollSpeed.x, material.mainUVScrollSpeed.y);
         const Vec4 effectMeshNoiseUVParams = Vec4(
@@ -988,11 +1001,81 @@ struct MeshDataPreview_View::PreviewRenderer
         CHECK_FAILED(shader->Bind_RawValue("g_EffectMeshAdditiveFlags", &effectMeshAdditiveFlags, sizeof(effectMeshAdditiveFlags)), E_FAIL);
         CHECK_FAILED(shader->Bind_RawValue("g_EffectMeshCoreEmissiveParams", &effectMeshCoreEmissiveParams, sizeof(effectMeshCoreEmissiveParams)), E_FAIL);
         CHECK_FAILED(shader->Bind_RawValue("g_EffectMeshCoreEmissiveColor", &effectMeshCoreEmissiveColor, sizeof(effectMeshCoreEmissiveColor)), E_FAIL);
+        if (Internal::Is_MeshGlassPreviewFamily(material))
+        {
+            const Vec4 glassSurfaceParams(
+                max(0.f, material.glassAlpha),
+                max(0.0001f, material.glassAlphaPower),
+                max(0.f, material.glassNormalStrength),
+                clamp(material.glassMainInfluence, 0.f, 1.f)
+            );
+            const Vec4 glassRimParams(
+                max(0.f, material.glassRimIntensity),
+                max(0.0001f, material.glassRimPower),
+                clamp(material.glassNoiseBreakup, 0.f, 1.f),
+                clamp(material.glassMaskStrength, 0.f, 1.f)
+            );
+            const Vec4 glassLightDirection(
+                material.glassLightDirection.x,
+                material.glassLightDirection.y,
+                material.glassLightDirection.z,
+                max(0.f, material.glassLightIntensity)
+            );
+            const Vec4 glassSpecularParams(
+                max(0.0001f, material.glassSpecularPower),
+                max(0.0001f, material.glassSpecularSoftness),
+                0.f,
+                0.f
+            );
+
+            CHECK_FAILED(shader->Bind_RawValue("g_EffectMeshGlassSurfaceParams", &glassSurfaceParams, sizeof(glassSurfaceParams)), E_FAIL);
+            CHECK_FAILED(shader->Bind_RawValue("g_EffectMeshGlassRimColor", &material.glassRimColor, sizeof(material.glassRimColor)), E_FAIL);
+            CHECK_FAILED(shader->Bind_RawValue("g_EffectMeshGlassRimParams", &glassRimParams, sizeof(glassRimParams)), E_FAIL);
+            CHECK_FAILED(shader->Bind_RawValue("g_EffectMeshGlassLightDirection", &glassLightDirection, sizeof(glassLightDirection)), E_FAIL);
+            CHECK_FAILED(shader->Bind_RawValue("g_EffectMeshGlassLightColor", &material.glassLightColor, sizeof(material.glassLightColor)), E_FAIL);
+            CHECK_FAILED(shader->Bind_RawValue("g_EffectMeshGlassSpecularParams", &glassSpecularParams, sizeof(glassSpecularParams)), E_FAIL);
+        }
         CHECK_FAILED(
             shader->Bind_RawValue("g_EffectMeshPreviewScreenSize", &effectMeshPreviewScreenSize, sizeof(effectMeshPreviewScreenSize)),
             E_FAIL
         );
         CHECK_FAILED(shader->Bind_RawValue("g_OpacitySource", &opacitySource, sizeof(opacitySource)), E_FAIL);
+        return S_OK;
+    }
+
+    HRESULT Bind_ModelMaterialResourcesForMesh(uint32 meshIndex, bool useModelMaterials)
+    {
+        Vec4 modelMaterialFlags = Vec4::Zero;
+        if (!useModelMaterials || model == nullptr)
+        {
+            if (mainTexture != nullptr)
+                CHECK_FAILED(mainTexture->Bind_ShaderResourceView(shader.get(), "g_Texture", 0), E_FAIL);
+            else
+                CHECK_FAILED(shader->Bind_SRV("g_Texture", nullptr), E_FAIL);
+            CHECK_FAILED(shader->Bind_SRV("g_ModelNormalTexture", nullptr), E_FAIL);
+            CHECK_FAILED(shader->Bind_SRV("g_ModelEmissiveTexture", nullptr), E_FAIL);
+            CHECK_FAILED(shader->Bind_RawValue("g_EffectMeshModelMaterialFlags", &modelMaterialFlags, sizeof(modelMaterialFlags)), E_FAIL);
+            return S_OK;
+        }
+
+        if (SUCCEEDED(model->Bind_Material(shader.get(), "g_Texture", meshIndex, MaterialTextureSlot::BaseColor)))
+            modelMaterialFlags.x = 1.f;
+        else if (mainTexture == nullptr)
+            CHECK_FAILED(shader->Bind_SRV("g_Texture", nullptr), E_FAIL);
+        else
+            CHECK_FAILED(mainTexture->Bind_ShaderResourceView(shader.get(), "g_Texture", 0), E_FAIL);
+
+        if (SUCCEEDED(model->Bind_Material(shader.get(), "g_ModelNormalTexture", meshIndex, MaterialTextureSlot::Normal)))
+            modelMaterialFlags.y = 1.f;
+        else
+            CHECK_FAILED(shader->Bind_SRV("g_ModelNormalTexture", nullptr), E_FAIL);
+
+        if (SUCCEEDED(model->Bind_Material(shader.get(), "g_ModelEmissiveTexture", meshIndex, MaterialTextureSlot::Emissive)))
+            modelMaterialFlags.z = 1.f;
+        else
+            CHECK_FAILED(shader->Bind_SRV("g_ModelEmissiveTexture", nullptr), E_FAIL);
+
+        CHECK_FAILED(shader->Bind_RawValue("g_EffectMeshModelMaterialFlags", &modelMaterialFlags, sizeof(modelMaterialFlags)), E_FAIL);
         return S_OK;
     }
 
@@ -1039,6 +1122,8 @@ struct MeshDataPreview_View::PreviewRenderer
     {
         if (Internal::Is_MeshDistortionPreviewFamily(material))
             return 0u;
+        if (Internal::Is_MeshGlassPreviewFamily(material))
+            return 0u;
 
         const bool additive = material.blendMode == EffectMaterialBlendMode::Additive;
         const bool masked = material.blendMode == EffectMaterialBlendMode::Masked;
@@ -1050,7 +1135,7 @@ struct MeshDataPreview_View::PreviewRenderer
         return twoSided ? 2u : 0u;
     }
 
-    HRESULT Draw_Model(const Vec3& previewScale, const EffectMaterialInstanceData& material, float previewCycleTime)
+    HRESULT Draw_Model(const Vec3& previewScale, const EffectMaterialInstanceData& material, float previewCycleTime, bool useModelMaterials)
     {
         CHECK_NULL(shader, E_FAIL);
         CHECK_NULL(model, E_FAIL);
@@ -1088,6 +1173,9 @@ struct MeshDataPreview_View::PreviewRenderer
         const uint32 numMeshes = static_cast<uint32>(model->Get_NumMeshes());
         for (uint32 meshIndex = 0; meshIndex < numMeshes; ++meshIndex)
         {
+            if (!Internal::Is_MeshDistortionPreviewFamily(material))
+                CHECK_FAILED(Bind_ModelMaterialResourcesForMesh(meshIndex, useModelMaterials), E_FAIL);
+
             CHECK_FAILED(shader->Begin(passIndex), E_FAIL);
             CHECK_FAILED(model->Render(meshIndex), E_FAIL);
         }
@@ -1581,7 +1669,10 @@ bool MeshDataPreview_View::Render_MaterialInstanceSection(const AuthoringEmitter
         outRestartPreview,
         EffectMaterialTwoSidedDisplayMode::EditableImplemented,
         EffectMaterialDistortionShapeControlMode::MeshUnsupported,
-        &renderPolicyBinding
+        &renderPolicyBinding,
+        meshData.useModelMaterials
+            ? "Use Model Materials가 켜져 있어 모델의 BaseColor/Normal/Emissive 슬롯을 사용합니다.\n끄면 이펙트 머티리얼의 Main Texture를 직접 지정할 수 있습니다."
+            : nullptr
     );
 }
 

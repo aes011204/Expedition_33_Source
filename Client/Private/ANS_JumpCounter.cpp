@@ -10,7 +10,7 @@ IMPLEMENT_REFLECTION(ANS_JumpCounter)
     auto& info = GetStaticReflectionInfo();
     info.properties.clear();
 
-    PROPERTY_FLOAT("테스트 값", _testValue);
+    PROPERTY_FLOAT("JumpCounter TimeScale", _jumpCounterWorldTimeScale);
 
     return true;
 }
@@ -24,7 +24,7 @@ void ANS_JumpCounter::On_Begin(const AnimNotifyContext& context)
         return;
 
     _startedCounter = false;
-    battle->Get_ReactionController().NotifyJumpCounterWindowBegin();
+    battle->Get_ReactionController().NotifyJumpCounterWindowBegin(_jumpCounterWorldTimeScale);
 }
 
 void ANS_JumpCounter::On_Tick(const AnimNotifyContext& context)

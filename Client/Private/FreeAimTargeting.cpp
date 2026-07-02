@@ -45,14 +45,6 @@ bool FreeAimTargeting::EnterInvoke()
     if (!owner)
         return false;
 
-    const auto battleCamera = owner->Get_BattleTurnCamera();
-    if (battleCamera)
-    {
-        const Vec3 currentRot = battleCamera->Get_Transform()->Get_RotationEuler();
-        battleCamera->Set_Yaw(currentRot.y);
-        battleCamera->Set_Pitch(currentRot.x);
-    }
-
     //GAME->Lock_Mouse();
     const BattleChar& actor = owner->Get_TurnActionRequest().actor;
     if (actor.ModelCom == nullptr)
@@ -103,6 +95,7 @@ void FreeAimTargeting::Update(float timeDelta)
 
         EvtBattlePresentation event{};
         event.cameraMode = BattleCameraMode::PLAYERFOCUS;
+        event.presetId = magic_enum::enum_name(owner->Get_TurnActionRequest().actor.heroId);
         event.subject = owner->Get_TurnActionRequest().actor.actor;
         LOG_INFO("[BattleCamTrace] Publish PLAYERFOCUS from FreeAimTargeting::Update RBUTTON");
         GAME->Get_EventBus().Publish(event);

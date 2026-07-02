@@ -568,71 +568,72 @@ void ComputeSourceHistoryRibbonEmitter::Update_ParticleFollowerHistory(float tim
         const Shared<EffectEmitter> sourceEmitter =
             effectOwner != nullptr ? effectOwner->Find_EmitterById(_desc.sourceEmitterId) : nullptr;
 
-        vector<EffectFollowerSourcePoint> sourcePoints{};
-        if (sourceEmitter != nullptr && _desc.followerLaneCount > 0u)
-            sourceEmitter->Collect_FollowerSourcePoints(sourcePoints, _desc.followerLaneCount);
-
         if (sourceEmitter == nullptr || sourceEmitter->Is_EffectFinished())
             _finishEmissionAfterHistoryUpdate = true;
-
-        for (const EffectFollowerSourcePoint& sourcePoint : sourcePoints)
+        else if (_desc.followerLaneCount > 0u)
         {
-            HistoryLane* lane = Find_HistoryLane(sourcePoint.sourceIndex);
-            if (lane == nullptr)
-            {
-                _sourceLanes.push_back(HistoryLane{ .sourceIndex = sourcePoint.sourceIndex });
-                lane = &_sourceLanes.back();
-                lane->headOffset = Sample_HeadOffset(
-                    (_loopIndex + 1u) * 9781u +
-                    sourcePoint.sourceIndex * 1664525u +
-                    4099u
-                );
-            }
+            vector<EffectFollowerSourcePoint> sourcePoints{};
+            sourceEmitter->Collect_FollowerSourcePoints(sourcePoints, _desc.followerLaneCount);
 
-            const Vec3 sourcePosition = Apply_HeadOffset(sourcePoint.position, lane->headOffset);
-
-            lane->activeThisFrame = true;
-            lane->missingTime = 0.f;
-            const float frameMovedDistance =
-                lane->hasPreviousSourcePosition
-                ? (sourcePosition - lane->previousSourcePosition).Length()
-                : _desc.sampleSpacing;
-            const bool isIdle =
-                lane->hasPreviousSourcePosition && frameMovedDistance <= max(_desc.sampleSpacing * 0.1f, 0.0001f);
-            lane->currentSourcePosition = sourcePosition;
-            const bool movedEnough =
-                lane->history.empty() || (sourcePosition - lane->history.front().position).Length() >= _desc.sampleSpacing;
-            const bool intervalReady =
-                _desc.sampleInterval > 0.f && lane->sampleIntervalAccumulator >= _desc.sampleInterval;
-            const bool shouldInsertSample = movedEnough || (!_desc.tailCollapseOnIdle && intervalReady);
-            if (!_desc.tailCollapseOnIdle || _desc.tailCollapseSpeed <= 0.f)
-                lane->collapseLength = -1.f;
-
-            if (shouldInsertSample)
+            for (const EffectFollowerSourcePoint& sourcePoint : sourcePoints)
             {
-                Insert_HistorySample(lane->history, lane->sampleIntervalAccumulator, sourcePosition);
-                lane->collapseLength = -1.f;
-            }
-            else if (_desc.tailCollapseOnIdle && _desc.tailCollapseSpeed > 0.f)
-            {
-                vector<RenderSample> fullRenderSamples{};
-                Build_RenderSamples(lane->history, fullRenderSamples, &lane->currentSourcePosition);
-                const float currentLength =
-                    lane->collapseLength >= 0.f
-                    ? lane->collapseLength
-                    : fullRenderSamples.size() >= 2u ? fullRenderSamples.back().distanceFromHead : 0.f;
-                if (isIdle)
+                HistoryLane* lane = Find_HistoryLane(sourcePoint.sourceIndex);
+                if (lane == nullptr)
                 {
-                    const float collapseRatio = clamp(_desc.tailCollapseSpeed * safeDeltaTime, 0.f, 1.f);
-                    lane->collapseLength = max(0.f, currentLength * (1.f - collapseRatio));
+                    _sourceLanes.push_back(HistoryLane{ .sourceIndex = sourcePoint.sourceIndex });
+                    lane = &_sourceLanes.back();
+                    lane->headOffset = Sample_HeadOffset(
+                        (_loopIndex + 1u) * 9781u +
+                        sourcePoint.sourceIndex * 1664525u +
+                        4099u
+                    );
                 }
-                else
-                    lane->collapseLength = -1.f;
-            }
 
-            lane->previousSourcePosition = sourcePosition;
-            lane->hasPreviousSourcePosition = true;
-            Prune_History(lane->history);
+                const Vec3 sourcePosition = Apply_HeadOffset(sourcePoint.position, lane->headOffset);
+
+                lane->activeThisFrame = true;
+                lane->missingTime = 0.f;
+                const float frameMovedDistance =
+                    lane->hasPreviousSourcePosition
+                    ? (sourcePosition - lane->previousSourcePosition).Length()
+                    : _desc.sampleSpacing;
+                const bool isIdle =
+                    lane->hasPreviousSourcePosition && frameMovedDistance <= max(_desc.sampleSpacing * 0.1f, 0.0001f);
+                lane->currentSourcePosition = sourcePosition;
+                const bool movedEnough =
+                    lane->history.empty() || (sourcePosition - lane->history.front().position).Length() >= _desc.sampleSpacing;
+                const bool intervalReady =
+                    _desc.sampleInterval > 0.f && lane->sampleIntervalAccumulator >= _desc.sampleInterval;
+                const bool shouldInsertSample = movedEnough || (!_desc.tailCollapseOnIdle && intervalReady);
+                if (!_desc.tailCollapseOnIdle || _desc.tailCollapseSpeed <= 0.f)
+                    lane->collapseLength = -1.f;
+
+                if (shouldInsertSample)
+                {
+                    Insert_HistorySample(lane->history, lane->sampleIntervalAccumulator, sourcePosition);
+                    lane->collapseLength = -1.f;
+                }
+                else if (_desc.tailCollapseOnIdle && _desc.tailCollapseSpeed > 0.f)
+                {
+                    vector<RenderSample> fullRenderSamples{};
+                    Build_RenderSamples(lane->history, fullRenderSamples, &lane->currentSourcePosition);
+                    const float currentLength =
+                        lane->collapseLength >= 0.f
+                        ? lane->collapseLength
+                        : fullRenderSamples.size() >= 2u ? fullRenderSamples.back().distanceFromHead : 0.f;
+                    if (isIdle)
+                    {
+                        const float collapseRatio = clamp(_desc.tailCollapseSpeed * safeDeltaTime, 0.f, 1.f);
+                        lane->collapseLength = max(0.f, currentLength * (1.f - collapseRatio));
+                    }
+                    else
+                        lane->collapseLength = -1.f;
+                }
+
+                lane->previousSourcePosition = sourcePosition;
+                lane->hasPreviousSourcePosition = true;
+                Prune_History(lane->history);
+            }
         }
     }
 
@@ -642,7 +643,7 @@ void ComputeSourceHistoryRibbonEmitter::Update_ParticleFollowerHistory(float tim
         {
             return !lane.activeThisFrame &&
                    lane.missingTime >= kParticleFollowerLaneRetireGrace &&
-                   !Has_RenderableHistory(lane.history, &lane.currentSourcePosition);
+                   !Has_RenderableHistory(lane.history, Resolve_LaneCurrentHeadForRender(lane));
         }
     );
 
@@ -651,7 +652,7 @@ void ComputeSourceHistoryRibbonEmitter::Update_ParticleFollowerHistory(float tim
     for (const HistoryLane& lane : _sourceLanes)
     {
         const float* visibleLengthLimit = lane.collapseLength >= 0.f ? &lane.collapseLength : nullptr;
-        Build_RenderSamples(lane.history, renderSamples, &lane.currentSourcePosition, visibleLengthLimit);
+        Build_RenderSamples(lane.history, renderSamples, Resolve_LaneCurrentHeadForRender(lane), visibleLengthLimit);
         if (renderSamples.size() >= 2)
             _visibleRibbonLength = max(_visibleRibbonLength, renderSamples.back().distanceFromHead);
     }
@@ -860,7 +861,7 @@ bool ComputeSourceHistoryRibbonEmitter::Has_RenderableHistory() const
             _sourceLanes,
             [this](const HistoryLane& lane)
             {
-                return Has_RenderableHistory(lane.history, &lane.currentSourcePosition);
+                return Has_RenderableHistory(lane.history, Resolve_LaneCurrentHeadForRender(lane));
             }
         );
         if (hasActiveLane)
@@ -881,6 +882,21 @@ bool ComputeSourceHistoryRibbonEmitter::Has_RenderableHistory(const vector<Histo
     vector<RenderSample> renderSamples{};
     Build_RenderSamples(history, renderSamples, currentSourcePosition);
     return renderSamples.size() >= 2u;
+}
+
+const Vec3* ComputeSourceHistoryRibbonEmitter::Resolve_LaneCurrentHeadForRender(const HistoryLane& lane) const
+{
+    const bool hasUnexpiredHistory = ranges::any_of(
+        lane.history,
+        [this](const HistorySample& sample)
+        {
+            return sample.age < _desc.sampleLifetime;
+        }
+    );
+    if (hasUnexpiredHistory && (lane.activeThisFrame || lane.missingTime < kParticleFollowerLaneRetireGrace))
+        return &lane.currentSourcePosition;
+
+    return nullptr;
 }
 
 ComputeSourceHistoryRibbonEmitter::HistoryLane* ComputeSourceHistoryRibbonEmitter::Find_HistoryLane(uint32 sourceIndex)
@@ -1166,7 +1182,7 @@ HRESULT ComputeSourceHistoryRibbonEmitter::Update_ComputeInput()
         for (const HistoryLane& lane : _sourceLanes)
         {
             const float* visibleLengthLimit = lane.collapseLength >= 0.f ? &lane.collapseLength : nullptr;
-            Build_RenderSamples(lane.history, laneRenderSamples, &lane.currentSourcePosition, visibleLengthLimit);
+            Build_RenderSamples(lane.history, laneRenderSamples, Resolve_LaneCurrentHeadForRender(lane), visibleLengthLimit);
 
             const float fadeDuration = max(_desc.laneSpawnFadeInDuration, 0.0001f);
             const float laneWidthMultiplier =
@@ -1433,7 +1449,7 @@ HRESULT ComputeSourceHistoryRibbonEmitter::Bind_MaterialResources()
         clamp(material.alphaCutoff, 0.f, 1.f),
         clamp(material.alphaErosion, 0.f, 1.f),
         nullptr != _maskTexture ? 1.f : 0.f,
-        0.f
+        clamp(material.alphaMultiplier, 0.f, 1.f)
     );
     const Vec4 effectRibbonMainUVParams = Vec4(material.mainUVScale.x, material.mainUVScale.y, material.mainUVScrollSpeed.x, material.mainUVScrollSpeed.y);
     const Vec4 effectRibbonNoiseUVParams = Vec4(material.noiseUVScale.x, material.noiseUVScale.y, material.noiseUVScrollSpeed.x, material.noiseUVScrollSpeed.y);

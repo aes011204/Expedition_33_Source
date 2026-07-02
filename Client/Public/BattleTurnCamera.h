@@ -76,6 +76,7 @@ public:
     void Set_IsClipPreview(bool boolean) { _isClipPreview = boolean; }
     void Set_RuntimePausedByTutorial(bool paused) { _isRuntimePausedByTutorial = paused; }
 
+    void Reset_FreeAimRotation(float baseYaw);
     void Update_FreeAimRotation(float timeDelta);
     Vec3 Get_AimOrigin() const;                // 히트스캔 시작 위치
     Vec3 Get_AimDirection() const;             // 히트스캔 방향
@@ -194,6 +195,9 @@ private:
         const BattleCameraClipSample& clipSample,
         EvaluatedPose& outPose) const;
     float Resolve_BattlePlaneYaw() const;
+    int Resolve_EnemyIndexForActor(const Shared<Character>& actor) const;
+    float Resolve_EnemyFormationYawBiasDegrees(const Shared<Character>& enemyActor) const;
+    float Resolve_RequestFormationYawBiasDegrees(const BattleShotRequest& request) const;
     float Resolve_YawBaseForPresetMode(const BattleShotRequest& request) const;
     bool Try_CaptureWideAnchor(Vec3& outHeroCenter, float& outYawDegrees) const;
     BattleCameraPreset* Find_PresetStorage(BattleCameraMode cameraMode);
@@ -284,6 +288,7 @@ private:
     Vec3                 _wideAnchorHeroCenter = Vec3::Zero;
     float                _wideAnchorYawDegrees = 0.f;
     float                _battlePlaneYawDegrees = 0.f;
+    float                _freeAimBaseYaw = 0.f;
     Vec3                 _enemyPos;
     Vec3                 _playerPos;
 

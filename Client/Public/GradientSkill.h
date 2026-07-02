@@ -13,6 +13,7 @@ namespace GradientSkill
     bool        Is_GradientSkill(HeroId heroId, const string& skillKey);
 
     inline constexpr uint32 MaxGaugeStacks = 3;
+    inline constexpr uint32 GaugeProgressPerStack = 3;
     inline constexpr uint32 GaugeGainPerTurn = 1;
     inline constexpr uint32 GaugeCostPerUse = 1;
 }

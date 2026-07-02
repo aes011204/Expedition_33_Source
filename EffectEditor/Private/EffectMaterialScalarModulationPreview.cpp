@@ -109,6 +109,8 @@ namespace
             return EffectMaterialScalarModulationTarget::AlphaErosion;
         case MaterialScalarModulationTargetField::AlphaCutoff:
             return EffectMaterialScalarModulationTarget::AlphaCutoff;
+        case MaterialScalarModulationTargetField::AlphaMultiplier:
+            return EffectMaterialScalarModulationTarget::AlphaMultiplier;
         case MaterialScalarModulationTargetField::CoreIntensity:
             return EffectMaterialScalarModulationTarget::CoreIntensity;
         case MaterialScalarModulationTargetField::OuterIntensity:
@@ -628,6 +630,9 @@ namespace
             break;
         case EffectMaterialScalarModulationTarget::AlphaCutoff:
             material.alphaCutoff *= multiplier;
+            break;
+        case EffectMaterialScalarModulationTarget::AlphaMultiplier:
+            material.alphaMultiplier *= multiplier;
             break;
         case EffectMaterialScalarModulationTarget::CoreIntensity:
             material.coreEmissive.coreIntensity *= multiplier;
