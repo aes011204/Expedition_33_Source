@@ -1114,10 +1114,13 @@ void SimonHairRuntime::Reset_PhysXStateToPose(
             {
                 node.actor->setKinematicTarget(pose);
             }
-            node.actor->setLinearVelocity(PxVec3(0.f, 0.f, 0.f));
-            node.actor->setAngularVelocity(PxVec3(0.f, 0.f, 0.f));
-            node.actor->clearForce();
-            node.actor->clearTorque();
+            else
+            {
+                node.actor->setLinearVelocity(PxVec3(0.f, 0.f, 0.f));
+                node.actor->setAngularVelocity(PxVec3(0.f, 0.f, 0.f));
+                node.actor->clearForce();
+                node.actor->clearTorque();
+            }
 
             node.solvedPosition = posePosition;
             node.prevSolvedPosition = posePosition;

@@ -1040,6 +1040,32 @@ float BattleController::Resolve_PrefabGroundOffsetY(const Shared<GameObject>& ac
     return 0.f;
 }
 
+bool BattleController::Try_ResolveSimonBattleBGM(wstring& outIntroBGM, wstring& outMainBGM) const
+{
+    for (const BattleChar& enemy : _enemies)
+    {
+        if (enemy.actor == nullptr)
+            continue;
+
+        const string& sourcePrefabName = enemy.actor->Get_SourcePrefabName();
+        if (sourcePrefabName == Constants::Prefab::MB_Simon_V2)
+        {
+            outIntroBGM = Constants::SoundBGM::SimonBattlePhase2Intro;
+            outMainBGM = Constants::SoundBGM::SimonBattlePhase2Main;
+            return true;
+        }
+
+        if (sourcePrefabName == Constants::Prefab::MB_Simon)
+        {
+            outIntroBGM = Constants::SoundBGM::SimonBattlePhase1Intro;
+            outMainBGM = Constants::SoundBGM::SimonBattlePhase1Main;
+            return true;
+        }
+    }
+
+    return false;
+}
+
 void BattleController::SetCharInitPos()
 {
     auto normalizeAngleDegrees = [](float angle) -> float
@@ -3476,11 +3502,20 @@ void BattleController::Complete_BattleField()
 
     if (!isBishopCinematicBGM)
     {
-        GAME->Play_BGM(
-            hasBossEnemy ? Constants::SoundBGM::BattleBossBGM : Constants::SoundBGM::BattleNormalBGM,
-            1.f,
-            true,
-            0.f);
+        wstring simonIntroBGM{};
+        wstring simonMainBGM{};
+        if (Try_ResolveSimonBattleBGM(simonIntroBGM, simonMainBGM))
+        {
+            GAME->Play_BGMIntroThenLoop(simonIntroBGM, simonMainBGM, 1.f, true, 0.f);
+        }
+        else
+        {
+            GAME->Play_BGM(
+                hasBossEnemy ? Constants::SoundBGM::BattleBossBGM : Constants::SoundBGM::BattleNormalBGM,
+                1.f,
+                true,
+                0.f);
+        }
     }
 
     // 초기 플레이 순서 지정

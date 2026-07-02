@@ -30,7 +30,7 @@ public:
     void Close() override;
 
     // 데미지 popup은 맞은 대상의 world anchor를 따라가며 카메라 회전 중에도 대상 근처에 유지한다.
-    void Play_DamageFont(const BattleChar& target, float damage, uint32 stackIndex, bool isCritical);
+    void Play_DamageFont(const BattleChar& target, float damage, uint32 stackIndex, bool isCritical, AttackType attackType);
 
 private:
     HRESULT Load_UI(uint32 levelIndex);
@@ -54,17 +54,20 @@ private:
     Shared<UI_Text> _damageTextBg{};
 
     DamageFontStyle _activeStyle = DamageFontStyle::Normal;
+    AttackType _activeAttackType = AttackType::Invalid;
 
 private:
     float _damageLifeTime = 1.05f;
     float _damageRiseDistance = 72.f;
 
     float _damageStackHorizontalOffset = -76.f;
+    float _damageFreeAimStackHorizontalOffset = -28.f;
     float _damageStackVerticalOffset = 22.f;
 
     Vec3 _damageWorldAnchorOffset = Vec3(0.f, 0.f, 0.f);
     Vec2 _damageScreenBaseOffset = Vec2(0.f, -36.f);
-    Vec2 _damageFarScreenBaseOffset = Vec2(0.f, 28.f);
+    Vec2 _damageFarScreenBaseOffset = Vec2(0.f, -12.f);
+    Vec2 _damageFreeAimFarScreenBaseOffset = Vec2(0.f, 28.f);
     float _damageScreenOffsetCloseDistance = 5.f;
     float _damageScreenOffsetFarDistance = 14.f;
 

@@ -615,11 +615,17 @@ BattleReactionController::BattleReactionInputResult BattleReactionController::Up
         turnAction.Get_CurChar().statCom != nullptr &&
         !turnAction.Get_CurChar().statCom->Is_Player())
     {
+        if (IsWindowOpen(BattleReactionType::JumpCounter))
+            return SubmitInput(BattleReactionType::JumpCounter, turnAction);
+
         if (const ReactionInputContext* echoContext = Find_ActiveEchoReactionContext(BattleReactionType::Parry))
             return SubmitInput(*echoContext);
 
         if (IsWindowOpen(BattleReactionType::Parry))
             return SubmitInput(BattleReactionType::Parry, turnAction);
+
+        if (IsWindowOpen(BattleReactionType::Jump))
+            return SubmitInput(BattleReactionType::Jump, turnAction);
     }
 
     if (GAME->KeyDown(KEY_TYPE::SPACE))
