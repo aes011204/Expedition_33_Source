@@ -3679,7 +3679,7 @@ void Animation_View::Draw_ModifierRuntimePanel(const Shared<ModelCom>& playbackM
                         if (!_modifierPreviewMotionTestEnabled)
                         {
                             _modifierPreviewMotionTestTag.clear();
-                            physicsModifier->Set_RuntimeTestOwnerMotion(false, Vec3::Zero);
+                            physicsModifier->Set_ExternalOwnerMotion(false, Vec3::Zero);
                         }
                         else
                         {
@@ -3730,7 +3730,7 @@ void Animation_View::Draw_ModifierRuntimePanel(const Shared<ModelCom>& playbackM
                     {
                         _modifierPreviewMotionTestEnabled = false;
                         _modifierPreviewMotionTestTag.clear();
-                        physicsModifier->Set_RuntimeTestOwnerMotion(false, Vec3::Zero);
+                        physicsModifier->Set_ExternalOwnerMotion(false, Vec3::Zero);
                     }
 
                     ImGui::TreePop();
@@ -3802,11 +3802,11 @@ void Animation_View::Draw_ModifierRuntimePanel(const Shared<ModelCom>& playbackM
 
 void Animation_View::Update_ModifierPreviewMotionTest(float timeDelta)
 {
-    UNREFERENCED_PARAMETER(timeDelta);
-
     if (!_modifierPreviewMotionTestEnabled)
     {
         _modifierPreviewMotionTestAppliedCount = 0;
+        _modifierPreviewMotionTestPrevOffset = Vec3::Zero;
+        _modifierPreviewMotionTestHasPrevOffset = false;
         return;
     }
 
@@ -3857,15 +3857,24 @@ void Animation_View::Update_ModifierPreviewMotionTest(float timeDelta)
         else
             direction = Vec3(1.f, 0.f, 0.f);
 
-        float wave = 1.f;
         if (_modifierPreviewMotionTestOscillate)
         {
             constexpr float kTwoPi = 6.28318530718f;
             const float frequency = std::max(0.f, _modifierPreviewMotionTestFrequency);
-            wave = static_cast<float>(std::sin(ImGui::GetTime() * kTwoPi * frequency));
+            const float wave = static_cast<float>(std::sin(ImGui::GetTime() * kTwoPi * frequency));
+            const Vec3 currentOffset = direction * (_modifierPreviewMotionTestDelta * wave);
+            if (_modifierPreviewMotionTestHasPrevOffset)
+                testDelta = currentOffset - _modifierPreviewMotionTestPrevOffset;
+            _modifierPreviewMotionTestPrevOffset = currentOffset;
+            _modifierPreviewMotionTestHasPrevOffset = true;
         }
-
-        testDelta = direction * (_modifierPreviewMotionTestDelta * wave);
+        else
+        {
+            UNREFERENCED_PARAMETER(timeDelta);
+            _modifierPreviewMotionTestPrevOffset = Vec3::Zero;
+            _modifierPreviewMotionTestHasPrevOffset = false;
+            testDelta = direction * _modifierPreviewMotionTestDelta;
+        }
     }
 
     for (const Shared<ModelCom>& model : modifierModels)
@@ -3909,7 +3918,7 @@ void Animation_View::Update_ModifierPreviewMotionTest(float timeDelta)
                     _modifierPreviewMotionTestTag.empty() ||
                     physicsModifier->Get_ModifierTag() == _modifierPreviewMotionTestTag;
                 const bool applyToModifier = _modifierPreviewMotionTestEnabled && tagMatches;
-                physicsModifier->Set_RuntimeTestOwnerMotion(
+                physicsModifier->Set_ExternalOwnerMotion(
                     applyToModifier,
                     applyToModifier ? testDelta : Vec3::Zero);
                 if (applyToModifier)
@@ -5428,12 +5437,25 @@ void Animation_View::Draw_ModifierCollisionDebug() const
                 }
             }
 
-            if (!capsules.empty() || !segments.empty())
+            if (desc->debugDrawCollisionCapsules)
+            {
+                vector<PhysicsModifier::RuntimeDebugSphere> physicsSpheres{};
+                physicsModifier->Build_RuntimeDebugSpheres(physicsSpheres);
+                for (const auto& sphere : physicsSpheres)
+                {
+                    spheres.push_back({
+                        sphere.center,
+                        sphere.radius,
+                        sphere.hasContact });
+                }
+            }
+
+            if (!capsules.empty() || !segments.empty() || !spheres.empty())
                 break;
         }
     }
 
-    if (capsules.empty() && segments.empty())
+    if (capsules.empty() && segments.empty() && spheres.empty())
     {
         const Shared<GameObject> previewRootObject = Get_PreviewRenderObject();
         auto appendSimonHairDebug = [&](Client::Mon_Simon_Hair* simonHair)

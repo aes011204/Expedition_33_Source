@@ -52,6 +52,8 @@ void Body_Player::Update(float timeDelta)
 
     ENGINE_PROFILE_SCOPE_DETAIL("Player::Body::Update");
 
+    Update_CombinedWorldMatrix(_transformCom->Get_WorldMatrix());
+
     if (Has_LeaderPoseComponent())
     {
         Update_LeaderPoseMatrices(timeDelta);

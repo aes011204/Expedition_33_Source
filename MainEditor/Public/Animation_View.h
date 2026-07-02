@@ -526,6 +526,8 @@ private:
     float _modifierPreviewMotionTestDelta = 0.04f;
     float _modifierPreviewMotionTestFrequency = 2.f;
     int32 _modifierPreviewMotionTestAppliedCount = 0;
+    Vec3 _modifierPreviewMotionTestPrevOffset = Vec3::Zero;
+    bool _modifierPreviewMotionTestHasPrevOffset = false;
 
     // 사이즈 조절
     uint32 _previewWidth = 640;
