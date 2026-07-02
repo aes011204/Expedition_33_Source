@@ -53,6 +53,9 @@ namespace EffectAssetRuntimeLoad::Emitters
         kVelocityOverLifeApplyChannelSourceMotionVelocityMask |
         kVelocityOverLifeApplyChannelAccelerationIntegratedVelocityMask
     };
+    constexpr uint32 kVelocityOverLifeApplyChannelDefaultMask{
+        kVelocityOverLifeApplyChannelAllMask & ~kVelocityOverLifeApplyChannelAccelerationIntegratedVelocityMask
+    };
 
     uint32 To_VelocityOverLifeApplyChannelMask(PointParticleVelocityScaleChannel channel)
     {
@@ -77,7 +80,7 @@ namespace EffectAssetRuntimeLoad::Emitters
     {
         const auto iter = velocityOverLife.find("applyChannels");
         if (iter == velocityOverLife.end() || !iter->is_array())
-            return kVelocityOverLifeApplyChannelAllMask;
+            return kVelocityOverLifeApplyChannelDefaultMask;
 
         uint32 mask = 0u;
         for (const json& channelNode : *iter)
@@ -91,7 +94,7 @@ namespace EffectAssetRuntimeLoad::Emitters
                 mask |= To_VelocityOverLifeApplyChannelMask(parsed.value());
         }
 
-        return mask != 0u ? mask : kVelocityOverLifeApplyChannelAllMask;
+        return mask != 0u ? mask : kVelocityOverLifeApplyChannelDefaultMask;
     }
 
     PointParticleFloatCurveRuntimeDesc& Resolve_VelocityScaleChannelPayload(

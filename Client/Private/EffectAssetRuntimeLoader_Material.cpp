@@ -44,6 +44,7 @@ namespace EffectAssetRuntimeLoad::Material
 
         materialDesc.intensity = Read_Float(material, "intensity", materialDesc.intensity);
         materialDesc.opacityPower = Read_Float(material, "opacityPower", materialDesc.opacityPower);
+        materialDesc.alphaMultiplier = Read_Float(material, "alphaMultiplier", materialDesc.alphaMultiplier);
         materialDesc.noiseStrength = Read_Float(material, "noiseStrength", materialDesc.noiseStrength);
         materialDesc.alphaCutoff = Read_Float(material, "alphaCutoff", materialDesc.alphaCutoff);
         materialDesc.alphaErosion = Read_Float(material, "alphaErosion", materialDesc.alphaErosion);
@@ -122,6 +123,23 @@ namespace EffectAssetRuntimeLoad::Material
         materialDesc.distortionShapeRadius = Read_Float(material, "distortionShapeRadius", materialDesc.distortionShapeRadius);
         materialDesc.distortionShapeThickness = Read_Float(material, "distortionShapeThickness", materialDesc.distortionShapeThickness);
         materialDesc.distortionShapeSoftness = Read_Float(material, "distortionShapeSoftness", materialDesc.distortionShapeSoftness);
+        materialDesc.glassAlpha = Read_Float(material, "glassAlpha", materialDesc.glassAlpha);
+        materialDesc.glassAlphaPower = Read_Float(material, "glassAlphaPower", materialDesc.glassAlphaPower);
+        materialDesc.glassNormalStrength = Read_Float(material, "glassNormalStrength", materialDesc.glassNormalStrength);
+        if (const auto glassRimColorIter = material.find("glassRimColor"); glassRimColorIter != material.end())
+            Read_Color(*glassRimColorIter, materialDesc.glassRimColor);
+        materialDesc.glassRimIntensity = Read_Float(material, "glassRimIntensity", materialDesc.glassRimIntensity);
+        materialDesc.glassRimPower = Read_Float(material, "glassRimPower", materialDesc.glassRimPower);
+        if (const auto glassLightDirectionIter = material.find("glassLightDirection"); glassLightDirectionIter != material.end())
+            Read_Vec3(*glassLightDirectionIter, materialDesc.glassLightDirection);
+        if (const auto glassLightColorIter = material.find("glassLightColor"); glassLightColorIter != material.end())
+            Read_Color(*glassLightColorIter, materialDesc.glassLightColor);
+        materialDesc.glassLightIntensity = Read_Float(material, "glassLightIntensity", materialDesc.glassLightIntensity);
+        materialDesc.glassSpecularPower = Read_Float(material, "glassSpecularPower", materialDesc.glassSpecularPower);
+        materialDesc.glassSpecularSoftness = Read_Float(material, "glassSpecularSoftness", materialDesc.glassSpecularSoftness);
+        materialDesc.glassMainInfluence = Read_Float(material, "glassMainInfluence", materialDesc.glassMainInfluence);
+        materialDesc.glassNoiseBreakup = Read_Float(material, "glassNoiseBreakup", materialDesc.glassNoiseBreakup);
+        materialDesc.glassMaskStrength = Read_Float(material, "glassMaskStrength", materialDesc.glassMaskStrength);
         materialDesc.subUVRows = max(1u, Read_UInt(material, "subUVRows", materialDesc.subUVRows));
         materialDesc.subUVCols = max(1u, Read_UInt(material, "subUVCols", materialDesc.subUVCols));
         materialDesc.twoSided = Read_Bool(material, "twoSided", materialDesc.twoSided);

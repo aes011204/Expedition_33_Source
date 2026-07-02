@@ -400,8 +400,9 @@ namespace Internal
         return false;
     }
 
-    bool Draw_TextureSlotBody(string& textureGuid, string& texturePath)
+    bool Draw_TextureSlotBody(string& textureGuid, string& texturePath, const char* sourceLockTooltip = nullptr)
     {
+        const bool sourceLocked = sourceLockTooltip != nullptr && sourceLockTooltip[0] != '\0';
         constexpr float browseButtonWidth{ 28.f };
         const float spacing = ImGui::GetStyle().ItemSpacing.x;
         const float slotWidth = max(96.f, ImGui::GetContentRegionAvail().x - browseButtonWidth - spacing);
@@ -409,12 +410,16 @@ namespace Internal
 
         const ImGuiPayload* activePayload = ImGui::GetDragDropPayload();
         const bool isTextureDragging =
+            !sourceLocked &&
             activePayload != nullptr &&
             activePayload->IsDataType(kEffectTexturePayloadType);
 
+        if (sourceLocked)
+            ImGui::BeginDisabled();
+
         ImGui::InvisibleButton("##TextureDropSlot", slotSize);
         bool changed = false;
-        if (ImGui::BeginDragDropTarget())
+        if (!sourceLocked && ImGui::BeginDragDropTarget())
         {
             if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(
                 kEffectTexturePayloadType,
@@ -429,17 +434,23 @@ namespace Internal
 
         const ImVec2 slotMin = ImGui::GetItemRectMin();
         const ImVec2 slotMax = ImGui::GetItemRectMax();
-        const bool isHovered = ImGui::IsItemHovered();
+        const bool isHovered = ImGui::IsItemHovered(sourceLocked ? ImGuiHoveredFlags_AllowWhenDisabled : ImGuiHoveredFlags_None);
         const bool isWarningReference = Is_WarningTextureReference(textureGuid, texturePath);
-        const ImU32 fillColor = isWarningReference
-                                ? (isHovered || isTextureDragging ? IM_COL32(58, 32, 34, 255) : IM_COL32(34, 22, 24, 255))
-                                : isHovered || isTextureDragging ? IM_COL32(34, 42, 58, 255) : IM_COL32(22, 25, 32, 255);
-        const ImU32 borderColor = isWarningReference
-                                  ? IM_COL32(214, 86, 96, 255)
-                                  : isHovered || isTextureDragging ? IM_COL32(116, 156, 235, 255) : IM_COL32(78, 88, 108, 255);
-        const ImU32 textColor = isWarningReference
-                                ? IM_COL32(255, 190, 196, 255)
-                                : IM_COL32(220, 226, 238, 255);
+        const ImU32 fillColor = sourceLocked
+                                ? IM_COL32(24, 25, 29, 255)
+                                : isWarningReference
+                                  ? (isHovered || isTextureDragging ? IM_COL32(58, 32, 34, 255) : IM_COL32(34, 22, 24, 255))
+                                  : isHovered || isTextureDragging ? IM_COL32(34, 42, 58, 255) : IM_COL32(22, 25, 32, 255);
+        const ImU32 borderColor = sourceLocked
+                                  ? IM_COL32(58, 62, 72, 255)
+                                  : isWarningReference
+                                    ? IM_COL32(214, 86, 96, 255)
+                                    : isHovered || isTextureDragging ? IM_COL32(116, 156, 235, 255) : IM_COL32(78, 88, 108, 255);
+        const ImU32 textColor = sourceLocked
+                                ? IM_COL32(142, 148, 160, 255)
+                                : isWarningReference
+                                  ? IM_COL32(255, 190, 196, 255)
+                                  : IM_COL32(220, 226, 238, 255);
 
         ImDrawList* drawList = ImGui::GetWindowDrawList();
         drawList->AddRectFilled(slotMin, slotMax, fillColor, 4.f);
@@ -454,11 +465,12 @@ namespace Internal
         );
         drawList->PopClipRect();
 
-        if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayShort))
+        if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayShort | (sourceLocked ? ImGuiHoveredFlags_AllowWhenDisabled : ImGuiHoveredFlags_None)))
         {
-            const string tooltip =
-                "Content Browser의 .png / .dds를 드롭하면 현재 instance texture reference로 지정합니다.\n\n" +
-                Make_TextureReferenceTooltip(textureGuid, texturePath);
+            const string tooltip = sourceLocked
+                                   ? string{ sourceLockTooltip } + "\n\n" + Make_TextureReferenceTooltip(textureGuid, texturePath)
+                                   : "Content Browser의 .png / .dds를 드롭하면 현재 instance texture reference로 지정합니다.\n\n" +
+                                     Make_TextureReferenceTooltip(textureGuid, texturePath);
             ImGui::SetTooltip("%s", tooltip.c_str());
         }
 
@@ -472,8 +484,11 @@ namespace Internal
                 changed = Try_AssignTextureFromFile(pickedFilePath, textureGuid, texturePath);
         }
         ImGui::PopStyleVar(2);
-        if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayShort))
-            ImGui::SetTooltip("텍스처 파일 선택");
+        if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayShort | (sourceLocked ? ImGuiHoveredFlags_AllowWhenDisabled : ImGuiHoveredFlags_None)))
+            ImGui::SetTooltip("%s", sourceLocked ? sourceLockTooltip : "텍스처 파일 선택");
+
+        if (sourceLocked)
+            ImGui::EndDisabled();
 
         return changed;
     }
@@ -486,17 +501,19 @@ namespace Internal
         string& texturePath,
         const string& defaultGuid,
         const string& defaultPath,
-        const char* tooltip = nullptr)
+        const char* tooltip = nullptr,
+        const char* sourceLockTooltip = nullptr)
     {
+        const bool sourceLocked = sourceLockTooltip != nullptr && sourceLockTooltip[0] != '\0';
         ImGui::PushID(label);
         detailContext.Draw_PropertyLabel(label, tooltip);
 
         constexpr ImVec2 thumbnailSize{ 44.f, 44.f };
         Draw_TextureThumbnail(textureCache, textureGuid, texturePath, thumbnailSize);
         ImGui::SameLine();
-        bool changed = Draw_TextureSlotBody(textureGuid, texturePath);
+        bool changed = Draw_TextureSlotBody(textureGuid, texturePath, sourceLockTooltip);
 
-        const bool resetClicked = detailContext.Draw_ResetButton(textureGuid != defaultGuid || texturePath != defaultPath);
+        const bool resetClicked = detailContext.Draw_ResetButton(!sourceLocked && (textureGuid != defaultGuid || texturePath != defaultPath));
         if (resetClicked)
         {
             textureGuid = defaultGuid;
@@ -1042,9 +1059,34 @@ namespace Internal
             return "Default";
         case EffectMaterialFamily::SpriteDistortion:
             return "SpriteDistortion";
+        case EffectMaterialFamily::MeshGlass:
+            return "MeshGlass";
         default:
             return "Unknown";
         }
+    }
+
+    bool Draw_MaterialFamilyProperty(
+        DetailPropertyContext& detailContext,
+        EffectMaterialFamily& value,
+        EffectMaterialFamily defaultValue)
+    {
+        static constexpr EffectMaterialFamily kFamilies[]{
+            EffectMaterialFamily::Default,
+            EffectMaterialFamily::SpriteDistortion,
+            EffectMaterialFamily::MeshGlass
+        };
+
+        return Draw_EnumComboProperty(
+            detailContext,
+            "Family",
+            value,
+            defaultValue,
+            kFamilies,
+            size(kFamilies),
+            Get_MaterialFamilyLabel,
+            "material shader/render family입니다. MeshGlass는 Mesh emitter 전용 fake glass surface로 소비됩니다."
+        );
     }
 
     const char* Get_DistortionShapeModeLabel(EffectDistortionShapeMode value)
@@ -1308,7 +1350,8 @@ bool EffectMaterialInstance_View::Draw_InstanceProperties(
     bool* outRestartPreview,
     EffectMaterialTwoSidedDisplayMode twoSidedDisplayMode,
     EffectMaterialDistortionShapeControlMode distortionShapeControlMode,
-    const EffectMaterialRenderPolicyBinding* renderPolicyBinding)
+    const EffectMaterialRenderPolicyBinding* renderPolicyBinding,
+    const char* mainTextureSourceLockTooltip)
 {
     const EffectMaterialInstanceData defaultData{};
     const EffectMaterialBlendMode effectiveBlendMode =
@@ -1330,7 +1373,8 @@ bool EffectMaterialInstance_View::Draw_InstanceProperties(
                 material.mainTexturePath,
                 defaultData.mainTextureGuid,
                 defaultData.mainTexturePath,
-                "최종 색과 opacity의 기본 texture입니다. 비워두면 material shader의 fallback 입력을 사용합니다."
+                "최종 색과 opacity의 기본 texture입니다. 비워두면 material shader의 fallback 입력을 사용합니다.",
+                mainTextureSourceLockTooltip
             );
             changed |= Internal::Draw_StringComboProperty(
                 detailPropertyContext,
@@ -1803,16 +1847,144 @@ bool EffectMaterialInstance_View::Draw_InstanceProperties(
     else if (material.materialFamily != EffectMaterialFamily::SpriteDistortion)
         ImGui::TextDisabled("Flow / Distortion fields are shown only when the embedded material family is SpriteDistortion.");
 
+    if (material.materialFamily == EffectMaterialFamily::MeshGlass &&
+        ImGui::CollapsingHeader("Mesh Glass", ImGuiTreeNodeFlags_DefaultOpen))
+    {
+        if (detailPropertyContext.Begin_PropertyTable("EffectMaterialInstanceMeshGlassSurface"))
+        {
+            Internal::Draw_ReadOnlyTextProperty(
+                detailPropertyContext,
+                "Mode",
+                "Mesh surface glass",
+                "MeshGlass는 mesh 표면의 기본 투명도, view-angle rim, fake light highlight를 사용하는 전용 family입니다."
+            );
+            changed |= detailPropertyContext.Draw_FloatProperty(
+                "Glass Alpha",
+                material.glassAlpha,
+                defaultData.glassAlpha,
+                0.01f,
+                "MeshGlass 표면의 기본 alpha입니다. 낮을수록 거의 투명한 유리처럼 보입니다."
+            );
+            changed |= detailPropertyContext.Draw_FloatProperty(
+                "Alpha Power",
+                material.glassAlphaPower,
+                defaultData.glassAlphaPower,
+                0.01f,
+                "Main/Mask/Noise coverage를 날카롭게 하거나 부드럽게 하는 보정입니다."
+            );
+            changed |= detailPropertyContext.Draw_FloatProperty(
+                "Normal Strength",
+                material.glassNormalStrength,
+                defaultData.glassNormalStrength,
+                0.01f,
+                "model normal texture가 Glass rim/highlight 방향에 주는 영향 강도입니다."
+            );
+            detailPropertyContext.End_PropertyTable();
+        }
+
+        if (detailPropertyContext.Begin_PropertyTable("EffectMaterialInstanceMeshGlassRim"))
+        {
+            changed |= detailPropertyContext.Draw_ColorProperty(
+                "Rim Color",
+                material.glassRimColor,
+                defaultData.glassRimColor,
+                "view angle이 얕은 외곽 rim 반사의 색입니다."
+            );
+            changed |= detailPropertyContext.Draw_FloatProperty(
+                "Rim Intensity",
+                material.glassRimIntensity,
+                defaultData.glassRimIntensity,
+                0.01f,
+                "외곽 rim 반사의 밝기 배율입니다."
+            );
+            changed |= detailPropertyContext.Draw_FloatProperty(
+                "Rim Power",
+                material.glassRimPower,
+                defaultData.glassRimPower,
+                0.01f,
+                "외곽 rim falloff의 날카로움입니다."
+            );
+            detailPropertyContext.End_PropertyTable();
+        }
+
+        if (detailPropertyContext.Begin_PropertyTable("EffectMaterialInstanceMeshGlassFakeLight"))
+        {
+            changed |= detailPropertyContext.Draw_Vec3Property(
+                "Light Direction",
+                material.glassLightDirection,
+                defaultData.glassLightDirection,
+                0.01f,
+                nullptr,
+                "MeshGlass fake highlight에 사용하는 world-space light direction입니다."
+            );
+            changed |= detailPropertyContext.Draw_ColorProperty(
+                "Light Color",
+                material.glassLightColor,
+                defaultData.glassLightColor,
+                "fake light highlight 색입니다."
+            );
+            changed |= detailPropertyContext.Draw_FloatProperty(
+                "Light Intensity",
+                material.glassLightIntensity,
+                defaultData.glassLightIntensity,
+                0.01f,
+                "fake light highlight 밝기 배율입니다."
+            );
+            changed |= detailPropertyContext.Draw_FloatProperty(
+                "Specular Power",
+                material.glassSpecularPower,
+                defaultData.glassSpecularPower,
+                0.01f,
+                "fake highlight의 날카로움입니다."
+            );
+            changed |= detailPropertyContext.Draw_FloatProperty(
+                "Specular Softness",
+                material.glassSpecularSoftness,
+                defaultData.glassSpecularSoftness,
+                0.01f,
+                "fake highlight 폭을 넓히는 보정입니다."
+            );
+            detailPropertyContext.End_PropertyTable();
+        }
+
+        if (detailPropertyContext.Begin_PropertyTable("EffectMaterialInstanceMeshGlassTextureInfluence"))
+        {
+            changed |= detailPropertyContext.Draw_FloatProperty(
+                "Main Influence",
+                material.glassMainInfluence,
+                defaultData.glassMainInfluence,
+                0.01f,
+                "Main Texture가 glass tint/pattern에 섞이는 강도입니다."
+            );
+            changed |= detailPropertyContext.Draw_FloatProperty(
+                "Noise Breakup",
+                material.glassNoiseBreakup,
+                defaultData.glassNoiseBreakup,
+                0.01f,
+                "Noise Texture가 alpha/rim/specular breakup에 섞이는 강도입니다."
+            );
+            changed |= detailPropertyContext.Draw_FloatProperty(
+                "Mask Strength",
+                material.glassMaskStrength,
+                defaultData.glassMaskStrength,
+                0.01f,
+                "Mask Texture가 Glass coverage에 주는 강도입니다."
+            );
+            detailPropertyContext.End_PropertyTable();
+        }
+    }
+
     if (ImGui::CollapsingHeader("Blend / Render", ImGuiTreeNodeFlags_DefaultOpen))
     {
         if (detailPropertyContext.Begin_PropertyTable("EffectMaterialInstanceBlendRender"))
         {
-            Internal::Draw_ReadOnlyTextProperty(
+            const bool familyChanged = Internal::Draw_MaterialFamilyProperty(
                 detailPropertyContext,
-                "Family",
-                Internal::Get_MaterialFamilyLabel(material.materialFamily),
-                "이 material instance가 쓰는 shader/render family입니다."
+                material.materialFamily,
+                defaultData.materialFamily
             );
+            changed |= familyChanged;
+            restartPreview |= familyChanged;
             if (renderPolicyBinding != nullptr)
             {
                 Internal::Draw_ReadOnlyTextProperty(
@@ -1830,12 +2002,24 @@ bool EffectMaterialInstance_View::Draw_InstanceProperties(
             }
             else
             {
-                changed |= Internal::Draw_BlendModeProperty(
-                    detailPropertyContext,
-                    material.blendMode,
-                    defaultData.blendMode,
-                    "투명/가산/마스크 렌더 경로를 고르는 material render 정책입니다."
-                );
+                if (material.materialFamily == EffectMaterialFamily::MeshGlass)
+                {
+                    Internal::Draw_ReadOnlyTextProperty(
+                        detailPropertyContext,
+                        "Blend Mode",
+                        "AlphaBlend (MeshGlass v0)",
+                        "MeshGlass v0는 저장된 Blend Mode를 보존하지만 preview/runtime에서는 AlphaBlend로 렌더합니다."
+                    );
+                }
+                else
+                {
+                    changed |= Internal::Draw_BlendModeProperty(
+                        detailPropertyContext,
+                        material.blendMode,
+                        defaultData.blendMode,
+                        "투명/가산/마스크 렌더 경로를 고르는 material render 정책입니다."
+                    );
+                }
             }
             switch (twoSidedDisplayMode)
             {

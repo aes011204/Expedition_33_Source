@@ -1625,9 +1625,9 @@ HRESULT ComputeSourceHistorySpriteTrailEmitter::Bind_ShaderResources()
     else
         CHECK_FAILED(_shader->Bind_SRV("g_MaskTexture", nullptr), E_FAIL);
 
-    const float emitterPhase = max(0.f, _materialElapsedTime) / max(0.0001f, _desc.playback.duration);
+    const float emitterPhase = Compute_MaterialScalarModulationPhase(_materialElapsedTime, _desc.playback.duration);
     const EffectRequiredMaterialRuntimeDesc material =
-        Resolve_EmitterTimeMaterialUniformParameterModulation(_desc.material, emitterPhase - floorf(emitterPhase), _effectPlaybackSeed);
+        Resolve_EmitterTimeMaterialUniformParameterModulation(_desc.material, emitterPhase, _effectPlaybackSeed);
 
     const Vec4 effectSpriteParams = Vec4(
         material.intensity,
@@ -1639,7 +1639,7 @@ HRESULT ComputeSourceHistorySpriteTrailEmitter::Bind_ShaderResources()
         clamp(material.alphaCutoff, 0.f, 1.f),
         clamp(material.alphaErosion, 0.f, 1.f),
         _maskTexture != nullptr ? 1.f : 0.f,
-        0.f
+        clamp(material.alphaMultiplier, 0.f, 1.f)
     );
     const Vec4 effectSpriteMainUVParams = Vec4(material.mainUVScale.x, material.mainUVScale.y, material.mainUVScrollSpeed.x, material.mainUVScrollSpeed.y);
     const Vec4 effectSpriteNoiseUVParams = Vec4(material.noiseUVScale.x, material.noiseUVScale.y, material.noiseUVScrollSpeed.x, material.noiseUVScrollSpeed.y);
@@ -1724,12 +1724,12 @@ HRESULT ComputeSourceHistorySpriteTrailEmitter::Bind_ShaderResources()
     CHECK_FAILED(_shader->Bind_RawValue("g_EffectSpriteUVRotationParams", &effectSpriteUVRotationParams, sizeof(effectSpriteUVRotationParams)), E_FAIL);
     CHECK_FAILED(_shader->Bind_RawValue("g_EffectSpriteSourceParams", &effectSpriteSourceParams, sizeof(effectSpriteSourceParams)), E_FAIL);
     CHECK_FAILED(_shader->Bind_RawValue("g_EffectSpriteMaterialTime", &_materialElapsedTime, sizeof(_materialElapsedTime)), E_FAIL);
-    CHECK_FAILED(Internal::Bind_MaterialScalarModulationPayload(_shader.get(), material.scalarModulation, emitterPhase - floorf(emitterPhase)), E_FAIL);
+    CHECK_FAILED(Internal::Bind_MaterialScalarModulationPayload(_shader.get(), material.scalarModulation, emitterPhase), E_FAIL);
     CHECK_FAILED(
         Bind_CoreColorRgbModulationShaderPayload(
             _shader.get(),
             material.coreColorRgbModulation,
-            emitterPhase - floorf(emitterPhase),
+            emitterPhase,
             _effectPlaybackSeed
         ),
         E_FAIL

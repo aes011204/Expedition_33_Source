@@ -65,7 +65,7 @@ inline float Compute_MaterialScalarModulationPhase(float elapsedTime, float dura
 {
     const float safeDuration = max(duration, 0.0001f);
     const float normalizedTime = max(0.f, elapsedTime) / safeDuration;
-    return normalizedTime - floor(normalizedTime);
+    return min(max(normalizedTime, 0.f), 1.f);
 }
 
 inline uint32 Resolve_MaterialModulationSeedSalt(const PointParticleRandomSeedRuntimeDesc& seed, uint32 effectPlaybackSeed)
@@ -453,6 +453,9 @@ inline void Apply_MaterialScalarModulationMultiplier(
     case EffectMaterialScalarModulationTarget::AlphaCutoff:
         material.alphaCutoff *= multiplier;
         break;
+    case EffectMaterialScalarModulationTarget::AlphaMultiplier:
+        material.alphaMultiplier *= multiplier;
+        break;
     case EffectMaterialScalarModulationTarget::CoreIntensity:
         material.coreEmissive.coreIntensity *= multiplier;
         break;
@@ -624,7 +627,8 @@ inline EffectRequiredMaterialRuntimeDesc Resolve_EmitterTimeMaterialUniformParam
             modulator.targetField != EffectMaterialScalarModulationTarget::MainUVScrollSpeedScale &&
             modulator.targetField != EffectMaterialScalarModulationTarget::NoiseUVScrollSpeedScale &&
             modulator.targetField != EffectMaterialScalarModulationTarget::MaskUVScrollSpeedScale &&
-            modulator.targetField != EffectMaterialScalarModulationTarget::FlowUVScrollSpeedScale)
+            modulator.targetField != EffectMaterialScalarModulationTarget::FlowUVScrollSpeedScale &&
+            modulator.targetField != EffectMaterialScalarModulationTarget::AlphaMultiplier)
             continue;
 
         const float multiplier = Evaluate_MaterialScalarModulationCurve(modulator.curve, emitterPhase, 1.f);
