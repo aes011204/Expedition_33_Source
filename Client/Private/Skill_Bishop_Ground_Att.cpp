@@ -11,7 +11,6 @@ Skill_Bishop_Ground_Att::Skill_Bishop_Ground_Att()
 void Skill_Bishop_Ground_Att::Execute(const Skill_Data& skill, const BattleAction& action, AttackType attackType)
 {
     UNREFERENCED_PARAMETER(skill);
-    UNREFERENCED_PARAMETER(action);
     UNREFERENCED_PARAMETER(attackType);
 
     const float Damage = 50;
@@ -23,7 +22,8 @@ void Skill_Bishop_Ground_Att::Execute(const Skill_Data& skill, const BattleActio
 
     AttackCount++;
 
-    DamageSystem::ApplyDamage(Damage, action.GetCurStepTarget(), attackType);
+    const BattleChar& attacker = action.Get_CurChar();
+    DamageSystem::ApplyDamage(Damage, attacker, action.GetCurStepTarget(), attackType);
 
 
    /* if (AttackCount == 1)

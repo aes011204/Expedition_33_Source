@@ -79,6 +79,10 @@ HRESULT Body_Player::Render()
 {
     ENGINE_PROFILE_SCOPE_DETAIL("Player::Body::Render");
 
+    const Shared<GameObject> owner = Get_Owner();
+    if (!Is_Visible() || owner == nullptr || !owner->Is_Visible())
+        return S_OK;
+
     if (!_useComputeSkinning)
         return PlayableParts::Render();
 
@@ -138,6 +142,10 @@ HRESULT Body_Player::Render()
 
 HRESULT Body_Player::Render_Shadow()
 {
+    const Shared<GameObject> owner = Get_Owner();
+    if (!Is_Visible() || owner == nullptr || !owner->Is_Visible())
+        return S_OK;
+
     if (!_useComputeSkinning)
         return PlayableParts::Render_Shadow();
 

@@ -63,6 +63,9 @@ private:
     void Update_FromCurrentSettings(float timeDelta);
 private:
     void Update_SmoothedTargetPosition(const Vec3& targetPos, float timeDelta);
+    bool Is_ParkourVerticalLagActive(const Shared<TransformCom>& targetTransform) const;
+    bool Is_ParkourVerticalLagHolding(const Shared<TransformCom>& targetTransform) const;
+    void Clear_ParkourVerticalLag(bool preserveCollisionDistance = false);
     void Update_NormalState(float timeDelta);
     void Update_AimState(float timeDelta);
     void Update_BattleEnterState(float timeDelta);
@@ -78,6 +81,9 @@ public:
     void Refresh_TargetTransform();
     void Set_OrbitAngles(float yaw, float pitch);
     void Reset_RuntimeCameraState();
+
+    void Begin_ParkourVerticalLag(const Shared<TransformCom>& targetTransform);
+    void End_ParkourVerticalLag(const Shared<TransformCom>& targetTransform);
 
     Vec3 Get_FreeAimQueryOrigin() const;
     Vec3 Get_FreeAimQueryDirection() const;
@@ -134,6 +140,9 @@ private:
     float               _battleEnterAcc = { 0.f };
 
     Weak<TransformCom> _targetTransformCom;
+    Weak<TransformCom> _parkourVerticalLagTarget;
+    bool               _parkourVerticalLagHolding = false;
+    bool               _parkourVerticalLagReleasing = false;
     float              _followSpeed;
     float              _distance;
     float              _sideOffset;

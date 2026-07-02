@@ -18,6 +18,7 @@ public:
         const Vec3& anchorWorldPos,
         BattleTurnState currentState,
         HeroId actorHeroId,
+        bool dimmed,
         float timeDelta);
     HRESULT Warmup_ForBattleState(HeroId actorHeroId);
     void    Hide();
@@ -28,6 +29,8 @@ public:
     void    Free() override;
 
 public:
+    LevelType Get_EditorWorldPlacementLevelType() const override;
+    void Set_EditorWorldPlacementLevelType(LevelType levelType) override;
     HeroId Get_EditorWorldPlacementHeroId() const override;
     void Set_EditorWorldPlacementHeroId(HeroId heroId) override;
     RuntimeWorldUIPlacementTuning Get_EditorWorldPlacementTuning() const override;

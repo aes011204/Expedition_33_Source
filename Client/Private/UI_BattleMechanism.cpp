@@ -13,6 +13,42 @@ using namespace UI_Utils;
 namespace
 {
     constexpr wchar_t kMechanismIntroAnimationName[] = L"BattleSystem_Mechanism_Intro";
+
+    const Vec2 kGustaveChargePanelDefaultPosition{ 237.663f, 323.312f };
+    const Vec2 kGustaveChargePanelFullChargePosition{ 192.663f, 296.312f };
+
+    Vec4 Make_Color255(float r, float g, float b, float a = 255.f)
+    {
+        return Vec4(r / 255.f, g / 255.f, b / 255.f, a / 255.f);
+    }
+
+    Vec4 Resolve_GustaveChargeColor(int32 currentCharge, int32 maxCharge)
+    {
+        if (maxCharge > 0 && currentCharge >= maxCharge)
+            return Make_Color255(236.f, 75.f, 83.f);
+
+        if (currentCharge >= 7)
+            return Make_Color255(196.f, 115.f, 255.f);
+
+        if (currentCharge >= 4)
+            return Make_Color255(181.f, 247.f, 255.f);
+
+        if (currentCharge >= 1)
+            return Make_Color255(252.f, 251.f, 144.f);
+
+        return Make_Color255(255.f, 255.f, 255.f);
+    }
+
+    void Set_UIOpen(const Shared<UI_Base>& ui, bool shouldOpen)
+    {
+        if (ui == nullptr)
+            return;
+
+        if (shouldOpen && !ui->Is_Open())
+            ui->Open();
+        else if (!shouldOpen && ui->Is_Open())
+            ui->Close();
+    }
 }
 
 HRESULT UI_BattleMechanism::Initialize(uint32 levelIndex)
@@ -174,17 +210,27 @@ HRESULT UI_BattleMechanism::Bind_UI()
     CHECK_NULL(_maelleRoot, E_FAIL);
 
 #pragma region 구스타브
+    _gustaveChargePanel = Find_UI(_uiByName, L"Panel_Gustave_Mechanism_Charge");
     _gustaveCurrentChargeText = Find_TypedUI<UI_Text>(_uiByName, L"Text_Gustave_Mechanism_Current_Charge");
     _gustaveMaxChargeText = Find_TypedUI<UI_Text>(_uiByName, L"Text_Gustave_Mechanism_Max_Charge");
+    _gustaveSlashText = Find_TypedUI<UI_Text>(_uiByName, L"Text_Gustave_Mechanism_Slash");
+    _gustaveLightning = Find_UI(_uiByName, L"Image_Gustave_Arm_Lightning");
+    _gustaveFullChargeDeco = Find_UI(_uiByName, L"Panel_Gustave_Arm_Full_Charge_Deco");
 
+    CHECK_NULL(_gustaveChargePanel, E_FAIL);
     CHECK_NULL(_gustaveCurrentChargeText, E_FAIL);
     CHECK_NULL(_gustaveMaxChargeText, E_FAIL);
+    CHECK_NULL(_gustaveSlashText, E_FAIL);
+    CHECK_NULL(_gustaveLightning, E_FAIL);
+    CHECK_NULL(_gustaveFullChargeDeco, E_FAIL);
 
     const int32 gustaveChargeNum = 10;
 
     for (int32 i = 0; i < gustaveChargeNum; ++i)
     {
+        _gustaveChargeSlots[i] = Find_UI(_uiByName, L"Image_Gustave_Arm_Slot_" + to_wstring(i + 1));
         _gustaveChargeGlows[i] = Find_UI(_uiByName, L"Image_Gustave_Arm_Glow_" + to_wstring(i + 1));
+        CHECK_NULL(_gustaveChargeSlots[i], E_FAIL);
         CHECK_NULL(_gustaveChargeGlows[i], E_FAIL);
     }
 #pragma endregion
@@ -299,15 +345,37 @@ void UI_BattleMechanism::Apply_GustaveState(const Shared<BattleMechanismCom>& me
     _gustaveCurrentChargeText->Set_Text(to_wstring(currentCharge));
     _gustaveMaxChargeText->Set_Text(to_wstring(maxCharge));
 
+    const Vec4 chargeColor = Resolve_GustaveChargeColor(currentCharge, maxCharge);
+
+    _gustaveCurrentChargeText->Set_Color(chargeColor);
+    _gustaveMaxChargeText->Set_Color(chargeColor);
+    _gustaveSlashText->Set_Color(chargeColor);
+
     for (int32 i = 0; i < static_cast<int32>(_gustaveChargeGlows.size()); ++i)
     {
-        if (_gustaveChargeGlows[i] == nullptr)
-            continue;
+        if (_gustaveChargeSlots[i])
+        {
+            _gustaveChargeSlots[i]->Set_Color(chargeColor);
+            Set_UIOpen(_gustaveChargeSlots[i], i < currentCharge);
+        }
 
-        if (i < currentCharge)
-            _gustaveChargeGlows[i]->Open();
-        else
-            _gustaveChargeGlows[i]->Close();
+        if (_gustaveChargeGlows[i])
+        {
+            _gustaveChargeGlows[i]->Set_Color(chargeColor);
+            Set_UIOpen(_gustaveChargeGlows[i], i < currentCharge);
+        }
+    }
+
+    _gustaveLightning->Set_Color(chargeColor);
+    Set_UIOpen(_gustaveLightning, currentCharge > 0);
+
+    const bool isFullCharge = (maxCharge > 0 && currentCharge >= maxCharge);
+    Set_UIOpen(_gustaveFullChargeDeco, isFullCharge);
+
+    if (_gustaveChargePanel->Get_Transform())
+    {
+        _gustaveChargePanel->Get_Transform()->Set_Position(
+            isFullCharge ? kGustaveChargePanelFullChargePosition : kGustaveChargePanelDefaultPosition);
     }
 }
 
@@ -448,6 +516,19 @@ void UI_BattleMechanism::Free()
     Close_AllRoots();
 
     _gustaveRoot.reset();
+    _gustaveChargePanel.reset();
+    _gustaveCurrentChargeText.reset();
+    _gustaveMaxChargeText.reset();
+    _gustaveSlashText.reset();
+    _gustaveLightning.reset();
+    _gustaveFullChargeDeco.reset();
+
+    for (Shared<UI_Base>& chargeSlot : _gustaveChargeSlots)
+        chargeSlot.reset();
+
+    for (Shared<UI_Base>& chargeGlow : _gustaveChargeGlows)
+        chargeGlow.reset();
+
     _luneRoot.reset();
     _maelleRoot.reset();
 

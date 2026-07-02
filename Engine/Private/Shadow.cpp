@@ -22,6 +22,7 @@ using namespace ShadowHelper;
 HRESULT Shadow::Update_ShadowLight(const ShadowLightDesc& desc)
 {
     _desc = desc;
+    _forceRenderAllCascades = true;
 
     if (!_hasCustomCascadePresets)
         Refresh_DefaultCascadePresets(desc);
@@ -41,10 +42,14 @@ HRESULT Shadow::Update_ShadowLight(const ShadowLightDesc& desc)
     {
         _cascadeViewMatrices[cascadeIndex] = _viewMatrix;
         _cascadeProjMatrices[cascadeIndex] = _projMatrix;
+        _renderedCascadeViewMatrices[cascadeIndex] = _viewMatrix;
+        _renderedCascadeProjMatrices[cascadeIndex] = _projMatrix;
 
         _cascadeSplits[cascadeIndex] = desc.zf;
+        _renderedCascadeSplits[cascadeIndex] = desc.zf;
         _cascadeDebugInfos[cascadeIndex] = {};
         _cascadeInfluenceVolumes[cascadeIndex] = {};
+        _hasRenderedCascade[cascadeIndex] = true;
     }
 
     return S_OK;
@@ -57,7 +62,10 @@ HRESULT Shadow::Set_CascadeLevel(CascadeLevel level)
 
     _activeCascadeLevel = level;
     if (_desc.followCameraFrustum)
+    {
         Apply_ActiveCascadePreset(_desc);
+        _forceRenderAllCascades = true;
+    }
 
     return S_OK;
 }
@@ -70,7 +78,10 @@ void Shadow::Set_CascadePresets(const ShadowCascadePresetSet& presets)
     _hasCustomCascadePresets = true;
 
     if (_desc.followCameraFrustum)
+    {
         Apply_ActiveCascadePreset(_desc);
+        _forceRenderAllCascades = true;
+    }
 }
 
 // 카메라가 보는 영역을 기준으로 빛 방향의 shadow 카메라를 다시 만든다.
@@ -230,15 +241,17 @@ ShadowCB Shadow::Build_ShadowCB() const
 
     for (uint32 cascadeIndex = 0; cascadeIndex < CascadeCount; ++cascadeIndex)
     {
-        shadowCB.cascadeLightViewMatrices[cascadeIndex] = _cascadeViewMatrices[cascadeIndex];
-        shadowCB.cascadeLightProjMatrices[cascadeIndex] = _cascadeProjMatrices[cascadeIndex];
+        shadowCB.cascadeLightViewMatrices[cascadeIndex] =
+            _hasRenderedCascade[cascadeIndex] ? _renderedCascadeViewMatrices[cascadeIndex] : _cascadeViewMatrices[cascadeIndex];
+        shadowCB.cascadeLightProjMatrices[cascadeIndex] =
+            _hasRenderedCascade[cascadeIndex] ? _renderedCascadeProjMatrices[cascadeIndex] : _cascadeProjMatrices[cascadeIndex];
     }
 
     shadowCB.cascadeSplits = Vec4(
-        _cascadeSplits[0],
-        _cascadeSplits[1],
-        _cascadeSplits[2],
-        _cascadeSplits[3]);
+        _hasRenderedCascade[0] ? _renderedCascadeSplits[0] : _cascadeSplits[0],
+        _hasRenderedCascade[1] ? _renderedCascadeSplits[1] : _cascadeSplits[1],
+        _hasRenderedCascade[2] ? _renderedCascadeSplits[2] : _cascadeSplits[2],
+        _hasRenderedCascade[3] ? _renderedCascadeSplits[3] : _cascadeSplits[3]);
 
     shadowCB.cascadeBlendDistance = _desc.cascadeBlendDistance;
     shadowCB.lightFar = _desc.zf;
@@ -262,6 +275,26 @@ HRESULT Shadow::Set_ActiveCascade(uint32 cascadeIndex)
     return S_OK;
 }
 
+HRESULT Shadow::Commit_RenderedCascade(uint32 cascadeIndex)
+{
+    if (cascadeIndex >= CascadeCount)
+        return E_FAIL;
+
+    _renderedCascadeViewMatrices[cascadeIndex] = _cascadeViewMatrices[cascadeIndex];
+    _renderedCascadeProjMatrices[cascadeIndex] = _cascadeProjMatrices[cascadeIndex];
+    _renderedCascadeSplits[cascadeIndex] = _cascadeSplits[cascadeIndex];
+    _hasRenderedCascade[cascadeIndex] = true;
+
+    return S_OK;
+}
+
+bool Shadow::Consume_ForceRenderAllCascades()
+{
+    const bool forceRenderAll = _forceRenderAllCascades;
+    _forceRenderAllCascades = false;
+    return forceRenderAll;
+}
+
 HRESULT Shadow::Bind_ShadowLightDesc(Shared<ShaderCom> shader, const char* lightFarName, const char* biasName, const char* intensityName)
 {
     if (lightFarName)   
@@ -283,14 +316,19 @@ void Shadow::Clear()
     _viewMatrix = Matrix::Identity;
     _projMatrix = Matrix::Identity;
     _activeCascadeIndex = 0;
+    _forceRenderAllCascades = true;
 
     for (uint32 cascadeIndex = 0; cascadeIndex < CascadeCount; ++cascadeIndex)
     {
         _cascadeViewMatrices[cascadeIndex] = Matrix::Identity;
         _cascadeProjMatrices[cascadeIndex] = Matrix::Identity;
+        _renderedCascadeViewMatrices[cascadeIndex] = Matrix::Identity;
+        _renderedCascadeProjMatrices[cascadeIndex] = Matrix::Identity;
         _cascadeInfluenceVolumes[cascadeIndex] = {};
         _cascadeSplits[cascadeIndex] = 0.f;
+        _renderedCascadeSplits[cascadeIndex] = 0.f;
         _cascadeDebugInfos[cascadeIndex] = {};
+        _hasRenderedCascade[cascadeIndex] = false;
     }
 }
 

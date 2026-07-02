@@ -223,6 +223,17 @@ void NPC_Base::BuildDialogueRequest(const string& npcPrefabName)
     CLIENT->StartDialogue(request);
 }
 
+void NPC_Base::Remove_InteractionTrigger()
+{
+    if (_sharedTrigger == nullptr)
+        return;
+
+    if (!_sharedTrigger->Is_MarkDestroy())
+        GAME->Remove_GameObject(GAME->Current_LevelIndex(), _sharedTrigger);
+
+    _sharedTrigger.reset();
+}
+
 const vector<Vec3>& NPC_Base::Get_EffectivePatrolPoints()
 {
     if (!_PatrolPoints.empty())
@@ -375,6 +386,8 @@ void NPC_Base::Free()
         GAME->Get_DelegateHub().OnEditorStopRuntime.Remove(_editorStopHandle);
         _editorStopHandle.Reset();
     }
+
+    _sharedTrigger.reset();
 
     Character_WorldBase::Free();
 }

@@ -176,17 +176,20 @@ void PlayableParts::Update(float timeDelta)
 
 void PlayableParts::Late_Update(float timeDelta)
 {
+    if (!Is_Visible())
+        return;
+
     Shared<GameObject> owner = Get_Owner();
     if (!owner)
     {
         return;
     }
 
-    if (Casts_DynamicShadow() && Is_Visible())
-        GAME->Add_RenderGroup(RenderGroup::Shadow, GetSharedPtr<GameObject>());
-
     if (!owner->Is_Visible())
         return;
+
+    if (Casts_DynamicShadow())
+        GAME->Add_RenderGroup(RenderGroup::Shadow, GetSharedPtr<GameObject>());
 
     GAME->Add_RenderGroup(RenderGroup::NonBlend, GetSharedPtr<GameObject>());
 }
@@ -247,6 +250,10 @@ bool PlayableParts::Apply_GizmoWorldMatrix(const Matrix& gizmoWorldMatrix)
 
 HRESULT PlayableParts::Render()
 {
+    const Shared<GameObject> owner = Get_Owner();
+    if (!Is_Visible() || owner == nullptr || !owner->Is_Visible())
+        return S_OK;
+
     if (FAILED(Bind_ShaderResources()))
         return E_FAIL;
 
@@ -286,6 +293,10 @@ HRESULT PlayableParts::Render()
 
 HRESULT PlayableParts::Render_Shadow()
 {
+    const Shared<GameObject> owner = Get_Owner();
+    if (!Is_Visible() || owner == nullptr || !owner->Is_Visible())
+        return S_OK;
+
     if (FAILED(_shaderCom->Bind_ObjectCB(_combinedWorldMatrix)))
         return E_FAIL;
 
