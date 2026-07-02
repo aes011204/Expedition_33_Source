@@ -9,6 +9,8 @@
 namespace
 {
     constexpr wchar_t kEffectName[] = L"Effects/Assets/Map/FX_TornadoPaint_EX.effect.json";
+
+    constexpr wchar_t kParticelEffectName[] = L"Effects/Assets/Map/FX_FallingLight.effect.json";
 }
 
 Level_Stage01::Level_Stage01(const ComPtr<Device>& device, const ComPtr<Context>& context)
@@ -39,6 +41,15 @@ void Level_Stage01::BeginPlay()
     desc.scale = Vec3(30.f, 30.f, 30.f);
 
     CLIENT->Play_Effect(desc);
+
+    // Particle
+    PlayEffectDesc ParticlDesc{};
+    desc.effectName = kParticelEffectName;
+    desc.worldPosition = Vec3(219.52f, -4023.47f, 52.33f);
+    desc.scale = Vec3(1.f, 1.f, 1.f);
+
+    CLIENT->Play_Effect(ParticlDesc);
+
     CLIENT->Capture_InitialWorldSnapshot();
 }
 

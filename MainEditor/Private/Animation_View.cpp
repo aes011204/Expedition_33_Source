@@ -42,6 +42,7 @@
 #include "Weapon.h"
 #include "Mon_Dualliste_Sword_L.h"
 #include "Mon_Dualliste_Sword_R.h"
+#include "Mon_PotatoBag_Weapon.h"
 #include "Mon_Simon_Weapon.h"
 #include "Monster_Part.h"
 #include <algorithm>
@@ -101,6 +102,9 @@ wstring Resolve_PreviewDefaultTrailEffectName(const PartObject* partObject)
 
     if (const Client::Mon_Dualliste_Sword_R* duallisteSwordR = dynamic_cast<const Client::Mon_Dualliste_Sword_R*>(partObject))
         return duallisteSwordR->Get_TrailEffectName();
+
+    if (const Client::Mon_PotatoBag_Weapon* potatoBagWeapon = dynamic_cast<const Client::Mon_PotatoBag_Weapon*>(partObject))
+        return potatoBagWeapon->Get_TrailEffectName();
 
     return {};
 }
@@ -7106,6 +7110,11 @@ bool Animation_View::Try_ResolvePreviewWeaponAnchorWorldPosition(
     {
         anchor = swordR->Find_SourceHistoryAnchor(anchorName);
         weaponModel = swordR->Get_Model();
+    }
+    else if (const Client::Mon_PotatoBag_Weapon* potatoBagWeapon = dynamic_cast<const Client::Mon_PotatoBag_Weapon*>(weaponPart))
+    {
+        anchor = potatoBagWeapon->Find_SourceHistoryAnchor(anchorName);
+        weaponModel = potatoBagWeapon->Get_Model();
     }
 
     if (anchor == nullptr || anchor->boneName.empty())

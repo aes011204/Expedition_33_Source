@@ -126,6 +126,20 @@ void ChooseAction::Update(float timeDelta)
         owner->Ensure_EnemyTargetPreview();
         battleFSM->Change_State(BattleTurnState::ChooseSkill);
 
+        Vec3 subjectPos = Vec3::Zero;
+        if (const auto subject = owner->Get_TurnActionRequest().actor.actor)
+        {
+            if (const auto subjectTransform = subject->Get_Transform())
+                subjectPos = subjectTransform->Get_WorldPosition();
+        }
+
+        LOG_INFO(
+            "[BattleCamTrace] ChooseAction->ChooseSkill before SELECTSKILL publish subject=({:.3f},{:.3f},{:.3f}) skillKey={}",
+            subjectPos.x,
+            subjectPos.y,
+            subjectPos.z,
+            owner->Get_TurnActionRequest().skillKey.c_str());
+
         EvtBattlePresentation event;
         event.cameraMode = BattleCameraMode::SELECTSKILL;
         event.subject = owner->Get_TurnActionRequest().actor.actor;

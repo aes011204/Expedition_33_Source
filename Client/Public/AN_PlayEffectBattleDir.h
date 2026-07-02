@@ -32,6 +32,8 @@ private:
     bool                        _inheritScale = false;
     bool                        _usePitch = false;
     bool                        _useBattleTargetYawOnly = true;
+    int32                       _allEnemiesRepeatCount = 1;
+    bool                        _includeDeadTargetsOnAllEnemies = false;
 };
 
 NS_END
