@@ -304,6 +304,97 @@ HRESULT EffectInstancePool::Prewarm(const AcquireDesc& desc, uint32 count)
     return S_OK;
 }
 
+HRESULT EffectInstancePool::Prewarm_ToCount(const AcquireDesc& desc, uint32 targetCount, uint32 createBudget, PrewarmResult* outResult)
+{
+    if (outResult != nullptr)
+    {
+        *outResult = {};
+        outResult->targetCount = targetCount;
+    }
+
+    if (desc.effectName.empty() || desc.layerTag.empty() || targetCount == 0)
+        return E_FAIL;
+
+    Shared<const EffectDefinition> definition =
+        desc.definition ? desc.definition : EffectAssetRuntimeLoader::Load_DefinitionByName(desc.effectName);
+    CHECK_NULL(definition, E_FAIL);
+
+    const uint32 existingCount = Count_Entries(desc, definition);
+    if (outResult != nullptr)
+        outResult->existingCount = existingCount;
+
+    if (existingCount >= targetCount || createBudget == 0)
+        return S_OK;
+
+    const uint32 createCount = min(targetCount - existingCount, createBudget);
+    uint32 createdCount = 0;
+
+    for (uint32 i = 0; i < createCount; ++i)
+    {
+        Shared<EffectInstance> instance{};
+        CHECK_FAILED(Spawn_NewInstance(desc, definition, instance), E_FAIL);
+
+        if (instance == nullptr)
+            return E_FAIL;
+
+        if (FAILED(Prepare_AcquiredInstance(desc, definition, instance)))
+        {
+            GAME->Remove_GameObject(desc.layerLevelIndex, static_pointer_cast<GameObject>(instance));
+            return E_FAIL;
+        }
+
+        if (FAILED(instance->Try_BeginPlay()))
+        {
+            GAME->Remove_GameObject(desc.layerLevelIndex, static_pointer_cast<GameObject>(instance));
+            return E_FAIL;
+        }
+
+        instance->Stop();
+
+        PooledInstance newEntry{};
+        newEntry.effectName = desc.effectName;
+        newEntry.definition = definition;
+        newEntry.instance = instance;
+        newEntry.layerLevelIndex = desc.layerLevelIndex;
+        newEntry.layerTag = desc.layerTag;
+        newEntry.inUse = false;
+        newEntry.autoReleaseOnFinished = desc.autoReleaseOnFinished;
+        _entries.push_back(newEntry);
+
+        ++createdCount;
+    }
+
+    if (outResult != nullptr)
+        outResult->createdCount = createdCount;
+
+    return S_OK;
+}
+
+uint32 EffectInstancePool::Count_Entries(const AcquireDesc& desc, const Shared<const EffectDefinition>& definition) const
+{
+    uint32 count = 0;
+
+    for (const PooledInstance& entry : _entries)
+    {
+        if (entry.effectName != desc.effectName)
+            continue;
+        if (entry.layerLevelIndex != desc.layerLevelIndex)
+            continue;
+        if (entry.layerTag != desc.layerTag)
+            continue;
+        if (desc.definition && entry.definition != definition)
+            continue;
+        if (entry.instance == nullptr)
+            continue;
+        if (entry.inUse)
+            continue;
+
+        ++count;
+    }
+
+    return count;
+}
+
 HRESULT EffectInstancePool::Acquire_Instance(
     const AcquireDesc& desc,
     Shared<const EffectDefinition>& outDefinition,

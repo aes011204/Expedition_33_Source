@@ -770,6 +770,9 @@
     <ClCompile Include="..\private\BattleController.cpp">
       <Filter>BattleState\Battle\BattleController</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\BattleEffectPrewarmCollector.cpp">
+      <Filter>BattleState\Battle\BattleController</Filter>
+    </ClCompile>
     <ClCompile Include="..\private\BattleStateMachine.cpp">
       <Filter>BattleState\Battle</Filter>
     </ClCompile>
@@ -2053,6 +2056,12 @@
     </ClInclude>
     <ClInclude Include="..\Public\EffectInstancePool.h">
       <Filter>06. Effect System\Pool</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\BattleEffectPrewarmCollector.h">
+      <Filter>BattleState\Battle\BattleController</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\BattleEffectPrewarmTypes.h">
+      <Filter>BattleState\Battle\BattleController</Filter>
     </ClInclude>
     <ClInclude Include="..\Private\EffectAssetRuntimeLoader_Support.h">
       <Filter>06. Effect System\Runtime Loader\Support</Filter>

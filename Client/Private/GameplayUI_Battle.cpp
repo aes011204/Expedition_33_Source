@@ -599,7 +599,6 @@ void GameplayUI_Battle::Handle_BattleStarted(uint32 fieldId, bool isPlayerAdvant
     _battleStartVictoryStats.clear();
     _battleStartVictoryStats = Build_BattleVictoryPlayerStats();
     _battleWorldWarmupHeroFlags.fill(false);
-    _damageFontAlternationIndex = 0;
 
     GAME->Get_ScreenFxManager()->Clear_ScreenEffect();
 
@@ -996,6 +995,7 @@ void GameplayUI_Battle::Handle_DamageApplied(const DamageAppliedInfo& info)
     UI_DamageFont* oldestSlot = nullptr;
     float longestElapsed = -1.f;
     uint32 stackIndex = 0;
+    uint32 targetStackIndex = 0;
 
     for (auto& damageFont : _damageFonts)
     {
@@ -1005,6 +1005,9 @@ void GameplayUI_Battle::Handle_DamageApplied(const DamageAppliedInfo& info)
         if (damageFont->Is_Playing())
         {
             ++stackIndex;
+
+            if (damageFont->Is_PlayingForTarget(target))
+                ++targetStackIndex;
 
             if (damageFont->Get_Elapsed() > longestElapsed)
             {
@@ -1026,10 +1029,9 @@ void GameplayUI_Battle::Handle_DamageApplied(const DamageAppliedInfo& info)
         return;
 
     constexpr uint32 kDamageFontAlternationBandCount = (kDamageFontPoolSize - 1) / 2;
-    const uint32 activeStackCount = min(stackIndex, kDamageFontPoolSize - 1);
-    const uint32 verticalBand = min(activeStackCount / 2, kDamageFontAlternationBandCount - 1);
-    const bool useRightSide = (_damageFontAlternationIndex++ % 2u) == 0u;
-    const uint32 visualStackIndex = verticalBand * 2u + (useRightSide ? 1u : 2u);
+    const uint32 verticalBand = min(targetStackIndex / 2, kDamageFontAlternationBandCount - 1);
+    const bool useLeftSide = (targetStackIndex % 2u) == 0u;
+    const uint32 visualStackIndex = verticalBand * 2u + (useLeftSide ? 1u : 2u);
 
     selectedSlot->Play_DamageFont(target, damage, visualStackIndex, info.isCritical);
 }
@@ -2859,7 +2861,6 @@ void GameplayUI_Battle::Reset_BattleUiRuntimeState(bool closeVictoryUi)
     _battleSystemIntroElapsed = 0.f;
     _hasPendingBattleSystemIntroActivation = false;
     _pendingBattleSystemIntroActivationHeroId = HeroId::END;
-    _damageFontAlternationIndex = 0;
 
     Hide_BattleWorldMaterialVfxBackground();
     Hide_BattleWorldCommandCards();

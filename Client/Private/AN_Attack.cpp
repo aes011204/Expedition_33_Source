@@ -61,7 +61,8 @@ void AN_Attack::Execute(const AnimNotifyContext& context)
             turnAction,
             attackType);
     }
-    else if (guardedReaction == BattleReactionType::Parry)
+    else if (guardedReaction == BattleReactionType::Dodge ||
+        guardedReaction == BattleReactionType::Parry)
     {
         battle->Get_CurrentScript()->Play_GuardedHitEffect(turnAction);
     }

@@ -448,6 +448,8 @@ void BattleController::Cancel_BattleEnterPending()
     if (!_isBattleEntering || _isBattleActive)
         return;
 
+    CLIENT->Clear_EffectPrewarmQueue();
+
     GAME->Stop_WorldTimeSlow();
     GAME->Set_WorldTimeScale(1.f);
     GAME->Set_PlayerInputBlocked(false);
@@ -2143,7 +2145,7 @@ void BattleController::Execute_Item()
             static_cast<float>(itemData.healHp) * 0.01f, target);
 
         // 힐 이팩트
-        if (runtimeStat.CurHp > beforeHp && target.actor != nullptr)
+        if (target.actor != nullptr)
         {
             PlayEffectDesc effectDesc{};
             effectDesc.effectName = kHealTintEffect;

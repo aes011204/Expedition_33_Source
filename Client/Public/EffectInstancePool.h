@@ -55,6 +55,13 @@ public: //## Types::Public
         uint32 idleCount{};   // Stop된 상태로 다음 Acquire()를 기다리는 슬롯 수다.
     };
 
+    struct PrewarmResult
+    {
+        uint32 existingCount{};
+        uint32 createdCount{};
+        uint32 targetCount{};
+    };
+
 public:
     EffectInstancePool() = default;
     ~EffectInstancePool() override = default;
@@ -82,6 +89,10 @@ public: //## Debug::EditorSession
 
     // 같은 이팩트를 count개 미리 생성해서 idle 상태로 돌려두기
     HRESULT Prewarm(const AcquireDesc& desc, uint32 count);
+    // 같은 key의 pool entry를 targetCount까지 createBudget만큼 증설한다.
+    HRESULT Prewarm_ToCount(const AcquireDesc& desc, uint32 targetCount, uint32 createBudget, PrewarmResult* outResult = nullptr);
+    // 같은 key/definition/layer에 속한 idle entry 수를 센다.
+    uint32 Count_Entries(const AcquireDesc& desc, const Shared<const EffectDefinition>& definition) const;
 
 private: //## Types::Pool
 

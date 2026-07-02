@@ -194,7 +194,7 @@ Vec2 UI_DamageFont::Resolve_ScreenBaseOffset(const Vec3& worldPos) const
     const float range = max(_damageScreenOffsetFarDistance - _damageScreenOffsetCloseDistance, 0.0001f);
     const float farT = clamp((distance - _damageScreenOffsetCloseDistance) / range, 0.f, 1.f);
 
-    // 가까운 타격은 현재 높이를 유지하고, 먼 타격은 고정 Y 보정을 줄여 숫자가 과하게 위로 뜨지 않게 한다.
+    // 가까운 타격은 현재 높이를 유지하고, 먼 타격은 화면 아래쪽으로 보정해 과하게 위로 뜨지 않게 한다.
     return _damageScreenBaseOffset + (_damageFarScreenBaseOffset - _damageScreenBaseOffset) * farT;
 }
 

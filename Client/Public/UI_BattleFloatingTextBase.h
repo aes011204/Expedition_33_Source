@@ -24,6 +24,10 @@ public:
 
     bool  Is_Playing() const { return _isPlaying; }
     float Get_Elapsed() const { return _elapsed; }
+    bool  Is_PlayingForTarget(const BattleChar& target) const
+    {
+        return _isPlaying && _hasTarget && target.actor != nullptr && _target.actor.get() == target.actor.get();
+    }
 
 protected:
     bool Begin_FloatingText(const BattleChar& target, uint32 stackIndex);

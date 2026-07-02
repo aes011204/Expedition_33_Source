@@ -54,6 +54,7 @@ public:
 public:
     virtual void Execute(const Skill_Data& skill, const BattleAction& action, AttackType attackType) override;
     virtual void Play_GuardedHitEffect(const BattleAction& action) override;
+    void Collect_PrewarmEffects(const Skill_Data& skill, const BattleEffectPrewarmContext& context, vector<EffectPrewarmRequest>& outRequests) const override;
 
 public:
     static Shared<Potato_Fire_Skill> Create();
@@ -74,6 +75,7 @@ public:
 public:
     virtual void Execute(const Skill_Data& skill, const BattleAction& action, AttackType attackType) override;
     virtual void Play_GuardedHitEffect(const BattleAction& action) override;
+    void Collect_PrewarmEffects(const Skill_Data& skill, const BattleEffectPrewarmContext& context, vector<EffectPrewarmRequest>& outRequests) const override;
 
 public:
     static Shared<Potato_Thunder_Skill> Create();

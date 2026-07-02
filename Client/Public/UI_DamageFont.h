@@ -59,12 +59,12 @@ private:
     float _damageLifeTime = 1.05f;
     float _damageRiseDistance = 72.f;
 
-    float _damageStackHorizontalOffset = 76.f;
+    float _damageStackHorizontalOffset = -76.f;
     float _damageStackVerticalOffset = 22.f;
 
     Vec3 _damageWorldAnchorOffset = Vec3(0.f, 0.f, 0.f);
     Vec2 _damageScreenBaseOffset = Vec2(0.f, -36.f);
-    Vec2 _damageFarScreenBaseOffset = Vec2(0.f, -12.f);
+    Vec2 _damageFarScreenBaseOffset = Vec2(0.f, 28.f);
     float _damageScreenOffsetCloseDistance = 5.f;
     float _damageScreenOffsetFarDistance = 14.f;
 
