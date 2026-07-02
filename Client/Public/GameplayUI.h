@@ -55,6 +55,7 @@ public:
     bool    Open_ArenaCharacterSelect();
 
     void    Queue_GetChromaPresentation(uint32 chromaAmount);
+    void    Queue_LevelAnnounce(LevelType levelType);
     void    Set_CinematicUIHidden(bool hidden);
     bool    Is_CinematicUIHidden() const { return _isCinematicUIHidden; }
 

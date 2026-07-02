@@ -226,6 +226,12 @@ void GameplayUI::Queue_GetChromaPresentation(uint32 chromaAmount)
         _worldUI->Queue_GetChromaPresentation(chromaAmount);
 }
 
+void GameplayUI::Queue_LevelAnnounce(LevelType levelType)
+{
+    if (_worldUI)
+        _worldUI->Queue_LevelAnnounce(levelType);
+}
+
 void GameplayUI::Set_CinematicUIHidden(bool hidden)
 {
     if (_isCinematicUIHidden == hidden)
