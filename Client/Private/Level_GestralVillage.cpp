@@ -41,6 +41,7 @@ namespace
     }
 
     constexpr wchar_t kFlameEffectName[] = L"Effects/Assets/Map/FX_Brazier_Fire.effect.json";
+    constexpr wchar_t kLeafEffectName[] = L"Effects/Assets/Map/FX_FallingLeaf.effect.json";
 
     constexpr Vec3 kCasinoLightPositions[] = {
         Vec3(118.12f, -3.23f, 19.45f),
@@ -128,6 +129,14 @@ void Level_GestralVillage::BeginPlay()
         desc.worldPosition = pos;
         CLIENT->Play_Effect(desc);
     }
+
+    // leaf
+    PlayEffectDesc leafDesc{};
+    leafDesc.effectName = kLeafEffectName;
+    leafDesc.worldPosition = Vec3(2.38f, -0.05f, 143.15f);
+    leafDesc.scale = Vec3(1.f, 1.f, 1.f);
+
+    CLIENT->Play_Effect(leafDesc);
 }
 
 void Level_GestralVillage::Update(float fTimeDelta)
