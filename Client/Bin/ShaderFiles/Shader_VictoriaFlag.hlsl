@@ -11,8 +11,8 @@ Texture2D g_NumberTextures[10];
 Texture2D g_NumberAtlasTexture;
 
 static const float kVictoriaFlagFreeMaskCurve = 1.35f;
-static const float3 kVictoriaFlagGoldColor = float3(0.74f, 0.50f, 0.11f);
-static const float3 kVictoriaFlagGoldHighlightColor = float3(1.0f, 0.78f, 0.24f);
+static const float3 kVictoriaFlagGoldColor = float3(0.58f, 0.43f, 0.18f);
+static const float3 kVictoriaFlagGoldHighlightColor = float3(0.82f, 0.64f, 0.30f);
 
 struct VS_IN
 {
@@ -214,7 +214,111 @@ float3 ApplyVictoriaFlagDeform(float3 localPos, float2 flagUV)
 float4 SampleFlagBaseColor(float2 flagUV)
 {
     const float brightness = g_FeatureParam1.w;
-    return float4(0.075f, 0.075f, 0.07f, 1.f) * float4(brightness, brightness, brightness, 1.f);
+    float3 baseColor = float3(0.075f, 0.075f, 0.07f) * brightness;
+
+    if (HasMaterialTexture(MATERIAL_SLOT_BASECOLOR))
+    {
+        const float4 flagTex = g_MaterialTextures[MATERIAL_SLOT_BASECOLOR].SampleLevel(LinearWrapSampler, flagUV, 0.f);
+        const float texLuma = dot(flagTex.rgb, float3(0.299f, 0.587f, 0.114f));
+        const float detailMask = saturate((texLuma - 0.5f) * 1.65f + 0.5f);
+        const float3 tintedDetail = saturate(flagTex.rgb * 1.75f);
+
+        baseColor *= lerp(0.52f, 1.48f, detailMask);
+        baseColor = lerp(baseColor, baseColor * tintedDetail, 0.42f);
+    }
+
+    return float4(saturate(baseColor), 1.f);
+}
+
+float4 SampleFlagBaseColorPixel(float2 flagUV)
+{
+    const float brightness = g_FeatureParam1.w;
+    float3 baseColor = float3(0.094f, 0.092f, 0.086f) * brightness;
+
+    if (HasMaterialTexture(MATERIAL_SLOT_BASECOLOR))
+    {
+        const float4 flagTex = g_MaterialTextures[MATERIAL_SLOT_BASECOLOR].Sample(LinearWrapSampler, flagUV);
+        const float texLuma = dot(flagTex.rgb, float3(0.299f, 0.587f, 0.114f));
+        const float detailMask = saturate((texLuma - 0.5f) * 1.40f + 0.5f);
+        const float3 tintedDetail = saturate(flagTex.rgb * 1.45f + 0.06f);
+
+        baseColor *= lerp(0.68f, 1.34f, detailMask);
+        baseColor = lerp(baseColor, baseColor * tintedDetail, 0.35f);
+    }
+
+    return float4(saturate(baseColor), 1.f);
+}
+
+float ComputeVictoriaFlagFabricDetail(float2 flagUV)
+{
+    const float coarse = sin(flagUV.x * 82.f + sin(flagUV.y * 13.f) * 0.35f) *
+        sin(flagUV.y * 74.f + sin(flagUV.x * 11.f) * 0.30f);
+    const float fine = sin(flagUV.x * 226.f + flagUV.y * 9.f) *
+        sin(flagUV.y * 204.f - flagUV.x * 7.f);
+    const float microGrid = sin(flagUV.x * 355.f + sin(flagUV.y * 31.f) * 0.20f) *
+        sin(flagUV.y * 330.f + sin(flagUV.x * 27.f) * 0.18f);
+    const float mottled = sin(dot(flagUV, float2(43.0f, 61.0f))) *
+        sin(dot(flagUV, float2(-37.0f, 52.0f)));
+
+    return saturate(0.5f + coarse * 0.135f + fine * 0.070f + microGrid * 0.045f + mottled * 0.070f);
+}
+
+float ComputeVictoriaFlagWrinkleRidge(float2 flagUV)
+{
+    const float poleMask = 1.f - smoothstep(0.05f, 0.42f, flagUV.x);
+    const float bodyMask = smoothstep(0.10f, 0.92f, flagUV.x) * (1.f - smoothstep(0.92f, 1.f, flagUV.x));
+    const float poleBands = 0.5f + 0.5f * sin(flagUV.y * 39.f + flagUV.x * 16.f);
+    const float bodyWaveA = 0.5f + 0.5f * sin(flagUV.y * 14.f + flagUV.x * 19.f + sin(flagUV.x * 7.f) * 0.85f);
+    const float bodyWaveB = 0.5f + 0.5f * sin((flagUV.x + flagUV.y * 0.55f) * 25.f);
+    const float poleRidge = pow(saturate(poleBands), 5.0f) * poleMask;
+    const float bodyRidge = pow(saturate(bodyWaveA * 0.68f + bodyWaveB * 0.32f), 7.0f) * bodyMask;
+
+    return saturate(poleRidge * 0.55f + bodyRidge * 0.65f);
+}
+
+float ComputeVictoriaFlagWrinkleShadow(float2 flagUV)
+{
+    const float shiftedRidge = ComputeVictoriaFlagWrinkleRidge(saturate(flagUV + float2(-0.018f, 0.034f)));
+    const float diagonalRidge = ComputeVictoriaFlagWrinkleRidge(saturate(flagUV + float2(0.030f, 0.020f)));
+    const float currentRidge = ComputeVictoriaFlagWrinkleRidge(flagUV);
+
+    return saturate(shiftedRidge * 0.58f + diagonalRidge * 0.32f - currentRidge * 0.46f);
+}
+
+float4 ApplyVictoriaFlagFabricColor(float2 flagUV, float4 baseColor)
+{
+    const float fabric = ComputeVictoriaFlagFabricDetail(flagUV);
+    const float wrinkleRidge = ComputeVictoriaFlagWrinkleRidge(flagUV);
+    const float wrinkleShadow = ComputeVictoriaFlagWrinkleShadow(flagUV);
+    const float threadLift = saturate((fabric - 0.5f) * 2.f);
+
+    baseColor.rgb *= lerp(0.88f, 1.12f, fabric);
+    baseColor.rgb *= lerp(1.f, 0.60f, wrinkleShadow);
+    baseColor.rgb = lerp(baseColor.rgb, baseColor.rgb * float3(1.52f, 1.44f, 1.30f) + float3(0.030f, 0.026f, 0.018f), wrinkleRidge * 0.28f);
+    baseColor.rgb += threadLift * 0.006f;
+    return float4(saturate(baseColor.rgb), baseColor.a);
+}
+
+float3 ApplyVictoriaFlagFabricNormal(float2 flagUV, float3 normalW, float3 tangentW, float3 binormalW)
+{
+    float3 n = normalize(normalW);
+    float3 t = normalize(tangentW - n * dot(tangentW, n));
+    float3 b = normalize(binormalW - n * dot(binormalW, n) - t * dot(binormalW, t));
+
+    const float poleMask = 1.f - smoothstep(0.05f, 0.42f, flagUV.x);
+    const float bodyMask = smoothstep(0.10f, 0.92f, flagUV.x) * (1.f - smoothstep(0.92f, 1.f, flagUV.x));
+    const float poleSlope = cos(flagUV.y * 39.f + flagUV.x * 16.f) * poleMask;
+    const float bodySlopeA = cos(flagUV.y * 14.f + flagUV.x * 19.f + sin(flagUV.x * 7.f) * 0.85f) * bodyMask;
+    const float bodySlopeB = cos((flagUV.x + flagUV.y * 0.55f) * 25.f) * bodyMask;
+    const float fabricSlopeX = cos(flagUV.x * 82.f + sin(flagUV.y * 13.f) * 0.35f) * 0.024f +
+        cos(flagUV.x * 355.f + sin(flagUV.y * 31.f) * 0.20f) * 0.036f;
+    const float fabricSlopeY = cos(flagUV.y * 74.f + sin(flagUV.x * 11.f) * 0.30f) * 0.022f +
+        cos(flagUV.y * 330.f + sin(flagUV.x * 27.f) * 0.18f) * 0.034f;
+
+    const float warpSlope = fabricSlopeX + bodySlopeA * 0.145f + bodySlopeB * 0.088f + poleSlope * 0.076f;
+    const float weftSlope = fabricSlopeY + bodySlopeA * 0.106f + bodySlopeB * 0.150f + poleSlope * 0.178f;
+
+    return normalize(n + t * warpSlope + b * weftSlope);
 }
 
 float ComputeVictoriaFlagBorderLine(float edgeDistance, float center, float halfWidth, float softness)
@@ -370,15 +474,18 @@ PS_OUT PS_Opaque(PS_IN In)
 
     PS_OUT Out;
 
-    const float4 baseColor = ApplyNumberOverlay(In.Texcoord, ApplyVictoriaFlagBorder(In.Texcoord, In.VertexColor));
+    const float4 flagBaseColor = SampleFlagBaseColorPixel(In.Texcoord);
+    const float4 baseColor = ApplyVictoriaFlagFabricColor(In.Texcoord,
+        ApplyNumberOverlay(In.Texcoord, ApplyVictoriaFlagBorder(In.Texcoord, flagBaseColor)));
     float3 worldNormal = normalize(In.Normal.xyz);
     if (!In.IsFrontFace)
         worldNormal *= -1.f;
+    worldNormal = ApplyVictoriaFlagFabricNormal(In.Texcoord, worldNormal, In.Tangent, In.Binormal);
 
     Out.Diffuse = baseColor;
     Out.Normal = float4(EncodeNormal(worldNormal), 1.f);
     Out.Depth = float4(In.ProjPos.z / In.ProjPos.w, In.ProjPos.w / g_Far, 0.f, 1.f);
-    Out.Material = float4(1.f, 0.65f, 0.f, 1.f);
+    Out.Material = float4(1.f, 0.94f, 0.f, 1.f);
     Out.Emissive = float4(0.f, 0.f, 0.f, 1.f);
 
     return Out;
