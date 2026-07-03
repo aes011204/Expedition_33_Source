@@ -30,16 +30,7 @@ public:
     uint32  Get_Chroma() const { return _chroma; }
 
     void    Set_Chroma(uint32 chroma) { _chroma = chroma; }
-    void    Add_Chroma(uint32 amount)
-    {
-        if (UINT32_MAX - _chroma < amount)
-        {
-            _chroma = UINT32_MAX;
-            return;
-        }
-
-        _chroma += amount;
-    }
+    void    Add_Chroma(uint32 amount);
     bool    Spend_Chroma(uint32 amount);
     void    Clear();
 
