@@ -791,6 +791,11 @@ bool ClientInstance::Is_ActiveHero(const Shared<GameObject>& target) const
     return _heroManager->Is_ActiveHero(target);
 }
 
+void ClientInstance::Warp_PartyToFormation(const Vec3& anchorPos, const Vec3& anchorRot)
+{
+    return _heroManager->Warp_PartyToFormation(anchorPos, anchorRot);
+}
+
 HRESULT ClientInstance::Initialize_GameplayUI(uint32 levelIndex)
 {
     Clear_GameplayUI();
@@ -829,6 +834,12 @@ void ClientInstance::Stop_BattleEnterTransition()
 bool ClientInstance::Is_BattleEnterTransitionPlaying() const
 {
     return _gamePlayUI && _gamePlayUI->Is_BattleEnterTransitionPlaying();
+}
+
+void ClientInstance::Queue_LevelAnnounce(LevelType levelType)
+{
+    if (_gamePlayUI)
+        _gamePlayUI->Queue_LevelAnnounce(levelType);
 }
 
 bool ClientInstance::Request_ScreenFadeTransition(const function<void()>& CoveredAction)
@@ -1289,7 +1300,7 @@ bool ClientInstance::Request_DialogueBattlePotatoBag()
 
     OnEnterBattleField(
         Constants::Value::potatoBagEncounterId,
-        true,
+        false,
         Resolve_BattleEncounterHeroIds(Constants::Value::potatoBagEncounterId),
         battleMonsterSpawnDescs,
         nullptr,
@@ -1711,6 +1722,7 @@ bool ClientInstance::Play_Effect(const PlayEffectDesc& desc)
     acquireDesc.worldPosition = spawnWorldPosition;
     acquireDesc.worldRotation = spawnWorldRotation;
     acquireDesc.scale = desc.scale;
+    acquireDesc.playbackSpeed = desc.playbackSpeed;
 
     EffectInstancePool::AttachedHandle handle{};
     if (FAILED(_effectInstancePool->Acquire(acquireDesc, handle)))
@@ -1952,6 +1964,14 @@ bool ClientInstance::Try_GetInteractionPromptAnchor(Vec3& outWorldAnchor) const
 
     outWorldAnchor = _interactionPromptWorldAnchor;
     return true;
+}
+
+void ClientInstance::Set_DialogueOverride(const string& sourceDialogueKey, const string& targetDialogueKey)
+{
+    if (_dialogueManager == nullptr)
+        return;
+
+    _dialogueManager->Set_DialogueOverride(sourceDialogueKey, targetDialogueKey);
 }
 
 HRESULT ClientInstance::Ready_ResourceLoader()

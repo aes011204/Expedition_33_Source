@@ -226,4 +226,55 @@ inline bool Evaluate_BattleTurnEnemyAttackPose (
     return true;
 }
 
+inline bool Evaluate_BattleTurnPlayerAttackBattlePlanePose(
+    const Vec3& subjectPos,
+    const Vec3& opponentPos,
+    const BattleCameraPreset& preset,
+    const BattleCameraClipSample& clipSample,
+    float yawBase,
+    float /*clipTime*/,
+    BattleTurnCameraEvaluatedPose& outPose)
+{
+    const float finalFovY = clamp(preset.camera.fovy + clipSample.fovOffset, XMConvertToRadians(10.f), XMConvertToRadians(120.f));
+    const float finalDistance = preset.distance + clipSample.distanceOffset;
+    const float finalSideOffset = preset.sideOffset + clipSample.sideOffset;
+    const float finalHeightOffset = preset.heightOffset + clipSample.heightOffset;
+    const float finalAimOffset = preset.aimOffset + clipSample.aimOffset;
+    const float finalLookHeight = preset.lookHeight + clipSample.lookHeightOffset;
+    const float finalYaw = yawBase + preset.yawOffset + clipSample.yawOffset;
+
+    Vec3 attackDir = opponentPos - subjectPos;
+    attackDir.y = 0.f;
+    if (attackDir.LengthSquared() <= 0.0001f)
+        return false;
+
+    attackDir.Normalize();
+
+    const float yawRad = XMConvertToRadians(finalYaw);
+
+    Vec3 forwardDir;
+    forwardDir.x = sinf(yawRad);
+    forwardDir.y = 0.f;
+    forwardDir.z = cosf(yawRad);
+    forwardDir.Normalize();
+
+    const Vec3 backDir = -forwardDir;
+
+    Vec3 rightDir;
+    rightDir.x = cosf(yawRad);
+    rightDir.y = 0.f;
+    rightDir.z = -sinf(yawRad);
+    rightDir.Normalize();
+
+    Vec3 anchorPos = Vec3::Lerp(subjectPos, opponentPos, 0.25f);
+    Vec3 cameraPos = anchorPos + backDir * finalDistance + rightDir * finalSideOffset + Vec3::Up * finalHeightOffset;
+    const Vec3 lookTarget = subjectPos + attackDir * finalAimOffset + Vec3::Up * finalLookHeight;
+
+    outPose.cameraPos = cameraPos;
+    outPose.lookTarget = lookTarget;
+    outPose.fovY = finalFovY;
+    outPose.rollOffset = preset.rollOffset;
+    return true;
+}
+
 NS_END

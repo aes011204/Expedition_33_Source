@@ -1,10 +1,13 @@
 ﻿#include "Character_BattleBase.h"
 #include "PartObject.h"
+#include "BattleController.h"
+#include "ClientInstance.h"
 #include "Bounding_OBB.h"
 #include "ColliderCom.h"
 #include "GameInstance.h"
 #include "ModelCom.h"
 #include "Monster_Part.h"
+#include "MonsterStatCom.h"
 
 Character_BattleBase::Character_BattleBase(const ComPtr<Device>& device, const ComPtr<Context>& context)
     : Character(device, context)
@@ -49,11 +52,50 @@ void Character_BattleBase::Adjust_IncomingBattleDamage(const BattleChar& attacke
     UNREFERENCED_PARAMETER(attackType);
 }
 
-bool Character_BattleBase::Try_ApplyBattleBreakOnDamage(const DamageAppliedInfo& info)
+bool Character_BattleBase::Try_ApplyBattleBreakOnDamage(const DamageAppliedInfo& info, bool canTriggerBreak)
 {
-    UNREFERENCED_PARAMETER(info);
+    if (info.damage <= 0.f)
+        return false;
 
-    return false;
+    if (info.target.actor.get() != this)
+        return false;
+
+    const Shared<MonsterStatCom> monsterStat =
+        dynamic_pointer_cast<MonsterStatCom>(info.target.statCom);
+
+    if (monsterStat == nullptr || !monsterStat->Is_Boss())
+        return false;
+
+    if (monsterStat->Get_AliveStatus() == EAliveStatus::Dead)
+        return false;
+
+    if (monsterStat->IsBreak() || monsterStat->Get_MaxBreak() <= 0.f)
+        return false;
+
+    monsterStat->Add_Break(info.damage);
+
+    if (monsterStat->Get_CurBreak() < monsterStat->Get_MaxBreak())
+        return false;
+
+    if (!canTriggerBreak)
+        return false;
+
+    monsterStat->SetBreak(true);
+    monsterStat->Set_Break(monsterStat->Get_MaxBreak());
+
+    if (const auto battle = CLIENT->Get_BattleController())
+        battle->Apply_Buff(info.target, Buffs::Stun, 1, 1);
+
+    if (info.target.ModelCom != nullptr)
+    {
+        const bool playedBreakEnter =
+            info.target.ModelCom->Set_AnimationByState(ETOI(BattleAnimType::Stun_Enter), 0.2f, false);
+
+        if (!playedBreakEnter)
+            info.target.ModelCom->Set_AnimationByState(ETOI(BattleAnimType::Idle_Stun), 0.2f, true);
+    }
+
+    return true;
 }
 
 void Character_BattleBase::Set_BattleColliderActive(bool isActive)
@@ -94,7 +136,7 @@ bool Character_BattleBase::Try_GetDamageFeedbackWorldPosition(Vec3& outWorldPos)
                     const float localHeight = max(localMax.y - localMin.y, 0.f);
 
                     Vec3 localAnchor = localCenter;
-                    localAnchor.y = localMin.y + localHeight * 0.68f; // 몬스터 몸통 상단 근처에 데미지 숫자를 띄운다.
+                    localAnchor.y = localMin.y + localHeight * 0.56f; // 데미지 숫자가 너무 위로 튀지 않게 몬스터 몸통 중앙 근처에 잡는다.
 
                     outWorldPos = Vec3::Transform(localAnchor, body->Get_CombinedWorldMatrix());
                     return true;

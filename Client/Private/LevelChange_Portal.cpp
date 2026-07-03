@@ -98,6 +98,9 @@ void LevelChange_Portal::OnBeginOverlap(Shared<ColliderCom> self, Shared<Collide
 
     _transitionRequested = true;
 
+    if (_targetLevel == LevelType::GameEntry)
+        GAME->Stop_SoundChannel(SoundChannel::BGM, 0.f);
+
     if (!CLIENT->Request_LevelTransition(_targetLevel))
     {
         LOG_INFO("LevelChange_Portal: level transition request failed. target={}",

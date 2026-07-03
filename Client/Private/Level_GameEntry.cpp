@@ -47,6 +47,7 @@ void Level_GameEntry::Handle_Button()
     MainTitleMenuSound::Update_ButtonHoverSound(_firstLevelButton, _wasFirstLevelHovered);
     MainTitleMenuSound::Update_ButtonHoverSound(_secondLevelButton, _wasSecondLevelHovered);
     MainTitleMenuSound::Update_ButtonHoverSound(_thirdLevelButton, _wasThirdLevelHovered);
+    MainTitleMenuSound::Update_ButtonHoverSound(_testLevelButton, _wasTestLevelHovered);
 
     if (GAME->KeyDown(KEY_TYPE::ESCAPE))
     {
@@ -60,7 +61,7 @@ void Level_GameEntry::Handle_Button()
     {
         GAME->Play_SoundCue(Constants::SoundCue::UI_MainTitle_NewGame);
 
-        if (!CLIENT->Request_LevelTransition(LevelType::MapTest))
+        if (!CLIENT->Request_LevelTransition(LevelType::GamePlay))
             return;
 
         return;
@@ -71,7 +72,7 @@ void Level_GameEntry::Handle_Button()
         GAME->Play_SoundCue(Constants::SoundCue::UI_MainTitle_NewGame);
 
         // 수정
-        if (!CLIENT->Request_LevelTransition(LevelType::GamePlay))
+        if (!CLIENT->Request_LevelTransition(LevelType::GestralVillage))
             return;
 
         return;
@@ -81,7 +82,17 @@ void Level_GameEntry::Handle_Button()
     {
         GAME->Play_SoundCue(Constants::SoundCue::UI_MainTitle_NewGame);
 
-        if (!CLIENT->Request_LevelTransition(LevelType::GestralVillage))
+        if (!CLIENT->Request_LevelTransition(LevelType::Stage01))
+            return;
+
+        return;
+    }
+
+    if (_testLevelButton && _testLevelButton->Was_Clicked())
+    {
+        GAME->Play_SoundCue(Constants::SoundCue::UI_MainTitle_NewGame);
+
+        if (!CLIENT->Request_LevelTransition(LevelType::MapTest))
             return;
 
         return;
@@ -110,6 +121,11 @@ HRESULT Level_GameEntry::Ready_Layer_UI(const wstring& strLayerTag)
     _thirdLevelButton = Find_TypedUI<UI_Button>(
         _uiByName,
         L"Button_ThirdLevel",
+        "Level_GameEntry");
+
+    _testLevelButton = Find_TypedUI<UI_Button>(
+        _uiByName,
+        L"Button_TestLevel",
         "Level_GameEntry");
 
     return S_OK;

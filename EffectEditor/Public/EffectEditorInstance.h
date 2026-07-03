@@ -56,6 +56,18 @@ enum class EffectEditorPostProcessPreset
     Custom,
 };
 
+enum class TrailPreviewCharacterSlot
+{
+    Player,
+    Monster,
+};
+
+enum class TrailPreviewMotion
+{
+    Auto,
+    Manual,
+};
+
 // EffectEditor singleton으로 editor subsystem, preview viewport, runtime state, and session options를 조율한다.
 class EffectEditorInstance final : public Base
 {
@@ -97,6 +109,7 @@ public: //## Accessor::Runtime
 
 public: //## Accessor::PreviewOption
     bool Is_AutoReplayPreviewEnabled() const { return _autoReplayPreviewEnabled; }
+    bool Is_DefaultSkyboxEnabled() const { return _isDefaultSkyboxEnabled; }
     bool Is_TrailPreviewVisible() const { return _isTrailPreviewVisible; }
     bool Is_PreviewPlaneVisible() const { return _isPreviewPlaneVisible; }
     TrailPreviewGateMode Get_TrailPreviewGateMode() const { return _trailPreviewGateMode; }
@@ -117,26 +130,32 @@ public: //## Accessor::PreviewOption
     bool Is_TrailPreviewDebugRenderEnabled() const { return _isTrailPreviewDebugRenderEnabled; }
     // Trail preview player animation의 editor-session 배속이다.
     float Get_TrailPreviewAnimationSpeed() const { return _trailPreviewAnimationSpeed; }
+    // Trail preview fixture slot의 editor-session 선택값이다.
+    TrailPreviewCharacterSlot Get_TrailPreviewCharacterSlot() const { return _trailPreviewCharacterSlot; }
+    // Trail preview motion mode의 editor-session 선택값이다.
+    TrailPreviewMotion Get_TrailPreviewMotion() const { return _trailPreviewMotion; }
+    // Trail preview manual mode에서 재생할 animation name이다.
+    const string& Get_TrailPreviewManualAnimationName() const { return _trailPreviewManualAnimationName; }
     // Trail preview player animation 배속 reset 기준값이다.
     float Get_DefaultTrailPreviewAnimationSpeed() const { return kDefaultTrailPreviewAnimationSpeed; }
     // Effect shader 기준 influence 범위 외곽선 표시 여부다.
     bool Is_EffectInfluenceOutlineEnabled() const { return _isEffectInfluenceOutlineEnabled; }
     // Trail preview weapon-local base marker의 editor-session offset이다.
-    Vec3 Get_TrailPreviewBaseLocalOffset() const { return _trailPreviewBaseLocalOffset; }
+    Vec3 Get_TrailPreviewBaseLocalOffset() const;
     // Trail preview weapon-local tip marker의 editor-session offset이다.
-    Vec3 Get_TrailPreviewTipLocalOffset() const { return _trailPreviewTipLocalOffset; }
+    Vec3 Get_TrailPreviewTipLocalOffset() const;
     // SourceHistory preview weapon-local source marker의 editor-session offset이다.
-    Vec3 Get_TrailPreviewSourceLocalOffset() const { return _sourceHistorySpriteTrailPreviewSourceLocalOffset; }
+    Vec3 Get_TrailPreviewSourceLocalOffset() const;
     // SourceHistorySpriteTrail preview weapon-local source marker의 editor-session offset이다.
-    Vec3 Get_SourceHistorySpriteTrailPreviewSourceLocalOffset() const { return _sourceHistorySpriteTrailPreviewSourceLocalOffset; }
+    Vec3 Get_SourceHistorySpriteTrailPreviewSourceLocalOffset() const;
     // Trail preview base offset reset 기준값이다.
-    Vec3 Get_DefaultTrailPreviewBaseLocalOffset() const { return kDefaultTrailPreviewBaseLocalOffset; }
+    Vec3 Get_DefaultTrailPreviewBaseLocalOffset() const;
     // Trail preview tip offset reset 기준값이다.
-    Vec3 Get_DefaultTrailPreviewTipLocalOffset() const { return kDefaultTrailPreviewTipLocalOffset; }
+    Vec3 Get_DefaultTrailPreviewTipLocalOffset() const;
     // SourceHistory preview source offset reset 기준값이다.
-    Vec3 Get_DefaultTrailPreviewSourceLocalOffset() const { return kDefaultTrailPreviewSourceLocalOffset; }
+    Vec3 Get_DefaultTrailPreviewSourceLocalOffset() const;
     // SourceHistorySpriteTrail preview source offset reset 기준값이다.
-    Vec3 Get_DefaultSourceHistorySpriteTrailPreviewSourceLocalOffset() const { return kDefaultTrailPreviewSourceLocalOffset; }
+    Vec3 Get_DefaultSourceHistorySpriteTrailPreviewSourceLocalOffset() const;
     float Get_DefaultTrailPreviewGateStartRatio() const { return kDefaultTrailPreviewGateStartRatio; }
     float Get_DefaultTrailPreviewGateEndRatio() const { return kDefaultTrailPreviewGateEndRatio; }
     // SourceHistorySpriteTrail preview gate 시작 ratio reset 기준값이다.
@@ -181,6 +200,7 @@ public: //## Behavior::RuntimeControl
 
 public: //## Behavior::PreviewOption
     void Set_AutoReplayPreviewEnabled(bool enabled);
+    void Set_DefaultSkyboxEnabled(bool enabled);
     void Set_TrailPreviewVisible(bool visible);
     void Set_PreviewPlaneVisible(bool visible);
     void Set_TrailPreviewGateMode(TrailPreviewGateMode mode);
@@ -194,6 +214,12 @@ public: //## Behavior::PreviewOption
     void Set_TrailPreviewDebugRenderEnabled(bool enabled);
     // Trail preview player animation 배속을 현재 editor session에만 반영한다.
     void Set_TrailPreviewAnimationSpeed(float speed);
+    // Trail preview fixture slot을 현재 editor session에만 반영한다.
+    void Set_TrailPreviewCharacterSlot(TrailPreviewCharacterSlot slot);
+    // Trail preview motion mode를 현재 editor session에만 반영한다.
+    void Set_TrailPreviewMotion(TrailPreviewMotion motion);
+    // Trail preview manual animation name을 현재 editor session에만 반영한다.
+    void Set_TrailPreviewManualAnimationName(string animationName);
     // EffectEditor 세션 전용 influence outline debug 표시를 켜고 끈다.
     void Set_EffectInfluenceOutlineEnabled(bool enabled);
     // Detail_View의 Trail Preview 조정값을 현재 editor session에만 반영한다.
@@ -274,13 +300,14 @@ private: //## Static Values
     inline static const Vec3 kDefaultTrailPreviewBaseLocalOffset{ 0.f, 1.f, 35.f };
     inline static const Vec3 kDefaultTrailPreviewTipLocalOffset{ 0.f, 1.f, 85.f };
     inline static const Vec3 kDefaultTrailPreviewSourceLocalOffset{ 0.f, 1.f, 85.f };
-    static constexpr float kDefaultTrailPreviewGateStartRatio{ 0.f };
-    static constexpr float kDefaultTrailPreviewGateEndRatio{ 0.4f };
-    static constexpr float kDefaultSourceHistorySpriteTrailPreviewGateStartRatio{ 0.f };
-    static constexpr float kDefaultSourceHistorySpriteTrailPreviewGateEndRatio{ 0.4f };
+    inline static const Vec3 kDefaultMonsterTrailPreviewLocalOffset{ Vec3::Zero };
+    static constexpr float kDefaultTrailPreviewGateStartRatio{ 0.01f };
+    static constexpr float kDefaultTrailPreviewGateEndRatio{ 0.99f };
+    static constexpr float kDefaultSourceHistorySpriteTrailPreviewGateStartRatio{ 0.01f };
+    static constexpr float kDefaultSourceHistorySpriteTrailPreviewGateEndRatio{ 0.99f };
     static constexpr float kDefaultTrailPreviewGateDuration{ 1.f };
     static constexpr float kDefaultTrailPreviewAnimationSpeed{ 1.f };
-    static constexpr float kMinTrailPreviewAnimationSpeed{ 0.01f };
+    static constexpr float kMinTrailPreviewAnimationSpeed{ 0.f };
     static constexpr float kMaxTrailPreviewAnimationSpeed{ 10.f };
     static constexpr float kAutoReplayPreviewDelay{ 1.f };
 
@@ -319,6 +346,7 @@ private: //## Data::Runtime
     wstring _copiedLayerTag{};
 
 private: //## Data::PreviewOption
+    bool _isDefaultSkyboxEnabled{ true };
     bool _isTrailPreviewVisible{ false };
     bool _isPreviewPlaneVisible{ false };
     TrailPreviewGateMode _trailPreviewGateMode{ TrailPreviewGateMode::Window };
@@ -331,10 +359,16 @@ private: //## Data::PreviewOption
     float _sourceHistorySpriteTrailPreviewGateEndRatio{ kDefaultSourceHistorySpriteTrailPreviewGateEndRatio };
     bool _isTrailPreviewDebugRenderEnabled{ true };
     float _trailPreviewAnimationSpeed{ kDefaultTrailPreviewAnimationSpeed };
+    TrailPreviewCharacterSlot _trailPreviewCharacterSlot{ TrailPreviewCharacterSlot::Player };
+    TrailPreviewMotion _trailPreviewMotion{ TrailPreviewMotion::Auto };
+    string _trailPreviewManualAnimationName{};
     bool _isEffectInfluenceOutlineEnabled{ false };
-    Vec3 _trailPreviewBaseLocalOffset{ kDefaultTrailPreviewBaseLocalOffset };
-    Vec3 _trailPreviewTipLocalOffset{ kDefaultTrailPreviewTipLocalOffset };
-    Vec3 _sourceHistorySpriteTrailPreviewSourceLocalOffset{ kDefaultTrailPreviewSourceLocalOffset };
+    Vec3 _playerTrailPreviewBaseLocalOffset{ kDefaultTrailPreviewBaseLocalOffset };
+    Vec3 _playerTrailPreviewTipLocalOffset{ kDefaultTrailPreviewTipLocalOffset };
+    Vec3 _playerSourceHistorySpriteTrailPreviewSourceLocalOffset{ kDefaultTrailPreviewSourceLocalOffset };
+    Vec3 _monsterTrailPreviewBaseLocalOffset{ kDefaultMonsterTrailPreviewLocalOffset };
+    Vec3 _monsterTrailPreviewTipLocalOffset{ kDefaultMonsterTrailPreviewLocalOffset };
+    Vec3 _monsterSourceHistorySpriteTrailPreviewSourceLocalOffset{ kDefaultMonsterTrailPreviewLocalOffset };
     unordered_map<uint32, PreviewEmitterTransformOverride> _previewEmitterTransformOverrides{};
     EffectEditorPostProcessOptions _postProcessOptions{};
     bool _hasClientPostProcessSnapshot{ false };

@@ -76,6 +76,7 @@ public:
     void Set_IsClipPreview(bool boolean) { _isClipPreview = boolean; }
     void Set_RuntimePausedByTutorial(bool paused) { _isRuntimePausedByTutorial = paused; }
 
+    void Reset_FreeAimRotation(float baseYaw);
     void Update_FreeAimRotation(float timeDelta);
     Vec3 Get_AimOrigin() const;                // 히트스캔 시작 위치
     Vec3 Get_AimDirection() const;             // 히트스캔 방향
@@ -114,6 +115,10 @@ private:
         BattleCameraClip* targetActiveClip = nullptr;
         Vec3 targetSmoothedTargetPos = Vec3::Zero;
         Vec3 targetPrevTargetPos = Vec3::Zero;
+        Vec3 targetEnemyAttackSubjectPos = Vec3::Zero;
+        Vec3 targetEnemyAttackOpponentPos = Vec3::Zero;
+        Vec3 targetPlayerAttackSubjectPos = Vec3::Zero;
+        Vec3 targetPlayerAttackOpponentPos = Vec3::Zero;
         Vec3 frozenSubjectPos = {};
         bool hasFrozenPos = false;
     };
@@ -170,6 +175,11 @@ private:
         float clipTime,
         EvaluatedPose& outPose) const;
     bool Evaluate_WidePose(float fovY, EvaluatedPose& outPose) const;
+    bool Evaluate_EnemyGroupPose(
+        const BattleCameraPreset& preset,
+        const BattleCameraClipSample& clipSample,
+        float clipTime,
+        EvaluatedPose& outPose) const;
     bool Should_StartPoseTransition(const BattleShotRequest& request) const;
     bool Start_PoseTransition(
         const BattleShotRequest& request,
@@ -194,8 +204,12 @@ private:
         const BattleCameraClipSample& clipSample,
         EvaluatedPose& outPose) const;
     float Resolve_BattlePlaneYaw() const;
+    int Resolve_EnemyIndexForActor(const Shared<Character>& actor) const;
+    float Resolve_EnemyFormationYawBiasDegrees(const Shared<Character>& enemyActor) const;
+    float Resolve_RequestFormationYawBiasDegrees(const BattleShotRequest& request) const;
     float Resolve_YawBaseForPresetMode(const BattleShotRequest& request) const;
     bool Try_CaptureWideAnchor(Vec3& outHeroCenter, float& outYawDegrees) const;
+    bool Try_CaptureEnemyGroupAnchor(Vec3& outEnemyCenter, float& outYawDegrees) const;
     BattleCameraPreset* Find_PresetStorage(BattleCameraMode cameraMode);
     const BattleCameraPreset* Find_PresetStorage(BattleCameraMode cameraMode) const;
 
@@ -217,6 +231,7 @@ private:
 
 private:
     void Update_EnemyAttackMode(float timeDelta);
+    void Update_EnemyGroupMode(float timeDelta);
     void Update_FromCurrentPreset(float timeDelta);
     void Preview_CurrentPresetAtTime(float time);
     void Preview_EnemyAttackAtTime(float time);
@@ -228,7 +243,6 @@ public:
     BattleCameraPreset* Get_MutablePreset(BattleCameraMode cameraMode);
     BattleCameraClip* Get_MutableClip(BattleCameraMode cameraMode);
     void Reset_ClipPlaybackState();
-
 
 private:
     BattleCameraClipSample   Advance_ActiveClip(float timeDelta, const BattleShotRequest& request);
@@ -242,12 +256,14 @@ private:
     BattleCameraPreset   _battleIntroPreset{};
     BattleCameraPreset   _playerFocusPreset{};
     BattleCameraPreset   _enemyFocusPreset{};
+    BattleCameraPreset   _enemyGroupPreset{};
     BattleCameraPreset   _enemyAttackPreset{};
     BattleCameraPreset   _playerAttackPreset{};
     BattleCameraDriftProfile _wideModeDrift{};
     BattleCameraDriftProfile _battleIntroDrift{};
     BattleCameraDriftProfile _playerFocusDrift{};
     BattleCameraDriftProfile _enemyFocusDrift{};
+    BattleCameraDriftProfile _enemyGroupDrift{};
     BattleCameraDriftProfile _enemyAttackDrift{};
     BattleCameraDriftProfile _enemyAttackBossDrift{};
     BattleCameraDriftProfile _playerAttackDrift{};
@@ -270,6 +286,7 @@ private:
     bool                 _isFreeAimActive = false;
     bool                 _isWideMode = false;
     bool                 _hasWideAnchor = false;
+    bool                 _hasEnemyGroupAnchor = false;
     bool                 _isFirstUpdate = true;
     bool                 _isRuntimePausedByTutorial = false;
 
@@ -283,7 +300,10 @@ private:
     vector<BattleMonsterSpawnDesc> _enemySpawnDescs;
     Vec3                 _wideAnchorHeroCenter = Vec3::Zero;
     float                _wideAnchorYawDegrees = 0.f;
+    Vec3                 _enemyGroupAnchorCenter = Vec3::Zero;
+    float                _enemyGroupAnchorYawDegrees = 0.f;
     float                _battlePlaneYawDegrees = 0.f;
+    float                _freeAimBaseYaw = 0.f;
     Vec3                 _enemyPos;
     Vec3                 _playerPos;
 
@@ -293,6 +313,7 @@ private:
     BattleCameraClip      _battleIntroClip{};
     BattleCameraClip      _playerFocusClip{};
     BattleCameraClip      _enemyFocusClip{};
+    BattleCameraClip      _enemyGroupClip{};
     BattleCameraClip* _activeClip{};
     float                _clipTime{};
     float                _clipShakeTime{};

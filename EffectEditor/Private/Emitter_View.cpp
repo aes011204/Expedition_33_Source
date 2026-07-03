@@ -5,6 +5,7 @@
 #include "Editor_Context.h"
 #include "EffectAuthoringJsonSerializer.h"
 #include "EffectAuthoringModuleMetadata.h"
+#include "EffectAuthoring_Types.h"
 #include "EffectEditorInstance.h"
 #include "EffectMaterialPresetReader.h"
 #include "GameInstance.h"
@@ -23,8 +24,27 @@ namespace Internal
     constexpr auto kEffectAuthoringSaveDefaultFolder = L"../../../Client/Bin/Resources/Effects/Assets";
     constexpr auto kEffectAuthoringSaveDefaultFileName = L"NewEffect.effect.json";
     constexpr auto kEffectAuthoringExtension = L".effect.json";
+    constexpr auto kSoloPreviewIcon = ICON_FA_BULLSEYE;
     constexpr auto kPreviewTransformIcon = ICON_FA_UP_DOWN_LEFT_RIGHT;
     constexpr ImU32 kCurveEditorFocusBarColor = IM_COL32(80, 170, 205, 255);
+
+    bool Uses_ParticleEmitterSource(const AuthoringEmitter& emitter)
+    {
+        if (emitter.typeData.kind == AuthoringTypeDataKind::Ribbon)
+        {
+            const RibbonTypeData* ribbonData = get_if<RibbonTypeData>(&emitter.typeData.payload);
+            return ribbonData != nullptr && ribbonData->sourceMode == SourceHistoryRibbonSourceMode::ParticleEmitter;
+        }
+
+        if (emitter.typeData.kind == AuthoringTypeDataKind::SourceHistorySpriteTrail)
+        {
+            const SourceHistorySpriteTrailTypeData* spriteTrailData =
+                get_if<SourceHistorySpriteTrailTypeData>(&emitter.typeData.payload);
+            return spriteTrailData != nullptr && spriteTrailData->sourceMode == SourceHistoryRibbonSourceMode::ParticleEmitter;
+        }
+
+        return false;
+    }
 
     const char* Build_PreviewTransformTooltip(const AuthoringEmitter& emitter, bool canUse)
     {
@@ -554,6 +574,22 @@ void Emitter_View::Add()
     }
 }
 
+vector<AuthoringEmitter> Emitter_View::Build_PreviewEmitters() const
+{
+    vector<AuthoringEmitter> previewEmitters = _emitters;
+    if (!_soloPreviewEmitterId.has_value())
+        return previewEmitters;
+
+    const uint32 soloEmitterId = _soloPreviewEmitterId.value();
+    for (AuthoringEmitter& emitter : previewEmitters)
+    {
+        if (emitter.id != soloEmitterId)
+            emitter.enabled = false;
+    }
+
+    return previewEmitters;
+}
+
 AuthoringEmitter* Emitter_View::Find_Emitter(uint32 emitterId)
 {
     for (AuthoringEmitter& emitter : _emitters)
@@ -636,6 +672,7 @@ void Emitter_View::Restore_AuthoringSnapshot(const AuthoringSnapshot& snapshot)
     _nextAuthoringId = snapshot.nextAuthoringId;
 
     Sync_AllEmitterMirrors();
+    Sanitize_SoloPreviewState();
     Sanitize_PreviewTransformState();
     Mark_AllPreviewDirty();
     Clamp_Selection();
@@ -697,6 +734,7 @@ bool Emitter_View::Restore_AuthoringDocumentJson(const json& root)
     _nextAuthoringId = nextAuthoringId;
 
     Sync_AllEmitterMirrors();
+    Clear_SoloPreviewEmitter();
     Sanitize_PreviewTransformState();
     Mark_AllPreviewDirty();
     Clamp_Selection();
@@ -824,6 +862,8 @@ AuthoringModule Emitter_View::Make_DefaultModuleByType(AuthoringModuleType type)
         return Make_InitialMeshRotationModule();
     case AuthoringModuleType::MeshRotationOverLife:
         return Make_MeshRotationOverLifeModule();
+    case AuthoringModuleType::MeshDirectionAlignOverLife:
+        return Make_MeshDirectionAlignOverLifeModule();
     case AuthoringModuleType::InitialMeshRotationRate:
         return Make_InitialMeshRotationRateModule();
     case AuthoringModuleType::MeshRotationRateScaleByLife:
@@ -1163,6 +1203,17 @@ AuthoringModule Emitter_View::Make_MeshRotationOverLifeModule()
     return module;
 }
 
+AuthoringModule Emitter_View::Make_MeshDirectionAlignOverLifeModule()
+{
+    AuthoringModule module{};
+    module.id = Issue_AuthoringId();
+    module.type = AuthoringModuleType::MeshDirectionAlignOverLife;
+    module.enabled = true;
+    Apply_AuthoringModuleMetadata(module);
+    module.data = MeshDirectionAlignOverLifeModuleData{};
+    return module;
+}
+
 AuthoringModule Emitter_View::Make_InitialMeshRotationRateModule()
 {
     AuthoringModule module{};
@@ -1413,6 +1464,7 @@ bool Emitter_View::Is_ModuleCompatibleWithEmitter(const AuthoringEmitter& emitte
     case AuthoringModuleType::InitialMeshSize:
     case AuthoringModuleType::InitialMeshRotation:
     case AuthoringModuleType::MeshRotationOverLife:
+    case AuthoringModuleType::MeshDirectionAlignOverLife:
     case AuthoringModuleType::InitialMeshRotationRate:
     case AuthoringModuleType::MeshRotationRateScaleByLife:
     case AuthoringModuleType::MeshSizeByLife:
@@ -1462,6 +1514,7 @@ bool Emitter_View::Can_AddModuleType(const AuthoringEmitter& emitter, AuthoringM
     case AuthoringModuleType::RotationRateScaleByLife:
     case AuthoringModuleType::InitialMeshRotation:
     case AuthoringModuleType::MeshRotationOverLife:
+    case AuthoringModuleType::MeshDirectionAlignOverLife:
     case AuthoringModuleType::InitialMeshRotationRate:
     case AuthoringModuleType::MeshRotationRateScaleByLife:
     case AuthoringModuleType::InitialColor:
@@ -1475,6 +1528,8 @@ bool Emitter_View::Can_AddModuleType(const AuthoringEmitter& emitter, AuthoringM
     case AuthoringModuleType::SourceHistorySpriteTrailPathReplay:
     case AuthoringModuleType::RibbonOrientation:
     case AuthoringModuleType::MaterialScalarModulation:
+        if (type == AuthoringModuleType::VelocityOverLife)
+            return Is_ModuleCompatibleWithEmitter(emitter, type);
         if (type == AuthoringModuleType::SourceHistorySpriteTrailPathFollow &&
             Has_ModuleType(emitter, AuthoringModuleType::SourceHistorySpriteTrailPathReplay))
             return false;
@@ -1577,6 +1632,9 @@ void Emitter_View::Add_Module(size_t emitterIndex, AuthoringModuleType type)
         break;
     case AuthoringModuleType::MeshRotationOverLife:
         module = Make_MeshRotationOverLifeModule();
+        break;
+    case AuthoringModuleType::MeshDirectionAlignOverLife:
+        module = Make_MeshDirectionAlignOverLifeModule();
         break;
     case AuthoringModuleType::InitialMeshRotationRate:
         module = Make_InitialMeshRotationRateModule();
@@ -2543,6 +2601,10 @@ void Emitter_View::Reset_ModuleData(size_t emitterIndex, size_t moduleIndex)
         module.data = MeshRotationOverLifeModuleData{};
         break;
 
+    case AuthoringModuleType::MeshDirectionAlignOverLife:
+        module.data = MeshDirectionAlignOverLifeModuleData{};
+        break;
+
     case AuthoringModuleType::InitialMeshRotationRate:
         module.data = InitialMeshRotationRateModuleData{};
         break;
@@ -2738,6 +2800,43 @@ void Emitter_View::Mark_AllPreviewDirty()
         emitter.previewDirty = true;
 }
 
+void Emitter_View::Set_AllEmittersEnabled(bool enabled)
+{
+    bool hasChange = false;
+    for (const AuthoringEmitter& emitter : _emitters)
+    {
+        if (emitter.enabled != enabled)
+        {
+            hasChange = true;
+            break;
+        }
+    }
+
+    const bool shouldClearSoloPreview = !enabled && Is_SoloPreviewActive();
+    if (!hasChange && !shouldClearSoloPreview)
+        return;
+
+    Execute_AuthoringEdit(
+        enabled ? "Enable All Emitters" : "Disable All Emitters",
+        [this, enabled, shouldClearSoloPreview]
+        {
+            for (AuthoringEmitter& emitter : _emitters)
+            {
+                emitter.enabled = enabled;
+                emitter.previewDirty = true;
+            }
+
+            if (shouldClearSoloPreview)
+                Clear_SoloPreviewEmitter();
+
+            MarkDirty();
+        }
+    );
+
+    if (shouldClearSoloPreview && EDITOR != nullptr)
+        EDITOR->Request_RestartPreview();
+}
+
 void Emitter_View::Sync_EmitterMirror(AuthoringEmitter& emitter)
 {
     emitter.rendererType = Authoring::Resolve_RendererType(emitter.typeData);
@@ -2763,8 +2862,60 @@ void Emitter_View::Sync_AllEmitterMirrors()
         Sync_EmitterMirror(emitter);
 }
 
+bool Emitter_View::Is_SoloPreviewActive() const
+{
+    return _soloPreviewEmitterId.has_value();
+}
+
+bool Emitter_View::Is_SoloPreviewEmitter(uint32 emitterId) const
+{
+    return _soloPreviewEmitterId.has_value() && _soloPreviewEmitterId.value() == emitterId;
+}
+
+void Emitter_View::Toggle_SoloPreviewEmitter(uint32 emitterId)
+{
+    const AuthoringEmitter* emitter = Find_Emitter(emitterId);
+    if (emitter == nullptr || !emitter->enabled)
+        return;
+
+    if (Is_SoloPreviewEmitter(emitterId))
+        _soloPreviewEmitterId.reset();
+    else
+        _soloPreviewEmitterId = emitterId;
+
+    if (EDITOR != nullptr)
+        EDITOR->Request_RestartPreview();
+}
+
+void Emitter_View::Clear_SoloPreviewEmitter()
+{
+    _soloPreviewEmitterId.reset();
+}
+
+void Emitter_View::Sanitize_SoloPreviewState()
+{
+    if (!_soloPreviewEmitterId.has_value())
+        return;
+
+    const uint32 soloEmitterId = _soloPreviewEmitterId.value();
+    const AuthoringEmitter* emitter = nullptr;
+    for (const AuthoringEmitter& candidate : _emitters)
+    {
+        if (candidate.id == soloEmitterId)
+        {
+            emitter = &candidate;
+            break;
+        }
+    }
+
+    if (emitter == nullptr || !emitter->enabled)
+        _soloPreviewEmitterId.reset();
+}
+
 void Emitter_View::Sanitize_PreviewTransformState()
 {
+    Sanitize_SoloPreviewState();
+
     if (EDITOR != nullptr)
         EDITOR->Sanitize_PreviewEmitterTransforms(_emitters);
 }
@@ -3099,6 +3250,14 @@ vector<Emitter_View::ModulePickerEntry> Emitter_View::Build_ModulePickerEntries(
     );
     entries.push_back(
         makeEntry(
+            AuthoringModuleType::MeshDirectionAlignOverLife,
+            true,
+            Can_AddModuleType(emitter, AuthoringModuleType::MeshDirectionAlignOverLife),
+            "Mesh TypeData 전용"
+        )
+    );
+    entries.push_back(
+        makeEntry(
             AuthoringModuleType::RibbonOrientation,
             true,
             Can_AddModuleType(emitter, AuthoringModuleType::RibbonOrientation),
@@ -3304,7 +3463,7 @@ void Emitter_View::Draw_EmitterContextMenu(size_t emitterIndex)
         ImGui::EndMenu();
     }
 
-    if (ImGui::BeginMenu("파티클 시스템"))
+    if (ImGui::BeginMenu("새 이미터"))
     {
         if (ImGui::MenuItem("앞에 새 이미터 추가"))
             Queue_EmitterAction(PendingEmitterAction::InsertBefore, emitterIndex);
@@ -3328,6 +3487,28 @@ void Emitter_View::Draw_EmitterContextMenu(size_t emitterIndex)
 
         ImGui::EndMenu();
     }
+
+    ImGui::Separator();
+
+    if (ImGui::MenuItem("모든 이미터 활성화"))
+        Set_AllEmittersEnabled(true);
+
+    if (ImGui::MenuItem("모든 이미터 비활성화"))
+        Set_AllEmittersEnabled(false);
+
+    ImGui::Separator();
+
+    const bool soloPreviewActive = Is_SoloPreviewActive();
+    if (!soloPreviewActive)
+        ImGui::BeginDisabled();
+    if (ImGui::MenuItem("Solo 해제") && soloPreviewActive)
+    {
+        Clear_SoloPreviewEmitter();
+        if (EDITOR != nullptr)
+            EDITOR->Request_RestartPreview();
+    }
+    if (!soloPreviewActive)
+        ImGui::EndDisabled();
 }
 
 void Emitter_View::Draw_TypeDataContextMenu(size_t emitterIndex)
@@ -3473,6 +3654,28 @@ void Emitter_View::Draw_EmitterBoard()
             if (!canPasteEmitterToEnd && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled) && !blankPasteReason.empty())
                 ImGui::SetTooltip("%s", blankPasteReason.c_str());
 
+            ImGui::Separator();
+
+            if (ImGui::MenuItem("모든 이미터 활성화"))
+                Set_AllEmittersEnabled(true);
+
+            if (ImGui::MenuItem("모든 이미터 비활성화"))
+                Set_AllEmittersEnabled(false);
+
+            ImGui::Separator();
+
+            const bool soloPreviewActive = Is_SoloPreviewActive();
+            if (!soloPreviewActive)
+                ImGui::BeginDisabled();
+            if (ImGui::MenuItem("Solo 해제") && soloPreviewActive)
+            {
+                Clear_SoloPreviewEmitter();
+                if (EDITOR != nullptr)
+                    EDITOR->Request_RestartPreview();
+            }
+            if (!soloPreviewActive)
+                ImGui::EndDisabled();
+
             ImGui::EndPopup();
         }
 
@@ -3544,6 +3747,7 @@ void Emitter_View::Draw_EmitterColumn(size_t emitterIndex, AuthoringEmitter& emi
             headerCursor.y + kEmitterHeaderHeight - ImGui::GetFrameHeight() - headerPaddingY
         )
     );
+    const float badgeSize = ImGui::GetFrameHeight();
     ImGui::PushID("EmitterEnabled");
     bool nextEmitterEnabled = emitter.enabled;
     if (ImGui::Checkbox("##Enabled", &nextEmitterEnabled))
@@ -3551,9 +3755,66 @@ void Emitter_View::Draw_EmitterColumn(size_t emitterIndex, AuthoringEmitter& emi
         const AuthoringSnapshot beforeEmitterEnabledSnapshot = Capture_AuthoringSnapshot();
         emitter.enabled = nextEmitterEnabled;
         emitter.previewDirty = true;
+        const bool disabledSoloPreviewTarget = !emitter.enabled && Is_SoloPreviewEmitter(emitter.id);
+        if (disabledSoloPreviewTarget)
+            Clear_SoloPreviewEmitter();
         MarkDirty();
         const AuthoringSnapshot afterSnapshot = Capture_AuthoringSnapshot();
         Execute_AuthoringSnapshotCommand(beforeEmitterEnabledSnapshot, afterSnapshot, "Toggle Emitter Enabled");
+        if (disabledSoloPreviewTarget && EDITOR != nullptr)
+            EDITOR->Request_RestartPreview();
+    }
+    ImGui::PopID();
+
+    ImGui::SameLine(0.f, 4.f);
+    ImGui::PushID("SoloPreview");
+    const bool canUseSoloPreview = emitter.enabled;
+    const bool soloPreviewEnabled = Is_SoloPreviewEmitter(emitter.id);
+    if (soloPreviewEnabled)
+    {
+        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.18f, 0.42f, 0.82f, 1.f));
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.22f, 0.50f, 0.92f, 1.f));
+        ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.16f, 0.36f, 0.72f, 1.f));
+    }
+    if (!canUseSoloPreview)
+        ImGui::BeginDisabled();
+    if (ImGui::Button("##SoloPreviewButton", ImVec2(badgeSize, badgeSize)) && canUseSoloPreview)
+    {
+        Select_Emitter(emitterIndex);
+        Toggle_SoloPreviewEmitter(emitter.id);
+    }
+    const ImVec2 soloBadgeMin = ImGui::GetItemRectMin();
+    const ImVec2 soloBadgeMax = ImGui::GetItemRectMax();
+    const ImVec2 soloLabelSize = ImGui::CalcTextSize(Internal::kSoloPreviewIcon);
+    const ImVec2 soloLabelPos{
+        soloBadgeMin.x + (soloBadgeMax.x - soloBadgeMin.x - soloLabelSize.x) * 0.5f,
+        soloBadgeMin.y + (soloBadgeMax.y - soloBadgeMin.y - soloLabelSize.y) * 0.5f
+    };
+    const ImVec4 soloLabelColor =
+        canUseSoloPreview
+        ? ImGui::GetStyleColorVec4(ImGuiCol_Text)
+        : ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled);
+    ImGui::GetWindowDrawList()->AddText(
+        soloLabelPos,
+        ImGui::ColorConvertFloat4ToU32(soloLabelColor),
+        Internal::kSoloPreviewIcon
+    );
+    if (!canUseSoloPreview)
+        ImGui::EndDisabled();
+    if (soloPreviewEnabled)
+        ImGui::PopStyleColor(3);
+    if (ImGui::IsItemHovered(canUseSoloPreview ? ImGuiHoveredFlags_None : ImGuiHoveredFlags_AllowWhenDisabled))
+    {
+        string tooltip{};
+        if (!canUseSoloPreview)
+            tooltip = "Emitter is disabled. Enable it before solo preview.";
+        else
+        {
+            tooltip = soloPreviewEnabled ? "Solo preview enabled.\nOnly this emitter is sent to preview." : "Solo preview";
+            if (Internal::Uses_ParticleEmitterSource(emitter))
+                tooltip += "\nStrict solo excludes ParticleEmitter sources, so this emitter may preview empty or differently.";
+        }
+        ImGui::SetTooltip("%s", tooltip.c_str());
     }
     ImGui::PopID();
 
@@ -3561,7 +3822,6 @@ void Emitter_View::Draw_EmitterColumn(size_t emitterIndex, AuthoringEmitter& emi
     ImGui::PushID("PreviewTransform");
     const bool canUsePreviewTransform = EffectEditorInstance::Can_UsePreviewEmitterTransform(emitter);
     const bool previewTransformEnabled = EDITOR != nullptr && EDITOR->Is_PreviewEmitterTransformEnabled(emitter.id);
-    const float badgeSize = ImGui::GetFrameHeight();
     if (previewTransformEnabled)
     {
         ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.18f, 0.42f, 0.82f, 1.f));

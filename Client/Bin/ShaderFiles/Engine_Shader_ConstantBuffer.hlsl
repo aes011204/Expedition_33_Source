@@ -43,6 +43,12 @@ cbuffer ShadowBuffer
     uint g_ShadowCascadeCount;
     uint g_ActiveShadowCascadeIndex;
     float g_ShadowPadding0;
+
+    row_major float4x4 g_CachedShadowViewProjMatrix;
+    uint g_UseCachedInstancedShadow;
+    float g_CachedShadowPad0;
+    float g_CachedShadowPad1;
+    float g_CachedShadowPad2;
 };
 
 cbuffer ScreenSpaceBuffer

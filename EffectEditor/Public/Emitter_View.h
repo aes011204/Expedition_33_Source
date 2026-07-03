@@ -5,6 +5,8 @@
 
 NS_BEGIN(EffectEditor)
 
+// TODO : [Later] Emitter_View.cpp가 커지고 있으므로 ContextMenu/Clipboard/ModuleFactory/TypeData 단위 분리를 검토한다.
+
 // Cascade-style emitter stack authoring, selection, clipboard, and module actions을 관리한다.
 class Emitter_View final : public Editor_Window
 {
@@ -44,6 +46,7 @@ public: //## Accessor::Authoring
     ParticleSystemAuthoringData& Get_ParticleSystemData() { return _particleSystemData; }
     const ParticleSystemAuthoringData& Get_ParticleSystemData() const { return _particleSystemData; }
     const vector<AuthoringEmitter>& Get_Emitters() const { return _emitters; }
+    vector<AuthoringEmitter> Build_PreviewEmitters() const;
     const optional<fs::path>& Get_CurrentDocumentPath() const { return _currentDocumentPath; }
     AuthoringEmitter* Find_Emitter(uint32 emitterId);
     AuthoringModule* Find_Module(uint32 emitterId, uint32 moduleId);
@@ -161,6 +164,9 @@ private: //## Data::Selection
     // 현재 선택된 emitter 내부의 module index다. 값이 없으면 emitter header만 선택된 상태다.
     optional<size_t> _selectedModuleIndex{};
 
+private: //## Data::PreviewState
+    optional<uint32> _soloPreviewEmitterId{};
+
 private: //## Data::PendingAction
     PendingEmitterAction _pendingEmitterAction{ PendingEmitterAction::None };
     optional<size_t> _pendingEmitterActionIndex{};
@@ -219,6 +225,7 @@ private: //## Helper::AuthoringFactory
     AuthoringModule Make_RotationRateScaleByLifeModule();
     AuthoringModule Make_InitialMeshRotationModule();
     AuthoringModule Make_MeshRotationOverLifeModule();
+    AuthoringModule Make_MeshDirectionAlignOverLifeModule();
     AuthoringModule Make_InitialMeshRotationRateModule();
     AuthoringModule Make_MeshRotationRateScaleByLifeModule();
     AuthoringModule Make_InitialColorModule();
@@ -289,8 +296,14 @@ private: //## Helper::TypeDataAction
 
 private: //## Helper::PreviewState
     void Mark_AllPreviewDirty();
+    void Set_AllEmittersEnabled(bool enabled);
     void Sync_EmitterMirror(AuthoringEmitter& emitter);
     void Sync_AllEmitterMirrors();
+    bool Is_SoloPreviewActive() const;
+    bool Is_SoloPreviewEmitter(uint32 emitterId) const;
+    void Toggle_SoloPreviewEmitter(uint32 emitterId);
+    void Clear_SoloPreviewEmitter();
+    void Sanitize_SoloPreviewState();
     void Sanitize_PreviewTransformState();
 
 private: //## Helper::ModulePicker

@@ -2,6 +2,7 @@
 
 #include "BattleMechanismCom.h"
 #include "BattleWorldUI_JsonTextureResolver.h"
+#include "BattleWorldUI_LevelPlacement.h"
 #include "BattleWorldUI_PlacementUtils.h"
 #include "BattleWorldUI_SurfaceAnim.h"
 #include "Camera.h"
@@ -218,6 +219,8 @@ namespace
         array<BattleWorldSkillWorldPlacementTuning, kBattleWorldSkillPageCount>;
     using BattleWorldSkillWorldPlacementTunings =
         array<BattleWorldSkillWorldPlacementPages, kBattleWorldSkillPlacementHeroCount>;
+    using BattleWorldSkillWorldPlacementLevelTunings =
+        array<BattleWorldSkillWorldPlacementTunings, BattleWorldUILevelPlacement::kLevelCount>;
 
     bool Should_ShowBattleWorldSkillCards(BattleTurnState state)
     {
@@ -361,6 +364,17 @@ namespace
         }
 
         return tunings;
+    }
+
+    BattleWorldSkillWorldPlacementLevelTunings Make_DefaultSkillWorldPlacementLevelTunings()
+    {
+        BattleWorldSkillWorldPlacementLevelTunings levelTunings{};
+        const BattleWorldSkillWorldPlacementTunings defaultTunings =
+            Make_DefaultSkillWorldPlacementTunings();
+        for (auto& levelTuning : levelTunings)
+            levelTuning = defaultTunings;
+
+        return levelTunings;
     }
 
     const wchar_t* Resolve_SkillPageJsonPath(HeroId heroId, uint32 page)
@@ -598,7 +612,7 @@ namespace
             case 1: return { "Panel_Percee", "Percee", true };
             case 2: return { "Panel_FleureFury", "FleureFury", true };
             case 3: return { "Panel_SwordBallet", "SwordBallet", true };
-            case 4: return { "Panel_Stendhal", "Stendhal", true };
+            case 4: return { "Panel_Pyrolyse", "Pyrolyse", true };
             default: break;
             }
             break;
@@ -1708,9 +1722,63 @@ namespace
         return tuning;
     }
 
+    bool Try_ReadSkillWorldPlacementCharacters(
+        const json& root,
+        BattleWorldSkillWorldPlacementTunings& tunings)
+    {
+        const auto charactersIter = root.find("characters");
+        if (charactersIter == root.end() || !charactersIter->is_object())
+            return false;
+
+        for (const auto& [heroName, heroNode] : charactersIter->items())
+        {
+            if (!heroNode.is_object())
+                continue;
+
+            HeroId heroId = HeroId::END;
+            if (!Try_ParseSkillHeroJsonName(heroName, heroId))
+            {
+                LOG_WARN("BattleWorldUI skill placement json has unknown character. character='{}'", heroName);
+                continue;
+            }
+
+            const uint32 heroIndex = Resolve_SkillHeroIndex(heroId);
+            if (const auto pagesIter = heroNode.find("pages");
+                pagesIter != heroNode.end() && pagesIter->is_object())
+            {
+                for (const auto& [pageName, pageNode] : pagesIter->items())
+                {
+                    if (!pageNode.is_object())
+                        continue;
+
+                    uint32 pageIndex = 0;
+                    if (!Try_ParseSkillPageJsonName(pageName, pageIndex))
+                    {
+                        LOG_WARN("BattleWorldUI skill placement json has unknown page. character='{}', page='{}'",
+                            heroName,
+                            pageName);
+                        continue;
+                    }
+
+                    tunings[heroIndex][pageIndex] =
+                        Read_SkillWorldPlacementTuningNode(pageNode, tunings[heroIndex][pageIndex]);
+                }
+            }
+            else
+            {
+                const BattleWorldSkillWorldPlacementTuning flatTuning =
+                    Read_SkillWorldPlacementTuningNode(heroNode, tunings[heroIndex][0]);
+                for (auto& pageTuning : tunings[heroIndex])
+                    pageTuning = flatTuning;
+            }
+        }
+
+        return true;
+    }
+
     bool Try_LoadSkillWorldPlacementTunings(
         const fs::path& jsonPath,
-        BattleWorldSkillWorldPlacementTunings& outTunings)
+        BattleWorldSkillWorldPlacementLevelTunings& outTunings)
     {
         if (!fs::exists(jsonPath))
             return false;
@@ -1729,61 +1797,46 @@ namespace
             return false;
         }
 
-        auto tunings = Make_DefaultSkillWorldPlacementTunings();
-        if (const auto charactersIter = root.find("characters");
+        auto tunings = Make_DefaultSkillWorldPlacementLevelTunings();
+        if (const auto levelsIter = root.find("levels");
+            levelsIter != root.end() && levelsIter->is_object())
+        {
+            for (const auto& [levelName, levelNode] : levelsIter->items())
+            {
+                if (!levelNode.is_object())
+                    continue;
+
+                LevelType levelType = LevelType::END;
+                if (!BattleWorldUILevelPlacement::Try_ParseLevelJsonName(levelName, levelType))
+                {
+                    LOG_WARN("BattleWorldUI skill placement json has unknown level. level='{}'", levelName);
+                    continue;
+                }
+
+                const uint32 levelIndex = BattleWorldUILevelPlacement::Resolve_LevelIndex(levelType);
+                Try_ReadSkillWorldPlacementCharacters(levelNode, tunings[levelIndex]);
+            }
+        }
+        else if (const auto charactersIter = root.find("characters");
             charactersIter != root.end() && charactersIter->is_object())
         {
-            for (const auto& [heroName, heroNode] : charactersIter->items())
-            {
-                if (!heroNode.is_object())
-                    continue;
-
-                HeroId heroId = HeroId::END;
-                if (!Try_ParseSkillHeroJsonName(heroName, heroId))
-                {
-                    LOG_WARN("BattleWorldUI skill placement json has unknown character. character='{}'", heroName);
-                    continue;
-                }
-
-                const uint32 heroIndex = Resolve_SkillHeroIndex(heroId);
-                if (const auto pagesIter = heroNode.find("pages");
-                    pagesIter != heroNode.end() && pagesIter->is_object())
-                {
-                    for (const auto& [pageName, pageNode] : pagesIter->items())
-                    {
-                        if (!pageNode.is_object())
-                            continue;
-
-                        uint32 pageIndex = 0;
-                        if (!Try_ParseSkillPageJsonName(pageName, pageIndex))
-                        {
-                            LOG_WARN("BattleWorldUI skill placement json has unknown page. character='{}', page='{}'",
-                                heroName,
-                                pageName);
-                            continue;
-                        }
-
-                        tunings[heroIndex][pageIndex] =
-                            Read_SkillWorldPlacementTuningNode(pageNode, tunings[heroIndex][pageIndex]);
-                    }
-                }
-                else
-                {
-                    const BattleWorldSkillWorldPlacementTuning flatTuning =
-                        Read_SkillWorldPlacementTuningNode(heroNode, tunings[heroIndex][0]);
-                    for (auto& pageTuning : tunings[heroIndex])
-                        pageTuning = flatTuning;
-                }
-            }
+            BattleWorldSkillWorldPlacementTunings legacyTunings =
+                Make_DefaultSkillWorldPlacementTunings();
+            Try_ReadSkillWorldPlacementCharacters(root, legacyTunings);
+            for (auto& levelTuning : tunings)
+                levelTuning = legacyTunings;
         }
         else
         {
             const BattleWorldSkillWorldPlacementTuning flatTuning =
                 Read_SkillWorldPlacementTuningNode(root, BattleWorldSkillWorldPlacementTuning{});
-            for (auto& heroTunings : tunings)
+            for (auto& levelTuning : tunings)
             {
-                for (auto& pageTuning : heroTunings)
-                    pageTuning = flatTuning;
+                for (auto& heroTunings : levelTuning)
+                {
+                    for (auto& pageTuning : heroTunings)
+                        pageTuning = flatTuning;
+                }
             }
         }
 
@@ -1821,24 +1874,32 @@ namespace
     }
 
     bool Write_SkillWorldPlacementTuningsToFile(
-        const BattleWorldSkillWorldPlacementTunings& tunings,
+        const BattleWorldSkillWorldPlacementLevelTunings& tunings,
         fs::file_time_type* outWriteTime)
     {
         const fs::path jsonPath = Resolve_SkillWorldPlacementJsonPath();
 
         json root = json::object();
-        root["characters"] = json::object();
-        for (uint32 heroIndex = 0; heroIndex < kBattleWorldSkillPlacementHeroCount; ++heroIndex)
+        root["levels"] = json::object();
+        for (uint32 levelIndex = 0; levelIndex < BattleWorldUILevelPlacement::kLevelCount; ++levelIndex)
         {
-            const HeroId heroId = static_cast<HeroId>(heroIndex);
-            json heroNode = json::object();
-            heroNode["pages"] = json::object();
-            for (uint32 pageIndex = 0; pageIndex < kBattleWorldSkillPageCount; ++pageIndex)
+            const LevelType levelType = BattleWorldUILevelPlacement::Get_LevelByIndex(levelIndex);
+            json levelNode = json::object();
+            levelNode["characters"] = json::object();
+            for (uint32 heroIndex = 0; heroIndex < kBattleWorldSkillPlacementHeroCount; ++heroIndex)
             {
-                heroNode["pages"][To_SkillPageJsonName(pageIndex)] =
-                    To_SkillWorldPlacementTuningJson(tunings[heroIndex][pageIndex]);
+                const HeroId heroId = static_cast<HeroId>(heroIndex);
+                json heroNode = json::object();
+                heroNode["pages"] = json::object();
+                for (uint32 pageIndex = 0; pageIndex < kBattleWorldSkillPageCount; ++pageIndex)
+                {
+                    heroNode["pages"][To_SkillPageJsonName(pageIndex)] =
+                        To_SkillWorldPlacementTuningJson(tunings[levelIndex][heroIndex][pageIndex]);
+                }
+                levelNode["characters"][To_SkillHeroJsonName(heroId)] = std::move(heroNode);
             }
-            root["characters"][To_SkillHeroJsonName(heroId)] = std::move(heroNode);
+
+            root["levels"][BattleWorldUILevelPlacement::To_LevelJsonName(levelType)] = std::move(levelNode);
         }
 
         error_code errorCode{};
@@ -1934,7 +1995,7 @@ namespace
     }
 
     void Reload_SkillWorldPlacementTuningIfNeeded(
-        BattleWorldSkillWorldPlacementTunings& tunings,
+        BattleWorldSkillWorldPlacementLevelTunings& tunings,
         fs::file_time_type& knownWriteTime,
         bool& hasKnownFile)
     {
@@ -1943,7 +2004,7 @@ namespace
         {
             if (hasKnownFile)
             {
-                tunings = Make_DefaultSkillWorldPlacementTunings();
+                tunings = Make_DefaultSkillWorldPlacementLevelTunings();
                 knownWriteTime = {};
                 hasKnownFile = false;
                 LOG_INFO("BattleWorldUI skill placement json removed. using defaults.");
@@ -1959,7 +2020,7 @@ namespace
         if (hasKnownFile && writeTime == knownWriteTime)
             return;
 
-        BattleWorldSkillWorldPlacementTunings loadedTunings{};
+        BattleWorldSkillWorldPlacementLevelTunings loadedTunings{};
         knownWriteTime = writeTime;
         hasKnownFile = true;
 
@@ -2431,9 +2492,11 @@ struct BattleWorldUI_SkillCards::Impl
             kBattleWorldSkillPageCount>,
         kBattleWorldSkillPlacementHeroCount> templates{};
     array<BattleWorldSkillCardInstance, kBattleWorldSkillSurfaceCount> cards{};
-    BattleWorldSkillWorldPlacementTunings placementTunings = Make_DefaultSkillWorldPlacementTunings();
+    BattleWorldSkillWorldPlacementLevelTunings placementTunings = Make_DefaultSkillWorldPlacementLevelTunings();
     fs::file_time_type placementTuningWriteTime{};
     bool hasPlacementTuningFile = false;
+    LevelType activePlacementLevelType = LevelType::END;
+    LevelType editorPlacementLevelType = LevelType::END;
     HeroId activePlacementHeroId = HeroId::END;
     HeroId editorPlacementHeroId = HeroId::END;
     uint32 activePlacementPage = UINT32_MAX;
@@ -2532,10 +2595,16 @@ HRESULT BattleWorldUI_SkillCards::Warmup_ForBattleState(
     if (_impl == nullptr || actor.statCom == nullptr)
         return E_FAIL;
 
+    const LevelType placementLevelType =
+        BattleWorldUILevelPlacement::Normalize_LevelType(static_cast<LevelType>(GAME->Current_LevelIndex()));
+    const uint32 placementLevelIndex = BattleWorldUILevelPlacement::Resolve_LevelIndex(placementLevelType);
     const HeroId placementHeroId = Normalize_SkillHeroId(actor.heroId);
     const uint32 placementHeroIndex = Resolve_SkillHeroIndex(placementHeroId);
     const uint32 pageIndex = Normalize_SkillPage(skillPage);
 
+    _impl->activePlacementLevelType = placementLevelType;
+    if (_impl->editorPlacementLevelType == LevelType::END)
+        _impl->editorPlacementLevelType = placementLevelType;
     _impl->activePlacementHeroId = placementHeroId;
     if (_impl->editorPlacementHeroId == HeroId::END)
         _impl->editorPlacementHeroId = placementHeroId;
@@ -2544,7 +2613,7 @@ HRESULT BattleWorldUI_SkillCards::Warmup_ForBattleState(
         _impl->editorPlacementPage = pageIndex;
 
     const BattleWorldSkillWorldPlacementTuning& placementTuning =
-        _impl->placementTunings[placementHeroIndex][pageIndex];
+        _impl->placementTunings[placementLevelIndex][placementHeroIndex][pageIndex];
 
     HRESULT result = S_OK;
     for (uint32 surfaceIndex = 0; surfaceIndex < kBattleWorldSkillSurfaceCount; ++surfaceIndex)
@@ -2684,6 +2753,9 @@ void BattleWorldUI_SkillCards::Show_ForBattleState(
         return;
     }
 
+    const LevelType placementLevelType =
+        BattleWorldUILevelPlacement::Normalize_LevelType(static_cast<LevelType>(GAME->Current_LevelIndex()));
+    const uint32 placementLevelIndex = BattleWorldUILevelPlacement::Resolve_LevelIndex(placementLevelType);
     const HeroId placementHeroId = Normalize_SkillHeroId(actor.heroId);
     const uint32 placementHeroIndex = Resolve_SkillHeroIndex(placementHeroId);
     uint32 pageIndex = Normalize_SkillPage(skillPage);
@@ -2704,6 +2776,9 @@ void BattleWorldUI_SkillCards::Show_ForBattleState(
         }
     }
 
+    _impl->activePlacementLevelType = placementLevelType;
+    if (_impl->editorPlacementLevelType == LevelType::END)
+        _impl->editorPlacementLevelType = placementLevelType;
     _impl->activePlacementHeroId = placementHeroId;
     if (_impl->editorPlacementHeroId == HeroId::END)
         _impl->editorPlacementHeroId = placementHeroId;
@@ -2732,7 +2807,7 @@ void BattleWorldUI_SkillCards::Show_ForBattleState(
         Advance_BattleWorldSurfaceAnim(card.introAnim, timeDelta);
 
     const BattleWorldSkillWorldPlacementTuning& placementTuning =
-        _impl->placementTunings[placementHeroIndex][pageIndex];
+        _impl->placementTunings[placementLevelIndex][placementHeroIndex][pageIndex];
     const Vec2 rootScale(
         placementTuning.worldSize.x / max(0.01f, kBattleWorldSkillRootWorldSize.x),
         placementTuning.worldSize.y / max(0.01f, kBattleWorldSkillRootWorldSize.y));
@@ -2918,6 +2993,28 @@ void BattleWorldUI_SkillCards::Hide()
         card.visible = false;
 }
 
+LevelType BattleWorldUI_SkillCards::Get_EditorWorldPlacementLevelType() const
+{
+    if (_impl == nullptr)
+        return LevelType::Stage01;
+
+    if (_impl->editorPlacementLevelType != LevelType::END)
+        return BattleWorldUILevelPlacement::Normalize_LevelType(_impl->editorPlacementLevelType);
+
+    if (_impl->activePlacementLevelType != LevelType::END)
+        return BattleWorldUILevelPlacement::Normalize_LevelType(_impl->activePlacementLevelType);
+
+    return LevelType::Stage01;
+}
+
+void BattleWorldUI_SkillCards::Set_EditorWorldPlacementLevelType(LevelType levelType)
+{
+    if (_impl == nullptr)
+        return;
+
+    _impl->editorPlacementLevelType = BattleWorldUILevelPlacement::Normalize_LevelType(levelType);
+}
+
 HeroId BattleWorldUI_SkillCards::Get_EditorWorldPlacementHeroId() const
 {
     if (_impl == nullptr)
@@ -2977,9 +3074,10 @@ RuntimeWorldUIPlacementTuning BattleWorldUI_SkillCards::Get_EditorWorldPlacement
     if (_impl == nullptr)
         return To_EditorWorldPlacementTuning(Make_DefaultSkillWorldPlacementTuning(HeroId::Gustave), 0);
 
+    const uint32 levelIndex = BattleWorldUILevelPlacement::Resolve_LevelIndex(Get_EditorWorldPlacementLevelType());
     const uint32 heroIndex = Resolve_SkillHeroIndex(Get_EditorWorldPlacementHeroId());
     const uint32 pageIndex = Get_EditorWorldPlacementVariantIndex();
-    return To_EditorWorldPlacementTuning(_impl->placementTunings[heroIndex][pageIndex], pageIndex);
+    return To_EditorWorldPlacementTuning(_impl->placementTunings[levelIndex][heroIndex][pageIndex], pageIndex);
 }
 
 void BattleWorldUI_SkillCards::Set_EditorWorldPlacementTuning(
@@ -2989,9 +3087,10 @@ void BattleWorldUI_SkillCards::Set_EditorWorldPlacementTuning(
     if (_impl == nullptr)
         return;
 
+    const uint32 levelIndex = BattleWorldUILevelPlacement::Resolve_LevelIndex(Get_EditorWorldPlacementLevelType());
     const uint32 heroIndex = Resolve_SkillHeroIndex(Get_EditorWorldPlacementHeroId());
     const uint32 pageIndex = Get_EditorWorldPlacementVariantIndex();
-    _impl->placementTunings[heroIndex][pageIndex] = From_EditorWorldPlacementTuning(tuning);
+    _impl->placementTunings[levelIndex][heroIndex][pageIndex] = From_EditorWorldPlacementTuning(tuning);
 
     if (!saveImmediately)
         return;
@@ -3012,14 +3111,14 @@ void BattleWorldUI_SkillCards::Reload_EditorWorldPlacementTuning()
     const fs::path jsonPath = Resolve_SkillWorldPlacementJsonPath();
     if (!fs::exists(jsonPath))
     {
-        _impl->placementTunings = Make_DefaultSkillWorldPlacementTunings();
+        _impl->placementTunings = Make_DefaultSkillWorldPlacementLevelTunings();
         _impl->placementTuningWriteTime = {};
         _impl->hasPlacementTuningFile = false;
         LOG_INFO("BattleWorldUI skill placement json reload requested, but file is missing. using defaults.");
         return;
     }
 
-    BattleWorldSkillWorldPlacementTunings loadedTunings{};
+    BattleWorldSkillWorldPlacementLevelTunings loadedTunings{};
     if (!Try_LoadSkillWorldPlacementTunings(jsonPath, loadedTunings))
         return;
 
@@ -3038,7 +3137,8 @@ void BattleWorldUI_SkillCards::Reset_EditorWorldPlacementTuning()
         return;
 
     const HeroId heroId = Get_EditorWorldPlacementHeroId();
-    _impl->placementTunings[Resolve_SkillHeroIndex(heroId)][Get_EditorWorldPlacementVariantIndex()] =
+    const uint32 levelIndex = BattleWorldUILevelPlacement::Resolve_LevelIndex(Get_EditorWorldPlacementLevelType());
+    _impl->placementTunings[levelIndex][Resolve_SkillHeroIndex(heroId)][Get_EditorWorldPlacementVariantIndex()] =
         Make_DefaultSkillWorldPlacementTuning(heroId);
     if (Write_SkillWorldPlacementTuningsToFile(
         _impl->placementTunings,

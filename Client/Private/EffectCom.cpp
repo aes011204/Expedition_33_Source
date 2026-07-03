@@ -16,6 +16,7 @@
 #include "TrailSampleProvider_ByPart.h"
 #include "Mon_Dualliste_Sword_L.h"
 #include "Mon_Dualliste_Sword_R.h"
+#include "Mon_PotatoBag_Weapon.h"
 #include "Mon_Simon_Weapon.h"
 #include "Monster_Part.h"
 #include "Weapon.h"
@@ -138,6 +139,9 @@ wstring Resolve_DefaultTrailEffectName(const PartObject* partObject)
 
     if (const Client::Mon_Dualliste_Sword_R* duallisteSwordR = dynamic_cast<const Client::Mon_Dualliste_Sword_R*>(partObject))
         return duallisteSwordR->Get_TrailEffectName();
+
+    if (const Client::Mon_PotatoBag_Weapon* potatoBagWeapon = dynamic_cast<const Client::Mon_PotatoBag_Weapon*>(partObject))
+        return potatoBagWeapon->Get_TrailEffectName();
 
     return {};
 }
@@ -1657,7 +1661,10 @@ bool EffectCom::Try_ResolveTrailAnchorWorldPosition(
     if (boneMatrix == nullptr)
         return false;
 
-    const Matrix anchorWorldMatrix = *boneMatrix * trailPart.Get_CombinedWorldMatrix();
+    const Matrix anchorLocalMatrix = weaponModel->Get_ModelType() == ModelType::NonAnim
+        ? Matrix::Identity
+        : *boneMatrix;
+    const Matrix anchorWorldMatrix = anchorLocalMatrix * trailPart.Get_CombinedWorldMatrix();
     outWorldPosition = Vec3::Transform(anchor.localPosition, anchorWorldMatrix);
     return true;
 }
@@ -1691,6 +1698,11 @@ bool EffectCom::Try_ResolveWeaponAnchorWorldPosition(
         anchor = swordR->Find_SourceHistoryAnchor(anchorName);
         weaponModel = swordR->Get_Model();
     }
+    else if (const Mon_PotatoBag_Weapon* potatoBagWeapon = dynamic_cast<const Mon_PotatoBag_Weapon*>(&weaponPart))
+    {
+        anchor = potatoBagWeapon->Find_SourceHistoryAnchor(anchorName);
+        weaponModel = potatoBagWeapon->Get_Model();
+    }
 
     if (anchor == nullptr || anchor->boneName.empty())
         return false;
@@ -1706,7 +1718,10 @@ bool EffectCom::Try_ResolveWeaponAnchorWorldPosition(
     if (boneMatrix == nullptr)
         return false;
 
-    const Matrix sourceWorldMatrix = *boneMatrix * weaponPart.Get_CombinedWorldMatrix();
+    const Matrix sourceLocalMatrix = weaponModel->Get_ModelType() == ModelType::NonAnim
+        ? Matrix::Identity
+        : *boneMatrix;
+    const Matrix sourceWorldMatrix = sourceLocalMatrix * weaponPart.Get_CombinedWorldMatrix();
     outWorldPosition = Vec3::Transform(anchor->localPosition + localOffset, sourceWorldMatrix);
     return true;
 }

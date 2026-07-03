@@ -9,6 +9,17 @@
 
 using namespace UI_Utils;
 
+namespace
+{
+    constexpr float kGradientGaugeFillEaseDurationSec = 0.45f;
+
+    float SmoothStep(float t)
+    {
+        t = clamp(t, 0.f, 1.f);
+        return t * t * (3.f - 2.f * t);
+    }
+}
+
 HRESULT UI_BattleGradientGauge::Initialize(uint32 levelIndex)
 {
     _levelIndex = levelIndex;
@@ -16,7 +27,7 @@ HRESULT UI_BattleGradientGauge::Initialize(uint32 levelIndex)
     CHECK_FAILED(Load_UI(levelIndex), E_FAIL);
     CHECK_FAILED(Bind_UI(), E_FAIL);
 
-    Set_Stack(0);
+    Set_Stack(0, 0);
     Close();
 
     return S_OK;
@@ -24,7 +35,42 @@ HRESULT UI_BattleGradientGauge::Initialize(uint32 levelIndex)
 
 void UI_BattleGradientGauge::Update(float timeDelta)
 {
-    UNREFERENCED_PARAMETER(timeDelta);
+    _fillEaseElapsedSec = min(
+        _fillEaseElapsedSec + timeDelta,
+        kGradientGaugeFillEaseDurationSec);
+
+    const float easeRatio =
+        kGradientGaugeFillEaseDurationSec > 0.f
+        ? SmoothStep(_fillEaseElapsedSec / kGradientGaugeFillEaseDurationSec)
+        : 1.f;
+
+    for (uint32 i = 0; i < _stackImages.size(); ++i)
+    {
+        if (_stackImages[i] == nullptr)
+            continue;
+
+        float& visualFillRatio = _visualFillRatios[i];
+        const float targetFillRatio = _targetFillRatios[i];
+
+        visualFillRatio =
+            _startFillRatios[i] +
+            (targetFillRatio - _startFillRatios[i]) * easeRatio;
+
+        if (fabsf(targetFillRatio - visualFillRatio) < 0.005f)
+            visualFillRatio = targetFillRatio;
+
+        if (visualFillRatio > 0.f || targetFillRatio > 0.f)
+        {
+            _stackImages[i]->Open();
+            _stackImages[i]->Set_AlphaMultiplier(1.f);
+            _stackImages[i]->Set_FillRatio(visualFillRatio);
+        }
+        else
+        {
+            _stackImages[i]->Set_FillRatio(0.f);
+            _stackImages[i]->Close();
+        }
+    }
 }
 
 void UI_BattleGradientGauge::Update_ForActor(const BattleChar& actor)
@@ -43,7 +89,9 @@ void UI_BattleGradientGauge::Update_ForActor(const BattleChar& actor)
     }
 
     Open(); // Keep the unlocked Gradient gauge visible even at 0 stacks.
-    Set_Stack(actor.statCom->Get_GradientGaugeStack());
+    Set_Stack(
+        actor.statCom->Get_GradientGaugeStack(),
+        actor.statCom->Get_GradientGaugeProgressTick());
 }
 
 HRESULT UI_BattleGradientGauge::Load_UI(uint32 levelIndex)
@@ -75,6 +123,20 @@ HRESULT UI_BattleGradientGauge::Bind_UI()
     for (const auto& stackImage : _stackImages)
         CHECK_NULL(stackImage, E_FAIL);
 
+    for (const auto& stackImage : _stackImages)
+    {
+        stackImage->Set_UseFillRatio(true);
+        stackImage->Set_FillOrigin(UI_Image::FillOrigin::LeftToRight);
+        stackImage->Set_AlphaMultiplier(1.f);
+        stackImage->Set_FillRatio(0.f);
+    }
+
+    _visualFillRatios.fill(0.f);
+    _startFillRatios.fill(0.f);
+    _targetFillRatios.fill(0.f);
+    _fillEaseElapsedSec = kGradientGaugeFillEaseDurationSec;
+    _lastGaugeStack = GradientSkill::MaxGaugeStacks + 1;
+
     CHECK_NULL(_currentCountText, E_FAIL);
     CHECK_NULL(_currentCountBgText, E_FAIL);
     CHECK_NULL(_maxCountText, E_FAIL);
@@ -86,19 +148,64 @@ HRESULT UI_BattleGradientGauge::Bind_UI()
     return S_OK;
 }
 
-void UI_BattleGradientGauge::Set_Stack(uint32 stack)
+void UI_BattleGradientGauge::Set_Stack(uint32 stack, uint32 progressTick)
 {
     const uint32 clampedStack = min(stack, GradientSkill::MaxGaugeStacks);
+    const uint32 clampedProgressTick = min(progressTick, GradientSkill::GaugeProgressPerStack - 1);
+
+    if (_lastGaugeStack != clampedStack)
+    {
+        for (uint32 i = 0; i < _stackImages.size(); ++i)
+        {
+            _startFillRatios[i] = 0.f;
+            _visualFillRatios[i] = 0.f;
+            _targetFillRatios[i] = 0.f;
+
+            if (_stackImages[i] != nullptr)
+            {
+                _stackImages[i]->Set_FillRatio(0.f);
+                _stackImages[i]->Close();
+            }
+        }
+
+        _fillEaseElapsedSec = kGradientGaugeFillEaseDurationSec;
+        _lastGaugeStack = clampedStack;
+    }
+
+    const uint32 activeFillIndex =
+        clampedStack < GradientSkill::MaxGaugeStacks
+        ? clampedStack
+        : GradientSkill::MaxGaugeStacks - 1;
+    const float currentStackProgressFillRatio =
+        clampedStack >= GradientSkill::MaxGaugeStacks
+        ? 1.f
+        : static_cast<float>(clampedProgressTick) /
+            static_cast<float>(GradientSkill::GaugeProgressPerStack);
 
     for (uint32 i = 0; i < _stackImages.size(); ++i)
     {
         if (_stackImages[i] == nullptr)
             continue;
 
-        if (i < clampedStack)
+        const float fillRatio = i == activeFillIndex ? currentStackProgressFillRatio : 0.f;
+
+        if (fabsf(_targetFillRatios[i] - fillRatio) > 0.001f)
+        {
+            _startFillRatios[i] = _visualFillRatios[i];
+            _targetFillRatios[i] = fillRatio;
+            _fillEaseElapsedSec = 0.f;
+        }
+
+        if (fillRatio > 0.f || _visualFillRatios[i] > 0.f)
+        {
             _stackImages[i]->Open();
+            _stackImages[i]->Set_AlphaMultiplier(1.f);
+        }
         else
+        {
+            _stackImages[i]->Set_FillRatio(0.f);
             _stackImages[i]->Close();
+        }
     }
 
     Set_Text(_currentCountText, to_wstring(clampedStack));
@@ -133,6 +240,12 @@ void UI_BattleGradientGauge::Free()
 
     for (auto& stackImage : _stackImages)
         stackImage.reset();
+
+    _startFillRatios.fill(0.f);
+    _visualFillRatios.fill(0.f);
+    _targetFillRatios.fill(0.f);
+    _fillEaseElapsedSec = 0.f;
+    _lastGaugeStack = GradientSkill::MaxGaugeStacks + 1;
 
     _currentCountText.reset();
     _currentCountBgText.reset();

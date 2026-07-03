@@ -350,6 +350,15 @@ enum class PointParticleAccelerationTimeBasis : uint32
     EmitterNormalizedTime = 1,
 };
 
+enum class PointParticleVelocityScaleChannel : uint32
+{
+    InitialVelocity = 0,
+    InitialRadialVelocity = 1,
+    VelocityCone = 2,
+    SourceMotionVelocity = 3,
+    AccelerationIntegratedVelocity = 4,
+};
+
 // motion 계열 모듈을 compute particle update가 바로 소비할 수 있게 압축한 payload다.
 struct PointParticleMotionDesc
 {
@@ -426,6 +435,11 @@ struct PointParticleMotionDesc
     PointParticleRandomSeedRuntimeDesc sourceMotionVelocitySeed{};  // SourceMotionVelocity speed/spread random sample seed salt다.
     PointParticleRandomSeedRuntimeDesc accelerationSeed{};          // Acceleration random sample seed salt다.
     PointParticleRandomSeedRuntimeDesc dragSeed{};                  // Drag random sample seed salt다.
+    PointParticleFloatCurveRuntimeDesc initialVelocityScaleByLife{}; // InitialVelocity channel 전용 VelocityOverLife 배율이다.
+    PointParticleFloatCurveRuntimeDesc initialRadialVelocityScaleByLife{}; // InitialRadialVelocity channel 전용 VelocityOverLife 배율이다.
+    PointParticleFloatCurveRuntimeDesc velocityConeScaleByLife{};    // VelocityCone channel 전용 VelocityOverLife 배율이다.
+    PointParticleFloatCurveRuntimeDesc sourceMotionVelocityScaleByLife{}; // SourceMotionVelocity channel 전용 VelocityOverLife 배율이다.
+    PointParticleFloatCurveRuntimeDesc accelerationIntegratedVelocityScaleByLife{}; // Acceleration 누적 속도 channel 전용 VelocityOverLife 배율이다.
 };
 
 // rotation 계열 모듈을 compute particle update가 바로 소비할 수 있게 압축한 payload다.

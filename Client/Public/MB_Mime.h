@@ -28,7 +28,9 @@ public:
         float& damage,
         AttackType attackType) const override;
 
-    bool Try_ApplyBattleBreakOnDamage(const DamageAppliedInfo& info) override;
+    bool Try_ApplyBattleBreakOnDamage(const DamageAppliedInfo& info, bool canTriggerBreak) override;
+
+    void Start_WallDamageReduction();
 
 protected:
     HRESULT Ready_PartObjects();
@@ -36,6 +38,9 @@ protected:
 private:
     Shared<Mon_Mime_Body> _body = {};
     Shared<Mon_Mime_Bagutte> _bagutte = {};
+
+    bool _isWallDamageReductionActive = false;
+    bool _hasTriggeredBreak = false;
 
 public:
     static Shared<MB_Mime> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);

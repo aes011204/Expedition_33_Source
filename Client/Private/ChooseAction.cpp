@@ -11,6 +11,9 @@
 #include "CombatStatCom.h"
 #include "GradientSkill.h"
 
+#include "BattleSpawnRegistry.h"
+#include "BattleTurnCamera.h"
+
 NS_BEGIN(Client)
 
 ChooseAction::ChooseAction(const Shared<BattleController>& owner)
@@ -102,14 +105,8 @@ void ChooseAction::Update(float timeDelta)
             return;
         }
 
-        // 스킬은 해금돼있어도 게이지 없으면 사용 X
-        if (!owner->Get_TurnActionRequest().actor.statCom->Can_UseGradientGauge())
-        {
-            LOG_INFO("ChooseAction: gradient gauge is empty");
-            return;
-        }
-
-        // 스킬도 있고 게이지도 있으면 선택 상태로 진입
+        // Let the Gradient menu open even when the skill cannot be confirmed yet.
+        // ChooseGradient keeps the final use gate so the card can show its disabled state.
         owner->Get_TurnActionRequest().type = EBattleContext::Skill;
         battleFSM->Change_State(BattleTurnState::ChooseGradient);
 
@@ -128,6 +125,20 @@ void ChooseAction::Update(float timeDelta)
         owner->Get_TurnActionRequest().type = EBattleContext::Skill;
         owner->Ensure_EnemyTargetPreview();
         battleFSM->Change_State(BattleTurnState::ChooseSkill);
+
+        Vec3 subjectPos = Vec3::Zero;
+        if (const auto subject = owner->Get_TurnActionRequest().actor.actor)
+        {
+            if (const auto subjectTransform = subject->Get_Transform())
+                subjectPos = subjectTransform->Get_WorldPosition();
+        }
+
+        LOG_INFO(
+            "[BattleCamTrace] ChooseAction->ChooseSkill before SELECTSKILL publish subject=({:.3f},{:.3f},{:.3f}) skillKey={}",
+            subjectPos.x,
+            subjectPos.y,
+            subjectPos.z,
+            owner->Get_TurnActionRequest().skillKey.c_str());
 
         EvtBattlePresentation event;
         event.cameraMode = BattleCameraMode::SELECTSKILL;
@@ -155,12 +166,33 @@ void ChooseAction::Update(float timeDelta)
     if (GAME->KeyDown(KEY_TYPE::RBUTTON)) // 조준
     {
         if (!GAME->Is_ActiveCameraType(ObjectType::BattleTurnCamera))
-        {
-            LOG_DEBUG("ChooseAction: FreeAimTargeting blocked because active camera is not BattleTurnCamera");
             return;
-        }
+
+        const BattleChar& actor = owner->Get_TurnActionRequest().actor;
+
+        if (!battleFSM->Change_State(BattleTurnState::FreeAimTargeting))
+            return;
+
+        if (battleFSM->Get_CurrentPlayerState() != BattleTurnState::FreeAimTargeting)
+            return;
 
         owner->Get_TurnActionRequest().type = EBattleContext::FreeAimShoot;
+
+        if (const auto battleCamera = owner->Get_BattleTurnCamera())
+        {
+            float freeAimBaseYaw = 0.f;
+
+            if (const auto spawnRegistry = owner->Get_BattleSpawnRegistry())
+            {
+                if (actor.actor != nullptr)
+                {
+                    if (const BattleSpawnRegistry::BattleEntry* spawnEntry = spawnRegistry->Find_SpawnEntry(actor.actor))
+                        freeAimBaseYaw = spawnEntry->spawnRotation.y;
+                }
+            }
+
+            battleCamera->Reset_FreeAimRotation(freeAimBaseYaw);
+        }
 
         EvtBattlePresentation event;
         event.cameraMode = BattleCameraMode::AIM;
@@ -168,7 +200,6 @@ void ChooseAction::Update(float timeDelta)
         //event.presetId = magic_enum::enum_name(owner->Get_TurnActionRequest().actor.heroId);
         GAME->Get_EventBus().Publish(event);
 
-        battleFSM->Change_State(BattleTurnState::FreeAimTargeting);
         return;
     }
 }

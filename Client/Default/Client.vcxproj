@@ -160,6 +160,7 @@
     <ClInclude Include="..\Public\ANS_AnimSpeed.h" />
     <ClInclude Include="..\Public\ANS_CanAction.h" />
     <ClInclude Include="..\Public\ANS_CollisionEnable.h" />
+    <ClInclude Include="..\Public\ANS_ParkourCameraLag.h" />
     <ClInclude Include="..\Public\ANS_SL_PartCollisionEnable.h" />
     <ClInclude Include="..\Public\ANS_ComboEnable.h" />
     <ClInclude Include="..\Public\ANS_CounterTimeScale.h" />
@@ -185,6 +186,7 @@
     <ClInclude Include="..\public\AN_BattleShot.h" />
     <ClInclude Include="..\public\AN_Battle_EndAnim.h" />
     <ClInclude Include="..\public\AN_CameraShake.h" />
+    <ClInclude Include="..\Public\AN_CanFreeAimShoot.h" />
     <ClInclude Include="..\public\AN_Change_Anim.h" />
     <ClInclude Include="..\Public\AN_CounterDamage.h" />
     <ClInclude Include="..\Public\AN_CounterReturnAll.h" />
@@ -589,6 +591,7 @@
     <ClInclude Include="..\Public\UI_GetWeapon.h" />
     <ClInclude Include="..\Public\UI_GetPictos.h" />
     <ClInclude Include="..\Public\UI_GetChroma.h" />
+    <ClInclude Include="..\Public\UI_LevelAnnounce.h" />
     <ClInclude Include="..\Public\UI_HealFont.h" />
     <ClInclude Include="..\Public\UI_DestroyShield.h" />
     <ClInclude Include="..\Public\UI_MarkEffect.h" />
@@ -656,6 +659,7 @@
     <ClCompile Include="..\Private\ANS_AnimSpeed.cpp" />
     <ClCompile Include="..\Private\ANS_CanAction.cpp" />
     <ClCompile Include="..\Private\ANS_CollisionEnable.cpp" />
+    <ClCompile Include="..\Private\ANS_ParkourCameraLag.cpp" />
     <ClCompile Include="..\Private\ANS_SL_PartCollisionEnable.cpp" />
     <ClCompile Include="..\Private\ANS_ComboEnable.cpp" />
     <ClCompile Include="..\Private\ANS_CounterTimeScale.cpp" />
@@ -681,6 +685,7 @@
     <ClCompile Include="..\private\AN_BattleShot.cpp" />
     <ClCompile Include="..\private\AN_Battle_EndAnim.cpp" />
     <ClCompile Include="..\private\AN_CameraShake.cpp" />
+    <ClCompile Include="..\Private\AN_CanFreeAimShoot.cpp" />
     <ClCompile Include="..\private\AN_Change_Anim.cpp" />
     <ClCompile Include="..\Private\AN_CounterDamage.cpp" />
     <ClCompile Include="..\Private\AN_CounterReturnAll.cpp" />
@@ -1068,6 +1073,7 @@
     <ClCompile Include="..\Private\UI_GetWeapon.cpp" />
     <ClCompile Include="..\Private\UI_GetPictos.cpp" />
     <ClCompile Include="..\Private\UI_GetChroma.cpp" />
+    <ClCompile Include="..\Private\UI_LevelAnnounce.cpp" />
     <ClCompile Include="..\Private\UI_HealFont.cpp" />
     <ClCompile Include="..\Private\UI_DestroyShield.cpp" />
     <ClCompile Include="..\Private\UI_MarkEffect.cpp" />
@@ -1203,8 +1209,10 @@
     <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectMaterialPreviewDistortion.hlsl" />
     <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectMesh.hlsl" />
     <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectMeshDistortion.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectMeshGlass.hlsl" />
     <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectMeshPreview.hlsl" />
     <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectMeshPreviewDistortion.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectMeshPreviewGlass.hlsl" />
     <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectRibbonDistortion.hlsl" />
     <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectSprite.hlsl" />
     <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectTrail.hlsl" />

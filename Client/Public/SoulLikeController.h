@@ -165,9 +165,6 @@ private:
     Vec3   _overrideMonsterSpawnPosition = Vec3::Zero;
     Vec3   _overrideMonsterSpawnRotation = Vec3::Zero;
 
-    float  _playerMaxHp = 100.f;
-    float  _monsterMaxHp = 500.f;
-
     float  _enterFxDelay = 0.6f;
     float  _victorySlowDuration = 0.6f;
     float  _victorySlowTimeScale = 0.12f;
@@ -218,6 +215,10 @@ private:
     static constexpr uint32 kMaxHealingPotionCount = 5;
     static constexpr float  kHealingPotionHealRatio = 0.3f; // 30퍼센트
     uint32 _healingPotionCount = kMaxHealingPotionCount;
+
+    // 승리 후 포지션
+    Vec3 _victoryPosition = Vec3(2.41f, 3.50f, 92.82f);
+    Vec3 _victoryRotation = Vec3(0.f, 180.f, 0.f);
 
 public:
     static Shared<SoulLikeController> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);

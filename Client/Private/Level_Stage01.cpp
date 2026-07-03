@@ -2,12 +2,15 @@
 #include "GameInstance.h"
 #include "MapLoader.h"
 #include "ClientInstance.h"
+#include "RuntimeRuleStateService.h"
 #include "TargetCamera.h"
 #include "SoulLikeController.h"
 
 namespace
 {
     constexpr wchar_t kEffectName[] = L"Effects/Assets/Map/FX_TornadoPaint_EX.effect.json";
+
+    constexpr wchar_t kParticelEffectName[] = L"Effects/Assets/Map/FX_FallingLight.effect.json";
 }
 
 Level_Stage01::Level_Stage01(const ComPtr<Device>& device, const ComPtr<Context>& context)
@@ -22,6 +25,9 @@ HRESULT Level_Stage01::Initialize()
     CHECK_FAILED(Ready_Layer_Camera(TEXT("Layer_Camera")), E_FAIL);
     CHECK_FAILED(Ready_Layer_UI(TEXT("Layer_UI")), E_FAIL);
 
+    RuntimeRuleStateService::Apply_ToCurrentRuntime(
+        RuntimeRuleStateService::Build_SimonStartUnlocks(), false);
+
     GAME->Play_BGM(Constants::SoundBGM::SpringBGM, 1.f, true, 0.f);
 
     return S_OK;
@@ -35,7 +41,17 @@ void Level_Stage01::BeginPlay()
     desc.scale = Vec3(30.f, 30.f, 30.f);
 
     CLIENT->Play_Effect(desc);
+
+    // Particle
+    PlayEffectDesc ParticlDesc{};
+    desc.effectName = kParticelEffectName;
+    desc.worldPosition = Vec3(219.52f, -4023.47f, 52.33f);
+    desc.scale = Vec3(1.f, 1.f, 1.f);
+
+    CLIENT->Play_Effect(ParticlDesc);
+
     CLIENT->Capture_InitialWorldSnapshot();
+    CLIENT->Queue_LevelAnnounce(LevelType::Stage01);
 }
 
 void Level_Stage01::Update(float fTimeDelta)

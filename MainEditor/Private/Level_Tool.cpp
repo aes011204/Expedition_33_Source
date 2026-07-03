@@ -235,7 +235,12 @@ void Level_Tool::Remove_CurrentLevelMapObjects()
         GAME->Current_LevelIndex(),
         [&](const wstring& layerTag, const Shared<GameObject>& gameObject)
         {
-            if (layerTag == L"Layer_MapStaticMesh" && gameObject != nullptr)
+            if (gameObject == nullptr)
+                return;
+
+            const bool isMapLayerObject = layerTag == L"Layer_MapStaticMesh";
+            const bool isMapAuthoredObject = gameObject->Has_RuntimeAuthoringSource();
+            if (isMapLayerObject || isMapAuthoredObject)
                 mapObjects.push_back(gameObject);
         });
 
@@ -243,6 +248,8 @@ void Level_Tool::Remove_CurrentLevelMapObjects()
         GAME->Remove_GameObject(GAME->Current_LevelIndex(), mapObject);
 
     GAME->Flush_RemovedGameObjects();
+    GAME->Set_FogZones(FogZoneCB{});
+    GAME->Set_VolumetricLightShaftZones(VolumetricLightShaftZoneCB{});
 }
 
 void Level_Tool::Change_To(LevelType targetLevel)

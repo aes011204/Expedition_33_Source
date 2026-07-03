@@ -70,7 +70,7 @@ class InitialLocationModuleDetail
 {
 public:
     bool Draw(
-        AuthoringEmitter& emitter,
+        const AuthoringEmitter& emitter,
         AuthoringModule& module,
         InitialLocationModuleData& data,
         DetailPropertyContext& detailContext);
@@ -191,8 +191,8 @@ class VelocityOverLifeModuleDetail
 {
 public:
     bool Draw(
-        AuthoringEmitter& emitter,
-        AuthoringModule& module,
+        const AuthoringEmitter& emitter,
+        const AuthoringModule& module,
         VelocityOverLifeModuleData& data,
         DetailPropertyContext& detailContext);
 };
@@ -326,6 +326,17 @@ public:
         AuthoringEmitter& emitter,
         AuthoringModule& module,
         MeshRotationOverLifeModuleData& data,
+        DetailPropertyContext& detailContext);
+};
+
+// MeshDirectionAlignOverLife module의 target-facing alignment authoring row를 그린다.
+class MeshDirectionAlignOverLifeModuleDetail
+{
+public:
+    bool Draw(
+        const AuthoringEmitter& emitter,
+        AuthoringModule& module,
+        MeshDirectionAlignOverLifeModuleData& data,
         DetailPropertyContext& detailContext);
 };
 

@@ -14,6 +14,7 @@
 #include "UI_GetWeapon.h"
 #include "UI_GetPictos.h"
 #include "UI_GetChroma.h"
+#include "UI_LevelAnnounce.h"
 #include "ClientInstance.h"
 #include "GameplayUI.h"
 #include "Player_FreeAim.h"
@@ -28,6 +29,7 @@
 #include "UI_InteractionPrompt.h"
 #include "UI_Replay.h"
 
+#include "RuntimeRuleStateService.h"
 #include "Client_Constants.h"
 #include "GameObject.h"
 #include "Spawn_Prefab.h"
@@ -38,6 +40,8 @@ GameplayUI_World::~GameplayUI_World() = default;
 namespace
 {
     constexpr char kSoulLikeMaelleTargetId[] = "SL_Maelle";
+    constexpr float kLevelAnnounceDefaultDelaySec = 3.f;
+    constexpr float kLevelAnnounceGestralVillageDelaySec = 4.f;
 
     template <typename TPanel>
     void Append_RuntimePanelEntry(
@@ -55,6 +59,13 @@ namespace
             return;
 
         outEntries.push_back({ category, name, root, nullptr, positionDrivenByCode });
+    }
+
+    float Get_LevelAnnounceDelay(LevelType levelType)
+    {
+        return levelType == LevelType::GestralVillage
+            ? kLevelAnnounceGestralVillageDelaySec
+            : kLevelAnnounceDefaultDelaySec;
     }
 }
 
@@ -132,6 +143,9 @@ HRESULT GameplayUI_World::Initialize(uint32 levelIndex)
     _getChromaPanel = UI_GetChroma::Create(levelIndex);
     CHECK_NULL(_getChromaPanel, E_FAIL);
 
+    _levelAnnouncePanel = UI_LevelAnnounce::Create(levelIndex);
+    CHECK_NULL(_levelAnnouncePanel, E_FAIL);
+
     _arenaCharacterSelectPanel = UI_ArenaCharacterSelect::Create(levelIndex);
     CHECK_NULL(_arenaCharacterSelectPanel, E_FAIL);
 
@@ -191,6 +205,9 @@ void GameplayUI_World::Update(float timeDelta)
     if (_getChromaPanel)
         _getChromaPanel->Update(timeDelta);
 
+    if (_levelAnnouncePanel)
+        _levelAnnouncePanel->Update(timeDelta);
+
     if (_arenaCharacterSelectPanel)
         _arenaCharacterSelectPanel->Update(timeDelta);
 
@@ -205,6 +222,11 @@ void GameplayUI_World::Update(float timeDelta)
 
     if (!CLIENT->Is_FadeTransitionPlaying())
     {
+        Try_ShowPendingLevelAnnounce(timeDelta);
+
+        if (Is_LevelAnnounceOpen())
+            return;
+
         Try_ShowPendingGetCharacter();
 
         if (Is_GetCharacterOpen())
@@ -337,6 +359,9 @@ vector<RuntimeUIEntry> GameplayUI_World::Get_RuntimeUIEntries() const
     if (_getChromaPanel)
         _getChromaPanel->Append_RuntimeUIEntries(entries, "World", "GetChromaPanel");
 
+    if (_levelAnnouncePanel)
+        _levelAnnouncePanel->Append_RuntimeUIEntries(entries, "World", "LevelAnnouncePanel");
+
     if (_arenaCharacterSelectPanel)
         _arenaCharacterSelectPanel->Append_RuntimeUIEntries(entries, "World", "ArenaCharacterSelectPanel");
 
@@ -414,8 +439,15 @@ bool GameplayUI_World::Request_ArenaCharacterSelect()
     if (_arenaCharacterSelectPanel == nullptr)
         return false;
 
+    const bool requestedFromDialogue = CLIENT->IsDialogueInteractLocked();
+
     if (_expeditionStatPanel && _expeditionStatPanel->Is_Open())
-        return false;
+    {
+        if (!requestedFromDialogue)
+            return false;
+
+        _expeditionStatPanel->Close_Immediately();
+    }
 
     if (Get_CurrentMenu() != GameplayMenu::None)
         return false;
@@ -423,7 +455,7 @@ bool GameplayUI_World::Request_ArenaCharacterSelect()
     if (CLIENT->Is_WorldControlSuspended() || CLIENT->Is_BattleEntering())
         return false;
 
-    if (GAME->Is_WorldGameplayInputBlocked())
+    if (GAME->Is_WorldGameplayInputBlocked() && !requestedFromDialogue)
         return false;
 
     Push_Menu(GameplayMenu::ArenaCharacterSelect);
@@ -493,6 +525,15 @@ void GameplayUI_World::Queue_GetChromaPresentation(uint32 chromaAmount)
         return;
 
     _pendingGetChromaAmounts.emplace_back(chromaAmount);
+}
+
+void GameplayUI_World::Queue_LevelAnnounce(LevelType levelType)
+{
+    if (!UI_LevelAnnounce::Is_SupportedLevel(levelType))
+        return;
+
+    _pendingLevelAnnounce = levelType;
+    _pendingLevelAnnounceDelay = Get_LevelAnnounceDelay(levelType);
 }
 
 Shared<SoulLikeController> GameplayUI_World::Spawn_SoulLikeControllerForArena()
@@ -760,6 +801,8 @@ void GameplayUI_World::Handle_ArenaCharacterSelectAction(UI_ArenaCharacterSelect
         }
 
         Close_AllMenus(true);
+
+        RuntimeRuleStateService::Apply_ToCurrentRuntime(RuntimeRuleStateService::Build_DuallistStartUnlocks(), false);
 
         const wstring sequencePath =
             wstring(Constants::Cinematic::RuntimeJson_Dir) +
@@ -1047,6 +1090,28 @@ void GameplayUI_World::Close_Menu(GameplayMenu menu, bool restoreWorldControl)
 
 }
 
+void GameplayUI_World::Try_ShowPendingLevelAnnounce(float timeDelta)
+{
+    if (_pendingLevelAnnounce == LevelType::END)
+        return;
+
+    if (_levelAnnouncePanel == nullptr || _levelAnnouncePanel->Is_Open())
+        return;
+
+    if (CLIENT->Is_FadeTransitionPlaying())
+        return;
+
+    _pendingLevelAnnounceDelay -= max(0.f, timeDelta);
+    if (_pendingLevelAnnounceDelay > 0.f)
+        return;
+
+    const LevelType levelType = _pendingLevelAnnounce;
+    _pendingLevelAnnounce = LevelType::END;
+    _pendingLevelAnnounceDelay = 0.f;
+
+    _levelAnnouncePanel->Play_ForLevel(levelType);
+}
+
 void GameplayUI_World::Try_ShowPendingGetCharacter()
 {
     if (_getCharacterPanel == nullptr || _getCharacterPanel->Is_Open())
@@ -1257,6 +1322,11 @@ bool GameplayUI_World::Is_GetPictosOpen() const
 bool GameplayUI_World::Is_GetChromaOpen() const
 {
     return _getChromaPanel && _getChromaPanel->Is_Open();
+}
+
+bool GameplayUI_World::Is_LevelAnnounceOpen() const
+{
+    return _levelAnnouncePanel && _levelAnnouncePanel->Is_Open();
 }
 
 void GameplayUI_World::Update_CrossHair(float timeDelta)
@@ -1537,6 +1607,7 @@ void GameplayUI_World::Free()
     Release_Panel(_getWeaponPanel);
     Release_Panel(_getPictosPanel);
     Release_Panel(_getChromaPanel);
+    Release_Panel(_levelAnnouncePanel);
     Release_Panel(_arenaCharacterSelectPanel);
     Release_Panel(_replayPanel);
     Release_Panel(_gradientSkillPreviewTestPanel);

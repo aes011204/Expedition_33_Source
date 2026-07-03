@@ -30,8 +30,10 @@
 namespace
 {
     constexpr float kDuallisteBGMFadeOutDuration = 1.f;
-
     constexpr wchar_t kHealTintEffect[] = L"Effects\\Assets\\Item\\HealTint_G.effect.json";
+
+    constexpr char kNpcGolgraDialogueKey[] = "NPC_Golgra";
+    constexpr char kNpcGolgraAfterDuallisteDialogueKey[] = "NPC_Golgra_AfterDualliste";
 }
 
 IMPLEMENT_REFLECTION(SoulLikeController)
@@ -47,9 +49,6 @@ IMPLEMENT_REFLECTION(SoulLikeController)
     PROPERTY_VEC3("플레이어 스폰 회전", _playerSpawnRotation, 1.f);
     PROPERTY_STRING("몬스터 프리팹", _monsterPrefab);
     PROPERTY_FLOAT("몬스터 스폰 거리", _monsterSpawnDistance, 0.f, 20.f, 0.1f);
-
-    PROPERTY_FLOAT("플레이어 최대 체력", _playerMaxHp, 1.f, 9999.f, 1.f);
-    PROPERTY_FLOAT("몬스터 최대 체력", _monsterMaxHp, 1.f, 9999.f, 1.f);
 
     PROPERTY_FLOAT("진입 연출 지연 시간", _enterFxDelay, 0.f, 5.f, 0.05f);
     PROPERTY_BOOL("디버그 3번키 시작 사용", _enableDebugKeyStart);
@@ -68,6 +67,10 @@ IMPLEMENT_REFLECTION(SoulLikeController)
     PROPERTY_FLOAT("공격 히트스탑 시간 배율", _playerAttackHitStopTimeScale, 0.f, 1.f, 0.01f);
     PROPERTY_FLOAT("공격 히트스탑 지속 시간", _playerAttackHitStopDuration, 0.f, 1.f, 0.01f);
 
+    // 전투 승리 후 이동할 위치
+    PROPERTY_VEC3("승리 이동 위치", _victoryPosition);
+    PROPERTY_VEC3("승리 이동 회전", _victoryRotation);
+
     return true;
 }
 
@@ -84,9 +87,7 @@ SoulLikeController::SoulLikeController(const SoulLikeController& prototype)
     , _monsterPrefab(prototype._monsterPrefab)
     , _monsterSpawnDistance(prototype._monsterSpawnDistance)
     , _enterFxDelay(prototype._enterFxDelay)
-    , _playerMaxHp(prototype._playerMaxHp)
     , _enableDebugKeyStart(prototype._enableDebugKeyStart)
-    , _monsterMaxHp(prototype._monsterMaxHp)
     , _playerHitPushDistance(prototype._playerHitPushDistance)
     , _playerHitPushDuration(prototype._playerHitPushDuration)
     , _playerHitStopTimeScale(prototype._playerHitStopTimeScale)
@@ -249,8 +250,21 @@ void SoulLikeController::Confirm_Victory()
     if (_state != BattleState::Victory)
         return;
 
+    const bool shouldReturnToGolgraFront = Is_DuallisteBattle();
+
     Sync_PlayerResultToWorld();
     End_Battle();
+
+    if (shouldReturnToGolgraFront)
+    {
+        CLIENT->Warp_PartyToFormation(_victoryPosition, _victoryRotation);
+
+        CLIENT->Set_DialogueOverride(
+            kNpcGolgraDialogueKey,
+            kNpcGolgraAfterDuallisteDialogueKey);
+    }
+        
+
 }
 
 void SoulLikeController::Handle_BattleShotNotify(
@@ -860,9 +874,8 @@ bool SoulLikeController::Spawn_Player()
 
     player->Apply_WorldSkillKeys(soulLikeSkillKeys);
 
-    const Shared<PlayerStatCom> playerStat = dynamic_pointer_cast<PlayerStatCom>(player->Get_Stat());
-    const float playerMaxHp = playerStat ? playerStat->Get_PlayerRuntimeStat().CurMaxHp : _playerMaxHp;
-    player->Reset_CombatHp(playerMaxHp);
+    if (const Shared<PlayerStatCom> playerStat = dynamic_pointer_cast<PlayerStatCom>(player->Get_Stat()))
+        player->Reset_CombatHp(playerStat->Get_PlayerRuntimeStat().CurMaxHp);
 
     _player = player;
 
@@ -921,19 +934,6 @@ bool SoulLikeController::Spawn_Monster(const Shared<SL_Maelle>& player)
     Shared<SL_Base> opponent = dynamic_pointer_cast<SL_Base>(monsterObject);
     if (opponent == nullptr)
         return false;
-
-    Shared<MonsterStatCom> monsterStat = dynamic_pointer_cast<MonsterStatCom>(opponent->Get_Stat());
-    if (monsterStat != nullptr)
-    {
-        auto& desc = monsterStat->Get_MonsterDesc();
-
-        monsterStat->Set_RuntimeCombatProfile(
-            _monsterMaxHp,
-            desc.maxAp,
-            desc.physicalAttack,
-            desc.physicalDefense,
-            desc.speed);
-    }
 
     _monster = opponent;
 

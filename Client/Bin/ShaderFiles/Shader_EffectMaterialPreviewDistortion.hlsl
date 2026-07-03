@@ -9,7 +9,7 @@
 cbuffer cbEffectMaterialPreviewDistortion : register(b2)
 {
     float4 g_Tint = { 1.f, 1.f, 1.f, 1.f };
-    float4 g_EffectMaterialPreviewAlphaParams = { 0.f, 0.f, 0.f, 0.f };                 // x: alphaCutoff, y: alphaErosion, z: useMask, w: reserved
+    float4 g_EffectMaterialPreviewAlphaParams = { 0.f, 0.f, 0.f, 1.f };                 // x: alphaCutoff, y: alphaErosion, z: useMask, w: alphaMultiplier
     float4 g_EffectMaterialPreviewMainUVParams = { 1.f, 1.f, 0.f, 0.f };                // xy: scale, zw: scroll speed
     float4 g_EffectMaterialPreviewMaskUVParams = { 1.f, 1.f, 0.f, 0.f };                // xy: scale, zw: scroll speed
     float4 g_EffectMaterialPreviewFlowUVParams = { 1.f, 1.f, 0.f, 0.f };                // xy: scale, zw: scroll speed

@@ -7,6 +7,8 @@
 #include "BattleTurnCamera.h"
 #include "BattleTurnCameraPoseUtils.h"
 #include "ClientInstance.h"
+#include "AnimNotify.h"
+#include "AnimNotifyState.h"
 #include "ContainerObject.h"
 #include "Editor_Camera_Free.h"
 #include "GameInstance.h"
@@ -19,6 +21,7 @@
 #include "SkyCloudCard.h"
 #include "Spawn_Prefab.h"
 #include "TransformCom.h"
+#include "PreviewObjectHelpers.h"
 #include "magic_enum/magic_enum.hpp"
 #include <algorithm>
 #include <cctype>
@@ -80,6 +83,29 @@ string Resolve_WorldMonsterPrefabName(const string& battlePrefabName)
         return "MW_" + battlePrefabName.substr(3);
 
     return battlePrefabName;
+}
+
+void Resolve_MaxEnemyGroupOffsets(
+    const vector<Client::BattleMonsterSpawnDesc>& spawnDescs,
+    float& outBackOffset,
+    float& outHeightOffset,
+    float& outLookHeightOffset)
+{
+    auto selectDominantOffset = [](float current, float candidate)
+    {
+        return fabsf(candidate) > fabsf(current) ? candidate : current;
+    };
+
+    outBackOffset = 0.f;
+    outHeightOffset = 0.f;
+    outLookHeightOffset = 0.f;
+
+    for (const Client::BattleMonsterSpawnDesc& spawnDesc : spawnDescs)
+    {
+        outBackOffset = selectDominantOffset(outBackOffset, spawnDesc.enemyGroupBackOffset);
+        outHeightOffset = selectDominantOffset(outHeightOffset, spawnDesc.enemyGroupHeightOffset);
+        outLookHeightOffset = selectDominantOffset(outLookHeightOffset, spawnDesc.enemyGroupLookHeightOffset);
+    }
 }
 
 vector<string> Load_NpcPreviewPrefabNames()
@@ -248,6 +274,25 @@ bool Is_BattleClipTrackSorted(const CameraTrack& track)
     }
 
     return true;
+}
+
+bool Is_PreviewNotifyTimeInRange(float targetTime, float previousTime, float currentTime, bool wrapped, bool includeStartEdge)
+{
+    if (!wrapped)
+    {
+        if (includeStartEdge)
+            return previousTime <= targetTime + 1e-4f && targetTime <= currentTime + 1e-4f;
+
+        if (previousTime <= 1e-4f && targetTime <= 1e-4f)
+            return targetTime <= currentTime;
+
+        return previousTime < targetTime && targetTime <= currentTime;
+    }
+
+    if (includeStartEdge)
+        return targetTime >= previousTime - 1e-4f || targetTime <= currentTime + 1e-4f;
+
+    return targetTime > previousTime || targetTime <= currentTime + 1e-4f;
 }
 
 bool Uses_RuntimeBattleClip(BattleCameraMode mode)
@@ -827,6 +872,10 @@ void BattleCameraPreview_View::Pre_Render()
             skyCloudCard->Late_Update(dt);
     }
 
+    PreviewObjectHelpers::Tick_AttachedPreviewEffects(_previewHeroObject, dt);
+    PreviewObjectHelpers::Tick_AttachedPreviewEffects(_previewEnemyObject, dt);
+    PreviewObjectHelpers::Tick_AttachedPreviewEffects(_previewNpcObject, dt);
+
     Position_PreviewObjects();
     if (_previewEnabled)
         Update_PreviewAttackActorMotion(_previewContext.timeSec);
@@ -866,8 +915,8 @@ void BattleCameraPreview_View::Render()
         ImGui::Separator();
 
         const float availableHeight = ImGui::GetContentRegionAvail().y;
-        const float minTopSectionHeight = 280.f;
-        const float maxTopSectionHeight = std::max(minTopSectionHeight, availableHeight - 170.f);
+        const float minTopSectionHeight = 240.f;
+        const float maxTopSectionHeight = std::max(minTopSectionHeight, availableHeight - 260.f);
         _topSectionHeight = std::clamp(_topSectionHeight, minTopSectionHeight, maxTopSectionHeight);
 
         if (ImGui::BeginChild("BattleCameraPreviewTopSection", ImVec2(0.f, _topSectionHeight), false))
@@ -1259,6 +1308,10 @@ void BattleCameraPreview_View::Rebuild_PreviewObjects()
     if (Is_PreviewSideInUse(PreviewSlotSide::Npc) && !npcPrefabName.empty())
         _previewNpcObject = GAME->Instantiate_GameObjectJson(Client::Spawn_Prefab::Resolve_PrefabPath(npcPrefabName));
 
+    PreviewObjectHelpers::Disable_PreviewAnimNotifyExecution(_previewHeroObject);
+    PreviewObjectHelpers::Disable_PreviewAnimNotifyExecution(_previewEnemyObject);
+    PreviewObjectHelpers::Disable_PreviewAnimNotifyExecution(_previewNpcObject);
+
     _previewObjectsDirty = false;
     _previewObjectsBegunPlay = false;
     _animationListDirty = true;
@@ -1270,6 +1323,7 @@ void BattleCameraPreview_View::Rebuild_PreviewObjects()
 
 void BattleCameraPreview_View::Clear_PreviewObjects()
 {
+    Reset_PreviewPlayEffectState();
     _previewHeroObject.reset();
     _previewEnemyObject.reset();
     _previewNpcObject.reset();
@@ -2578,9 +2632,9 @@ void BattleCameraPreview_View::Render_SkillShotTimeline()
 
     const float timelineDurationSec = std::max(Get_PreviewSkillSequenceDuration(), Get_BattleClipAuthoringDurationSec());
     const float drawWidth = std::max(ImGui::GetContentRegionAvail().x, 320.f);
-    const float phaseHeight = 28.f;
-    const float shotHeight = 34.f;
-    const float timelineHeight = phaseHeight + shotHeight + 36.f;
+    const float phaseHeight = 40.f;
+    const float shotHeight = 46.f;
+    const float timelineHeight = phaseHeight + shotHeight + 48.f;
     const ImVec2 canvasSize(drawWidth, timelineHeight);
 
     ImGui::BeginChild("BattleSkillShotTimelineCanvas", canvasSize, true, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
@@ -2918,6 +2972,13 @@ void BattleCameraPreview_View::Render_SkillShotTimeline()
 
 void BattleCameraPreview_View::Render_BattleClipSequencer()
 {
+    const float sequencerHeight = std::max(320.f, ImGui::GetContentRegionAvail().y);
+    if (!ImGui::BeginChild("BattleClipSequencerArea", ImVec2(0.f, sequencerHeight), true))
+    {
+        ImGui::EndChild();
+        return;
+    }
+
     bool consumedKeyClick = false;
     bool requestOpenInsertPopup = false;
     bool requestRemoveKeyPopup = false;
@@ -2982,6 +3043,8 @@ void BattleCameraPreview_View::Render_BattleClipSequencer()
         Sync_PreviewTimeFromTimeline();
         _previewDirty = true;
     }
+
+    ImGui::EndChild();
 }
 
 void BattleCameraPreview_View::Render_SelectedBattleClipKeyframe()
@@ -3271,7 +3334,7 @@ void BattleCameraPreview_View::Apply_PreviewContext()
     _previewDirty = false;
 }
 
-void BattleCameraPreview_View::Apply_PreviewAnimation(float previewTimeSec) const
+void BattleCameraPreview_View::Apply_PreviewAnimation(float previewTimeSec)
 {
     Shared<ModelCom> model = Resolve_PreviewSubjectModel();
     if (model == nullptr)
@@ -3311,8 +3374,11 @@ void BattleCameraPreview_View::Apply_PreviewAnimation(float previewTimeSec) cons
     if (previewTimeMode == BattleCameraClipTimeMode::Independent)
         animationTimeSec = std::clamp(animationTimeSec, 0.f, std::max(0.f, model->Get_CurrentAnimationDurationSec()));
 
+    const float previousAnimationTimeSec = model->Get_CurrentAnimationTimeSec();
     model->Set_CurrentAnimationTimeSec(animationTimeSec);
     model->Refresh_CurrentAnimationPose();
+    Update_PreviewPlayEffectNotifies(previousAnimationTimeSec, animationTimeSec);
+    Preview_SoundAtCurrentFrameIfNeeded(animationTimeSec);
 }
 
 void BattleCameraPreview_View::Apply_BattleCameraPreviewPose(float previewTimeSec)
@@ -3381,7 +3447,8 @@ void BattleCameraPreview_View::Apply_BattleCameraPreviewPose(float previewTimeSe
     Vec3 subjectPos = Get_PreviewSlotWorldPosition(_previewContext.subjectSide, _previewContext.subjectSlot);
     Vec3 opponentPos = Get_PreviewSlotWorldPosition(_previewContext.opponentSide, _previewContext.opponentSlot);
 
-    if (previewMode != BattleCameraMode::WIDE)
+    if (previewMode != BattleCameraMode::WIDE &&
+        previewMode != BattleCameraMode::ENEMYGROUP)
     {
         if (Shared<GameObject> subjectObject = Resolve_PreviewBattleActor(_previewContext.subjectSide))
         {
@@ -3457,6 +3524,51 @@ void BattleCameraPreview_View::Apply_BattleCameraPreviewPose(float previewTimeSe
             0.f,
             0.f,
             0.f,
+            pose))
+        {
+            desiredPos = pose.cameraPos;
+            lookTarget = pose.lookTarget;
+            evaluatedFovY = pose.fovY;
+            evaluatedRollOffset = pose.rollOffset;
+        }
+    }
+    else if (previewMode == BattleCameraMode::ENEMYGROUP)
+    {
+        Vec3 enemyCenter = Vec3::Zero;
+        uint32 enemyCount = 0;
+        const vector<Client::BattleMonsterSpawnDesc> spawnDescs = Resolve_SelectedEnemySpawnDescs();
+        float enemyGroupBackOffset = 0.f;
+        float enemyGroupHeightOffset = 0.f;
+        float enemyGroupLookHeightOffset = 0.f;
+        Resolve_MaxEnemyGroupOffsets(
+            spawnDescs,
+            enemyGroupBackOffset,
+            enemyGroupHeightOffset,
+            enemyGroupLookHeightOffset);
+
+        for (int i = 0; i < static_cast<int>(_previewFormation.enemies.size()); ++i)
+        {
+            enemyCenter += Get_PreviewSlotWorldPosition(PreviewSlotSide::Enemy, i);
+            ++enemyCount;
+        }
+
+        if (enemyCount == 0)
+            return;
+
+        enemyCenter /= static_cast<float>(enemyCount);
+
+        Client::BattleTurnCameraEvaluatedPose pose{};
+        const float finalFovY = std::clamp(
+            preset.camera.fovy + previewClipSample.fovOffset,
+            XMConvertToRadians(10.f),
+            XMConvertToRadians(120.f));
+        if (Client::Evaluate_BattleTurnWidePose(
+            enemyCenter,
+            Get_PreviewBattlePlaneYaw(),
+            finalFovY,
+            enemyGroupBackOffset,
+            enemyGroupHeightOffset,
+            enemyGroupLookHeightOffset,
             pose))
         {
             desiredPos = pose.cameraPos;
@@ -4772,6 +4884,7 @@ void BattleCameraPreview_View::Apply_DefaultPreviewSlotsForMode(BattleCameraMode
         break;
 
     case BattleCameraMode::ENEMYFOCUS:
+    case BattleCameraMode::ENEMYGROUP:
     case BattleCameraMode::ENEMYATTACK:
         _previewContext.subjectSide = PreviewSlotSide::Enemy;
         _previewContext.subjectSlot = 1;
@@ -5065,6 +5178,7 @@ bool BattleCameraPreview_View::Evaluate_PreviewModePose(BattleCameraMode mode, f
         break;
 
     case BattleCameraMode::ENEMYFOCUS:
+    case BattleCameraMode::ENEMYGROUP:
     case BattleCameraMode::ENEMYATTACK:
         subjectSide = PreviewSlotSide::Enemy;
         opponentSide = PreviewSlotSide::Hero;
@@ -5079,6 +5193,46 @@ bool BattleCameraPreview_View::Evaluate_PreviewModePose(BattleCameraMode mode, f
 
     const Vec3 subjectPos = Get_PreviewSlotWorldPosition(subjectSide, subjectSlot);
     const Vec3 opponentPos = Get_PreviewSlotWorldPosition(opponentSide, opponentSlot);
+
+    if (mode == BattleCameraMode::ENEMYGROUP)
+    {
+        Vec3 enemyCenter = Vec3::Zero;
+        uint32 enemyCount = 0;
+        const vector<Client::BattleMonsterSpawnDesc> spawnDescs = Resolve_SelectedEnemySpawnDescs();
+        float enemyGroupBackOffset = 0.f;
+        float enemyGroupHeightOffset = 0.f;
+        float enemyGroupLookHeightOffset = 0.f;
+        Resolve_MaxEnemyGroupOffsets(
+            spawnDescs,
+            enemyGroupBackOffset,
+            enemyGroupHeightOffset,
+            enemyGroupLookHeightOffset);
+
+        for (int i = 0; i < static_cast<int>(_previewFormation.enemies.size()); ++i)
+        {
+            enemyCenter += Get_PreviewSlotWorldPosition(PreviewSlotSide::Enemy, i);
+            ++enemyCount;
+        }
+
+        if (enemyCount == 0)
+            return false;
+
+        enemyCenter /= static_cast<float>(enemyCount);
+
+        const float finalFovY = std::clamp(
+            preset.camera.fovy + clipSample.fovOffset,
+            XMConvertToRadians(10.f),
+            XMConvertToRadians(120.f));
+
+        return Client::Evaluate_BattleTurnWidePose(
+            enemyCenter,
+            Get_PreviewBattlePlaneYaw(),
+            finalFovY,
+            enemyGroupBackOffset,
+            enemyGroupHeightOffset,
+            enemyGroupLookHeightOffset,
+            outPose);
+    }
 
     if (mode == BattleCameraMode::ENEMYATTACK && opponentSide != subjectSide)
     {

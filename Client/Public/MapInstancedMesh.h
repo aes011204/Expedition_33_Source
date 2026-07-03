@@ -64,6 +64,7 @@ public:
     virtual uint32 Get_RenderHotspotInstanceCount() const override { return _instanceCount; }
     virtual wstring Get_RenderHotspotSourceModelPath() const override { return _modelPath; }
     virtual bool Get_RenderHotspotInstancedMeshStats(RenderHotspotInstancedMeshStats& outStats) const override;
+    virtual bool Is_InstancedMeshShadowBakeable() const override { return true; }
 
     virtual json To_Json() const override;
     virtual void From_Json(const json& node) override;
@@ -102,8 +103,8 @@ private:
     ComPtr<Buffer> _shadowVisibleVB;
     vector<ComPtr<Buffer>> _shadowIndirectArgsBuffers[3];
 
-    float _lod1Dist = 90.f;
-    float _lod2Dist = 115.f;
+    float _lod1Dist = 80.f;
+    float _lod2Dist = 110.f;
 
     float _accTime = {};
     bool _hasGlow = false;

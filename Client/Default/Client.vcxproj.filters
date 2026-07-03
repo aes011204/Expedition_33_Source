@@ -1092,6 +1092,9 @@
     <ClCompile Include="..\Private\UI_BattleAnnounce.cpp">
       <Filter>02. GameObject\UI</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\UI_LevelAnnounce.cpp">
+      <Filter>02. GameObject\UI</Filter>
+    </ClCompile>
     <ClCompile Include="..\Private\UI_BattleFloatingTextBase.cpp">
       <Filter>02. GameObject\UI</Filter>
     </ClCompile>
@@ -1433,6 +1436,16 @@
     <ClCompile Include="..\Private\ANS_CanAction.cpp" />
     <ClCompile Include="..\Private\SL_UseItem.cpp" />
     <ClCompile Include="..\Private\AN_SL_UseHealingPotion.cpp" />
+    <ClCompile Include="..\Private\Player_Climb.cpp" />
+    <ClCompile Include="..\Private\Player_RopeAction.cpp" />
+    <ClCompile Include="..\Private\Player_GrappleAction.cpp" />
+    <ClCompile Include="..\Private\Player_ParkourAction.cpp" />
+    <ClCompile Include="..\Private\WorldLedgeSpot.cpp" />
+    <ClCompile Include="..\Private\WorldInteractionSpot.cpp" />
+    <ClCompile Include="..\Private\WorldGrapplingRopeSpot.cpp" />
+    <ClCompile Include="..\Private\WorldUpDownRopeSpot.cpp" />
+    <ClCompile Include="..\Private\ANS_ParkourCameraLag.cpp" />
+    <ClCompile Include="..\Private\AN_CanFreeAimShoot.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\Public\ANS_AnimSpeed.h">
@@ -1566,6 +1579,16 @@
     <ClInclude Include="..\Public\ANS_CanAction.h" />
     <ClInclude Include="..\Public\SL_UseItem.h" />
     <ClInclude Include="..\Public\AN_SL_UseHealingPotion.h" />
+    <ClInclude Include="..\Public\Player_ParkourAction.h" />
+    <ClInclude Include="..\Public\Player_Climb.h" />
+    <ClInclude Include="..\Public\Player_RopeAction.h" />
+    <ClInclude Include="..\Public\Player_GrappleAction.h" />
+    <ClInclude Include="..\Public\WorldLedgeSpot.h" />
+    <ClInclude Include="..\Public\WorldInteractionSpot.h" />
+    <ClInclude Include="..\Public\WorldGrapplingRopeSpot.h" />
+    <ClInclude Include="..\Public\WorldUpDownRopeSpot.h" />
+    <ClInclude Include="..\Public\ANS_ParkourCameraLag.h" />
+    <ClInclude Include="..\Public\AN_CanFreeAimShoot.h" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimAdditive.hlsl">
@@ -1646,7 +1669,13 @@
     <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectMesh.hlsl">
       <Filter>97. ShaderFiles\Effect</Filter>
     </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectMeshGlass.hlsl">
+      <Filter>97. ShaderFiles\Effect</Filter>
+    </FxCompile>
     <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectMeshPreview.hlsl">
+      <Filter>97. ShaderFiles\Effect</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectMeshPreviewGlass.hlsl">
       <Filter>97. ShaderFiles\Effect</Filter>
     </FxCompile>
     <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectSprite.hlsl">
@@ -2533,6 +2562,9 @@
       <Filter>02. GameObject\UI</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\UI_BattleAnnounce.h">
+      <Filter>02. GameObject\UI</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\UI_LevelAnnounce.h">
       <Filter>02. GameObject\UI</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\UI_BattleFloatingTextBase.h">

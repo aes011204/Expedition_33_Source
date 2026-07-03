@@ -233,6 +233,14 @@ void Player_WorldBase::Update(float timeDelta)
     if (!_partyVisibilityAllowed)
         return;
 
+    if (_isCinematicDriven)
+    {
+        if (_effectCom)
+            _effectCom->Update(timeDelta);
+
+        return;
+    }
+
     __super::Update(timeDelta);
 
     if (_effectCom)

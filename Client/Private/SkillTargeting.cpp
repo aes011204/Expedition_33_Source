@@ -8,7 +8,6 @@
 #include "CameraPresetTypes.h"
 #include "Event_Bus.h"
 #include "ClientInstance.h"
-
 SkillTargeting::SkillTargeting(const Shared<BattleController>& owner)
     : Battle_State{ owner }
 {
@@ -48,6 +47,8 @@ bool SkillTargeting::EnterInvoke()
     if (!requiresTarget)
     {
         owner->Ensure_EnemyTargetPreview();
+        owner->Publish_TargetPreviewEnemyGroup();
+
         return Battle_State::EnterInvoke();
     }
 
@@ -81,12 +82,14 @@ void SkillTargeting::Update(float timeDelta)
 
     if (GAME->KeyDown(KEY_TYPE::ESCAPE))
     {
-        EvtBattlePresentation event;
-        event.cameraMode = BattleCameraMode::PLAYERFOCUS;
-        event.subject = owner->Get_TurnActionRequest().actor.actor;
-        GAME->Get_EventBus().Publish(event);
-
         battleFSM->Change_State(BattleTurnState::ChooseSkill);
+
+        EvtBattlePresentation event;
+        event.cameraMode = BattleCameraMode::SELECTSKILL;
+        event.presetId = magic_enum::enum_name(owner->Get_TurnActionRequest().actor.heroId);
+        event.subject = owner->Get_TurnActionRequest().actor.actor;
+        event.useClip = true;
+        GAME->Get_EventBus().Publish(event);
 
         auto& request = owner->Get_TurnActionRequest();
         BattleAnimUtils::Play_TurnStartOrBattleIdle(request.actor, 0.2f);

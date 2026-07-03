@@ -131,10 +131,16 @@ private:
         CinematicCleanupPolicy cleanupPolicy);
 
     void Apply_ActorTransformTracks(float currentFrameExact);
+    void Apply_AuthoredActorTracks(float currentFrameExact);
+    void Apply_PartRotationTracks(float currentFrameExact);
     bool Evaluate_ActorTransformTrack(
         const CINEMATIC_ACTOR_TRANSFORM_TRACK& track,
         float currentFrameExact,
         Vec3& outPosition,
+        Vec3& outRotation) const;
+    bool Evaluate_PartRotationTrack(
+        const CINEMATIC_PART_ROTATION_TRACK& track,
+        float currentFrameExact,
         Vec3& outRotation) const;
 
     void Apply_BoundActorAnimationPreview(float currentFrameExact);

@@ -546,6 +546,82 @@ Vec3 Hero_Manager::Resolve_FollowTargetPosition(const Shared<Player_WorldBase>& 
     return candidatePos;
 }
 
+bool Hero_Manager::Try_ResolveTeleportReseatPosition(const Shared<Player_WorldBase>& hero, const Vec3& fromPos, const Vec3& desiredPos, Vec3& outPosition) const
+{
+    if (hero == nullptr)
+        return false;
+
+    auto collider = hero->Get_Component<ColliderCom>();
+    if (collider == nullptr || collider->Get_PxShape() == nullptr)
+        return false;
+
+    auto movement = hero->Get_Component<MovementCom>();
+
+    float skinWidth = 0.03f;
+    float groundSnapUp = 0.35f;
+    float groundSnapDown = 0.65f;
+
+    if (movement)
+    {
+        const auto& moveDesc = movement->Get_MoveDesc();
+
+        skinWidth = moveDesc.sweep.skinWidth;
+        groundSnapUp = moveDesc.sweep.groundSnapUp;
+        groundSnapDown = moveDesc.sweep.groundSnapDown;
+    }
+
+    Vec3 sweepTarget = desiredPos;
+    sweepTarget.y = fromPos.y;
+
+    Vec3 sweep = sweepTarget - fromPos;
+    const float sweepDistance = sweep.Length();
+
+    Vec3 candidatePos = desiredPos;
+
+    if (sweepDistance > 0.0001f)
+    {
+        Vec3 sweepDir = sweep / sweepDistance;
+
+        Matrix sweepWorld = hero->Get_Transform()->Get_WorldMatrix();
+        sweepWorld.Translation(fromPos);
+
+        PhysXQueryHit hit{};
+        const bool blocked = GAME->Sweep_Collider(
+            collider.get(),
+            sweepWorld,
+            sweepDir,
+            sweepDistance,
+            hit);
+
+        if (blocked)
+        {
+            const float safeDistance = max(0.f, hit.distance - skinWidth);
+
+            candidatePos = fromPos + sweepDir * safeDistance; // 벽이 있으면 벽 앞의 후보만 검사한다.
+            candidatePos.y = desiredPos.y;
+        }
+    }
+
+    Matrix probeWorld = hero->Get_Transform()->Get_WorldMatrix();
+    probeWorld.Translation(candidatePos + Vec3(0.f, groundSnapUp, 0.f));
+
+    PhysXQueryHit groundHit{};
+    const float probeDistance = groundSnapUp + groundSnapDown;
+
+    const bool hasGround = GAME->Probe_Ground(
+        collider.get(),
+        probeWorld,
+        probeDistance,
+        groundHit);
+
+    if (!hasGround)
+        return false; // 허공 후보는 CCT에 넘기지 않고 재배치를 취소한다.
+
+    candidatePos.y += groundSnapUp - max(0.f, groundHit.distance - skinWidth);
+    outPosition = candidatePos;
+    return true;
+}
+
 void Hero_Manager::Apply_ControlRoles()
 {
     Apply_UnlockedHeroVisibility();
@@ -721,7 +797,19 @@ void Hero_Manager::Update_Followers(float timeDelta)
             !_followerRuntime[i].sprintFollow &&
             _followerRuntime[i].lastMoveDistance <= _runFollowDistance; // Active 입력이 아니라 follower와 목표 사이 거리로 Walk/Run을 고른다.
 
-        Move_FollowerTo(_heroes[i].hero, i, targetPos, walkFollow, timeDelta);
+        Vec3 teleportReseatPos = rawTargetPos;
+        bool hasTeleportReseatPos = false;
+
+        if (_heroes[i].hero && _heroes[i].hero->Get_Transform())
+        {
+            hasTeleportReseatPos = Try_ResolveTeleportReseatPosition(
+                _heroes[i].hero,
+                _heroes[i].hero->Get_Transform()->Get_WorldPosition(),
+                rawTargetPos,
+                teleportReseatPos);
+        }
+
+        Move_FollowerTo(_heroes[i].hero, i, targetPos, teleportReseatPos, hasTeleportReseatPos, walkFollow, timeDelta);
 
         ++followerSlot;
     }
@@ -751,7 +839,7 @@ Hero_Manager::TrailPoint Hero_Manager::Get_TrailPoint(float delaySeconds) const
     return _activeTrail[clampedIndex];
 }
 
-void Hero_Manager::Move_FollowerTo(const Shared<Player_WorldBase>& follower, uint32 followerIndex, const Vec3& targetPos, bool walkFollow, float timeDelta)
+void Hero_Manager::Move_FollowerTo(const Shared<Player_WorldBase>& follower, uint32 followerIndex, const Vec3& targetPos, const Vec3& teleportReseatPos, bool hasTeleportReseatPos, bool walkFollow, float timeDelta)
 {
     if (follower == nullptr)
         return;
@@ -769,17 +857,34 @@ void Hero_Manager::Move_FollowerTo(const Shared<Player_WorldBase>& follower, uin
     const Vec3 delta = targetPos - currentPos;
     const float distance = delta.Length();
 
-    if (distance >= _teleportReseatDistance)
+    bool shouldTeleportReseat = distance >= _teleportReseatDistance;
+
+    if (auto activeHero = Get_ActiveHero())
     {
-        tr->Set_WorldPosition(targetPos); // 너무 멀어지면, follow가 쓰던 같은 지면 보정 위치로 재배치
+        if (auto activeTr = activeHero->Get_Transform())
+        {
+            const Vec3 activeDelta = activeTr->Get_WorldPosition() - currentPos;
+            shouldTeleportReseat =
+                shouldTeleportReseat ||
+                activeDelta.Length() >= _teleportReseatDistance ||
+                fabsf(activeDelta.y) >= _teleportReseatHeightDistance; // 높이만 크게 벌어져도 아래 지형에 남겨두지 않는다.
+        }
+    }
 
-        movement->Sync_RuntimePositionToTransform();
-        movement->Clear_FollowMoveCommand();
-        movement->Apply_Input({});
-        movement->Stop_AllMovement();
+    if (shouldTeleportReseat)
+    {
+        if (hasTeleportReseatPos)
+        {
+            tr->Set_WorldPosition(teleportReseatPos); // 너무 멀어지면, Active 기준 raw follow 위치에서 다시 지면/충돌 보정해 재배치
 
-        controller->Clear_FollowControl(); // 재배치 후, follower 상태 초기화
-        return;
+            movement->Sync_RuntimePositionToTransform();
+            movement->Clear_FollowMoveCommand();
+            movement->Apply_Input({});
+            movement->Stop_AllMovement();
+
+            controller->Clear_FollowControl(); // 재배치 후, follower 상태 초기화
+            return;
+        }
     }
 
     PlayerControllerCom::FollowControl follow{};
@@ -1046,6 +1151,34 @@ bool Hero_Manager::Is_ActiveHero(const Shared<GameObject>& target) const
         return false;
 
     return target == static_pointer_cast<GameObject>(activeHero);
+}
+
+void Hero_Manager::Warp_PartyToFormation(const Vec3& anchorPos, const Vec3& anchorRot)
+{
+    const Matrix anchorRotation = Matrix::CreateFromYawPitchRoll(
+        DirectX::XMConvertToRadians(anchorRot.y),
+        DirectX::XMConvertToRadians(anchorRot.x),
+        DirectX::XMConvertToRadians(anchorRot.z));
+
+    Vec3 anchorForward = Vec3::TransformNormal(Vec3::Look, anchorRotation);
+    Vec3 anchorRight = Vec3::TransformNormal(Vec3::Right, anchorRotation);
+
+    Reset_FollowerRuntime();
+    Snap_AllHeroesToFormation(anchorPos, anchorRot, anchorForward, anchorRight);
+    Reset_AllHeroesToIdle();
+
+    _activeTrail.clear();
+    _recordTimer = 0.f;
+    Set_ActiveTrail(_recordInterval);
+
+    Refresh_TargetCamera();
+
+    if (auto camera = _targetCamera.lock())
+    {
+        camera->Change_Mode(TargetCameraMode::NORMAL);
+        camera->Set_OrbitAngles(anchorRot.y, 0.f);
+        camera->Reset_RuntimeCameraState();
+    }
 }
 
 Unique<Hero_Manager> Hero_Manager::Create()

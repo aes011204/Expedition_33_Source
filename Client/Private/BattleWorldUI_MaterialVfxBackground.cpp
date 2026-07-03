@@ -1,6 +1,7 @@
 #include "BattleWorldUI_MaterialVfxBackground.h"
 
 #include "BattleWorldUI_JsonTextureResolver.h"
+#include "BattleWorldUI_LevelPlacement.h"
 #include "BattleWorldUI_PlacementUtils.h"
 #include "BattleWorldUI_SurfaceAnim.h"
 #include "Camera.h"
@@ -9,6 +10,7 @@
 #include "ShaderCom.h"
 #include "Texture.h"
 #include "TransformCom.h"
+#include "UI_Image.h"
 #include "VIBuffer_Rect.h"
 
 NS_BEGIN(Client)
@@ -26,6 +28,8 @@ namespace
     constexpr float kBattleWorldVfxBackgroundRadiansToDegrees = 57.29577951308232f;
     constexpr float kBattleWorldVfxBackgroundItemScreenXOffset = -0.55f;
     constexpr float kBattleWorldVfxBackgroundSkillScreenXOffset = -0.35f;
+    constexpr wchar_t kBattleWorldVfxBackgroundProxyImagePrototypeTag[] =
+        L"BattleWorldUI_MaterialVfxBackground_ProxyImage";
     constexpr bool kBattleWorldVfxBackgroundIgnoreWicSrgb = true;
     const Vec2 kBattleWorldVfxBackgroundDefaultWorldSize = Vec2(1.f, 1.f);
     const Vec4 kBattleWorldVfxBackgroundWorldColor = Vec4(1.24f, 1.14f, 0.93f, 1.f);
@@ -59,6 +63,7 @@ namespace
         Shared<Texture> baseTexture{};
         Shared<Texture> maskTexture{};
         Shared<Texture> noiseTexture{};
+        wstring proxyTexturePath{};
         Vec2 pixelSize = Vec2(500.f, 500.f);
         Vec4 color = Vec4(1.f, 1.f, 1.f, 1.f);
         Vec4 materialColor = Vec4(1.f, 0.12f, 0.95f, 1.f);
@@ -267,6 +272,20 @@ namespace
         return tunings;
     }
 
+    using BattleWorldVfxBackgroundLevelPlacementTunings =
+        array<BattleWorldVfxBackgroundPlacementTunings, BattleWorldUILevelPlacement::kLevelCount>;
+
+    BattleWorldVfxBackgroundLevelPlacementTunings Make_DefaultBackgroundLevelPlacementTunings()
+    {
+        BattleWorldVfxBackgroundLevelPlacementTunings levelTunings{};
+        const BattleWorldVfxBackgroundPlacementTunings defaultTunings =
+            Make_DefaultBackgroundPlacementTunings();
+        for (auto& levelTuning : levelTunings)
+            levelTuning = defaultTunings;
+
+        return levelTunings;
+    }
+
     string Read_JsonString(const json& node, const char* key, const string& fallback = {})
     {
         const auto iter = node.find(key);
@@ -340,6 +359,54 @@ namespace
         return !textureGuid.empty() || !texturePath.empty();
     }
 
+    wstring Resolve_BackgroundRuntimeResourcePath(const string& path)
+    {
+        if (path.empty())
+            return {};
+
+        string normalizedPath = path;
+        replace(normalizedPath.begin(), normalizedPath.end(), '\\', '/');
+
+        string loweredPath = normalizedPath;
+        transform(loweredPath.begin(), loweredPath.end(), loweredPath.begin(),
+            [](unsigned char value) { return static_cast<char>(tolower(value)); });
+
+        string resourceRelativePath = normalizedPath;
+        constexpr const char* resourcePrefix = "../bin/resources/";
+        constexpr const char* binResourcePrefix = "bin/resources/";
+        constexpr const char* resourcesPrefix = "resources/";
+
+        auto startsWith = [](const string& text, const char* prefix)
+            {
+                return text.rfind(prefix, 0) == 0;
+            };
+
+        if (startsWith(loweredPath, resourcePrefix))
+            resourceRelativePath = normalizedPath.substr(strlen(resourcePrefix));
+        else if (startsWith(loweredPath, binResourcePrefix))
+            resourceRelativePath = normalizedPath.substr(strlen(binResourcePrefix));
+        else if (startsWith(loweredPath, resourcesPrefix))
+            resourceRelativePath = normalizedPath.substr(strlen(resourcesPrefix));
+
+        return (fs::path(GAME->Get_AssetRoot()) / fs::path(String::ToWString(resourceRelativePath))).lexically_normal().wstring();
+    }
+
+    wstring Resolve_BackgroundTexturePath(const string& textureGuid, const string& texturePath)
+    {
+        if (!textureGuid.empty())
+        {
+            const wstring guidPath = GAME->Resolve_AssetPath(textureGuid);
+            if (!guidPath.empty() && fs::exists(guidPath))
+                return guidPath;
+        }
+
+        const wstring fallbackPath = Resolve_BackgroundRuntimeResourcePath(texturePath);
+        if (!fallbackPath.empty() && fs::exists(fallbackPath))
+            return fallbackPath;
+
+        return {};
+    }
+
     uint32 Parse_MaterialVfxMode(const string& modeName)
     {
         const string mode = String::ToLowerCopy(modeName);
@@ -409,6 +476,7 @@ namespace
         BattleWorldVfxBackgroundDef def{};
         const string textureGuid = Read_JsonString(*imageNode, "textureGuid");
         const string texturePath = Read_JsonString(*imageNode, "texturePath");
+        def.proxyTexturePath = Resolve_BackgroundTexturePath(textureGuid, texturePath);
         def.baseTexture = BattleWorldUI_JsonTextureResolver::Load_TextureFromUITextureRef(
             device,
             context,
@@ -504,9 +572,55 @@ namespace
         return tuning;
     }
 
+    bool Try_ReadBackgroundPlacementCharacters(
+        const json& root,
+        BattleWorldVfxBackgroundPlacementTunings& tunings)
+    {
+        const auto charactersIter = root.find("characters");
+        if (charactersIter == root.end() || !charactersIter->is_object())
+            return false;
+
+        for (const auto& [heroName, heroNode] : charactersIter->items())
+        {
+            if (!heroNode.is_object())
+                continue;
+
+            HeroId heroId = HeroId::END;
+            if (!Try_ParsePlacementHeroJsonName(heroName, heroId))
+            {
+                LOG_WARN("BattleWorldUI material vfx background placement json has unknown character. character='{}'", heroName);
+                continue;
+            }
+
+            const uint32 heroIndex = Resolve_PlacementHeroIndex(heroId);
+            if (const auto statesIter = heroNode.find("states");
+                statesIter != heroNode.end() && statesIter->is_object())
+            {
+                for (const auto& [stateName, stateNode] : statesIter->items())
+                {
+                    if (!stateNode.is_object())
+                        continue;
+
+                    BattleWorldVfxBackgroundState state{};
+                    if (!Try_ParseBackgroundStateJsonName(stateName, state))
+                    {
+                        LOG_WARN("BattleWorldUI material vfx background placement json has unknown state. state='{}'", stateName);
+                        continue;
+                    }
+
+                    const uint32 stateIndex = Resolve_BackgroundStateIndex(state);
+                    tunings[heroIndex][stateIndex] =
+                        Read_BackgroundPlacementTuningNode(stateNode, tunings[heroIndex][stateIndex]);
+                }
+            }
+        }
+
+        return true;
+    }
+
     bool Try_LoadBackgroundPlacementTunings(
         const fs::path& jsonPath,
-        BattleWorldVfxBackgroundPlacementTunings& outTunings)
+        BattleWorldVfxBackgroundLevelPlacementTunings& outTunings)
     {
         if (!fs::exists(jsonPath))
             return false;
@@ -525,44 +639,34 @@ namespace
             return false;
         }
 
-        auto tunings = Make_DefaultBackgroundPlacementTunings();
-        if (const auto charactersIter = root.find("characters");
+        auto tunings = Make_DefaultBackgroundLevelPlacementTunings();
+        if (const auto levelsIter = root.find("levels");
+            levelsIter != root.end() && levelsIter->is_object())
+        {
+            for (const auto& [levelName, levelNode] : levelsIter->items())
+            {
+                if (!levelNode.is_object())
+                    continue;
+
+                LevelType levelType = LevelType::END;
+                if (!BattleWorldUILevelPlacement::Try_ParseLevelJsonName(levelName, levelType))
+                {
+                    LOG_WARN("BattleWorldUI material vfx background placement json has unknown level. level='{}'", levelName);
+                    continue;
+                }
+
+                const uint32 levelIndex = BattleWorldUILevelPlacement::Resolve_LevelIndex(levelType);
+                Try_ReadBackgroundPlacementCharacters(levelNode, tunings[levelIndex]);
+            }
+        }
+        else if (const auto charactersIter = root.find("characters");
             charactersIter != root.end() && charactersIter->is_object())
         {
-            for (const auto& [heroName, heroNode] : charactersIter->items())
-            {
-                if (!heroNode.is_object())
-                    continue;
-
-                HeroId heroId = HeroId::END;
-                if (!Try_ParsePlacementHeroJsonName(heroName, heroId))
-                {
-                    LOG_WARN("BattleWorldUI material vfx background placement json has unknown character. character='{}'", heroName);
-                    continue;
-                }
-
-                const uint32 heroIndex = Resolve_PlacementHeroIndex(heroId);
-                if (const auto statesIter = heroNode.find("states");
-                    statesIter != heroNode.end() && statesIter->is_object())
-                {
-                    for (const auto& [stateName, stateNode] : statesIter->items())
-                    {
-                        if (!stateNode.is_object())
-                            continue;
-
-                        BattleWorldVfxBackgroundState state{};
-                        if (!Try_ParseBackgroundStateJsonName(stateName, state))
-                        {
-                            LOG_WARN("BattleWorldUI material vfx background placement json has unknown state. state='{}'", stateName);
-                            continue;
-                        }
-
-                        const uint32 stateIndex = Resolve_BackgroundStateIndex(state);
-                        tunings[heroIndex][stateIndex] =
-                            Read_BackgroundPlacementTuningNode(stateNode, tunings[heroIndex][stateIndex]);
-                    }
-                }
-            }
+            BattleWorldVfxBackgroundPlacementTunings legacyTunings =
+                Make_DefaultBackgroundPlacementTunings();
+            Try_ReadBackgroundPlacementCharacters(root, legacyTunings);
+            for (auto& levelTuning : tunings)
+                levelTuning = legacyTunings;
         }
 
         outTunings = tunings;
@@ -593,25 +697,33 @@ namespace
     }
 
     bool Write_BackgroundPlacementTuningsToFile(
-        const BattleWorldVfxBackgroundPlacementTunings& tunings,
+        const BattleWorldVfxBackgroundLevelPlacementTunings& tunings,
         fs::file_time_type* outWriteTime)
     {
         const fs::path jsonPath = Resolve_BackgroundPlacementJsonPath();
 
         json root = json::object();
-        root["characters"] = json::object();
-        for (uint32 heroIndex = 0; heroIndex < kBattleWorldVfxBackgroundPlacementHeroCount; ++heroIndex)
+        root["levels"] = json::object();
+        for (uint32 levelIndex = 0; levelIndex < BattleWorldUILevelPlacement::kLevelCount; ++levelIndex)
         {
-            const HeroId heroId = static_cast<HeroId>(heroIndex);
-            json heroNode = json::object();
-            heroNode["states"] = json::object();
-            for (uint32 stateIndex = 0; stateIndex < kBattleWorldVfxBackgroundStateCount; ++stateIndex)
+            const LevelType levelType = BattleWorldUILevelPlacement::Get_LevelByIndex(levelIndex);
+            json levelNode = json::object();
+            levelNode["characters"] = json::object();
+            for (uint32 heroIndex = 0; heroIndex < kBattleWorldVfxBackgroundPlacementHeroCount; ++heroIndex)
             {
-                heroNode["states"][To_BackgroundStateJsonName(stateIndex)] =
-                    To_BackgroundPlacementTuningJson(tunings[heroIndex][stateIndex]);
+                const HeroId heroId = static_cast<HeroId>(heroIndex);
+                json heroNode = json::object();
+                heroNode["states"] = json::object();
+                for (uint32 stateIndex = 0; stateIndex < kBattleWorldVfxBackgroundStateCount; ++stateIndex)
+                {
+                    heroNode["states"][To_BackgroundStateJsonName(stateIndex)] =
+                        To_BackgroundPlacementTuningJson(tunings[levelIndex][heroIndex][stateIndex]);
+                }
+
+                levelNode["characters"][To_PlacementHeroJsonName(heroId)] = std::move(heroNode);
             }
 
-            root["characters"][To_PlacementHeroJsonName(heroId)] = std::move(heroNode);
+            root["levels"][BattleWorldUILevelPlacement::To_LevelJsonName(levelType)] = std::move(levelNode);
         }
 
         error_code errorCode{};
@@ -687,7 +799,7 @@ namespace
     }
 
     void Reload_BackgroundPlacementTuningIfNeeded(
-        BattleWorldVfxBackgroundPlacementTunings& tunings,
+        BattleWorldVfxBackgroundLevelPlacementTunings& tunings,
         fs::file_time_type& knownWriteTime,
         bool& hasKnownFile)
     {
@@ -696,7 +808,7 @@ namespace
         {
             if (hasKnownFile)
             {
-                tunings = Make_DefaultBackgroundPlacementTunings();
+                tunings = Make_DefaultBackgroundLevelPlacementTunings();
                 knownWriteTime = {};
                 hasKnownFile = false;
                 LOG_INFO("BattleWorldUI material vfx background placement json removed. using defaults.");
@@ -712,7 +824,7 @@ namespace
         if (hasKnownFile && writeTime == knownWriteTime)
             return;
 
-        BattleWorldVfxBackgroundPlacementTunings loadedTunings{};
+        BattleWorldVfxBackgroundLevelPlacementTunings loadedTunings{};
         knownWriteTime = writeTime;
         hasKnownFile = true;
 
@@ -779,6 +891,137 @@ namespace
             cameraTransform->Get_WorldRight() * screenPosition.x -
             cameraTransform->Get_WorldUp() * screenPosition.y +
             cameraTransform->Get_WorldForward() * screenPosition.z;
+    }
+
+    bool Is_FiniteProxyValue(const Vec2& value)
+    {
+        return std::isfinite(value.x) && std::isfinite(value.y);
+    }
+
+    bool Try_ProjectWorldPointForProxy(const Vec3& worldPos, Vec2& outScreenPos)
+    {
+        const Matrix* view = GAME->Get_Transform(D3DTS::View);
+        const Matrix* proj = GAME->Get_Transform(D3DTS::Proj);
+        if (view == nullptr || proj == nullptr)
+            return false;
+
+        const float viewportWidth = static_cast<float>(max(1u, GAME->Get_ViewportWidth()));
+        const float viewportHeight = static_cast<float>(max(1u, GAME->Get_ViewportHeight()));
+        const Matrix viewProj = (*view) * (*proj);
+
+        Vec4 clip{};
+        Vec4::Transform(Vec4(worldPos.x, worldPos.y, worldPos.z, 1.f), viewProj, clip);
+        if (clip.w <= 0.00001f)
+            return false;
+
+        const float ndcX = clip.x / clip.w;
+        const float ndcY = clip.y / clip.w;
+        const float ndcZ = clip.z / clip.w;
+        if (!std::isfinite(ndcX) || !std::isfinite(ndcY) || !std::isfinite(ndcZ))
+            return false;
+
+        if (ndcZ < 0.f || ndcZ > 1.f)
+            return false;
+
+        outScreenPos.x = (ndcX * 0.5f + 0.5f) * viewportWidth;
+        outScreenPos.y = (-ndcY * 0.5f + 0.5f) * viewportHeight;
+        return Is_FiniteProxyValue(outScreenPos);
+    }
+
+    bool Try_ProjectWorldUIPlaneToProxyTransform(
+        const Matrix& worldMatrix,
+        Vec2& outPosition,
+        Vec2& outSize,
+        float& outRotationRadians)
+    {
+        const Vec3 worldCenter = Vec3::Transform(Vec3(0.f, 0.f, 0.f), worldMatrix);
+        const Vec3 worldLeft = Vec3::Transform(Vec3(-0.5f, 0.f, 0.f), worldMatrix);
+        const Vec3 worldRight = Vec3::Transform(Vec3(0.5f, 0.f, 0.f), worldMatrix);
+        const Vec3 worldTop = Vec3::Transform(Vec3(0.f, 0.5f, 0.f), worldMatrix);
+        const Vec3 worldBottom = Vec3::Transform(Vec3(0.f, -0.5f, 0.f), worldMatrix);
+
+        Vec2 screenCenter{};
+        Vec2 screenLeft{};
+        Vec2 screenRight{};
+        Vec2 screenTop{};
+        Vec2 screenBottom{};
+        if (!Try_ProjectWorldPointForProxy(worldCenter, screenCenter) ||
+            !Try_ProjectWorldPointForProxy(worldLeft, screenLeft) ||
+            !Try_ProjectWorldPointForProxy(worldRight, screenRight) ||
+            !Try_ProjectWorldPointForProxy(worldTop, screenTop) ||
+            !Try_ProjectWorldPointForProxy(worldBottom, screenBottom))
+        {
+            return false;
+        }
+
+        const Vec2 widthVector = screenRight - screenLeft;
+        const Vec2 heightVector = screenTop - screenBottom;
+        const float width = widthVector.Length();
+        const float height = heightVector.Length();
+        if (!std::isfinite(width) || !std::isfinite(height) || width <= 1.f || height <= 1.f)
+            return false;
+
+        outPosition = screenCenter;
+        outSize = Vec2(width, height);
+        outRotationRadians = atan2f(widthVector.y, widthVector.x);
+        return
+            Is_FiniteProxyValue(outPosition) &&
+            Is_FiniteProxyValue(outSize) &&
+            std::isfinite(outRotationRadians);
+    }
+
+    HRESULT Ensure_BackgroundProxyImage(
+        const BattleWorldVfxBackgroundDef& backgroundDef,
+        Shared<UI_Image>& proxyImage)
+    {
+        if (proxyImage != nullptr)
+            return S_OK;
+
+        if (backgroundDef.proxyTexturePath.empty() || !fs::exists(backgroundDef.proxyTexturePath))
+        {
+            LOG_WARN("BattleWorldUI material vfx background proxy texture missing. path='{}'",
+                String::ToString(backgroundDef.proxyTexturePath));
+            return E_FAIL;
+        }
+
+        constexpr uint32 staticLevelIndex = ETOI(LevelType::Static);
+        if (!GAME->Has_Prototype(staticLevelIndex, kBattleWorldVfxBackgroundProxyImagePrototypeTag))
+        {
+            CHECK_FAILED(GAME->Add_Prototype(
+                staticLevelIndex,
+                kBattleWorldVfxBackgroundProxyImagePrototypeTag,
+                UI_Image::Create()), E_FAIL);
+        }
+
+        UI_Image::UI_IMAGE_DESC desc{};
+        desc.texturePath = backgroundDef.proxyTexturePath;
+        desc.transformDesc.size = Vec2(100.f, 100.f);
+        desc.transformDesc.scale = Vec2(1.f, 1.f);
+        desc.transformDesc.pivot = Vec2(0.5f, 0.5f);
+        desc.transformDesc.anchorMin = Vec2(0.f, 0.f);
+        desc.transformDesc.anchorMax = Vec2(0.f, 0.f);
+        desc.imageRenderMode = UI_Image::ImageRenderMode::Normal;
+        desc.renderGroup = UI_RenderGroup::Background;
+        desc.sortOrder = 0;
+        desc.isOpenOnCreate = false;
+
+        Shared<UI_Base> createdBase{};
+        CHECK_FAILED(GAME->Add_UI(
+            staticLevelIndex,
+            kBattleWorldVfxBackgroundProxyImagePrototypeTag,
+            &desc,
+            &createdBase), E_FAIL);
+
+        proxyImage = dynamic_pointer_cast<UI_Image>(createdBase);
+        CHECK_NULL(proxyImage, E_FAIL);
+
+        return S_OK;
+    }
+
+    void Close_BackgroundProxyImage(const Shared<UI_Image>& proxyImage)
+    {
+        if (proxyImage != nullptr)
+            proxyImage->Close();
     }
 
     HRESULT Bind_WorldUIPlaneShaderState(
@@ -1034,6 +1277,11 @@ namespace
             return _renderTarget->Bind_ShaderResource(shader, name);
         }
 
+        ShaderResourceView* Get_ShaderResourceView() const
+        {
+            return _renderTarget != nullptr ? _renderTarget->Get_SRV() : nullptr;
+        }
+
         static Unique<RenderTargetComposedMaterialVfxBackground> Create(
             const ComPtr<Device>& device,
             const ComPtr<Context>& context,
@@ -1071,10 +1319,12 @@ struct BattleWorldUI_MaterialVfxBackground::Impl
     Shared<VIBuffer_Rect> viBuffer{};
     BattleWorldVfxBackgroundDef backgroundDef{};
     Unique<RenderTargetComposedMaterialVfxBackground> surface{};
-    BattleWorldVfxBackgroundPlacementTunings placementTunings =
-        Make_DefaultBackgroundPlacementTunings();
+    BattleWorldVfxBackgroundLevelPlacementTunings placementTunings =
+        Make_DefaultBackgroundLevelPlacementTunings();
     fs::file_time_type placementTuningWriteTime{};
     bool hasPlacementTuningFile = false;
+    LevelType activePlacementLevelType = LevelType::END;
+    LevelType editorPlacementLevelType = LevelType::END;
     HeroId activePlacementHeroId = HeroId::END;
     HeroId editorPlacementHeroId = HeroId::END;
     uint32 activeStateIndex = 0;
@@ -1085,6 +1335,7 @@ struct BattleWorldUI_MaterialVfxBackground::Impl
     BattleWorldSurfaceAnimState introAnim{};
     Vec3 introStartOffset = Vec3::Zero;
     Matrix worldMatrix = Matrix::Identity;
+    Shared<UI_Image> proxyImage{};
     bool visible = false;
 };
 
@@ -1133,7 +1384,12 @@ HRESULT BattleWorldUI_MaterialVfxBackground::Warmup_ForBattleState(HeroId actorH
     if (_impl == nullptr || _impl->surface == nullptr || !_impl->backgroundDef.valid)
         return E_FAIL;
 
+    const LevelType placementLevelType =
+        BattleWorldUILevelPlacement::Normalize_LevelType(static_cast<LevelType>(GAME->Current_LevelIndex()));
     const HeroId placementHeroId = Normalize_PlacementHeroId(actorHeroId);
+    _impl->activePlacementLevelType = placementLevelType;
+    if (_impl->editorPlacementLevelType == LevelType::END)
+        _impl->editorPlacementLevelType = placementLevelType;
     _impl->activePlacementHeroId = placementHeroId;
     if (_impl->editorPlacementHeroId == HeroId::END)
         _impl->editorPlacementHeroId = placementHeroId;
@@ -1157,9 +1413,15 @@ void BattleWorldUI_MaterialVfxBackground::Show_ForBattleState(
         return;
     }
 
+    const LevelType placementLevelType =
+        BattleWorldUILevelPlacement::Normalize_LevelType(static_cast<LevelType>(GAME->Current_LevelIndex()));
+    const uint32 placementLevelIndex = BattleWorldUILevelPlacement::Resolve_LevelIndex(placementLevelType);
     const HeroId placementHeroId = Normalize_PlacementHeroId(actorHeroId);
     const uint32 placementHeroIndex = Resolve_PlacementHeroIndex(placementHeroId);
     const uint32 stateIndex = Resolve_BackgroundStateIndex(backgroundState);
+    _impl->activePlacementLevelType = placementLevelType;
+    if (_impl->editorPlacementLevelType == LevelType::END)
+        _impl->editorPlacementLevelType = placementLevelType;
     _impl->activePlacementHeroId = placementHeroId;
     _impl->activeStateIndex = stateIndex;
     if (_impl->editorPlacementHeroId == HeroId::END)
@@ -1182,11 +1444,12 @@ void BattleWorldUI_MaterialVfxBackground::Show_ForBattleState(
     {
         Set_Visible(false);
         _impl->visible = false;
+        Close_BackgroundProxyImage(_impl->proxyImage);
         return;
     }
 
     const BattleWorldVfxBackgroundPlacementTuning& placementTuning =
-        _impl->placementTunings[placementHeroIndex][stateIndex];
+        _impl->placementTunings[placementLevelIndex][placementHeroIndex][stateIndex];
     const Vec3 position =
         anchorWorldPos +
         Resolve_CameraScreenPositionDelta(placementTuning.screenPosition) +
@@ -1203,8 +1466,50 @@ void BattleWorldUI_MaterialVfxBackground::Show_ForBattleState(
             1.f) *
         Matrix::CreateRotationZ(placementTuning.rollRadians) *
         Resolve_CameraBillboardMatrix(position);
-    _impl->visible = true;
 
+    const BattleWorldSurfaceAnimRenderState renderState =
+        Apply_BattleWorldSurfaceAnim(
+            _impl->introAnim,
+            _impl->worldMatrix,
+            kBattleWorldVfxBackgroundWorldColor,
+            _impl->introStartOffset);
+
+    Vec2 proxyPosition{};
+    Vec2 proxySize{};
+    float proxyRotationRadians = 0.f;
+    if (FAILED(Ensure_BackgroundProxyImage(_impl->backgroundDef, _impl->proxyImage)) ||
+        _impl->proxyImage == nullptr ||
+        FAILED(_impl->proxyImage->Set_ExternalShaderResource(_impl->surface->Get_ShaderResourceView())) ||
+        !Try_ProjectWorldUIPlaneToProxyTransform(renderState.worldMatrix, proxyPosition, proxySize, proxyRotationRadians))
+    {
+        Set_Visible(false);
+        _impl->visible = false;
+        Close_BackgroundProxyImage(_impl->proxyImage);
+        return;
+    }
+
+    if (!_impl->proxyImage->Is_Open())
+        _impl->proxyImage->Open();
+
+    UI_Transform* proxyTransform = _impl->proxyImage->Get_Transform();
+    if (proxyTransform == nullptr)
+    {
+        Set_Visible(false);
+        _impl->visible = false;
+        Close_BackgroundProxyImage(_impl->proxyImage);
+        return;
+    }
+
+    proxyTransform->Set_Position(proxyPosition);
+    proxyTransform->Set_Size(proxySize);
+    proxyTransform->Set_Scale(Vec2(1.f, 1.f));
+    proxyTransform->Set_Pivot(Vec2(0.5f, 0.5f));
+    proxyTransform->Set_Anchor(Vec2(0.f, 0.f));
+    proxyTransform->Set_RotationRadians(proxyRotationRadians);
+    _impl->proxyImage->Set_Color(renderState.color);
+    _impl->proxyImage->Set_AlphaMultiplier(1.f);
+
+    _impl->visible = true;
     Set_Visible(true);
 }
 
@@ -1217,6 +1522,29 @@ void BattleWorldUI_MaterialVfxBackground::Hide()
 
     _impl->hasIntroKey = false;
     _impl->visible = false;
+    Close_BackgroundProxyImage(_impl->proxyImage);
+}
+
+LevelType BattleWorldUI_MaterialVfxBackground::Get_EditorWorldPlacementLevelType() const
+{
+    if (_impl == nullptr)
+        return LevelType::Stage01;
+
+    if (_impl->editorPlacementLevelType != LevelType::END)
+        return BattleWorldUILevelPlacement::Normalize_LevelType(_impl->editorPlacementLevelType);
+
+    if (_impl->activePlacementLevelType != LevelType::END)
+        return BattleWorldUILevelPlacement::Normalize_LevelType(_impl->activePlacementLevelType);
+
+    return LevelType::Stage01;
+}
+
+void BattleWorldUI_MaterialVfxBackground::Set_EditorWorldPlacementLevelType(LevelType levelType)
+{
+    if (_impl == nullptr)
+        return;
+
+    _impl->editorPlacementLevelType = BattleWorldUILevelPlacement::Normalize_LevelType(levelType);
 }
 
 HeroId BattleWorldUI_MaterialVfxBackground::Get_EditorWorldPlacementHeroId() const
@@ -1276,9 +1604,10 @@ RuntimeWorldUIPlacementTuning BattleWorldUI_MaterialVfxBackground::Get_EditorWor
             BattleWorldVfxBackgroundState::Command));
     }
 
+    const uint32 levelIndex = BattleWorldUILevelPlacement::Resolve_LevelIndex(Get_EditorWorldPlacementLevelType());
     const uint32 heroIndex = Resolve_PlacementHeroIndex(Get_EditorWorldPlacementHeroId());
     const uint32 stateIndex = Normalize_BackgroundStateIndex(_impl->editorStateIndex);
-    return To_EditorWorldPlacementTuning(_impl->placementTunings[heroIndex][stateIndex]);
+    return To_EditorWorldPlacementTuning(_impl->placementTunings[levelIndex][heroIndex][stateIndex]);
 }
 
 void BattleWorldUI_MaterialVfxBackground::Set_EditorWorldPlacementTuning(
@@ -1288,9 +1617,10 @@ void BattleWorldUI_MaterialVfxBackground::Set_EditorWorldPlacementTuning(
     if (_impl == nullptr)
         return;
 
+    const uint32 levelIndex = BattleWorldUILevelPlacement::Resolve_LevelIndex(Get_EditorWorldPlacementLevelType());
     const uint32 heroIndex = Resolve_PlacementHeroIndex(Get_EditorWorldPlacementHeroId());
     const uint32 stateIndex = Normalize_BackgroundStateIndex(_impl->editorStateIndex);
-    _impl->placementTunings[heroIndex][stateIndex] = From_EditorWorldPlacementTuning(tuning);
+    _impl->placementTunings[levelIndex][heroIndex][stateIndex] = From_EditorWorldPlacementTuning(tuning);
 
     if (!saveImmediately)
         return;
@@ -1311,14 +1641,14 @@ void BattleWorldUI_MaterialVfxBackground::Reload_EditorWorldPlacementTuning()
     const fs::path jsonPath = Resolve_BackgroundPlacementJsonPath();
     if (!fs::exists(jsonPath))
     {
-        _impl->placementTunings = Make_DefaultBackgroundPlacementTunings();
+        _impl->placementTunings = Make_DefaultBackgroundLevelPlacementTunings();
         _impl->placementTuningWriteTime = {};
         _impl->hasPlacementTuningFile = false;
         LOG_INFO("BattleWorldUI material vfx background placement json reload requested, but file is missing. using defaults.");
         return;
     }
 
-    BattleWorldVfxBackgroundPlacementTunings loadedTunings{};
+    BattleWorldVfxBackgroundLevelPlacementTunings loadedTunings{};
     if (!Try_LoadBackgroundPlacementTunings(jsonPath, loadedTunings))
         return;
 
@@ -1337,8 +1667,9 @@ void BattleWorldUI_MaterialVfxBackground::Reset_EditorWorldPlacementTuning()
         return;
 
     const HeroId heroId = Get_EditorWorldPlacementHeroId();
+    const uint32 levelIndex = BattleWorldUILevelPlacement::Resolve_LevelIndex(Get_EditorWorldPlacementLevelType());
     const uint32 stateIndex = Normalize_BackgroundStateIndex(_impl->editorStateIndex);
-    _impl->placementTunings[Resolve_PlacementHeroIndex(heroId)][stateIndex] =
+    _impl->placementTunings[levelIndex][Resolve_PlacementHeroIndex(heroId)][stateIndex] =
         Make_DefaultBackgroundPlacementTuning(
             heroId,
             kBattleWorldVfxBackgroundStateDefs[stateIndex].state);
@@ -1353,11 +1684,6 @@ void BattleWorldUI_MaterialVfxBackground::Reset_EditorWorldPlacementTuning()
 void BattleWorldUI_MaterialVfxBackground::Late_Update(float timeDelta)
 {
     UNREFERENCED_PARAMETER(timeDelta);
-
-    if (!Is_Visible())
-        return;
-
-    GAME->Add_RenderGroup(RenderGroup::UIEffect, GetSharedPtr<GameObject>());
 }
 
 HRESULT BattleWorldUI_MaterialVfxBackground::Render()
@@ -1393,6 +1719,13 @@ Shared<GameObject> BattleWorldUI_MaterialVfxBackground::Clone(void* arg)
 
 void BattleWorldUI_MaterialVfxBackground::Free()
 {
+    if (_impl != nullptr && _impl->proxyImage != nullptr)
+    {
+        _impl->proxyImage->Close();
+        GAME->Remove_UI(_impl->proxyImage);
+        _impl->proxyImage.reset();
+    }
+
     __super::Free();
 
     _impl.reset();

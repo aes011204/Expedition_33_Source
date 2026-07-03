@@ -699,12 +699,11 @@ void ComputeTrailEmitter::Update_History(float timeDelta)
         Insert_TrailSamplesForFrame(trailSample);
     }
 
-    if (!sampleAccepted && (provider == nullptr || !_history.empty() || _drawSegmentCount > 0))
+    if (!sampleAccepted && provider == nullptr)
     {
         LOG_WARN_THROTTLED(
             120,
-            "ComputeTrailEmitter failed to acquire trail sample. providerBound={}, history={}, drawSegments={}. Enable Trail Preview and verify preview weapon visibility.",
-            provider != nullptr,
+            "ComputeTrailEmitter has no trail sample provider. history={}, drawSegments={}. Enable Trail Preview and verify preview weapon visibility.",
             static_cast<uint32>(_history.size()),
             _drawSegmentCount
         );
@@ -1079,7 +1078,7 @@ HRESULT ComputeTrailEmitter::Bind_ShaderResources()
         clamp(material.alphaCutoff, 0.f, 1.f),
         clamp(material.alphaErosion, 0.f, 1.f),
         nullptr != _maskTexture ? 1.f : 0.f,
-        0.f
+        clamp(material.alphaMultiplier, 0.f, 1.f)
     );
     const Vec4 effectTrailMainUVParams = Vec4(
         material.mainUVScale.x,

@@ -154,6 +154,72 @@ json SerializeActorTransformTrack(const CINEMATIC_ACTOR_TRANSFORM_TRACK& track)
     return trackJson;
 }
 
+json SerializePartRotationKeyframe(const CINEMATIC_PART_ROTATION_KEYFRAME& keyframe)
+{
+    return
+    {
+        { "frame", keyframe.frame },
+        {
+            "rotation",
+            {
+                { "x", keyframe.rotation.x },
+                { "y", keyframe.rotation.y },
+                { "z", keyframe.rotation.z }
+            }
+        },
+        { "interpolation", static_cast<int>(keyframe.interpolation) }
+    };
+}
+
+void DeserializePartRotationKeyframe(const json& keyframeJson, CINEMATIC_PART_ROTATION_KEYFRAME& outKeyframe)
+{
+    outKeyframe.frame = keyframeJson.value("frame", outKeyframe.frame);
+    outKeyframe.rotation = ParseVec3FromJson(keyframeJson["rotation"], outKeyframe.rotation);
+    outKeyframe.interpolation = static_cast<InterpolationMode>(
+        keyframeJson.value("interpolation", static_cast<int>(outKeyframe.interpolation)));
+}
+
+json SerializePartRotationTrack(const CINEMATIC_PART_ROTATION_TRACK& track)
+{
+    json trackJson{};
+    trackJson["targetId"] = track.targetId;
+    trackJson["partTag"] = track.partTag;
+    trackJson["name"] = track.name;
+    trackJson["enabled"] = track.enabled;
+    trackJson["keyframes"] = json::array();
+
+    for (const auto& keyframe : track.keyframes)
+        trackJson["keyframes"].push_back(SerializePartRotationKeyframe(keyframe));
+
+    return trackJson;
+}
+
+void DeserializePartRotationTrack(const json& trackJson, CINEMATIC_PART_ROTATION_TRACK& outTrack)
+{
+    outTrack.targetId = trackJson.value("targetId", outTrack.targetId);
+    outTrack.partTag = trackJson.value("partTag", outTrack.partTag);
+    outTrack.name = trackJson.value("name", outTrack.name);
+    outTrack.enabled = trackJson.value("enabled", outTrack.enabled);
+    outTrack.keyframes.clear();
+
+    const json& keyframesJson = trackJson["keyframes"];
+    if (!keyframesJson.is_array())
+        return;
+
+    for (const auto& keyframeJson : keyframesJson)
+    {
+        CINEMATIC_PART_ROTATION_KEYFRAME keyframe{};
+        DeserializePartRotationKeyframe(keyframeJson, keyframe);
+        outTrack.keyframes.push_back(keyframe);
+    }
+
+    std::sort(outTrack.keyframes.begin(), outTrack.keyframes.end(),
+        [](const CINEMATIC_PART_ROTATION_KEYFRAME& lhs, const CINEMATIC_PART_ROTATION_KEYFRAME& rhs)
+        {
+            return lhs.frame < rhs.frame;
+        });
+}
+
 void DeserializeActorTransformTrack(const json& trackJson, CINEMATIC_ACTOR_TRANSFORM_TRACK& outTrack)
 {
     outTrack.targetId = trackJson.value("targetId", outTrack.targetId);
@@ -387,6 +453,7 @@ void Cinematic_SequenceIO::SaveSequenceToFile(const CINEMATIC_SEQUENCE& sequence
     jsonData["cameraShots"] = json::array();
     jsonData["eventTrack"] = json::array();
     jsonData["actorTransformTracks"] = json::array();
+    jsonData["partRotationTracks"] = json::array();
     jsonData["modifierClip"] =
     {
         { "shakeAmplitude", Serialize_CinematicModifierTrack(sequence.modifierClip.shakeAmplitude) },
@@ -447,6 +514,9 @@ void Cinematic_SequenceIO::SaveSequenceToFile(const CINEMATIC_SEQUENCE& sequence
     for (const auto& actorTransformTrack : sequence.actorTransformTracks)
         jsonData["actorTransformTracks"].push_back(SerializeActorTransformTrack(actorTransformTrack));
 
+    for (const auto& partRotationTrack : sequence.partRotationTracks)
+        jsonData["partRotationTracks"].push_back(SerializePartRotationTrack(partRotationTrack));
+
     const fs::path savePath = filePath;
     if (!fs::exists(savePath.parent_path()))
         fs::create_directories(savePath.parent_path());
@@ -480,6 +550,7 @@ bool Cinematic_SequenceIO::LoadSequenceFromFile(const string& filePath, CINEMATI
     loadedSequence.cameraShots.clear();
     loadedSequence.eventTrack.clear();
     loadedSequence.actorTransformTracks.clear();
+    loadedSequence.partRotationTracks.clear();
 
     const json& modifierJson = jsonData["modifierClip"];
     if (modifierJson.is_object())
@@ -622,6 +693,17 @@ bool Cinematic_SequenceIO::LoadSequenceFromFile(const string& filePath, CINEMATI
             CINEMATIC_ACTOR_TRANSFORM_TRACK track{};
             DeserializeActorTransformTrack(trackJson, track);
             loadedSequence.actorTransformTracks.push_back(std::move(track));
+        }
+    }
+
+    const json& partRotationTracksJson = jsonData["partRotationTracks"];
+    if (partRotationTracksJson.is_array())
+    {
+        for (const auto& trackJson : partRotationTracksJson)
+        {
+            CINEMATIC_PART_ROTATION_TRACK track{};
+            DeserializePartRotationTrack(trackJson, track);
+            loadedSequence.partRotationTracks.push_back(std::move(track));
         }
     }
 

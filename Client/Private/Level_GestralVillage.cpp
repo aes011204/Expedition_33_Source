@@ -12,6 +12,8 @@
 #include "RuntimeRuleStateService.h"
 #include "ColliderCom.h"
 #include "NPC_Base.h"
+#include "Player_WorldBase.h"
+#include "MovementCom.h"
 
 namespace
 {
@@ -39,6 +41,7 @@ namespace
     }
 
     constexpr wchar_t kFlameEffectName[] = L"Effects/Assets/Map/FX_Brazier_Fire.effect.json";
+    constexpr wchar_t kLeafEffectName[] = L"Effects/Assets/Map/FX_FallingLeaf.effect.json";
 
     constexpr Vec3 kCasinoLightPositions[] = {
         Vec3(118.12f, -3.23f, 19.45f),
@@ -57,6 +60,17 @@ namespace
         Vec3(121.95f, -3.23f, -4.96f),
         Vec3(114.97f, -3.23f, -1.60f),
         Vec3(109.85f, -3.23f, 0.82f),
+    };
+
+    constexpr Vec3 kSymbolLightPosition[] = {
+        Vec3(9.53f, 10.14f, 104.55f),
+        Vec3(11.87f, 10.23f, 99.53f),
+        Vec3(12.9f, 10.53f, 93.59f),
+        Vec3(10.28f, 10.58f, 87.98f),
+        Vec3(-5.59f, 8.9f, 86.44f),
+        Vec3(-7.37f, 8.9f, 91.5f),
+        Vec3(-7.65f, 8.82f, 96.49f),
+        Vec3(-6.46f, 8.9f, 101.09f)
     };
 }
 
@@ -115,6 +129,7 @@ void Level_GestralVillage::BeginPlay()
         GAME->Get_DelegateHub().OnEditorPlayRuntime.Add(this, &Level_GestralVillage::Play_MapBGM);
 
     CLIENT->Capture_InitialWorldSnapshot();
+    CLIENT->Queue_LevelAnnounce(LevelType::GestralVillage);
 
     // flame
     PlayEffectDesc desc{};
@@ -126,11 +141,35 @@ void Level_GestralVillage::BeginPlay()
         desc.worldPosition = pos;
         CLIENT->Play_Effect(desc);
     }
+
+    for (const auto& pos : kSymbolLightPosition)
+    {
+        desc.worldPosition = pos;
+        CLIENT->Play_Effect(desc);
+    }
+
+    // leaf
+    PlayEffectDesc leafDesc{};
+    leafDesc.effectName = kLeafEffectName;
+    leafDesc.worldPosition = Vec3(2.38f, -0.05f, 143.15f);
+    leafDesc.scale = Vec3(1.f, 1.f, 1.f);
+
+    CLIENT->Play_Effect(leafDesc);
 }
 
 void Level_GestralVillage::Update(float fTimeDelta)
 {
+    // 감자자루 NPC 앞으로 순간이동
+    if (GAME->KeyDown(KEY_TYPE::KEY_9))
+    {
+        auto active = CLIENT->Get_ActiveHero();
+        CHECK_NULL(active);
 
+        active->Get_Transform()->Set_WorldPosition(Vec3(6.33f, -6.73, 2.7f));
+
+        if (auto movement = active->Get_Component<MovementCom>())
+            movement->Sync_RuntimePositionToTransform();
+    }
 }
 
 HRESULT Level_GestralVillage::Render()
@@ -182,7 +221,7 @@ HRESULT Level_GestralVillage::Ready_Lights()
 
         if (FAILED(GAME->Update_ShadowLight(ShadowDesc)))
             return E_FAIL;
-        
+
         // 카메라 close/normal/far 모드에 따라서 그림자 구간을 동적 조절하기 위한 프리셋 설정
         ShadowCascadePresetSet cascadePresets{};
         cascadePresets.close.focusNear = 0.1f;
@@ -301,7 +340,7 @@ HRESULT Level_GestralVillage::Ready_Layer_BackGround(const wstring& strLayerTag)
 
 HRESULT Level_GestralVillage::Ready_Layer_Player(const wstring& strLayerTag)
 {
-    Vec3 startPos = Vec3(-4.63f, -7.56f, 206.65f);
+    Vec3 startPos = Vec3(-2.f, -5.46f, 183.54f);
     Vec3 startRot = Vec3(0.f, -173.f, 0.f);
 
     CHECK_FAILED(CLIENT->Initialize_Hero(ETOI(LevelType::GestralVillage), strLayerTag, startPos, startRot), E_FAIL);
@@ -349,11 +388,11 @@ HRESULT Level_GestralVillage::Ready_Layer_NPC(const wstring& strLayerTag)
     CHECK_NULL(chad, E_FAIL);
 
     const Shared<GameObject> sumo = Spawn_Prefab::Prefab("NPC_Sumo")
-    .AtLevel(ETOI(LevelType::GestralVillage))
-    .InLayer(strLayerTag)
-    .Position(Vec3(4.36f, -6.4f, 11.05f))
-    .Rotation(Vec3(0.f, 180.f, 0.f))
-    .Spawn();
+        .AtLevel(ETOI(LevelType::GestralVillage))
+        .InLayer(strLayerTag)
+        .Position(Vec3(4.36f, -6.4f, 11.05f))
+        .Rotation(Vec3(0.f, 180.f, 0.f))
+        .Spawn();
 
     CHECK_NULL(chad, E_FAIL);
 
@@ -410,11 +449,11 @@ HRESULT Level_GestralVillage::Ready_Layer_ETC(const wstring& strLayerTag)
         symbolDesc.cullEnabled = true;
 
         CHECK_FAILED(GAME->Add_GameObject(
-                ETOI(LevelType::Static),
-                TEXT("GameObject_MapAmbientVisibility"),
-                ETOI(LevelType::GestralVillage),
-                TEXT("Layer_AmbientVisibility"),
-                &symbolDesc),
+            ETOI(LevelType::Static),
+            TEXT("GameObject_MapAmbientVisibility"),
+            ETOI(LevelType::GestralVillage),
+            TEXT("Layer_AmbientVisibility"),
+            &symbolDesc),
             E_FAIL);
 
         MapAmbientVisibility::MAP_AMBIENT_VISIBILITY_DESC caveDesc{};
@@ -431,14 +470,14 @@ HRESULT Level_GestralVillage::Ready_Layer_ETC(const wstring& strLayerTag)
         caveDesc.cullEnabled = true;
 
         CHECK_FAILED(GAME->Add_GameObject(
-                ETOI(LevelType::Static),
-                TEXT("GameObject_MapAmbientVisibility"),
-                ETOI(LevelType::GestralVillage),
-                TEXT("Layer_AmbientVisibility"),
-                &caveDesc),
+            ETOI(LevelType::Static),
+            TEXT("GameObject_MapAmbientVisibility"),
+            ETOI(LevelType::GestralVillage),
+            TEXT("Layer_AmbientVisibility"),
+            &caveDesc),
             E_FAIL);
     }
-    
+
     // 감자자루 스폰
     auto potatobag = Spawn_Prefab::Prefab(Constants::Prefab::BSS_Gestral_PotatoBag)
         .AtLevel(ETOI(LevelType::GestralVillage))
@@ -569,7 +608,7 @@ Shared<Level_GestralVillage> Level_GestralVillage::Create(const ComPtr<Device>& 
 void Level_GestralVillage::Free()
 {
     GAME->Set_VolumetricLightShaftZones(VolumetricLightShaftZoneCB{});
-    
+
     if (_editorPlayRuntimeHandle.IsValid())
     {
         GAME->Get_DelegateHub().OnEditorPlayRuntime.Remove(_editorPlayRuntimeHandle);

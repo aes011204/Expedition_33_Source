@@ -7,8 +7,15 @@
 #include "Player_WorldBase.h"
 #include "NPC_Base.h"
 
+#include "Spawn_Prefab.h"
+#include "Client_Constants.h"
+
 namespace
 {
+    const Vec3 kSimonPortalPosition = Vec3(30.f, 0.f, 128.f);
+    const Vec3 kSimonPortalRotation = Vec3::Zero;
+    constexpr const wchar_t* kRewardPortalLayer = L"Layer_Portal";
+
     void FaceDialogueTarget(const Shared<GameObject>& actorObject, const Vec3& targetPos)
     {
         if (actorObject == nullptr)
@@ -39,7 +46,8 @@ void DialogueManager::StartDialogue(const DialogueRequest& request)
     if (_isActive || _waitInteractKeyRelease)
         return;
 
-    const DialogueData* dialogueData = CLIENT->FindDialogueData(request.dialogueKey);
+    const string resolvedDialogueKey = Resolve_DialogueKey(request.dialogueKey);
+    const DialogueData* dialogueData = CLIENT->FindDialogueData(resolvedDialogueKey);
     if (dialogueData == nullptr || dialogueData->lines.empty())
         return;
 
@@ -53,9 +61,7 @@ void DialogueManager::StartDialogue(const DialogueRequest& request)
     if (_uiDialogue == nullptr)
         return;
 
-    LOG_INFO("========��ȭ ����========");
-
-    _currentDialogueKey = request.dialogueKey;
+    _currentDialogueKey = resolvedDialogueKey;
     _currentDialogueData = dialogueData;
     _currentLineIndex = 0;
     _selectIndex = 0;
@@ -83,8 +89,8 @@ void DialogueManager::StartDialogue(const DialogueRequest& request)
 
     CLIENT->Request_DialogueCamera();
 
-    if(_uiDialogue)
-    _uiDialogue->Show_Dialogue();
+    if (_uiDialogue)
+        _uiDialogue->Show_Dialogue();
 
     ApplyCurrentLine();
 }
@@ -121,9 +127,9 @@ void DialogueManager::ContinueDialogue()
 
 void DialogueManager::EndDialogue(bool restoreWorldState)
 {
-    if (auto npc = dynamic_pointer_cast<NPC_Base>(_dialogueNpcObject) )
+    if (auto npc = dynamic_pointer_cast<NPC_Base>(_dialogueNpcObject))
     {
-        if(_currentDialogueData->restoreToStartAnimation == true)
+        if (_currentDialogueData->restoreToStartAnimation == true)
         {
             if (!_startAnimationKey.empty())
                 npc->Set_DialogueAnimation(_startAnimationKey);
@@ -157,6 +163,29 @@ void DialogueManager::EndDialogue(bool restoreWorldState)
         _uiDialogue->Free();
         _uiDialogue.reset();
     }
+}
+
+void DialogueManager::Set_DialogueOverride(const string& sourceDialogueKey, const string& targetDialogueKey)
+{
+    if (sourceDialogueKey.empty())
+        return;
+
+    if (targetDialogueKey.empty())
+    {
+        _dialogueOverrides.erase(sourceDialogueKey);
+        return;
+    }
+
+    _dialogueOverrides[sourceDialogueKey] = targetDialogueKey;
+}
+
+string DialogueManager::Resolve_DialogueKey(const string& dialogueKey) const
+{
+    const auto iter = _dialogueOverrides.find(dialogueKey);
+    if (iter == _dialogueOverrides.end())
+        return dialogueKey;
+
+    return iter->second;
 }
 
 void DialogueManager::AlignDialogueActors()
@@ -306,7 +335,7 @@ void DialogueManager::ApplyChoice()
 
         return;
     }
-    
+
     if (choice.action == "OpenForge")
     {
         LOG_INFO("OpenForge");
@@ -315,6 +344,18 @@ void DialogueManager::ApplyChoice()
         const Shared<GameplayUI> gameplayUI = CLIENT->Get_GameplayUI();
         if (gameplayUI == nullptr || !gameplayUI->Open_WeaponUpgrade())
             LOG_WARN("DialogueManager: failed to open weapon upgrade.");
+
+        return;
+    }
+
+    if (choice.action == "OpenArenaCharacterSelect")
+    {
+        LOG_INFO("OpenArenaCharacterSelect");
+        EndDialogue();
+
+        const Shared<GameplayUI> gameplayUI = CLIENT->Get_GameplayUI();
+        if (gameplayUI == nullptr || !gameplayUI->Open_ArenaCharacterSelect())
+            LOG_WARN("DialogueManager: failed to open arena character select.");
 
         return;
     }
@@ -348,6 +389,57 @@ bool DialogueManager::ExecuteLineAction(const string& action)
     {
         EndDialogue();
         CLIENT->Request_DialogueBattlePotatoBag();
+        return true;
+    }
+
+    if (action == "Spawn_DuallisteRewardPortal")
+    {
+        EndDialogue();
+
+        const Shared<GameObject> spawned = Spawn_Prefab::Prefab(Constants::Prefab::Portal_BishopReward)
+            .AtLevel(GAME->Current_LevelIndex())
+            .InLayer(kRewardPortalLayer)
+            .Position(kSimonPortalPosition)
+            .Rotation(kSimonPortalRotation)
+            .Spawn();
+
+        if (spawned != nullptr)
+            spawned->Set_RuntimeAuthoringLoaded(true);
+
+        return true;
+    }
+
+    if (action == "Spawn_WarmingUpPictosAndRemoveNpc")
+    {
+        Shared<GameObject> npcObject = _dialogueNpcObject;
+        Vec3 spawnPosition = Vec3::Zero;
+
+        if (npcObject != nullptr)
+        {
+            if (const Shared<TransformCom> npcTransform = npcObject->Get_Transform())
+                spawnPosition = npcTransform->Get_WorldPosition();
+        }
+
+        EndDialogue();
+
+        const Shared<GameObject> spawned = Spawn_Prefab::Prefab(Constants::Prefab::Item_Pictos_WarmingUp)
+            .AtLevel(GAME->Current_LevelIndex())
+            .InLayer(TEXT("Layer_GameObject"))
+            .Position(spawnPosition)
+            .Rotation(Vec3::Zero)
+            .Spawn();
+
+        if (spawned != nullptr)
+            spawned->Set_RuntimeAuthoringLoaded(true);
+
+        if (const Shared<NPC_Base> npc = dynamic_pointer_cast<NPC_Base>(npcObject))
+            npc->Remove_InteractionTrigger();
+
+        if (npcObject != nullptr && !npcObject->Is_MarkDestroy())
+            GAME->Remove_GameObject(GAME->Current_LevelIndex(), npcObject);
+
+        _dialogueNpcObject.reset();
+
         return true;
     }
 

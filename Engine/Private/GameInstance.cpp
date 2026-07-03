@@ -2717,7 +2717,20 @@ HRESULT GameInstance::Bind_ShadowLightDesc(Shared<ShaderCom> shader, const char*
 HRESULT GameInstance::Bind_ShadowCB(Shared<ShaderCom> shader)
 {
     CHECK_NULL(_shadow, E_FAIL);
-    return _shadow->Bind_ShadowCB(shader);
+    ShadowCB cb = _shadow->Build_ShadowCB();
+
+    if (_bakeShadowOverrideActive)
+    {
+        cb.lightViewMatrix = _bakeShadowViewOverride;
+        cb.lightProjMatrix = _bakeShadowProjOverride;
+    }
+
+    if (_renderer && _renderer->Has_InstancedShadowCache())
+    {
+        cb.cachedShadowViewProjMatrix = _renderer->Get_CachedShadowViewProj();
+        cb.useCachedInstancedShadow = _renderer->Is_UseInstancedShadowCache() ? 1u : 0u;
+    }
+    return shader->Bind_CBufferData(cb);
 }
 
 HRESULT GameInstance::Get_ShadowCBSnapshot(ShadowCB& outShadowCB) const
@@ -2745,6 +2758,15 @@ const ShadowLightDesc* GameInstance::Get_ShadowLightDesc() const
 
 const Matrix* GameInstance::Get_ShadowTransformMatrix(D3DTS eType) const
 {
+    if (_bakeShadowOverrideActive)
+    {
+        if (eType == D3DTS::View)
+            return &_bakeShadowViewOverride;
+        if (eType == D3DTS::Proj)
+            return &_bakeShadowProjOverride;
+        return nullptr;
+    }
+
     CHECK_NULL(_shadow, nullptr);
     if (eType == D3DTS::View)
         return _shadow->Get_ViewMatrix();
@@ -2786,6 +2808,52 @@ HRESULT GameInstance::Update_ShadowFromCameraFrustum(
     const Vec3& lightDir)
 {
     return _shadow->Update_FromCameraFrustum(desc, camera, lightDir);
+}
+
+void GameInstance::Push_BakeShadowTransform(const Matrix& view, const Matrix& proj)
+{
+    _bakeShadowViewOverride = view;
+    _bakeShadowProjOverride = proj;
+    _bakeShadowOverrideActive = true;
+}
+
+void GameInstance::Pop_BakeShadowTransform()
+{
+    _bakeShadowOverrideActive = false;
+}
+
+void GameInstance::Set_UseInstancedShadowCache(bool enabled)
+{
+    CHECK_NULL(_renderer);
+    _renderer->Set_UseInstancedShadowCache(enabled);
+}
+
+bool GameInstance::Is_UseInstancedShadowCache() const
+{
+    if (_renderer == nullptr)
+        return false;
+    return _renderer->Is_UseInstancedShadowCache();
+}
+
+void GameInstance::Request_BakeCachedInstancedShadow()
+{
+    CHECK_NULL(_renderer);
+    _renderer->Request_BakeCachedInstancedShadow();
+}
+
+bool GameInstance::Has_InstancedShadowCache() const
+{
+    if (_renderer == nullptr)
+        return false;
+    return _renderer->Has_InstancedShadowCache();
+}
+
+const Matrix& GameInstance::Get_CachedShadowViewProj() const
+{
+    static const Matrix identity = Matrix::Identity;
+    if (_renderer == nullptr)
+        return identity;
+    return _renderer->Get_CachedShadowViewProj();
 }
 
 void GameInstance::Add_Collider(Shared<ColliderCom> collider)
@@ -3490,10 +3558,36 @@ HRESULT GameInstance::Set_ActiveShadowCascade(uint32 cascadeIndex)
     return _shadow->Set_ActiveCascade(cascadeIndex);
 }
 
+HRESULT GameInstance::Commit_RenderedShadowCascade(uint32 cascadeIndex)
+{
+    CHECK_NULL(_shadow, E_FAIL);
+    return _shadow->Commit_RenderedCascade(cascadeIndex);
+}
+
+bool GameInstance::Consume_ForceRenderAllShadowCascades()
+{
+    if (!_shadow)
+        return true;
+
+    return _shadow->Consume_ForceRenderAllCascades();
+}
+
 void GameInstance::Set_ShadowEnabled(bool enabled)
 {
     CHECK_NULL(_renderer);
     _renderer->Set_ShadowEnabled(enabled);
+}
+
+void GameInstance::Set_DynamicShadowCascadeTemporalUpdateEnabled(bool enabled)
+{
+    CHECK_NULL(_renderer);
+    _renderer->Set_DynamicShadowCascadeTemporalUpdateEnabled(enabled);
+}
+
+bool GameInstance::Is_DynamicShadowCascadeTemporalUpdateEnabled() const
+{
+    CHECK_NULL(_renderer, false);
+    return _renderer->Is_DynamicShadowCascadeTemporalUpdateEnabled();
 }
 
 uint32 GameInstance::Get_ShadowCascadeCount() const

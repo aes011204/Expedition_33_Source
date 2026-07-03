@@ -163,6 +163,7 @@ public: /* For.Hero Manager */
     void Restore_PartyFormationAfterEditorStop();
 
     bool    Is_ActiveHero(const Shared<GameObject>& target) const;
+    void    Warp_PartyToFormation(const Vec3& anchorPos, const Vec3& anchorRot);
 
 public: /* For.Gameplay UI */
     HRESULT Initialize_GameplayUI(uint32 levelIndex);
@@ -172,6 +173,7 @@ public: /* For.Gameplay UI */
     void    Play_BattleEnterTransition();
     void    Stop_BattleEnterTransition();
     bool    Is_BattleEnterTransitionPlaying() const;
+    void    Queue_LevelAnnounce(LevelType levelType);
 
 public: /* For.Fade Transition */
     bool Request_ScreenFadeTransition(const function<void()>& CoveredAction);
@@ -326,6 +328,7 @@ public: /* Unlock Manager */
 
 public:
     const DialogueData* FindDialogueData(const string& dialogueKey) const;
+    
 
   public:
     void StartDialogue(const DialogueRequest& request);
@@ -343,7 +346,9 @@ public:
     void Request_InteractionPrompt(const void* sourceId, const Vec3& worldAnchor);
     void Clear_InteractionPrompt(const void* sourceId);
     bool Try_GetInteractionPromptAnchor(Vec3& outWorldAnchor) const;
-    
+
+    void Set_DialogueOverride(const string& sourceDialogueKey, const string& targetDialogueKey);
+
 public: /* Battle Followup Manager */
      BattleFollowupManager* Get_BattleFollowupManager() const { return _battleFollowupManager.get(); }
 

@@ -9,6 +9,7 @@
 #include "EffectCom.h"
 #include "GameInstance.h"
 #include "Monster_BattleBase.h"
+#include "MB_Mime.h"
 
 NS_BEGIN(Client)
 
@@ -96,7 +97,7 @@ void Base_Mon_Attack::Execute(const Skill_Data& skill, const BattleAction& actio
     const BattleChar& attacker = action.Get_CurChar();
     const float damage = DamageSystem::CalculatePlayerAttackDamage(attacker, skill.powerMultiplier);
 
-    DamageSystem::ApplyDamage(damage, action.GetCurStepTarget(), attackType);
+    DamageSystem::ApplyDamage(damage, attacker, action.GetCurStepTarget(), attackType);
 
     CurIndex++;
 }
@@ -129,7 +130,7 @@ void Base_Mon_Attack_Projectile::Execute(const Skill_Data& skill, const BattleAc
     const BattleChar& attacker = action.Get_CurChar();
     const float damage = DamageSystem::CalculatePlayerAttackDamage(attacker, skill.powerMultiplier);
 
-    DamageSystem::ApplyDamage(damage, action.GetCurStepTarget(), attackType);
+    DamageSystem::ApplyDamage(damage, attacker, action.GetCurStepTarget(), attackType);
 
     const auto& curTargets = action.GetCurStepTarget();
     if (!curTargets.empty() && curTargets.front().actor != nullptr)
@@ -154,6 +155,89 @@ void Base_Mon_Attack_Projectile::Free()
     SkillScript::Free();
 }
 
+Potato_Fire_Skill::Potato_Fire_Skill()
+{
+}
+
+void Potato_Fire_Skill::Execute(const Skill_Data& skill, const BattleAction& action, AttackType attackType)
+{
+    UNREFERENCED_PARAMETER(attackType);
+
+    if (CurIndex >= skill.targetingType.size())
+    {
+        LOG_ERROR("ERROR_Potato_Fire_Skill_ OutofRange");
+        return;
+    }
+    const BattleChar& attacker = action.Get_CurChar();
+    const float damage = DamageSystem::CalculatePlayerAttackDamage(attacker, skill.powerMultiplier);
+
+    DamageSystem::ApplyDamage(damage, action.GetCurStepTarget(), attackType);
+
+    const auto& curTargets = action.GetCurStepTarget();
+    if (!curTargets.empty())
+    {
+        BattleHitSequenceRunner::HitEffectDesc effectDesc{};
+        effectDesc.effectName = L"PotatoBag_Fire_Attack";
+        effectDesc.localOffset = Vec3(0.f, 0.f, 0.f);
+
+        for (const BattleChar& target : curTargets)
+            Internal::Play_TargetHitEffect(target, effectDesc);
+    }
+
+    CurIndex++;
+}
+
+Shared<Potato_Fire_Skill> Potato_Fire_Skill::Create()
+{
+    return make_shared<Potato_Fire_Skill>();
+}
+
+void Potato_Fire_Skill::Free()
+{
+    SkillScript::Free();
+}
+
+Potato_Thunder_Skill::Potato_Thunder_Skill()
+{
+}
+
+void Potato_Thunder_Skill::Execute(const Skill_Data& skill, const BattleAction& action, AttackType attackType)
+{
+    UNREFERENCED_PARAMETER(attackType);
+
+    if (CurIndex >= skill.targetingType.size())
+    {
+        LOG_ERROR("ERROR_Potato_Thunder_Skill_ OutofRange");
+        return;
+    }
+    const BattleChar& attacker = action.Get_CurChar();
+    const float damage = DamageSystem::CalculatePlayerAttackDamage(attacker, skill.powerMultiplier);
+
+    DamageSystem::ApplyDamage(damage, action.GetCurStepTarget(), attackType);
+
+    const auto& curTargets = action.GetCurStepTarget();
+    if (!curTargets.empty() && curTargets.front().actor != nullptr)
+    {
+        BattleHitSequenceRunner::HitEffectDesc effectDesc{};
+        effectDesc.effectName = L"PotatoBag_Thunder_Attack";
+        effectDesc.localOffset = Vec3(0.f, 0.f, 0.f);
+
+        Internal::Play_TargetHitEffect(curTargets.front(), effectDesc);
+    }
+
+    CurIndex++;
+}
+
+Shared<Potato_Thunder_Skill> Potato_Thunder_Skill::Create()
+{
+    return make_shared<Potato_Thunder_Skill>();
+}
+
+void Potato_Thunder_Skill::Free()
+{
+    SkillScript::Free();
+}
+
 Bishop_Spear::Bishop_Spear()
 {
 }
@@ -171,7 +255,7 @@ void Bishop_Spear::Execute(const Skill_Data& skill, const BattleAction& action, 
     const BattleChar& attacker = action.Get_CurChar();
     const float damage = DamageSystem::CalculatePlayerAttackDamage(attacker, skill.powerMultiplier);
 
-    DamageSystem::ApplyDamage(damage, action.GetCurStepTarget(), attackType);
+    DamageSystem::ApplyDamage(damage, attacker, action.GetCurStepTarget(), attackType);
 
     const auto& curTargets = action.GetCurStepTarget();
     if (!curTargets.empty() && curTargets.front().actor != nullptr)
@@ -301,7 +385,7 @@ void Simon_Combo::Execute(const Skill_Data& skill, const BattleAction& action, A
     const BattleChar& attacker = action.Get_CurChar();
     const float damage = DamageSystem::CalculatePlayerAttackDamage(attacker, skill.powerMultiplier);
 
-    DamageSystem::ApplyDamage(damage, action.GetCurStepTarget(), attackType);
+    DamageSystem::ApplyDamage(damage, attacker, action.GetCurStepTarget(), attackType);
 
     CurIndex++;
 }
@@ -345,6 +429,32 @@ Shared<Simon_Debuff> Simon_Debuff::Create()
 }
 
 void Simon_Debuff::Free()
+{
+    SkillScript::Free();
+}
+
+Mime_WallDefense::Mime_WallDefense()
+{
+}
+
+void Mime_WallDefense::Execute(const Skill_Data& skill, const BattleAction& action, AttackType attackType)
+{
+    UNREFERENCED_PARAMETER(skill);
+    UNREFERENCED_PARAMETER(attackType);
+
+    const Shared<MB_Mime> mime = dynamic_pointer_cast<MB_Mime>(action.Get_CurChar().actor);
+    if (mime == nullptr)
+        return;
+
+    mime->Start_WallDamageReduction();
+}
+
+Shared<Mime_WallDefense> Mime_WallDefense::Create()
+{
+    return make_shared<Mime_WallDefense>();
+}
+
+void Mime_WallDefense::Free()
 {
     SkillScript::Free();
 }

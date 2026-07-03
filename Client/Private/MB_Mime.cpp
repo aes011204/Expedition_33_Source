@@ -43,6 +43,10 @@ HRESULT MB_Mime::Initialize_Prototype()
 HRESULT MB_Mime::Initialize(void* arg)
 {
     CHECK_FAILED(Monster_BattleBase::Initialize(arg), E_FAIL);
+
+    _isWallDamageReductionActive = false;
+    _hasTriggeredBreak = false;
+
     CHECK_FAILED(Ready_PartObjects(), E_FAIL);
 
     //_combatStat->Set_Skill("Mime_AttHamor_3");
@@ -69,6 +73,12 @@ void MB_Mime::Adjust_IncomingBattleDamage(const BattleChar& attacker, float& dam
     if (damage <= 0.f || _combatStat == nullptr)
         return;
 
+    if (_hasTriggeredBreak)
+        return;
+
+    if (!_isWallDamageReductionActive)
+        return;
+
     // 파괴 한번 됐으면, 데미지 감소 미적용
     if (_combatStat->IsBreak())
         return;
@@ -76,7 +86,7 @@ void MB_Mime::Adjust_IncomingBattleDamage(const BattleChar& attacker, float& dam
     damage *= kMimeUnbrokenDamageMultiplier;
 }
 
-bool MB_Mime::Try_ApplyBattleBreakOnDamage(const DamageAppliedInfo& info)
+bool MB_Mime::Try_ApplyBattleBreakOnDamage(const DamageAppliedInfo& info, bool canTriggerBreak)
 {
     if (_combatStat == nullptr || info.damage <= 0.f)
         return false;
@@ -95,7 +105,12 @@ bool MB_Mime::Try_ApplyBattleBreakOnDamage(const DamageAppliedInfo& info)
     if (_combatStat->Get_CurBreak() < _combatStat->Get_MaxBreak())
         return false;
 
+    if (!canTriggerBreak)
+        return false;
+
     _combatStat->SetBreak(true);
+    _hasTriggeredBreak = true;
+    _isWallDamageReductionActive = false;
     _combatStat->Set_Break(_combatStat->Get_MaxBreak());
 
     if (const auto battle = CLIENT->Get_BattleController())
@@ -111,6 +126,14 @@ bool MB_Mime::Try_ApplyBattleBreakOnDamage(const DamageAppliedInfo& info)
     }
 
     return true;
+}
+
+void MB_Mime::Start_WallDamageReduction()
+{
+    if (_hasTriggeredBreak)
+        return;
+
+    _isWallDamageReductionActive = true;
 }
 
 HRESULT MB_Mime::Ready_PartObjects()
