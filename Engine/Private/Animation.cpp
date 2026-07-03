@@ -179,16 +179,19 @@ bool Animation::Update_TransformationMatrices(float timeDelta, const vector<Shar
     ENGINE_PROFILE_SCOPE_DETAIL("Animation::UpdatePose");
 
 	_currentTrackPosition += _tickPerSecond * timeDelta * _animationSpeed;
+	bool isFinished = false;
 
 	if (_currentTrackPosition >= _duration)
 	{
 		if (!isLoop)
 		{
 			_currentTrackPosition = _duration;
-			return true;
+			isFinished = true;
 		}
-
-		_currentTrackPosition = std::fmod(_currentTrackPosition, _duration);
+		else
+		{
+			_currentTrackPosition = std::fmod(_currentTrackPosition, _duration);
+		}
 	}
 
 	for (uint32 i = 0; i < _numChannels; ++i)
@@ -196,7 +199,7 @@ bool Animation::Update_TransformationMatrices(float timeDelta, const vector<Shar
 		_channels[i]->Update_TransformationMatrix(_currentKeyFrameIndices[i], _currentTrackPosition, _duration, bones, rootNodeIndex, isLoop);
 	}
 
-	return false;
+	return isFinished;
 }
 
 void Animation::Blend_TransformMatrix(float currentTimeDelta, const Shared<Animation>& nextAnim, float blendRatio,
