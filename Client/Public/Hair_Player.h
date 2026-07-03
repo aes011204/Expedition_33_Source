@@ -37,6 +37,7 @@ public:
     void    Late_Update(float timeDelta) override;
     HRESULT Render() override;
     HRESULT Render_Shadow() override;
+    void    Enable_PoseFollowModifier();
 
 private:
     Matrix                  _offsetMatrix{};

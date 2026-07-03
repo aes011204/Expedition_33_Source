@@ -8,6 +8,8 @@
 #include "Profile_View.h"
 #include "ResourceLoader.h"
 
+extern bool Is_MainEditorGameLauncherPreviewMode();
+
 MainEditorApp::MainEditorApp()
 {
 }
@@ -170,6 +172,9 @@ void MainEditorApp::Update(float timeDelta)
         EDITOR->Enter_EditAfterLoading();
 
     EDITOR->Apply_RuntimeInputPolicy();
+
+    if (Is_MainEditorGameLauncherPreviewMode())
+        GAME->Clear_MousePositionOverride();
 }
 
 
@@ -218,33 +223,41 @@ HRESULT MainEditorApp::Render()
         }
     }
 
+    if (Is_MainEditorGameLauncherPreviewMode())
     {
-        ENGINE_PROFILE_SCOPE_DETAIL("Editor::CaptureViewport");
-        EDITOR->Capture_BackBuffer_ToViewport();
+        ENGINE_PROFILE_SCOPE_BASIC("Editor::GameLauncherPreview");
+        EDITOR->EndImGuiFrameIfBegun();
     }
-
+    else
     {
-        ENGINE_PROFILE_SCOPE_BASIC("Editor::RenderUI");
-
         {
-            ENGINE_PROFILE_SCOPE_DETAIL("Editor::BindBackBuffer");
-            GAME->Bind_BackBuffer();
+            ENGINE_PROFILE_SCOPE_DETAIL("Editor::CaptureViewport");
+            EDITOR->Capture_BackBuffer_ToViewport();
         }
 
         {
-            ENGINE_PROFILE_SCOPE_DETAIL("Editor::ClearBackBuffer");
-            if (FAILED(GAME->Clear_Buffers(Vec4(0.018f, 0.020f, 0.024f, 1.f))))
-                return fail();
-        }
+            ENGINE_PROFILE_SCOPE_BASIC("Editor::RenderUI");
 
-        {
-            ENGINE_PROFILE_SCOPE_DETAIL("Editor::Render_Editor");
-            EDITOR->Render_Editor();
-        }
+            {
+                ENGINE_PROFILE_SCOPE_DETAIL("Editor::BindBackBuffer");
+                GAME->Bind_BackBuffer();
+            }
 
-        {
-            ENGINE_PROFILE_SCOPE_DETAIL("Editor::RestoreBackBuffer");
-            GAME->Bind_BackBuffer();
+            {
+                ENGINE_PROFILE_SCOPE_DETAIL("Editor::ClearBackBuffer");
+                if (FAILED(GAME->Clear_Buffers(Vec4(0.018f, 0.020f, 0.024f, 1.f))))
+                    return fail();
+            }
+
+            {
+                ENGINE_PROFILE_SCOPE_DETAIL("Editor::Render_Editor");
+                EDITOR->Render_Editor();
+            }
+
+            {
+                ENGINE_PROFILE_SCOPE_DETAIL("Editor::RestoreBackBuffer");
+                GAME->Bind_BackBuffer();
+            }
         }
     }
 

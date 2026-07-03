@@ -389,7 +389,7 @@ PS_OUT PS_CharacterHair(PS_IN In, bool IsFrontFace : SV_IsFrontFace)
     // ID variation도 너무 한쪽으로 밀지 않는다.
     hairRoughness += (hairIDValue - 0.5f) * 0.25f;
 
-    hairRoughness = clamp(hairRoughness, 0.36f, 0.60f);
+    hairRoughness = clamp(hairRoughness, 0.36f, 0.60f) * 2.f;
 
     const float hairMetalness = 0.f;
 

@@ -2,6 +2,7 @@
 
 #include "ClientInstance.h"
 #include "GameDataTable.h"
+#include "Hair_Player.h"
 #include "PlayerStatCom.h"
 
 IMPLEMENT_REFLECTION(PB_Maelle)
@@ -22,6 +23,27 @@ PB_Maelle::PB_Maelle(const ComPtr<Device>& device, const ComPtr<Context>& contex
 PB_Maelle::PB_Maelle(const PB_Maelle& prototype)
     : Player_BattleBase(prototype)
 {
+}
+
+HRESULT PB_Maelle::Ready_BodyModifiers(Body_Player* body, const wchar_t* bodyModelTag)
+{
+    CHECK_NULL(body, E_FAIL);
+    if (bodyModelTag == nullptr)
+        return S_OK;
+
+    if (wcscmp(bodyModelTag, L"Model_MaelleBody") == 0)
+        return Add_BodyArmbandAndCoatModifiers(body, PlayerCharacterType::Maelle);
+
+    return S_OK;
+}
+
+HRESULT PB_Maelle::Ready_HairModifiers(Hair_Player* hair, const wchar_t* hairModelTag)
+{
+    CHECK_NULL(hair, E_FAIL);
+    if (hairModelTag != nullptr && wcscmp(hairModelTag, L"Model_MaelleHair") == 0)
+        hair->Enable_PoseFollowModifier();
+
+    return S_OK;
 }
 
 HairChainPhysicsDesc PB_Maelle::Get_HairChainPhysicsDesc() const

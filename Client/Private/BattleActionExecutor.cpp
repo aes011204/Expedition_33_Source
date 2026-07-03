@@ -119,10 +119,14 @@ void BattleActionExecutor::Begin_ActionPhase(BattleAction& action)
 
     Apply_PhasePlayRate(phase, action.Get_CurChar().ModelCom);
 
-    if (phase.movementPolicy == BattleMovementPolicy::RootMotionToTarget)
-        action.Get_CurChar().ModelCom->Set_Animation(phase.animationKey, true);
+    const bool isRootMotionAnimation = phase.movementPolicy == BattleMovementPolicy::RootMotionToTarget;
+    const bool isChainedPhase = action.GetCurAnimIndex() > 0;
+    constexpr float PhaseTransitionBlendDuration = 0.15f;
+
+    if (isChainedPhase)
+        action.Get_CurChar().ModelCom->Set_Animation(phase.animationKey, PhaseTransitionBlendDuration, isRootMotionAnimation);
     else
-        action.Get_CurChar().ModelCom->Set_Animation(phase.animationKey, false);
+        action.Get_CurChar().ModelCom->Set_Animation(phase.animationKey, isRootMotionAnimation);
 }
 
 Vec3 BattleActionExecutor::Resolve_AnchorPosition(const BattleAction& action, BattleTargetAnchor anchor) const

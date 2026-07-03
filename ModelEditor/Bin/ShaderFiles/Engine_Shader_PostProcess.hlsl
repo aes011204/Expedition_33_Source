@@ -115,6 +115,30 @@ float ApplyDOFBokeh(float3 color)
     return saturate((luminance - g_PP_DOFBokehThreshold) * g_PP_DOFBokehIntensity);
 }
 
+float3 ApplyColorGrading(float3 color)
+{
+    const float strength = saturate(g_PP_ColorGradeStrength);
+    if (strength <= EPSILON)
+        return color;
+
+    const float luminance = dot(color, REC_709);
+    const float pivot = saturate(g_PP_ColorGradePivot);
+    const float contrast = max(g_PP_ColorGradeContrast, EPSILON);
+    const float saturation = max(g_PP_ColorGradeSaturation, 0.f);
+
+    float3 graded = (color - pivot.xxx) * contrast + pivot.xxx;
+    const float gradedLuminance = dot(graded, REC_709);
+    graded = lerp(gradedLuminance.xxx, graded, saturation);
+
+    const float shadowMask = 1.f - smoothstep(0.10f, 0.45f, luminance);
+    const float highlightMask = smoothstep(0.45f, 0.92f, luminance);
+
+    graded = lerp(graded, graded * g_PP_ColorGradeShadowTint.rgb, saturate(g_PP_ColorGradeShadowTint.a) * shadowMask);
+    graded = lerp(graded, graded * g_PP_ColorGradeHighlightTint.rgb, saturate(g_PP_ColorGradeHighlightTint.a) * highlightMask);
+
+    return max(lerp(color, graded, strength), float3(0.f, 0.f, 0.f));
+}
+
 float ComputeDOFBlendSoftness(float coc)
 {
     const float softened = saturate(coc);
