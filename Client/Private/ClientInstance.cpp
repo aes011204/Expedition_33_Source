@@ -128,6 +128,26 @@ namespace
         g_potatoBagArenaInstancedShadowOverrideActive = false;
     }
 
+    int32 Resolve_InteractionPromptPriority(InteractionPromptType type)
+    {
+        switch (type)
+        {
+        case InteractionPromptType::Dialogue:
+            return 300;
+
+        case InteractionPromptType::Picking:
+            return 200;
+
+        case InteractionPromptType::Cross:
+        case InteractionPromptType::Up:
+        case InteractionPromptType::Down:
+            return 100;
+
+        default:
+            return 0;
+        }
+    }
+
     bool Should_CaptureReplayWorldObject(const wstring& layerTag, const Shared<GameObject>& gameObject)
     {
         if (gameObject == nullptr)
@@ -2293,13 +2313,21 @@ void ClientInstance::RemoveItemInteractionOverlap()
         --_itemInteractionOverlapCount;
 
 }
-void ClientInstance::Request_InteractionPrompt(const void* sourceId, const Vec3& worldAnchor)
+void ClientInstance::Request_InteractionPrompt(const void* sourceId, InteractionPromptType type)
 {
-    if (sourceId == nullptr)
+    if (sourceId == nullptr || type == InteractionPromptType::None)
         return;
 
+    const int32 priority = Resolve_InteractionPromptPriority(type);
+    if (_hasInteractionPromptRequest && _interactionPromptSourceId != sourceId)
+    {
+        if (priority <= _interactionPromptPriority)
+            return;
+    }
+
     _interactionPromptSourceId = sourceId;
-    _interactionPromptWorldAnchor = worldAnchor;
+    _interactionPromptType = type;
+    _interactionPromptPriority = priority;
     _hasInteractionPromptRequest = true;
 }
 
@@ -2313,15 +2341,19 @@ void ClientInstance::Clear_InteractionPrompt(const void* sourceId)
 
     _hasInteractionPromptRequest = false;
     _interactionPromptSourceId = nullptr;
-    _interactionPromptWorldAnchor = Vec3::Zero;
+    _interactionPromptType = InteractionPromptType::None;
+    _interactionPromptPriority = 0;
 }
 
-bool ClientInstance::Try_GetInteractionPromptAnchor(Vec3& outWorldAnchor) const
+bool ClientInstance::Try_GetInteractionPromptType(InteractionPromptType& outType) const
 {
     if (!_hasInteractionPromptRequest)
         return false;
 
-    outWorldAnchor = _interactionPromptWorldAnchor;
+    if (_interactionPromptType == InteractionPromptType::None)
+        return false;
+
+    outType = _interactionPromptType;
     return true;
 }
 

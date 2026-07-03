@@ -13,6 +13,11 @@
 #include "CostumeManager.h"
 #include "FaceAccessory_Player.h"
 #include "ClientInstance.h"
+#include "ModelCom.h"
+#include "ChainModifier.h"
+#include "ChainModifierPreset.h"
+#include "PhysicsModifier.h"
+#include "PoseFollowChainModifier.h"
 
 namespace
 {
@@ -30,6 +35,50 @@ string Resolve_WeaponCharacterId(HeroId heroId)
     default:
         return {};
     }
+}
+
+bool HasBone(const ModelCom* model, const string& boneName)
+{
+    return model != nullptr && model->Get_BoneIndex(boneName) >= 0;
+}
+
+void RemoveMissingGroups(ChainModifier::ChainModifierDesc& desc, const ModelCom* model)
+{
+    desc.groups.erase(
+        remove_if(
+            desc.groups.begin(),
+            desc.groups.end(),
+            [model](const ChainModifier::BoneChainGroupDesc& group)
+            {
+                return !HasBone(model, group.rootBoneName);
+            }),
+        desc.groups.end());
+}
+
+void RemoveMissingGroups(PoseFollowChainModifier::PoseFollowChainModifierDesc& desc, const ModelCom* model)
+{
+    desc.groups.erase(
+        remove_if(
+            desc.groups.begin(),
+            desc.groups.end(),
+            [model](const PoseFollowChainModifier::BoneChainGroupDesc& group)
+            {
+                return !HasBone(model, group.rootBoneName);
+            }),
+        desc.groups.end());
+}
+
+void RemoveMissingChains(PhysicsModifier::PhysicsModifierDesc& desc, const ModelCom* model)
+{
+    desc.chains.erase(
+        remove_if(
+            desc.chains.begin(),
+            desc.chains.end(),
+            [model](const PhysicsModifier::ChainDesc& chain)
+            {
+                return !HasBone(model, chain.rootBoneName);
+            }),
+        desc.chains.end());
 }
 }
 
@@ -214,6 +263,7 @@ HRESULT Player_BattleBase::Ready_PartObjects()
 
     Body_Player* body = dynamic_cast<Body_Player*>(_partObjects[TEXT("Part_Body")].get());
     CHECK_NULL(body, E_FAIL);
+    CHECK_FAILED(Ready_BattlePartModifiers(TEXT("Part_Body"), bodyModelTag), E_FAIL);
 
     Head_Player::HEAD_PLAYER_DESC headDesc{};
     headDesc.parentMatrix = bodyDesc.parentMatrix;
@@ -245,6 +295,8 @@ HRESULT Player_BattleBase::Ready_PartObjects()
             TEXT("GameObject_Hair_Player"),
             TEXT("Part_Hair"),
             &hairDesc), E_FAIL);
+
+        CHECK_FAILED(Ready_BattlePartModifiers(TEXT("Part_Hair"), hairModelTag), E_FAIL);
     }
 
     CHECK_FAILED(Add_BattleFaceAccessory(TEXT("Part_Glasses"), glassesModelTag, bodyDesc.parentMatrix, head), E_FAIL);
@@ -318,6 +370,15 @@ bool Player_BattleBase::Should_ApplySerializedPart(const wstring& partTag, const
 {
     UNREFERENCED_PARAMETER(partObjectJson);
 
+    // Battle player costume parts are rebuilt from CostumeManager, not from stale PB prefab part JSON.
+    if (partTag == TEXT("Part_Body") ||
+        partTag == TEXT("Part_Head") ||
+        partTag == TEXT("Part_Hair") ||
+        partTag == TEXT("Part_Beard") ||
+        partTag == TEXT("Part_Mustache") ||
+        partTag == TEXT("Part_Glasses"))
+        return false;
+
     // 프리펩에서 저장한 값이 아니라 PlayerStatCom -> DT Weapon -> WP_* prefab에서 세팅한 값으로 들어가게
     return !partTag.starts_with(TEXT("Part_Weapon"));
 }
@@ -357,6 +418,104 @@ HRESULT Player_BattleBase::Add_BattleFaceAccessory(const wstring& partTag, const
 
     CHECK_FAILED(Add_PartObject(ETOI
     (LevelType::Static), TEXT("GameObject_FaceAccessory_Player"), partTag.c_str(), &accessoryDesc), E_FAIL);
+
+    return S_OK;
+}
+
+HRESULT Player_BattleBase::Add_BodyArmbandAndCoatModifiers(Body_Player* body, PlayerCharacterType characterType)
+{
+    CHECK_NULL(body, E_FAIL);
+    CHECK_NULL(Get_Transform(), E_FAIL);
+
+    const Shared<ModelCom> model = body->Get_Model();
+    CHECK_NULL(model, E_FAIL);
+
+    ChainModifier::ChainModifierDesc armbandDesc{};
+    ChainModifierPreset::BuildArmbandDesc(
+        armbandDesc,
+        Get_Transform().get(),
+        characterType);
+
+    if (model->Find_AnimModifierByTag(armbandDesc.modifierTag) == nullptr)
+    {
+        RemoveMissingGroups(armbandDesc, model.get());
+        if (!armbandDesc.groups.empty())
+        {
+            if (auto modifier = ChainModifier::Create(&armbandDesc))
+                model->Add_AnimModifier(modifier);
+            else
+                return E_FAIL;
+        }
+    }
+
+    PoseFollowChainModifier::PoseFollowChainModifierDesc coatDesc{};
+    ChainModifierPreset::BuildPoseFollowCoatDesc(
+        coatDesc,
+        Get_Transform().get(),
+        characterType);
+
+    if (model->Find_AnimModifierByTag(coatDesc.modifierTag) == nullptr)
+    {
+        RemoveMissingGroups(coatDesc, model.get());
+        if (!coatDesc.groups.empty())
+        {
+            if (auto modifier = PoseFollowChainModifier::Create(&coatDesc))
+                model->Add_AnimModifier(modifier);
+            else
+                return E_FAIL;
+        }
+    }
+
+    return S_OK;
+}
+
+HRESULT Player_BattleBase::Add_GustavePotatoCapeModifier(Body_Player* body)
+{
+    CHECK_NULL(body, E_FAIL);
+    CHECK_NULL(Get_Transform(), E_FAIL);
+
+    const Shared<ModelCom> model = body->Get_Model();
+    CHECK_NULL(model, E_FAIL);
+
+    PhysicsModifier::PhysicsModifierDesc potatoCapeDesc{};
+    ChainModifierPreset::BuildGustavePotatoCapePhysicsDesc(
+        potatoCapeDesc,
+        Get_Transform().get());
+
+    if (model->Find_AnimModifierByTag(potatoCapeDesc.modifierTag) != nullptr)
+        return S_OK;
+
+    RemoveMissingChains(potatoCapeDesc, model.get());
+    if (potatoCapeDesc.chains.empty())
+        return S_OK;
+
+    const Matrix* bodyWorldMatrix = &body->Get_CombinedWorldMatrix();
+    potatoCapeDesc.ownerWorldMatrix = bodyWorldMatrix;
+    potatoCapeDesc.collisionModel = model.get();
+    potatoCapeDesc.collisionOwnerWorldMatrix = bodyWorldMatrix;
+
+    if (auto modifier = PhysicsModifier::Create(&potatoCapeDesc))
+    {
+        model->Add_AnimModifier(modifier);
+        return S_OK;
+    }
+
+    return E_FAIL;
+}
+
+HRESULT Player_BattleBase::Ready_BattlePartModifiers(const wstring& partTag, const wchar_t* modelTag)
+{
+    PartObject* part = Get_PartObject(partTag);
+
+    if (partTag == TEXT("Part_Body"))
+        return Ready_BodyModifiers(
+            dynamic_cast<Body_Player*>(part),
+            modelTag);
+
+    if (partTag == TEXT("Part_Hair"))
+        return Ready_HairModifiers(
+            dynamic_cast<Hair_Player*>(part),
+            modelTag);
 
     return S_OK;
 }

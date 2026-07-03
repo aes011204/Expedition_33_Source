@@ -2252,7 +2252,9 @@ bool ModelCom::Should_UseSameAnimationBlend(uint32 animIndex, float blendDuratio
     if (animIndex >= _animations.size())
         return false;
 
-    return _currentAnimIndex == animIndex;
+    // Reuse the source-pose snapshot path for explicit blends so notify/modifier poses
+    // do not snap back to raw animation samples.
+    return true;
 }
 
 void ModelCom::Begin_SameAnimationBlendIfNeeded(uint32 animIndex, float blendDuration)
@@ -2365,7 +2367,7 @@ bool ModelCom::Step_SampleAnimationPose(const AnimPipelineContext& context)
             }
 
             Apply_SameAnimationBlendPose(ratio, context.rootIndex);
-
+            
             _blendElapsedTime += context.adjustedTimeDelta;
             if (_blendElapsedTime >= _blendDuration)
             {
@@ -2497,7 +2499,8 @@ void ModelCom::Step_FinalizeAnimationFrame(const AnimPipelineContext& context)
         {
             if (const AnimNotifyData* animationData = Find_CurrentNotifyAnimation())
             {
-                Update_AnimNotifies(*animationData, notifyContext, _isAnimNotifyExecutionEnabled);
+                const bool executeEventNotifies = _isAnimNotifyExecutionEnabled && !_isBlending;
+                Update_AnimNotifies(*animationData, notifyContext, executeEventNotifies);
                 Update_AnimNotifyStates(*animationData, notifyContext, _isAnimNotifyExecutionEnabled);
             }
         }

@@ -26,8 +26,9 @@
 #include "Wardrobe_Panel.h"
 #include "Pictos_Panel.h"
 #include "UI_GradientSkillPreviewTest.h"
-#include "UI_InteractionPrompt.h"
+#include "UI_Interaction.h"
 #include "UI_Replay.h"
+#include "WorldInteractionSpot.h"
 
 #include "RuntimeRuleStateService.h"
 #include "Client_Constants.h"
@@ -67,6 +68,23 @@ namespace
         return levelType == LevelType::GestralVillage
             ? kLevelAnnounceGestralVillageDelaySec
             : kLevelAnnounceDefaultDelaySec;
+    }
+
+    InteractionPromptType Resolve_WorldInteractionPromptType()
+    {
+        const Shared<Player_WorldBase> activeHero = CLIENT->Get_ActiveHero();
+        if (activeHero == nullptr || activeHero->Is_WorldInteracting())
+            return InteractionPromptType::None;
+
+        const Shared<GameObject> candidate = activeHero->Get_WorldInteractionCandidate();
+        if (candidate == nullptr)
+            return InteractionPromptType::None;
+
+        const IWorldInteractionProvider* provider = dynamic_cast<IWorldInteractionProvider*>(candidate.get());
+        if (provider == nullptr)
+            return InteractionPromptType::None;
+
+        return provider->Get_InteractionPromptType(activeHero);
     }
 }
 
@@ -126,8 +144,8 @@ HRESULT GameplayUI_World::Initialize(uint32 levelIndex)
     _crossHair = UI_CrossHair::Create(levelIndex);
     CHECK_NULL(_crossHair, E_FAIL);
 
-    _interactionPrompt = UI_InteractionPrompt::Create(levelIndex);
-    CHECK_NULL(_interactionPrompt, E_FAIL);
+    _interactionUI = UI_Interaction::Create(levelIndex);
+    CHECK_NULL(_interactionUI, E_FAIL);
 
     _getCharacterPanel = UI_GetCharacter::Create(levelIndex);
     CHECK_NULL(_getCharacterPanel, E_FAIL);
@@ -219,7 +237,7 @@ void GameplayUI_World::Update(float timeDelta)
         _replayPanel->Update(timeDelta);
 
     Update_CrossHair(timeDelta);
-    Update_InteractionPrompt();
+    Update_InteractionPrompt(timeDelta);
 
     if (!CLIENT->Is_FadeTransitionPlaying())
     {
@@ -373,7 +391,10 @@ vector<RuntimeUIEntry> GameplayUI_World::Get_RuntimeUIEntries() const
 
     if (_crossHair)
         _crossHair->Append_RuntimeUIEntries(entries, "World", "CrossHair");
-    Append_RuntimePanelEntry(entries, "World", "InteractionPrompt", _interactionPrompt.get());
+
+    if (_interactionUI)
+        _interactionUI->Append_RuntimeUIEntries(entries, "World", "Interaction");
+
     Append_RuntimePanelEntry(entries, "World", "GradientSkillPreviewTest", _gradientSkillPreviewTestPanel.get());
 
     return entries;
@@ -1402,22 +1423,34 @@ void GameplayUI_World::Update_CrossHair(float timeDelta)
     _crossHair->Update(timeDelta);
 }
 
-void GameplayUI_World::Update_InteractionPrompt()
+void GameplayUI_World::Update_InteractionPrompt(float timeDelta)
 {
-    if (_interactionPrompt == nullptr)
+    if (_interactionUI == nullptr)
         return;
 
-    Vec3 worldAnchor{};
+    _interactionUI->Update(timeDelta);
+
     if (Is_AnyMenuOpen() ||
+        CLIENT->Is_WorldControlSuspended() ||
         CLIENT->IsDialogueActive() ||
         CLIENT->IsDialogueInteractLocked() ||
-        !CLIENT->Try_GetInteractionPromptAnchor(worldAnchor))
+        GAME->Is_WorldGameplayInputBlocked())
     {
-        _interactionPrompt->Clear_Target();
+        _interactionUI->Hide();
         return;
     }
 
-    _interactionPrompt->Show_AtWorldPosition(worldAnchor);
+    InteractionPromptType promptType = InteractionPromptType::None;
+    if (!CLIENT->Try_GetInteractionPromptType(promptType))
+        promptType = Resolve_WorldInteractionPromptType();
+
+    if (promptType == InteractionPromptType::None)
+    {
+        _interactionUI->Hide();
+        return;
+    }
+
+    _interactionUI->Show(promptType);
 }
 
 void GameplayUI_World::Push_Menu(GameplayMenu menu)

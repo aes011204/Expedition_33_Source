@@ -93,7 +93,7 @@ void PostProcess_View::Render()
             ImGui::Separator();
             ImGui::Spacing();
 
-            Draw_QuickAction(params, lightShaftParams, lightingPipeline, dirty, lightingDirty);
+            Draw_QuickAction(params, lightShaftParams, pipeline, lightingPipeline, dirty, lightingDirty);
 
             if (dirty)
             {
@@ -147,6 +147,7 @@ void PostProcess_View::Draw_FeatureControl(Shared<PostProcessPipeline> pipeline,
         bool useGamma = pipeline->Has_PostProcessFeature(PostProcessFeature::Gamma);
         bool useLightShaft = pipeline->Has_PostProcessFeature(PostProcessFeature::LightShaft);
         bool useDOF = pipeline->Has_PostProcessFeature(PostProcessFeature::DOF);
+        bool useColorGrade = pipeline->Has_PostProcessFeature(PostProcessFeature::ColorGrade);
 
         if (ImGui::Checkbox("HDR", &useHDR))
         {
@@ -189,6 +190,12 @@ void PostProcess_View::Draw_FeatureControl(Shared<PostProcessPipeline> pipeline,
             pipeline->Set_PostProcessFeature(PostProcessFeature::DOF, useDOF);
             dirty = true;
         }
+        ImGui::SameLine();
+        if (ImGui::Checkbox("ColorGrade", &useColorGrade))
+        {
+            pipeline->Set_PostProcessFeature(PostProcessFeature::ColorGrade, useColorGrade);
+            dirty = true;
+        }
     }
 
     ImGui::EndChild();
@@ -210,6 +217,18 @@ void PostProcess_View::Draw_ParameterControl(PostProcessCB& params, bool& dirty)
         dirty |= ImGui::DragFloat("BloomSoftKnee", &params.bloomSoftKnee, 0.01f, 0.f, 1.f, "%.2f");
         dirty |= ImGui::DragFloat("BloomClamp", &params.bloomClamp, 0.05f, 0.f, 50.f, "%.2f");
         dirty |= ImGui::DragFloat("BloomScatter", &params.bloomScatter, 0.01f, 0.f, 1.f, "%.2f");
+
+        ImGui::Separator();
+        ImGui::Text("Color Grade");
+
+        dirty |= ImGui::DragFloat("Strength##ColorGrade", &params.colorGradeStrength, 0.01f, 0.f, 1.f, "%.2f");
+        dirty |= ImGui::DragFloat("Contrast##ColorGrade", &params.colorGradeContrast, 0.01f, 0.1f, 3.f, "%.2f");
+        dirty |= ImGui::DragFloat("Saturation##ColorGrade", &params.colorGradeSaturation, 0.01f, 0.f, 3.f, "%.2f");
+        dirty |= ImGui::DragFloat("Pivot##ColorGrade", &params.colorGradePivot, 0.01f, 0.f, 1.f, "%.2f");
+        dirty |= ImGui::ColorEdit3("Shadow Tint##ColorGrade", reinterpret_cast<float*>(&params.colorGradeShadowTint));
+        dirty |= ImGui::DragFloat("Shadow Strength##ColorGrade", &params.colorGradeShadowTint.w, 0.01f, 0.f, 1.f, "%.2f");
+        dirty |= ImGui::ColorEdit3("Highlight Tint##ColorGrade", reinterpret_cast<float*>(&params.colorGradeHighlightTint));
+        dirty |= ImGui::DragFloat("Highlight Strength##ColorGrade", &params.colorGradeHighlightTint.w, 0.01f, 0.f, 1.f, "%.2f");
 
         ImGui::Separator();
         ImGui::Text("DOF Params");
@@ -375,7 +394,7 @@ void PostProcess_View::Draw_LightingControl(Shared<LightingPipeline> pipeline, b
     ImGui::EndChild();
 }
 
-void PostProcess_View::Draw_QuickAction(PostProcessCB& params, LightShaftCB& lightShaftParams, Shared<LightingPipeline> lightingPipeline, bool& dirty, bool& lightingDirty)
+void PostProcess_View::Draw_QuickAction(PostProcessCB& params, LightShaftCB& lightShaftParams, Shared<PostProcessPipeline> pipeline, Shared<LightingPipeline> lightingPipeline, bool& dirty, bool& lightingDirty)
 {
     if (ImGui::BeginChild("##QuickAction", ImVec2(0.f, 140.f), true))
     {
@@ -395,6 +414,21 @@ void PostProcess_View::Draw_QuickAction(PostProcessCB& params, LightShaftCB& lig
             lightingPipeline->Get_Params() = _defaultSSAOParams;
             lightingPipeline->Get_DeferredLightingParams() = _defaultDeferredLightingParams;
             lightingDirty = true;
+        }
+
+        ImGui::SameLine();
+
+        if (ImGui::Button("Apply Cave Grade"))
+        {
+            params.colorGradeShadowTint = Vec4(0.78f, 0.86f, 1.10f, 0.22f);
+            params.colorGradeHighlightTint = Vec4(1.12f, 0.96f, 0.82f, 0.10f);
+            params.colorGradeContrast = 1.16f;
+            params.colorGradeSaturation = 1.12f;
+            params.colorGradePivot = 0.18f;
+            params.colorGradeStrength = 0.75f;
+            if (pipeline)
+                pipeline->Set_PostProcessFeature(PostProcessFeature::ColorGrade, true);
+            dirty = true;
         }
 
         if (ImGui::Button("Reload Renderer Shaders"))
@@ -437,7 +471,7 @@ void PostProcess_View::Draw_QuickAction(PostProcessCB& params, LightShaftCB& lig
             const HRESULT hr = GAME->Reload_ShaderComs();
             if (hr == S_OK)
             {
-                _reloadShaderComStatusText = "Reloaded Shader_VtxMesh.hlsl and Shader_VtxAnimMesh.hlsl";
+                _reloadShaderComStatusText = "Reloaded ShaderComs including Shader_VictoriaFlag.hlsl";
                 _reloadShaderComStatusIsError = false;
             }
             else if (hr == S_FALSE)

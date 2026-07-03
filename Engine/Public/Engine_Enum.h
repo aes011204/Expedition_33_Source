@@ -218,8 +218,9 @@ namespace Engine
         Gamma       = 1 << 4,
         LightShaft  = 1 << 5,
         DOF         = 1 << 6,
+        ColorGrade  = 1 << 7,
 
-        All = (1 << 7) - 1
+        All = (1 << 8) - 1
     };
 
     enum class GameplayInputMode

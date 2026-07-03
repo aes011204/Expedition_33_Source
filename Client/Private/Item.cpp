@@ -65,12 +65,23 @@ void Item::Update(float timeDelta)
         _effectCom->Update(timeDelta);
 
     if (_pickedUp || !_hasPlayerOverlap)
+    {
+        CLIENT->Clear_InteractionPrompt(this);
         return;
+    }
 
-    if (CLIENT->Is_WorldControlSuspended() || CLIENT->IsDialogueActive() || CLIENT->IsDialogueInteractLocked())
+    if (CLIENT->Is_WorldControlSuspended() ||
+        CLIENT->IsDialogueActive() ||
+        CLIENT->IsDialogueInteractLocked() ||
+        GAME->Is_WorldGameplayInputBlocked())
+    {
+        CLIENT->Clear_InteractionPrompt(this);
         return;
+    }
 
-    if (GAME->KeyDown(KEY_TYPE::F))
+    CLIENT->Request_InteractionPrompt(this, InteractionPromptType::Picking);
+
+    if (GAME->KeyDown(KEY_TYPE::E))
         Try_Pickup();
 }
 
@@ -152,6 +163,7 @@ void Item::OnEndOverlap(Shared<ColliderCom> self, Shared<ColliderCom> other)
     {
         _hasPlayerOverlap = false;
         CLIENT->RemoveItemInteractionOverlap();
+        CLIENT->Clear_InteractionPrompt(this);
     }
 }
 
@@ -175,6 +187,7 @@ void Item::From_Json(const json& data)
     {
         _hasPlayerOverlap = false;
         CLIENT->RemoveItemInteractionOverlap();
+        CLIENT->Clear_InteractionPrompt(this);
     }
 
     _pickedUp = false;
@@ -277,6 +290,7 @@ void Item::Try_Pickup()
     {
         _hasPlayerOverlap = false;
         CLIENT->RemoveItemInteractionOverlap();
+        CLIENT->Clear_InteractionPrompt(this);
     }
 
     const string& logName = _displayName.empty() ? _itemId : _displayName;
@@ -310,6 +324,7 @@ void Item::Free()
     {
         _hasPlayerOverlap = false;
         CLIENT->RemoveItemInteractionOverlap();
+        CLIENT->Clear_InteractionPrompt(this);
     }
 
     GameObject::Free();
