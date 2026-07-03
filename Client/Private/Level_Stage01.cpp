@@ -9,7 +9,7 @@
 
 namespace
 {
-    constexpr wchar_t kEffectName[] = L"Effects/Assets/Map/FX_TornadoPaint.effect.json";
+    constexpr wchar_t kEffectName[] = L"Effects/Assets/Map/FX_TornadoPaint_EX.effect.json";
 
     constexpr wchar_t kParticelEffectName[] = L"Effects/Assets/Map/FX_FallingLight.effect.json";
 
