@@ -63,6 +63,7 @@ public:
 		float lateralInertiaScale{ 1.f };
 		float verticalInertiaScale{ 1.f };
 		float depthInertiaScale{ 1.f };
+		bool includeDriverLateralInertia{ false };
 		float accelerationInertiaScale{ 0.35f };
 		float inertiaVelocitySmoothAlpha{ 0.25f };
 

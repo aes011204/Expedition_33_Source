@@ -516,8 +516,8 @@ void PhysicsModifier::Evaluate_Modifier(ModelCom* model, float timeDelta)
 		vector<WorldCapsule> worldCapsules = Build_WorldCapsules(collisionModel, collisionOwnerWorld);
 		
 		Apply_LengthAndBendConstraints();
-		Apply_PostSimulationConstraints(worldCapsules);
 		Apply_LocalOffsetConstraints(timeDelta, isOwnerIdle);
+		Apply_PostSimulationConstraints(worldCapsules);
 
 		if (_desc.writeBackEnabled)
 			Write_BackToModel(model, ownerWorld, isOwnerIdle);
@@ -1220,6 +1220,7 @@ void PhysicsModifier::Apply_OwnerInertiaForce(const Vec3& ownerMotionDelta, floa
 	const float lateralScale = std::max(0.f, _desc.lateralInertiaScale);
 	const float verticalScale = std::max(0.f, _desc.verticalInertiaScale);
 	const float depthScale = std::max(0.f, _desc.depthInertiaScale);
+	const bool includeDriverLateralInertia = _desc.includeDriverLateralInertia;
 	const float accelerationScale = std::max(0.f, _desc.accelerationInertiaScale);
 	const float velocitySmoothAlpha = std::clamp(_desc.inertiaVelocitySmoothAlpha, 0.f, 1.f);
 	const float releaseVelocityAlpha = std::clamp(_desc.releaseInertiaDamping, 0.f, 0.98f);
@@ -1317,7 +1318,7 @@ void PhysicsModifier::Apply_OwnerInertiaForce(const Vec3& ownerMotionDelta, floa
 				return weightedVelocity;
 		};
 
-		const Vec3 driverTangentialVelocity = buildWeightedTangentialVelocity(driverVelocity, false);
+		const Vec3 driverTangentialVelocity = buildWeightedTangentialVelocity(driverVelocity, includeDriverLateralInertia);
 		const Vec3 driverTangentialVelocityDelta = buildWeightedTangentialVelocity(driverVelocityDelta, true);
 
 		for (auto& node : chain.nodes)
@@ -1954,7 +1955,6 @@ void PhysicsModifier::Apply_PostSimulationConstraints(const vector<WorldCapsule>
 
 							if (projectedThisIteration)
 							{
-								preserveNodeLength();
 								hardParentPosition = resolveParentPosition();
 							}
 
@@ -2348,7 +2348,7 @@ void PhysicsModifier::Write_BackToModel(ModelCom* model, const Matrix& ownerWorl
 					std::max(0.f, fabsf(_desc.maxLocalOffset.x)),
 					std::max(0.f, fabsf(_desc.maxLocalOffset.y)),
 					std::max(0.f, fabsf(_desc.maxLocalOffset.z)));
-				if (Has_LocalOffsetLimit(maxLocalOffset))
+				if (Has_LocalOffsetLimit(maxLocalOffset) && !hadContact)
 				{
 					bool unusedClamped = false;
 					translationOffset = Clamp_LocalOffset(translationOffset, maxLocalOffset, unusedClamped);
@@ -2712,6 +2712,7 @@ const ClassReflectionInfo* PhysicsModifier::Get_RuntimeReflectionInfo() const
 			AddRuntimeProperty(result.properties, PropertyType::Float, "lateralInertiaScale", "Side Inertia", PhysicsOffset(&PhysicsModifierDesc::lateralInertiaScale), 0.01f, 0.f, 10.f);
 			AddRuntimeProperty(result.properties, PropertyType::Float, "verticalInertiaScale", "Up Inertia", PhysicsOffset(&PhysicsModifierDesc::verticalInertiaScale), 0.01f, 0.f, 10.f);
 			AddRuntimeProperty(result.properties, PropertyType::Float, "depthInertiaScale", "Depth Inertia", PhysicsOffset(&PhysicsModifierDesc::depthInertiaScale), 0.01f, 0.f, 10.f);
+			AddRuntimeProperty(result.properties, PropertyType::Bool, "includeDriverLateralInertia", "Driver Side", PhysicsOffset(&PhysicsModifierDesc::includeDriverLateralInertia));
 			AddRuntimeProperty(result.properties, PropertyType::Float, "accelerationInertiaScale", "Accel Inertia", PhysicsOffset(&PhysicsModifierDesc::accelerationInertiaScale), 0.01f, 0.f, 10.f);
 			AddRuntimeProperty(result.properties, PropertyType::Float, "inertiaVelocitySmoothAlpha", "Inertia Smooth", PhysicsOffset(&PhysicsModifierDesc::inertiaVelocitySmoothAlpha), 0.005f, 0.f, 1.f);
 			AddRuntimeProperty(result.properties, PropertyType::Float, "poseSpringStrength", "Spring", PhysicsOffset(&PhysicsModifierDesc::poseSpringStrength), 0.01f, 0.f, 20.f);

@@ -1047,7 +1047,8 @@ void ChainModifierPreset::BuildSimonHairPhysicsDesc(
     desc.maxMovementInertiaSpeed = 64.0f;
     desc.lateralInertiaScale = 3.20f;
     desc.verticalInertiaScale = 0.40f;
-    desc.depthInertiaScale = 2.00f;
+    desc.depthInertiaScale = 3.20f;
+    desc.includeDriverLateralInertia = true;
     desc.accelerationInertiaScale = 0.010f;
     desc.inertiaVelocitySmoothAlpha = 0.030f;
     desc.poseSpringStrength = 0.24f;
@@ -1068,9 +1069,9 @@ void ChainModifierPreset::BuildSimonHairPhysicsDesc(
     desc.contactSnapAlpha = 0.52f;
     desc.collisionCorrectionSmoothAlpha = 0.48f;
     desc.collisionNormalSmoothAlpha = 0.36f;
-    desc.collisionProjectionIterations = 2;
+    desc.collisionProjectionIterations = 3;
     desc.useHardCollisionProjection = true;
-    desc.hardCollisionProjectionIterations = 4;
+    desc.hardCollisionProjectionIterations = 8;
     desc.hardCollisionLengthAlpha = 1.00f;
 
     desc.windDirection = kCommonWindDirection;
@@ -1079,6 +1080,70 @@ void ChainModifierPreset::BuildSimonHairPhysicsDesc(
     desc.windWaveFrequency = 0.45f;
     desc.windWaveDepthPhase = 0.35f;
     desc.gravityScale = 0.46f;
+    desc.teleportDistance = 300.f;
+    desc.solverIterations = 8;
+    desc.writeBackEnabled = true;
+    desc.debugDrawCollisionCapsules = false;
+}
+
+void ChainModifierPreset::BuildDuallisteHairbandPhysicsDesc(
+    PhysicsModifier::PhysicsModifierDesc& outDesc,
+    TransformCom* ownerTransform,
+    const wstring& modifierTag)
+{
+    auto& desc = outDesc;
+    desc = {};
+    desc.modifierTag = modifierTag;
+    desc.ownerTransform = ownerTransform;
+    desc.blendMode = AnimationModifier::ModifierBlendMode::ModifyReplace;
+
+    desc.chains = {
+        { "hairband_root", 0.92f, 0.34f, 1.45f, 0.48f, 0.42f, 1.35f }
+    };
+
+    desc.outputAlpha = 0.88f;
+    desc.rotationOutputAlpha = 0.94f;
+    desc.outputSmoothAlpha = 0.105f;
+    desc.idleOutputSmoothAlpha = 0.80f;
+    desc.idleMotionDeadzone = 0.045f;
+    desc.maxOutputAngleDegree = 48.f;
+
+    desc.contactRotationFollowAlpha = 0.12f;
+    desc.freeRotationFollowAlpha = 0.30f;
+    desc.rotationFollowDepthScale = 0.07f;
+    desc.poseRestoreAlpha = 0.24f;
+    desc.poseRestoreMaxSpeed = 6.5f;
+    desc.maxLocalOffset = Vec3(2.25f, 1.20f, 2.75f);
+    desc.movementInertiaScale = 1.35f;
+    desc.tipMovementInertiaScale = 11.00f;
+    desc.maxMovementInertiaSpeed = 40.f;
+    desc.lateralInertiaScale = 2.35f;
+    desc.verticalInertiaScale = 0.28f;
+    desc.depthInertiaScale = 2.70f;
+    desc.includeDriverLateralInertia = true;
+    desc.accelerationInertiaScale = 0.010f;
+    desc.inertiaVelocitySmoothAlpha = 0.045f;
+    desc.poseSpringStrength = 0.22f;
+    desc.poseSpringDamping = 0.54f;
+    desc.lengthConstraintAlpha = 0.50f;
+    desc.bendConstraintAlpha = 0.055f;
+    desc.projectionIterations = 5;
+
+    desc.contactInertiaDamping = 0.18f;
+    desc.releaseInertiaDamping = 0.44f;
+
+    desc.enableCollision = false;
+    desc.collisionSphereRadius = 0.10f;
+    desc.collisionRadiusPadding = 0.02f;
+    desc.collisionContactSkinWidth = 0.02f;
+    desc.collisionProjectionIterations = 1;
+
+    desc.windDirection = kCommonWindDirection;
+    desc.windScale = 0.f;
+    desc.windWaveScale = 0.f;
+    desc.windWaveFrequency = 0.45f;
+    desc.windWaveDepthPhase = 0.35f;
+    desc.gravityScale = 0.18f;
     desc.teleportDistance = 300.f;
     desc.solverIterations = 8;
     desc.writeBackEnabled = true;

@@ -1,8 +1,8 @@
 ﻿#include "Mon_Dualliste_Body.h"
 
-#include "ChainModifier.h"
 #include "ChainModifierPreset.h"
 #include "ModelCom.h"
+#include "PhysicsModifier.h"
 
 IMPLEMENT_REFLECTION(Mon_Dualliste_Body)
 {
@@ -49,17 +49,14 @@ HRESULT Mon_Dualliste_Body::Ready_Modifier()
     if (_model == nullptr)
         return E_FAIL;
 
-    ChainModifier::ChainModifierDesc hairbandDesc{};
-    ChainModifierPreset::BuildArmbandDesc(
+    PhysicsModifier::PhysicsModifierDesc hairbandDesc{};
+    ChainModifierPreset::BuildDuallisteHairbandPhysicsDesc(
         hairbandDesc,
-        _transformCom.get(),
-        PlayerCharacterType::Gustave);
+        _transformCom.get());
 
-    if (!hairbandDesc.groups.empty())
+    if (!hairbandDesc.chains.empty())
     {
-        hairbandDesc.groups[0].rootBoneName = "hairband_root";
-
-        if (auto modifier = ChainModifier::Create(&hairbandDesc))
+        if (auto modifier = PhysicsModifier::Create(&hairbandDesc))
             _model->Add_AnimModifier(modifier);
     }
 
