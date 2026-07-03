@@ -131,6 +131,11 @@ void BattleController::Update(float timeDelta)
     // 8번 누르면 AP 무한
     Handle_InfiniteAp();
 
+    if (GAME->KeyDown(KEY_TYPE::KEY_0))
+    {
+        Set_AutoParryEnabled(!Is_AutoParryEnabled());
+    }
+
     if (Update_BattleTutorialGate(timeDelta))
         return;
 
@@ -442,6 +447,8 @@ void BattleController::Cancel_BattleEnterPending()
 {
     if (!_isBattleEntering || _isBattleActive)
         return;
+
+    CLIENT->Clear_EffectPrewarmQueue();
 
     GAME->Stop_WorldTimeSlow();
     GAME->Set_WorldTimeScale(1.f);
@@ -1031,6 +1038,32 @@ float BattleController::Resolve_PrefabGroundOffsetY(const Shared<GameObject>& ac
         return monster->Get_BattleGroundOffsetY();
 
     return 0.f;
+}
+
+bool BattleController::Try_ResolveSimonBattleBGM(wstring& outIntroBGM, wstring& outMainBGM) const
+{
+    for (const BattleChar& enemy : _enemies)
+    {
+        if (enemy.actor == nullptr)
+            continue;
+
+        const string& sourcePrefabName = enemy.actor->Get_SourcePrefabName();
+        if (sourcePrefabName == Constants::Prefab::MB_Simon_V2)
+        {
+            outIntroBGM = Constants::SoundBGM::SimonBattlePhase2Intro;
+            outMainBGM = Constants::SoundBGM::SimonBattlePhase2Main;
+            return true;
+        }
+
+        if (sourcePrefabName == Constants::Prefab::MB_Simon)
+        {
+            outIntroBGM = Constants::SoundBGM::SimonBattlePhase1Intro;
+            outMainBGM = Constants::SoundBGM::SimonBattlePhase1Main;
+            return true;
+        }
+    }
+
+    return false;
 }
 
 void BattleController::SetCharInitPos()
@@ -2145,7 +2178,7 @@ void BattleController::Execute_Item()
             static_cast<float>(itemData.healHp) * 0.01f, target);
 
         // 힐 이팩트
-        if (runtimeStat.CurHp > beforeHp && target.actor != nullptr)
+        if (target.actor != nullptr)
         {
             PlayEffectDesc effectDesc{};
             effectDesc.effectName = kHealTintEffect;
@@ -2570,16 +2603,21 @@ void BattleController::Begin_FreeAimShot(const BattleAction& shotAction)
 
 void BattleController::Finish_FreeAimShot()
 {
-    Clear_CurrentScript();
-    //Clear_TargetPreview();
+    const bool shouldReturnToFreeAimIdle =
+        _battleFSM != nullptr &&
+        _battleFSM->Get_CurrentPlayerState() == BattleTurnState::FreeAimTargeting;
 
-    if (_freeAimShotAction.Get_CurChar().ModelCom)
+    if (shouldReturnToFreeAimIdle)
     {
-        // Free Aim 발사 후에는 Base Idle로 풀지 않고 다시 조준 idle 자세로 복귀. 턴 종료가 안됐으니까
-        _freeAimShotAction.Get_CurChar().ModelCom->Set_AnimationByState(
-            ETOI(BattleAnimType::FreeAim_Idle),
-            0.1f,
-            true);
+        Clear_CurrentScript();
+
+        if (_freeAimShotAction.Get_CurChar().ModelCom)
+        {
+            _freeAimShotAction.Get_CurChar().ModelCom->Set_AnimationByState(
+                ETOI(BattleAnimType::FreeAim_Idle),
+                0.1f,
+                true);
+        }
     }
 
     _isFreeAimShotPlaying = false;
@@ -3464,11 +3502,20 @@ void BattleController::Complete_BattleField()
 
     if (!isBishopCinematicBGM)
     {
-        GAME->Play_BGM(
-            hasBossEnemy ? Constants::SoundBGM::BattleBossBGM : Constants::SoundBGM::BattleNormalBGM,
-            1.f,
-            true,
-            0.f);
+        wstring simonIntroBGM{};
+        wstring simonMainBGM{};
+        if (Try_ResolveSimonBattleBGM(simonIntroBGM, simonMainBGM))
+        {
+            GAME->Play_BGMIntroThenLoop(simonIntroBGM, simonMainBGM, 1.f, true, 0.f);
+        }
+        else
+        {
+            GAME->Play_BGM(
+                hasBossEnemy ? Constants::SoundBGM::BattleBossBGM : Constants::SoundBGM::BattleNormalBGM,
+                1.f,
+                true,
+                0.f);
+        }
     }
 
     // 초기 플레이 순서 지정

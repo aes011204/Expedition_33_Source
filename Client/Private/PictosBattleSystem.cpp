@@ -87,7 +87,10 @@ void PictosBattleSystem::Queue_Activation(const BattleChar& actor, const string&
         });
 
     if (duplicated != _pendingActivations.end())
-        return; // 같은 프레임에 같은 hero/pictos가 여러 번 계산되어도 UI는 한 번만
+    {
+        ++duplicated->activationCount;
+        return;
+    }
 
     PictosActivationEvent event{};
     event.heroId = actor.heroId;

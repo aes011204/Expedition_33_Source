@@ -188,6 +188,8 @@ HRESULT EffectCom::Initialize(void* arg)
     _attachedEffects.clear();
     _vanishComplete = false;
     _inspectorEffectPlayed = false;
+    _attachedEffectRevealAlphaMultiplier = 1.f;
+    _attachedEffectRevealAlphaErosion = 0.f;
 
     return S_OK;
 }
@@ -451,6 +453,60 @@ void EffectCom::Set_InspectorEffectSettings(const InspectorEffectSettings& setti
     _inspectorEffectPlayed = false;
 }
 
+void EffectCom::Set_InspectorEffectLocalOffset(const Vec3& localOffset)
+{
+    _inspectorLocalOffset = localOffset;
+
+    const EffectPlayTarget inspectorTarget = static_cast<EffectPlayTarget>(_inspectorEffectTarget);
+    for (AttachedEffect& attached : _attachedEffects)
+    {
+        if (attached.role != AttachedEffectRole::Normal)
+            continue;
+        if (attached.effectName != _inspectorEffectName ||
+            attached.target != inspectorTarget ||
+            attached.partTag != _inspectorPartTag ||
+            attached.socketName != _inspectorSocketName)
+            continue;
+
+        attached.localOffset = localOffset;
+        if (attached.poolHandle.effectObject == nullptr)
+            continue;
+
+        Vec3 targetWorldPosition{};
+        Quat targetWorldRotation{ Quat::Identity };
+        Vec3 targetWorldScale{};
+        if (!Try_ResolveEffectWorldTransform(
+            attached.target,
+            attached.partTag,
+            attached.socketName,
+            attached.localOffset,
+            attached.localRotation,
+            attached.scale,
+            attached.transformInheritance,
+            targetWorldPosition,
+            targetWorldRotation,
+            targetWorldScale
+        ))
+            continue;
+
+        const Shared<TransformCom> effectTransform = attached.poolHandle.effectObject->Get_Transform();
+        CHECK_NULL(effectTransform);
+
+        effectTransform->Set_WorldPosition(targetWorldPosition);
+        effectTransform->Set_WorldRotationQuaternion(targetWorldRotation);
+        effectTransform->Set_Scale(targetWorldScale);
+    }
+}
+
+void EffectCom::Set_AttachedEffectMaterialReveal(float alphaMultiplier, float alphaErosion)
+{
+    _attachedEffectRevealAlphaMultiplier = clamp(alphaMultiplier, 0.f, 1.f);
+    _attachedEffectRevealAlphaErosion = clamp(alphaErosion, 0.f, 1.f);
+
+    for (AttachedEffect& attached : _attachedEffects)
+        Apply_AttachedEffectMaterialReveal(attached.poolHandle.effectObject);
+}
+
 HRESULT EffectCom::Play_InspectorEffect()
 {
     if (_inspectorEffectName.empty())
@@ -551,6 +607,8 @@ HRESULT EffectCom::Play_Effect(const EffectPlayDesc& desc, EffectInstancePool::A
     }
     if (desc.requiresManualRelease)
         handle.requiresManualRelease = true;
+
+    Apply_AttachedEffectMaterialReveal(handle.effectObject);
 
     if (!shouldTrackAttached)
         return S_OK;
@@ -1452,6 +1510,18 @@ void EffectCom::Prune_ReleasedAttachedEffects()
         {
             return attached.poolHandle.effectObject == nullptr;
         }
+    );
+}
+
+void EffectCom::Apply_AttachedEffectMaterialReveal(const Shared<GameObject>& effectObject) const
+{
+    const Shared<EffectInstance> effectInstance = dynamic_pointer_cast<EffectInstance>(effectObject);
+    if (effectInstance == nullptr)
+        return;
+
+    effectInstance->Set_MaterialRevealOverride(
+        _attachedEffectRevealAlphaMultiplier,
+        _attachedEffectRevealAlphaErosion
     );
 }
 

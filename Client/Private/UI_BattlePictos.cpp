@@ -50,8 +50,17 @@ void UI_BattlePictos::Update(float timeDelta)
 
 void UI_BattlePictos::Play_Activation(const ActivationDesc& desc)
 {
+    const bool appendToVisibleActivation =
+        Is_Open() &&
+        _heroId == desc.heroId &&
+        _pictosId == desc.pictosId;
+
     _heroId = desc.heroId;
-    _stackIndex = desc.stackIndex;
+    _pictosId = desc.pictosId;
+    _stackIndex = appendToVisibleActivation ? _stackIndex : desc.stackIndex;
+    _activationCount = appendToVisibleActivation
+        ? _activationCount + max(1u, desc.activationCount)
+        : max(1u, desc.activationCount);
     _elapsed = 0.f;
     _isDeactivating = false;
 
@@ -59,6 +68,9 @@ void UI_BattlePictos::Play_Activation(const ActivationDesc& desc)
 
     if (_labelText)
         _labelText->Set_Text(desc.displayName);
+
+    if (_stackValueText)
+        _stackValueText->Set_Text(to_wstring(_activationCount));
 
     UI_RuntimePanelBase::Open();
 
@@ -82,7 +94,9 @@ void UI_BattlePictos::Close_Immediately()
     Stop_TargetAnimations();
 
     _heroId = HeroId::END;
+    _pictosId.clear();
     _stackIndex = 0;
+    _activationCount = 1;
     _elapsed = 0.f;
     _isDeactivating = false;
 
@@ -139,7 +153,6 @@ void UI_BattlePictos::Reset_VisualState()
     if (_stackValueText)
     {
         _stackValueText->Open();
-        _stackValueText->Set_Text(L"1");
     }
 
     if (_root)

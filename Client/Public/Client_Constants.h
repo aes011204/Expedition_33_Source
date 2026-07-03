@@ -565,6 +565,11 @@ namespace Client::Constants::SoundBGM
 
     constexpr const wchar_t* BishopBattleBossMain = L"BGM/SpringMeadow/MUS_SpringMeadows_BT_Boss_Main.wav";
     constexpr const wchar_t* BishopBattleBossVictory = L"BGM/SpringMeadow/MUS_SpringMeadows_BT_Boss_VictoryScreen.wav";
+
+    constexpr const wchar_t* SimonBattlePhase1Intro = L"BGM/Simon/MUS_Simon_BT_WeLost_Phase1_Intro.wav";
+    constexpr const wchar_t* SimonBattlePhase1Main = L"BGM/Simon/MUS_Simon_BT_WeLost_Phase1_Main.wav";
+    constexpr const wchar_t* SimonBattlePhase2Intro = L"BGM/Simon/MUS_Simon_BT_WeLost_Phase2_Intro.wav";
+    constexpr const wchar_t* SimonBattlePhase2Main = L"BGM/Simon/MUS_Simon_BT_WeLost_Phase2_Main.wav";
 }
 
 namespace Client::Constants::Cinematic

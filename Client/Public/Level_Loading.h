@@ -31,6 +31,7 @@ private:
     HRESULT Ready_LoadingUIRenderResources();
 	HRESULT Ready_Layer_BackGround(const wchar_t* pLayerTag);
 	HRESULT Ready_Layer_UI(const wchar_t* pLayerTag);
+    void    Queue_BattleEffectPrewarmForNextLevel();
 
 public:
 	static Shared<Level_Loading> Create(const ComPtr<Device>& device, const ComPtr<Context>& context, LevelType eNextLevelID);
