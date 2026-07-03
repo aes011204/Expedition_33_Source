@@ -336,7 +336,8 @@ struct alignas(16) ScreenFxCB
     // Transition
     float wipeRadius{ 0.f };
     float edgeSoftness{ 0.05f };
-    Vec2 pad;
+    float transitionUseBlackSource{ 0.f };
+    float pad;
 
     // ScreenFX cue shape
     Vec4 flashColor{ 1.f, 1.f, 1.f, 1.f };

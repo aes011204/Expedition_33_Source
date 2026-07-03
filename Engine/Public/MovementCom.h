@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "Component.h"
 //#include "PhysX_Types.h"
@@ -63,8 +63,8 @@ public:
 
     struct MoveDesc
     {
-        float walkSpeed = 4.f;
-        float runSpeed = 7.f;
+        float walkSpeed = 2.f;
+        float runSpeed = 6.f;
         float sprintSpeed = 10.f;
         float turnSpeedDegree = 180.f;
         float turnResponse = 12.f;

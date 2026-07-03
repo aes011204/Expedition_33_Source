@@ -1768,7 +1768,6 @@ void Animation_View::Sync_ModifierCollisionSource(const Shared<ModelCom>& modifi
             desc->collisionModel = collisionModel;
             desc->collisionOwnerWorldMatrix = &collisionPart->Get_CombinedWorldMatrix();
             desc->ownerWorldMatrix = &modifierPart->Get_CombinedWorldMatrix();
-            desc->enableCollision = true;
             
         }
     }
@@ -3724,74 +3723,6 @@ void Animation_View::Draw_ModifierRuntimePanel(const Shared<ModelCom>& playbackM
                 }
             }
 
-            if (auto* physicsModifier = dynamic_cast<PhysicsModifier*>(modifier.get()))
-            {
-                if (ImGui::TreeNode("Preview Motion Test"))
-                {
-                    auto* physicsDesc = static_cast<PhysicsModifier::PhysicsModifierDesc*>(reflectionTarget);
-
-                    if (ImGui::Checkbox("Enable Test", &_modifierPreviewMotionTestEnabled))
-                    {
-                        if (!_modifierPreviewMotionTestEnabled)
-                        {
-                            _modifierPreviewMotionTestTag.clear();
-                            physicsModifier->Set_RuntimeTestOwnerMotion(false, Vec3::Zero);
-                        }
-                        else
-                        {
-                            _modifierPreviewMotionTestTag = modifier->Get_ModifierTag();
-                        }
-                    }
-
-                    ImGui::TextDisabled("Test adds preview owner motion only; modifier values are unchanged.");
-                    if (ImGui::Button("Run Motion Test"))
-                    {
-                        _modifierPreviewMotionTestEnabled = true;
-                        _modifierPreviewMotionTestTag = modifier->Get_ModifierTag();
-                        float visibleDelta = 0.4f;
-                        if (physicsDesc != nullptr)
-                        {
-                            const float resetLimit = physicsDesc->teleportDistance > 0.1f ? physicsDesc->teleportDistance * 0.25f : 1.f;
-                            visibleDelta = std::clamp(0.4f, 0.25f, resetLimit);
-                        }
-
-                        _modifierPreviewMotionTestDelta = visibleDelta;
-                        _modifierPreviewMotionTestFrequency = 2.f;
-                        _modifierPreviewMotionTestDirection = Vec3(1.f, 0.f, 0.f);
-                    }
-
-                    if (physicsDesc != nullptr)
-                    {
-                        ImGui::TextDisabled("Preview owner delta: %.3f", _modifierPreviewMotionTestDelta);
-                    }
-                    ImGui::TextDisabled("Applied modifiers: %d", _modifierPreviewMotionTestAppliedCount);
-
-                    ImGui::TextDisabled("Direction");
-                    ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
-                    ImGui::DragFloat3("##PreviewMotionTestDir", &_modifierPreviewMotionTestDirection.x, 0.01f, -1.f, 1.f);
-
-                    ImGui::TextDisabled("Delta per frame");
-                    ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
-                    ImGui::DragFloat("##PreviewMotionTestDelta", &_modifierPreviewMotionTestDelta, 0.001f, 0.f, 10.f, "%.3f");
-
-                    ImGui::Checkbox("Oscillate", &_modifierPreviewMotionTestOscillate);
-                    if (_modifierPreviewMotionTestOscillate)
-                    {
-                        ImGui::TextDisabled("Frequency");
-                        ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
-                        ImGui::DragFloat("##PreviewMotionTestHz", &_modifierPreviewMotionTestFrequency, 0.05f, 0.f, 20.f, "%.2f");
-                    }
-
-                    if (ImGui::Button("Stop Test"))
-                    {
-                        _modifierPreviewMotionTestEnabled = false;
-                        _modifierPreviewMotionTestTag.clear();
-                        physicsModifier->Set_RuntimeTestOwnerMotion(false, Vec3::Zero);
-                    }
-
-                    ImGui::TreePop();
-                }
-            }
         }
         ImGui::PopID();
     }
@@ -3858,11 +3789,11 @@ void Animation_View::Draw_ModifierRuntimePanel(const Shared<ModelCom>& playbackM
 
 void Animation_View::Update_ModifierPreviewMotionTest(float timeDelta)
 {
-    UNREFERENCED_PARAMETER(timeDelta);
-
     if (!_modifierPreviewMotionTestEnabled)
     {
         _modifierPreviewMotionTestAppliedCount = 0;
+        _modifierPreviewMotionTestPrevOffset = Vec3::Zero;
+        _modifierPreviewMotionTestHasPrevOffset = false;
         return;
     }
 
@@ -3913,15 +3844,24 @@ void Animation_View::Update_ModifierPreviewMotionTest(float timeDelta)
         else
             direction = Vec3(1.f, 0.f, 0.f);
 
-        float wave = 1.f;
         if (_modifierPreviewMotionTestOscillate)
         {
             constexpr float kTwoPi = 6.28318530718f;
             const float frequency = std::max(0.f, _modifierPreviewMotionTestFrequency);
-            wave = static_cast<float>(std::sin(ImGui::GetTime() * kTwoPi * frequency));
+            const float wave = static_cast<float>(std::sin(ImGui::GetTime() * kTwoPi * frequency));
+            const Vec3 currentOffset = direction * (_modifierPreviewMotionTestDelta * wave);
+            if (_modifierPreviewMotionTestHasPrevOffset)
+                testDelta = currentOffset - _modifierPreviewMotionTestPrevOffset;
+            _modifierPreviewMotionTestPrevOffset = currentOffset;
+            _modifierPreviewMotionTestHasPrevOffset = true;
         }
-
-        testDelta = direction * (_modifierPreviewMotionTestDelta * wave);
+        else
+        {
+            UNREFERENCED_PARAMETER(timeDelta);
+            _modifierPreviewMotionTestPrevOffset = Vec3::Zero;
+            _modifierPreviewMotionTestHasPrevOffset = false;
+            testDelta = direction * _modifierPreviewMotionTestDelta;
+        }
     }
 
     for (const Shared<ModelCom>& model : modifierModels)
@@ -3959,18 +3899,6 @@ void Animation_View::Update_ModifierPreviewMotionTest(float timeDelta)
                     ++_modifierPreviewMotionTestAppliedCount;
             }
 
-            if (auto* physicsModifier = dynamic_cast<PhysicsModifier*>(modifier.get()))
-            {
-                const bool tagMatches =
-                    _modifierPreviewMotionTestTag.empty() ||
-                    physicsModifier->Get_ModifierTag() == _modifierPreviewMotionTestTag;
-                const bool applyToModifier = _modifierPreviewMotionTestEnabled && tagMatches;
-                physicsModifier->Set_RuntimeTestOwnerMotion(
-                    applyToModifier,
-                    applyToModifier ? testDelta : Vec3::Zero);
-                if (applyToModifier)
-                    ++_modifierPreviewMotionTestAppliedCount;
-            }
         }
     }
 }
@@ -5484,12 +5412,25 @@ void Animation_View::Draw_ModifierCollisionDebug() const
                 }
             }
 
-            if (!capsules.empty() || !segments.empty())
+            if (desc->debugDrawCollisionCapsules)
+            {
+                vector<PhysicsModifier::RuntimeDebugSphere> physicsSpheres{};
+                physicsModifier->Build_RuntimeDebugSpheres(physicsSpheres);
+                for (const auto& sphere : physicsSpheres)
+                {
+                    spheres.push_back({
+                        sphere.center,
+                        sphere.radius,
+                        sphere.hasContact });
+                }
+            }
+
+            if (!capsules.empty() || !segments.empty() || !spheres.empty())
                 break;
         }
     }
 
-    if (capsules.empty() && segments.empty())
+    if (capsules.empty() && segments.empty() && spheres.empty())
     {
         const Shared<GameObject> previewRootObject = Get_PreviewRenderObject();
         auto appendSimonHairDebug = [&](Client::Mon_Simon_Hair* simonHair)

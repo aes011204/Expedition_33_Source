@@ -615,11 +615,15 @@ bool ResourceLoader::Can_CreatePrototypeOnWorker(const FLoadJob& loadJob)
 {
     switch (loadJob.eType)
     {
-    case ELoadJobType::TextureCreate:
     case ELoadJobType::Shader:
     case ELoadJobType::ComputeShader:
-    case ELoadJobType::Model:
         return true;
+
+    case ELoadJobType::TextureCreate:
+    case ELoadJobType::Model:
+        // Texture/Model creation can create D3D SRVs through Texture/Material.
+        // Keep it inside Level_Loading's main-thread frame budget so the next level is not shown before this work is consumed.
+        return false;
 
     default:
         return false;

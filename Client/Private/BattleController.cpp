@@ -35,6 +35,7 @@
 #include "BattleFollowupManager.h"
 #include "BattleMechanismCom.h"
 #include "Battle_Event.h"
+#include "ClientScreenFxManager.h"
 #include "Character.h"
 #include "Event_Bus.h"
 #include "DamageSystem.h"
@@ -130,6 +131,11 @@ void BattleController::Update(float timeDelta)
 
     // 8번 누르면 AP 무한
     Handle_InfiniteAp();
+
+    if (GAME->KeyDown(KEY_TYPE::KEY_0))
+    {
+        Set_AutoParryEnabled(!Is_AutoParryEnabled());
+    }
 
     if (Update_BattleTutorialGate(timeDelta))
         return;
@@ -443,6 +449,8 @@ void BattleController::Cancel_BattleEnterPending()
     if (!_isBattleEntering || _isBattleActive)
         return;
 
+    CLIENT->Clear_EffectPrewarmQueue();
+
     GAME->Stop_WorldTimeSlow();
     GAME->Set_WorldTimeScale(1.f);
     GAME->Set_PlayerInputBlocked(false);
@@ -578,7 +586,7 @@ EBattleEndResult BattleController::OnExitBattleField(EBattleEndResult result)
         }
         else if (isBishopCinematicBGM)  // 주교잡고나서는 Victory 브금
         {
-            GAME->Play_BGM(Constants::SoundBGM::BishopBattleBossVictory, 1.f, true, 0.f);
+            GAME->Play_BGM(Constants::SoundBGM::BishopBattleBossVictory, 0.7f, true, 0.f);
         }
         else
         {
@@ -1031,6 +1039,32 @@ float BattleController::Resolve_PrefabGroundOffsetY(const Shared<GameObject>& ac
         return monster->Get_BattleGroundOffsetY();
 
     return 0.f;
+}
+
+bool BattleController::Try_ResolveSimonBattleBGM(wstring& outIntroBGM, wstring& outMainBGM) const
+{
+    for (const BattleChar& enemy : _enemies)
+    {
+        if (enemy.actor == nullptr)
+            continue;
+
+        const string& sourcePrefabName = enemy.actor->Get_SourcePrefabName();
+        if (sourcePrefabName == Constants::Prefab::MB_Simon_V2)
+        {
+            outIntroBGM.clear();
+            outMainBGM = Constants::SoundBGM::SimonBattlePhase2Main;
+            return true;
+        }
+
+        if (sourcePrefabName == Constants::Prefab::MB_Simon)
+        {
+            outIntroBGM = Constants::SoundBGM::SimonBattlePhase1Intro;
+            outMainBGM = Constants::SoundBGM::SimonBattlePhase1Main;
+            return true;
+        }
+    }
+
+    return false;
 }
 
 void BattleController::SetCharInitPos()
@@ -2145,7 +2179,7 @@ void BattleController::Execute_Item()
             static_cast<float>(itemData.healHp) * 0.01f, target);
 
         // 힐 이팩트
-        if (runtimeStat.CurHp > beforeHp && target.actor != nullptr)
+        if (target.actor != nullptr)
         {
             PlayEffectDesc effectDesc{};
             effectDesc.effectName = kHealTintEffect;
@@ -2570,16 +2604,21 @@ void BattleController::Begin_FreeAimShot(const BattleAction& shotAction)
 
 void BattleController::Finish_FreeAimShot()
 {
-    Clear_CurrentScript();
-    //Clear_TargetPreview();
+    const bool shouldReturnToFreeAimIdle =
+        _battleFSM != nullptr &&
+        _battleFSM->Get_CurrentPlayerState() == BattleTurnState::FreeAimTargeting;
 
-    if (_freeAimShotAction.Get_CurChar().ModelCom)
+    if (shouldReturnToFreeAimIdle)
     {
-        // Free Aim 발사 후에는 Base Idle로 풀지 않고 다시 조준 idle 자세로 복귀. 턴 종료가 안됐으니까
-        _freeAimShotAction.Get_CurChar().ModelCom->Set_AnimationByState(
-            ETOI(BattleAnimType::FreeAim_Idle),
-            0.1f,
-            true);
+        Clear_CurrentScript();
+
+        if (_freeAimShotAction.Get_CurChar().ModelCom)
+        {
+            _freeAimShotAction.Get_CurChar().ModelCom->Set_AnimationByState(
+                ETOI(BattleAnimType::FreeAim_Idle),
+                0.1f,
+                true);
+        }
     }
 
     _isFreeAimShotPlaying = false;
@@ -2689,6 +2728,9 @@ void BattleController::Spawn_BattleChar(bool IsHero, string prefabName, Vec3 pos
 
 
         Push_TurnEntry(battleChar, _battleTime + 100.f / max(battleChar.statCom->Get_Speed(), 1.f));
+
+        if (_battleTurnCamera)
+            _battleTurnCamera->Set_Participants(_heroes, _enemies, _pendingBattleMonsterSpawnDescs);
     }
 }
 
@@ -2799,6 +2841,9 @@ void BattleController::Confirm_Victory()
 
     if (hasFollowupBattle)
     {
+        if (Shared<ClientScreenFxManager> screenFxManager = CLIENT->Get_ScreenFxManager())
+            screenFxManager->Request_NextBattleTransitionBlackSource();
+
         OnEnterBattleField(
             followupDesc.battleFieldId,
             followupDesc.isPlayerAdvantage,
@@ -3464,11 +3509,23 @@ void BattleController::Complete_BattleField()
 
     if (!isBishopCinematicBGM)
     {
-        GAME->Play_BGM(
-            hasBossEnemy ? Constants::SoundBGM::BattleBossBGM : Constants::SoundBGM::BattleNormalBGM,
-            1.f,
-            true,
-            0.f);
+        wstring simonIntroBGM{};
+        wstring simonMainBGM{};
+        if (Try_ResolveSimonBattleBGM(simonIntroBGM, simonMainBGM))
+        {
+            if (simonIntroBGM.empty())
+                GAME->Play_BGM(simonMainBGM, 0.7f, true, 0.f);
+            else
+                GAME->Play_BGMIntroThenLoop(simonIntroBGM, simonMainBGM, 0.7f, true, 0.f);
+        }
+        else
+        {
+            GAME->Play_BGM(
+                hasBossEnemy ? Constants::SoundBGM::BattleBossBGM : Constants::SoundBGM::BattleNormalBGM,
+                0.7f,
+                true,
+                0.f);
+        }
     }
 
     // 초기 플레이 순서 지정
@@ -3584,7 +3641,7 @@ void BattleController::Restore_PreBattleBGM()
     if (_preBattleBGM.empty())
         GAME->Stop_SoundChannel(SoundChannel::BGM, 0.f);
     else
-        GAME->Play_BGM(_preBattleBGM, 1.f, true, 0.f);
+        GAME->Play_BGM(_preBattleBGM, 0.7f, true, 0.f);
 
     _preBattleBGM.clear();
     _hasCapturedPreBattleBGM = false;
@@ -3740,7 +3797,9 @@ bool BattleController::Try_BeginTurnStartStatusAnnounce()
                 : BattleCameraMode::ENEMYFOCUS;
             event.subject = _currentTurnActor.actor;
 
-            if (!_currentTurnActor.statCom->Is_Player())
+            if (_currentTurnActor.statCom->Is_Player())
+                event.presetId = magic_enum::enum_name(_currentTurnActor.heroId);
+            else
                 event.presetId = _currentTurnActor.actor->Get_SourcePrefabName();
 
             GAME->Get_EventBus().Publish(event);
@@ -3851,6 +3910,7 @@ void BattleController::Continue_StartTurnAfterStatusEffects()
         EvtBattlePresentation event{};
         event.cameraMode = BattleCameraMode::PLAYERFOCUS;
         event.subject = _currentTurnActor.actor;
+        event.presetId = magic_enum::enum_name(_currentTurnActor.heroId);
         LOG_INFO("[BattleCamTrace] Publish PLAYERFOCUS from BattleController::Continue_StartTurnAfterStatusEffects");
         GAME->Get_EventBus().Publish(event);
 

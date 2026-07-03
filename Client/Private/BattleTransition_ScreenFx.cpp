@@ -27,6 +27,11 @@ IMPLEMENT_REFLECTION(BattleTransition_ScreenFx)
     return true;
 }
 
+BattleTransition_ScreenFx::~BattleTransition_ScreenFx()
+{
+    Release_RoseFlare();
+}
+
 HRESULT BattleTransition_ScreenFx::Initialize(ScreenFxDesc* desc)
 {
     if (FAILED(ScreenFx_Instance::Initialize(desc)))
@@ -92,6 +97,7 @@ HRESULT BattleTransition_ScreenFx::Bind_FxConstantBuffer(ShaderCom* shader)
     cbData.wipeRadius = _currentRadius;
     cbData.edgeSoftness = _originalDesc.edgeSoftness;
     cbData.transitionProgress = _elapsedTime / _duration;
+    cbData.transitionUseBlackSource = _originalDesc.useBlackSource ? 1.f : 0.f;
 
     cbData.vignetteRadius = 0.8f;
     cbData.vignetteSoftness = 0.5f;
@@ -122,6 +128,18 @@ void BattleTransition_ScreenFx::RoseFlare()
         acquireDesc.worldPosition = Vec3(0.f, 0.f, 0.f);
         effectPool->Acquire(acquireDesc, _roseFlareHandle);
     }
+}
+
+void BattleTransition_ScreenFx::Release_RoseFlare()
+{
+    if (_roseFlareHandle.effectObject == nullptr)
+        return;
+
+    EffectInstancePool* effectPool = CLIENT->Get_EffectInstancePool();
+    if (effectPool != nullptr)
+        effectPool->Release(_roseFlareHandle);
+
+    _roseFlareHandle = {};
 }
 
 Shared<BattleTransition_ScreenFx> BattleTransition_ScreenFx::Create(BattleTransitionDesc* desc)

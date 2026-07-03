@@ -1,6 +1,7 @@
 ﻿#pragma once
 #include "Base.h"
 #include "BattleController.h"
+#include "BattleEffectPrewarmTypes.h"
 NS_BEGIN(Client)
 class SkillScript :
     public Base
@@ -12,6 +13,8 @@ public:
 public:
     virtual void Execute(const Skill_Data& skill,
   const BattleAction& action, AttackType attackType) = 0;
+    virtual void Play_GuardedHitEffect(const BattleAction&) { }
+    virtual void Collect_PrewarmEffects(const Skill_Data&, const BattleEffectPrewarmContext&, vector<EffectPrewarmRequest>&) const { }
 
     using SkillScriptCreateFn = function<Shared<SkillScript>()>;
 

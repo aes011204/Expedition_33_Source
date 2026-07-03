@@ -107,6 +107,10 @@ bool EffectEmitter::Collect_FollowerSourcePoints(vector<EffectFollowerSourcePoin
     return false;
 }
 
+void EffectEmitter::Set_MaterialRevealOverride(float, float)
+{
+}
+
 bool EffectEmitter::Try_Get_BlendSortWorldPosition(Vec3& outWorldPosition) const
 {
     if (_transformCom == nullptr)

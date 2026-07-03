@@ -1,11 +1,14 @@
 ﻿#include "PlayerInventory.h"
 
-void PlayerInventory::Clear()
+void PlayerInventory::Add_Chroma(uint32 amount)
 {
-    _chroma = 0;
-    _unlockedPictosIds.clear();
-    _ownedWeapons.clear();
-    _ownedMaterials.clear();
+    if (UINT32_MAX - _chroma < amount)
+    {
+        _chroma = UINT32_MAX;
+        return;
+    }
+
+    _chroma += amount;
 }
 
 bool PlayerInventory::Spend_Chroma(uint32 amount)
@@ -17,16 +20,24 @@ bool PlayerInventory::Spend_Chroma(uint32 amount)
     return true;
 }
 
+void PlayerInventory::Clear()
+{
+    _chroma = 0;
+    _unlockedPictosIds.clear();
+    _ownedWeapons.clear();
+    _ownedMaterials.clear();
+}
+
 uint32 PlayerInventory::Get_MaterialCount(const string& materialId) const
 {
     if (materialId.empty())
         return 0;
 
     const auto iter = find_if(_ownedMaterials.begin(), _ownedMaterials.end(),
-        [&materialId](const MaterialInventoryEntry& entry)
-        {
-            return entry.materialId == materialId;
-        });
+                              [&materialId](const MaterialInventoryEntry& entry)
+                              {
+                                  return entry.materialId == materialId;
+                              });
 
     if (iter == _ownedMaterials.end())
         return 0;
@@ -40,10 +51,10 @@ void PlayerInventory::Set_MaterialCount(const string& materialId, uint32 count)
         return;
 
     auto iter = find_if(_ownedMaterials.begin(), _ownedMaterials.end(),
-        [&materialId](const MaterialInventoryEntry& entry)
-        {
-            return entry.materialId == materialId;
-        });
+                        [&materialId](const MaterialInventoryEntry& entry)
+                        {
+                            return entry.materialId == materialId;
+                        });
 
     if (iter == _ownedMaterials.end())
     {
@@ -112,14 +123,6 @@ void PlayerInventory::Ensure_DefaultUnlockedPictos(const vector<string>& pictosI
     }
 }
 
-bool PlayerInventory::Is_WeaponUnlocked(const string& characterId, const string& weaponId) const
-{
-    if (characterId.empty() || weaponId.empty())
-        return false;
-
-    return Get_WeaponEntry(characterId, weaponId) != nullptr;
-}
-
 const PlayerInventory::WeaponInventoryEntry* PlayerInventory::Get_WeaponEntry(
     const string& characterId,
     const string& weaponId) const
@@ -128,15 +131,23 @@ const PlayerInventory::WeaponInventoryEntry* PlayerInventory::Get_WeaponEntry(
         return nullptr;
 
     const auto iter = find_if(_ownedWeapons.begin(), _ownedWeapons.end(),
-        [&characterId, &weaponId](const WeaponInventoryEntry& entry)
-        {
-            return entry.characterId == characterId && entry.weaponId == weaponId;
-        });
+                              [&characterId, &weaponId](const WeaponInventoryEntry& entry)
+                              {
+                                  return entry.characterId == characterId && entry.weaponId == weaponId;
+                              });
 
     if (iter == _ownedWeapons.end())
         return nullptr;
 
     return &(*iter);
+}
+
+bool PlayerInventory::Is_WeaponUnlocked(const string& characterId, const string& weaponId) const
+{
+    if (characterId.empty() || weaponId.empty())
+        return false;
+
+    return Get_WeaponEntry(characterId, weaponId) != nullptr;
 }
 
 uint32 PlayerInventory::Get_WeaponEnhanceLevel(const string& characterId, const string& weaponId) const
@@ -157,10 +168,10 @@ bool PlayerInventory::Set_WeaponEnhanceLevel(
         return false;
 
     auto iter = find_if(_ownedWeapons.begin(), _ownedWeapons.end(),
-        [&characterId, &weaponId](const WeaponInventoryEntry& entry)
-        {
-            return entry.characterId == characterId && entry.weaponId == weaponId;
-        });
+                        [&characterId, &weaponId](const WeaponInventoryEntry& entry)
+                        {
+                            return entry.characterId == characterId && entry.weaponId == weaponId;
+                        });
 
     if (iter == _ownedWeapons.end())
         return false;

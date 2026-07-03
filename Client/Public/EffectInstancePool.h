@@ -55,6 +55,13 @@ public: //## Types::Public
         uint32 idleCount{};   // Stop된 상태로 다음 Acquire()를 기다리는 슬롯 수다.
     };
 
+    struct PrewarmResult
+    {
+        uint32 existingCount{};
+        uint32 createdCount{};
+        uint32 targetCount{};
+    };
+
 public:
     EffectInstancePool() = default;
     ~EffectInstancePool() override = default;
@@ -76,10 +83,16 @@ public: //## Debug::EditorSession
     void Discard_Inactive(const wstring& effectName);
     // [MainEditor Reload Data용] 다음 재생이 디스크의 최신 .effect.json을 다시 읽도록 쉬고 있는 모든 effect entry를 버린다.
     uint32 Discard_AllInactive();
+    // [MainEditor Stop용] active/idle 여부와 무관하게 runtime effect instance를 레이어에서 제거한다.
+    uint32 Discard_All();
     DebugSummary Get_DebugSummary() const;
 
     // 같은 이팩트를 count개 미리 생성해서 idle 상태로 돌려두기
     HRESULT Prewarm(const AcquireDesc& desc, uint32 count);
+    // 같은 key의 pool entry를 targetCount까지 createBudget만큼 증설한다.
+    HRESULT Prewarm_ToCount(const AcquireDesc& desc, uint32 targetCount, uint32 createBudget, PrewarmResult* outResult = nullptr);
+    // 같은 key/definition/layer에 속한 idle entry 수를 센다.
+    uint32 Count_Entries(const AcquireDesc& desc, const Shared<const EffectDefinition>& definition) const;
 
 private: //## Types::Pool
 

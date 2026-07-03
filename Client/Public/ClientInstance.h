@@ -8,6 +8,7 @@
 #include "PreviewShotTable.h"
 #include "RuntimeCheckpointIO.h"
 #include "UIPreviewManager.h"
+#include "BattleEffectPrewarmTypes.h"
 
 NS_BEGIN(Engine)
 class GameInstance;
@@ -94,6 +95,14 @@ public:
     static void Set_DebugDisableGrassInstancedShadow(bool disabled);
     static bool Is_DebugDisableMapStaticMeshShadow();
     static void Set_DebugDisableMapStaticMeshShadow(bool disabled);
+    static void Set_PotatoBagArenaMapRenderGateBasis(const Vec3& origin, const Vec3& right, const Vec3& forward);
+    static void Clear_PotatoBagArenaMapRenderGateBasis();
+    static bool Is_PotatoBagArenaMapRenderGateActive();
+    static bool Should_RenderMapObjectInPotatoBagArena(const BoundingBox& worldBounds);
+    static bool Should_RenderMapInstanceInPotatoBagArena(const BoundingSphere& worldSphere);
+    static void Update_PotatoBagArenaMapInstancedShadowOverride();
+    static void Toggle_PotatoBagArenaMapRenderGateDebug();
+    static void Draw_PotatoBagArenaMapRenderGateDebug();
 
 public: /* 플레이어 찾기 -> 일단 임시 */
     Shared<GameObject> Find_Player(uint32 levelIndex);
@@ -173,6 +182,7 @@ public: /* For.Gameplay UI */
     void    Play_BattleEnterTransition();
     void    Stop_BattleEnterTransition();
     bool    Is_BattleEnterTransitionPlaying() const;
+    void    Queue_LevelAnnounce(LevelType levelType);
 
 public: /* For.Fade Transition */
     bool Request_ScreenFadeTransition(const function<void()>& CoveredAction);
@@ -277,10 +287,16 @@ public:
 
 public: /* Effect 재생 */
     bool Prewarm_Effect(const wstring& effectName, const wstring& layerTag, uint32 count);
+    void Queue_BattleEffectPrewarmForBattleSetup(const vector<HeroId>& heroIds, const vector<BattleMonsterSpawnDesc>& monsterSpawnDescs, uint32 targetLevelIndex = UINT32_MAX);
+    void Queue_EffectPrewarmRequests(const vector<EffectPrewarmRequest>& requests);
+    void Update_EffectPrewarmQueue(uint32 createBudgetPerFrame = 2);
+    void Flush_EffectPrewarmQueue(uint32 createBudget = UINT32_MAX);
+    void Clear_EffectPrewarmQueue();
 
     // 단발성 1회 재생.
     bool Play_Effect(const PlayEffectDesc& desc);
     HRESULT Reload_EffectJsons();
+    HRESULT Reload_AnimNotifyJsons();
 
     // 약점 파츠처럼 모델/소켓이 없을 때
     bool Play_AttachPartEffect(
@@ -384,6 +400,7 @@ private:
     Unique<GameDataTable>               _gameDataTable;
     Unique<PreviewShotTable>            _previewShotTable;
     Unique<EffectInstancePool>          _effectInstancePool;
+    vector<EffectPrewarmRequest>        _effectPrewarmQueue{};
     Unique<ScreenFadeTransition>        _screenFadeTransition;
     Unique<LevelTransitionFade>         _levelTransitionFade;
     Unique<CinematicSequenceRunner>     _cinematicSequenceRunner;

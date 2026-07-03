@@ -169,6 +169,14 @@ Shared<Skill_Gustave_PerfectBreak> Skill_Gustave_PerfectBreak::Create()
     return make_shared<Skill_Gustave_PerfectBreak>();
 }
 
+void Skill_Gustave_AnglesEye::Collect_PrewarmEffects(const Skill_Data&, const BattleEffectPrewarmContext&, vector<EffectPrewarmRequest>& outRequests) const
+{
+    EffectPrewarmRequest request{};
+    request.effectName = L"Gustave_AngelsEye_Slash";
+    request.targetCount = 7;
+    outRequests.push_back(request);
+}
+
 /* 천사의 눈 */
 void Skill_Gustave_AnglesEye::Execute(const Skill_Data& skill, const BattleAction& action, AttackType attackType)
 {

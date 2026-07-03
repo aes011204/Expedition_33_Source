@@ -770,6 +770,9 @@
     <ClCompile Include="..\private\BattleController.cpp">
       <Filter>BattleState\Battle\BattleController</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\BattleEffectPrewarmCollector.cpp">
+      <Filter>BattleState\Battle\BattleController</Filter>
+    </ClCompile>
     <ClCompile Include="..\private\BattleStateMachine.cpp">
       <Filter>BattleState\Battle</Filter>
     </ClCompile>
@@ -1090,6 +1093,9 @@
       <Filter>02. GameObject\UI</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\UI_BattleAnnounce.cpp">
+      <Filter>02. GameObject\UI</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\UI_LevelAnnounce.cpp">
       <Filter>02. GameObject\UI</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\UI_BattleFloatingTextBase.cpp">
@@ -2054,6 +2060,12 @@
     <ClInclude Include="..\Public\EffectInstancePool.h">
       <Filter>06. Effect System\Pool</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\BattleEffectPrewarmCollector.h">
+      <Filter>BattleState\Battle\BattleController</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\BattleEffectPrewarmTypes.h">
+      <Filter>BattleState\Battle\BattleController</Filter>
+    </ClInclude>
     <ClInclude Include="..\Private\EffectAssetRuntimeLoader_Support.h">
       <Filter>06. Effect System\Runtime Loader\Support</Filter>
     </ClInclude>
@@ -2559,6 +2571,9 @@
       <Filter>02. GameObject\UI</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\UI_BattleAnnounce.h">
+      <Filter>02. GameObject\UI</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\UI_LevelAnnounce.h">
       <Filter>02. GameObject\UI</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\UI_BattleFloatingTextBase.h">

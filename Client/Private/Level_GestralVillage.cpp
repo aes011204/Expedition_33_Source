@@ -129,6 +129,7 @@ void Level_GestralVillage::BeginPlay()
         GAME->Get_DelegateHub().OnEditorPlayRuntime.Add(this, &Level_GestralVillage::Play_MapBGM);
 
     CLIENT->Capture_InitialWorldSnapshot();
+    CLIENT->Queue_LevelAnnounce(LevelType::GestralVillage);
 
     // flame
     PlayEffectDesc desc{};
@@ -169,6 +170,11 @@ void Level_GestralVillage::Update(float fTimeDelta)
         if (auto movement = active->Get_Component<MovementCom>())
             movement->Sync_RuntimePositionToTransform();
     }
+
+    if (GAME->KeyDown(KEY_TYPE::F1))
+        ClientInstance::Toggle_PotatoBagArenaMapRenderGateDebug();
+
+    ClientInstance::Draw_PotatoBagArenaMapRenderGateDebug();
 }
 
 HRESULT Level_GestralVillage::Render()
@@ -489,6 +495,29 @@ HRESULT Level_GestralVillage::Ready_Layer_ETC(const wstring& strLayerTag)
     CHECK_NULL(_bssPotatoBag, E_FAIL);
 
     _bssPotatoBag->Set_SpawnerId(Constants::Value::potatoBagBattleStartSpawnerId);
+    if (const Shared<TransformCom> spawnerTransform = _bssPotatoBag->Get_Transform())
+    {
+        Vec3 right = spawnerTransform->Get_WorldRight();
+        Vec3 forward = spawnerTransform->Get_WorldForward();
+
+        right.y = 0.f;
+        forward.y = 0.f;
+
+        if (right.LengthSquared() > 0.0001f)
+            right.Normalize();
+        else
+            right = Vec3::Right;
+
+        if (forward.LengthSquared() > 0.0001f)
+            forward.Normalize();
+        else
+            forward = Vec3::Forward;
+
+        ClientInstance::Set_PotatoBagArenaMapRenderGateBasis(
+            spawnerTransform->Get_WorldPosition(),
+            right,
+            forward);
+    }
 
     const Shared<GameObject> upDownRope = Spawn_Prefab::Prefab("ETC/WorldUpDownRopeSpot")
         .AtLevel(ETOI(LevelType::GestralVillage))
@@ -589,7 +618,7 @@ void Level_GestralVillage::UnlockRules_GestralVillage()
 
 void Level_GestralVillage::Play_MapBGM()
 {
-    GAME->Play_BGM(Constants::SoundBGM::GestralVillageMarket, 1.f, true, 0.f);
+    GAME->Play_BGM(Constants::SoundBGM::GestralVillageMarket, 0.7f, true, 0.f);
 }
 
 Shared<Level_GestralVillage> Level_GestralVillage::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)
@@ -606,6 +635,8 @@ Shared<Level_GestralVillage> Level_GestralVillage::Create(const ComPtr<Device>& 
 
 void Level_GestralVillage::Free()
 {
+    ClientInstance::Clear_PotatoBagArenaMapRenderGateBasis();
+
     GAME->Set_VolumetricLightShaftZones(VolumetricLightShaftZoneCB{});
 
     if (_editorPlayRuntimeHandle.IsValid())

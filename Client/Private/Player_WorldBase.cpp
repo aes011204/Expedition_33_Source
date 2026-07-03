@@ -584,6 +584,7 @@ HRESULT Player_WorldBase::Ensure_CostumeVariantBuilt(const CostumePreset& preset
     CostumeVariantParts variant{};
     variant.body = Create_CostumeBodyVariant(preset.parts.bodyModelTag);
     CHECK_NULL(variant.body, E_FAIL);
+    CHECK_FAILED(Ready_BodyModifiers(variant.body.get(), preset.presetId), E_FAIL);
 
     variant.head = Create_CostumeHeadVariant(preset.parts.headModelTag, variant.body.get());
     CHECK_NULL(variant.head, E_FAIL);
@@ -855,7 +856,7 @@ HRESULT Player_WorldBase::Rebuild_CostumeParts(const CostumePreset& preset)
         _playerStateMachineCom->Refresh_BodyPlayerForStates();
     }
 
-    CHECK_FAILED(Ready_BodyModifiers(body), E_FAIL);
+    CHECK_FAILED(Ready_BodyModifiers(body, preset.presetId), E_FAIL);
 
     Head_Player* head = Add_CostumeHead(preset.parts.headModelTag, body);
     CHECK_NULL(head, E_FAIL);
@@ -1017,8 +1018,6 @@ Shared<Body_Player> Player_WorldBase::Create_CostumeBodyVariant(const wstring& m
         model->Apply_BaseMaterialFromBundle_AllSlots();
         (void)model->Normalize_OwnerComponentTagAndBindings();
     }
-
-    CHECK_FAILED(Ready_BodyModifiers(body.get()), nullptr);
 
     return body;
 }
@@ -1337,6 +1336,8 @@ HRESULT Player_WorldBase::Ready_PartObjects()
         defaultParts.glasses = dynamic_pointer_cast<FaceAccessory_Player>(glassesIter->second);
     defaultParts.baseTransforms = _defaultCostumePartTransforms;
     defaultParts.presetTransforms = _defaultCostumePartTransforms;
+
+    CHECK_FAILED(Ready_BodyModifiers(defaultParts.body.get(), "Default"), E_FAIL);
 
     if (CostumeManager* costumeManager = CLIENT->Get_CostumeManager())
     {

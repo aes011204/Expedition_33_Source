@@ -17,6 +17,7 @@ public:
     virtual HRESULT Initialize() override;
     void BeginPlay() override;
     virtual void Update(float fTimeDelta) override;
+
     virtual HRESULT Render() override;
 
 private:

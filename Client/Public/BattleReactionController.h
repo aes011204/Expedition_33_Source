@@ -124,7 +124,11 @@ public:
 
     bool TryInput(BattleReactionType type, uint32 consumeKey);
     bool TryConsume(BattleReactionType& outResult, uint32 consumeKey);
-    bool TryConsumeGuard(const BattleChar& target, uint32 stepIndex, uint32 consumeKey = UINT32_MAX);
+    bool TryConsumeGuard(
+        const BattleChar& target,
+        uint32 stepIndex,
+        uint32 consumeKey = UINT32_MAX,
+        BattleReactionType* outConsumedReaction = nullptr);
 
     bool IsWindowOpen(BattleReactionType type) const;
     bool IsConsumed() const { return !_consumedReactionInputs.empty(); }
@@ -176,7 +180,7 @@ private:
     void ResetJumpCounterSequence();
     void ClearConsumedInput();
     bool Is_ConsumeKeyPending(uint32 consumeKey) const;
-    bool CanReceiveInput(const BattleChar& target) const;
+    bool CanReceiveInput(const BattleChar& target, BattleReactionType reactionType) const;
     bool IsHitOrDeadBattleAnim(BattleAnimType animType) const;
 
     void PlayReactionAnimation(

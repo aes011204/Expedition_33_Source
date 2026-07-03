@@ -1,10 +1,10 @@
 ﻿#include "ANS_WeaponEcho.h"
 #include "BattleController.h"
+#include "Client_Constants.h"
 #include "ClientInstance.h"
 #include "ContainerObject.h"
 #include "EffectCom.h"
 #include "Monster_BattleBase.h"
-#include "MonsterStatCom.h"
 #include "Mon_Simon_Weapon.h"
 #include "BattleAction.h"
 #include "BattleReactionController.h"
@@ -118,7 +118,7 @@ void ANS_WeaponEcho::On_Begin(const AnimNotifyContext& context)
     window.echoCount = Resolve_EchoCount(context);
     g_activeWeaponEchoWindows.push_back(window);
 
-    if (!context.isPreview)
+    if (!context.isPreview && window.echoCount > 0)
 {
     auto battle = CLIENT->Get_BattleController();
     if (battle != nullptr)
@@ -156,19 +156,22 @@ void ANS_WeaponEcho::On_Begin(const AnimNotifyContext& context)
 }
 
 
-    if (Mon_Simon_Weapon* simonWeapon = Resolve_TargetSimonWeapon(context))
+    if (window.echoCount > 0)
     {
-        simonWeapon->Begin_WeaponEchoPlayback(
-            _delaySec,
-            Resolve_EchoCount(context));
-
-        if (Shared<EffectCom> effectCom = EffectCom::Find_FromNotifyOwner(context.owner))
+        if (Mon_Simon_Weapon* simonWeapon = Resolve_TargetSimonWeapon(context))
         {
-            wstring activeTrailEffectName{};
-            wstring activeTrailLayerTag{};
-            EffectCom::TrailOffsetRuntimeDesc activeTrailOffset{};
-            if (effectCom->Try_GetActiveTrailEffect(_partTag, activeTrailEffectName, activeTrailLayerTag, activeTrailOffset))
-                simonWeapon->Begin_WeaponEchoTrail(activeTrailEffectName, activeTrailLayerTag, activeTrailOffset);
+            simonWeapon->Begin_WeaponEchoPlayback(
+                _delaySec,
+                window.echoCount);
+
+            if (Shared<EffectCom> effectCom = EffectCom::Find_FromNotifyOwner(context.owner))
+            {
+                wstring activeTrailEffectName{};
+                wstring activeTrailLayerTag{};
+                EffectCom::TrailOffsetRuntimeDesc activeTrailOffset{};
+                if (effectCom->Try_GetActiveTrailEffect(_partTag, activeTrailEffectName, activeTrailLayerTag, activeTrailOffset))
+                    simonWeapon->Begin_WeaponEchoTrail(activeTrailEffectName, activeTrailLayerTag, activeTrailOffset);
+            }
         }
     }
 
@@ -263,6 +266,9 @@ void ANS_WeaponEcho::Queue_EchoReactionWindowsFromNotify(const AnimNotifyContext
         if (!Is_MatchingEchoWindow(context, window))
             continue;
 
+        if (window.echoCount == 0)
+            return;
+
         const bool sourceStepIsLastAttack = Is_LastAttackStep(turnAction, sourceStepIndex);
 
         battle->Get_ReactionController().Suppress_CounterForSourceStep(sourceStepIndex);
@@ -320,37 +326,46 @@ Mon_Simon_Weapon* ANS_WeaponEcho::Resolve_TargetSimonWeapon(const AnimNotifyCont
 
 uint32 ANS_WeaponEcho::Resolve_EchoCount(const AnimNotifyContext& context) const
 {
+    const uint32 autoEchoCount = Resolve_AutoEchoCount(context);
+    if (autoEchoCount == 0)
+        return 0u;
+
     if (_echoCountOverride > 0)
         return std::clamp(static_cast<uint32>(_echoCountOverride), 1u, 2u);
 
-    // 2페면 잔상 2개씩
-    return Is_SecondEchoPhase(context) ? 2u : 1u;
+    return autoEchoCount;
 }
 
-bool ANS_WeaponEcho::Is_SecondEchoPhase(const AnimNotifyContext& context) const
+uint32 ANS_WeaponEcho::Resolve_AutoEchoCount(const AnimNotifyContext& context) const
 {
     if (context.owner == nullptr)
-        return false;
+        return 1u;
 
-    // 일단은 Critical이 2페라고 가정
     Shared<GameObject> current = context.owner->GetSharedPtr<GameObject>();
     while (current)
     {
         Monster_BattleBase* battleMonster = dynamic_cast<Monster_BattleBase*>(current.get());
         if (battleMonster != nullptr)
         {
-            const Shared<MonsterStatCom> monsterStat =
-                battleMonster->Get_Component<MonsterStatCom>();
-            if (monsterStat == nullptr || !monsterStat->Is_V2())
-                return false;
+            const string& sourcePrefabName = battleMonster->Get_SourcePrefabName();
+            if (sourcePrefabName == Constants::Prefab::MB_Simon)
+                return 0u;
 
-            return battleMonster->Get_CurPhase() == Monster_BattleBase::BattlePhase::Critical;
+            if (sourcePrefabName == Constants::Prefab::MB_Simon_V2)
+            {
+                if (battleMonster->Get_CurPhase() == Monster_BattleBase::BattlePhase::Critical)
+                    return 2u;
+
+                return 1u;
+            }
+
+            return 1u;
         }
 
         current = current->Get_Owner();
     }
 
-    return false;
+    return 1u;
 }
 
 void ANS_WeaponEcho::Record_Sample(const AnimNotifyContext& context, bool force)

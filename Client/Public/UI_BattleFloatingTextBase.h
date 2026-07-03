@@ -24,6 +24,10 @@ public:
 
     bool  Is_Playing() const { return _isPlaying; }
     float Get_Elapsed() const { return _elapsed; }
+    bool  Is_PlayingForTarget(const BattleChar& target) const
+    {
+        return _isPlaying && _hasTarget && target.actor != nullptr && _target.actor.get() == target.actor.get();
+    }
 
 protected:
     bool Begin_FloatingText(const BattleChar& target, uint32 stackIndex);
@@ -54,8 +58,8 @@ private:
 
     // 동시에 뜬 숫자끼리 겹치지 않도록 기존 좌우/상하 분산 규칙을 유지한다.
     void Apply_StackOffset(Vec2& screenPos) const;
-    void Apply_ScreenClamp(Vec2& screenPos) const;
     void Apply_RiseOffset(Vec2& screenPos, float t) const;
+    void Apply_ScreenClamp(Vec2& screenPos) const;
 
 protected:
     BattleChar  _target{};          

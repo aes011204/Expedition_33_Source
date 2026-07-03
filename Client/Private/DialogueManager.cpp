@@ -3,6 +3,7 @@
 #include "ClientInstance.h"
 #include "DialogueCamera.h"
 #include "GameplayUI.h"
+#include "Item.h"
 #include "UI_Dialogue.h"
 #include "Player_WorldBase.h"
 #include "NPC_Base.h"
@@ -425,12 +426,17 @@ bool DialogueManager::ExecuteLineAction(const string& action)
         const Shared<GameObject> spawned = Spawn_Prefab::Prefab(Constants::Prefab::Item_Pictos_WarmingUp)
             .AtLevel(GAME->Current_LevelIndex())
             .InLayer(TEXT("Layer_GameObject"))
-            .Position(spawnPosition)
+            .Position(Vec3(-82.34f, 20.75f, 71.09f))
             .Rotation(Vec3::Zero)
             .Spawn();
 
         if (spawned != nullptr)
+        {
             spawned->Set_RuntimeAuthoringLoaded(true);
+
+            if (const Shared<Item> spawnedItem = dynamic_pointer_cast<Item>(spawned))
+                spawnedItem->Start_SpawnReveal(0.45f);
+        }
 
         if (const Shared<NPC_Base> npc = dynamic_pointer_cast<NPC_Base>(npcObject))
             npc->Remove_InteractionTrigger();

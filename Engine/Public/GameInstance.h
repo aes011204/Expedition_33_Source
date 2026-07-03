@@ -382,6 +382,12 @@ public: /* For.Sound_Manager */
         float volume = 1.f,
         bool stopPrevBGM = true,
         float fadeOutDuration = 0.f);
+    bool Play_BGMIntroThenLoop(
+        const wstring& introFile,
+        const wstring& loopFile,
+        float volume = 1.f,
+        bool stopPrevBGM = true,
+        float fadeOutDuration = 0.f);
     bool Play_LoopSound(
         const wstring& soundFile,
         SoundChannel channel,

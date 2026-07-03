@@ -29,8 +29,8 @@ public:
     void Open() override;
     void Close() override;
 
-    // 데미지 popup은 시작 위치만 잡고, 이후에는 snapshot screen position 기준으로 rise만 적용한다.
-    void Play_DamageFont(const BattleChar& target, float damage, uint32 stackIndex, bool isCritical);
+    // 데미지 popup은 맞은 대상의 world anchor를 따라가며 카메라 회전 중에도 대상 근처에 유지한다.
+    void Play_DamageFont(const BattleChar& target, float damage, uint32 stackIndex, bool isCritical, AttackType attackType);
 
 private:
     HRESULT Load_UI(uint32 levelIndex);
@@ -54,20 +54,23 @@ private:
     Shared<UI_Text> _damageTextBg{};
 
     DamageFontStyle _activeStyle = DamageFontStyle::Normal;
+    AttackType _activeAttackType = AttackType::Invalid;
 
 private:
     float _damageLifeTime = 1.05f;
     float _damageRiseDistance = 72.f;
 
-    float _damageStackHorizontalOffset = 76.f;
+    float _damageStackHorizontalOffset = -76.f;
+    float _damageFreeAimStackHorizontalOffset = -28.f;
     float _damageStackVerticalOffset = 22.f;
 
     Vec3 _damageWorldAnchorOffset = Vec3(0.f, 0.f, 0.f);
-    Vec2 _damageScreenBaseOffset = Vec2(0.f, -36.f);
-    Vec2 _damageFarScreenBaseOffset = Vec2(0.f, -12.f);
-    Vec2 _damageScreenClampPadding = Vec2(120.f, 90.f);
+    Vec2 _damageScreenBaseOffset = Vec2(0.f, -8.f);
+    Vec2 _damageFarScreenBaseOffset = Vec2(0.f, 18.f);
+    Vec2 _damageFreeAimFarScreenBaseOffset = Vec2(0.f, 48.f);
     float _damageScreenOffsetCloseDistance = 5.f;
     float _damageScreenOffsetFarDistance = 14.f;
+    Vec2 _damageScreenClampPadding = Vec2(120.f, 130.f);
 
     float _damageWorldAnchorRandomMinY = -0.12f;
     float _damageWorldAnchorRandomMaxY = 0.18f;
@@ -79,6 +82,7 @@ private:
     float _appliedDamageStackVerticalOffset = 0.f;
     Vec3  _appliedDamageWorldAnchorOffset = Vec3::Zero;
     Vec2  _appliedDamageScreenBaseOffset = Vec2::Zero;
+    Vec2  _appliedDamageScreenClampPadding = Vec2::Zero;
     float _appliedDamageWorldAnchorRandomMinY = 0.f;
     float _appliedDamageWorldAnchorRandomMaxY = 0.f;
 
