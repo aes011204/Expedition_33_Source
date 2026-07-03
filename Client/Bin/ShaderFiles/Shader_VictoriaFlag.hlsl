@@ -292,10 +292,10 @@ float4 ApplyVictoriaFlagFabricColor(float2 flagUV, float4 baseColor)
     const float wrinkleShadow = ComputeVictoriaFlagWrinkleShadow(flagUV);
     const float threadLift = saturate((fabric - 0.5f) * 2.f);
 
-    baseColor.rgb *= lerp(0.88f, 1.12f, fabric);
-    baseColor.rgb *= lerp(1.f, 0.60f, wrinkleShadow);
-    baseColor.rgb = lerp(baseColor.rgb, baseColor.rgb * float3(1.52f, 1.44f, 1.30f) + float3(0.030f, 0.026f, 0.018f), wrinkleRidge * 0.28f);
-    baseColor.rgb += threadLift * 0.006f;
+    baseColor.rgb *= lerp(0.86f, 1.14f, fabric);
+    baseColor.rgb *= lerp(1.f, 0.53f, wrinkleShadow);
+    baseColor.rgb = lerp(baseColor.rgb, baseColor.rgb * float3(1.58f, 1.49f, 1.33f) + float3(0.034f, 0.030f, 0.020f), wrinkleRidge * 0.34f);
+    baseColor.rgb += threadLift * 0.008f;
     return float4(saturate(baseColor.rgb), baseColor.a);
 }
 
@@ -315,8 +315,8 @@ float3 ApplyVictoriaFlagFabricNormal(float2 flagUV, float3 normalW, float3 tange
     const float fabricSlopeY = cos(flagUV.y * 74.f + sin(flagUV.x * 11.f) * 0.30f) * 0.022f +
         cos(flagUV.y * 330.f + sin(flagUV.x * 27.f) * 0.18f) * 0.034f;
 
-    const float warpSlope = fabricSlopeX + bodySlopeA * 0.145f + bodySlopeB * 0.088f + poleSlope * 0.076f;
-    const float weftSlope = fabricSlopeY + bodySlopeA * 0.106f + bodySlopeB * 0.150f + poleSlope * 0.178f;
+    const float warpSlope = (fabricSlopeX + bodySlopeA * 0.145f + bodySlopeB * 0.088f + poleSlope * 0.076f) * 1.18f;
+    const float weftSlope = (fabricSlopeY + bodySlopeA * 0.106f + bodySlopeB * 0.150f + poleSlope * 0.178f) * 1.18f;
 
     return normalize(n + t * warpSlope + b * weftSlope);
 }

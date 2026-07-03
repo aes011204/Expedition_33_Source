@@ -322,7 +322,14 @@ function Invoke-ModelNvttConversion {
         [string]$NvttExportPath
     )
 
-    $modelRoot = Join-Path $repoRoot "Client\Bin\Resources\Models\$ModelPath"
+    if ([string]::IsNullOrWhiteSpace($ModelPath)) {
+        $modelRoot = Join-Path $repoRoot "Client\Bin\Resources\Models"
+        $displayModelPath = "(all models)"
+    }
+    else {
+        $modelRoot = Join-Path $repoRoot "Client\Bin\Resources\Models\$ModelPath"
+        $displayModelPath = $ModelPath
+    }
     if (-not (Test-Path -LiteralPath $modelRoot)) {
         Write-Host "[ERROR] Model folder not found:"
         Write-Host "  $modelRoot"
@@ -345,7 +352,7 @@ function Invoke-ModelNvttConversion {
     Write-Host "============================================="
     Write-Host " NVTT Normal Converter - Model"
     Write-Host "============================================="
-    Write-Host " Model     : $ModelPath"
+    Write-Host " Model     : $displayModelPath"
     Write-Host " Folder    : $modelRoot"
     Write-Host " Match     : file name contains 'Normal'"
     Write-Host " Output    : next to the source texture"
@@ -464,11 +471,8 @@ if ($targetMode -eq "2" -or $targetMode -eq "4") {
     Write-Host ""
     Write-Host "Enter a path relative to Resources\Models."
     Write-Host "Example: Heros\Lune"
+    Write-Host "Leave empty to scan all Resources\Models."
     $modelPath = (Read-Host "Model path").Trim()
-    if ([string]::IsNullOrWhiteSpace($modelPath)) {
-        Write-Host "[ERROR] Model path is required."
-        exit 1
-    }
 }
 
 if ($targetMode -eq "4") {
