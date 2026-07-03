@@ -24,6 +24,8 @@ protected:
     virtual const wchar_t* Get_BeardModelTag() const { return nullptr; /* return L"Model_GustaveBeard"; */ }
     virtual const wchar_t* Get_MustacheModelTag() const { return nullptr; /* return L"Model_GustaveMustache"; */ }
 
+    HRESULT Ready_BodyModifiers(Body_Player* body, const wchar_t* bodyModelTag) override;
+
     void Get_WeaponAttachDescs(vector<WeaponAttachDesc>& outDescs) const override;
 
     HeroId Get_HeroId() const override { return HeroId::Gustave; }

@@ -51,6 +51,7 @@ public:
     virtual bool Can_Interact(const Shared<Player_WorldBase>& activeHero) const = 0;
     virtual bool Build_InteractionRequest(const Shared<Player_WorldBase>& activeHero, WorldInteractionRequest& outRequest) const = 0;
     virtual const wstring& Get_InteractionPrompt() const = 0;
+    virtual InteractionPromptType Get_InteractionPromptType(const Shared<Player_WorldBase>&) const { return InteractionPromptType::None; }
     virtual int32 Get_InteractionPriority() const { return 0; }
 };
 
