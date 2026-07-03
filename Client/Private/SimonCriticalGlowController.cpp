@@ -22,11 +22,6 @@ void SimonCriticalGlowController::Set_Critical(bool critical, float duration)
         Resolve_TargetMaterials();
     }
 
-    if (_isCritical == critical)
-    {
-        return;
-    }
-
     _isCritical = critical;
     _duration = duration;
     _fromColor = _currentColor;
