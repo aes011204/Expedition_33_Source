@@ -74,6 +74,7 @@ public:
     float Get_ParkourHighProbeDistance() const { return _parkourHighProbeDistance; }
     const Vec3& Get_ParkourLowProbeCenter() const { return _parkourLowProbeCenter; }
     const Vec3& Get_ParkourHighProbeCenter() const { return _parkourHighProbeCenter; }
+    bool Is_ParkourBlockedByCurrentLevel() const;
 
 protected:
     HRESULT Ready_Components();

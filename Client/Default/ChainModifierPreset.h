@@ -3,7 +3,6 @@
 #include "ChainModifier.h"
 #include "PhysicsModifier.h"
 #include "PoseFollowChainModifier.h"
-#include "SimonHairRuntime.h"
 #include "Client_Enum.h"
 
 NS_BEGIN(Client)
@@ -74,11 +73,10 @@ public:
 
     
 
-    static void BuildSimonHairHardcodedDesc(
-        SimonHairRuntime::Desc& outDesc,
+    static void BuildSimonHairPhysicsDesc(
+        PhysicsModifier::PhysicsModifierDesc& outDesc,
         TransformCom* ownerTransform,
-        PlayerCharacterType characterType,
-        const wstring& runtimeTag = L"SimonHairRuntime_Simon");
+        const wstring& modifierTag = L"PhysicsModifier_SimonHair");
 
     static void BuildPotatoBagClothBackDesc(
         ChainModifier::ChainModifierDesc& outDesc,

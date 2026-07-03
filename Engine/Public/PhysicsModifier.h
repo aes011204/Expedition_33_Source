@@ -86,6 +86,9 @@ public:
 		float collisionCorrectionSmoothAlpha{ 0.30f };
 		float collisionNormalSmoothAlpha{ 0.30f };
 		uint32 collisionProjectionIterations{ 3 };
+		bool useHardCollisionProjection{ false };
+		uint32 hardCollisionProjectionIterations{ 2 };
+		float hardCollisionLengthAlpha{ 1.f };
 
 		Vec3 windDirection{ Vec3::Zero };
 		float windScale{ 0.f };

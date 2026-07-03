@@ -43,25 +43,36 @@ HRESULT Mon_Simon_Hair::Initialize(void* arg)
         }
     }
 
-    CHECK_FAILED(Ready_Runtime(), E_FAIL);
+    CHECK_FAILED(Ready_PhysicsModifier(), E_FAIL);
 
     return S_OK;
 }
 
-HRESULT Mon_Simon_Hair::Ready_Runtime()
+HRESULT Mon_Simon_Hair::Ready_PhysicsModifier()
 {
-    SimonHairRuntime::Desc hairDesc{};
-    ChainModifierPreset::BuildSimonHairHardcodedDesc(
-        hairDesc,
-        _transformCom.get(),
-        PlayerCharacterType::None);
+    CHECK_NULL(_model, E_FAIL);
 
-    if (_model && !hairDesc.chains.empty())
+    PhysicsModifier::PhysicsModifierDesc hairDesc{};
+    ChainModifierPreset::BuildSimonHairPhysicsDesc(
+        hairDesc,
+        _transformCom.get());
+
+    if (hairDesc.chains.empty())
+        return E_FAIL;
+
+    hairDesc.ownerWorldMatrix = &_combinedWorldMatrix;
+    hairDesc.collisionModel = _collisionModel;
+    hairDesc.collisionOwnerWorldMatrix = _collisionOwnerWorldMatrix;
+
+    _hairPhysicsModifier = PhysicsModifier::Create(&hairDesc);
+    if (_hairPhysicsModifier == nullptr)
     {
-        _hairRuntime.Initialize(_model.get(), hairDesc);
-        _hairRuntimeReady = _hairRuntime.Is_Built();
+        _hairPhysicsReady = false;
+        return E_FAIL;
     }
 
+    _model->Add_AnimModifier(_hairPhysicsModifier);
+    _hairPhysicsReady = true;
     return S_OK;
 }
 
@@ -84,19 +95,6 @@ void Mon_Simon_Hair::Update(float timeDelta)
             _model->Play_Animation(timeDelta);
         }
 
-        if (_hairRuntimeReady)
-        {
-            const Matrix motionDriverWorld = Get_CombinedWorldMatrix();
-            const Matrix collisionOwnerWorld =
-                _collisionOwnerWorldMatrix ? *_collisionOwnerWorldMatrix : motionDriverWorld;
-            _hairRuntime.Prepare_Simulation(
-                _model.get(),
-                _collisionModel,
-                timeDelta,
-                motionDriverWorld,
-                collisionOwnerWorld,
-                motionDriverWorld);
-        }
     }
 
     if (_partEffectCom)
@@ -111,20 +109,6 @@ void Mon_Simon_Hair::Late_Update(float timeDelta)
 void Mon_Simon_Hair::Post_PhysX_Update(float timeDelta)
 {
     Monster_Part::Post_PhysX_Update(timeDelta);
-
-    if (!_model || !_hairRuntimeReady)
-        return;
-
-    const Matrix motionDriverWorld = Get_CombinedWorldMatrix();
-    const Matrix collisionOwnerWorld =
-        _collisionOwnerWorldMatrix ? *_collisionOwnerWorldMatrix : motionDriverWorld;
-    _hairRuntime.Finalize_Simulation(
-        _model.get(),
-        _collisionModel,
-        timeDelta,
-        motionDriverWorld,
-        collisionOwnerWorld,
-        motionDriverWorld);
 }
 
 HRESULT Mon_Simon_Hair::Render()
@@ -180,83 +164,97 @@ void Mon_Simon_Hair::Set_RuntimeCollisionSource(ModelCom* collisionModel, const 
 
 const Engine::ClassReflectionInfo* Mon_Simon_Hair::Get_RuntimeReflectionInfo() const
 {
-    return _hairRuntime.Get_RuntimeReflectionInfo();
+    return _hairPhysicsModifier ? _hairPhysicsModifier->Get_RuntimeReflectionInfo() : nullptr;
 }
 
 void* Mon_Simon_Hair::Get_RuntimeReflectionTarget()
 {
-    return _hairRuntime.Get_RuntimeReflectionTarget();
+    return _hairPhysicsModifier ? _hairPhysicsModifier->Get_RuntimeReflectionTarget() : nullptr;
 }
 
 void Mon_Simon_Hair::On_RuntimeReflectionChanged()
 {
-    if (!_hairRuntimeReady || !_model)
+    if (!_hairPhysicsReady || !_model || !_hairPhysicsModifier)
         return;
 
-    const Matrix motionDriverWorld = Get_CombinedWorldMatrix();
-    const Matrix collisionOwnerWorld =
-        _collisionOwnerWorldMatrix ? *_collisionOwnerWorldMatrix : motionDriverWorld;
-    _hairRuntime.On_RuntimeReflectionChanged(
-        _model.get(),
-        _collisionModel,
-        motionDriverWorld,
-        collisionOwnerWorld,
-        motionDriverWorld);
+    _hairPhysicsModifier->RuntimeRebuild(_model.get());
 }
 
 void Mon_Simon_Hair::RuntimeResetPose()
 {
-    if (!_hairRuntimeReady || !_model)
+    if (!_hairPhysicsReady || !_model || !_hairPhysicsModifier)
         return;
 
-    const Matrix motionDriverWorld = Get_CombinedWorldMatrix();
-    const Matrix collisionOwnerWorld =
-        _collisionOwnerWorldMatrix ? *_collisionOwnerWorldMatrix : motionDriverWorld;
-    _hairRuntime.ResetPose(_model.get(), _collisionModel, motionDriverWorld, collisionOwnerWorld, motionDriverWorld);
+    _hairPhysicsModifier->RuntimeResetPose(_model.get());
 }
 
 void Mon_Simon_Hair::RuntimeRebuild()
 {
-    if (!_model)
+    if (!_model || !_hairPhysicsModifier)
         return;
 
-    const Matrix motionDriverWorld = Get_CombinedWorldMatrix();
-    const Matrix collisionOwnerWorld =
-        _collisionOwnerWorldMatrix ? *_collisionOwnerWorldMatrix : motionDriverWorld;
-    _hairRuntime.RuntimeRebuild(
-        _model.get(),
-        _collisionModel,
-        motionDriverWorld,
-        collisionOwnerWorld,
-        motionDriverWorld);
-    _hairRuntimeReady = _hairRuntime.Is_Built();
+    _hairPhysicsModifier->RuntimeRebuild(_model.get());
+    _hairPhysicsReady = true;
 }
 
 void Mon_Simon_Hair::Build_RuntimeDebugCapsules(vector<SimonHairRuntime::RuntimeDebugCapsule>& outCapsules) const
 {
     outCapsules.clear();
-    if (!_hairRuntimeReady)
+    if (!_hairPhysicsReady || !_hairPhysicsModifier)
         return;
 
-    _hairRuntime.Build_RuntimeDebugCapsules(outCapsules);
+    vector<PhysicsModifier::RuntimeDebugCapsule> physicsCapsules{};
+    _hairPhysicsModifier->Build_RuntimeDebugCapsules(physicsCapsules);
+    outCapsules.reserve(physicsCapsules.size());
+    for (const auto& capsule : physicsCapsules)
+    {
+        SimonHairRuntime::RuntimeDebugCapsule outCapsule{};
+        outCapsule.startPoint = capsule.startPoint;
+        outCapsule.endPoint = capsule.endPoint;
+        outCapsule.sourceRadius = capsule.sourceRadius;
+        outCapsule.collisionRadius = capsule.collisionRadius;
+        outCapsules.push_back(outCapsule);
+    }
 }
 
 void Mon_Simon_Hair::Build_RuntimeDebugSpheres(vector<SimonHairRuntime::RuntimeDebugSphere>& outSpheres) const
 {
     outSpheres.clear();
-    if (!_hairRuntimeReady)
+    if (!_hairPhysicsReady || !_hairPhysicsModifier)
         return;
 
-    _hairRuntime.Build_RuntimeDebugSpheres(outSpheres);
+    vector<PhysicsModifier::RuntimeDebugSphere> physicsSpheres{};
+    _hairPhysicsModifier->Build_RuntimeDebugSpheres(physicsSpheres);
+    outSpheres.reserve(physicsSpheres.size());
+    for (const auto& sphere : physicsSpheres)
+    {
+        SimonHairRuntime::RuntimeDebugSphere outSphere{};
+        outSphere.center = sphere.center;
+        outSphere.radius = sphere.radius;
+        outSphere.hasContact = sphere.hasContact;
+        outSpheres.push_back(outSphere);
+    }
 }
 
 void Mon_Simon_Hair::Build_RuntimeDebugSegments(vector<SimonHairRuntime::RuntimeDebugSegment>& outSegments) const
 {
     outSegments.clear();
-    if (!_hairRuntimeReady)
+    if (!_hairPhysicsReady || !_hairPhysicsModifier)
         return;
 
-    _hairRuntime.Build_RuntimeDebugSegments(outSegments);
+    vector<PhysicsModifier::RuntimeDebugSegment> physicsSegments{};
+    _hairPhysicsModifier->Build_RuntimeDebugSegments(physicsSegments);
+    outSegments.reserve(physicsSegments.size());
+    for (const auto& segment : physicsSegments)
+    {
+        SimonHairRuntime::RuntimeDebugSegment outSegment{};
+        outSegment.startPoint = segment.startPoint;
+        outSegment.endPoint = segment.endPoint;
+        outSegment.hasContact = segment.hasContact;
+        outSegment.hasPush = segment.hasPush;
+        outSegment.type = SimonHairRuntime::RuntimeDebugSegmentType::ActorChain;
+        outSegments.push_back(outSegment);
+    }
 }
 
 uint32 Mon_Simon_Hair::Decide_PassIndex(Shared<Material> mat)
