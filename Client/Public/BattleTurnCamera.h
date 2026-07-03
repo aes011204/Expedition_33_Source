@@ -76,6 +76,7 @@ public:
     void Reset_RuntimeState();
     void Set_IsClipPreview(bool boolean) { _isClipPreview = boolean; }
     void Set_RuntimePausedByTutorial(bool paused) { _isRuntimePausedByTutorial = paused; }
+    void Set_JumpCounterPoseOffsetActive(bool active);
 
     void Reset_FreeAimRotation(float baseYaw);
     void Update_FreeAimRotation(float timeDelta);
@@ -164,6 +165,7 @@ private:
     void Apply_LookAt(const Vec3& cameraPos, const Vec3& lookAt);
     void Apply_FreeAimCamera();
     void Apply_EvaluatedPose(const EvaluatedPose& pose);
+    void Apply_JumpCounterPoseOffset(EvaluatedPose& pose) const;
     // DOF_MODIFY 
     void Apply_EvaluatedPoseWithDOF(const EvaluatedPose& pose, BattleCameraMode cameraMode);
     void Sync_BattleDOF(const EvaluatedPose& pose, BattleCameraMode cameraMode);
@@ -226,9 +228,11 @@ private:
     void Refresh_RuntimeDriftFromProfile(const BattleCameraDriftProfile& profile, bool resetElapsed = false);
     void Start_RuntimeShake(const EvtBattleCameraShake& event);
     void Apply_RuntimeDrift(EvaluatedPose& pose, float timeDelta);
+    void Apply_RuntimeDriftProfile(EvaluatedPose& pose, const BattleCameraDriftProfile& profile, float elapsed, float weight) const;
     void Apply_ClipShake(EvaluatedPose& pose, const BattleCameraClipSample& clipSample, float clipShakeTime) const;
     void Apply_RuntimeShake(EvaluatedPose& pose, float timeDelta);
     void Debug_PrintClipShakeSample(float animationTimeSec, float sampleTime, float shakeSampleTime, const BattleCameraClipSample& clipSample) const;
+    void Update_JumpCounterPoseOffset(float timeDelta);
 
 private:
     void Update_EnemyAttackMode(float timeDelta);
@@ -290,6 +294,8 @@ private:
     bool                 _hasEnemyGroupAnchor = false;
     bool                 _isFirstUpdate = true;
     bool                 _isRuntimePausedByTutorial = false;
+    bool                 _isJumpCounterPoseOffsetActive = false;
+    float                _jumpCounterPoseOffsetWeight = 0.f;
 
     // DOF_MODIFY 
     bool                 _battleDOFPresetApplied = false;

@@ -23,6 +23,9 @@ namespace
     constexpr char kBattleDOFOwnerTag[] = "BattleTurn";
     constexpr float kMaxFormationYawBiasDegrees = 35.f;
     constexpr float kAbbestExtraPlayerAttackYawBiasDegrees = 22.f;
+    constexpr float kJumpCounterLookOffsetY = 2.f;
+    constexpr float kJumpCounterOffsetFadeInSpeed = 10.f;
+    constexpr float kJumpCounterOffsetFadeOutSpeed = 12.f;
     constexpr char kAbbestBattlePrefabName[] = "MB_Abbest";
     constexpr char kPotatoBagDashOutReversedPresetId[] = "PotatoBag_DashOut_Reversed";
     constexpr char kPotatoBagAttShieldPresetId[] = "PotatoBag_AttShield";
@@ -156,11 +159,6 @@ float Resolve_BattlePlaneSideSignDegrees(
         return 0.f;
 
     return sideDot > 0.f ? 1.f : -1.f;
-}
-
-bool Is_PotatoBagDashOutReversedDebugRequest(const BattleTurnCamera::BattleShotRequest& request)
-{
-    return request.presetId == kPotatoBagDashOutReversedPresetId;
 }
 
 bool Is_PotatoBagSamePosePresetSwap(
@@ -324,6 +322,8 @@ void BattleTurnCamera::Update(float timeDelta)
 
     if (_isRuntimePausedByTutorial)
         return; // pauseBattle 튜토리얼이 열린 동안 transition/clip/drift 카메라 진행을 고정한다.
+
+    Update_JumpCounterPoseOffset(timeDelta);
 
     if (_isLiveEditEnabled)
         Update_LiveEditInput(timeDelta);
@@ -507,6 +507,13 @@ void BattleTurnCamera::Reset_RuntimeState()
     _battleDOFLastAutoFocusDistance = 0.f;
     _battleDOFLastAppliedFocusDistance = 0.f;
     _runtimeDrift = {};
+    _isJumpCounterPoseOffsetActive = false;
+    _jumpCounterPoseOffsetWeight = 0.f;
+}
+
+void BattleTurnCamera::Set_JumpCounterPoseOffsetActive(bool active)
+{
+    _isJumpCounterPoseOffsetActive = active;
 }
 
 void BattleTurnCamera::Refresh_RuntimeDriftFromProfile(const BattleCameraDriftProfile& profile, bool resetElapsed)
@@ -830,12 +837,48 @@ void BattleTurnCamera::Apply_RuntimeShake(EvaluatedPose& pose, float timeDelta)
         _runtimeShake.active = false;
 }
 
+void BattleTurnCamera::Update_JumpCounterPoseOffset(float timeDelta)
+{
+    const float targetWeight = _isJumpCounterPoseOffsetActive ? 1.f : 0.f;
+    const float speed = _isJumpCounterPoseOffsetActive
+        ? kJumpCounterOffsetFadeInSpeed
+        : kJumpCounterOffsetFadeOutSpeed;
+    const float alpha = 1.f - expf(-speed * std::max(0.f, timeDelta));
+
+    _jumpCounterPoseOffsetWeight = lerp(_jumpCounterPoseOffsetWeight, targetWeight, alpha);
+
+    if (fabsf(_jumpCounterPoseOffsetWeight - targetWeight) <= 0.001f)
+        _jumpCounterPoseOffsetWeight = targetWeight;
+}
+
 void BattleTurnCamera::Apply_RuntimeDrift(EvaluatedPose& pose, float timeDelta)
 {
     if (!_runtimeDrift.active)
         return;
 
     _runtimeDrift.elapsed += std::max(0.f, timeDelta);
+
+    BattleCameraDriftProfile profile{};
+    profile.enabled = _runtimeDrift.active;
+    profile.lateralAmplitude = _runtimeDrift.lateralAmplitude;
+    profile.verticalAmplitude = _runtimeDrift.verticalAmplitude;
+    profile.depthAmplitude = _runtimeDrift.depthAmplitude;
+    profile.rollAmplitude = _runtimeDrift.rollAmplitude;
+    profile.lateralFrequency = _runtimeDrift.lateralFrequency;
+    profile.verticalFrequency = _runtimeDrift.verticalFrequency;
+    profile.depthFrequency = _runtimeDrift.depthFrequency;
+    profile.rollFrequency = _runtimeDrift.rollFrequency;
+    Apply_RuntimeDriftProfile(pose, profile, _runtimeDrift.elapsed, 1.f);
+}
+
+void BattleTurnCamera::Apply_RuntimeDriftProfile(
+    EvaluatedPose& pose,
+    const BattleCameraDriftProfile& profile,
+    float elapsed,
+    float weight) const
+{
+    if (!profile.enabled || weight <= 0.f)
+        return;
 
     Vec3 forward = pose.lookTarget - pose.cameraPos;
     if (forward.LengthSquared() <= 0.0001f)
@@ -852,12 +895,13 @@ void BattleTurnCamera::Apply_RuntimeDrift(EvaluatedPose& pose, float timeDelta)
     Vec3 up = forward.Cross(right);
     up.Normalize();
 
-    const float t = _runtimeDrift.elapsed;
+    const float t = std::max(0.f, elapsed);
+    const float driftWeight = std::clamp(weight, 0.f, 1.f);
 
-    const float x = sinf(t * _runtimeDrift.lateralFrequency) * _runtimeDrift.lateralAmplitude;
-    const float y = sinf(t * _runtimeDrift.verticalFrequency + 1.37f) * _runtimeDrift.verticalAmplitude;
-    const float z = sinf(t * _runtimeDrift.depthFrequency + 2.11f) * _runtimeDrift.depthAmplitude;
-    const float roll = sinf(t * _runtimeDrift.rollFrequency + 0.73f) * _runtimeDrift.rollAmplitude;
+    const float x = sinf(t * profile.lateralFrequency) * profile.lateralAmplitude * driftWeight;
+    const float y = sinf(t * profile.verticalFrequency + 1.37f) * profile.verticalAmplitude * driftWeight;
+    const float z = sinf(t * profile.depthFrequency + 2.11f) * profile.depthAmplitude * driftWeight;
+    const float roll = sinf(t * profile.rollFrequency + 0.73f) * profile.rollAmplitude * driftWeight;
 
     const Vec3 driftOffset = right * x + up * y + forward * z;
 
@@ -978,11 +1022,21 @@ void BattleTurnCamera::Apply_EvaluatedPose(const EvaluatedPose& pose)
     Update_TransformMatrices();
 }
 
+void BattleTurnCamera::Apply_JumpCounterPoseOffset(EvaluatedPose& pose) const
+{
+    if (_jumpCounterPoseOffsetWeight <= 0.001f)
+        return;
+
+    pose.lookTarget += Vec3::Up * (kJumpCounterLookOffsetY * _jumpCounterPoseOffsetWeight);
+}
+
 // DOF 적용 코드(카메라 전환에 따른 초점 조절 코드)
 void BattleTurnCamera::Apply_EvaluatedPoseWithDOF(const EvaluatedPose& pose, BattleCameraMode cameraMode)
 {
-    Apply_EvaluatedPose(pose);
-    Sync_BattleDOF(pose, cameraMode);
+    EvaluatedPose adjustedPose = pose;
+    Apply_JumpCounterPoseOffset(adjustedPose);
+    Apply_EvaluatedPose(adjustedPose);
+    Sync_BattleDOF(adjustedPose, cameraMode);
 }
 
 void BattleTurnCamera::Sync_BattleDOF(const EvaluatedPose& pose, BattleCameraMode cameraMode)
@@ -1333,7 +1387,6 @@ bool BattleTurnCamera::Start_PoseTransition(
     const Vec3& targetPrevTargetPos)
 {
     EvaluatedPose fromPose = Capture_CurrentPose();
-    const bool shouldDebugPotatoBagDashOut = Is_PotatoBagDashOutReversedDebugRequest(request);
 
     _poseTransition.hasFrozenPos = false;
     if (request.freezeSubjectDuringTransition == true &&
@@ -1410,7 +1463,7 @@ bool BattleTurnCamera::Start_PoseTransition(
     }
 
     _poseTransition.active = true;
-        _poseTransition.elapsed = 0.f;
+    _poseTransition.elapsed = 0.f;
     _poseTransition.duration = preset.transitionDuration;
     _poseTransition.easing = preset.transitionEasing;
     _poseTransition.fromPose = fromPose;
@@ -1421,24 +1474,6 @@ bool BattleTurnCamera::Start_PoseTransition(
     _poseTransition.targetSmoothedTargetPos = targetSmoothedTargetPos;
     _poseTransition.targetPrevTargetPos = targetPrevTargetPos;
     _isClipPreview = false;
-
-    if (shouldDebugPotatoBagDashOut)
-    {
-        LOG_INFO(
-            "[BattleCam][DashOutRev] StartPoseTransition duration={:.3f} snap={} reanchorTarget=({:.2f}, {:.2f}, {:.2f}) enemyAnchor=({:.2f}, {:.2f}, {:.2f}) playerAnchor=({:.2f}, {:.2f}, {:.2f}) yawOffset={:.2f}",
-            _poseTransition.duration,
-            preset.snapOnEnter,
-            targetSmoothedTargetPos.x,
-            targetSmoothedTargetPos.y,
-            targetSmoothedTargetPos.z,
-            _poseTransition.targetEnemyAttackSubjectPos.x,
-            _poseTransition.targetEnemyAttackSubjectPos.y,
-            _poseTransition.targetEnemyAttackSubjectPos.z,
-            _poseTransition.targetEnemyAttackOpponentPos.x,
-            _poseTransition.targetEnemyAttackOpponentPos.y,
-            _poseTransition.targetEnemyAttackOpponentPos.z,
-            preset.yawOffset);
-    }
 
     return true;
 }
@@ -1512,14 +1547,25 @@ void BattleTurnCamera::Update_PoseTransition(float timeDelta)
     blended.fovY = lerp(_poseTransition.fromPose.fovY, transitionTargetPose.fovY, easedT);
     blended.rollOffset = lerp(_poseTransition.fromPose.rollOffset, transitionTargetPose.rollOffset, easedT);
 
-    Apply_RuntimeDrift(blended, timeDelta);
-    Apply_ClipShake(blended, clipSample, _clipShakeTime);
-    Apply_RuntimeShake(blended, timeDelta);
-    Apply_EvaluatedPoseWithDOF(blended, _poseTransition.targetRequest.mode);
-    GAME->UpdateFrustum(*GAME->Get_Transform(D3DTS::View), *GAME->Get_Transform(D3DTS::Proj));
+    const bool isTransitionFinished = t >= 1.f;
+    const bool isModeChanging = _currentRequest.mode != _poseTransition.targetRequest.mode;
+    if (!isTransitionFinished)
+    {
+        if (const BattleCameraDriftProfile* targetDrift = Resolve_RuntimeDriftProfile(_poseTransition.targetRequest))
+        {
+            if (!isModeChanging)
+                _runtimeDrift.elapsed += clampedDelta;
 
-    if (t < 1.f)
+            const float driftElapsed = isModeChanging ? _poseTransition.elapsed : _runtimeDrift.elapsed;
+            Apply_RuntimeDriftProfile(blended, *targetDrift, driftElapsed, t);
+        }
+
+        Apply_ClipShake(blended, clipSample, _clipShakeTime);
+        Apply_RuntimeShake(blended, timeDelta);
+        Apply_EvaluatedPoseWithDOF(blended, _poseTransition.targetRequest.mode);
+        GAME->UpdateFrustum(*GAME->Get_Transform(D3DTS::View), *GAME->Get_Transform(D3DTS::Proj));
         return;
+    }
 
     const BattleCameraMode previousMode = _currentRequest.mode;
     _poseTransition.active = false;
@@ -1528,6 +1574,8 @@ void BattleTurnCamera::Update_PoseTransition(float timeDelta)
     _targetPreset = _poseTransition.targetPreset;
     if (const BattleCameraDriftProfile* drift = Resolve_RuntimeDriftProfile(_currentRequest))
         Refresh_RuntimeDriftFromProfile(*drift, previousMode != _currentRequest.mode);
+    if (previousMode != _currentRequest.mode)
+        _runtimeDrift.elapsed = std::max(0.f, _poseTransition.elapsed - clampedDelta);
     _targetTransform = _currentRequest.subject ? _currentRequest.subject->Get_Transform() : nullptr;
     _smoothedTargetPos = _poseTransition.targetSmoothedTargetPos;
     _prevTargetPos = _poseTransition.targetPrevTargetPos;
@@ -1536,6 +1584,25 @@ void BattleTurnCamera::Update_PoseTransition(float timeDelta)
     _playerAttackSubjectPos = _poseTransition.targetPlayerAttackSubjectPos;
     _playerAttackOpponentPos = _poseTransition.targetPlayerAttackOpponentPos;
     _isFirstUpdate = true;
+
+    Apply_RuntimeDrift(blended, timeDelta);
+    Apply_ClipShake(blended, clipSample, _clipShakeTime);
+    Apply_RuntimeShake(blended, timeDelta);
+    Apply_EvaluatedPoseWithDOF(blended, _currentRequest.mode);
+    GAME->UpdateFrustum(*GAME->Get_Transform(D3DTS::View), *GAME->Get_Transform(D3DTS::Proj));
+
+    const string previousModeName = string(magic_enum::enum_name(previousMode));
+    const string currentModeName = string(magic_enum::enum_name(_currentRequest.mode));
+    LOG_INFO(
+        "[BattleCam][ShotTransitionEnd] prev={} next={} preset={} clip={} elapsed={:.3f}/{:.3f} snap={} driftElapsed={:.3f}",
+        previousModeName.c_str(),
+        currentModeName.c_str(),
+        _currentRequest.presetId.c_str(),
+        _currentRequest.clipId.c_str(),
+        _poseTransition.elapsed,
+        _poseTransition.duration,
+        _currentPreset.snapOnEnter,
+        _runtimeDrift.elapsed);
 }
 
 bool BattleTurnCamera::Evaluate_CurrentPresetPose(
@@ -1585,8 +1652,6 @@ void BattleTurnCamera::Apply_ShotRequest(const BattleShotRequest& request)
 
     const string incomingModeName = string(magic_enum::enum_name(request.mode));
     const string previousModeName = string(magic_enum::enum_name(_currentRequest.mode));
-    const BattleCameraMode activeModeForWideGate =
-        _poseTransition.active ? _poseTransition.targetRequest.mode : _currentRequest.mode;
 
     const bool isSameRequest =
         _currentRequest.mode == request.mode &&
@@ -1611,6 +1676,15 @@ void BattleTurnCamera::Apply_ShotRequest(const BattleShotRequest& request)
         request.restartClip == false &&
         (!request.useClip || _activeClip != nullptr))
     {
+        LOG_INFO(
+            "[BattleCam][ShotSkip] id={} elapsedMs={} reason=sameRequest mode={} preset={} clip={} useClip={} activeClip={}",
+            requestId,
+            elapsedMs,
+            incomingModeName.c_str(),
+            request.presetId.c_str(),
+            request.clipId.c_str(),
+            request.useClip,
+            _activeClip != nullptr);
         return;
     }
 
@@ -1635,19 +1709,22 @@ void BattleTurnCamera::Apply_ShotRequest(const BattleShotRequest& request)
 
     if (!request.presetId.empty() && resolvedPresetById == nullptr)
     {
-        // LOG_DEBUG("[ApplyShot] intro preset resolve failed. mode={}, presetId={}",
-        // static_cast<int>(request.mode),
-        // request.presetId.c_str());
-
         if(request.mode != BattleCameraMode::WIDE &&  request.mode != BattleCameraMode::BATTLEINTRO)
-        return;
+        {
+            LOG_INFO(
+                "[BattleCam][ShotSkip] id={} elapsedMs={} reason=missingPreset mode={} preset={}",
+                requestId,
+                elapsedMs,
+                incomingModeName.c_str(),
+                request.presetId.c_str());
+            return;
+        }
     }
 
     ResolvedShotAssets resolvedAssets = Resolve_ShotAssets(request, resolvedPresetById, resolvedClipById);
     BattleCameraClip* nextActiveClip = resolvedAssets.clip;
 
     BattleCameraPreset nextPreset = resolvedAssets.preset;
-    const bool shouldDebugPotatoBagDashOut = Is_PotatoBagDashOutReversedDebugRequest(request);
 
     if (shouldDisableClip)
         nextActiveClip = nullptr;
@@ -1670,23 +1747,23 @@ void BattleTurnCamera::Apply_ShotRequest(const BattleShotRequest& request)
         !shouldReAnchored &&
         Is_PotatoBagSamePosePresetSwap(_currentRequest, request);
 
-    if (shouldDebugPotatoBagDashOut)
-    {
-        LOG_INFO(
-            "[BattleCam][DashOutRev] ApplyShot reqId={} elapsedMs={} prevMode={} mode={} samePreset={} sameClip={} reanchor={} snap={} transitionActive={} presetYaw={:.2f} clip={} restartClip={}",
-            requestId,
-            elapsedMs,
-            previousModeName.c_str(),
-            incomingModeName.c_str(),
-            isSamePreset,
-            isSameClip,
-            shouldReAnchored,
-            nextPreset.snapOnEnter,
-            _poseTransition.active,
-            nextPreset.yawOffset,
-            nextActiveClip != nullptr,
-            shouldRestartClip);
-    }
+    LOG_INFO(
+        "[BattleCam][ShotRequest] id={} elapsedMs={} prev={} next={} preset={} clip={} useClip={} samePreset={} sameClip={} reanchor={} snap={} transitionActive={} restartClip={} keepClip={} disableClip={}",
+        requestId,
+        elapsedMs,
+        previousModeName.c_str(),
+        incomingModeName.c_str(),
+        request.presetId.c_str(),
+        request.clipId.c_str(),
+        request.useClip,
+        isSamePreset,
+        isSameClip,
+        shouldReAnchored,
+        nextPreset.snapOnEnter,
+        _poseTransition.active,
+        shouldRestartClip,
+        shouldKeepCurrentClip,
+        shouldDisableClip);
 
     if (request.subject && (nextPreset.snapOnEnter || shouldReAnchored)) //|| _currentRequest.subject == nullptr))
     {
@@ -1719,34 +1796,6 @@ void BattleTurnCamera::Apply_ShotRequest(const BattleShotRequest& request)
                 nextEnemyAttackOpponentPos = request.opponent->Get_Transform()->Get_WorldPosition();
         }
 
-        if (shouldDebugPotatoBagDashOut)
-        {
-            const Vec3 currentSubjectPos =
-                request.subject != nullptr && request.subject->Get_Transform() != nullptr
-                ? request.subject->Get_Transform()->Get_WorldPosition()
-                : Vec3::Zero;
-            const Vec3 currentOpponentPos =
-                request.opponent != nullptr && request.opponent->Get_Transform() != nullptr
-                ? request.opponent->Get_Transform()->Get_WorldPosition()
-                : Vec3::Zero;
-
-            LOG_INFO(
-                "[BattleCam][DashOutRev] EnemyAttackAnchor preserve={} capture={} cachedSubject=({:.2f}, {:.2f}, {:.2f}) cachedOpponent=({:.2f}, {:.2f}, {:.2f}) liveSubject=({:.2f}, {:.2f}, {:.2f}) liveOpponent=({:.2f}, {:.2f}, {:.2f})",
-                false,
-                shouldCaptureEnemyAttackAnchor,
-                nextEnemyAttackSubjectPos.x,
-                nextEnemyAttackSubjectPos.y,
-                nextEnemyAttackSubjectPos.z,
-                nextEnemyAttackOpponentPos.x,
-                nextEnemyAttackOpponentPos.y,
-                nextEnemyAttackOpponentPos.z,
-                currentSubjectPos.x,
-                currentSubjectPos.y,
-                currentSubjectPos.z,
-                currentOpponentPos.x,
-                currentOpponentPos.y,
-                currentOpponentPos.z);
-        }
     }
     else
     {
@@ -1806,20 +1855,18 @@ void BattleTurnCamera::Apply_ShotRequest(const BattleShotRequest& request)
         if(Evaluate_ShotRequestPose(_currentRequest, _currentPreset, &_smoothedTargetPos, BattleCameraClipSample{}, _clipShakeTime, toPose ))
         Apply_EvaluatedPoseWithDOF(toPose, _currentRequest.mode);
 
-        if (shouldDebugPotatoBagDashOut)
-        {
-            LOG_INFO(
-                "[BattleCam][DashOutRev] AppliedImmediately enemyAnchor=({:.2f}, {:.2f}, {:.2f}) playerAnchor=({:.2f}, {:.2f}, {:.2f}) smoothed=({:.2f}, {:.2f}, {:.2f})",
-                _enemyPos.x,
-                _enemyPos.y,
-                _enemyPos.z,
-                _playerPos.x,
-                _playerPos.y,
-                _playerPos.z,
-                _smoothedTargetPos.x,
-                _smoothedTargetPos.y,
-                _smoothedTargetPos.z);
-        }
+        LOG_INFO(
+            "[BattleCam][ShotApply] id={} elapsedMs={} reason=immediate prev={} next={} preset={} clip={} snap={} restartClip={} keepClip={} disableClip={}",
+            requestId,
+            elapsedMs,
+            previousModeName.c_str(),
+            incomingModeName.c_str(),
+            request.presetId.c_str(),
+            request.clipId.c_str(),
+            nextPreset.snapOnEnter,
+            shouldRestartClip,
+            shouldKeepCurrentClip,
+            shouldDisableClip);
 
         return;
     }
@@ -1827,13 +1874,20 @@ void BattleTurnCamera::Apply_ShotRequest(const BattleShotRequest& request)
     if (shouldSkipPotatoBagSamePoseTransition)
     {
         LOG_INFO(
-            "[BattleCam][PotatoBag] Skip same-pose transition prevPreset={} nextPreset={} restartClip={}",
+            "[BattleCam][ShotSkip] id={} elapsedMs={} reason=samePosePresetSwap prevPreset={} nextPreset={} restartClip={}",
+            requestId,
+            elapsedMs,
             _currentRequest.presetId.c_str(),
             request.presetId.c_str(),
             shouldRestartClip);
     }
 
-    if ((Should_StartPoseTransition(request) && !isSamePreset && !shouldSkipPotatoBagSamePoseTransition) || shouldReAnchored)
+    const bool shouldStartPoseTransition = Should_StartPoseTransition(request);
+    const bool shouldUsePoseTransition =
+        (shouldStartPoseTransition && !isSamePreset && !shouldSkipPotatoBagSamePoseTransition) ||
+        shouldReAnchored;
+
+    if (shouldUsePoseTransition)
     {
         _poseTransition.targetEnemyAttackSubjectPos = nextEnemyAttackSubjectPos;
         _poseTransition.targetEnemyAttackOpponentPos = nextEnemyAttackOpponentPos;
@@ -1846,7 +1900,34 @@ void BattleTurnCamera::Apply_ShotRequest(const BattleShotRequest& request)
             shouldRestartClip,
             targetSmoothedTargetPos,
             targetPrevTargetPos))
+        {
+            const string easingName = string(magic_enum::enum_name(nextPreset.transitionEasing));
+            LOG_INFO(
+                "[BattleCam][ShotTransition] id={} elapsedMs={} prev={} next={} preset={} clip={} duration={:.3f} easing={} reanchor={} samePreset={} restartClip={}",
+                requestId,
+                elapsedMs,
+                previousModeName.c_str(),
+                incomingModeName.c_str(),
+                request.presetId.c_str(),
+                request.clipId.c_str(),
+                nextPreset.transitionDuration,
+                easingName.c_str(),
+                shouldReAnchored,
+                isSamePreset,
+                shouldRestartClip);
             return;
+        }
+
+        LOG_INFO(
+            "[BattleCam][ShotTransitionFailed] id={} elapsedMs={} prev={} next={} preset={} clip={} reanchor={} samePreset={}",
+            requestId,
+            elapsedMs,
+            previousModeName.c_str(),
+            incomingModeName.c_str(),
+            request.presetId.c_str(),
+            request.clipId.c_str(),
+            shouldReAnchored,
+            isSamePreset);
     }
 
     _poseTransition.active = false;
@@ -1881,6 +1962,17 @@ void BattleTurnCamera::Apply_ShotRequest(const BattleShotRequest& request)
     _playerAttackSubjectPos = nextPlayerAttackSubjectPos;
     _playerAttackOpponentPos = nextPlayerAttackOpponentPos;
 
+    LOG_INFO(
+        "[BattleCam][ShotApply] id={} elapsedMs={} reason=currentPreset prev={} next={} preset={} clip={} restartClip={} keepClip={} disableClip={}",
+        requestId,
+        elapsedMs,
+        previousModeName.c_str(),
+        incomingModeName.c_str(),
+        request.presetId.c_str(),
+        request.clipId.c_str(),
+        shouldRestartClip,
+        shouldKeepCurrentClip,
+        shouldDisableClip);
 }
 
 void BattleTurnCamera::Begin_LiveEdit(BattleCameraMode mode, const Shared<Character>& subject, const Shared<Character>& opponent)
@@ -1919,7 +2011,6 @@ void BattleTurnCamera::Update_EnemyAttackMode(float timeDelta)
         return;
     }
 
-    const bool shouldDebugPotatoBagDashOut = Is_PotatoBagDashOutReversedDebugRequest(_currentRequest);
     const BattleCameraClipSample clip = Advance_ActiveClip(timeDelta, _currentRequest);
     Vec3 enemyPos = _enemyPos;
     Vec3 playerPos = _playerPos;
@@ -1934,35 +2025,6 @@ void BattleTurnCamera::Update_EnemyAttackMode(float timeDelta)
     Apply_RuntimeDrift(pose, timeDelta);
     Apply_ClipShake(pose, clip, _clipShakeTime);
     Apply_RuntimeShake(pose,timeDelta);
-
-    if (shouldDebugPotatoBagDashOut)
-    {
-        LOG_INFO_THROTTLED(
-            0.05f,
-            "[BattleCam][DashOutRev] UpdateEnemyAttack clipTime={:.3f} shakeT={:.3f} roll={:.3f} cam=({:.2f}, {:.2f}, {:.2f}) look=({:.2f}, {:.2f}, {:.2f}) cachedEnemy=({:.2f}, {:.2f}, {:.2f}) cachedPlayer=({:.2f}, {:.2f}, {:.2f}) clipShakeAmp={:.3f} clipShakeFreq=({:.3f}, {:.3f}) clipShakeDecay=({:.3f}, {:.3f}) clipShakeScale={:.3f} clipShakeVertical={:.3f}",
-            _clipTime,
-            _clipShakeTime,
-            pose.rollOffset,
-            pose.cameraPos.x,
-            pose.cameraPos.y,
-            pose.cameraPos.z,
-            pose.lookTarget.x,
-            pose.lookTarget.y,
-            pose.lookTarget.z,
-            enemyPos.x,
-            enemyPos.y,
-            enemyPos.z,
-            playerPos.x,
-            playerPos.y,
-            playerPos.z,
-            clip.shakeAmplitude,
-            clip.shakeFrequencyX,
-            clip.shakeFrequencyY,
-            clip.shakeDecayRateX,
-            clip.shakeDecayRate,
-            clip.shakeStrengthScale,
-            clip.shakeVerticalRatio);
-    }
 
     Apply_EvaluatedPoseWithDOF(pose, _currentRequest.mode);
     GAME->UpdateFrustum(*GAME->Get_Transform(D3DTS::View), *GAME->Get_Transform(D3DTS::Proj));

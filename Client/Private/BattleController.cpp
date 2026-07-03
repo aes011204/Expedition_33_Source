@@ -1353,8 +1353,6 @@ void BattleController::Request_WidePresentationMode()
     if (!_battleTurnCamera)
         return;
 
-    LOG_INFO("[BattleCamTrace] Request_WidePresentationMode");
-
     EvtBattlePresentation event{};
     event.cameraMode = BattleCameraMode::WIDE;
     event.subject = nullptr;
@@ -3468,14 +3466,6 @@ void BattleController::Complete_BattleField()
     _battleEnded = false;
     _pendingNextTurn = false;
 
-    const Shared<Camera> activeCamera = GAME->Get_ActiveCamera();
-    LOG_INFO(
-        "[BattleCamTrace] BattleController::Complete_BattleField begin activeCameraType={} pendingHeroes={} pendingMonsterSpawns={} worldScale={:.3f}",
-        static_cast<int>(activeCamera ? activeCamera->Get_ObjectType() : ObjectType::None),
-        _pendingBattleHeroIds.size(),
-        _pendingBattleMonsterSpawnDescs.size(),
-        GAME->Get_WorldTimeScale());
-
     //// 카메라 저장
     //_worldCamera = GAME->Get_ActiveCamera();
     const uint32 battleFieldId = _pendingBattleFieldID;
@@ -3911,7 +3901,6 @@ void BattleController::Continue_StartTurnAfterStatusEffects()
         event.cameraMode = BattleCameraMode::PLAYERFOCUS;
         event.subject = _currentTurnActor.actor;
         event.presetId = magic_enum::enum_name(_currentTurnActor.heroId);
-        LOG_INFO("[BattleCamTrace] Publish PLAYERFOCUS from BattleController::Continue_StartTurnAfterStatusEffects");
         GAME->Get_EventBus().Publish(event);
 
         OnTurnStarted.Broadcast(_currentTurnActor, BattleTurnState::ChooseAction);

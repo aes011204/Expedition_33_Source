@@ -77,7 +77,6 @@ void ChooseItem::Update(float timeDelta)
         event.cameraMode = BattleCameraMode::PLAYERFOCUS;
         event.presetId = magic_enum::enum_name(owner->Get_TurnActionRequest().actor.heroId);
         event.subject = owner->Get_TurnActionRequest().actor.actor;
-        LOG_INFO("[BattleCamTrace] Publish PLAYERFOCUS from ChooseItem::Update ESC");
         GAME->Get_EventBus().Publish(event);
 
         battleFSM->Change_State(BattleTurnState::ChooseAction);

@@ -4,6 +4,7 @@
 #include "DamageSystem.h"
 #include "ClientInstance.h"
 #include "BattleController.h"
+#include "BattleTurnCamera.h"
 #include "BattleSpawnRegistry.h"
 #include "GameInstance.h"
 #include "ModelCom.h"
@@ -243,6 +244,12 @@ void BattleReactionController::ResetJumpCounterSequence()
     _jumpCounterStepIndex = UINT32_MAX;
     _jumpCounterTarget = {};
     _jumpCounterStarted = false;
+
+    if (const auto battle = CLIENT->Get_BattleController())
+    {
+        if (const auto camera = battle->Get_BattleTurnCamera())
+            camera->Set_JumpCounterPoseOffsetActive(false);
+    }
 }
 
 void BattleReactionController::NotifyJumpCounterWindowBegin(float worldTimeScale)
@@ -1113,7 +1120,19 @@ void BattleReactionController::StartCounter(ModelCom* sourceModel)
     _isCounterDamageApplied = false;
     _animPhase = ReactionAnimPhase::Counter;
     if (counterAnimType == BattleAnimType::JumpCounter)
+    {
         _jumpCounterState = JumpCounterState::Started;
+        if (const auto battle = CLIENT->Get_BattleController())
+        {
+            if (const auto camera = battle->Get_BattleTurnCamera())
+                camera->Set_JumpCounterPoseOffsetActive(true);
+        }
+    }
+    else if (const auto battle = CLIENT->Get_BattleController())
+    {
+        if (const auto camera = battle->Get_BattleTurnCamera())
+            camera->Set_JumpCounterPoseOffsetActive(false);
+    }
 
     OnCounterStarted.Broadcast(_reactionAnimTargets);
 }
