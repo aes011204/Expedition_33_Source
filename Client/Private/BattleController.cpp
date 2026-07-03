@@ -3592,7 +3592,7 @@ bool BattleController::Try_ApplyFreeAimWeakPointBonus(const BattleFreeAimHitTarg
     if (!monster->Try_Consume_FreeAimWeakPoint())
         return false; // 이미 소비됐으면 추가딜 없이 본체 피격만 남긴다.
 
-    Play_BattleHitStop(0.08f, 0.10f); // 약간 슬로우
+    Play_BattleHitStop(0.07f, 0.14f); // 약간 슬로우
 
     // 일단은 고정 추가 데미지
     float freeAimWeakPointDamage = 11.f;

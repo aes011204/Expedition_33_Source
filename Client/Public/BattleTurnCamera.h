@@ -37,6 +37,7 @@ public:
         bool            useClip = false;
         bool            restartClip = false;
         bool            keepCurrentClip = false;
+        bool            skipIfParryActive = false;
         bool            freezeSubjectDuringTransition = false;
     };
 

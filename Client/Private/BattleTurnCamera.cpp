@@ -22,6 +22,10 @@ namespace
     // DOF_MODIFY 
     constexpr char kBattleDOFOwnerTag[] = "BattleTurn";
     constexpr float kMaxFormationYawBiasDegrees = 35.f;
+    constexpr float kAbbestExtraPlayerAttackYawBiasDegrees = 22.f;
+    constexpr char kAbbestBattlePrefabName[] = "MB_Abbest";
+    constexpr char kPotatoBagDashOutReversedPresetId[] = "PotatoBag_DashOut_Reversed";
+    constexpr char kPotatoBagAttShieldPresetId[] = "PotatoBag_AttShield";
 
     constexpr wchar_t kBattleClipShakeDebugSlot[] =
         L"[BattleClipShake] anim={:.3f} sample={:.3f} shakeT={:.3f} amp={:.3f}";
@@ -55,6 +59,7 @@ BattleTurnCamera::BattleShotRequest Build_BattleShotRequestFromEvent(const EvtBa
     request.useClip = event.useClip;
     request.restartClip = event.restartClip;
     request.keepCurrentClip = event.keepCurrentClip;
+    request.skipIfParryActive = event.skipIfParryActive;
 
     if (event.cameraMode == BattleCameraMode::SELECTITEM ||
         event.cameraMode == BattleCameraMode::SELECTSKILL)
@@ -128,6 +133,44 @@ float NormalizeAngleDegrees(float angle)
         angle += 360.f;
 
     return angle;
+}
+
+float Resolve_BattlePlaneSideSignDegrees(
+    const Shared<Character>& actor,
+    const Vec3& referenceCenter,
+    float battlePlaneYawDegrees)
+{
+    if (actor == nullptr)
+        return 0.f;
+
+    const Shared<TransformCom> actorTransform = actor->Get_Transform();
+    if (actorTransform == nullptr)
+        return 0.f;
+
+    const float yawRad = XMConvertToRadians(battlePlaneYawDegrees);
+    const Vec3 battleRight = Vec3(cosf(yawRad), 0.f, -sinf(yawRad));
+
+    const Vec3 delta = actorTransform->Get_WorldPosition() - referenceCenter;
+    const float sideDot = delta.x * battleRight.x + delta.y * battleRight.y + delta.z * battleRight.z;
+    if (fabsf(sideDot) <= 0.001f)
+        return 0.f;
+
+    return sideDot > 0.f ? 1.f : -1.f;
+}
+
+bool Is_PotatoBagDashOutReversedDebugRequest(const BattleTurnCamera::BattleShotRequest& request)
+{
+    return request.presetId == kPotatoBagDashOutReversedPresetId;
+}
+
+bool Is_PotatoBagSamePosePresetSwap(
+    const BattleTurnCamera::BattleShotRequest& currentRequest,
+    const BattleTurnCamera::BattleShotRequest& nextRequest)
+{
+    return currentRequest.mode == BattleCameraMode::ENEMYATTACK &&
+        nextRequest.mode == BattleCameraMode::ENEMYATTACK &&
+        currentRequest.presetId == kPotatoBagDashOutReversedPresetId &&
+        nextRequest.presetId == kPotatoBagAttShieldPresetId;
 }
 
 }
@@ -1222,7 +1265,21 @@ float BattleTurnCamera::Resolve_RequestFormationYawBiasDegrees(const BattleShotR
         return Resolve_EnemyFormationYawBiasDegrees(request.subject);
 
     case BattleCameraMode::PLAYERATTACK:
-        return Resolve_EnemyFormationYawBiasDegrees(request.opponent);
+        {
+            float bias = Resolve_EnemyFormationYawBiasDegrees(request.opponent);
+
+            if (request.opponent != nullptr &&
+                request.opponent->Get_SourcePrefabName() == kAbbestBattlePrefabName)
+            {
+                const float sideSign = Resolve_BattlePlaneSideSignDegrees(
+                    request.opponent,
+                    _enemyGroupAnchorCenter,
+                    Resolve_BattlePlaneYaw());
+                bias += sideSign * kAbbestExtraPlayerAttackYawBiasDegrees;
+            }
+
+            return bias;
+        }
 
     default:
         return 0.f;
@@ -1276,6 +1333,7 @@ bool BattleTurnCamera::Start_PoseTransition(
     const Vec3& targetPrevTargetPos)
 {
     EvaluatedPose fromPose = Capture_CurrentPose();
+    const bool shouldDebugPotatoBagDashOut = Is_PotatoBagDashOutReversedDebugRequest(request);
 
     _poseTransition.hasFrozenPos = false;
     if (request.freezeSubjectDuringTransition == true &&
@@ -1363,6 +1421,24 @@ bool BattleTurnCamera::Start_PoseTransition(
     _poseTransition.targetSmoothedTargetPos = targetSmoothedTargetPos;
     _poseTransition.targetPrevTargetPos = targetPrevTargetPos;
     _isClipPreview = false;
+
+    if (shouldDebugPotatoBagDashOut)
+    {
+        LOG_INFO(
+            "[BattleCam][DashOutRev] StartPoseTransition duration={:.3f} snap={} reanchorTarget=({:.2f}, {:.2f}, {:.2f}) enemyAnchor=({:.2f}, {:.2f}, {:.2f}) playerAnchor=({:.2f}, {:.2f}, {:.2f}) yawOffset={:.2f}",
+            _poseTransition.duration,
+            preset.snapOnEnter,
+            targetSmoothedTargetPos.x,
+            targetSmoothedTargetPos.y,
+            targetSmoothedTargetPos.z,
+            _poseTransition.targetEnemyAttackSubjectPos.x,
+            _poseTransition.targetEnemyAttackSubjectPos.y,
+            _poseTransition.targetEnemyAttackSubjectPos.z,
+            _poseTransition.targetEnemyAttackOpponentPos.x,
+            _poseTransition.targetEnemyAttackOpponentPos.y,
+            _poseTransition.targetEnemyAttackOpponentPos.z,
+            preset.yawOffset);
+    }
 
     return true;
 }
@@ -1509,6 +1585,9 @@ void BattleTurnCamera::Apply_ShotRequest(const BattleShotRequest& request)
 
     const string incomingModeName = string(magic_enum::enum_name(request.mode));
     const string previousModeName = string(magic_enum::enum_name(_currentRequest.mode));
+    const BattleCameraMode activeModeForWideGate =
+        _poseTransition.active ? _poseTransition.targetRequest.mode : _currentRequest.mode;
+
     const bool isSameRequest =
         _currentRequest.mode == request.mode &&
         _currentRequest.subject == request.subject &&
@@ -1568,6 +1647,7 @@ void BattleTurnCamera::Apply_ShotRequest(const BattleShotRequest& request)
     BattleCameraClip* nextActiveClip = resolvedAssets.clip;
 
     BattleCameraPreset nextPreset = resolvedAssets.preset;
+    const bool shouldDebugPotatoBagDashOut = Is_PotatoBagDashOutReversedDebugRequest(request);
 
     if (shouldDisableClip)
         nextActiveClip = nullptr;
@@ -1586,6 +1666,27 @@ void BattleTurnCamera::Apply_ShotRequest(const BattleShotRequest& request)
         _currentRequest.subject != request.subject ||
         _currentRequest.opponent != request.opponent ||
         _currentRequest.mode != request.mode;
+    const bool shouldSkipPotatoBagSamePoseTransition =
+        !shouldReAnchored &&
+        Is_PotatoBagSamePosePresetSwap(_currentRequest, request);
+
+    if (shouldDebugPotatoBagDashOut)
+    {
+        LOG_INFO(
+            "[BattleCam][DashOutRev] ApplyShot reqId={} elapsedMs={} prevMode={} mode={} samePreset={} sameClip={} reanchor={} snap={} transitionActive={} presetYaw={:.2f} clip={} restartClip={}",
+            requestId,
+            elapsedMs,
+            previousModeName.c_str(),
+            incomingModeName.c_str(),
+            isSamePreset,
+            isSameClip,
+            shouldReAnchored,
+            nextPreset.snapOnEnter,
+            _poseTransition.active,
+            nextPreset.yawOffset,
+            nextActiveClip != nullptr,
+            shouldRestartClip);
+    }
 
     if (request.subject && (nextPreset.snapOnEnter || shouldReAnchored)) //|| _currentRequest.subject == nullptr))
     {
@@ -1616,6 +1717,35 @@ void BattleTurnCamera::Apply_ShotRequest(const BattleShotRequest& request)
 
             if (request.opponent != nullptr && request.opponent->Get_Transform() != nullptr)
                 nextEnemyAttackOpponentPos = request.opponent->Get_Transform()->Get_WorldPosition();
+        }
+
+        if (shouldDebugPotatoBagDashOut)
+        {
+            const Vec3 currentSubjectPos =
+                request.subject != nullptr && request.subject->Get_Transform() != nullptr
+                ? request.subject->Get_Transform()->Get_WorldPosition()
+                : Vec3::Zero;
+            const Vec3 currentOpponentPos =
+                request.opponent != nullptr && request.opponent->Get_Transform() != nullptr
+                ? request.opponent->Get_Transform()->Get_WorldPosition()
+                : Vec3::Zero;
+
+            LOG_INFO(
+                "[BattleCam][DashOutRev] EnemyAttackAnchor preserve={} capture={} cachedSubject=({:.2f}, {:.2f}, {:.2f}) cachedOpponent=({:.2f}, {:.2f}, {:.2f}) liveSubject=({:.2f}, {:.2f}, {:.2f}) liveOpponent=({:.2f}, {:.2f}, {:.2f})",
+                false,
+                shouldCaptureEnemyAttackAnchor,
+                nextEnemyAttackSubjectPos.x,
+                nextEnemyAttackSubjectPos.y,
+                nextEnemyAttackSubjectPos.z,
+                nextEnemyAttackOpponentPos.x,
+                nextEnemyAttackOpponentPos.y,
+                nextEnemyAttackOpponentPos.z,
+                currentSubjectPos.x,
+                currentSubjectPos.y,
+                currentSubjectPos.z,
+                currentOpponentPos.x,
+                currentOpponentPos.y,
+                currentOpponentPos.z);
         }
     }
     else
@@ -1676,10 +1806,34 @@ void BattleTurnCamera::Apply_ShotRequest(const BattleShotRequest& request)
         if(Evaluate_ShotRequestPose(_currentRequest, _currentPreset, &_smoothedTargetPos, BattleCameraClipSample{}, _clipShakeTime, toPose ))
         Apply_EvaluatedPoseWithDOF(toPose, _currentRequest.mode);
 
+        if (shouldDebugPotatoBagDashOut)
+        {
+            LOG_INFO(
+                "[BattleCam][DashOutRev] AppliedImmediately enemyAnchor=({:.2f}, {:.2f}, {:.2f}) playerAnchor=({:.2f}, {:.2f}, {:.2f}) smoothed=({:.2f}, {:.2f}, {:.2f})",
+                _enemyPos.x,
+                _enemyPos.y,
+                _enemyPos.z,
+                _playerPos.x,
+                _playerPos.y,
+                _playerPos.z,
+                _smoothedTargetPos.x,
+                _smoothedTargetPos.y,
+                _smoothedTargetPos.z);
+        }
+
         return;
     }
 
-    if ((Should_StartPoseTransition(request)&&!isSamePreset)|| shouldReAnchored)
+    if (shouldSkipPotatoBagSamePoseTransition)
+    {
+        LOG_INFO(
+            "[BattleCam][PotatoBag] Skip same-pose transition prevPreset={} nextPreset={} restartClip={}",
+            _currentRequest.presetId.c_str(),
+            request.presetId.c_str(),
+            shouldRestartClip);
+    }
+
+    if ((Should_StartPoseTransition(request) && !isSamePreset && !shouldSkipPotatoBagSamePoseTransition) || shouldReAnchored)
     {
         _poseTransition.targetEnemyAttackSubjectPos = nextEnemyAttackSubjectPos;
         _poseTransition.targetEnemyAttackOpponentPos = nextEnemyAttackOpponentPos;
@@ -1765,6 +1919,7 @@ void BattleTurnCamera::Update_EnemyAttackMode(float timeDelta)
         return;
     }
 
+    const bool shouldDebugPotatoBagDashOut = Is_PotatoBagDashOutReversedDebugRequest(_currentRequest);
     const BattleCameraClipSample clip = Advance_ActiveClip(timeDelta, _currentRequest);
     Vec3 enemyPos = _enemyPos;
     Vec3 playerPos = _playerPos;
@@ -1779,6 +1934,36 @@ void BattleTurnCamera::Update_EnemyAttackMode(float timeDelta)
     Apply_RuntimeDrift(pose, timeDelta);
     Apply_ClipShake(pose, clip, _clipShakeTime);
     Apply_RuntimeShake(pose,timeDelta);
+
+    if (shouldDebugPotatoBagDashOut)
+    {
+        LOG_INFO_THROTTLED(
+            0.05f,
+            "[BattleCam][DashOutRev] UpdateEnemyAttack clipTime={:.3f} shakeT={:.3f} roll={:.3f} cam=({:.2f}, {:.2f}, {:.2f}) look=({:.2f}, {:.2f}, {:.2f}) cachedEnemy=({:.2f}, {:.2f}, {:.2f}) cachedPlayer=({:.2f}, {:.2f}, {:.2f}) clipShakeAmp={:.3f} clipShakeFreq=({:.3f}, {:.3f}) clipShakeDecay=({:.3f}, {:.3f}) clipShakeScale={:.3f} clipShakeVertical={:.3f}",
+            _clipTime,
+            _clipShakeTime,
+            pose.rollOffset,
+            pose.cameraPos.x,
+            pose.cameraPos.y,
+            pose.cameraPos.z,
+            pose.lookTarget.x,
+            pose.lookTarget.y,
+            pose.lookTarget.z,
+            enemyPos.x,
+            enemyPos.y,
+            enemyPos.z,
+            playerPos.x,
+            playerPos.y,
+            playerPos.z,
+            clip.shakeAmplitude,
+            clip.shakeFrequencyX,
+            clip.shakeFrequencyY,
+            clip.shakeDecayRateX,
+            clip.shakeDecayRate,
+            clip.shakeStrengthScale,
+            clip.shakeVerticalRatio);
+    }
+
     Apply_EvaluatedPoseWithDOF(pose, _currentRequest.mode);
     GAME->UpdateFrustum(*GAME->Get_Transform(D3DTS::View), *GAME->Get_Transform(D3DTS::Proj));
 

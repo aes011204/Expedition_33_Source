@@ -40,6 +40,7 @@ IMPLEMENT_REFLECTION(AN_BattleShot)
     PROPERTY_BOOL("Use Clip", _useClip);
     PROPERTY_BOOL("Restart Clip", _restartClip);
     PROPERTY_BOOL("Keep Current Clip", _keepCurrentClip);
+    PROPERTY_BOOL("Skip If Parry Active", _skipIfParryActive);
     PROPERTY_STRING("Preset ID", _presetId);
     PROPERTY_STRING("Clip ID", _clipId);
 
@@ -131,6 +132,7 @@ void AN_BattleShot::Execute(const AnimNotifyContext& context)
     event.useClip = _useClip;
     event.restartClip = _restartClip;
     event.keepCurrentClip = _keepCurrentClip;
+    event.skipIfParryActive = _skipIfParryActive;
 
     //const string modeName = string(magic_enum::enum_name(_cameraMode));
     //LOG_INFO(
