@@ -1128,40 +1128,40 @@ void ChainModifierPreset::BuildGustavePotatoCapePhysicsDesc(
     };
 
     desc.chains = {
-        { "Verso_Potato_Cape_01_01", 1.00f, 0.20f, 2.40f, 1.00f, 0.055f, 0.88f },
-        { "Verso_Potato_Cape_02_01", 1.00f, 0.20f, 2.40f, 1.00f, 0.055f, 0.88f },
-        { "Verso_Potato_Cape_03_01", 1.00f, 0.20f, 2.40f, 1.00f, 0.055f, 0.88f }
+        { "Verso_Potato_Cape_01_01", 1.00f, 0.22f, 2.55f, 1.00f, 0.066f, 0.80f },
+        { "Verso_Potato_Cape_02_01", 1.00f, 0.22f, 2.55f, 1.00f, 0.066f, 0.80f },
+        { "Verso_Potato_Cape_03_01", 1.00f, 0.22f, 2.55f, 1.00f, 0.066f, 0.80f }
     };
 
     desc.outputAlpha = 1.00f;
-    desc.rotationOutputAlpha = 0.96f;
-    desc.outputSmoothAlpha = 0.09f;
-    desc.idleOutputSmoothAlpha = 0.82f;
-    desc.idleMotionDeadzone = 0.035f;
-    desc.maxOutputAngleDegree = 95.f;
+    desc.rotationOutputAlpha = 1.00f;
+    desc.outputSmoothAlpha = 0.065f;
+    desc.idleOutputSmoothAlpha = 0.88f;
+    desc.idleMotionDeadzone = 0.055f;
+    desc.maxOutputAngleDegree = 112.f;
 
-    desc.contactRotationFollowAlpha = 0.22f;
-    desc.freeRotationFollowAlpha = 0.36f;
+    desc.contactRotationFollowAlpha = 0.16f;
+    desc.freeRotationFollowAlpha = 0.30f;
     desc.rotationFollowDepthScale = 0.10f;
-    desc.poseRestoreAlpha = 0.22f;
-    desc.poseRestoreMaxSpeed = 14.0f;
-    desc.maxLocalOffset = Vec3(5.00f, 1.45f, 5.00f);
-    desc.movementInertiaScale = 2.20f;
-    desc.tipMovementInertiaScale = 24.00f;
-    desc.maxMovementInertiaSpeed = 80.0f;
-    desc.lateralInertiaScale = 10.00f;
-    desc.verticalInertiaScale = 0.65f;
-    desc.depthInertiaScale = 1.60f;
-    desc.accelerationInertiaScale = 0.18f;
-    desc.inertiaVelocitySmoothAlpha = 0.08f;
-    desc.poseSpringStrength = 0.42f;
-    desc.poseSpringDamping = 0.300f;
-    desc.lengthConstraintAlpha = 0.040f;
-    desc.bendConstraintAlpha = 0.010f;
-    desc.projectionIterations = 2;
+    desc.poseRestoreAlpha = 0.18f;
+    desc.poseRestoreMaxSpeed = 9.0f;
+    desc.maxLocalOffset = Vec3(6.00f, 2.25f, 5.45f);
+    desc.movementInertiaScale = 1.95f;
+    desc.tipMovementInertiaScale = 28.00f;
+    desc.maxMovementInertiaSpeed = 60.0f;
+    desc.lateralInertiaScale = 4.20f;
+    desc.verticalInertiaScale = 0.58f;
+    desc.depthInertiaScale = 1.05f;
+    desc.accelerationInertiaScale = 0.070f;
+    desc.inertiaVelocitySmoothAlpha = 0.055f;
+    desc.poseSpringStrength = 0.38f;
+    desc.poseSpringDamping = 0.430f;
+    desc.lengthConstraintAlpha = 0.068f;
+    desc.bendConstraintAlpha = 0.014f;
+    desc.projectionIterations = 3;
 
-    desc.contactInertiaDamping = 0.06f;
-    desc.releaseInertiaDamping = 0.160f;
+    desc.contactInertiaDamping = 0.120f;
+    desc.releaseInertiaDamping = 0.280f;
 
     desc.enableCollision = false;
     desc.collisionSphereRadius = 0.18f;
@@ -1174,9 +1174,9 @@ void ChainModifierPreset::BuildGustavePotatoCapePhysicsDesc(
     desc.windWaveScale = 0.f;
     desc.windWaveFrequency = 0.45f;
     desc.windWaveDepthPhase = 0.35f;
-    desc.gravityScale = 0.24f;
+    desc.gravityScale = 0.42f;
     desc.teleportDistance = 300.f;
-    desc.solverIterations = 6;
+    desc.solverIterations = 8;
     desc.writeBackEnabled = true;
 }
 

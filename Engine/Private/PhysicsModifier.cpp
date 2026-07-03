@@ -454,17 +454,9 @@ void PhysicsModifier::Evaluate_Modifier(ModelCom* model, float timeDelta)
 	{
 		ownerMotionDelta = ownerPos - _prevOwnerPos;
 	}
-	const Vec3 externalOwnerMotionDelta = _externalOwnerMotionEnabled
-		? _externalOwnerMotionDelta
-		: Vec3::Zero;
-	const Vec3 effectiveOwnerMotionDelta = ownerMotionDelta + externalOwnerMotionDelta;
-	const bool hasExternalOwnerMotion =
-		_externalOwnerMotionEnabled &&
-		externalOwnerMotionDelta.LengthSquared() > 0.000001f;
 	bool isOwnerIdle =
 		_hasPrevOwnerWorld &&
-		!hasExternalOwnerMotion &&
-		effectiveOwnerMotionDelta.Length() <= _desc.idleMotionDeadzone;
+		ownerMotionDelta.Length() <= _desc.idleMotionDeadzone;
 
 	if (_hasPrevOwnerWorld)
 	{
@@ -518,7 +510,7 @@ void PhysicsModifier::Evaluate_Modifier(ModelCom* model, float timeDelta)
 			_windTime += std::max(0.f, timeDelta);
 			Apply_WindForce(_desc.windDirection, _desc.windScale);
 		}
-		Apply_OwnerInertiaForce(ownerMotionDelta, externalOwnerMotionDelta, timeDelta, isOwnerIdle);
+		Apply_OwnerInertiaForce(ownerMotionDelta, timeDelta, isOwnerIdle);
 		Apply_PoseSpringForces(timeDelta);
 
 		if (_scene)
@@ -637,9 +629,6 @@ void PhysicsModifier::Apply_WindForce(const Vec3& direction, float scale)
 		{
 			if (node.isKinematic || !node.actor)
 				continue;
-			if (node.actor->isSleeping())
-				continue;
-
 			const float depth = std::clamp(node.depthRatio, 0.f, 1.f);
 			const float depthWeight = std::max(0.001f, SmoothStep(depth));
 			float waveFactor = 1.f;
@@ -650,15 +639,10 @@ void PhysicsModifier::Apply_WindForce(const Vec3& direction, float scale)
 			}
 
 			const Vec3 force = mainDirection * (scale * depthWeight * waveFactor);
-			node.actor->addForce(To_PxVec3(force), PxForceMode::eFORCE, false);
+			node.actor->addForce(To_PxVec3(force), PxForceMode::eFORCE, true);
+			node.actor->wakeUp();
 		}
 	}
-}
-
-void PhysicsModifier::Set_ExternalOwnerMotion(bool enabled, const Vec3& delta)
-{
-	_externalOwnerMotionEnabled = enabled;
-	_externalOwnerMotionDelta = enabled ? delta : Vec3::Zero;
 }
 
 void PhysicsModifier::Release_PhysXResources()
@@ -1216,14 +1200,14 @@ void PhysicsModifier::Update_SolvedPositionsFromActors()
 	}
 }
 
-void PhysicsModifier::Apply_OwnerInertiaForce(const Vec3& ownerMotionDelta, const Vec3& externalOwnerMotionDelta, float timeDelta, bool isOwnerIdle)
+void PhysicsModifier::Apply_OwnerInertiaForce(const Vec3& ownerMotionDelta, float timeDelta, bool isOwnerIdle)
 {
 	const float inertiaScale = std::max(0.f, _desc.movementInertiaScale);
 	if (timeDelta <= 0.0001f || inertiaScale <= 0.0001f)
 		return;
 
 	_desc.debugInertiaMagnitude = 0.f;
-	if (isOwnerIdle && externalOwnerMotionDelta.LengthSquared() <= 0.000001f)
+	if (isOwnerIdle)
 	{
 		for (auto& chain : _chains)
 		{
@@ -1246,7 +1230,7 @@ void PhysicsModifier::Apply_OwnerInertiaForce(const Vec3& ownerMotionDelta, cons
 		if (poseDriverDelta.LengthSquared() <= 0.000001f)
 			poseDriverDelta = ownerMotionDelta;
 
-		const Vec3 inertiaDriverDelta = poseDriverDelta + externalOwnerMotionDelta;
+		const Vec3 inertiaDriverDelta = poseDriverDelta;
 
 		const Vec3 rawDriverVelocity = inertiaDriverDelta / timeDelta;
 		Vec3 driverVelocity = rawDriverVelocity;
@@ -1743,6 +1727,9 @@ void PhysicsModifier::Apply_PoseRestoreAndDamping(float timeDelta, bool isOwnerI
 		_desc.poseRestoreAlpha,
 		0.f,
 		1.f);
+	const bool windActive =
+		_desc.windScale > 0.001f &&
+		_desc.windDirection.LengthSquared() > 0.001f;
 
 	for (auto& chain : _chains)
 	{
@@ -1789,7 +1776,7 @@ void PhysicsModifier::Apply_PoseRestoreAndDamping(float timeDelta, bool isOwnerI
 			angularVelocity *= (1.f - angularDampingAlpha);
 			bool shouldSleep = false;
 
-			if (isOwnerIdle)
+			if (isOwnerIdle && !windActive)
 			{
 				const float restDistanceSq = (correctedPosition - restPosition).LengthSquared();
 				if (restDistanceSq <= 0.0004f
@@ -1982,7 +1969,10 @@ void PhysicsModifier::Write_BackToModel(ModelCom* model, const Matrix& ownerWorl
 			Quat solvedRotation = Build_RotationDelta(restLocalDir, targetLocalDir) * poseRotation;
 			solvedRotation.Normalize();
 
-			const float depthOutputAlpha = clampedDepth;
+			const float depthOutputAlpha = std::clamp(
+				std::lerp(std::clamp(chain.desc.smoothMultiplier, 0.f, 1.f), 1.f, depthSmoothWeight),
+				0.f,
+				1.f);
 			const float nodeRotationOutputAlpha = std::clamp(
 				overallOutputAlpha * chain.desc.outputMultiplier * _desc.rotationOutputAlpha * depthOutputAlpha,
 				0.f,
@@ -2037,12 +2027,20 @@ void PhysicsModifier::Write_BackToModel(ModelCom* model, const Matrix& ownerWorl
 
 			if (hadSmoothedLocalTransform)
 			{
-				const float translationFollowAlpha = std::clamp(
-					std::max(
-						rotationFollowAlpha,
-						std::lerp(smoothAlpha, _desc.freeRotationFollowAlpha, depthSmoothWeight)),
-					0.f,
-					1.f);
+				const float translationFollowAlpha = allowTranslationOutput
+					? std::clamp(
+						std::lerp(
+							smoothAlpha,
+							_desc.freeRotationFollowAlpha,
+							std::clamp(chain.desc.smoothMultiplier, 0.f, 1.f)),
+						0.f,
+						1.f)
+					: std::clamp(
+						std::max(
+							rotationFollowAlpha,
+							std::lerp(smoothAlpha, _desc.freeRotationFollowAlpha, depthSmoothWeight)),
+						0.f,
+						1.f);
 				node.smoothedLocalTranslation = Vec3::Lerp(node.smoothedLocalTranslation, targetTranslation, translationFollowAlpha);
 			}
 			else
@@ -2146,6 +2144,8 @@ void PhysicsModifier::Write_BackToModel(ModelCom* model, const Matrix& ownerWorl
 
 			simulatedWorldDir.Normalize();
 			const Vec3 simulatedLocalDir = Get_LocalDirection(parentWorld, simulatedWorldDir);
+			const Vec3 simulatedLocalTranslation =
+				Vec3::Transform(getNodePosition(node), parentWorld.Invert());
 			const Vec3 restLocalDir = node.poseLocalDir.LengthSquared() > 0.0001f
 				? node.poseLocalDir
 				: node.bindLocalDir;
@@ -2155,8 +2155,8 @@ void PhysicsModifier::Write_BackToModel(ModelCom* model, const Matrix& ownerWorl
 				node,
 				restLocalDir,
 				simulatedLocalDir,
-				Get_Position(node.poseLocal),
-				false,
+				simulatedLocalTranslation,
+				true,
 				node.depthRatio,
 				node.hadContactThisFrame))
 			{

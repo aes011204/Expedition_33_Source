@@ -223,7 +223,6 @@ public:
 	void Build_RuntimeDebugCapsules(vector<RuntimeDebugCapsule>& outCapsules) const { outCapsules = _runtimeDebugCapsules; }
 	void Build_RuntimeDebugSpheres(vector<RuntimeDebugSphere>& outSpheres) const { outSpheres = _runtimeDebugSpheres; }
 	void Build_RuntimeDebugSegments(vector<RuntimeDebugSegment>& outSegments) const { outSegments = _runtimeDebugSegments; }
-	void Set_ExternalOwnerMotion(bool enabled, const Vec3& delta);
 
 	void Apply_WindForce(const Vec3& direction, float scale);
 
@@ -248,7 +247,7 @@ private:
 		const Matrix& ownerWorld,
 		const Matrix& collisionOwnerWorld);
 	void Update_SolvedPositionsFromActors();
-	void Apply_OwnerInertiaForce(const Vec3& ownerMotionDelta, const Vec3& externalOwnerMotionDelta, float timeDelta, bool isOwnerIdle);
+	void Apply_OwnerInertiaForce(const Vec3& ownerMotionDelta, float timeDelta, bool isOwnerIdle);
 	void Apply_PoseSpringForces(float timeDelta);
 	void Apply_LengthAndBendConstraints();
 	void Apply_PostSimulationConstraints(const vector<WorldCapsule>& worldCapsules);
@@ -281,8 +280,6 @@ private:
 	Vec3 _prevOwnerPos{ Vec3::Zero };
 	bool _hasPrevOwnerWorld{ false };
 	bool _hasCapturedPose{ false };
-	bool _externalOwnerMotionEnabled{ false };
-	Vec3 _externalOwnerMotionDelta{ Vec3::Zero };
 	float _windTime{ 0.f };
 
 	PxPhysics* _physics{ nullptr };
