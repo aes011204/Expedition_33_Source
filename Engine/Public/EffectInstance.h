@@ -42,6 +42,7 @@ public: //## Behavior::PlaybackOptions
     bool Is_PlaybackPaused() const { return _isPlaybackPaused; }
     void Set_PlaybackSpeed(float speed);
     float Get_PlaybackSpeed() const { return _playbackSpeed; }
+    void Set_MaterialRevealOverride(float alphaMultiplier, float alphaErosion);
 
 public: //## Behavior::ProviderBinding
     // 현재 acquire context가 공급한 trail sample provider를 child emitter에 다시 전파한다.

@@ -95,6 +95,9 @@ private:
     array<uint32, 3> _debugLastDrawInstanceCounts = {};
     uint32 _debugLastVisibleCountReadbackRequestId = 0;
     bool _debugHasDrawInstanceCounts = false;
+    ComPtr<Buffer> _potatoBagArenaInstanceVB;
+    uint32 _potatoBagArenaInstanceCount = 0;
+    bool _potatoBagArenaInstanceBufferReady = false;
     vector<PhysXStaticActorHandle> _physxStaticHandles;
     BoundingBox _groupBounds = {};
 
@@ -121,6 +124,7 @@ private:
 private:
     HRESULT Ready_Components(const wstring& modelPath, Shared<ModelCom> sharedModel);
     HRESULT CreateInstanceBuffer(const vector<Matrix>& matrices);
+    HRESULT Prepare_PotatoBagArenaInstanceBuffer();
     HRESULT Bind_ShaderResources();
 
     HRESULT CreateCullBuffers(const vector<Matrix>& matrices, const vector<InstanceTransform>& transforms);

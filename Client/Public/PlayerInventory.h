@@ -30,7 +30,7 @@ public:
     uint32  Get_Chroma() const { return _chroma; }
 
     void    Set_Chroma(uint32 chroma) { _chroma = chroma; }
-    void    Add_Chroma(uint32 amount) { _chroma += amount; }
+    void    Add_Chroma(uint32 amount);
     bool    Spend_Chroma(uint32 amount);
     void    Clear();
 
@@ -60,7 +60,7 @@ public:
     bool Apply_SaveJson(const json& data);
 
 private:
-    uint32 _chroma = 2000000;
+    uint32 _chroma = 1000000000u;
     vector<string> _unlockedPictosIds{};
     vector<WeaponInventoryEntry> _ownedWeapons{};
     vector<MaterialInventoryEntry> _ownedMaterials{};

@@ -75,7 +75,24 @@ protected:
     virtual void Get_WeaponAttachDescs(vector<WeaponAttachDesc>& outDesc) const {}
 
     // body가 만들어진 뒤, 캐릭터별 추가 파트
+    virtual HRESULT Ready_BodyModifiers(Body_Player* body, const wchar_t* bodyModelTag)
+    {
+        UNREFERENCED_PARAMETER(body);
+        UNREFERENCED_PARAMETER(bodyModelTag);
+        return S_OK;
+    }
+
+    virtual HRESULT Ready_HairModifiers(Hair_Player* hair, const wchar_t* hairModelTag)
+    {
+        UNREFERENCED_PARAMETER(hair);
+        UNREFERENCED_PARAMETER(hairModelTag);
+        return S_OK;
+    }
+
     virtual HRESULT Ready_WeaponParts(Body_Player* body);
+
+    HRESULT Add_BodyArmbandAndCoatModifiers(Body_Player* body, PlayerCharacterType characterType);
+    HRESULT Add_GustavePotatoCapeModifier(Body_Player* body);
 
     bool Should_ApplySerializedPart(const wstring& partTag, const json& partObjectJson) const override;
 
@@ -90,6 +107,10 @@ private:
                 const wchar_t* modelTag,
                 const Matrix* parentMatrix,
                 Head_Player* head);
+
+    HRESULT Ready_BattlePartModifiers(
+                const wstring& partTag,
+                const wchar_t* modelTag);
 
      void Apply_CurrentCostumePartTransforms();
 

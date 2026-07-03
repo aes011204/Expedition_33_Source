@@ -362,6 +362,8 @@
     <ClInclude Include="..\Public\WorldDesaturate_ScreenFx.h" />
     <ClInclude Include="..\Public\EffectCom.h" />
     <ClInclude Include="..\Public\EffectInstancePool.h" />
+    <ClInclude Include="..\Public\BattleEffectPrewarmCollector.h" />
+    <ClInclude Include="..\Public\BattleEffectPrewarmTypes.h" />
     <ClInclude Include="..\Private\EffectAssetRuntimeLoader_Support.h" />
     <ClInclude Include="..\Public\ExpeditionStat_Panel.h" />
     <ClInclude Include="..\Public\ComputeTrailEmitter.h" />
@@ -393,7 +395,7 @@
     <ClInclude Include="..\Private\BattleWorldUI_SurfaceAnim.h" />
     <ClInclude Include="..\Public\GameplayUI_Battle.h" />
     <ClInclude Include="..\Public\GameplayUI_World.h" />
-    <ClInclude Include="..\Public\UI_InteractionPrompt.h" />
+    <ClInclude Include="..\Public\UI_Interaction.h" />
     <ClInclude Include="..\Public\MapLandscape.h" />
     <ClInclude Include="..\Public\MainTitleMenuSound.h" />
     <ClInclude Include="..\public\Level_GameEntry.h" />
@@ -594,6 +596,7 @@
     <ClInclude Include="..\Public\UI_GetWeapon.h" />
     <ClInclude Include="..\Public\UI_GetPictos.h" />
     <ClInclude Include="..\Public\UI_GetChroma.h" />
+    <ClInclude Include="..\Public\UI_LevelAnnounce.h" />
     <ClInclude Include="..\Public\UI_HealFont.h" />
     <ClInclude Include="..\Public\UI_DestroyShield.h" />
     <ClInclude Include="..\Public\UI_MarkEffect.h" />
@@ -867,7 +870,7 @@
     <ClCompile Include="..\Private\BattleWorldUI_SkillCards.cpp" />
     <ClCompile Include="..\Private\GameplayUI_Battle.cpp" />
     <ClCompile Include="..\Private\GameplayUI_World.cpp" />
-    <ClCompile Include="..\Private\UI_InteractionPrompt.cpp" />
+    <ClCompile Include="..\Private\UI_Interaction.cpp" />
     <ClCompile Include="..\Private\MapLandscape.cpp" />
     <ClCompile Include="..\Private\MainTitleMenuSound.cpp" />
     <ClCompile Include="..\private\Level_GameEntry.cpp" />
@@ -915,6 +918,7 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
     </ClCompile>
+    <ClCompile Include="..\Private\BattleEffectPrewarmCollector.cpp" />
     <ClCompile Include="..\private\BattleStateMachine.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
@@ -1078,6 +1082,7 @@
     <ClCompile Include="..\Private\UI_GetWeapon.cpp" />
     <ClCompile Include="..\Private\UI_GetPictos.cpp" />
     <ClCompile Include="..\Private\UI_GetChroma.cpp" />
+    <ClCompile Include="..\Private\UI_LevelAnnounce.cpp" />
     <ClCompile Include="..\Private\UI_HealFont.cpp" />
     <ClCompile Include="..\Private\UI_DestroyShield.cpp" />
     <ClCompile Include="..\Private\UI_MarkEffect.cpp" />

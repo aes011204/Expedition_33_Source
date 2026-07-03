@@ -8,6 +8,7 @@
 #include "PreviewShotTable.h"
 #include "RuntimeCheckpointIO.h"
 #include "UIPreviewManager.h"
+#include "BattleEffectPrewarmTypes.h"
 
 NS_BEGIN(Engine)
 class GameInstance;
@@ -95,6 +96,14 @@ public:
     static void Set_DebugDisableGrassInstancedShadow(bool disabled);
     static bool Is_DebugDisableMapStaticMeshShadow();
     static void Set_DebugDisableMapStaticMeshShadow(bool disabled);
+    static void Set_PotatoBagArenaMapRenderGateBasis(const Vec3& origin, const Vec3& right, const Vec3& forward);
+    static void Clear_PotatoBagArenaMapRenderGateBasis();
+    static bool Is_PotatoBagArenaMapRenderGateActive();
+    static bool Should_RenderMapObjectInPotatoBagArena(const BoundingBox& worldBounds);
+    static bool Should_RenderMapInstanceInPotatoBagArena(const BoundingSphere& worldSphere);
+    static void Update_PotatoBagArenaMapInstancedShadowOverride();
+    static void Toggle_PotatoBagArenaMapRenderGateDebug();
+    static void Draw_PotatoBagArenaMapRenderGateDebug();
 
 public: /* 플레이어 찾기 -> 일단 임시 */
     Shared<GameObject> Find_Player(uint32 levelIndex);
@@ -174,6 +183,7 @@ public: /* For.Gameplay UI */
     void    Play_BattleEnterTransition();
     void    Stop_BattleEnterTransition();
     bool    Is_BattleEnterTransitionPlaying() const;
+    void    Queue_LevelAnnounce(LevelType levelType);
 
 public: /* For.Fade Transition */
     bool Request_ScreenFadeTransition(const function<void()>& CoveredAction);
@@ -264,6 +274,10 @@ public: /*CinematicSequenceRunner*/
     FDelegateHandle Add_CinematicCompletedCallback(const FOnCinematicCompleted::FunctionType& callback);
     void Clear_CinematicCompletedCallbacks();
 
+    void Queue_CinematicPrewarmForLevel(uint32 targetLevelIndex);
+    void Flush_CinematicPrewarmQueue(uint32 createBudget = UINT32_MAX);
+    void Clear_CinematicPrewarmQueue();
+
 public:
     Shared<CinematicCamera> Ensure_CinematicCamera();
     Shared<DialogueCamera> Ensure_DialogueCamera();
@@ -278,10 +292,16 @@ public:
 
 public: /* Effect 재생 */
     bool Prewarm_Effect(const wstring& effectName, const wstring& layerTag, uint32 count);
+    void Queue_BattleEffectPrewarmForBattleSetup(const vector<HeroId>& heroIds, const vector<BattleMonsterSpawnDesc>& monsterSpawnDescs, uint32 targetLevelIndex = UINT32_MAX);
+    void Queue_EffectPrewarmRequests(const vector<EffectPrewarmRequest>& requests);
+    void Update_EffectPrewarmQueue(uint32 createBudgetPerFrame = 2);
+    void Flush_EffectPrewarmQueue(uint32 createBudget = UINT32_MAX);
+    void Clear_EffectPrewarmQueue();
 
     // 단발성 1회 재생.
     bool Play_Effect(const PlayEffectDesc& desc);
     HRESULT Reload_EffectJsons();
+    HRESULT Reload_AnimNotifyJsons();
 
     // 약점 파츠처럼 모델/소켓이 없을 때
     bool Play_AttachPartEffect(
@@ -343,9 +363,9 @@ public:
     void RemoveItemInteractionOverlap();
     bool HasItemInteractionOverlap() const { return _itemInteractionOverlapCount > 0; }
 
-    void Request_InteractionPrompt(const void* sourceId, const Vec3& worldAnchor);
+    void Request_InteractionPrompt(const void* sourceId, InteractionPromptType type);
     void Clear_InteractionPrompt(const void* sourceId);
-    bool Try_GetInteractionPromptAnchor(Vec3& outWorldAnchor) const;
+    bool Try_GetInteractionPromptType(InteractionPromptType& outType) const;
 
     void Set_DialogueOverride(const string& sourceDialogueKey, const string& targetDialogueKey);
 
@@ -378,7 +398,8 @@ private:
     int          _itemInteractionOverlapCount = 0;
     bool         _hasInteractionPromptRequest = false;
     const void*  _interactionPromptSourceId = nullptr;
-    Vec3         _interactionPromptWorldAnchor = Vec3::Zero;
+    InteractionPromptType _interactionPromptType = InteractionPromptType::None;
+    int32        _interactionPromptPriority = 0;
 
 private:
     Shared<CameraDirector>              _cameraDirector;
@@ -387,6 +408,7 @@ private:
     Unique<GameDataTable>               _gameDataTable;
     Unique<PreviewShotTable>            _previewShotTable;
     Unique<EffectInstancePool>          _effectInstancePool;
+    vector<EffectPrewarmRequest>        _effectPrewarmQueue{};
     Unique<ScreenFadeTransition>        _screenFadeTransition;
     Unique<LevelTransitionFade>         _levelTransitionFade;
     Unique<CinematicSequenceRunner>     _cinematicSequenceRunner;

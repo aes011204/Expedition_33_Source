@@ -40,6 +40,8 @@ namespace
 
     const Vec3 kBishopRewardPortalSpawnPosition = Vec3(143.70f, 21.65f, 0.54f);
     const Vec3 kBishopRewardPortalRotation = Vec3::Zero;
+    const Vec3 kBishopRewardHeroWarpPosition = Vec3(122.10f, 21.61f, -2.56f);
+    const Vec3 kBishopRewardHeroWarpRotation = Vec3(0.f, 80.3f, 0.f);
 
     Unlock_Manager::UnlockReward Make_CostumeReward(HeroId heroId, const char* presetId)
     {
@@ -78,6 +80,15 @@ namespace
         Unlock_Manager::UnlockReward reward{};
         reward.type = Unlock_Manager::RewardType::UnlockPictos;
         reward.pictosId = pictosId;
+        return reward;
+    }
+
+    Unlock_Manager::UnlockReward Make_ActiveHeroWarpReward()
+    {
+        Unlock_Manager::UnlockReward reward{};
+        reward.type = Unlock_Manager::RewardType::WarpActiveHero;
+        reward.heroWarpPosition = kBishopRewardHeroWarpPosition;
+        reward.heroWarpRotation = kBishopRewardHeroWarpRotation;
         return reward;
     }
 
@@ -151,6 +162,9 @@ HRESULT Unlock_Manager::Initialize()
     _pendingGetClothesPresetIds.clear();
     _pendingGetWeaponPresentationIds.clear();
     _pendingGetPictosPresentationIds.clear();
+    _hasPendingActiveHeroWarp = false;
+    _pendingActiveHeroWarpPosition = Vec3::Zero;
+    _pendingActiveHeroWarpRotation = Vec3::Zero;
 
     Register_DefaultRules();
 
@@ -212,6 +226,7 @@ void Unlock_Manager::Register_DefaultRules()
 
         rule.rewards.emplace_back(Make_WorldSpawnReward());
         rule.rewards.emplace_back(Make_PictosReward(kPictosRoulette));
+        rule.rewards.emplace_back(Make_ActiveHeroWarpReward());
 
         _rules.emplace_back(std::move(rule));
     }
@@ -485,6 +500,17 @@ void Unlock_Manager::Apply_Reward(
         break;
     }
 
+    case RewardType::WarpActiveHero:
+    {
+        if (!queuePresentation)
+            break;
+
+        _hasPendingActiveHeroWarp = true;
+        _pendingActiveHeroWarpPosition = reward.heroWarpPosition;
+        _pendingActiveHeroWarpRotation = reward.heroWarpRotation;
+        break;
+    }
+
     default:;
     }
 }
@@ -545,6 +571,9 @@ bool Unlock_Manager::Apply_SaveJson(const json& data, bool replayWorldRewards, b
     _pendingGetClothesPresetIds.clear();
     _pendingGetWeaponPresentationIds.clear();
     _pendingGetPictosPresentationIds.clear();
+    _hasPendingActiveHeroWarp = false;
+    _pendingActiveHeroWarpPosition = Vec3::Zero;
+    _pendingActiveHeroWarpRotation = Vec3::Zero;
 
     if (!data.is_object())
         return true;
@@ -648,6 +677,20 @@ void Unlock_Manager::Queue_GetPictosPresentation(const string& pictosId)
     _pendingGetPictosPresentationIds.emplace_back(pictosId);
 }
 
+bool Unlock_Manager::Consume_PendingActiveHeroWarp(Vec3& outPosition, Vec3& outRotation)
+{
+    if (!_hasPendingActiveHeroWarp)
+        return false;
+
+    outPosition = _pendingActiveHeroWarpPosition;
+    outRotation = _pendingActiveHeroWarpRotation;
+
+    _hasPendingActiveHeroWarp = false;
+    _pendingActiveHeroWarpPosition = Vec3::Zero;
+    _pendingActiveHeroWarpRotation = Vec3::Zero;
+    return true;
+}
+
 const Unlock_Manager::UnlockRule* Unlock_Manager::Find_Rule(const string& ruleId) const
 {
     for (const UnlockRule& rule : _rules)
@@ -683,6 +726,9 @@ void Unlock_Manager::Free()
     _pendingGetClothesPresetIds.clear();
     _pendingGetWeaponPresentationIds.clear();
     _pendingGetPictosPresentationIds.clear();
+    _hasPendingActiveHeroWarp = false;
+    _pendingActiveHeroWarpPosition = Vec3::Zero;
+    _pendingActiveHeroWarpRotation = Vec3::Zero;
 
     Base::Free();
 }

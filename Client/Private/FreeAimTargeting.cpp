@@ -96,6 +96,9 @@ void FreeAimTargeting::Update(float timeDelta)
     {
         Clear_HitTarget();
 
+        if (owner->Is_FreeAimShotPlaying())
+            owner->Finish_FreeAimShot();
+
         if (_hasFreeAimStartRotation)
         {
             const BattleChar& actor = owner->Get_TurnActionRequest().actor;
@@ -175,6 +178,9 @@ void FreeAimTargeting::ExitInvoke()
     Clear_HitTarget();
 
     auto owner = Get_Owner();
+    if (owner && owner->Is_FreeAimShotPlaying())
+        owner->Finish_FreeAimShot();
+
     if (_hasFreeAimStartRotation && owner)
     {
         const BattleChar& actor = owner->Get_TurnActionRequest().actor;
@@ -242,6 +248,7 @@ bool FreeAimTargeting::Try_FindHitEnemy(BattleFreeAimHitTarget& outHitTarget) co
                 {
                     outResolvedHitTarget.target = enemy;
                     outResolvedHitTarget.hitPart = FreeAimHitPart::Body;
+                    outResolvedHitTarget.hitWorldPos = hit.position;
                     return true;
                 }
 
@@ -260,11 +267,13 @@ bool FreeAimTargeting::Try_FindHitEnemy(BattleFreeAimHitTarget& outHitTarget) co
                 {
                     outResolvedHitTarget.target = enemy;
                     outResolvedHitTarget.hitPart = FreeAimHitPart::Body;
+                    outResolvedHitTarget.hitWorldPos = hit.position;
                     return true;
                 }
 
                 outResolvedHitTarget.target = enemy;
                 outResolvedHitTarget.hitPart = FreeAimHitPart::WeakPoint;
+                outResolvedHitTarget.hitWorldPos = hit.position;
                 return true;
             }
 

@@ -298,6 +298,20 @@ bool WorldUpDownRopeSpot::Build_InteractionRequest(const Shared<Player_WorldBase
     return true;
 }
 
+InteractionPromptType WorldUpDownRopeSpot::Get_InteractionPromptType(const Shared<Player_WorldBase>& activeHero) const
+{
+    if (!Can_Interact(activeHero))
+        return InteractionPromptType::None;
+
+    if (_activeEntry == RopeEntry::Top)
+        return InteractionPromptType::Down;
+
+    if (_activeEntry == RopeEntry::Bottom)
+        return InteractionPromptType::Up;
+
+    return InteractionPromptType::None;
+}
+
 void WorldUpDownRopeSpot::Sync_RuntimeTuning()
 {
     Sync_EntryCollider(

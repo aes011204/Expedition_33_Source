@@ -132,6 +132,29 @@ void Resolve_MaxWideOffsets(
     }
 }
 
+void Resolve_MaxEnemyGroupOffsets(
+    const vector<Client::BattleMonsterSpawnDesc>& spawnDescs,
+    float& outBackOffset,
+    float& outHeightOffset,
+    float& outLookHeightOffset)
+{
+    auto selectDominantOffset = [](float current, float candidate)
+    {
+        return fabsf(candidate) > fabsf(current) ? candidate : current;
+    };
+
+    outBackOffset = 0.f;
+    outHeightOffset = 0.f;
+    outLookHeightOffset = 0.f;
+
+    for (const Client::BattleMonsterSpawnDesc& spawnDesc : spawnDescs)
+    {
+        outBackOffset = selectDominantOffset(outBackOffset, spawnDesc.enemyGroupBackOffset);
+        outHeightOffset = selectDominantOffset(outHeightOffset, spawnDesc.enemyGroupHeightOffset);
+        outLookHeightOffset = selectDominantOffset(outLookHeightOffset, spawnDesc.enemyGroupLookHeightOffset);
+    }
+}
+
 bool Try_EvaluateMonsterWidePreviewPose(
     const Shared<Client::Monster_WorldBase>& monster,
     const vector<Client::BattleMonsterSpawnDesc>& spawnDescs,
@@ -1834,6 +1857,36 @@ bool Prefab_View::Draw_MonsterBattlePrefabList(const Shared<GameObject>& selecte
         if (ImGui::DragFloat("##BattleMonsterWideLookHeightOffset", &wideLookHeightOffset, 0.05f))
         {
             spawnDescs[i].wideLookHeightOffset = wideLookHeightOffset;
+            changed = true;
+        }
+
+        float enemyGroupBackOffset = spawnDescs[i].enemyGroupBackOffset;
+        ImGui::Text("EnemyGroup Back");
+        ImGui::SameLine(BattlePrefabLabelWidth);
+        ImGui::SetNextItemWidth(max(80.f, ImGui::GetContentRegionAvail().x));
+        if (ImGui::DragFloat("##BattleMonsterEnemyGroupBackOffset", &enemyGroupBackOffset, 0.05f))
+        {
+            spawnDescs[i].enemyGroupBackOffset = enemyGroupBackOffset;
+            changed = true;
+        }
+
+        float enemyGroupHeightOffset = spawnDescs[i].enemyGroupHeightOffset;
+        ImGui::Text("EnemyGroup Height");
+        ImGui::SameLine(BattlePrefabLabelWidth);
+        ImGui::SetNextItemWidth(max(80.f, ImGui::GetContentRegionAvail().x));
+        if (ImGui::DragFloat("##BattleMonsterEnemyGroupHeightOffset", &enemyGroupHeightOffset, 0.05f))
+        {
+            spawnDescs[i].enemyGroupHeightOffset = enemyGroupHeightOffset;
+            changed = true;
+        }
+
+        float enemyGroupLookHeightOffset = spawnDescs[i].enemyGroupLookHeightOffset;
+        ImGui::Text("EnemyGroup Look Height");
+        ImGui::SameLine(BattlePrefabLabelWidth);
+        ImGui::SetNextItemWidth(max(80.f, ImGui::GetContentRegionAvail().x));
+        if (ImGui::DragFloat("##BattleMonsterEnemyGroupLookHeightOffset", &enemyGroupLookHeightOffset, 0.05f))
+        {
+            spawnDescs[i].enemyGroupLookHeightOffset = enemyGroupLookHeightOffset;
             changed = true;
         }
 

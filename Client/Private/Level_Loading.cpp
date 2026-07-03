@@ -2,10 +2,14 @@
 #include "Loader.h"
 
 #include "Client_Constants.h"
+#include "BattleEffectPrewarmTypes.h"
+#include "BattleTransition_ScreenFx.h"
 #include "ClientInstance.h"
 #include "GameInstance.h"
 #include "MapLoader.h"
+#include "Monster_WorldBase.h"
 #include "UI_RuntimeLoader.h"
+#include "BattleEncounterProfile.h"
 
 #include "Level_MainTitle.h"
 #include "Level_GameEntry.h"
@@ -123,6 +127,13 @@ void Level_Loading::Update(float fTimeDelta)
             return;
         }
 
+        const uint32 targetLevelIndex = ETOI(_nextLevel);
+        CLIENT->Queue_CinematicPrewarmForLevel(targetLevelIndex);
+        CLIENT->Flush_CinematicPrewarmQueue();
+
+        Queue_BattleEffectPrewarmForNextLevel();
+        CLIENT->Flush_EffectPrewarmQueue();
+
         _requestedNextLevelTransition = true;
 
         if (!CLIENT->Request_LoadedLevelTransition(_nextLevel, pNextLevel))
@@ -165,6 +176,50 @@ HRESULT Level_Loading::Ready_LoadingUIRenderResources()
     }
 
     return S_OK;
+}
+
+void Level_Loading::Queue_BattleEffectPrewarmForNextLevel()
+{
+    const uint32 targetLevelIndex = ETOI(_nextLevel);
+
+    EffectPrewarmRequest battleTransitionFxRequest{};
+    battleTransitionFxRequest.effectName = BattleTransition_ScreenFx::Get_RoseFlareEffectName();
+    battleTransitionFxRequest.layerTag = BattleTransition_ScreenFx::Get_RoseFlareLayerTag();
+    battleTransitionFxRequest.targetCount = 1;
+    battleTransitionFxRequest.targetLevelIndex = BattleTransition_ScreenFx::Get_RoseFlareLayerLevelIndex();
+    CLIENT->Queue_EffectPrewarmRequests(vector<EffectPrewarmRequest>{ battleTransitionFxRequest });
+
+    GAME->Visit_LevelObjects(
+        targetLevelIndex,
+        [targetLevelIndex](const wstring& layerTag, const Shared<GameObject>& gameObject)
+        {
+            UNREFERENCED_PARAMETER(layerTag);
+
+            const Shared<Monster_WorldBase> worldMonster = dynamic_pointer_cast<Monster_WorldBase>(gameObject);
+            if (worldMonster == nullptr)
+                return;
+
+            vector<BattleMonsterSpawnDesc> battleMonsterSpawnDescs{};
+            worldMonster->Set_BattleMonsterSpawnDescs(battleMonsterSpawnDescs);
+            if (battleMonsterSpawnDescs.empty())
+                return;
+
+            CLIENT->Queue_BattleEffectPrewarmForBattleSetup(
+                worldMonster->Build_BattleHeroIds(),
+                battleMonsterSpawnDescs,
+                targetLevelIndex);
+        });
+
+    if (_nextLevel == LevelType::GestralVillage)
+    {
+        BattleMonsterSpawnDesc potatoBagSpawnDesc{};
+        potatoBagSpawnDesc.prefabName = Constants::Prefab::MB_PotatoBag;
+
+        CLIENT->Queue_BattleEffectPrewarmForBattleSetup(
+            Resolve_BattleEncounterHeroIds(Constants::Value::potatoBagEncounterId),
+            vector<BattleMonsterSpawnDesc>{ potatoBagSpawnDesc },
+            targetLevelIndex);
+    }
 }
 
 HRESULT Level_Loading::Ready_Layer_BackGround(const wchar_t* pLayerTag)

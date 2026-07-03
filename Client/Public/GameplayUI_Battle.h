@@ -43,9 +43,9 @@ class UI_AddAP;
 class UI_BattlePictos;
 class UI_BattleJumpReaction;
 class UI_QTE;
-class UI_MarkEffect;
 class UI_BattleTutorial;
 class UI_BattleGradientGauge;
+class UI_MarkEffect;
 
 class Monster_BattleBase;
 
@@ -92,6 +92,8 @@ private:
     // Buff
     void    Handle_BuffApplied(const BattleChar& target, Buffs buffId);
     void    Handle_BuffConsumed(const BattleChar& target, Buffs buffId, float bonusDamage);
+    void    Play_MarkEffect(const BattleChar& target);
+    void    Clear_MarkEffect();
 
     // 카운터 성공 알림
     void    Handle_CounterAnnounceRequested(const vector<BattleChar>& counterActors);
@@ -132,7 +134,6 @@ private:
     void    Update_BattleAnnounce(float timeDelta);
     void    Update_SuddenAttack(float timeDelta);
     void    Update_QTE(float timeDelta);
-    void    Update_MarkEffect(float timeDelta);
     void    Update_BattleSystemIntroState(float timeDelta);
     HRESULT Ensure_BattleWorldMaterialVfxBackground();
     void    Hide_BattleWorldMaterialVfxBackground();
@@ -228,7 +229,6 @@ private:
     Unique<UI_BattleAnnounce>               _battleAnnounce;
     Unique<UI_SuddenAttack>                 _suddenAttack;
     Unique<UI_QTE>                          _qte;
-    Unique<UI_MarkEffect>                   _markEffect;
     Unique<UI_BattleTutorial>               _battleTutorial;
     Unique<UI_BattleGradientGauge>          _battleGradientGauge;
     Unique<UI_BattleJumpReaction>           _battleJumpReaction;
@@ -236,9 +236,13 @@ private:
 private:
     static constexpr uint32 kDamageFontPoolSize = 8; // 폰트 최대 8개까지만
     array<Unique<UI_DamageFont>, kDamageFontPoolSize> _damageFonts{};
+    Character_BattleBase* _lastDamageFontTargetActor = nullptr;
+    uint32 _damageFontTargetStackIndex = 0;
 
     static constexpr uint32 kDestroyShieldPoolSize = 4;
     array<Unique<UI_DestroyShield>, kDestroyShieldPoolSize> _destroyShields{};
+    Character_BattleBase* _lastDestroyShieldTargetActor = nullptr;
+    uint32 _destroyShieldTargetStackIndex = 0;
 
     static constexpr uint32 kHealFontPoolSize = 8;
     array<Unique<UI_HealFont>, kHealFontPoolSize> _healFonts{};
@@ -274,6 +278,7 @@ private:
     // Buff
     FDelegateHandle          _buffAppliedHandle{};
     FDelegateHandle          _buffConsumedHandle{};
+    Unique<UI_MarkEffect>    _markEffect{};
 
     FDelegateHandle          _counterAnnounceRequestedHandle{};
     FDelegateHandle          _battleWeakPointConsumedHandle{};

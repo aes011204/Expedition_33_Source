@@ -16,11 +16,12 @@ public:
     {
         float edgeSoftness{ 0.05f };
         float maxRadius{ 1.5f };
+        bool useBlackSource{ false };
     };
 
 public:
     BattleTransition_ScreenFx() = default;
-    ~BattleTransition_ScreenFx() override = default;
+    ~BattleTransition_ScreenFx() override;
 
 public:
     HRESULT Initialize(ScreenFxDesc* desc) override;
@@ -28,9 +29,13 @@ public:
     void Evaluate_At(float normalizedTime) override;
     HRESULT Bind_FxConstantBuffer(ShaderCom* shader) override;
     HRESULT Bind_ShaderResources(const Shared<ShaderCom>& shader) override;
+    static const wchar_t* Get_RoseFlareEffectName();
+    static const wchar_t* Get_RoseFlareLayerTag();
+    static uint32 Get_RoseFlareLayerLevelIndex();
 
 private:
     void RoseFlare();
+    void Release_RoseFlare();
 
 private:
     EffectInstancePool::AttachedHandle _roseFlareHandle{};

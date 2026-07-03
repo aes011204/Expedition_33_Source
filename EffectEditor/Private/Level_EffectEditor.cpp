@@ -13,7 +13,9 @@
 #include "GameObject.h"
 #include "ResourceLoader.h"
 #include "TrailPreviewController.h"
+#include "TrailPreviewMonsterObject.h"
 #include "TrailPreviewPlayerObject.h"
+#include "TrailPreviewSampleRouter.h"
 #include "TrailPreviewWeaponObject.h"
 
 NS_BEGIN(EffectEditor)
@@ -24,7 +26,10 @@ namespace Internal
     {
         return prototypeTag == L"Model_GustaveBody" ||
                prototypeTag == L"Model_GustaveHead" ||
-               prototypeTag == L"Model_GustaveHair";
+               prototypeTag == L"Model_GustaveHair" ||
+               prototypeTag == L"Model_Simon" ||
+               prototypeTag == L"Model_Simon_Hair" ||
+               prototypeTag == L"Model_Simon_Weapon";
     }
 }
 
@@ -125,15 +130,16 @@ HRESULT Level_EffectEditor::Ensure_TrailPreviewFixture()
     uint32 registeredModelCount = 0;
     for (const FLoadJob& loadJob : loadJobs)
     {
-        if (loadJob.eType != ELoadJobType::Model ||
-            !Internal::Is_TrailPreviewModelResource(loadJob.strPrototypeTag))
+        if (loadJob.eType == ELoadJobType::Model &&
+            Internal::Is_TrailPreviewModelResource(loadJob.strPrototypeTag))
+        {
+            CHECK_FAILED(resourceLoader->Register_LoadJob(loadJob), E_FAIL);
+            ++registeredModelCount;
             continue;
-
-        CHECK_FAILED(resourceLoader->Register_LoadJob(loadJob), E_FAIL);
-        ++registeredModelCount;
+        }
     }
 
-    if (registeredModelCount < 3)
+    if (registeredModelCount < 6)
     {
         LOG_ERROR("[TrailPreview] failed to find all visual fixture model resources. registered={}", registeredModelCount);
         return E_FAIL;
@@ -151,8 +157,14 @@ HRESULT Level_EffectEditor::Ensure_TrailPreviewFixture()
         return E_FAIL;
     }
 
+    const Shared<TrailPreviewMonsterObject> trailPreviewMonster =
+        TrailPreviewMonsterObject::Create(_device, _context);
+    CHECK_NULL(trailPreviewMonster, E_FAIL);
+    CHECK_FAILED(trailPreviewMonster->Initialize(nullptr), E_FAIL);
+
     TrailPreviewController::PreviewDesc controllerDesc{};
     controllerDesc.player = trailPreviewPlayer;
+    controllerDesc.monster = trailPreviewMonster;
 
     const Shared<TrailPreviewController> trailPreviewController =
         TrailPreviewController::Create(_device, _context);
@@ -160,14 +172,33 @@ HRESULT Level_EffectEditor::Ensure_TrailPreviewFixture()
     CHECK_FAILED(trailPreviewController->Initialize(&controllerDesc), E_FAIL);
 
     CHECK_FAILED(GAME->Add_GameObject(ETOI(LevelType::Static), kPreviewLayerTag, trailPreviewPlayer), E_FAIL);
+    CHECK_FAILED(GAME->Add_GameObject(ETOI(LevelType::Static), kPreviewLayerTag, trailPreviewMonster), E_FAIL);
     CHECK_FAILED(GAME->Add_GameObject(ETOI(LevelType::Static), kPreviewLayerTag, trailPreviewController), E_FAIL);
 
-    _previewRuntime->Bind_TrailPreviewSources(trailPreviewWeapon, trailPreviewWeapon, trailPreviewController);
+    _trailPreviewSampleRouter = make_shared<TrailPreviewSampleRouter>();
+    _trailPreviewSampleRouter->Bind_PlayerProviders(trailPreviewWeapon, trailPreviewWeapon);
+    _trailPreviewSampleRouter->Bind_MonsterProviders(trailPreviewMonster, trailPreviewMonster);
+    _previewRuntime->Bind_TrailPreviewSources(
+        _trailPreviewSampleRouter,
+        _trailPreviewSampleRouter,
+        trailPreviewController);
+    _trailPreviewController = trailPreviewController;
     _trailPreviewFixtureReady = true;
 
     LOG_INFO("[TrailPreview] lazy fixture initialized.");
 
     return S_OK;
+}
+
+void Level_EffectEditor::Get_TrailPreviewAnimationNames(vector<string>& outNames) const
+{
+    outNames.clear();
+
+    const Shared<TrailPreviewController> trailPreviewController = _trailPreviewController.lock();
+    if (trailPreviewController == nullptr)
+        return;
+
+    trailPreviewController->Get_AnimationNames(outNames);
 }
 
 HRESULT Level_EffectEditor::Ready_Lights()

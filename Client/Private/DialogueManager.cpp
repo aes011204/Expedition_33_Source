@@ -3,6 +3,7 @@
 #include "ClientInstance.h"
 #include "DialogueCamera.h"
 #include "GameplayUI.h"
+#include "Item.h"
 #include "UI_Dialogue.h"
 #include "Player_WorldBase.h"
 #include "NPC_Base.h"
@@ -51,15 +52,26 @@ void DialogueManager::StartDialogue(const DialogueRequest& request)
     if (dialogueData == nullptr || dialogueData->lines.empty())
         return;
 
-    if (_uiDialogue != nullptr)
+    const uint32 currentLevelIndex = GAME->Current_LevelIndex();
+    if (_uiDialogue != nullptr && _uiDialogueLevelIndex != currentLevelIndex)
     {
         _uiDialogue->Free();
         _uiDialogue.reset();
+        _uiDialogueLevelIndex = 0;
     }
 
-    _uiDialogue = UI_Dialogue::Create(GAME->Current_LevelIndex());
     if (_uiDialogue == nullptr)
-        return;
+    {
+        _uiDialogue = UI_Dialogue::Create(currentLevelIndex);
+        if (_uiDialogue == nullptr)
+            return;
+
+        _uiDialogueLevelIndex = currentLevelIndex;
+    }
+    else
+    {
+        _uiDialogue->Close();
+    }
 
     _currentDialogueKey = resolvedDialogueKey;
     _currentDialogueData = dialogueData;
@@ -160,8 +172,6 @@ void DialogueManager::EndDialogue(bool restoreWorldState)
     if (_uiDialogue)
     {
         _uiDialogue->Close();
-        _uiDialogue->Free();
-        _uiDialogue.reset();
     }
 }
 
@@ -425,12 +435,17 @@ bool DialogueManager::ExecuteLineAction(const string& action)
         const Shared<GameObject> spawned = Spawn_Prefab::Prefab(Constants::Prefab::Item_Pictos_WarmingUp)
             .AtLevel(GAME->Current_LevelIndex())
             .InLayer(TEXT("Layer_GameObject"))
-            .Position(spawnPosition)
+            .Position(Vec3(-82.34f, 20.75f, 71.09f))
             .Rotation(Vec3::Zero)
             .Spawn();
 
         if (spawned != nullptr)
+        {
             spawned->Set_RuntimeAuthoringLoaded(true);
+
+            if (const Shared<Item> spawnedItem = dynamic_pointer_cast<Item>(spawned))
+                spawnedItem->Start_SpawnReveal(0.45f);
+        }
 
         if (const Shared<NPC_Base> npc = dynamic_pointer_cast<NPC_Base>(npcObject))
             npc->Remove_InteractionTrigger();
@@ -570,6 +585,7 @@ void DialogueManager::Free()
     {
         _uiDialogue->Free();
         _uiDialogue.reset();
+        _uiDialogueLevelIndex = 0;
     }
 
     Base::Free();

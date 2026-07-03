@@ -448,7 +448,7 @@ void SoulLikeController::Start_DuallistePhase1BGM()
     if (GAME->Get_CurrentBGM() == bgm)
         return;
 
-    GAME->Play_BGM(bgm, 1.f, true, kDuallisteBGMFadeOutDuration);
+    GAME->Play_BGM(bgm, 0.7f, true, kDuallisteBGMFadeOutDuration);
 }
 
 void SoulLikeController::Play_DuallisteBGM(DuallisteBGMPhase phase)
@@ -466,7 +466,7 @@ void SoulLikeController::Play_DuallisteBGM(DuallisteBGMPhase phase)
     if (GAME->Get_CurrentBGM() == bgm)
         return;
 
-    GAME->Play_BGM(bgm, 1.f, true, kDuallisteBGMFadeOutDuration);
+    GAME->Play_BGM(bgm, 0.7f, true, kDuallisteBGMFadeOutDuration);
 }
 
 void SoulLikeController::Set_JumpCounterThreat(const Shared<SL_Base>& attacker, bool active)
@@ -1221,7 +1221,7 @@ void SoulLikeController::Restore_PreSoulLikeBGM()
     if (_preSoulLikeBGM.empty())
         GAME->Stop_SoundChannel(SoundChannel::BGM, kDuallisteBGMFadeOutDuration);
     else
-        GAME->Play_BGM(_preSoulLikeBGM, 1.f, true, kDuallisteBGMFadeOutDuration);
+        GAME->Play_BGM(_preSoulLikeBGM, 0.7f, true, kDuallisteBGMFadeOutDuration);
 
     _preSoulLikeBGM.clear();
     _hasPreSoulLikeBGM = false;

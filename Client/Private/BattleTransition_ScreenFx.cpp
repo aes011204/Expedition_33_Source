@@ -12,6 +12,12 @@
 
 NS_BEGIN(Client)
 
+namespace
+{
+    constexpr wchar_t kRoseFlareEffectName[] = L"Effects\\Assets\\Screen\\RoseFlare.effect.json";
+    constexpr wchar_t kRoseFlareLayerTag[] = L"Layer_UI_Effect";
+}
+
 IMPLEMENT_REFLECTION(BattleTransition_ScreenFx)
 {
     auto& info = GetStaticReflectionInfo();
@@ -25,6 +31,11 @@ IMPLEMENT_REFLECTION(BattleTransition_ScreenFx)
     PROPERTY_FLOAT("Elapsed Time", _elapsedTime, 0.0f, 10.f, 0.01f);
 
     return true;
+}
+
+BattleTransition_ScreenFx::~BattleTransition_ScreenFx()
+{
+    Release_RoseFlare();
 }
 
 HRESULT BattleTransition_ScreenFx::Initialize(ScreenFxDesc* desc)
@@ -92,6 +103,7 @@ HRESULT BattleTransition_ScreenFx::Bind_FxConstantBuffer(ShaderCom* shader)
     cbData.wipeRadius = _currentRadius;
     cbData.edgeSoftness = _originalDesc.edgeSoftness;
     cbData.transitionProgress = _elapsedTime / _duration;
+    cbData.transitionUseBlackSource = _originalDesc.useBlackSource ? 1.f : 0.f;
 
     cbData.vignetteRadius = 0.8f;
     cbData.vignetteSoftness = 0.5f;
@@ -110,18 +122,46 @@ HRESULT BattleTransition_ScreenFx::Bind_ShaderResources(const Shared<ShaderCom>&
     return hr;
 }
 
+const wchar_t* BattleTransition_ScreenFx::Get_RoseFlareEffectName()
+{
+    return kRoseFlareEffectName;
+}
+
+const wchar_t* BattleTransition_ScreenFx::Get_RoseFlareLayerTag()
+{
+    return kRoseFlareLayerTag;
+}
+
+uint32 BattleTransition_ScreenFx::Get_RoseFlareLayerLevelIndex()
+{
+    return ETOI(LevelType::Static);
+}
+
 void BattleTransition_ScreenFx::RoseFlare()
 {
     EffectInstancePool* effectPool = CLIENT->Get_EffectInstancePool();
     if (effectPool != nullptr)
     {
         EffectInstancePool::AcquireDesc acquireDesc{};
-        acquireDesc.effectName = L"Effects\\Assets\\Screen\\RoseFlare.effect.json";
-        acquireDesc.layerTag = L"Layer_UI_Effect";
+        acquireDesc.effectName = Get_RoseFlareEffectName();
+        acquireDesc.layerLevelIndex = Get_RoseFlareLayerLevelIndex();
+        acquireDesc.layerTag = Get_RoseFlareLayerTag();
 
         acquireDesc.worldPosition = Vec3(0.f, 0.f, 0.f);
         effectPool->Acquire(acquireDesc, _roseFlareHandle);
     }
+}
+
+void BattleTransition_ScreenFx::Release_RoseFlare()
+{
+    if (_roseFlareHandle.effectObject == nullptr)
+        return;
+
+    EffectInstancePool* effectPool = CLIENT->Get_EffectInstancePool();
+    if (effectPool != nullptr)
+        effectPool->Release(_roseFlareHandle);
+
+    _roseFlareHandle = {};
 }
 
 Shared<BattleTransition_ScreenFx> BattleTransition_ScreenFx::Create(BattleTransitionDesc* desc)

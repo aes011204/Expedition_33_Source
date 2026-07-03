@@ -35,6 +35,7 @@
 #include "BattleFollowupManager.h"
 #include "BattleMechanismCom.h"
 #include "Battle_Event.h"
+#include "ClientScreenFxManager.h"
 #include "Character.h"
 #include "Event_Bus.h"
 #include "DamageSystem.h"
@@ -56,6 +57,7 @@
 #include "PostProcessPipeline.h"
 #include "TransformCom.h"
 #include "GradientSkill.h"
+#include "Monster_Part.h"
 #include "PictosBattleSystem.h"
 #include "Unlock_Manager.h"
 
@@ -74,6 +76,8 @@ namespace
     constexpr char kNpcSumoAfterPotatoBagDialogueKey[] = "NPC_Sumo_AfterPotatoBag";
 
     constexpr float kSkillPresentationDissolveDuration = 0.12f;
+    constexpr float kSkillPresentationHideConfirmDuration = 0.04f;
+    constexpr float kSkillPresentationRevealGraceDuration = 0.10f;
     constexpr char kSkillPresentationDissolveNoise[] = "T_Perlin_Noise_M";
     constexpr float kSkillPresentationOcclusionDepthMargin = 0.25f;
     constexpr float kSkillPresentationOcclusionCapsuleRadius = 0.58f;
@@ -130,6 +134,11 @@ void BattleController::Update(float timeDelta)
 
     // 8번 누르면 AP 무한
     Handle_InfiniteAp();
+
+    if (GAME->KeyDown(KEY_TYPE::KEY_0))
+    {
+        Set_AutoParryEnabled(!Is_AutoParryEnabled());
+    }
 
     if (Update_BattleTutorialGate(timeDelta))
         return;
@@ -443,6 +452,8 @@ void BattleController::Cancel_BattleEnterPending()
     if (!_isBattleEntering || _isBattleActive)
         return;
 
+    CLIENT->Clear_EffectPrewarmQueue();
+
     GAME->Stop_WorldTimeSlow();
     GAME->Set_WorldTimeScale(1.f);
     GAME->Set_PlayerInputBlocked(false);
@@ -578,7 +589,7 @@ EBattleEndResult BattleController::OnExitBattleField(EBattleEndResult result)
         }
         else if (isBishopCinematicBGM)  // 주교잡고나서는 Victory 브금
         {
-            GAME->Play_BGM(Constants::SoundBGM::BishopBattleBossVictory, 1.f, true, 0.f);
+            GAME->Play_BGM(Constants::SoundBGM::BishopBattleBossVictory, 0.7f, true, 0.f);
         }
         else
         {
@@ -1031,6 +1042,32 @@ float BattleController::Resolve_PrefabGroundOffsetY(const Shared<GameObject>& ac
         return monster->Get_BattleGroundOffsetY();
 
     return 0.f;
+}
+
+bool BattleController::Try_ResolveSimonBattleBGM(wstring& outIntroBGM, wstring& outMainBGM) const
+{
+    for (const BattleChar& enemy : _enemies)
+    {
+        if (enemy.actor == nullptr)
+            continue;
+
+        const string& sourcePrefabName = enemy.actor->Get_SourcePrefabName();
+        if (sourcePrefabName == Constants::Prefab::MB_Simon_V2)
+        {
+            outIntroBGM.clear();
+            outMainBGM = Constants::SoundBGM::SimonBattlePhase2Main;
+            return true;
+        }
+
+        if (sourcePrefabName == Constants::Prefab::MB_Simon)
+        {
+            outIntroBGM = Constants::SoundBGM::SimonBattlePhase1Intro;
+            outMainBGM = Constants::SoundBGM::SimonBattlePhase1Main;
+            return true;
+        }
+    }
+
+    return false;
 }
 
 void BattleController::SetCharInitPos()
@@ -1594,8 +1631,20 @@ void BattleController::Refresh_SkillPresentationHeroVisibility(float timeDelta)
 
         if (keepHidden)
         {
+            iter->clearElapsedSec = 0.f;
             iter->hiddenElapsedSec += timeDelta;
-            if (!iter->visibilityForcedOff && iter->hiddenElapsedSec >= kSkillPresentationDissolveDuration)
+
+            if (iter->wasVisible &&
+                !iter->dissolveStarted &&
+                iter->hiddenElapsedSec >= kSkillPresentationHideConfirmDuration)
+            {
+                Begin_SkillPresentationVanish(iter->actor);
+                iter->dissolveStarted = true;
+            }
+
+            if (iter->dissolveStarted &&
+                !iter->visibilityForcedOff &&
+                iter->hiddenElapsedSec >= kSkillPresentationHideConfirmDuration + kSkillPresentationDissolveDuration)
             {
                 if (iter->actor != nullptr)
                     iter->actor->Set_Visible(false);
@@ -1613,7 +1662,14 @@ void BattleController::Refresh_SkillPresentationHeroVisibility(float timeDelta)
             continue;
         }
 
-        if (iter->actor != nullptr && iter->wasVisible)
+        iter->clearElapsedSec += timeDelta;
+        if (iter->clearElapsedSec < kSkillPresentationRevealGraceDuration)
+        {
+            ++iter;
+            continue;
+        }
+
+        if (iter->dissolveStarted && iter->actor != nullptr && iter->wasVisible)
         {
             iter->actor->Set_Visible(true);
             for (const SkillPresentationHiddenHero::PartVisibility& partVisibility : iter->partVisibilities)
@@ -1669,9 +1725,6 @@ void BattleController::Refresh_SkillPresentationHeroVisibility(float timeDelta)
         }
 
         _skillPresentationHiddenHeroes.push_back(hiddenHero);
-
-        if (hiddenHero.wasVisible)
-            Begin_SkillPresentationVanish(hero.actor);
     }
 }
 
@@ -1901,6 +1954,13 @@ void BattleController::Publish_TargetPreviewEnemyFocus() const
     event.subject = target->actor;
     event.presetId = target->actor->Get_SourcePrefabName();
 
+    GAME->Get_EventBus().Publish(event);
+}
+
+void BattleController::Publish_TargetPreviewEnemyGroup() const
+{
+    EvtBattlePresentation event{};
+    event.cameraMode = BattleCameraMode::ENEMYGROUP;
     GAME->Get_EventBus().Publish(event);
 }
 
@@ -2138,7 +2198,7 @@ void BattleController::Execute_Item()
             static_cast<float>(itemData.healHp) * 0.01f, target);
 
         // 힐 이팩트
-        if (runtimeStat.CurHp > beforeHp && target.actor != nullptr)
+        if (target.actor != nullptr)
         {
             PlayEffectDesc effectDesc{};
             effectDesc.effectName = kHealTintEffect;
@@ -2537,8 +2597,12 @@ void BattleController::Begin_FreeAimShot(const BattleAction& shotAction)
         const BattleChar& attacker = _freeAimShotAction.Get_CurChar();
         const BattleChar& target = _freeAimShotAction.GetInitTarget();
         const bool hadShieldBeforeShot = target.statCom->Get_CurrentShield() > 0;
+        const Vec3* freeAimHitWorldPos =
+            _hasFreeAimHitTarget && _freeAimHitTarget.target.actor == target.actor
+            ? &_freeAimHitTarget.hitWorldPos
+            : nullptr;
 
-        DamageSystem::ApplyDamage(freeAimDamage, attacker, target, AttackType::FreeAimLight);
+        DamageSystem::ApplyDamage(freeAimDamage, attacker, target, AttackType::FreeAimLight, freeAimHitWorldPos);
 
         // 약점 파츠를 맞췄을 때만 추가딜
         if (!hadShieldBeforeShot && _hasFreeAimHitTarget && _freeAimHitTarget.target.actor == target.actor)
@@ -2563,16 +2627,21 @@ void BattleController::Begin_FreeAimShot(const BattleAction& shotAction)
 
 void BattleController::Finish_FreeAimShot()
 {
-    Clear_CurrentScript();
-    //Clear_TargetPreview();
+    const bool shouldReturnToFreeAimIdle =
+        _battleFSM != nullptr &&
+        _battleFSM->Get_CurrentPlayerState() == BattleTurnState::FreeAimTargeting;
 
-    if (_freeAimShotAction.Get_CurChar().ModelCom)
+    if (shouldReturnToFreeAimIdle)
     {
-        // Free Aim 발사 후에는 Base Idle로 풀지 않고 다시 조준 idle 자세로 복귀. 턴 종료가 안됐으니까
-        _freeAimShotAction.Get_CurChar().ModelCom->Set_AnimationByState(
-            ETOI(BattleAnimType::FreeAim_Idle),
-            0.1f,
-            true);
+        Clear_CurrentScript();
+
+        if (_freeAimShotAction.Get_CurChar().ModelCom)
+        {
+            _freeAimShotAction.Get_CurChar().ModelCom->Set_AnimationByState(
+                ETOI(BattleAnimType::FreeAim_Idle),
+                0.1f,
+                true);
+        }
     }
 
     _isFreeAimShotPlaying = false;
@@ -2680,8 +2749,33 @@ void BattleController::Spawn_BattleChar(bool IsHero, string prefabName, Vec3 pos
 
         _enemies.push_back(battleChar);
 
+        const float battlePlaneYawRad = XMConvertToRadians(_pendingBattlePlaneYaw);
+        const Vec3 battleRight(cosf(battlePlaneYawRad), 0.f, -sinf(battlePlaneYawRad));
+
+        stable_sort(_enemies.begin(), _enemies.end(),
+            [&battleRight](const BattleChar& lhs, const BattleChar& rhs)
+            {
+                const bool lhsValid = lhs.actor != nullptr && lhs.actor->Get_Transform() != nullptr;
+                const bool rhsValid = rhs.actor != nullptr && rhs.actor->Get_Transform() != nullptr;
+
+                if (lhsValid != rhsValid)
+                    return lhsValid;
+
+                if (!lhsValid)
+                    return false;
+
+                const Vec3 lhsPos = lhs.actor->Get_Transform()->Get_Position();
+                const Vec3 rhsPos = rhs.actor->Get_Transform()->Get_Position();
+                const float lhsLocalX = lhsPos.x * battleRight.x + lhsPos.z * battleRight.z;
+                const float rhsLocalX = rhsPos.x * battleRight.x + rhsPos.z * battleRight.z;
+
+                return lhsLocalX < rhsLocalX;
+            });
 
         Push_TurnEntry(battleChar, _battleTime + 100.f / max(battleChar.statCom->Get_Speed(), 1.f));
+
+        if (_battleTurnCamera)
+            _battleTurnCamera->Set_Participants(_heroes, _enemies, _pendingBattleMonsterSpawnDescs);
     }
 }
 
@@ -2796,6 +2890,8 @@ void BattleController::Confirm_Victory()
         {
             followManager->Apply_SimonPhase2WorldVisualChange();
         }
+        if (Shared<ClientScreenFxManager> screenFxManager = CLIENT->Get_ScreenFxManager())
+            screenFxManager->Request_NextBattleTransitionBlackSource();
 
         OnEnterBattleField(
             followupDesc.battleFieldId,
@@ -3462,11 +3558,23 @@ void BattleController::Complete_BattleField()
 
     if (!isBishopCinematicBGM)
     {
-        GAME->Play_BGM(
-            hasBossEnemy ? Constants::SoundBGM::BattleBossBGM : Constants::SoundBGM::BattleNormalBGM,
-            1.f,
-            true,
-            0.f);
+        wstring simonIntroBGM{};
+        wstring simonMainBGM{};
+        if (Try_ResolveSimonBattleBGM(simonIntroBGM, simonMainBGM))
+        {
+            if (simonIntroBGM.empty())
+                GAME->Play_BGM(simonMainBGM, 0.7f, true, 0.f);
+            else
+                GAME->Play_BGMIntroThenLoop(simonIntroBGM, simonMainBGM, 0.7f, true, 0.f);
+        }
+        else
+        {
+            GAME->Play_BGM(
+                hasBossEnemy ? Constants::SoundBGM::BattleBossBGM : Constants::SoundBGM::BattleNormalBGM,
+                0.7f,
+                true,
+                0.f);
+        }
     }
 
     // 초기 플레이 순서 지정
@@ -3560,7 +3668,8 @@ bool BattleController::Try_ApplyFreeAimWeakPointBonus(const BattleFreeAimHitTarg
         freeAimWeakPointDamage,
         attacker,
         hitTarget.target,
-        AttackType::FreeAimWeak);
+        AttackType::FreeAimWeak,
+        &hitTarget.hitWorldPos);
 
     return true;
 }
@@ -3582,7 +3691,7 @@ void BattleController::Restore_PreBattleBGM()
     if (_preBattleBGM.empty())
         GAME->Stop_SoundChannel(SoundChannel::BGM, 0.f);
     else
-        GAME->Play_BGM(_preBattleBGM, 1.f, true, 0.f);
+        GAME->Play_BGM(_preBattleBGM, 0.7f, true, 0.f);
 
     _preBattleBGM.clear();
     _hasCapturedPreBattleBGM = false;
@@ -3738,7 +3847,9 @@ bool BattleController::Try_BeginTurnStartStatusAnnounce()
                 : BattleCameraMode::ENEMYFOCUS;
             event.subject = _currentTurnActor.actor;
 
-            if (!_currentTurnActor.statCom->Is_Player())
+            if (_currentTurnActor.statCom->Is_Player())
+                event.presetId = magic_enum::enum_name(_currentTurnActor.heroId);
+            else
                 event.presetId = _currentTurnActor.actor->Get_SourcePrefabName();
 
             GAME->Get_EventBus().Publish(event);
@@ -3849,6 +3960,7 @@ void BattleController::Continue_StartTurnAfterStatusEffects()
         EvtBattlePresentation event{};
         event.cameraMode = BattleCameraMode::PLAYERFOCUS;
         event.subject = _currentTurnActor.actor;
+        event.presetId = magic_enum::enum_name(_currentTurnActor.heroId);
         LOG_INFO("[BattleCamTrace] Publish PLAYERFOCUS from BattleController::Continue_StartTurnAfterStatusEffects");
         GAME->Get_EventBus().Publish(event);
 

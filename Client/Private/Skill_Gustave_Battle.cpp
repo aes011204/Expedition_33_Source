@@ -133,7 +133,7 @@ void Skill_Gustave_Shatter::Execute(const Skill_Data& skill, const BattleAction&
         return;
 
     const float damage = DamageSystem::CalculatePlayerAttackDamage(attacker, skill.powerMultiplier);
-    DamageSystem::ApplyDamage(damage, attacker, curTargets, attackType);
+    DamageSystem::ApplyDamage(damage, attacker, curTargets, attackType, true);
 }
 
 Shared<Skill_Gustave_Shatter> Skill_Gustave_Shatter::Create()
@@ -167,6 +167,14 @@ void Skill_Gustave_PerfectBreak::Execute(const Skill_Data& skill, const BattleAc
 Shared<Skill_Gustave_PerfectBreak> Skill_Gustave_PerfectBreak::Create()
 {
     return make_shared<Skill_Gustave_PerfectBreak>();
+}
+
+void Skill_Gustave_AnglesEye::Collect_PrewarmEffects(const Skill_Data&, const BattleEffectPrewarmContext&, vector<EffectPrewarmRequest>& outRequests) const
+{
+    EffectPrewarmRequest request{};
+    request.effectName = L"Gustave_AngelsEye_Slash";
+    request.targetCount = 7;
+    outRequests.push_back(request);
 }
 
 /* 천사의 눈 */

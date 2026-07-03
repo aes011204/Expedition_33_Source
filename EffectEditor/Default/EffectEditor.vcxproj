@@ -228,6 +228,8 @@ if exist "$(ProjectDir)..\..\EngineSDK\lib\$(Configuration)\fmod.dll" xcopy /y /
     <ClCompile Include="..\Private\TrailPreviewWeaponObject.cpp" />
     <ClCompile Include="..\Private\TrailPreviewController.cpp" />
     <ClCompile Include="..\Private\TrailPreviewPlayerObject.cpp" />
+    <ClCompile Include="..\Private\TrailPreviewSampleRouter.cpp" />
+    <ClCompile Include="..\Private\TrailPreviewMonsterObject.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\Public\Action_Command.h" />
@@ -264,6 +266,8 @@ if exist "$(ProjectDir)..\..\EngineSDK\lib\$(Configuration)\fmod.dll" xcopy /y /
     <ClInclude Include="..\Public\Helper_ImGui.h" />
     <ClInclude Include="..\Public\EffectEditorInstance.h" />
     <ClInclude Include="..\Public\TrailPreviewWeaponObject.h" />
+    <ClInclude Include="..\Public\TrailPreviewSampleRouter.h" />
+    <ClInclude Include="..\Public\TrailPreviewMonsterObject.h" />
     <ClInclude Include="..\Public\ImGui_Manager.h" />
     <ClInclude Include="..\Public\Level_EffectEditor.h" />
     <ClInclude Include="..\Public\Notification_Manager.h" />

@@ -281,6 +281,10 @@ void EditorInstance::Stop()
         if (Shared<GameplayUI> gameplayUI = CLIENT->Get_GameplayUI())
             gameplayUI->Handle_EditorStopRuntime();
 
+        CLIENT->Clear_RuntimeEffects();
+        ClientInstance::Update_PotatoBagArenaMapInstancedShadowOverride();
+        GAME->Flush_RemovedGameObjects();
+
         GAME->Stop_AllSounds(0.f);
         GAME->Set_SoundGlobalPitch(1.f, false);
 

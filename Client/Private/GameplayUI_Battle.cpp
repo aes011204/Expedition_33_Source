@@ -46,8 +46,8 @@
 #include "UI_BattlePictos.h"
 #include "UI_BattleJumpReaction.h"
 #include "UI_QTE.h"
-#include "UI_MarkEffect.h"
 #include "UI_BattleGradientGauge.h"
+#include "UI_MarkEffect.h"
 #include "MonsterStatCom.h"
 #include "UI_BattleTutorial.h"
 #include "BattleTutorialController.h"
@@ -164,10 +164,10 @@ HRESULT GameplayUI_Battle::Initialize(uint32 levelIndex)
     CHECK_FAILED(Create_UI(_battleAnnounce, UI_BattleAnnounce::Create), E_FAIL);
     CHECK_FAILED(Create_UI(_suddenAttack, UI_SuddenAttack::Create), E_FAIL);
     CHECK_FAILED(Create_UI(_qte, UI_QTE::Create), E_FAIL);
-    CHECK_FAILED(Create_UI(_markEffect, UI_MarkEffect::Create), E_FAIL);
     CHECK_FAILED(Create_UI(_battleTutorial, UI_BattleTutorial::Create), E_FAIL);
     CHECK_FAILED(Create_UI(_battleGradientGauge, UI_BattleGradientGauge::Create), E_FAIL);
     CHECK_FAILED(Create_UI(_battleJumpReaction, UI_BattleJumpReaction::Create), E_FAIL);
+    CHECK_FAILED(Create_UI(_markEffect, UI_MarkEffect::Create), E_FAIL);
 
     // 데미지 폰트 최대 8개
     for (auto& damageFont : _damageFonts)
@@ -257,8 +257,10 @@ void GameplayUI_Battle::Update(float timeDelta)
     Update_BattleAnnounce(timeDelta);   // 스킬
     Update_SuddenAttack(timeDelta);     // 선제 공격
     Update_AddAPs(timeDelta);           // AP 증가
+    if (_markEffect)
+        _markEffect->Update(timeDelta);
+
     Update_QTE(GAME->Get_UnscaledTimeDelta());
-    Update_MarkEffect(timeDelta);
     Update_BattleTutorial(GAME->Get_UnscaledTimeDelta());
 
     if (_battleTransition)
@@ -316,10 +318,10 @@ vector<RuntimeUIEntry> GameplayUI_Battle::Get_RuntimeUIEntries() const
     Append_RuntimePanelEntry(entries, "BattleAnnounce", _battleAnnounce.get());
     Append_RuntimePanelEntry(entries, "SuddenAttack", _suddenAttack.get());
     Append_RuntimePanelEntry(entries, "QTE", _qte.get());
-    Append_RuntimePanelEntry(entries, "MarkEffect", _markEffect.get());
     Append_RuntimePanelEntry(entries, "BattleTutorial", _battleTutorial.get());
     Append_RuntimePanelEntry(entries, "BattleGradientGauge", _battleGradientGauge.get());
     Append_RuntimePanelEntry(entries, "BattleJumpReaction", _battleJumpReaction.get());
+    Append_RuntimePanelEntry(entries, "MarkEffect", _markEffect.get());
 
     for (uint32 i = 0; i < _damageFonts.size(); ++i)
         Append_OpenedRuntimePanelEntry(entries, ("DamageFont_" + to_string(i)).c_str(), _damageFonts[i].get());
@@ -628,7 +630,6 @@ void GameplayUI_Battle::Handle_BattleStarted(uint32 fieldId, bool isPlayerAdvant
         _battleAnnounce.get(),
         _suddenAttack.get(),
         _qte.get(),
-        _markEffect.get(),
         _battleTutorial.get(),
         _battleJumpReaction.get(),
     };
@@ -639,8 +640,7 @@ void GameplayUI_Battle::Handle_BattleStarted(uint32 fieldId, bool isPlayerAdvant
             panel->Close();
     }
 
-    if (_markEffect)
-        _markEffect->Clear_Target();
+    Clear_MarkEffect();
 
     // 이전 전투에서 남은 배틀 슬롯 정리
     for (auto& damageFont : _damageFonts)
@@ -924,7 +924,6 @@ void GameplayUI_Battle::Handle_DamageApplied(const DamageAppliedInfo& info)
         UI_DestroyShield* selectedSlot = nullptr;
         UI_DestroyShield* oldestSlot = nullptr;
         float longestElapsed = -1.f;
-        uint32 stackIndex = 0;
 
         for (auto& destroyShield : _destroyShields)
         {
@@ -933,8 +932,6 @@ void GameplayUI_Battle::Handle_DamageApplied(const DamageAppliedInfo& info)
 
             if (destroyShield->Is_Playing())
             {
-                ++stackIndex;
-
                 if (destroyShield->Get_Elapsed() > longestElapsed)
                 {
                     longestElapsed = destroyShield->Get_Elapsed();
@@ -953,8 +950,28 @@ void GameplayUI_Battle::Handle_DamageApplied(const DamageAppliedInfo& info)
 
         if (selectedSlot)
         {
-            stackIndex = min(stackIndex, kDestroyShieldPoolSize - 1);
-            selectedSlot->Play_DestroyShield(target, stackIndex);
+            Character_BattleBase* targetActor = target.actor.get();
+            uint32 targetStackIndex = 0;
+            if (_lastDestroyShieldTargetActor == targetActor)
+            {
+                targetStackIndex = _destroyShieldTargetStackIndex++;
+            }
+            else
+            {
+                _lastDestroyShieldTargetActor = targetActor;
+                _destroyShieldTargetStackIndex = 1;
+            }
+
+            constexpr uint32 kDestroyShieldAlternationBandCount = (kDamageFontPoolSize - 1) / 2;
+            const uint32 verticalBand = min(targetStackIndex / 2, kDestroyShieldAlternationBandCount - 1);
+            const bool useLeftSide = (targetStackIndex % 2u) == 0u;
+            const uint32 visualStackIndex = verticalBand * 2u + (useLeftSide ? 1u : 2u);
+
+            selectedSlot->Play_DestroyShield(
+                target,
+                visualStackIndex,
+                info.attackType,
+                info.hasFeedbackWorldPos ? &info.feedbackWorldPos : nullptr);
         }
 
         return;
@@ -994,7 +1011,6 @@ void GameplayUI_Battle::Handle_DamageApplied(const DamageAppliedInfo& info)
     UI_DamageFont* selectedSlot = nullptr;
     UI_DamageFont* oldestSlot = nullptr;
     float longestElapsed = -1.f;
-    uint32 stackIndex = 0;
 
     for (auto& damageFont : _damageFonts)
     {
@@ -1003,8 +1019,6 @@ void GameplayUI_Battle::Handle_DamageApplied(const DamageAppliedInfo& info)
 
         if (damageFont->Is_Playing())
         {
-            ++stackIndex;
-
             if (damageFont->Get_Elapsed() > longestElapsed)
             {
                 longestElapsed = damageFont->Get_Elapsed();
@@ -1024,8 +1038,30 @@ void GameplayUI_Battle::Handle_DamageApplied(const DamageAppliedInfo& info)
     if (selectedSlot == nullptr)
         return;
 
-    stackIndex = min(stackIndex, kDamageFontPoolSize - 1);
-    selectedSlot->Play_DamageFont(target, damage, stackIndex, info.isCritical);
+    Character_BattleBase* targetActor = target.actor.get();
+    uint32 targetStackIndex = 0;
+    if (_lastDamageFontTargetActor == targetActor)
+    {
+        targetStackIndex = _damageFontTargetStackIndex++;
+    }
+    else
+    {
+        _lastDamageFontTargetActor = targetActor;
+        _damageFontTargetStackIndex = 1;
+    }
+
+    constexpr uint32 kDamageFontAlternationBandCount = (kDamageFontPoolSize - 1) / 2;
+    const uint32 verticalBand = min(targetStackIndex / 2, kDamageFontAlternationBandCount - 1);
+    const bool useLeftSide = (targetStackIndex % 2u) == 0u;
+    const uint32 visualStackIndex = verticalBand * 2u + (useLeftSide ? 1u : 2u);
+
+    selectedSlot->Play_DamageFont(
+        target,
+        damage,
+        visualStackIndex,
+        info.isCritical,
+        info.attackType,
+        info.hasFeedbackWorldPos ? &info.feedbackWorldPos : nullptr);
 }
 
 void GameplayUI_Battle::Handle_HealApplied(const BattleChar& target, float healAmount)
@@ -1276,11 +1312,10 @@ void GameplayUI_Battle::Handle_QTEResolved(BattleQTEResult result)
 
 void GameplayUI_Battle::Handle_BuffApplied(const BattleChar& target, Buffs buffId)
 {
-    // 일단 마크만
-    if (!_isBattleUiActive || buffId != Buffs::Mark || _markEffect == nullptr)
+    if (!_isBattleUiActive || buffId != Buffs::Mark)
         return;
 
-    _markEffect->Show_Target(target);
+    Play_MarkEffect(target);
 }
 
 void GameplayUI_Battle::Handle_BuffConsumed(const BattleChar& target, Buffs buffId, float bonusDamage)
@@ -1291,7 +1326,23 @@ void GameplayUI_Battle::Handle_BuffConsumed(const BattleChar& target, Buffs buff
     if (!_isBattleUiActive)
         return;
 
-    if (buffId == Buffs::Mark && _markEffect)
+    if (buffId == Buffs::Mark)
+        Clear_MarkEffect();
+}
+
+void GameplayUI_Battle::Play_MarkEffect(const BattleChar& target)
+{
+    Clear_MarkEffect();
+
+    if (!_isBattleUiActive || _markEffect == nullptr)
+        return;
+
+    _markEffect->Show_Target(target);
+}
+
+void GameplayUI_Battle::Clear_MarkEffect()
+{
+    if (_markEffect)
         _markEffect->Clear_Target();
 }
 
@@ -1621,16 +1672,34 @@ void GameplayUI_Battle::Update_BattlePictos(float timeDelta)
         if (stackCounterIndex >= stackCounts.size())
             continue;
 
-        const uint32 stackIndex = stackCounts[stackCounterIndex]++;
-
         UI_BattlePictos* selectedSlot = nullptr;
         UI_BattlePictos* oldestSlot = nullptr;
         float oldestElapsed = -1.f;
 
         for (auto& battlePictos : _battlePictos)
         {
+            if (battlePictos == nullptr || !battlePictos->Is_Open())
+                continue;
+
+            if (battlePictos->Get_HeroId() == event.heroId &&
+                battlePictos->Get_PictosId() == event.pictosId)
+            {
+                selectedSlot = battlePictos.get();
+                break;
+            }
+        }
+
+        uint32 stackIndex = selectedSlot != nullptr
+            ? selectedSlot->Get_StackIndex()
+            : stackCounts[stackCounterIndex]++;
+
+        for (auto& battlePictos : _battlePictos)
+        {
             if (battlePictos == nullptr)
                 continue;
+
+            if (selectedSlot != nullptr)
+                break;
 
             if (!battlePictos->Is_Open())
             {
@@ -1653,9 +1722,11 @@ void GameplayUI_Battle::Update_BattlePictos(float timeDelta)
 
         UI_BattlePictos::ActivationDesc activationDesc{};
         activationDesc.heroId = event.heroId;
+        activationDesc.pictosId = event.pictosId;
         activationDesc.displayName = event.displayName;
         activationDesc.anchorPosition = anchorPosition;
         activationDesc.stackIndex = stackIndex;
+        activationDesc.activationCount = event.activationCount;
 
         selectedSlot->Play_Activation(activationDesc);
     }
@@ -2376,17 +2447,8 @@ void GameplayUI_Battle::Update_BattleSkillPanel(float timeDelta)
         Hide_BattleWorldMaterialVfxBackground();
         Hide_BattleWorldSkillCards();
         Hide_BattleWorldGradientCards();
-        if (GradientSkill::Is_GradientSkill(turnRequest.actor.heroId, turnRequest.skillKey) &&
-            turnRequest.actor.statCom)
-        {
-            _battleSkillPanel->Open_GradientPanel(turnRequest.actor.statCom->Get_PlayerType());
-            _battleSkillPanel->Update(timeDelta);
-        }
-        else
-        {
-            _battleSkillPanel->Open_Tooltip(turnRequest.skillKey);
-            _battleSkillPanel->Update(timeDelta);
-        }
+        _battleSkillPanel->Open_Tooltip(turnRequest.skillKey);
+        _battleSkillPanel->Update(timeDelta);
         break;
 
     default:
@@ -2635,12 +2697,6 @@ void GameplayUI_Battle::Update_QTE(float timeDelta)
     }
 }
 
-void GameplayUI_Battle::Update_MarkEffect(float timeDelta)
-{
-    if (_markEffect)
-        _markEffect->Update(timeDelta);
-}
-
 void GameplayUI_Battle::Update_BattleSystemIntroState(float timeDelta)
 {
     if (!_isBattleSystemIntroPlaying)
@@ -2853,6 +2909,10 @@ void GameplayUI_Battle::Reset_BattleUiRuntimeState(bool closeVictoryUi)
     _battleSystemIntroElapsed = 0.f;
     _hasPendingBattleSystemIntroActivation = false;
     _pendingBattleSystemIntroActivationHeroId = HeroId::END;
+    _lastDamageFontTargetActor = nullptr;
+    _damageFontTargetStackIndex = 0;
+    _lastDestroyShieldTargetActor = nullptr;
+    _destroyShieldTargetStackIndex = 0;
 
     Hide_BattleWorldMaterialVfxBackground();
     Hide_BattleWorldCommandCards();
@@ -2883,7 +2943,6 @@ void GameplayUI_Battle::Reset_BattleUiRuntimeState(bool closeVictoryUi)
         _battleAnnounce.get(),
         _suddenAttack.get(),
         _qte.get(),
-        _markEffect.get(),
         _battleTutorial.get(),
         _battleGradientGauge.get(),
         _battleJumpReaction.get(),
@@ -2916,8 +2975,7 @@ void GameplayUI_Battle::Reset_BattleUiRuntimeState(bool closeVictoryUi)
     if (_battleSkillPanel)
         _battleSkillPanel->Close_Immediately();
 
-    if (_markEffect)
-        _markEffect->Clear_Target();
+    Clear_MarkEffect();
 
     if (_battleJumpReaction)
         _battleJumpReaction->Close_Immediately();
@@ -2975,6 +3033,7 @@ Shared<GameplayUI_Battle> GameplayUI_Battle::Create(uint32 levelIndex)
 void GameplayUI_Battle::Free()
 {
     Unbind_BattleDelegates(); // BattleController가 살아있는 동안 dangling handle이 남지 않게 먼저 정리한다.
+    Clear_MarkEffect();
 
     if (_battleWorldMaterialVfxBackground)
     {
@@ -3033,7 +3092,6 @@ void GameplayUI_Battle::Free()
     Release_UI(_battleAnnounce);
     Release_UI(_suddenAttack);
     Release_UI(_qte);
-    Release_UI(_markEffect);
     Release_UI(_battleTutorial);
     Release_UI(_battleGradientGauge);
     Release_UI(_battleJumpReaction);

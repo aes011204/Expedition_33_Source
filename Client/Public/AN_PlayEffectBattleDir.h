@@ -27,13 +27,6 @@ private:
     Vec3                        _localRotation = Vec3::Zero;
     Vec3                        _scale = Vec3::One;
     float                       _playbackSpeed = 1.f;
-    bool                        _inheritPosition = true;
-    bool                        _inheritRotation = true;
-    bool                        _inheritScale = false;
-    bool                        _usePitch = false;
-    bool                        _useBattleTargetYawOnly = true;
-    int32                       _allEnemiesRepeatCount = 1;
-    bool                        _includeDeadTargetsOnAllEnemies = false;
 };
 
 NS_END

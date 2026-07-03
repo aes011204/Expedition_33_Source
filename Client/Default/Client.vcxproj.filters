@@ -665,7 +665,7 @@
     <ClCompile Include="..\Private\GameplayUI_World.cpp">
       <Filter>02. GameObject\UI</Filter>
     </ClCompile>
-    <ClCompile Include="..\Private\UI_InteractionPrompt.cpp">
+    <ClCompile Include="..\Private\UI_Interaction.cpp">
       <Filter>02. GameObject\UI</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\MapLandscape.cpp">
@@ -774,6 +774,9 @@
       <Filter>BattleState</Filter>
     </ClCompile>
     <ClCompile Include="..\private\BattleController.cpp">
+      <Filter>BattleState\Battle\BattleController</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\BattleEffectPrewarmCollector.cpp">
       <Filter>BattleState\Battle\BattleController</Filter>
     </ClCompile>
     <ClCompile Include="..\private\BattleStateMachine.cpp">
@@ -1093,6 +1096,9 @@
       <Filter>02. GameObject\UI</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\UI_BattleAnnounce.cpp">
+      <Filter>02. GameObject\UI</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\UI_LevelAnnounce.cpp">
       <Filter>02. GameObject\UI</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\UI_BattleFloatingTextBase.cpp">
@@ -2081,6 +2087,12 @@
     <ClInclude Include="..\Public\EffectInstancePool.h">
       <Filter>06. Effect System\Pool</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\BattleEffectPrewarmCollector.h">
+      <Filter>BattleState\Battle\BattleController</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\BattleEffectPrewarmTypes.h">
+      <Filter>BattleState\Battle\BattleController</Filter>
+    </ClInclude>
     <ClInclude Include="..\Private\EffectAssetRuntimeLoader_Support.h">
       <Filter>06. Effect System\Runtime Loader\Support</Filter>
     </ClInclude>
@@ -2174,7 +2186,7 @@
     <ClInclude Include="..\Public\GameplayUI_World.h">
       <Filter>02. GameObject\UI</Filter>
     </ClInclude>
-    <ClInclude Include="..\Public\UI_InteractionPrompt.h">
+    <ClInclude Include="..\Public\UI_Interaction.h">
       <Filter>02. GameObject\UI</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\MapLandscape.h">
@@ -2583,6 +2595,9 @@
       <Filter>02. GameObject\UI</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\UI_BattleAnnounce.h">
+      <Filter>02. GameObject\UI</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\UI_LevelAnnounce.h">
       <Filter>02. GameObject\UI</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\UI_BattleFloatingTextBase.h">

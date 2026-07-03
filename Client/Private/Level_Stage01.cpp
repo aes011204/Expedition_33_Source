@@ -8,12 +8,18 @@
 #include "SkyBoxFlow.h"
 #include "Trigger_FallTornadoZone.h"
 #include "SimonCriticalGlowController.h"
+#include "MovementCom.h"
+#include "Player_WorldBase.h"
 
 namespace
 {
     constexpr wchar_t kEffectName[] = L"Effects/Assets/Map/FX_TornadoPaint_EX.effect.json";
 
     constexpr wchar_t kParticelEffectName[] = L"Effects/Assets/Map/FX_FallingLight.effect.json";
+
+    constexpr Vec3 kTeleportPos = Vec3(197.57f, -4023.57f, 50.95f);
+    constexpr Vec3 kTeleportRot = Vec3(0.f, 27.6f, 0.f);
+
 }
 
 Level_Stage01::Level_Stage01(const ComPtr<Device>& device, const ComPtr<Context>& context)
@@ -32,7 +38,7 @@ HRESULT Level_Stage01::Initialize()
     RuntimeRuleStateService::Apply_ToCurrentRuntime(
         RuntimeRuleStateService::Build_SimonStartUnlocks(), false);
 
-    GAME->Play_BGM(Constants::SoundBGM::SpringBGM, 1.f, true, 0.f);
+    //GAME->Play_BGM(Constants::SoundBGM::SpringBGM, 1.f, true, 0.f);
 
     return S_OK;
 }
@@ -51,6 +57,7 @@ void Level_Stage01::BeginPlay()
     ParticlDesc.effectName = kParticelEffectName;
     ParticlDesc.worldPosition = Vec3(219.52f, -4023.47f, 52.33f);
     ParticlDesc.scale = Vec3(1.f, 1.f, 1.f);
+
     CLIENT->Play_Effect(ParticlDesc);
 
     ParticlDesc.worldPosition = Vec3(200.29f, -4023.47f, 106.4f);
@@ -72,6 +79,7 @@ void Level_Stage01::BeginPlay()
         &fallTornadoDesc);
 
     CLIENT->Capture_InitialWorldSnapshot();
+    CLIENT->Queue_LevelAnnounce(LevelType::Stage01);
 }
 
 void Level_Stage01::Update(float fTimeDelta)
@@ -79,6 +87,18 @@ void Level_Stage01::Update(float fTimeDelta)
     if (SimonCriticalGlowController* glowController = CLIENT->Get_SimonCriticalGlowController())
     {
         glowController->Update(fTimeDelta);
+    }
+    // 시몽 앞으로 순간이동
+    if (GAME->KeyDown(KEY_TYPE::KEY_9))
+    {
+        auto active = CLIENT->Get_ActiveHero();
+        CHECK_NULL(active);
+
+        active->Get_Transform()->Set_WorldPosition(kTeleportPos);
+        active->Get_Transform()->Set_WorldRotationEuler(kTeleportRot);
+
+        if (auto movement = active->Get_Component<MovementCom>())
+            movement->Sync_RuntimePositionToTransform();
     }
 }
 
@@ -91,6 +111,7 @@ HRESULT Level_Stage01::Render()
 
 HRESULT Level_Stage01::Ready_Lights()
 {
+    GAME->Reset_DynamicShadowCascadeTemporalUpdateIntervals();
     GAME->Clear_Lights();
 
     LIGHT_DESC LightDesc{};
@@ -118,7 +139,7 @@ HRESULT Level_Stage01::Ready_Layer_Player(const wstring& strLayerTag)
     Vec3 startPos = Vec3(60.93f, 3.63f, -0.93f);
     Vec3 startRot = Vec3(0.f, 90.f, 0.f);
 
-    CHECK_FAILED(CLIENT->Initialize_Hero(ETOI(LevelType::Stage01), strLayerTag, startPos, startRot), E_FAIL);
+    CHECK_FAILED(CLIENT->Initialize_Hero(ETOI(LevelType::Stage01), strLayerTag, startPos), E_FAIL);
 
     return S_OK;
 }

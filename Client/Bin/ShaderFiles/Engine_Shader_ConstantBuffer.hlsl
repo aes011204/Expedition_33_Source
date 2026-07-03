@@ -188,7 +188,15 @@ cbuffer PostProcessBuffer
     float g_PP_DOFFarIntensity;        // 116 ~ 119
     uint g_PP_DOFSampleCount;          // 120 ~ 123
     uint g_PP_DOFDebugMode;            // 124 ~ 127
-}; // 128 bytes
+
+    float4 g_PP_ColorGradeShadowTint;    // 128 ~ 143
+    float4 g_PP_ColorGradeHighlightTint; // 144 ~ 159
+
+    float g_PP_ColorGradeContrast;       // 160 ~ 163
+    float g_PP_ColorGradeSaturation;     // 164 ~ 167
+    float g_PP_ColorGradePivot;          // 168 ~ 171
+    float g_PP_ColorGradeStrength;       // 172 ~ 175
+}; // 176 bytes
 
 cbuffer LightShaftBuffer
 {
@@ -259,7 +267,8 @@ cbuffer ScreenFxBuffer
 
     float g_wipeRadius;
     float g_edgeSoftness;
-    float2 pad;
+    float g_transitionUseBlackSource;
+    float pad;
 
     float4 g_flashColor;
     float4 g_screenFxShape;

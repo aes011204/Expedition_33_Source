@@ -438,12 +438,19 @@ HRESULT ComputeSpriteEmitter::Render()
 HRESULT ComputeSpriteEmitter::Reset_ForEffectReplay()
 {
     Reset_PlaybackRuntime();
+    Set_MaterialRevealOverride(1.f, 0.f);
     CHECK_NULL(_viBuffer, E_FAIL);
     Update_RuntimeDescForCurrentScale(true);
     Sync_WorldCenterToComputeBuffer();
     CHECK_FAILED(_viBuffer->Reset_ForEffectReplay(), E_FAIL);
 
     return S_OK;
+}
+
+void ComputeSpriteEmitter::Set_MaterialRevealOverride(float alphaMultiplier, float alphaErosion)
+{
+    _materialRevealAlphaMultiplier = clamp(alphaMultiplier, 0.f, 1.f);
+    _materialRevealAlphaErosion = clamp(alphaErosion, 0.f, 1.f);
 }
 
 bool ComputeSpriteEmitter::Is_EffectFinished() const
@@ -816,8 +823,10 @@ HRESULT ComputeSpriteEmitter::Bind_ShaderResources()
 HRESULT ComputeSpriteEmitter::Bind_MaterialResources()
 {
     const float emitterPhase = Resolve_MaterialScalarEmitterPhase();
-    const EffectRequiredMaterialRuntimeDesc material =
+    EffectRequiredMaterialRuntimeDesc material =
         Resolve_EmitterTimeMaterialUniformParameterModulation(_desc.required.material, emitterPhase, _effectPlaybackSeed);
+    material.alphaMultiplier *= _materialRevealAlphaMultiplier;
+    material.alphaErosion = max(material.alphaErosion, _materialRevealAlphaErosion);
 
     if (nullptr != _noiseTexture)
         CHECK_FAILED_ONCE(_noiseTexture->Bind_ShaderResourceView(_shader.get(), "g_NoiseTexture", 0), E_FAIL);
@@ -1092,6 +1101,9 @@ int ComputeSpriteEmitter::Resolve_OpacitySourceIndex() const
 
     if (_desc.required.material.opacitySource == "Luminance" || _desc.required.material.opacitySource == "luminance")
         return kOpacitySourceLuminance;
+
+    if (_desc.required.material.opacitySource == "One" || _desc.required.material.opacitySource == "one")
+        return kOpacitySourceOne;
 
     return kOpacitySourceAlpha;
 }

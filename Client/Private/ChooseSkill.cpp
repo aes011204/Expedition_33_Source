@@ -9,6 +9,7 @@
 #include "BattleMechanismCom.h"
 #include "CombatStatCom.h"
 #include "Battle_Event.h"
+#include "PartObject.h"
 
 ChooseSkill::ChooseSkill(const Shared<BattleController>& owner)
     : Battle_State{ owner }
@@ -42,14 +43,60 @@ bool ChooseSkill::EnterInvoke()
     const BattleChar& actor = request.actor;
     if (actor.ModelCom)
     {
+        bool playedSkillEnter = false;
+
         // Enter 애니메이션 진입 후
-        if (!actor.ModelCom->Set_AnimationByState(ETOI(BattleAnimType::Skill_Enter), 0.2f, false))
+        if (!(playedSkillEnter = actor.ModelCom->Set_AnimationByState(ETOI(BattleAnimType::Skill_Enter), 0.2f, false)))
         {
             // 없으면 fallback용 Idle로
             actor.ModelCom->Set_AnimationByState(
                 ETOI(BattleAnimType::Skill_Idle), 0.2f, true
             );
         }
+
+        Vec3 actorPos = Vec3::Zero;
+        Vec3 actorForward = Vec3::Zero;
+        Vec3 bodyPos = Vec3::Zero;
+        Vec3 bodyForward = Vec3::Zero;
+        if (actor.actor != nullptr)
+        {
+            if (const auto actorTransform = actor.actor->Get_Transform())
+            {
+                actorPos = actorTransform->Get_WorldPosition();
+                actorForward = actorTransform->Get_WorldForward();
+            }
+
+            if (PartObject* bodyPart = actor.actor->Get_PartObject(L"Part_Body"))
+            {
+                if (const auto bodyTransform = bodyPart->Get_Transform())
+                {
+                    bodyPos = bodyTransform->Get_WorldPosition();
+                    bodyForward = bodyTransform->Get_WorldForward();
+                }
+            }
+        }
+
+        const uint32 currentAnimIndex = actor.ModelCom->Get_CurrentAnimationIndex();
+        const char* currentAnimName = actor.ModelCom->Get_AnimationName(currentAnimIndex);
+        LOG_INFO(
+            "[BattleCamTrace] ChooseSkill::EnterInvoke animSource={} animState={} animName={} animTime={:.3f}/{:.3f} actorPos=({:.3f},{:.3f},{:.3f}) actorForward=({:.3f},{:.3f},{:.3f}) bodyPos=({:.3f},{:.3f},{:.3f}) bodyForward=({:.3f},{:.3f},{:.3f})",
+            playedSkillEnter ? "Skill_Enter" : "Skill_Idle_Fallback",
+            actor.ModelCom->Get_AnimationStateIndex(),
+            currentAnimName != nullptr ? currentAnimName : "<null>",
+            actor.ModelCom->Get_CurrentAnimationTimeSec(),
+            actor.ModelCom->Get_CurrentAnimationDurationSec(),
+            actorPos.x,
+            actorPos.y,
+            actorPos.z,
+            actorForward.x,
+            actorForward.y,
+            actorForward.z,
+            bodyPos.x,
+            bodyPos.y,
+            bodyPos.z,
+            bodyForward.x,
+            bodyForward.y,
+            bodyForward.z);
     }
 
     owner->Ensure_EnemyTargetPreview();

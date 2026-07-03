@@ -2,6 +2,7 @@
 #include "Client_Constants.h"
 #include "ClientInstance.h"
 #include "BattleController.h"
+#include "BattleEffectPrewarmCollector.h"
 #include "BT_Node_Bootstrap.h"
 #include "ComputeSpriteEmitter.h"
 #include "EffectCom.h"
@@ -33,6 +34,7 @@
 #include "PlayerStatCom.h"
 #include "SoulLikeController.h"
 #include "TargetCamera.h"
+#include "Trigger_Cinematic.h"
 #include "BattleTurnCamera.h"
 #include "BattleEncounterProfile.h"
 #include "CameraPresetIO.h"
@@ -43,6 +45,8 @@
 #include "Monster_WorldBase.h"
 #include "NPC_Base.h"
 #include "SimonCriticalGlowController.h"
+#include "ContainerObject.h"
+#include "ModelCom.h"
 
 IMPLEMENT_SINGLETON(ClientInstance)
 
@@ -58,6 +62,90 @@ namespace
     bool g_debugUseMapInstancedMeshShadowLOD = false;
     bool g_debugDisableGrassInstancedShadow = false;
     bool g_debugDisableMapStaticMeshShadow = false;
+    bool g_potatoBagArenaRenderGateReady = false;
+    bool g_potatoBagArenaRenderGateDebugVisible = false;
+    bool g_potatoBagArenaInstancedShadowOverrideActive = false;
+    bool g_potatoBagArenaSavedUseInstancedShadowCache = false;
+    Vec3 g_potatoBagArenaOrigin = Vec3::Zero;
+    Vec3 g_potatoBagArenaRight = Vec3::Right;
+    Vec3 g_potatoBagArenaForward = Vec3::Forward;
+    constexpr Vec3 kPotatoBagArenaGateExtents = Vec3(36.f, 28.f, 58.f);
+
+    Quat Build_PotatoBagArenaGateRotation()
+    {
+        Vec3 forward = g_potatoBagArenaForward;
+        forward.y = 0.f;
+        if (forward.LengthSquared() <= 0.0001f)
+        {
+            Vec3 right = g_potatoBagArenaRight;
+            right.y = 0.f;
+            if (right.LengthSquared() > 0.0001f)
+            {
+                right.Normalize();
+                forward = Vec3(right.z, 0.f, -right.x);
+            }
+            else
+            {
+                forward = Vec3::Forward;
+            }
+        }
+        else
+        {
+            forward.Normalize();
+        }
+
+        return Quat::CreateFromYawPitchRoll(atan2f(forward.x, forward.z), 0.f, 0.f);
+    }
+
+    BoundingOrientedBox Build_PotatoBagArenaGateBox()
+    {
+        return BoundingOrientedBox(
+            g_potatoBagArenaOrigin,
+            kPotatoBagArenaGateExtents,
+            Build_PotatoBagArenaGateRotation());
+    }
+
+    wstring Normalize_EffectNameForPool(const wstring& effectName)
+    {
+        if (effectName.empty())
+            return {};
+
+        wstring resolvedName = effectName;
+        if (!resolvedName.ends_with(L".effect.json"))
+            resolvedName += L".effect.json";
+
+        return resolvedName;
+    }
+
+    void Restore_PotatoBagArenaShadowOverrides()
+    {
+        if (!g_potatoBagArenaInstancedShadowOverrideActive)
+            return;
+
+        GAME->Set_UseInstancedShadowCache(g_potatoBagArenaSavedUseInstancedShadowCache);
+        GAME->Set_DynamicShadowCascadeTemporalUpdateIntervals(1u, 2u, 4u, 12u);
+        g_potatoBagArenaInstancedShadowOverrideActive = false;
+    }
+
+    int32 Resolve_InteractionPromptPriority(InteractionPromptType type)
+    {
+        switch (type)
+        {
+        case InteractionPromptType::Dialogue:
+            return 300;
+
+        case InteractionPromptType::Picking:
+            return 200;
+
+        case InteractionPromptType::Cross:
+        case InteractionPromptType::Up:
+        case InteractionPromptType::Down:
+            return 100;
+
+        default:
+            return 0;
+        }
+    }
 
     bool Should_CaptureReplayWorldObject(const wstring& layerTag, const Shared<GameObject>& gameObject)
     {
@@ -302,8 +390,12 @@ void ClientInstance::Update_Client(float timeDelta)
     if (_heroManager)
         _heroManager->Update_HeroManager(timeDelta);
 
+    Update_EffectPrewarmQueue();
+
     if (_battleController)
         _battleController->Update(timeDelta);
+
+    Update_PotatoBagArenaMapInstancedShadowOverride();
 
     if (_gamePlayUI)
         _gamePlayUI->Update(timeDelta);
@@ -449,6 +541,87 @@ void ClientInstance::Set_DebugDisableMapStaticMeshShadow(bool disabled)
     g_debugDisableMapStaticMeshShadow = disabled;
 }
 
+void ClientInstance::Set_PotatoBagArenaMapRenderGateBasis(const Vec3& origin, const Vec3& right, const Vec3& forward)
+{
+    g_potatoBagArenaOrigin = origin;
+    g_potatoBagArenaRight = right;
+    g_potatoBagArenaForward = forward;
+    g_potatoBagArenaRenderGateReady = true;
+}
+
+void ClientInstance::Clear_PotatoBagArenaMapRenderGateBasis()
+{
+    Restore_PotatoBagArenaShadowOverrides();
+
+    g_potatoBagArenaRenderGateReady = false;
+    g_potatoBagArenaRenderGateDebugVisible = false;
+}
+
+bool ClientInstance::Is_PotatoBagArenaMapRenderGateActive()
+{
+    const Shared<ClientInstance>& instance = ClientInstance::GetInstance();
+
+    return g_potatoBagArenaRenderGateReady &&
+        GAME->Current_LevelIndex() == ETOI(LevelType::GestralVillage) &&
+        instance != nullptr &&
+        instance->Is_PotatoBagBattleActive();
+}
+
+bool ClientInstance::Should_RenderMapObjectInPotatoBagArena(const BoundingBox& worldBounds)
+{
+    if (!Is_PotatoBagArenaMapRenderGateActive())
+        return true;
+
+    return Build_PotatoBagArenaGateBox().Intersects(worldBounds);
+}
+
+bool ClientInstance::Should_RenderMapInstanceInPotatoBagArena(const BoundingSphere& worldSphere)
+{
+    if (!Is_PotatoBagArenaMapRenderGateActive())
+        return true;
+
+    return Build_PotatoBagArenaGateBox().Intersects(worldSphere);
+}
+
+void ClientInstance::Update_PotatoBagArenaMapInstancedShadowOverride()
+{
+    const bool shouldDisableInstancedShadow = Is_PotatoBagArenaMapRenderGateActive();
+
+    if (shouldDisableInstancedShadow)
+    {
+        if (!g_potatoBagArenaInstancedShadowOverrideActive)
+        {
+            g_potatoBagArenaSavedUseInstancedShadowCache = GAME->Is_UseInstancedShadowCache();
+            GAME->Set_UseInstancedShadowCache(false);
+            GAME->Set_DynamicShadowCascadeTemporalUpdateIntervals(1u, 2u, 2u, 12u);
+            g_potatoBagArenaInstancedShadowOverrideActive = true;
+        }
+        return;
+    }
+
+    Restore_PotatoBagArenaShadowOverrides();
+}
+
+void ClientInstance::Toggle_PotatoBagArenaMapRenderGateDebug()
+{
+    g_potatoBagArenaRenderGateDebugVisible = !g_potatoBagArenaRenderGateDebugVisible;
+}
+
+void ClientInstance::Draw_PotatoBagArenaMapRenderGateDebug()
+{
+    if (!g_potatoBagArenaRenderGateDebugVisible || !Is_PotatoBagArenaMapRenderGateActive())
+        return;
+
+    DebugBoxDesc desc{};
+    desc.center = g_potatoBagArenaOrigin;
+    desc.extents = kPotatoBagArenaGateExtents;
+    desc.rotation = Build_PotatoBagArenaGateRotation();
+    desc.style.color = Color(0.2f, 1.f, 0.35f, 1.f);
+    desc.style.depthEnabled = false;
+
+    GAME->Draw_DebugBox(desc);
+}
+
 HRESULT ClientInstance::Ready_StaticResources()
 {
     CHECK_NULL(_resourceLoader, E_FAIL);
@@ -591,7 +764,7 @@ HRESULT ClientInstance::Reload_CameraPresetData()
         battleTurnCamera->Reload_BattleCameraAuthoringData();
 
     if (auto dialogueCamera = dynamic_pointer_cast<DialogueCamera>(GAME->Get_CameraByType(ObjectType::DialogueCamera)))
-        dialogueCamera->Set_CameraPresetId(dialogueCamera->Get_CameraPresetId());
+        dialogueCamera->Load_PresetFromId();
 
     return S_OK;
 }
@@ -838,6 +1011,12 @@ bool ClientInstance::Is_BattleEnterTransitionPlaying() const
     return _gamePlayUI && _gamePlayUI->Is_BattleEnterTransitionPlaying();
 }
 
+void ClientInstance::Queue_LevelAnnounce(LevelType levelType)
+{
+    if (_gamePlayUI)
+        _gamePlayUI->Queue_LevelAnnounce(levelType);
+}
+
 bool ClientInstance::Request_ScreenFadeTransition(const function<void()>& CoveredAction)
 {
     if (_levelTransitionFade && _levelTransitionFade->Is_Playing())
@@ -859,12 +1038,19 @@ bool ClientInstance::Request_LevelTransition(LevelType TargetLevel)
         return false;
 
     if (_levelTransitionFade)
-        return _levelTransitionFade->Request_LevelTransition(TargetLevel);
+    {
+        const bool requested = _levelTransitionFade->Request_LevelTransition(TargetLevel);
+        if (requested)
+            Clear_EffectPrewarmQueue();
+
+        return requested;
+    }
 
     Shared<Level_Loading> loadingLevel = Level_Loading::Create(_device.Get(), _context.Get(), TargetLevel);
     if (loadingLevel == nullptr)
         return false;
 
+    Clear_EffectPrewarmQueue();
     return SUCCEEDED(GAME->Change_Level(ETOI(LevelType::Loading), loadingLevel));
 }
 
@@ -874,11 +1060,18 @@ bool ClientInstance::Request_LoadedLevelTransition(LevelType TargetLevel, Shared
         return false;
 
     if (_levelTransitionFade)
-        return _levelTransitionFade->Request_LoadedLevelTransition(TargetLevel, TargetLevelInstance);
+    {
+        const bool requested = _levelTransitionFade->Request_LoadedLevelTransition(TargetLevel, TargetLevelInstance);
+        if (requested)
+            Clear_EffectPrewarmQueue();
+
+        return requested;
+    }
 
     if (TargetLevelInstance == nullptr)
         return false;
 
+    Clear_EffectPrewarmQueue();
     return SUCCEEDED(GAME->Change_Level(ETOI(TargetLevel), TargetLevelInstance));
 }
 
@@ -1559,6 +1752,64 @@ void ClientInstance::Clear_CinematicCompletedCallbacks()
     _cinematicSequenceRunner->Clear_CompletedCallbacks();
 }
 
+void ClientInstance::Queue_CinematicPrewarmForLevel(uint32 targetLevelIndex)
+{
+    if (_cinematicSequenceRunner == nullptr)
+        return;
+
+    unordered_set<wstring> queuedSequencePaths{};
+    auto queueSequencePath = [&](const wstring& sequencePath)
+        {
+            if (sequencePath.empty())
+                return;
+
+            if (!queuedSequencePaths.insert(sequencePath).second)
+                return;
+
+            _cinematicSequenceRunner->Queue_PrewarmSequence(sequencePath, targetLevelIndex);
+        };
+
+    GAME->Visit_LevelObjects(
+        targetLevelIndex,
+        [&](const wstring& layerTag, const Shared<GameObject>& gameObject)
+        {
+            UNREFERENCED_PARAMETER(layerTag);
+
+            const Shared<Trigger_Cinematic> trigger = dynamic_pointer_cast<Trigger_Cinematic>(gameObject);
+            if (trigger == nullptr)
+                return;
+
+            const wstring& sequenceFileId = trigger->Get_SequenceFileId();
+            if (sequenceFileId.empty())
+                return;
+
+            const wstring sequencePath = Constants::Cinematic::RuntimeJson_Dir + sequenceFileId;
+            queueSequencePath(sequencePath);
+        });
+
+    if (targetLevelIndex == ETOI(LevelType::GestralVillage))
+    {
+        queueSequencePath(wstring(Constants::Cinematic::RuntimeJson_Dir) + Constants::Cinematic::Dualliste_Intro);
+        queueSequencePath(wstring(Constants::Cinematic::RuntimeJson_Dir) + Constants::Cinematic::Dualliste_PhaseChange);
+    }
+}
+
+void ClientInstance::Flush_CinematicPrewarmQueue(uint32 createBudget)
+{
+    if (_cinematicSequenceRunner == nullptr)
+        return;
+
+    _cinematicSequenceRunner->Flush_PrewarmQueue(createBudget);
+}
+
+void ClientInstance::Clear_CinematicPrewarmQueue()
+{
+    if (_cinematicSequenceRunner == nullptr)
+        return;
+
+    _cinematicSequenceRunner->Clear_PrewarmQueue();
+}
+
 Shared<CinematicCamera> ClientInstance::Ensure_CinematicCamera()
 {
     if (auto camera = dynamic_pointer_cast<CinematicCamera>(GAME->Get_CameraByType(ObjectType::CinematicCamera)))
@@ -1638,9 +1889,7 @@ bool ClientInstance::Prewarm_Effect(const wstring& effectName, const wstring& la
     if (effectName.empty() || layerTag.empty() || count == 0)
         return false;
 
-    wstring resolvedName = effectName;
-    if (!resolvedName.ends_with(L".effect.json"))
-        resolvedName += L".effect.json";
+    const wstring resolvedName = Normalize_EffectNameForPool(effectName);
 
     EffectInstancePool::AcquireDesc desc{};
     desc.effectName = resolvedName;
@@ -1651,6 +1900,110 @@ bool ClientInstance::Prewarm_Effect(const wstring& effectName, const wstring& la
     desc.scale = Vec3::One;
 
     return SUCCEEDED(_effectInstancePool->Prewarm(desc, count));
+}
+
+void ClientInstance::Queue_BattleEffectPrewarmForBattleSetup(const vector<HeroId>& heroIds, const vector<BattleMonsterSpawnDesc>& monsterSpawnDescs, uint32 targetLevelIndex)
+{
+    vector<EffectPrewarmRequest> requests = BattleEffectPrewarmCollector::Collect_ForBattleSetup(heroIds, monsterSpawnDescs);
+    for (EffectPrewarmRequest& request : requests)
+        request.targetLevelIndex = targetLevelIndex;
+
+    Queue_EffectPrewarmRequests(requests);
+}
+
+void ClientInstance::Queue_EffectPrewarmRequests(const vector<EffectPrewarmRequest>& requests)
+{
+    for (const EffectPrewarmRequest& request : requests)
+    {
+        const wstring resolvedName = Normalize_EffectNameForPool(request.effectName);
+        if (resolvedName.empty())
+            continue;
+
+        const wstring resolvedLayerTag = request.layerTag.empty() ? L"Layer_Effect" : request.layerTag;
+        const uint32 resolvedTargetCount = max(1u, request.targetCount);
+        const uint32 resolvedTargetLevelIndex =
+            request.targetLevelIndex == UINT32_MAX ? GAME->Current_LevelIndex() : request.targetLevelIndex;
+
+        auto iter = find_if(
+            _effectPrewarmQueue.begin(),
+            _effectPrewarmQueue.end(),
+            [&](const EffectPrewarmRequest& queued)
+            {
+                return queued.effectName == resolvedName &&
+                    queued.layerTag == resolvedLayerTag &&
+                    queued.targetLevelIndex == resolvedTargetLevelIndex;
+            });
+
+        if (iter != _effectPrewarmQueue.end())
+        {
+            iter->targetCount = max(iter->targetCount, resolvedTargetCount);
+            continue;
+        }
+
+        EffectPrewarmRequest queuedRequest{};
+        queuedRequest.effectName = resolvedName;
+        queuedRequest.layerTag = resolvedLayerTag;
+        queuedRequest.targetCount = resolvedTargetCount;
+        queuedRequest.targetLevelIndex = resolvedTargetLevelIndex;
+        _effectPrewarmQueue.push_back(queuedRequest);
+    }
+}
+
+void ClientInstance::Update_EffectPrewarmQueue(uint32 createBudgetPerFrame)
+{
+    if (_effectInstancePool == nullptr || createBudgetPerFrame == 0)
+        return;
+
+    uint32 remainingBudget = createBudgetPerFrame;
+    while (remainingBudget > 0 && !_effectPrewarmQueue.empty())
+    {
+        EffectPrewarmRequest& request = _effectPrewarmQueue.front();
+        if (request.effectName.empty() || request.layerTag.empty() || request.targetCount == 0)
+        {
+            _effectPrewarmQueue.erase(_effectPrewarmQueue.begin());
+            continue;
+        }
+
+        EffectInstancePool::AcquireDesc desc{};
+        desc.effectName = request.effectName;
+        desc.layerLevelIndex = request.targetLevelIndex == UINT32_MAX ? GAME->Current_LevelIndex() : request.targetLevelIndex;
+        desc.layerTag = request.layerTag;
+        desc.worldPosition = Vec3::Zero;
+        desc.worldRotation = Quat::Identity;
+        desc.scale = Vec3::One;
+
+        EffectInstancePool::PrewarmResult result{};
+        if (FAILED(_effectInstancePool->Prewarm_ToCount(desc, request.targetCount, remainingBudget, &result)))
+        {
+            LOG_WARN(
+                "Effect prewarm failed. effect={}, layer={}, target={}",
+                String::ToString(request.effectName),
+                String::ToString(request.layerTag),
+                request.targetCount);
+            _effectPrewarmQueue.erase(_effectPrewarmQueue.begin());
+            continue;
+        }
+
+        remainingBudget -= result.createdCount;
+        if (result.existingCount + result.createdCount >= request.targetCount)
+            _effectPrewarmQueue.erase(_effectPrewarmQueue.begin());
+
+        if (result.createdCount == 0)
+            break;
+    }
+}
+
+void ClientInstance::Flush_EffectPrewarmQueue(uint32 createBudget)
+{
+    const uint32 budget = max(1u, createBudget);
+
+    while (!_effectPrewarmQueue.empty())
+        Update_EffectPrewarmQueue(budget);
+}
+
+void ClientInstance::Clear_EffectPrewarmQueue()
+{
+    _effectPrewarmQueue.clear();
 }
 
 bool ClientInstance::Play_Effect(const PlayEffectDesc& desc)
@@ -1747,6 +2100,38 @@ HRESULT ClientInstance::Reload_EffectJsons()
     return S_OK;
 }
 
+HRESULT ClientInstance::Reload_AnimNotifyJsons()
+{
+    function<void(const Shared<GameObject>&)> invalidateObjectNotifyData;
+    invalidateObjectNotifyData = [&](const Shared<GameObject>& gameObject)
+    {
+        if (gameObject == nullptr)
+            return;
+
+        if (const Shared<ModelCom> modelCom = gameObject->Get_Component<ModelCom>())
+            modelCom->Invalidate_AnimNotifyAsset();
+
+        const Shared<ContainerObject> container = dynamic_pointer_cast<ContainerObject>(gameObject);
+        if (container == nullptr)
+            return;
+
+        for (const auto& [partTag, partObject] : container->Get_PartObjects())
+        {
+            UNREFERENCED_PARAMETER(partTag);
+            invalidateObjectNotifyData(partObject);
+        }
+    };
+
+    GAME->Visit_CurrentLevelObjects(
+        [&](const wstring& layerTag, const Shared<GameObject>& gameObject)
+        {
+            UNREFERENCED_PARAMETER(layerTag);
+            invalidateObjectNotifyData(gameObject);
+        });
+
+    return S_OK;
+}
+
 bool ClientInstance::Play_AttachPartEffect(
     const Shared<GameObject>& effectOwner,
     const wstring& effectName,
@@ -1804,8 +2189,8 @@ void ClientInstance::Clear_RuntimeEffects()
     if (_effectInstancePool == nullptr)
         return;
 
-    // 월드에 남아있는 이팩트들 제거
-    _effectInstancePool->Clear();
+    // F4 Stop에서는 owner가 아직 들고 있는 active handle을 깨지 않고, Stop 콜백으로 반환된 캐시만 비운다.
+    _effectInstancePool->Discard_AllInactive();
 }
 
 void ClientInstance::Notify_FreeAimShotHit()
@@ -1930,13 +2315,21 @@ void ClientInstance::RemoveItemInteractionOverlap()
         --_itemInteractionOverlapCount;
 
 }
-void ClientInstance::Request_InteractionPrompt(const void* sourceId, const Vec3& worldAnchor)
+void ClientInstance::Request_InteractionPrompt(const void* sourceId, InteractionPromptType type)
 {
-    if (sourceId == nullptr)
+    if (sourceId == nullptr || type == InteractionPromptType::None)
         return;
 
+    const int32 priority = Resolve_InteractionPromptPriority(type);
+    if (_hasInteractionPromptRequest && _interactionPromptSourceId != sourceId)
+    {
+        if (priority <= _interactionPromptPriority)
+            return;
+    }
+
     _interactionPromptSourceId = sourceId;
-    _interactionPromptWorldAnchor = worldAnchor;
+    _interactionPromptType = type;
+    _interactionPromptPriority = priority;
     _hasInteractionPromptRequest = true;
 }
 
@@ -1950,15 +2343,19 @@ void ClientInstance::Clear_InteractionPrompt(const void* sourceId)
 
     _hasInteractionPromptRequest = false;
     _interactionPromptSourceId = nullptr;
-    _interactionPromptWorldAnchor = Vec3::Zero;
+    _interactionPromptType = InteractionPromptType::None;
+    _interactionPromptPriority = 0;
 }
 
-bool ClientInstance::Try_GetInteractionPromptAnchor(Vec3& outWorldAnchor) const
+bool ClientInstance::Try_GetInteractionPromptType(InteractionPromptType& outType) const
 {
     if (!_hasInteractionPromptRequest)
         return false;
 
-    outWorldAnchor = _interactionPromptWorldAnchor;
+    if (_interactionPromptType == InteractionPromptType::None)
+        return false;
+
+    outType = _interactionPromptType;
     return true;
 }
 

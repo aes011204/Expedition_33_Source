@@ -24,11 +24,35 @@ static bool g_runtimeInitialized = false;
 static bool g_isEditorFullscreen = false;
 static RECT g_windowedRect = { 0, 0, 1600, 900 };
 
+struct GameLauncherPreviewWindowState
+{
+    bool isActive = false;
+    bool wasEditorFullscreen = false;
+    bool wasZoomed = false;
+    LONG_PTR style = 0;
+    LONG_PTR exStyle = 0;
+    RECT windowRect = { 0, 0, 1600, 900 };
+    WINDOWPLACEMENT placement = {};
+};
+
+static GameLauncherPreviewWindowState g_gameLauncherPreviewState = {};
+
 static ATOM Register_MainEditorClass(HINSTANCE hInstance);
 static bool Create_MainEditorWindow(HINSTANCE hInstance, int nCmdShow);
 static RECT Make_CenteredWindowRect(const RECT& areaRect, LONG clientWidth, LONG clientHeight);
 static void Toggle_MainEditorFullscreen(HWND hWnd);
+static bool Is_ShiftDown();
+static bool Is_KeyRepeat(LPARAM lParam);
+static bool Is_AltEnter(WPARAM wParam, LPARAM lParam);
+static void Toggle_GameLauncherPreviewMode(HWND hWnd);
+static void Enter_GameLauncherPreviewMode(HWND hWnd);
+static void Exit_GameLauncherPreviewMode(HWND hWnd);
 static LRESULT CALLBACK MainEditor_WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
+
+bool Is_MainEditorGameLauncherPreviewMode()
+{
+    return g_gameLauncherPreviewState.isActive;
+}
 
 int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE, _In_ LPWSTR, _In_ int nCmdShow)
 {
@@ -191,6 +215,9 @@ static RECT Make_CenteredWindowRect(const RECT& areaRect, LONG clientWidth, LONG
 
 static void Toggle_MainEditorFullscreen(HWND hWnd)
 {
+    if (g_gameLauncherPreviewState.isActive)
+        return;
+
     if (g_isEditorFullscreen)
     {
         SetWindowLongPtrW(hWnd, GWL_STYLE, g_windowedWindowStyle);
@@ -229,9 +256,134 @@ static void Toggle_MainEditorFullscreen(HWND hWnd)
     g_isEditorFullscreen = true;
 }
 
+static bool Is_ShiftDown()
+{
+    return 0 != (GetKeyState(VK_SHIFT) & 0x8000);
+}
+
+static bool Is_KeyRepeat(LPARAM lParam)
+{
+    return 0 != (lParam & (1L << 30));
+}
+
+static bool Is_AltEnter(WPARAM wParam, LPARAM lParam)
+{
+    return VK_RETURN == wParam && 0 != (HIWORD(lParam) & KF_ALTDOWN);
+}
+
+static void Toggle_GameLauncherPreviewMode(HWND hWnd)
+{
+    if (g_gameLauncherPreviewState.isActive)
+        Exit_GameLauncherPreviewMode(hWnd);
+    else
+        Enter_GameLauncherPreviewMode(hWnd);
+}
+
+static void Enter_GameLauncherPreviewMode(HWND hWnd)
+{
+    if (nullptr == hWnd || g_gameLauncherPreviewState.isActive)
+        return;
+
+    GameLauncherPreviewWindowState& state = g_gameLauncherPreviewState;
+    state.wasEditorFullscreen = g_isEditorFullscreen;
+    state.wasZoomed = IsZoomed(hWnd) != FALSE;
+    state.style = GetWindowLongPtrW(hWnd, GWL_STYLE);
+    state.exStyle = GetWindowLongPtrW(hWnd, GWL_EXSTYLE);
+    GetWindowRect(hWnd, &state.windowRect);
+
+    state.placement = {};
+    state.placement.length = sizeof(WINDOWPLACEMENT);
+    GetWindowPlacement(hWnd, &state.placement);
+
+    MONITORINFO monitorInfo{};
+    monitorInfo.cbSize = sizeof(MONITORINFO);
+    HMONITOR hMonitor = MonitorFromWindow(hWnd, MONITOR_DEFAULTTONEAREST);
+    if (!GetMonitorInfo(hMonitor, &monitorInfo))
+        return;
+
+    if (state.wasZoomed)
+        ShowWindow(hWnd, SW_RESTORE);
+
+    const RECT targetRect = Make_CenteredWindowRect(
+        monitorInfo.rcMonitor,
+        static_cast<LONG>(Client::g_iWinSizeX),
+        static_cast<LONG>(Client::g_iWinSizeY));
+
+    SetWindowLongPtrW(hWnd, GWL_STYLE, g_windowedWindowStyle);
+    SetWindowLongPtrW(hWnd, GWL_EXSTYLE, state.exStyle);
+    SetWindowPos(
+        hWnd,
+        HWND_TOP,
+        targetRect.left,
+        targetRect.top,
+        targetRect.right - targetRect.left,
+        targetRect.bottom - targetRect.top,
+        SWP_FRAMECHANGED | SWP_SHOWWINDOW);
+
+    g_isEditorFullscreen = false;
+    state.isActive = true;
+}
+
+static void Exit_GameLauncherPreviewMode(HWND hWnd)
+{
+    if (nullptr == hWnd || !g_gameLauncherPreviewState.isActive)
+        return;
+
+    GameLauncherPreviewWindowState& state = g_gameLauncherPreviewState;
+
+    SetWindowLongPtrW(hWnd, GWL_STYLE, state.style);
+    SetWindowLongPtrW(hWnd, GWL_EXSTYLE, state.exStyle);
+
+    if (state.wasEditorFullscreen)
+    {
+        SetWindowPos(
+            hWnd,
+            HWND_TOP,
+            state.windowRect.left,
+            state.windowRect.top,
+            state.windowRect.right - state.windowRect.left,
+            state.windowRect.bottom - state.windowRect.top,
+            SWP_FRAMECHANGED | SWP_SHOWWINDOW);
+    }
+    else
+    {
+        SetWindowPos(
+            hWnd,
+            nullptr,
+            0,
+            0,
+            0,
+            0,
+            SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED | SWP_SHOWWINDOW);
+
+        state.placement.length = sizeof(WINDOWPLACEMENT);
+        SetWindowPlacement(hWnd, &state.placement);
+    }
+
+    if (state.wasZoomed && !state.wasEditorFullscreen)
+        ShowWindow(hWnd, SW_MAXIMIZE);
+    else
+        ShowWindow(hWnd, SW_SHOW);
+
+    g_isEditorFullscreen = state.wasEditorFullscreen;
+    state.isActive = false;
+}
+
 static LRESULT CALLBACK MainEditor_WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
-    if (WM_SYSKEYDOWN == message && VK_RETURN == wParam && 0 != (HIWORD(lParam) & KF_ALTDOWN))
+    if ((WM_KEYDOWN == message || WM_SYSKEYDOWN == message) &&
+        VK_F11 == wParam &&
+        Is_ShiftDown() &&
+        !Is_KeyRepeat(lParam))
+    {
+        Toggle_GameLauncherPreviewMode(hWnd);
+        return 0;
+    }
+
+    if (g_gameLauncherPreviewState.isActive && WM_SYSKEYDOWN == message && Is_AltEnter(wParam, lParam))
+        return 0;
+
+    if (WM_SYSKEYDOWN == message && Is_AltEnter(wParam, lParam))
     {
         Toggle_MainEditorFullscreen(hWnd);
         return 0;

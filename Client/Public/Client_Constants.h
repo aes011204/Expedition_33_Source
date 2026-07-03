@@ -6,9 +6,10 @@ namespace Client::Constants::UI
     inline constexpr wchar_t Loading_UI_Json_Path[] = L"UI/UI_Json/Scene/Loading/UI_LoadingScean.json";
     inline constexpr wchar_t UI_MainTitle_Path[] = L"UI/UI_Json/Scene/MainTitle/UI_MainTitle.json";
     inline constexpr wchar_t UI_GameEntry_Path[] = L"UI/UI_Json/Scene/GameEntry/UI_GameEntryScene.json";
+    inline constexpr wchar_t UI_Level_Announce_Path[] = L"UI/UI_Json/Scene/UI_Level_Announce.json";
     inline constexpr wchar_t UI_CharacterStatus_Path[] = L"UI/UI_Json/Character/UI_CharacterStatus.json";
     inline constexpr wchar_t UI_SavePoint_Path[] = L"UI/UI_Json/CommonSystem/UI_SavePoint.json";
-    inline constexpr wchar_t UI_Interaction_Key_E_Texture_Path[] = L"../Bin/Resources/Textures/UI/Common/Input/Keys/T_Icon_Key_E.png";
+    inline constexpr wchar_t UI_Interaction_Path[] = L"UI/UI_Json/CommonSystem/UI_Interaction.json";
     inline constexpr wchar_t UI_ExpeditionStatus_Path[] = L"UI/UI_Json/CommonSystem/UI_ExpeditionStatus.json";
     inline constexpr wchar_t UI_ChangeWeapon_Path[] = L"UI/UI_Json/CommonSystem/UI_ChangeWeapon.json";
     inline constexpr wchar_t UI_ChangeWeapon_Current_Weapon_Tooltip_Path[] =
@@ -241,6 +242,9 @@ namespace Client::Constants::UI_Anim
     inline constexpr wchar_t UI_HealFontAnim_Path[] = L"UI/UI_Animations/BattleSystem/DamageFont/HealFont";
 
     inline constexpr wchar_t UI_BattleSystem_AnnounceAnim_Path[] = L"UI/UI_Animations/BattleSystem/BattleSystem_Announce";
+    inline constexpr wchar_t UI_LevelAnnounceIntroAnim_Path[] = L"UI/UI_Animations/Scene/Level_Announce_Intro";
+    inline constexpr wchar_t UI_InteractionIntroAnim_Path[] = L"UI/UI_Animations/Common/Interaction_Intro";
+    inline constexpr wchar_t UI_InteractionOutroAnim_Path[] = L"UI/UI_Animations/Common/Interaction_Outro";
     inline constexpr wchar_t UI_FirstStrikeAnim_Path[] = L"UI/UI_Animations/BattleSystem/FirstStrike";
 
     inline constexpr wchar_t UI_AddAPAnim_Path[] = L"UI/UI_Animations/BattleSystem/Add_AP";
@@ -563,6 +567,11 @@ namespace Client::Constants::SoundBGM
 
     constexpr const wchar_t* BishopBattleBossMain = L"BGM/SpringMeadow/MUS_SpringMeadows_BT_Boss_Main.wav";
     constexpr const wchar_t* BishopBattleBossVictory = L"BGM/SpringMeadow/MUS_SpringMeadows_BT_Boss_VictoryScreen.wav";
+
+    constexpr const wchar_t* SimonBattlePhase1Intro = L"BGM/Simon/MUS_Simon_BT_WeLost_Phase1_Intro.wav";
+    constexpr const wchar_t* SimonBattlePhase1Main = L"BGM/Simon/MUS_Simon_BT_WeLost_Phase1_Main.wav";
+    constexpr const wchar_t* SimonBattlePhase2Intro = L"BGM/Simon/MUS_Simon_BT_WeLost_Phase2_Intro.wav";
+    constexpr const wchar_t* SimonBattlePhase2Main = L"BGM/Simon/MUS_Simon_BT_WeLost_Phase2_Main.wav";
 }
 
 namespace Client::Constants::Cinematic
@@ -572,7 +581,7 @@ namespace Client::Constants::Cinematic
     inline constexpr wchar_t BishopCinematicFileId[] = L"Bishop_Cinematic_2.json";
     inline constexpr wchar_t TutorialCinematicFileId[] = L"Lancelier_Intro.json";
 
-    inline constexpr wchar_t Dualliste_Intro[] = L"Dualliste_1.json";
+    inline constexpr wchar_t Dualliste_Intro[] = L"Dualliste_Intro.json";
     inline constexpr wchar_t Dualliste_PhaseChange[] = L"Dualliste.json";
 }
 

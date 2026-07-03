@@ -166,6 +166,7 @@ public: /* 타겟팅 중인 적 세팅 */
     bool                Ensure_EnemyTargetPreview();
     bool                Move_EnemyTargetPreview(int32 direction);
     void                Publish_TargetPreviewEnemyFocus() const;
+    void                Publish_TargetPreviewEnemyGroup() const;
 
 public:
     bool                Is_PlayerTurnActive() const;
@@ -264,6 +265,7 @@ private:
     void    Clear_BattleRuntimeState();
     void    Push_TurnEntry(const BattleChar& actor, float nextTime);
     float   Resolve_PrefabGroundOffsetY(const Shared<GameObject>& actor) const;
+    bool    Try_ResolveSimonBattleBGM(wstring& outIntroBGM, wstring& outMainBGM) const;
 
     void    Complete_BattleField();          // 2초 슬로우모션이 끝난 뒤 실제 PB/MB 생성과 턴 시작을 처리한다.
     void    Clear_BattleEnterPending();      // 전투 진입 대기 데이터만 정리
@@ -473,7 +475,9 @@ private:
 
         Shared<GameObject> actor{};
         bool wasVisible = false; // 연출 전 visibility를 저장해 원래 숨겨진 대상은 복구 때 새로 켜지 않게 한다.
-        float hiddenElapsedSec = 0.f;
+        float hiddenElapsedSec = 0.f; // 가림 판정이 연속으로 유지된 시간. 짧은 튐에는 디졸브를 시작하지 않는다.
+        float clearElapsedSec = 0.f; // 안 가림 판정이 연속으로 유지된 시간. 경계선 떨림 복구를 늦춘다.
+        bool dissolveStarted = false;
         bool visibilityForcedOff = false;
         vector<PartVisibility> partVisibilities{};
     };

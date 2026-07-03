@@ -54,6 +54,10 @@ public: //## Behavior::ProviderBinding
     // follower ribbon이 같은 effect 내부 source particle 위치를 요청할 때 쓰는 좁은 query다.
     virtual bool Collect_FollowerSourcePoints(vector<EffectFollowerSourcePoint>& outPoints, uint32 maxPointCount) const;
 
+public: //## Behavior::MaterialRuntime
+    // attached effect 등장 연출에서 material alpha/erosion만 일시적으로 덮어쓴다.
+    virtual void Set_MaterialRevealOverride(float alphaMultiplier, float alphaErosion);
+
 public: //## Behavior::Sort
     // Blend 정렬 시 emitter를 대표할 월드 위치를 반환한다.
     virtual bool Try_Get_BlendSortWorldPosition(Vec3& outWorldPosition) const;
