@@ -15,6 +15,7 @@ Player_Jump::Player_Jump(const Shared<Player_WorldBase>& owner)
 namespace
 {
     constexpr float kHighParkourProbeInterval = 0.f;
+    constexpr float kLandHeavyRootMotionScale = 0.5f;
 
     const char* Get_ParkourActionName(Player_ParkourAction::ParkourActionType actionType)
     {
@@ -250,13 +251,15 @@ void Player_Jump::LateUpdate(float timeDelta)
 	if (animIndex == ETOI(plAnim::Pl_LandHeavy) && !isFinished)
 	{
 		rigidControl.rigidMovement = true;
-        Vec3 rootVelocity = _bodyPlayer->Get_RootMotionPosition();
-        Vec3 currentVel = Get_Velocity();
+		Vec3 rootVelocity = _bodyPlayer->Get_RootMotionPosition();
+		Vec3 currentVel = Get_Velocity();
 
-        rootVelocity.y = currentVel.y;
+		rootVelocity.x *= kLandHeavyRootMotionScale;
+		rootVelocity.z *= kLandHeavyRootMotionScale;
+		rootVelocity.y = currentVel.y;
 
-        rigidControl.rigidLook = true;
-        rigidControl.rigidVelocity = rootVelocity;
+		rigidControl.rigidLook = true;
+		rigidControl.rigidVelocity = rootVelocity;
 	}
 
 	_controllerCom->Set_RigidControl(rigidControl);

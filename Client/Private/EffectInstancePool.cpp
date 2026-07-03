@@ -315,7 +315,7 @@ HRESULT EffectInstancePool::Prewarm_ToCount(const AcquireDesc& desc, uint32 targ
     if (desc.effectName.empty() || desc.layerTag.empty() || targetCount == 0)
         return E_FAIL;
 
-    Shared<const EffectDefinition> definition =
+    const Shared<const EffectDefinition> definition =
         desc.definition ? desc.definition : EffectAssetRuntimeLoader::Load_DefinitionByName(desc.effectName);
     CHECK_NULL(definition, E_FAIL);
 

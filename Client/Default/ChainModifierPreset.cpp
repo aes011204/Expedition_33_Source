@@ -1104,6 +1104,82 @@ void ChainModifierPreset::BuildPotatoBagClothBackDesc(
     outDesc.collision.debugDrawCapsules = false;
 }
 
+void ChainModifierPreset::BuildGustavePotatoCapePhysicsDesc(
+    PhysicsModifier::PhysicsModifierDesc& outDesc,
+    TransformCom* ownerTransform,
+    const wstring& modifierTag)
+{
+    auto& desc = outDesc;
+    desc = {};
+    desc.modifierTag = modifierTag;
+    desc.ownerTransform = ownerTransform;
+    desc.blendMode = AnimationModifier::ModifierBlendMode::ModifyReplace;
+    desc.physicsAssetPath = GetPhysicsAssetPath(PlayerCharacterType::Gustave);
+    desc.includedCollisionBones = {
+        "spine_03",
+        "spine_05",
+        "pelvis",
+        "upperarm_l",
+        "upperarm_r",
+        "lowerarm_l",
+        "lowerarm_r",
+        "thigh_l",
+        "thigh_r"
+    };
+
+    desc.chains = {
+        { "Verso_Potato_Cape_01_01", 1.00f, 0.20f, 1.60f, 1.00f, 0.066f, 0.78f },
+        { "Verso_Potato_Cape_02_01", 1.00f, 0.20f, 1.60f, 1.00f, 0.066f, 0.78f },
+        { "Verso_Potato_Cape_03_01", 1.00f, 0.20f, 1.60f, 1.00f, 0.066f, 0.78f }
+    };
+
+    desc.outputAlpha = 1.00f;
+    desc.rotationOutputAlpha = 1.00f;
+    desc.outputSmoothAlpha = 0.065f;
+    desc.idleOutputSmoothAlpha = 0.88f;
+    desc.idleMotionDeadzone = 0.055f;
+    desc.maxOutputAngleDegree = 105.f;
+
+    desc.contactRotationFollowAlpha = 0.14f;
+    desc.freeRotationFollowAlpha = 0.22f;
+    desc.rotationFollowDepthScale = 0.10f;
+    desc.poseRestoreAlpha = 0.18f;
+    desc.poseRestoreMaxSpeed = 9.0f;
+    desc.maxLocalOffset = Vec3(7.50f, 2.20f, 9.00f);
+    desc.movementInertiaScale = 2.40f;
+    desc.tipMovementInertiaScale = 24.00f;
+    desc.maxMovementInertiaSpeed = 78.0f;
+    desc.lateralInertiaScale = 5.00f;
+    desc.verticalInertiaScale = 0.45f;
+    desc.depthInertiaScale = 2.35f;
+    desc.accelerationInertiaScale = 0.005f;
+    desc.inertiaVelocitySmoothAlpha = 0.020f;
+    desc.poseSpringStrength = 0.30f;
+    desc.poseSpringDamping = 0.680f;
+    desc.lengthConstraintAlpha = 0.070f;
+    desc.bendConstraintAlpha = 0.010f;
+    desc.projectionIterations = 3;
+
+    desc.contactInertiaDamping = 0.120f;
+    desc.releaseInertiaDamping = 0.550f;
+
+    desc.enableCollision = false;
+    desc.collisionSphereRadius = 0.18f;
+    desc.collisionRadiusPadding = 0.08f;
+    desc.collisionContactSkinWidth = 0.06f;
+    desc.collisionProjectionIterations = 2;
+
+    desc.windDirection = kCommonWindDirection;
+    desc.windScale = 0.f;
+    desc.windWaveScale = 0.f;
+    desc.windWaveFrequency = 0.45f;
+    desc.windWaveDepthPhase = 0.35f;
+    desc.gravityScale = 0.42f;
+    desc.teleportDistance = 300.f;
+    desc.solverIterations = 8;
+    desc.writeBackEnabled = true;
+}
+
 void ChainModifierPreset::BuildBackpackBandDesc(
     ChainModifier::ChainModifierDesc& outDesc,
     TransformCom* ownerTransform,
