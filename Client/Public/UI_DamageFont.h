@@ -30,7 +30,13 @@ public:
     void Close() override;
 
     // 데미지 popup은 맞은 대상의 world anchor를 따라가며 카메라 회전 중에도 대상 근처에 유지한다.
-    void Play_DamageFont(const BattleChar& target, float damage, uint32 stackIndex, bool isCritical, AttackType attackType);
+    void Play_DamageFont(
+        const BattleChar& target,
+        float damage,
+        uint32 stackIndex,
+        bool isCritical,
+        AttackType attackType,
+        const Vec3* overrideWorldAnchor = nullptr);
 
 private:
     HRESULT Load_UI(uint32 levelIndex);
@@ -39,6 +45,7 @@ private:
     void Set_ActiveStyle(DamageFontStyle style);
     void Set_DamageText(int32 damageValue);
     bool Apply_DamageFontTuning();
+    bool Try_GetFeedbackWorldPosition(const BattleChar& target, Vec3& outWorldPos) const override;
     Vec2 Resolve_ScreenBaseOffset(const Vec3& worldPos) const override;
 
 private:
@@ -55,13 +62,15 @@ private:
 
     DamageFontStyle _activeStyle = DamageFontStyle::Normal;
     AttackType _activeAttackType = AttackType::Invalid;
+    bool _hasOverrideWorldAnchor = false;
+    Vec3 _overrideWorldAnchor = Vec3::Zero;
 
 private:
     float _damageLifeTime = 1.05f;
     float _damageRiseDistance = 72.f;
 
-    float _damageStackHorizontalOffset = -76.f;
-    float _damageFreeAimStackHorizontalOffset = -28.f;
+	float _damageStackHorizontalOffset = -120.f;
+	float _damageFreeAimStackHorizontalOffset = -120.f;
     float _damageStackVerticalOffset = 22.f;
 
     Vec3 _damageWorldAnchorOffset = Vec3(0.f, 0.f, 0.f);

@@ -320,7 +320,7 @@ void Base_Mon_Defense::Execute(const Skill_Data& skill, const BattleAction& acti
     UNREFERENCED_PARAMETER(skill);
     UNREFERENCED_PARAMETER(attackType);
 
-    const uint32 shieldNum = { 5 };
+    const uint32 shieldNum = { 3 };
 
     if (action.Get_CurChar().statCom)
         action.Get_CurChar().statCom->Add_Shield(shieldNum);

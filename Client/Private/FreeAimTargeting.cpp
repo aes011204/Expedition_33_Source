@@ -248,6 +248,7 @@ bool FreeAimTargeting::Try_FindHitEnemy(BattleFreeAimHitTarget& outHitTarget) co
                 {
                     outResolvedHitTarget.target = enemy;
                     outResolvedHitTarget.hitPart = FreeAimHitPart::Body;
+                    outResolvedHitTarget.hitWorldPos = hit.position;
                     return true;
                 }
 
@@ -266,11 +267,13 @@ bool FreeAimTargeting::Try_FindHitEnemy(BattleFreeAimHitTarget& outHitTarget) co
                 {
                     outResolvedHitTarget.target = enemy;
                     outResolvedHitTarget.hitPart = FreeAimHitPart::Body;
+                    outResolvedHitTarget.hitWorldPos = hit.position;
                     return true;
                 }
 
                 outResolvedHitTarget.target = enemy;
                 outResolvedHitTarget.hitPart = FreeAimHitPart::WeakPoint;
+                outResolvedHitTarget.hitWorldPos = hit.position;
                 return true;
             }
 

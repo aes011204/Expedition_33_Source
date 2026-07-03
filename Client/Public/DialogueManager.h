@@ -46,6 +46,7 @@ private:
     Shared<GameObject>  _dialoguePlayerObject;
     Shared<GameObject>  _dialogueNpcObject;
     Unique<UI_Dialogue> _uiDialogue = {};
+    uint32              _uiDialogueLevelIndex = 0;
 
     string              _lastAnimationKey;
     float               _lastAnimationOffsetY = 0.f;

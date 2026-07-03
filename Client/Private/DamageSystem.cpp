@@ -59,8 +59,12 @@ void DamageSystem::ApplyDamage(float damage, const BattleChar& target, AttackTyp
     ApplyDamage(damage, emptyAttacker, target, attackType);
 }
 
-void DamageSystem::ApplyDamage(float damage, const BattleChar& attacker, const BattleChar& target,
-    AttackType attackType)
+void DamageSystem::ApplyDamage(
+    float damage,
+    const BattleChar& attacker,
+    const BattleChar& target,
+    AttackType attackType,
+    const Vec3* feedbackWorldPos)
 {
     if (damage <= 0.f || target.statCom == nullptr)
         return;
@@ -81,6 +85,8 @@ void DamageSystem::ApplyDamage(float damage, const BattleChar& attacker, const B
         info.isShieldBlocked = true;
         info.prevShield = prevShield;
         info.currentShield = target.statCom->Get_CurrentShield();
+        info.hasFeedbackWorldPos = feedbackWorldPos != nullptr;
+        info.feedbackWorldPos = feedbackWorldPos != nullptr ? *feedbackWorldPos : Vec3::Zero;
 
         OnDamageApplied.Broadcast(info);
         return; // 쉴드가 데미지를 막은 경우
@@ -141,12 +147,14 @@ void DamageSystem::ApplyDamage(float damage, const BattleChar& attacker, const B
     info.damage = damage;
     info.attackType = attackType;
     info.isCritical = isCritical;
+    info.hasFeedbackWorldPos = feedbackWorldPos != nullptr;
+    info.feedbackWorldPos = feedbackWorldPos != nullptr ? *feedbackWorldPos : Vec3::Zero;
 
     OnDamageApplied.Broadcast(info);
 }
 
 void DamageSystem::ApplyDamage(float damage, const BattleChar& attacker, const vector<BattleChar>& target,
-    AttackType attackType)
+    AttackType attackType, bool useTargetFeedbackWorldPos)
 {
     if (target.empty())
         return;
@@ -155,7 +163,15 @@ void DamageSystem::ApplyDamage(float damage, const BattleChar& attacker, const v
 
     for (const auto& character : target)
     {
-        ApplyDamage(damage, attacker, character, attackType);
+        Vec3 feedbackWorldPos{};
+        const Vec3* feedbackWorldPosPtr = nullptr;
+        if (useTargetFeedbackWorldPos && character.actor != nullptr &&
+            character.actor->Try_GetDamageFeedbackWorldPosition(feedbackWorldPos))
+        {
+            feedbackWorldPosPtr = &feedbackWorldPos;
+        }
+
+        ApplyDamage(damage, attacker, character, attackType, feedbackWorldPosPtr);
     }
 }
 
@@ -173,13 +189,21 @@ float DamageSystem::CalculatePlayerAttackDamage(const BattleChar& attacker, floa
     return baseDamage * variance;
 }
 
-void DamageSystem::ApplyDamage(float damage, const vector<BattleChar>& target, AttackType attackType)
+void DamageSystem::ApplyDamage(float damage, const vector<BattleChar>& target, AttackType attackType, bool useTargetFeedbackWorldPos)
 {
     BattleChar emptyAttacker{};
 
     for (const auto& character : target)
     {
-        ApplyDamage(damage, emptyAttacker, character, attackType);
+        Vec3 feedbackWorldPos{};
+        const Vec3* feedbackWorldPosPtr = nullptr;
+        if (useTargetFeedbackWorldPos && character.actor != nullptr &&
+            character.actor->Try_GetDamageFeedbackWorldPosition(feedbackWorldPos))
+        {
+            feedbackWorldPosPtr = &feedbackWorldPos;
+        }
+
+        ApplyDamage(damage, emptyAttacker, character, attackType, feedbackWorldPosPtr);
     }
 }
 

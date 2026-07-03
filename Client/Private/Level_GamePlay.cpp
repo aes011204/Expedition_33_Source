@@ -177,6 +177,7 @@ HRESULT Level_GamePlay::Ready_ChunkMap()
 
 HRESULT Level_GamePlay::Ready_Lights()
 {
+    GAME->Reset_DynamicShadowCascadeTemporalUpdateIntervals();
     GAME->Clear_Lights();
 
     LIGHT_DESC LightDesc{};

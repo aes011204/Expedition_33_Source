@@ -1138,6 +1138,11 @@ bool MapInstancedMesh::Try_Get_ShadowWorldBounds(BoundingBox& outWorldBounds) co
 
 bool MapInstancedMesh::Allows_DynamicShadowCascade(uint32 cascadeIndex) const
 {
+    if (Is_GrassOrPetalModelPath(_modelPath) && cascadeIndex > 1u)
+    {
+        return false;
+    }
+
     if (Is_SmallInstancedShadowModelPath(_modelPath) && cascadeIndex > 2u)
     {
         return false;

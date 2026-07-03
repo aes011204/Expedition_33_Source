@@ -33,6 +33,7 @@
 #include "RuntimeRuleStateService.h"
 #include "Client_Constants.h"
 #include "GameObject.h"
+#include "MovementCom.h"
 #include "Spawn_Prefab.h"
 #include "TransformCom.h"
 
@@ -244,6 +245,8 @@ void GameplayUI_World::Update(float timeDelta)
 
         if (Is_LevelAnnounceOpen())
             return;
+
+        Try_ApplyPendingActiveHeroWarp();
 
         Try_ShowPendingGetCharacter();
 
@@ -1323,6 +1326,38 @@ void GameplayUI_World::Try_ShowPendingGetChroma()
         return;
 
     _getChromaPanel->Open_ForChromaAmounts(pendingChromaAmounts);
+}
+
+void GameplayUI_World::Try_ApplyPendingActiveHeroWarp()
+{
+    if (CLIENT->Is_WorldControlSuspended() || CLIENT->Is_BattleEntering())
+        return;
+
+    if (GAME->Is_WorldGameplayInputBlocked())
+        return;
+
+    Unlock_Manager* unlockManager = CLIENT->Get_UnlockManager();
+    if (unlockManager == nullptr)
+        return;
+
+    const Shared<Player_WorldBase> activeHero = CLIENT->Get_ActiveHero();
+    if (activeHero == nullptr)
+        return;
+
+    const Shared<TransformCom> transform = activeHero->Get_Transform();
+    if (transform == nullptr)
+        return;
+
+    Vec3 warpPosition = Vec3::Zero;
+    Vec3 warpRotation = Vec3::Zero;
+    if (!unlockManager->Consume_PendingActiveHeroWarp(warpPosition, warpRotation))
+        return;
+
+    transform->Set_WorldPosition(warpPosition);
+    transform->Set_WorldRotationEuler(warpRotation);
+
+    if (const Shared<MovementCom> movement = activeHero->Get_Component<MovementCom>())
+        movement->Sync_RuntimePositionToTransform(); // CCT/runtime 위치를 보상 워프 위치와 맞춘다.
 }
 
 bool GameplayUI_World::Is_GetClothesOpen() const

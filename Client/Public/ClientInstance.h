@@ -273,6 +273,10 @@ public: /*CinematicSequenceRunner*/
     FDelegateHandle Add_CinematicCompletedCallback(const FOnCinematicCompleted::FunctionType& callback);
     void Clear_CinematicCompletedCallbacks();
 
+    void Queue_CinematicPrewarmForLevel(uint32 targetLevelIndex);
+    void Flush_CinematicPrewarmQueue(uint32 createBudget = UINT32_MAX);
+    void Clear_CinematicPrewarmQueue();
+
 public:
     Shared<CinematicCamera> Ensure_CinematicCamera();
     Shared<DialogueCamera> Ensure_DialogueCamera();

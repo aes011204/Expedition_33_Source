@@ -52,15 +52,26 @@ void DialogueManager::StartDialogue(const DialogueRequest& request)
     if (dialogueData == nullptr || dialogueData->lines.empty())
         return;
 
-    if (_uiDialogue != nullptr)
+    const uint32 currentLevelIndex = GAME->Current_LevelIndex();
+    if (_uiDialogue != nullptr && _uiDialogueLevelIndex != currentLevelIndex)
     {
         _uiDialogue->Free();
         _uiDialogue.reset();
+        _uiDialogueLevelIndex = 0;
     }
 
-    _uiDialogue = UI_Dialogue::Create(GAME->Current_LevelIndex());
     if (_uiDialogue == nullptr)
-        return;
+    {
+        _uiDialogue = UI_Dialogue::Create(currentLevelIndex);
+        if (_uiDialogue == nullptr)
+            return;
+
+        _uiDialogueLevelIndex = currentLevelIndex;
+    }
+    else
+    {
+        _uiDialogue->Close();
+    }
 
     _currentDialogueKey = resolvedDialogueKey;
     _currentDialogueData = dialogueData;
@@ -161,8 +172,6 @@ void DialogueManager::EndDialogue(bool restoreWorldState)
     if (_uiDialogue)
     {
         _uiDialogue->Close();
-        _uiDialogue->Free();
-        _uiDialogue.reset();
     }
 }
 
@@ -576,6 +585,7 @@ void DialogueManager::Free()
     {
         _uiDialogue->Free();
         _uiDialogue.reset();
+        _uiDialogueLevelIndex = 0;
     }
 
     Base::Free();

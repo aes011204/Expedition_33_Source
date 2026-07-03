@@ -84,6 +84,7 @@ HRESULT Level_Stage01::Render()
 
 HRESULT Level_Stage01::Ready_Lights()
 {
+    GAME->Reset_DynamicShadowCascadeTemporalUpdateIntervals();
     GAME->Clear_Lights();
 
     LIGHT_DESC LightDesc{};

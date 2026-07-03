@@ -4,6 +4,7 @@
 #include "Cinematic_Utils.h"
 #include "CinematicCamera.h"
 #include "ClientInstance.h"
+#include "ColliderCom.h"
 #include "ContainerObject.h"
 #include "GameInstance.h"
 #include "GameplayUI.h"
@@ -19,6 +20,7 @@
 #include "TransformCom.h"
 #include <algorithm>
 #include <cmath>
+#include <thread>
 
 namespace
 {
@@ -71,6 +73,38 @@ PartObject* Find_TargetAnimPart(const Shared<GameObject>& actor)
         return container->Get_PartObject(L"Part_Body");
 
     return nullptr;
+}
+
+void Visit_Colliders(GameObject* gameObject, const function<void(const Shared<ColliderCom>&)>& visitor)
+{
+    if (gameObject == nullptr)
+        return;
+
+    gameObject->Visit_Components(
+        [&](const wstring& componentTag, const Shared<Component>& component)
+        {
+            UNREFERENCED_PARAMETER(componentTag);
+
+            if (Shared<ColliderCom> collider = dynamic_pointer_cast<ColliderCom>(component))
+                visitor(collider);
+        });
+}
+
+void Visit_ActorColliders(const Shared<GameObject>& actor, const function<void(const Shared<ColliderCom>&)>& visitor)
+{
+    if (actor == nullptr)
+        return;
+
+    Visit_Colliders(actor.get(), visitor);
+
+    if (const auto container = dynamic_pointer_cast<ContainerObject>(actor))
+    {
+        for (const auto& [partTag, partObject] : container->Get_PartObjects())
+        {
+            UNREFERENCED_PARAMETER(partTag);
+            Visit_Colliders(partObject.get(), visitor);
+        }
+    }
 }
 }
 
@@ -360,26 +394,43 @@ bool CinematicSequenceRunner::Play_Sequence(
         Cleanup_Context();
     }
 
-    const string stringPath = String::ToString(filePath);
-    if (!Cinematic_SequenceIO::LoadSequenceFromFile(stringPath, _sequence))
-        return false;
+    if (const auto cachedSequence = _prewarmedSequences.find(filePath); cachedSequence != _prewarmedSequences.end())
+    {
+        _sequence = cachedSequence->second;
+    }
+    else
+    {
+        const string stringPath = String::ToString(filePath);
+        if (!Cinematic_SequenceIO::LoadSequenceFromFile(stringPath, _sequence))
+        {
+            _activeSequencePath.clear();
+            return false;
+        }
+    }
 
     CINEMATIC_TRACK* cinematicTrack = nullptr;
     CINEMATIC_ACTOR_RELATIVE_CAMERA_TRACK* actorRelativeTrack = nullptr;
     CameraTrackKind trackKind = CameraTrackKind::None;
     if (!Resolve_CameraTrackSelection(trackIndex, cinematicTrack, actorRelativeTrack, trackKind))
+    {
+        _activeSequencePath.clear();
         return false;
+    }
 
     Shared<CinematicCamera> cinematicCamera = nullptr;
     if (applyCameraTrack)
     {
         cinematicCamera = CLIENT->Request_Cinematic();
         if (cinematicCamera == nullptr)
+        {
+            _activeSequencePath.clear();
             return false;
+        }
     }
 
     _activeCinematicCamera = cinematicCamera;
     _bindingStates.clear();
+    _activeSequencePath = filePath;
     _trackIndex = trackIndex;
     _nextEventIndex = 0;
     _cameraTrackKind = trackKind;
@@ -430,6 +481,7 @@ bool CinematicSequenceRunner::Play_Sequence(
     }
 
     _sequence = sequence;
+    _activeSequencePath.clear();
 
     CINEMATIC_TRACK* cinematicTrack = nullptr;
     CINEMATIC_ACTOR_RELATIVE_CAMERA_TRACK* actorRelativeTrack = nullptr;
@@ -792,6 +844,307 @@ void CinematicSequenceRunner::Clear_CompletedCallbacks()
     _onNaturalCompleted.Clear();
 }
 
+void CinematicSequenceRunner::Queue_PrewarmSequence(const wstring& filePath, uint32 targetLevelIndex)
+{
+    if (filePath.empty())
+        return;
+
+    if (_prewarmedSequences.find(filePath) != _prewarmedSequences.end())
+        return;
+
+    if (!_queuedPrewarmSequencePaths.insert(filePath).second)
+        return;
+
+    _activePrewarmSequenceJobs.fetch_add(1);
+
+    const bool enqueued = GAME->Enqueue_ThreadJob(
+        [this, filePath, targetLevelIndex]()
+        {
+            PrewarmSequenceResult result{};
+            result.filePath = filePath;
+            result.targetLevelIndex = targetLevelIndex;
+
+            const string stringPath = String::ToString(filePath);
+            result.succeeded = Cinematic_SequenceIO::LoadSequenceFromFile(stringPath, result.sequence);
+
+            {
+                lock_guard<mutex> lock(_prewarmMutex);
+                _completedPrewarmSequences.push_back(std::move(result));
+            }
+
+            _activePrewarmSequenceJobs.fetch_sub(1);
+        });
+
+    if (enqueued)
+        return;
+
+    _activePrewarmSequenceJobs.fetch_sub(1);
+
+    PrewarmSequenceResult result{};
+    result.filePath = filePath;
+    result.targetLevelIndex = targetLevelIndex;
+    result.succeeded = Cinematic_SequenceIO::LoadSequenceFromFile(String::ToString(filePath), result.sequence);
+
+    {
+        lock_guard<mutex> lock(_prewarmMutex);
+        _completedPrewarmSequences.push_back(std::move(result));
+    }
+}
+
+void CinematicSequenceRunner::Flush_PrewarmQueue(uint32 createBudget)
+{
+    const auto startedAt = chrono::steady_clock::now();
+    const size_t startActorCount = _prewarmedActors.size();
+    const uint32 budget = max(1u, createBudget);
+
+    while (true)
+    {
+        Drain_CompletedPrewarmSequences();
+        const size_t processedCount = Process_PrewarmSpawnRequests(budget);
+
+        if (_activePrewarmSequenceJobs.load() == 0)
+        {
+            Drain_CompletedPrewarmSequences();
+            if (_pendingPrewarmSpawnRequests.empty())
+                break;
+        }
+
+        if (processedCount == 0)
+            this_thread::yield();
+    }
+
+#ifdef _DEBUG
+    const auto elapsed = chrono::duration_cast<chrono::milliseconds>(
+        chrono::steady_clock::now() - startedAt);
+    const size_t createdActorCount = _prewarmedActors.size() - min(_prewarmedActors.size(), startActorCount);
+    if (createdActorCount > 0 || elapsed.count() > 0)
+    {
+        LOG_DEBUG(
+            "[CinematicSequenceRunner::Prewarm] sequences={}, actorsCreated={}, elapsed={}ms",
+            _prewarmedSequences.size(),
+            createdActorCount,
+            elapsed.count());
+    }
+#endif
+}
+
+void CinematicSequenceRunner::Clear_PrewarmQueue()
+{
+    _pendingPrewarmSpawnRequests.clear();
+    _queuedPrewarmSequencePaths.clear();
+    _prewarmedSequences.clear();
+
+    {
+        lock_guard<mutex> lock(_prewarmMutex);
+        _completedPrewarmSequences.clear();
+    }
+
+    for (const PrewarmedActorState& state : _prewarmedActors)
+    {
+        if (state.actor != nullptr)
+            GAME->Remove_GameObject(state.levelIndex, state.actor);
+    }
+
+    _prewarmedActors.clear();
+}
+
+void CinematicSequenceRunner::Drain_CompletedPrewarmSequences()
+{
+    deque<PrewarmSequenceResult> completedSequences{};
+
+    {
+        lock_guard<mutex> lock(_prewarmMutex);
+        completedSequences.swap(_completedPrewarmSequences);
+    }
+
+    while (!completedSequences.empty())
+    {
+        PrewarmSequenceResult result = std::move(completedSequences.front());
+        completedSequences.pop_front();
+
+        if (!result.succeeded)
+        {
+            LOG_WARN(
+                "[CinematicSequenceRunner::Prewarm] sequence load failed. path={}",
+                String::ToString(result.filePath));
+            _queuedPrewarmSequencePaths.erase(result.filePath);
+            continue;
+        }
+
+        const auto [iter, inserted] = _prewarmedSequences.emplace(result.filePath, std::move(result.sequence));
+        if (inserted)
+            Queue_StartFrameSpawnPrewarmRequests(result.filePath, result.targetLevelIndex, iter->second);
+
+        _queuedPrewarmSequencePaths.erase(result.filePath);
+    }
+}
+
+size_t CinematicSequenceRunner::Process_PrewarmSpawnRequests(uint32 createBudget)
+{
+    if (createBudget == 0)
+        return 0;
+
+    uint32 remainingBudget = createBudget;
+    size_t processedCount = 0;
+
+    while (remainingBudget > 0 && !_pendingPrewarmSpawnRequests.empty())
+    {
+        PrewarmSpawnRequest request = std::move(_pendingPrewarmSpawnRequests.front());
+        _pendingPrewarmSpawnRequests.erase(_pendingPrewarmSpawnRequests.begin());
+        ++processedCount;
+
+        if (request.targetId.empty() || request.payload.prefabName.empty())
+            continue;
+
+        if (Is_PrewarmSpawnAlreadyQueuedOrReady(
+            request.sequencePath,
+            request.targetId,
+            request.payload.prefabName))
+        {
+            continue;
+        }
+
+        if (request.payload.cleanupPolicy == CinematicCleanupPolicy::Keep &&
+            Find_ReusableActorByPrefabName(request.targetLevelIndex, request.payload.prefabName) != nullptr)
+        {
+            continue;
+        }
+
+        Shared<GameObject> actor = Spawn_Prefab::Prefab(request.payload.prefabName)
+            .AtLevel(request.targetLevelIndex)
+            .InLayer(request.payload.layerTag)
+            .Position(request.payload.position)
+            .Rotation(request.payload.rotation)
+            .Spawn();
+
+        --remainingBudget;
+
+        if (actor == nullptr)
+        {
+            LOG_WARN(
+                "[CinematicSequenceRunner::Prewarm] actor prewarm failed. target='{}' prefab='{}'",
+                request.targetId,
+                request.payload.prefabName);
+            continue;
+        }
+
+        PrewarmedActorState state{};
+        state.sequencePath = request.sequencePath;
+        state.targetId = request.targetId;
+        state.prefabName = request.payload.prefabName;
+        state.levelIndex = request.targetLevelIndex;
+        state.actor = actor;
+
+        Suppress_PrewarmedActor(state);
+        actor->Try_BeginPlay();
+
+        _prewarmedActors.push_back(std::move(state));
+    }
+
+    return processedCount;
+}
+
+void CinematicSequenceRunner::Queue_StartFrameSpawnPrewarmRequests(
+    const wstring& sequencePath,
+    uint32 targetLevelIndex,
+    const CINEMATIC_SEQUENCE& sequence)
+{
+    for (const CINEMATIC_EVENT& event : sequence.eventTrack)
+    {
+        if (event.frame > sequence.startFrame)
+            break;
+
+        const auto* spawn = get_if<CinematicSpawnEventData>(&event.payload);
+        if (spawn == nullptr)
+            continue;
+
+        if (event.targetId.empty() || spawn->prefabName.empty())
+            continue;
+
+        if (Is_PrewarmSpawnAlreadyQueuedOrReady(sequencePath, event.targetId, spawn->prefabName))
+            continue;
+
+        PrewarmSpawnRequest request{};
+        request.sequencePath = sequencePath;
+        request.targetLevelIndex = targetLevelIndex;
+        request.targetId = event.targetId;
+        request.payload = *spawn;
+        _pendingPrewarmSpawnRequests.push_back(std::move(request));
+    }
+}
+
+bool CinematicSequenceRunner::Is_PrewarmSpawnAlreadyQueuedOrReady(
+    const wstring& sequencePath,
+    const string& targetId,
+    const string& prefabName) const
+{
+    for (const PrewarmedActorState& state : _prewarmedActors)
+    {
+        if (state.sequencePath == sequencePath &&
+            state.targetId == targetId &&
+            state.prefabName == prefabName &&
+            state.actor != nullptr)
+        {
+            return true;
+        }
+    }
+
+    for (const PrewarmSpawnRequest& request : _pendingPrewarmSpawnRequests)
+    {
+        if (request.sequencePath == sequencePath &&
+            request.targetId == targetId &&
+            request.payload.prefabName == prefabName)
+        {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+bool CinematicSequenceRunner::Try_ConsumePrewarmedActor(const string& targetId, const CinematicSpawnEventData& payload)
+{
+    if (_activeSequencePath.empty())
+        return false;
+
+    auto iter = find_if(
+        _prewarmedActors.begin(),
+        _prewarmedActors.end(),
+        [&](const PrewarmedActorState& state)
+        {
+            return state.sequencePath == _activeSequencePath &&
+                state.levelIndex == _sequenceLevelIndex &&
+                state.targetId == targetId &&
+                state.prefabName == payload.prefabName &&
+                state.actor != nullptr &&
+                !state.actor->Is_MarkDestroy();
+        });
+
+    if (iter == _prewarmedActors.end())
+        return false;
+
+    PrewarmedActorState state = std::move(*iter);
+    _prewarmedActors.erase(iter);
+
+    if (state.actor->Get_Transform())
+    {
+        state.actor->Get_Transform()->Set_WorldPosition(payload.position);
+        state.actor->Get_Transform()->Set_WorldRotationEuler(payload.rotation);
+        state.actor->Get_Transform()->Set_Scale(payload.scale);
+    }
+
+    Apply_CinematicDrivenState(state.actor, false);
+    Restore_PrewarmedActor(state);
+    Bind_ActorToTarget(targetId, state.actor, true, payload.cleanupPolicy);
+
+    LOG_INFO(
+        "[CinematicSequenceRunner] SpawnEvent used prewarmed actor: target='{}' prefab='{}' frame={}",
+        targetId,
+        payload.prefabName,
+        Get_CurrentFrame());
+    return true;
+}
+
 void CinematicSequenceRunner::Execute_EventsUpToFrame(int currentFrame, float currentFrameExact)
 {
     while (_nextEventIndex < static_cast<int>(_sequence.eventTrack.size()))
@@ -852,6 +1205,9 @@ bool CinematicSequenceRunner::Execute_SpawnEvent(const string& targetId, const C
             Get_CurrentFrame());
         return true;
     }
+
+    if (Try_ConsumePrewarmedActor(targetId, payload))
+        return true;
 
     if (payload.cleanupPolicy == CinematicCleanupPolicy::Keep)
     {
@@ -1378,6 +1734,7 @@ void CinematicSequenceRunner::Cleanup_Context(bool forceRemoveAllSpawned)
     _nextEventIndex = 0;
     _cameraTrackKind = CameraTrackKind::None;
     _suspendActorTransformTrackPreview = false;
+    _activeSequencePath.clear();
 
     if (forceRemoveAllSpawned)
         Clear_CompletedCallbacks();
@@ -1391,12 +1748,17 @@ void CinematicSequenceRunner::Set_GameplayUIHiddenForCinematic(bool hidden) cons
 
 Shared<GameObject> CinematicSequenceRunner::Find_ReusableActorByPrefabName(const string& prefabName) const
 {
+    return Find_ReusableActorByPrefabName(_sequenceLevelIndex, prefabName);
+}
+
+Shared<GameObject> CinematicSequenceRunner::Find_ReusableActorByPrefabName(uint32 levelIndex, const string& prefabName) const
+{
     if (prefabName.empty())
         return nullptr;
 
     Shared<GameObject> matchedActor = nullptr;
     GAME->Visit_LevelObjects(
-        _sequenceLevelIndex,
+        levelIndex,
         [&](const wstring& layerTag, const Shared<GameObject>& gameObject)
         {
             UNREFERENCED_PARAMETER(layerTag);
@@ -1414,6 +1776,47 @@ Shared<GameObject> CinematicSequenceRunner::Find_ReusableActorByPrefabName(const
         });
 
     return matchedActor;
+}
+
+void CinematicSequenceRunner::Suppress_PrewarmedActor(PrewarmedActorState& state) const
+{
+    if (state.actor == nullptr)
+        return;
+
+    state.wasVisible = state.actor->Is_Visible();
+    state.actor->Set_Visible(false);
+
+    Visit_ActorColliders(
+        state.actor,
+        [&](const Shared<ColliderCom>& collider)
+        {
+            if (collider == nullptr)
+                return;
+
+            PrewarmedColliderState colliderState{};
+            colliderState.collider = collider;
+            colliderState.wasActive = collider->Get_IsActive();
+            state.colliderStates.push_back(colliderState);
+
+            collider->Clear_Overlap();
+            collider->Set_IsActive(false);
+        });
+
+    Apply_CinematicDrivenState(state.actor, true);
+}
+
+void CinematicSequenceRunner::Restore_PrewarmedActor(PrewarmedActorState& state) const
+{
+    if (state.actor == nullptr)
+        return;
+
+    state.actor->Set_Visible(state.wasVisible);
+
+    for (const PrewarmedColliderState& colliderState : state.colliderStates)
+    {
+        if (colliderState.collider != nullptr)
+            colliderState.collider->Set_IsActive(colliderState.wasActive);
+    }
 }
 
 bool CinematicSequenceRunner::Is_ActorAlreadyBound(const Shared<GameObject>& actor) const
@@ -1493,5 +1896,6 @@ Unique<CinematicSequenceRunner> CinematicSequenceRunner::Create()
 
 void CinematicSequenceRunner::Free()
 {
+    Clear_PrewarmQueue();
     __super::Free();
 }
