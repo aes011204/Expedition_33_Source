@@ -63,6 +63,12 @@ public:
         float volume = 1.f,
         bool stopPrevBGM = true,
         float fadeOutDuration = 0.f);
+    bool    Play_BGMIntroThenLoop(
+        const wstring& introFile,
+        const wstring& loopFile,
+        float volume = 1.f,
+        bool stopPrevBGM = true,
+        float fadeOutDuration = 0.f);
 
     // 일반 채널 반복 재생
     bool    Play_Loop(const wstring& soundFile,
@@ -133,6 +139,8 @@ private:
     void    Cleanup_StoppedChannels();
     void    Cleanup_StoppedChannelSpeedDsps();
     void    Cleanup_StoppedBGMChannels();
+    void    Clear_BGMIntroLoopState();
+    void    Update_BGMIntroLoopState();
 
     void    Add_FadeChannel(FMOD_CHANNEL* fmodChannel, SoundChannel channelType, float fadeOutDuration);
     void    Update_FadeChannels(float timeDelta);
@@ -160,6 +168,9 @@ private:
     // BGM은 별도 추적해서 페이드아웃/교체 관리
     vector<FMOD_CHANNEL*> _bgmChannels;
     wstring _currentBGM{};
+    FMOD_CHANNEL* _bgmIntroChannel = nullptr;
+    wstring _bgmIntroLoopFile{};
+    float _bgmIntroLoopVolume = 1.f;
 
     list<FFadeChannelInfo> _fadeChannels;
     list<FChannelSpeedDspInfo> _channelSpeedDsps;

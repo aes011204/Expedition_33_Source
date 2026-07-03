@@ -70,6 +70,7 @@ private:
     bool Pick_RuleStateFile(fs::path& outPath) const;
     bool Launch_GameLauncher(const fs::path* checkpointPath = nullptr);
     void Render_ReloadDataButton();
+    void Notify_ReloadDataResult(const char* dataName, HRESULT hr, const char* failureMessage) const;
     void Render_SoundCheck();
     void Render_AutoParryCheck();
 

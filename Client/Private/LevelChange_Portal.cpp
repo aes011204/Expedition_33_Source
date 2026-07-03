@@ -8,7 +8,7 @@
 
 namespace
 {
-    constexpr wchar_t kPortalEffectName[] = L"Effects\\Assets\\Monster\\Monster_Weak.effect.json";
+    constexpr wchar_t kPortalEffectName[] = L"Effects\\Assets\\Monster\\FX_Portal.effect.json";
 }
 
 IMPLEMENT_REFLECTION(LevelChange_Portal)

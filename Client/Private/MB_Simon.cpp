@@ -41,14 +41,26 @@ HRESULT MB_Simon::Initialize(void* arg)
 
     //_body->Set_Animation("Simon_Idle", 0.3f, true);
 
-    _combatStat->Set_Skill("Simon_SwordGround");
-    _combatStat->Set_Skill("Simon_Debuff");
-    _combatStat->Set_Skill("Simon_Strong_Combo");
-    _combatStat->Set_Skill("Simon_Long_Combo");
-    _combatStat->Set_Skill("Simon_Short_Combo");
-    _combatStat->Set_Skill("Simon_Berserk");
-    _combatStat->Set_Skill("Simon_LightSpeed");
-    _combatStat->Set_Skill("Simon_Sword_Att");
+    //_combatStat->Set_Skill("Simon_SwordGround");
+    //_combatStat->Set_Skill("Simon_Debuff");
+    //_combatStat->Set_Skill("Simon_Strong_Combo");
+    //_combatStat->Set_Skill("Simon_Long_Combo");
+    //_combatStat->Set_Skill("Simon_Short_Combo");
+    //_combatStat->Set_Skill("Simon_Berserk");
+    //_combatStat->Set_Skill("Simon_LightSpeed");
+    //_combatStat->Set_Skill("Simon_Sword_Att");
+
+    // 1페
+    // Skill06 -> 지면에 꽂기
+    // Skill08 -> 체력 1
+    // Skill04 -> 강력한 콤보
+    // Skill1  -> 긴 콤보 
+    // Skill2  -> 짧은 콤보
+
+    // 2페
+    // Skill_5  -> 캠퍼스에서 제거
+    // Skill07  -> 빛의 속도로 공격
+    // Skill_3  -> 뤼미에르의 검이 공격
 
     return S_OK;
 }

@@ -91,6 +91,7 @@ void Sound_Manager::Update(float timeDelta)
     FMOD_System_Update(_system);
 
     Update_FadeChannels(timeDelta);
+    Update_BGMIntroLoopState();
     Cleanup_StoppedChannels();
     Cleanup_StoppedChannelSpeedDsps();
     Cleanup_StoppedBGMChannels();
@@ -173,6 +174,8 @@ bool Sound_Manager::Play_BGM(const wstring& soundFile, float volume, bool stopPr
     if (!_system || _allSoundMuted)
         return false;
 
+    Clear_BGMIntroLoopState();
+
     FMOD_SOUND* fmodSound = Find_Sound(soundFile);
     if (!fmodSound)
         return false;
@@ -208,6 +211,63 @@ bool Sound_Manager::Play_BGM(const wstring& soundFile, float volume, bool stopPr
     _bgmChannels.push_back(fmodChannel);
     Register_ActiveChannel(SoundChannel::BGM, fmodChannel);
     _currentBGM = soundFile;
+
+    return true;
+}
+
+bool Sound_Manager::Play_BGMIntroThenLoop(
+    const wstring& introFile,
+    const wstring& loopFile,
+    float volume,
+    bool stopPrevBGM,
+    float fadeOutDuration)
+{
+    if (!_system || _allSoundMuted)
+        return false;
+
+    Clear_BGMIntroLoopState();
+
+    FMOD_SOUND* introSound = Find_Sound(introFile);
+    if (!introSound)
+        return false;
+
+    if (!Find_Sound(loopFile))
+        return false;
+
+    if (stopPrevBGM)
+    {
+        Stop_Channel(SoundChannel::BGM, fadeOutDuration);
+    }
+
+    Cleanup_StoppedBGMChannels();
+
+    FMOD_CHANNEL* fmodChannel = nullptr;
+
+    FMOD_RESULT result = FMOD_System_PlaySound(
+        _system,
+        introSound,
+        _channelGroups[ETOI(SoundChannel::BGM)],
+        TRUE,
+        &fmodChannel);
+
+    if (result != FMOD_OK || !fmodChannel)
+    {
+        LOG_WARN("Play_BGMIntroThenLoop failed. sound='{}', result={}",
+            String::ToString(introFile), static_cast<int32>(result));
+        return false;
+    }
+
+    FMOD_Channel_SetMode(fmodChannel, FMOD_LOOP_OFF);
+    FMOD_Channel_SetVolume(fmodChannel, clamp(volume, 0.f, 1.f));
+    FMOD_Channel_SetPaused(fmodChannel, FALSE);
+
+    _bgmChannels.push_back(fmodChannel);
+    Register_ActiveChannel(SoundChannel::BGM, fmodChannel);
+    _currentBGM = introFile;
+
+    _bgmIntroChannel = fmodChannel;
+    _bgmIntroLoopFile = loopFile;
+    _bgmIntroLoopVolume = volume;
 
     return true;
 }
@@ -347,6 +407,7 @@ void Sound_Manager::Stop_Channel(SoundChannel channel, float fadeOutDuration)
 
         if (channel == SoundChannel::BGM)
         {
+            Clear_BGMIntroLoopState();
             _bgmChannels.clear();
             _currentBGM.clear();
         }
@@ -363,6 +424,7 @@ void Sound_Manager::Stop_Channel(SoundChannel channel, float fadeOutDuration)
 
     if (channel == SoundChannel::BGM)
     {
+        Clear_BGMIntroLoopState();
         _bgmChannels.clear();
         _currentBGM.clear();
     }
@@ -1159,6 +1221,30 @@ void Sound_Manager::Cleanup_StoppedBGMChannels()
         _bgmChannels.end());
 }
 
+void Sound_Manager::Clear_BGMIntroLoopState()
+{
+    _bgmIntroChannel = nullptr;
+    _bgmIntroLoopFile.clear();
+    _bgmIntroLoopVolume = 1.f;
+}
+
+void Sound_Manager::Update_BGMIntroLoopState()
+{
+    if (_bgmIntroChannel == nullptr || _bgmIntroLoopFile.empty())
+        return;
+
+    FMOD_BOOL isPlaying = FALSE;
+    const FMOD_RESULT result = FMOD_Channel_IsPlaying(_bgmIntroChannel, &isPlaying);
+    if (result == FMOD_OK && isPlaying)
+        return;
+
+    const wstring loopFile = _bgmIntroLoopFile;
+    const float loopVolume = _bgmIntroLoopVolume;
+    Clear_BGMIntroLoopState();
+
+    Play_BGM(loopFile, loopVolume, true, 0.f);
+}
+
 void Sound_Manager::Add_FadeChannel(FMOD_CHANNEL* fmodChannel, SoundChannel channelType, float fadeOutDuration)
 {
     if (!fmodChannel || fadeOutDuration <= 0.f)
@@ -1259,6 +1345,7 @@ void Sound_Manager::Shutdown_FMOD()
     Release_AllSounds();
     Release_ChannelGroups();
 
+    Clear_BGMIntroLoopState();
     _fadeChannels.clear();
     _bgmChannels.clear();
 

@@ -682,14 +682,6 @@ void ComputeTrailEmitter::Update_History(float timeDelta)
     for (TrailHistorySample& sample : _history)
         sample.age += timeDelta;
 
-    erase_if(
-        _history,
-        [this](const TrailHistorySample& sample)
-        {
-            return sample.age >= _desc.segmentLifetime;
-        }
-    );
-
     EffectTrailSample trailSample{};
     const Shared<IEffectTrailSampleProvider> provider = _desc.sampleProvider.lock();
     bool sampleAccepted = false;
@@ -709,13 +701,43 @@ void ComputeTrailEmitter::Update_History(float timeDelta)
         );
     }
 
-    while (_history.size() > _desc.historyCount)
+    Prune_HistoryForVisibleControl();
+
+    if (Count_VisibleHistorySamples() < 2u)
+        _drawSegmentCount = 0;
+}
+
+uint32 ComputeTrailEmitter::Count_VisibleHistorySamples() const
+{
+    uint32 visibleCount = 0u;
+    for (const TrailHistorySample& sample : _history)
     {
-        _history.pop_back();
+        if (sample.age >= _desc.segmentLifetime)
+            break;
+
+        ++visibleCount;
     }
 
-    if (_history.size() < 2)
-        _drawSegmentCount = 0;
+    return visibleCount;
+}
+
+void ComputeTrailEmitter::Prune_HistoryForVisibleControl()
+{
+    const uint32 visibleCount = Count_VisibleHistorySamples();
+    if (visibleCount == 0u)
+    {
+        _history.clear();
+        return;
+    }
+
+    const uint32 maxVisibleCount = max(2u, _desc.historyCount);
+    const uint32 keepCount = visibleCount > maxVisibleCount ? maxVisibleCount : min(
+                                 maxVisibleCount + 1u,
+                                 visibleCount + 1u
+                             );
+
+    if (_history.size() > keepCount)
+        _history.resize(keepCount);
 }
 
 uint32 ComputeTrailEmitter::Compute_MaxRenderSegmentCount() const
@@ -783,7 +805,8 @@ void ComputeTrailEmitter::Insert_TrailSample(const EffectTrailSample& trailSampl
 void ComputeTrailEmitter::Build_RenderSamples(vector<TrailRenderSample>& outSamples) const
 {
     outSamples.clear();
-    if (_history.empty())
+    const uint32 visibleCount = Count_VisibleHistorySamples();
+    if (visibleCount < 2u)
         return;
 
     outSamples.reserve(Compute_MaxRenderSegmentCount() + 1u);
@@ -791,7 +814,7 @@ void ComputeTrailEmitter::Build_RenderSamples(vector<TrailRenderSample>& outSamp
 
     const uint32 maxIntervalSubdivision = max(1u, _desc.curveSubdivision);
     const float sampleSpacing = max(1e-3f, _desc.sampleSpacing);
-    for (uint32 index = 0; index + 1u < static_cast<uint32>(_history.size()); ++index)
+    for (uint32 index = 0; index + 1u < visibleCount; ++index)
     {
         const EffectTrailSample p0 = Build_SmoothedHistorySample(index > 0u ? index - 1u : index);
         const EffectTrailSample p1 = Build_SmoothedHistorySample(index);
@@ -855,7 +878,7 @@ HRESULT ComputeTrailEmitter::Dispatch_Compute()
 {
     CHECK_FAILED(Reset_IndirectArgs(), E_FAIL);
 
-    if (_history.size() < 2)
+    if (Count_VisibleHistorySamples() < 2u)
     {
         _drawSegmentCount = 0;
         CHECK_FAILED(Copy_ComputeOutput(), E_FAIL);

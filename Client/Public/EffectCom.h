@@ -138,6 +138,8 @@ public: //## Behavior::AttachedEffects
 
     InspectorEffectSettings Get_InspectorEffectSettings() const;
     void Set_InspectorEffectSettings(const InspectorEffectSettings& settings);
+    void Set_InspectorEffectLocalOffset(const Vec3& localOffset);
+    void Set_AttachedEffectMaterialReveal(float alphaMultiplier, float alphaErosion);
     HRESULT Play_InspectorEffect();
 
 public: //## Behavior::PlayEffect
@@ -308,6 +310,7 @@ private: //## Helper::AttachedEffects
     bool Should_ReleaseAttachedEffect(const AttachedEffect& attached) const;
     // 반환이 끝난 attached entry를 목록에서 제거한다.
     void Prune_ReleasedAttachedEffects();
+    void Apply_AttachedEffectMaterialReveal(const Shared<GameObject>& effectObject) const;
 
     bool Try_GetOwnerRootWorldMatrix(Matrix& outWorldMatrix) const;
 
@@ -392,6 +395,8 @@ private: //## Data::Inspector
     bool _inspectorFollowTarget = false;
     bool _inspectorRequiresManualRelease = false;
     bool _inspectorEffectPlayed = false;
+    float _attachedEffectRevealAlphaMultiplier = 1.f;
+    float _attachedEffectRevealAlphaErosion = 0.f;
 
 public:
     static Shared<EffectCom> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);
