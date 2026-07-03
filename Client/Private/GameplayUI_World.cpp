@@ -15,6 +15,7 @@
 #include "UI_GetPictos.h"
 #include "UI_GetChroma.h"
 #include "UI_LevelAnnounce.h"
+#include "UI_WorldDialogue.h"
 #include "ClientInstance.h"
 #include "GameplayUI.h"
 #include "Player_FreeAim.h"
@@ -164,6 +165,9 @@ HRESULT GameplayUI_World::Initialize(uint32 levelIndex)
     _levelAnnouncePanel = UI_LevelAnnounce::Create(levelIndex);
     CHECK_NULL(_levelAnnouncePanel, E_FAIL);
 
+    _worldDialoguePanel = UI_WorldDialogue::Create(levelIndex);
+    CHECK_NULL(_worldDialoguePanel, E_FAIL);
+
     _arenaCharacterSelectPanel = UI_ArenaCharacterSelect::Create(levelIndex);
     CHECK_NULL(_arenaCharacterSelectPanel, E_FAIL);
 
@@ -225,6 +229,9 @@ void GameplayUI_World::Update(float timeDelta)
 
     if (_levelAnnouncePanel)
         _levelAnnouncePanel->Update(timeDelta);
+
+    if (_worldDialoguePanel)
+        _worldDialoguePanel->Update(timeDelta);
 
     if (_arenaCharacterSelectPanel)
         _arenaCharacterSelectPanel->Update(timeDelta);
@@ -380,6 +387,9 @@ vector<RuntimeUIEntry> GameplayUI_World::Get_RuntimeUIEntries() const
     if (_levelAnnouncePanel)
         _levelAnnouncePanel->Append_RuntimeUIEntries(entries, "World", "LevelAnnouncePanel");
 
+    if (_worldDialoguePanel)
+        _worldDialoguePanel->Append_RuntimeUIEntries(entries, "World", "WorldDialoguePanel");
+
     if (_arenaCharacterSelectPanel)
         _arenaCharacterSelectPanel->Append_RuntimeUIEntries(entries, "World", "ArenaCharacterSelectPanel");
 
@@ -452,6 +462,10 @@ void GameplayUI_World::Force_CloseAllMenus()
 void GameplayUI_World::Handle_EditorStopRuntime()
 {
     Force_CloseAllMenus();
+
+    if (_worldDialoguePanel)
+        _worldDialoguePanel->Clear_Lines();
+
     GAME->Set_GameplayInputMode(GameplayInputMode::Normal);
 }
 
@@ -555,6 +569,24 @@ void GameplayUI_World::Queue_LevelAnnounce(LevelType levelType)
 
     _pendingLevelAnnounce = levelType;
     _pendingLevelAnnounceDelay = Get_LevelAnnounceDelay(levelType);
+}
+
+void GameplayUI_World::Push_WorldDialogueLine(const wstring& text, const wstring& portraitTexturePath)
+{
+    if (_worldDialoguePanel)
+        _worldDialoguePanel->Push_Line(text, portraitTexturePath);
+}
+
+void GameplayUI_World::Clear_WorldDialogue()
+{
+    if (_worldDialoguePanel)
+        _worldDialoguePanel->Clear_Lines();
+}
+
+void GameplayUI_World::Close_WorldDialogue()
+{
+    if (_worldDialoguePanel)
+        _worldDialoguePanel->Close();
 }
 
 Shared<SoulLikeController> GameplayUI_World::Spawn_SoulLikeControllerForArena()
@@ -1641,6 +1673,7 @@ void GameplayUI_World::Free()
     Release_Panel(_getPictosPanel);
     Release_Panel(_getChromaPanel);
     Release_Panel(_levelAnnouncePanel);
+    Release_Panel(_worldDialoguePanel);
     Release_Panel(_arenaCharacterSelectPanel);
     Release_Panel(_replayPanel);
     Release_Panel(_gradientSkillPreviewTestPanel);

@@ -183,6 +183,9 @@ public: /* For.Gameplay UI */
     void    Stop_BattleEnterTransition();
     bool    Is_BattleEnterTransitionPlaying() const;
     void    Queue_LevelAnnounce(LevelType levelType);
+    void    Push_WorldDialogueLine(const wstring& text, const wstring& portraitTexturePath = L"");
+    void    Clear_WorldDialogue();
+    void    Close_WorldDialogue();
 
 public: /* For.Fade Transition */
     bool Request_ScreenFadeTransition(const function<void()>& CoveredAction);

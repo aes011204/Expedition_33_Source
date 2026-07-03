@@ -212,6 +212,7 @@ namespace Client::Constants::UI
 
 #pragma region Dialogue
     inline constexpr wchar_t UI_Dialogue[] = L"UI/UI_Json/CommonSystem/UI_Dialogue.json";
+    inline constexpr wchar_t UI_WorldDialogue[] = L"UI/UI_Json/CommonSystem/UI_WorldDialogue.json";
 #pragma endregion
 
 }
@@ -535,6 +536,7 @@ namespace Client::Constants::Prefab
     inline constexpr char Portal_BishopReward[] = "ETC/Portal_BishopReward";
     inline constexpr char Trigger_Cinematic[] = "ETC/Trigger_Cinematic";
     inline constexpr char Trigger_BGMZone[] = "ETC/Trigger_BGMZone";
+    inline constexpr char Trigger_WorldDialogue[] = "ETC/Trigger_WorldDialogue";
 
     inline constexpr char BattleStartSpawner_Boss[] = "BattleStartSpawner/BSS_GamePlay_Boss";
     inline constexpr char BSS_Gestral_PotatoBag[] = "BattleStartSpawner/BSS_Gestral_PotatoBag";

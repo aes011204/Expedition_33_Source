@@ -1012,6 +1012,24 @@ void ClientInstance::Queue_LevelAnnounce(LevelType levelType)
         _gamePlayUI->Queue_LevelAnnounce(levelType);
 }
 
+void ClientInstance::Push_WorldDialogueLine(const wstring& text, const wstring& portraitTexturePath)
+{
+    if (_gamePlayUI)
+        _gamePlayUI->Push_WorldDialogueLine(text, portraitTexturePath);
+}
+
+void ClientInstance::Clear_WorldDialogue()
+{
+    if (_gamePlayUI)
+        _gamePlayUI->Clear_WorldDialogue();
+}
+
+void ClientInstance::Close_WorldDialogue()
+{
+    if (_gamePlayUI)
+        _gamePlayUI->Close_WorldDialogue();
+}
+
 bool ClientInstance::Request_ScreenFadeTransition(const function<void()>& CoveredAction)
 {
     if (_levelTransitionFade && _levelTransitionFade->Is_Playing())
@@ -1507,7 +1525,7 @@ bool ClientInstance::Is_BattleEntering() const
 
 bool ClientInstance::Is_PotatoBagBattleActive() const
 {
-    // 감자자루랑 전투중일 때에만 NPC가 보이게 처리하ㅣㄱ
+    // 감자자루랑 전투중일 때에만 NPC가 보이게 처리하기
     return _battleController &&
         _battleController->Is_BattleFieldActiveOrEntering(Constants::Value::potatoBagEncounterId);
 }

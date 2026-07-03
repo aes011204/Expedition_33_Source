@@ -28,6 +28,7 @@ private:
     HRESULT Ready_Layer_Player(const wstring& strLayerTag);
     HRESULT Ready_Layer_Camera(const wstring& strLayerTag);
     HRESULT Ready_Layer_UI(const wstring& strLayerTag);
+    HRESULT Ready_Layer_ETC(const wstring& strLayerTag);
 
 public:
     static Shared<Level_Stage01> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);

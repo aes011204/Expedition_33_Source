@@ -72,6 +72,25 @@ namespace
         Vec3(-7.65f, 8.82f, 96.49f),
         Vec3(-6.46f, 8.9f, 101.09f)
     };
+
+    bool Has_WorldDialogueTrigger(uint32 levelIndex)
+    {
+        bool found = false;
+
+        GAME->Visit_LevelObjects(
+            levelIndex,
+            [&found](const wstring& layerTag, const Shared<GameObject>& gameObject)
+            {
+                UNREFERENCED_PARAMETER(layerTag);
+
+                if (found || gameObject == nullptr)
+                    return;
+
+                found = gameObject->Get_SourcePrefabName() == Constants::Prefab::Trigger_WorldDialogue;
+            });
+
+        return found;
+    }
 }
 
 Level_GestralVillage::Level_GestralVillage(const ComPtr<Device>& device, const ComPtr<Context>& context)
@@ -442,6 +461,23 @@ HRESULT Level_GestralVillage::Ready_Layer_ETC(const wstring& strLayerTag)
         .Spawn();
 
     CHECK_NULL(bgmZone, E_FAIL);
+
+    {
+        const uint32 levelIndex = ETOI(LevelType::GestralVillage);
+        if (!Has_WorldDialogueTrigger(levelIndex))
+        {
+            const Shared<GameObject> dialogueObject = Spawn_Prefab::Prefab(Constants::Prefab::Trigger_WorldDialogue)
+                .AtLevel(levelIndex)
+                .InLayer(strLayerTag)
+                .Position(Vec3(-2.f, -5.45f, 176.8f))
+                .Rotation(Vec3(0.f, 0.f, 0.f))
+                .Scale(Vec3(1.6f, 1.f, 1.6f))
+                .Spawn();
+
+            CHECK_NULL(dialogueObject, E_FAIL);
+            dialogueObject->Set_RuntimeAuthoringLoaded(true);
+        }
+    }
 
     {
         MapAmbientVisibility::MAP_AMBIENT_VISIBILITY_DESC symbolDesc{};

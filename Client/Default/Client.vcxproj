@@ -342,6 +342,7 @@
     <ClInclude Include="..\Public\Trigger_BGMZone.h" />
     <ClInclude Include="..\public\Trigger_Cinematic.h" />
     <ClInclude Include="..\Public\Trigger_Interaction.h" />
+    <ClInclude Include="..\Public\Trigger_WorldDialogue.h" />
     <ClInclude Include="..\Public\UI_AbilityPentagon.h" />
     <ClInclude Include="..\Public\UI_DailyLog.h" />
     <ClInclude Include="..\Public\UI_SL_LockOn.h" />
@@ -354,6 +355,7 @@
     <ClInclude Include="..\Public\Flash_ScreenFx.h" />
     <ClInclude Include="..\Public\ScreenFxCueTypes.h" />
     <ClInclude Include="..\public\UI_Dialogue.h" />
+    <ClInclude Include="..\Public\UI_WorldDialogue.h" />
     <ClInclude Include="..\Public\UI_GradientSkillPreviewTest.h" />
     <ClInclude Include="..\Public\UI_Replay.h" />
     <ClInclude Include="..\Public\WorldDesaturate_ScreenFx.h" />
@@ -813,6 +815,7 @@
     <ClCompile Include="..\Private\Trigger_BGMZone.cpp" />
     <ClCompile Include="..\private\Trigger_Cinematic.cpp" />
     <ClCompile Include="..\Private\Trigger_Interaction.cpp" />
+    <ClCompile Include="..\Private\Trigger_WorldDialogue.cpp" />
     <ClCompile Include="..\Private\UI_AbilityPentagon.cpp" />
     <ClCompile Include="..\Private\ComputeGeneratedBeamEmitter.cpp" />
     <ClCompile Include="..\private\CinematicCamera.cpp" />
@@ -844,6 +847,7 @@
     <ClCompile Include="..\Private\Flash_ScreenFx.cpp" />
     <ClCompile Include="..\Private\UI_DailyLog.cpp" />
     <ClCompile Include="..\private\UI_Dialogue.cpp" />
+    <ClCompile Include="..\Private\UI_WorldDialogue.cpp" />
     <ClCompile Include="..\Private\UI_GradientSkillPreviewTest.cpp" />
     <ClCompile Include="..\Private\UI_Replay.cpp" />
     <ClCompile Include="..\Private\WorldDesaturate_ScreenFx.cpp" />

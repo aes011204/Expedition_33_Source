@@ -56,6 +56,9 @@ public:
 
     void    Queue_GetChromaPresentation(uint32 chromaAmount);
     void    Queue_LevelAnnounce(LevelType levelType);
+    void    Push_WorldDialogueLine(const wstring& text, const wstring& portraitTexturePath = L"");
+    void    Clear_WorldDialogue();
+    void    Close_WorldDialogue();
     void    Set_CinematicUIHidden(bool hidden);
     bool    Is_CinematicUIHidden() const { return _isCinematicUIHidden; }
 

@@ -1,8 +1,11 @@
 ﻿#include "Level_Stage01.h"
 #include "GameInstance.h"
+#include "Client_Constants.h"
+#include "GameObject.h"
 #include "MapLoader.h"
 #include "ClientInstance.h"
 #include "RuntimeRuleStateService.h"
+#include "Spawn_Prefab.h"
 #include "TargetCamera.h"
 #include "MovementCom.h"
 #include "Player_WorldBase.h"
@@ -15,6 +18,25 @@ namespace
 
     constexpr Vec3 kTeleportPos = Vec3(197.57f, -4023.57f, 50.95f);
     constexpr Vec3 kTeleportRot = Vec3(0.f, 27.6f, 0.f);
+
+    bool Has_WorldDialogueTrigger(uint32 levelIndex)
+    {
+        bool found = false;
+
+        GAME->Visit_LevelObjects(
+            levelIndex,
+            [&found](const wstring& layerTag, const Shared<GameObject>& gameObject)
+            {
+                UNREFERENCED_PARAMETER(layerTag);
+
+                if (found || gameObject == nullptr)
+                    return;
+
+                found = gameObject->Get_SourcePrefabName() == Constants::Prefab::Trigger_WorldDialogue;
+            });
+
+        return found;
+    }
 
 }
 
@@ -29,6 +51,7 @@ HRESULT Level_Stage01::Initialize()
     CHECK_FAILED(Ready_Layer_Player(TEXT("Layer_Player")), E_FAIL);
     CHECK_FAILED(Ready_Layer_Camera(TEXT("Layer_Camera")), E_FAIL);
     CHECK_FAILED(Ready_Layer_UI(TEXT("Layer_UI")), E_FAIL);
+    CHECK_FAILED(Ready_Layer_ETC(TEXT("Layer_ETC")), E_FAIL);
 
     RuntimeRuleStateService::Apply_ToCurrentRuntime(
         RuntimeRuleStateService::Build_SimonStartUnlocks(), false);
@@ -166,6 +189,26 @@ HRESULT Level_Stage01::Ready_Layer_Camera(const wstring& strLayerTag)
 HRESULT Level_Stage01::Ready_Layer_UI(const wstring& strLayerTag)
 {
     CHECK_FAILED(CLIENT->Initialize_GameplayUI(ETOI(LevelType::Stage01)), E_FAIL);
+
+    return S_OK;
+}
+
+HRESULT Level_Stage01::Ready_Layer_ETC(const wstring& strLayerTag)
+{
+    const uint32 levelIndex = ETOI(LevelType::Stage01);
+    if (Has_WorldDialogueTrigger(levelIndex))
+        return S_OK;
+
+    const Shared<GameObject> dialogueObject = Spawn_Prefab::Prefab(Constants::Prefab::Trigger_WorldDialogue)
+        .AtLevel(levelIndex)
+        .InLayer(strLayerTag)
+        .Position(Vec3(66.f, 3.65f, -1.0f))
+        .Rotation(Vec3(0.f, 0.f, 0.f))
+        .Scale(Vec3(1.6f, 1.f, 1.6f))
+        .Spawn();
+
+    CHECK_NULL(dialogueObject, E_FAIL);
+    dialogueObject->Set_RuntimeAuthoringLoaded(true);
 
     return S_OK;
 }

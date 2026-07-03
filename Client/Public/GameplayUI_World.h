@@ -22,6 +22,7 @@ class UI_GetPictos;
 class UI_GetChroma;
 class UI_LevelAnnounce;
 class UI_Interaction;
+class UI_WorldDialogue;
 
 class ChangeSkill_Panel;
 class ChangeWeapon_Panel;
@@ -56,6 +57,9 @@ public:
     bool    Request_WeaponUpgrade();
     void    Queue_GetChromaPresentation(uint32 chromaAmount);
     void    Queue_LevelAnnounce(LevelType levelType);
+    void    Push_WorldDialogueLine(const wstring& text, const wstring& portraitTexturePath = L"");
+    void    Clear_WorldDialogue();
+    void    Close_WorldDialogue();
 
 private:
     void    Handle_SavePointAction(SavePoint_Panel::SavePointAction action);
@@ -119,6 +123,7 @@ private:
     Unique<UI_GetChroma>                _getChromaPanel;
     Unique<UI_LevelAnnounce>            _levelAnnouncePanel;
     Unique<UI_Replay>                   _replayPanel;
+    Unique<UI_WorldDialogue>            _worldDialoguePanel;
 
     Unique<UI_ArenaCharacterSelect>     _arenaCharacterSelectPanel;
     Unique<UI_GradientSkillPreviewTest> _gradientSkillPreviewTestPanel;

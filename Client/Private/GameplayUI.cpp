@@ -232,6 +232,24 @@ void GameplayUI::Queue_LevelAnnounce(LevelType levelType)
         _worldUI->Queue_LevelAnnounce(levelType);
 }
 
+void GameplayUI::Push_WorldDialogueLine(const wstring& text, const wstring& portraitTexturePath)
+{
+    if (_worldUI)
+        _worldUI->Push_WorldDialogueLine(text, portraitTexturePath);
+}
+
+void GameplayUI::Clear_WorldDialogue()
+{
+    if (_worldUI)
+        _worldUI->Clear_WorldDialogue();
+}
+
+void GameplayUI::Close_WorldDialogue()
+{
+    if (_worldUI)
+        _worldUI->Close_WorldDialogue();
+}
+
 void GameplayUI::Set_CinematicUIHidden(bool hidden)
 {
     if (_isCinematicUIHidden == hidden)

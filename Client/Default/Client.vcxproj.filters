@@ -1281,6 +1281,9 @@
     <ClCompile Include="..\private\Trigger_Cinematic.cpp">
       <Filter>02. GameObject\Map</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\Trigger_WorldDialogue.cpp">
+      <Filter>02. GameObject\Map</Filter>
+    </ClCompile>
     <ClCompile Include="..\Private\SL_Parry.cpp" />
     <ClCompile Include="..\Private\ANS_ParryWindow.cpp" />
     <ClCompile Include="..\Private\SL_JumpCounter.cpp" />
@@ -1416,6 +1419,9 @@
     <ClCompile Include="..\private\UI_Dialogue.cpp">
       <Filter>02. GameObject\UI</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\UI_WorldDialogue.cpp">
+      <Filter>02. GameObject\UI</Filter>
+    </ClCompile>
     <ClCompile Include="..\Private\UI_GradientSkillPreviewTest.cpp">
       <Filter>02. GameObject\UI</Filter>
     </ClCompile>
@@ -1474,6 +1480,9 @@
     <ClInclude Include="..\Public\Mon_Dualliste_Sword_R.h" />
     <ClInclude Include="..\Public\MW_Dualliste.h" />
     <ClInclude Include="..\public\Trigger_Cinematic.h">
+      <Filter>02. GameObject\Map</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Trigger_WorldDialogue.h">
       <Filter>02. GameObject\Map</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\SL_Parry.h" />
@@ -1557,6 +1566,9 @@
       <Filter>02. GameObject\UI\ScreenFx</Filter>
     </ClInclude>
     <ClInclude Include="..\public\UI_Dialogue.h">
+      <Filter>02. GameObject\UI</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\UI_WorldDialogue.h">
       <Filter>02. GameObject\UI</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\UI_GradientSkillPreviewTest.h">
