@@ -5,12 +5,14 @@
 #include "GameInstance.h"
 #include "Engine_Macro.h"
 #include "Collision_Define.h"
+#include "PhysX_Filter.h"
 #include <extensions/PxRigidBodyExt.h>
 #include <extensions/PxRigidActorExt.h>
 using namespace physx;
-#include "PhysX_Filter.h"
+
 
 #include <algorithm>
+#include <cmath>
 
 NS_BEGIN(Engine)
 
@@ -234,6 +236,113 @@ namespace
 		shape->setSimulationFilterData(filterData);
 		shape->setQueryFilterData(filterData);
 	}
+
+	template<typename T>
+	void Release_PhysX(T*& object)
+	{
+		if (object == nullptr) return;
+		object->release();
+		object = nullptr;
+	}
+
+	bool Has_LocalOffsetLimit(const Vec3& limit)
+	{
+		return limit.x > 0.0001f || limit.y > 0.0001f || limit.z > 0.0001f;
+	}
+
+	Vec3 Clamp_LocalOffset(const Vec3& offset, const Vec3& limit, bool& outClamped)
+	{
+		Vec3 clamped = offset;
+		outClamped = false;
+
+		if (limit.x > 0.0001f)
+		{
+			const float next = std::clamp(offset.x, -limit.x, limit.x);
+			outClamped = outClamped || fabsf(next - offset.x) > 0.000001f;
+			clamped.x = next;
+		}
+		if (limit.y > 0.0001f)
+		{
+			const float next = std::clamp(offset.y, -limit.y, limit.y);
+			outClamped = outClamped || fabsf(next - offset.y) > 0.000001f;
+			clamped.y = next;
+		}
+		if (limit.z > 0.0001f)
+		{
+			const float next = std::clamp(offset.z, -limit.z, limit.z);
+			outClamped = outClamped || fabsf(next - offset.z) > 0.000001f;
+			clamped.z = next;
+		}
+
+		return clamped;
+	}
+
+	float SegmentSegmentClosestPoints(
+		const Vec3& p1,
+		const Vec3& q1,
+		const Vec3& p2,
+		const Vec3& q2,
+		Vec3& outC1,
+		Vec3& outC2,
+		float& outT1,
+		float& outT2)
+	{
+		const Vec3 d1 = q1 - p1;
+		const Vec3 d2 = q2 - p2;
+		const Vec3 r = p1 - p2;
+		const float a = d1.Dot(d1);
+		const float e = d2.Dot(d2);
+		const float f = d2.Dot(r);
+		float s = 0.f;
+		float t = 0.f;
+
+		if (a <= 0.000001f && e <= 0.000001f)
+		{
+			outC1 = p1;
+			outC2 = p2;
+			outT1 = 0.f;
+			outT2 = 0.f;
+			return (outC1 - outC2).LengthSquared();
+		}
+
+		if (a <= 0.000001f)
+		{
+			t = std::clamp(f / e, 0.f, 1.f);
+		}
+		else
+		{
+			const float c = d1.Dot(r);
+			if (e <= 0.000001f)
+			{
+				s = std::clamp(-c / a, 0.f, 1.f);
+			}
+			else
+			{
+				const float b = d1.Dot(d2);
+				const float denom = a * e - b * b;
+				if (fabsf(denom) > 0.000001f)
+					s = std::clamp((b * f - c * e) / denom, 0.f, 1.f);
+
+				t = (b * s + f) / e;
+				if (t < 0.f)
+				{
+					t = 0.f;
+					s = std::clamp(-c / a, 0.f, 1.f);
+				}
+				else if (t > 1.f)
+				{
+					t = 1.f;
+					s = std::clamp((b - c) / a, 0.f, 1.f);
+				}
+			}
+		}
+
+		outC1 = p1 + d1 * s;
+		outC2 = p2 + d2 * t;
+		outT1 = s;
+		outT2 = t;
+		return (outC1 - outC2).LengthSquared();
+	}
 }
 
 Vec3 PhysicsModifier::Get_Position(const Matrix& matrix)
@@ -249,6 +358,15 @@ Vec3 PhysicsModifier::Get_LocalDirection(const Matrix& parentWorld, const Vec3& 
 Vec3 PhysicsModifier::Limit_LocalDirectionByAngle(const Vec3& baseLocalDirection, const Vec3& targetLocalDirection, float maxAngleDegree)
 {
 	return Local_Limit_LocalDirectionByAngle(baseLocalDirection, targetLocalDirection, maxAngleDegree);
+}
+
+float PhysicsModifier::Compute_NodeAngleLimitDegree(const Chain& chain, float depthRatio) const
+{
+	const float baseAngle = std::max(0.f, _desc.maxOutputAngleDegree);
+	const float tipMultiplier = std::max(0.f, chain.desc.maxAngleMul);
+	const float depth = SmoothStep(std::clamp(depthRatio, 0.f, 1.f));
+	const float depthMultiplier = std::max(0.f, 1.f + depth * (tipMultiplier - 1.f));
+	return std::clamp(baseAngle * depthMultiplier, 0.f, 175.f);
 }
 
 Quat PhysicsModifier::Build_RotationDelta(const Vec3& fromDirection, const Vec3& toDirection)
@@ -277,14 +395,10 @@ Shared<PhysicsModifier> PhysicsModifier::Create(const PhysicsModifierDesc* desc)
 HRESULT PhysicsModifier::Initialize(AnimationModifierDesc* baseDesc)
 {
 	if (baseDesc == nullptr) return E_FAIL;
+	CHECK_FAILED(__super::Initialize(baseDesc), E_FAIL);
 	auto* desc = static_cast<PhysicsModifierDesc*>(baseDesc);
 
 	_desc = *desc;
-	_desc.chains = desc->chains;
-	_desc.includedCollisionBones = desc->includedCollisionBones;
-	_desc.overrideCapsules = desc->overrideCapsules;
-	_desc.windDirection = desc->windDirection;
-	_desc.windScale = desc->windScale;
 	
 	if (!_desc.physicsAssetPath.empty())
 	{
@@ -293,11 +407,6 @@ HRESULT PhysicsModifier::Initialize(AnimationModifierDesc* baseDesc)
 	for (const auto& cap : _desc.overrideCapsules)
 	{
 		_colliders.push_back(cap);
-	}
-
-	for (const auto& chainDesc : _desc.chains)
-	{
-		_configuredRoots.insert(chainDesc.rootBoneName);
 	}
 
 	return S_OK;
@@ -330,33 +439,70 @@ void PhysicsModifier::Evaluate_Modifier(ModelCom* model, float timeDelta)
 
 	if (_chains.empty()) return;
 
+	Restore_PoseLocals(model);
+	model->Rebuild_BoneCombinedMatrices();
+
+	_desc.debugCollisionHitCount = 0;
+	_desc.debugConstraintProjectionCount = 0;
+	_desc.debugLocalClampCount = 0;
+	_desc.debugLocalClampXCount = 0;
+	_desc.debugLocalClampYCount = 0;
+	_desc.debugLocalClampZCount = 0;
+	_desc.debugInertiaMagnitude = 0.f;
+
 	Matrix ownerWorld = Get_OwnerWorld(_desc);
-	if (_runtimeTestOwnerMotionEnabled)
-	{
-		ownerWorld._41 += _runtimeTestOwnerMotionDelta.x;
-		ownerWorld._42 += _runtimeTestOwnerMotionDelta.y;
-		ownerWorld._43 += _runtimeTestOwnerMotionDelta.z;
-	}
 	Vec3 ownerPos = Get_Position(ownerWorld);
+	Vec3 ownerMotionDelta = Vec3::Zero;
+	if (_hasPrevOwnerWorld)
+	{
+		ownerMotionDelta = ownerPos - _prevOwnerPos;
+	}
+	bool isOwnerIdle =
+		_hasPrevOwnerWorld &&
+		ownerMotionDelta.Length() <= _desc.idleMotionDeadzone;
 
 	if (_hasPrevOwnerWorld)
 	{
 		if (Vec3::Distance(ownerPos, _prevOwnerPos) >= _desc.teleportDistance)
 		{
 			ResetPose(model);
+			ownerMotionDelta = Vec3::Zero;
 		}
 	}
 
 	Capture_CurrentPose(model, ownerWorld);
-
-	if (Ensure_PhysXResources(model, _desc.collisionModel, ownerWorld, _desc.collisionOwnerWorldMatrix ? *_desc.collisionOwnerWorldMatrix : ownerWorld))
+	if (isOwnerIdle)
 	{
-		Sync_KinematicActors(model, _desc.collisionModel, ownerWorld, _desc.collisionOwnerWorldMatrix ? *_desc.collisionOwnerWorldMatrix : ownerWorld);
+		const float driverMotionDeadzoneSq = _desc.idleMotionDeadzone * _desc.idleMotionDeadzone;
+		for (const auto& chain : _chains)
+		{
+			if (chain.driverMotionDelta.LengthSquared() > driverMotionDeadzoneSq)
+			{
+				isOwnerIdle = false;
+				break;
+			}
+		}
+	}
+
+	const ModelCom* collisionModel = _desc.collisionModel ? _desc.collisionModel : model;
+	const Matrix collisionOwnerWorld = _desc.collisionOwnerWorldMatrix ? *_desc.collisionOwnerWorldMatrix : ownerWorld;
+
+	if (Ensure_PhysXResources(model, collisionModel, ownerWorld, collisionOwnerWorld))
+	{
+		if (!Validate_RootAlignment(model, ownerWorld))
+		{
+			Reset_PhysXStateToPose(model, collisionModel, ownerWorld, collisionOwnerWorld);
+		}
+
+		Sync_KinematicActors(model, collisionModel, ownerWorld, collisionOwnerWorld);
 		
 		if (_desc.windScale > 0.001f && _desc.windDirection.LengthSquared() > 0.001f)
 		{
+			_windTime += std::max(0.f, timeDelta);
 			Apply_WindForce(_desc.windDirection, _desc.windScale);
 		}
+		Apply_OwnerInertiaForce(ownerMotionDelta, timeDelta, isOwnerIdle);
+		Apply_PoseSpringForces(timeDelta, isOwnerIdle);
 
 		if (_scene)
 		{
@@ -364,15 +510,14 @@ void PhysicsModifier::Evaluate_Modifier(ModelCom* model, float timeDelta)
 			_scene->fetchResults(true);
 		}
 
+		Apply_PoseRestoreAndDamping(timeDelta, isOwnerIdle);
 		Update_SolvedPositionsFromActors();
 
-		vector<WorldCapsule> worldCapsules = Build_WorldCapsules(_desc.collisionModel, _desc.collisionOwnerWorldMatrix ? *_desc.collisionOwnerWorldMatrix : ownerWorld);
+		vector<WorldCapsule> worldCapsules = Build_WorldCapsules(collisionModel, collisionOwnerWorld);
 		
-		Apply_PostSimulationConstraints(model, ownerWorld, worldCapsules, timeDelta);
-
-		bool isOwnerIdle = false;
-		if (_hasPrevOwnerWorld)
-			isOwnerIdle = Vec3::Distance(ownerPos, _prevOwnerPos) <= _desc.idleMotionDeadzone;
+		Apply_LengthAndBendConstraints();
+		Apply_PostSimulationConstraints(worldCapsules);
+		Apply_LocalOffsetConstraints(timeDelta, isOwnerIdle);
 
 		if (_desc.writeBackEnabled)
 			Write_BackToModel(model, ownerWorld, isOwnerIdle);
@@ -380,7 +525,6 @@ void PhysicsModifier::Evaluate_Modifier(ModelCom* model, float timeDelta)
 		Build_DebugOutput(model, ownerWorld);
 	}
 
-	_prevOwnerWorld = ownerWorld;
 	_prevOwnerPos = ownerPos;
 	_hasPrevOwnerWorld = true;
 }
@@ -393,31 +537,66 @@ void PhysicsModifier::Free()
 
 void PhysicsModifier::RuntimeRebuild(ModelCom* model)
 {
+	if (model == nullptr) return;
+
+	Restore_PoseLocals(model);
 	Release_PhysXResources();
 	_chains.clear();
 	_chainsInitialized = false;
+	_hasCapturedPose = false;
+	_hasPrevOwnerWorld = false;
+	_windTime = 0.f;
 	Initialize_Chains(model);
+	ResetPose(model);
+}
+
+void PhysicsModifier::RuntimeResetPose(ModelCom* model)
+{
+	if (model == nullptr) return;
+
+	Restore_PoseLocals(model);
+	ResetPose(model);
 }
 
 void PhysicsModifier::ResetPose(ModelCom* model)
 {
-	if (!_chainsInitialized || _chains.empty() || !model) return;
+	if (model == nullptr) return;
 	
 	model->Rebuild_BoneCombinedMatrices();
+	if (!_chainsInitialized)
+	{
+		Initialize_Chains(model);
+	}
+
+	if (_chains.empty()) return;
+
+	_desc.debugCollisionHitCount = 0;
+	_desc.debugConstraintProjectionCount = 0;
+	_desc.debugLocalClampCount = 0;
+	_desc.debugLocalClampXCount = 0;
+	_desc.debugLocalClampYCount = 0;
+	_desc.debugLocalClampZCount = 0;
+	_desc.debugInertiaMagnitude = 0.f;
 	Matrix ownerWorld = Get_OwnerWorld(_desc);
-	Reset_PhysXStateToPose(model, _desc.collisionModel, ownerWorld, _desc.collisionOwnerWorldMatrix ? *_desc.collisionOwnerWorldMatrix : ownerWorld);
+	const ModelCom* collisionModel = _desc.collisionModel ? _desc.collisionModel : model;
+	const Matrix collisionOwnerWorld = _desc.collisionOwnerWorldMatrix ? *_desc.collisionOwnerWorldMatrix : ownerWorld;
+	Reset_PhysXStateToPose(model, collisionModel, ownerWorld, collisionOwnerWorld);
 	_prevOwnerPos = Get_Position(ownerWorld);
-	_prevOwnerWorld = ownerWorld;
 	_hasPrevOwnerWorld = true;
+	_windTime = 0.f;
 }
 
 void PhysicsModifier::Restore_PoseLocals(ModelCom* model)
 {
+	if (model == nullptr || _chains.empty()) return;
+
 	for (auto& chain : _chains)
 	{
 		for (auto& node : chain.nodes)
 		{
-			model->Set_BoneLocalMatrix(node.boneIndex, node.poseLocal);
+			model->Set_BoneLocalMatrix(
+				node.boneIndex,
+				node.bindLocal);
 		}
 	}
 	model->Rebuild_BoneCombinedMatrices();
@@ -429,22 +608,32 @@ void PhysicsModifier::Apply_WindForce(const Vec3& direction, float scale)
 	if (!_scene || direction.LengthSquared() <= 0.0001f || scale <= 0.0001f)
 		return;
 
-	PxVec3 force = To_PxVec3(direction) * scale;
+	Vec3 mainDirection = direction;
+	mainDirection.Normalize();
+	const float waveScale = std::max(0.f, _desc.windWaveScale);
+	const float waveFrequency = std::max(0.f, _desc.windWaveFrequency);
+	const float waveDepthPhase = _desc.windWaveDepthPhase;
+
 	for (auto& chain : _chains)
 	{
 		for (auto& node : chain.nodes)
 		{
 			if (node.isKinematic || !node.actor)
 				continue;
-			node.actor->addForce(force, PxForceMode::eFORCE);
+			const float depth = std::clamp(node.depthRatio, 0.f, 1.f);
+			const float depthWeight = std::max(0.001f, SmoothStep(depth));
+			float waveFactor = 1.f;
+			if (waveScale > 0.0001f && waveFrequency > 0.0001f)
+			{
+				const float wavePhase = _windTime * XM_2PI * waveFrequency + depth * XM_2PI * waveDepthPhase;
+				waveFactor = std::max(0.f, 1.f + sinf(wavePhase) * waveScale);
+			}
+
+			const Vec3 force = mainDirection * (scale * depthWeight * waveFactor);
+			node.actor->addForce(To_PxVec3(force), PxForceMode::eFORCE, true);
+			node.actor->wakeUp();
 		}
 	}
-}
-
-void PhysicsModifier::Set_RuntimeTestOwnerMotion(bool enabled, const Vec3& delta)
-{
-	_runtimeTestOwnerMotionEnabled = enabled;
-	_runtimeTestOwnerMotionDelta = enabled ? delta : Vec3::Zero;
 }
 
 void PhysicsModifier::Release_PhysXResources()
@@ -467,7 +656,7 @@ void PhysicsModifier::Release_PhysXResources()
 
 	for (auto& blocker : _blockers)
 	{
-		Safe_Release(blocker.actor);
+		Release_PhysX(blocker.actor);
 	}
 	_blockers.clear();
 
@@ -475,13 +664,13 @@ void PhysicsModifier::Release_PhysXResources()
 	{
 		for (auto& node : chain.nodes)
 		{
-			Safe_Release(node.joint);
-			Safe_Release(node.actor);
+			Release_PhysX(node.joint);
+			Release_PhysX(node.actor);
 		}
-		Safe_Release(chain.anchorActor);
+		Release_PhysX(chain.anchorActor);
 	}
 
-	Safe_Release(_material);
+	Release_PhysX(_material);
 	
 	if (_scene)
 	{
@@ -498,15 +687,16 @@ void PhysicsModifier::Initialize_Chains(ModelCom* model)
 {
 	if (model == nullptr) return;
 
+	_chains.clear();
 	_chainsInitialized = true;
-	for (auto& desc : _desc.chains)
+	for (const auto& desc : _desc.chains)
 	{
-		uint32 rootIndex = model->Get_BoneIndex(desc.rootBoneName);
-		if (rootIndex == -1) continue;
+		const int32 rootIndex = model->Get_BoneIndex(desc.rootBoneName);
+		if (rootIndex < 0) continue;
 
 		Chain chain{};
 		chain.desc = desc;
-		chain.anchorBoneIndex = model->Get_BoneParentIndex(rootIndex);
+		chain.anchorBoneIndex = model->Get_BoneParentIndex(static_cast<uint32>(rootIndex));
 		
 		BuildChainRecursive(model, rootIndex, -1, chain);
 
@@ -523,14 +713,22 @@ void PhysicsModifier::Initialize_Chains(ModelCom* model)
 
 void PhysicsModifier::BuildChainRecursive(ModelCom* model, int32 boneIndex, int32 parentNodeIndex, Chain& outChain)
 {
-	if (boneIndex == -1) return;
+	if (model == nullptr || boneIndex < 0) return;
 
 	Node node{};
-	node.boneIndex = boneIndex;
+	node.boneIndex = static_cast<uint32>(boneIndex);
 	node.parentNodeIndex = parentNodeIndex;
-	node.bindLocal = model->Get_BoneLocalMatrix(boneIndex);
-	node.poseLocal = model->Get_BoneLocalMatrix(boneIndex);
-	node.bindLocalDir = Get_LocalDirection(Matrix::Identity, Get_Position(node.bindLocal));
+	const Matrix bindLocal = model->Get_BoneLocalMatrix(static_cast<uint32>(boneIndex));
+	node.bindLocal = bindLocal;
+	node.poseLocal = bindLocal;
+	node.bindLocalDir = Get_LocalDirection(Matrix::Identity, Get_Position(bindLocal));
+
+	Vec3 bindScale = Vec3::One;
+	Quat bindRotation = Quat::Identity;
+	Vec3 bindTranslation = Vec3::Zero;
+	Matrix bindLocalForDecompose = bindLocal;
+	bindLocalForDecompose.Decompose(bindScale, bindRotation, bindTranslation);
+	node.bindScale = bindScale;
 
 	int32 nodeIndex = static_cast<int32>(outChain.nodes.size());
 	outChain.nodes.push_back(node);
@@ -551,21 +749,78 @@ void PhysicsModifier::BuildChainRecursive(ModelCom* model, int32 boneIndex, int3
 
 void PhysicsModifier::Capture_CurrentPose(ModelCom* model, const Matrix& ownerWorld)
 {
+	if (model == nullptr) return;
+
+	for (const auto& chain : _chains)
+	{
+		for (const auto& node : chain.nodes)
+		{
+			model->Set_BoneLocalMatrix(node.boneIndex, node.bindLocal);
+		}
+	}
+
+	model->Rebuild_BoneCombinedMatrices();
+
 	for (auto& chain : _chains)
 	{
-		chain.anchorWorld = (*model->Get_BoneMatrixPtr(chain.anchorBoneIndex)) * ownerWorld;
+		chain.anchorWorld = ownerWorld;
+		if (chain.anchorBoneIndex >= 0)
+		{
+			if (const Matrix* anchorCombined = model->Get_BoneMatrixPtr(static_cast<uint32>(chain.anchorBoneIndex)))
+				chain.anchorWorld = (*anchorCombined) * ownerWorld;
+		}
+
 		for (auto& node : chain.nodes)
 		{
 			node.poseLocal = model->Get_BoneLocalMatrix(node.boneIndex);
-			node.originalWorld = (*model->Get_BoneMatrixPtr(node.boneIndex)) * ownerWorld;
-			
+			const Matrix* boneCombined = model->Get_BoneMatrixPtr(node.boneIndex);
+			if (boneCombined == nullptr)
+				continue;
+
+			node.originalWorld = (*boneCombined) * ownerWorld;
+
+			Matrix parentWorld = chain.anchorWorld;
 			if (node.parentNodeIndex >= 0)
 			{
-				Matrix parentWorld = chain.nodes[node.parentNodeIndex].originalWorld;
-				node.length = Vec3::Distance(Get_Position(node.originalWorld), Get_Position(parentWorld));
+				parentWorld = chain.nodes[static_cast<size_t>(node.parentNodeIndex)].originalWorld;
 			}
+
+			const Vec3 nodePosition = Get_Position(node.originalWorld);
+			const Vec3 parentPosition = Get_Position(parentWorld);
+			const Vec3 poseWorldDir = nodePosition - parentPosition;
+			const float poseLength = poseWorldDir.Length();
+			node.length = poseLength;
+			if (node.hasPrevPosePosition)
+			{
+				node.poseMotionDelta = nodePosition - node.prevPosePosition;
+			}
+			else
+			{
+				node.poseMotionDelta = Vec3::Zero;
+				node.hasPrevPosePosition = true;
+			}
+			node.prevPosePosition = nodePosition;
+			node.poseLocalDir = poseLength > 0.0001f
+				? Get_LocalDirection(parentWorld, poseWorldDir)
+				: node.bindLocalDir;
 		}
+
+		const Vec3 driverPosition = !chain.nodes.empty()
+			? Get_Position(chain.nodes.front().originalWorld)
+			: Get_Position(chain.anchorWorld);
+		if (chain.hasPrevDriverPosition)
+		{
+			chain.driverMotionDelta = driverPosition - chain.prevDriverPosition;
+		}
+		else
+		{
+			chain.driverMotionDelta = Vec3::Zero;
+			chain.hasPrevDriverPosition = true;
+		}
+		chain.prevDriverPosition = driverPosition;
 	}
+
+	_hasCapturedPose = !_chains.empty();
 }
 
 bool PhysicsModifier::Ensure_PhysXResources(ModelCom* model, const ModelCom* collisionModel, const Matrix& ownerWorld, const Matrix& collisionOwnerWorld)
@@ -576,17 +831,34 @@ bool PhysicsModifier::Ensure_PhysXResources(ModelCom* model, const ModelCom* col
 	if (!_physics) return false;
 
 	PxSceneDesc sceneDesc(_physics->getTolerancesScale());
-	sceneDesc.gravity = PxVec3(0.0f, -9.81f, 0.0f);
-	sceneDesc.cpuDispatcher = PxDefaultCpuDispatcherCreate(1);
+	sceneDesc.gravity = PxVec3(0.0f, -9.81f * std::max(0.f, _desc.gravityScale), 0.0f);
+	PxDefaultCpuDispatcher* dispatcher = PxDefaultCpuDispatcherCreate(1);
+	if (dispatcher == nullptr) return false;
+	sceneDesc.cpuDispatcher = dispatcher;
 	sceneDesc.filterShader = PxDefaultSimulationFilterShader;
 	_scene = _physics->createScene(sceneDesc);
+	if (_scene == nullptr)
+	{
+		dispatcher->release();
+		return false;
+	}
 
 	_material = _physics->createMaterial(0.2f, 0.2f, 0.0f);
+	if (_material == nullptr)
+	{
+		Release_PhysXResources();
+		return false;
+	}
 
 	for (auto& chain : _chains)
 	{
 		PxTransform anchorPose(To_PxVec3(Get_Position(chain.anchorWorld)), To_PxQuat(Extract_Rotation(chain.anchorWorld)));
 		chain.anchorActor = _physics->createRigidDynamic(anchorPose);
+		if (chain.anchorActor == nullptr)
+		{
+			Release_PhysXResources();
+			return false;
+		}
 		chain.anchorActor->setRigidBodyFlag(PxRigidBodyFlag::eKINEMATIC, true);
 		chain.anchorActor->setActorFlag(PxActorFlag::eDISABLE_GRAVITY, true);
 		_scene->addActor(*chain.anchorActor);
@@ -598,6 +870,11 @@ bool PhysicsModifier::Ensure_PhysXResources(ModelCom* model, const ModelCom* col
 			
 			PxTransform nodePose(To_PxVec3(Get_Position(node.originalWorld)), To_PxQuat(Extract_Rotation(node.originalWorld)));
 			node.actor = _physics->createRigidDynamic(nodePose);
+			if (node.actor == nullptr)
+			{
+				Release_PhysXResources();
+				return false;
+			}
 			
 			if (node.isKinematic)
 			{
@@ -607,40 +884,85 @@ bool PhysicsModifier::Ensure_PhysXResources(ModelCom* model, const ModelCom* col
 			else
 			{
 				float chainRadiusMul = chain.desc.radiusMul;
-				float baseNodeRadius = max(0.05f, _desc.collisionSphereRadius * 0.65f);
-				node.debugSphereRadius = max(0.035f, min(baseNodeRadius * chainRadiusMul, max(0.045f, node.length * 0.34f * chainRadiusMul)));
+				node.debugSphereRadius = max(0.001f, _desc.collisionSphereRadius * chainRadiusMul);
 				
 				PxShape* shape = _physics->createShape(PxSphereGeometry(node.debugSphereRadius), *_material, true);
-				node.actor->attachShape(*shape);
-				shape->release();
+				if (shape == nullptr)
+				{
+					Release_PhysX(node.actor);
+					Release_PhysXResources();
+					return false;
+				}
+
 				Configure_ShapeFilter(shape, Collision_Channel::Monster_Attack, 0, ETOI(Collision_Channel::Monster_Body));
+				if (!node.actor->attachShape(*shape))
+				{
+					shape->release();
+					Release_PhysX(node.actor);
+					Release_PhysXResources();
+					return false;
+				}
+				shape->release();
 
 				node.actor->setRigidBodyFlag(PxRigidBodyFlag::eENABLE_CCD, true);
-				node.actor->setLinearDamping((8.50f - node.depthRatio * 3.20f) * chain.desc.dampingMul);
-				node.actor->setAngularDamping((9.50f - node.depthRatio * 3.60f) * chain.desc.dampingMul);
-				node.actor->setSolverIterationCounts(max(12u, _desc.solverIterations * 3), 4);
-				node.actor->setMaxLinearVelocity(7.5f);
-				node.actor->setMaxAngularVelocity(5.5f);
-				PxRigidBodyExt::updateMassAndInertia(*node.actor, 0.08f + node.depthRatio * 0.03f);
+				node.actor->setLinearDamping(std::max(0.f, _desc.releaseInertiaDamping) * chain.desc.dampingMul);
+				node.actor->setAngularDamping(std::max(0.f, _desc.releaseInertiaDamping) * chain.desc.dampingMul);
+				node.actor->setSolverIterationCounts(std::max(1u, _desc.solverIterations), std::max(1u, _desc.solverIterations));
+				node.actor->setSleepThreshold(0.0001f);
+				if (_desc.maxMovementInertiaSpeed > 0.f)
+					node.actor->setMaxLinearVelocity(_desc.maxMovementInertiaSpeed);
+				PxRigidBodyExt::updateMassAndInertia(*node.actor, max(0.001f, node.debugSphereRadius));
 			}
 			_scene->addActor(*node.actor);
 
 			if (!node.isKinematic)
 			{
 				PxRigidDynamic* parentActor = (node.parentNodeIndex >= 0) ? chain.nodes[node.parentNodeIndex].actor : chain.anchorActor;
-				
-				Vec3 tangent = Get_Position(node.originalWorld) - From_PxVec3(parentActor->getGlobalPose().p);
-				PxQuat jointFrame = Build_JointFrameQuat(tangent, Vec3::UnitY);
-				PxTransform parentLocalFrame(To_PxVec3(Vec3::Zero), jointFrame);
-				PxTransform childLocalFrame(To_PxVec3(-tangent), jointFrame);
+				if (parentActor == nullptr)
+				{
+					Release_PhysXResources();
+					return false;
+				}
+
+				const PxTransform parentPose = parentActor->getGlobalPose();
+				const PxTransform childPose = node.actor->getGlobalPose();
+				PxVec3 jointAxis = childPose.p - parentPose.p;
+				if (jointAxis.magnitudeSquared() <= 0.000001f)
+					jointAxis = PxVec3(1.f, 0.f, 0.f);
+				else
+					jointAxis.normalize();
+
+				Vec3 referenceUp = Vec3::TransformNormal(Vec3::UnitY, Matrix::CreateFromQuaternion(Extract_Rotation(node.originalWorld)));
+				if (node.parentNodeIndex >= 0)
+				{
+					referenceUp = Vec3::TransformNormal(
+						Vec3::UnitY,
+						Matrix::CreateFromQuaternion(Extract_Rotation(chain.nodes[static_cast<size_t>(node.parentNodeIndex)].originalWorld)));
+				}
+				else
+				{
+					referenceUp = Vec3::TransformNormal(Vec3::UnitY, Matrix::CreateFromQuaternion(Extract_Rotation(chain.anchorWorld)));
+				}
+				if (referenceUp.LengthSquared() <= 0.000001f)
+					referenceUp = Vec3::UnitY;
+				referenceUp.Normalize();
+
+				const PxTransform jointWorldFrame(parentPose.p, Build_JointFrameQuat(From_PxVec3(jointAxis), referenceUp));
+				const PxTransform parentLocalFrame = parentPose.transformInv(jointWorldFrame);
+				const PxTransform childLocalFrame = childPose.transformInv(jointWorldFrame);
 
 				node.joint = PxSphericalJointCreate(*_physics, parentActor, parentLocalFrame, node.actor, childLocalFrame);
+				if (node.joint == nullptr)
+				{
+					Release_PhysXResources();
+					return false;
+				}
 				
-				float maxAngle = _desc.maxOutputAngleDegree * chain.desc.maxAngleMul;
-				float swingLimitDegree = std::clamp(min(maxAngle, 90.f) * (0.32f + node.depthRatio * 0.48f), 3.5f, 75.f);
+				float maxAngle = Compute_NodeAngleLimitDegree(chain, node.depthRatio);
+				float swingLimitDegree = std::clamp(maxAngle, 0.f, 180.f);
 				float swingLimit = XMConvertToRadians(swingLimitDegree);
 				
-				PxJointLimitCone limitCone(swingLimit * 0.5f, swingLimit);
+				PxJointLimitCone limitCone(swingLimit, swingLimit);
 				limitCone.restitution = 0.f;
 				limitCone.stiffness = 0.f;
 				limitCone.damping = 0.f;
@@ -648,8 +970,13 @@ bool PhysicsModifier::Ensure_PhysXResources(ModelCom* model, const ModelCom* col
 				static_cast<PxSphericalJoint*>(node.joint)->setLimitCone(limitCone);
 				static_cast<PxSphericalJoint*>(node.joint)->setSphericalJointFlag(PxSphericalJointFlag::eLIMIT_ENABLED, true);
 				node.joint->setConstraintFlag(PxConstraintFlag::eCOLLISION_ENABLED, false);
-				node.joint->setInvMassScale0(0.0f);
-				node.joint->setInvInertiaScale0(0.0f);
+
+				const bool parentIsDynamicNode =
+					node.parentNodeIndex >= 0 &&
+					!chain.nodes[static_cast<size_t>(node.parentNodeIndex)].isKinematic;
+				const float parentConstraintScale = parentIsDynamicNode ? 1.0f : 0.0f;
+				node.joint->setInvMassScale0(parentConstraintScale);
+				node.joint->setInvInertiaScale0(parentConstraintScale);
 				node.joint->setInvMassScale1(1.0f);
 				node.joint->setInvInertiaScale1(1.0f);
 			}
@@ -660,10 +987,9 @@ bool PhysicsModifier::Ensure_PhysXResources(ModelCom* model, const ModelCom* col
 	for (size_t i = 0; i < caps.size(); ++i)
 	{
 		Blocker blocker{};
-		blocker.radius = caps[i].radius;
-		float halfHeight = Vec3::Distance(caps[i].startPoint, caps[i].endPoint) * 0.5f;
-		blocker.halfHeight = halfHeight;
-		blocker.isSphere = (halfHeight <= 0.0001f);
+		const float blockerRadius = caps[i].radius;
+		const float blockerHalfHeight = Vec3::Distance(caps[i].startPoint, caps[i].endPoint) * 0.5f;
+		const bool blockerIsSphere = blockerHalfHeight <= 0.0001f;
 		
 		Vec3 center = (caps[i].startPoint + caps[i].endPoint) * 0.5f;
 		Matrix frame;
@@ -672,17 +998,28 @@ bool PhysicsModifier::Ensure_PhysXResources(ModelCom* model, const ModelCom* col
 
 		PxTransform blockerPose(To_PxVec3(center), To_PxQuat(Extract_Rotation(frame)));
 		blocker.actor = _physics->createRigidDynamic(blockerPose);
+		if (blocker.actor == nullptr)
+		{
+			Release_PhysXResources();
+			return false;
+		}
 		blocker.actor->setRigidBodyFlag(PxRigidBodyFlag::eKINEMATIC, true);
 		blocker.actor->setActorFlag(PxActorFlag::eDISABLE_GRAVITY, true);
 
 		PxGeometry* geom = nullptr;
-		PxSphereGeometry sphereGeom(blocker.radius);
-		PxCapsuleGeometry capGeom(blocker.radius, blocker.halfHeight);
+		PxSphereGeometry sphereGeom(blockerRadius);
+		PxCapsuleGeometry capGeom(blockerRadius, blockerHalfHeight);
 		
-		if (blocker.isSphere) geom = &sphereGeom;
+		if (blockerIsSphere) geom = &sphereGeom;
 		else geom = &capGeom;
 
 		PxShape* shape = PxRigidActorExt::createExclusiveShape(*blocker.actor, *geom, *_material);
+		if (shape == nullptr)
+		{
+			Release_PhysX(blocker.actor);
+			Release_PhysXResources();
+			return false;
+		}
 		Configure_ShapeFilter(shape, Collision_Channel::Monster_Body, 0, ETOI(Collision_Channel::Monster_Attack));
 		
 		_scene->addActor(*blocker.actor);
@@ -690,30 +1027,110 @@ bool PhysicsModifier::Ensure_PhysXResources(ModelCom* model, const ModelCom* col
 	}
 
 	_physxResourcesReady = true;
+	Reset_PhysXStateToPose(model, collisionModel, ownerWorld, collisionOwnerWorld);
 	return true;
 }
 
 void PhysicsModifier::Reset_PhysXStateToPose(ModelCom* model, const ModelCom* collisionModel, const Matrix& ownerWorld, const Matrix& collisionOwnerWorld)
 {
+	if (model == nullptr) return;
+
+	Restore_PoseLocals(model);
 	Capture_CurrentPose(model, ownerWorld);
 	Sync_KinematicActors(model, collisionModel, ownerWorld, collisionOwnerWorld);
 	
 	for (auto& chain : _chains)
 	{
+		const Vec3 driverPosition = !chain.nodes.empty()
+			? Get_Position(chain.nodes.front().originalWorld)
+			: Get_Position(chain.anchorWorld);
+		chain.prevDriverPosition = driverPosition;
+		chain.driverMotionDelta = Vec3::Zero;
+		chain.prevDriverVelocity = Vec3::Zero;
+		chain.hasPrevDriverPosition = true;
+		chain.hasPrevDriverVelocity = false;
+		chain.smoothedLateralAxis = Vec3::UnitX;
+		chain.hasSmoothedLateralAxis = false;
+
+		if (chain.anchorActor)
+		{
+			const PxTransform anchorPose(To_PxVec3(Get_Position(chain.anchorWorld)), To_PxQuat(Extract_Rotation(chain.anchorWorld)));
+			chain.anchorActor->setGlobalPose(anchorPose);
+			chain.anchorActor->setKinematicTarget(anchorPose);
+		}
+
 		for (auto& node : chain.nodes)
 		{
-			if (!node.isKinematic && node.actor)
+			const Vec3 posePosition = Get_Position(node.originalWorld);
+			const Quat poseWorldRotation = Extract_Rotation(node.originalWorld);
+			const PxTransform pose(To_PxVec3(posePosition), To_PxQuat(poseWorldRotation));
+
+			if (node.actor)
 			{
-				PxTransform pose(To_PxVec3(Get_Position(node.originalWorld)), To_PxQuat(Extract_Rotation(node.originalWorld)));
 				node.actor->setGlobalPose(pose);
+				if (node.isKinematic)
+					node.actor->setKinematicTarget(pose);
 				node.actor->setLinearVelocity(PxVec3(0.f));
 				node.actor->setAngularVelocity(PxVec3(0.f));
+				node.actor->clearForce();
+				node.actor->clearTorque();
 			}
-			node.prevSolvedPosition = Get_Position(node.originalWorld);
-			node.smoothedLocalRotation = Extract_Rotation(node.poseLocal);
+
+			node.solvedPosition = posePosition;
+			node.prevSolvedPosition = posePosition;
+			node.prevPosePosition = posePosition;
+			node.poseMotionDelta = Vec3::Zero;
+			node.hasPrevPosePosition = true;
+			node.smoothedInertiaVelocity = Vec3::Zero;
+			node.hasSmoothedInertiaVelocity = false;
+
+			Vec3 poseScale = Vec3::One;
+			Quat poseRotation = Quat::Identity;
+			Vec3 poseTranslation = Vec3::Zero;
+			Matrix poseLocal = node.poseLocal;
+			poseLocal.Decompose(poseScale, poseRotation, poseTranslation);
+			poseRotation.Normalize();
+			node.bindScale = poseScale;
+			node.smoothedLocalDirection = node.poseLocalDir.LengthSquared() > 0.0001f
+				? node.poseLocalDir
+				: node.bindLocalDir;
+			if (node.smoothedLocalDirection.LengthSquared() > 0.0001f)
+			{
+				node.smoothedLocalDirection.Normalize();
+				node.hasSmoothedLocalDirection = true;
+			}
+			else
+			{
+				node.smoothedLocalDirection = Vec3::Zero;
+				node.hasSmoothedLocalDirection = false;
+			}
+			node.smoothedLocalTranslation = poseTranslation;
+			node.smoothedLocalRotation = poseRotation;
+			node.hasSmoothedLocalTransform = true;
+
 			node.smoothedCollisionOffset = Vec3::Zero;
 			node.smoothedContactNormal = Vec3::Zero;
+			node.hasSmoothedCollisionOffset = false;
+			node.hasSmoothedContactNormal = false;
+			node.hadContactThisFrame = false;
+			node.hadPushThisFrame = false;
 		}
+	}
+
+	vector<WorldCapsule> caps = Build_WorldCapsules(collisionModel, collisionOwnerWorld);
+	for (size_t i = 0; i < min(caps.size(), _blockers.size()); ++i)
+	{
+		if (_blockers[i].actor == nullptr)
+			continue;
+
+		Vec3 center = (caps[i].startPoint + caps[i].endPoint) * 0.5f;
+		Matrix frame;
+		if (!Build_SegmentWorldFrame(caps[i].startPoint, caps[i].endPoint, frame))
+			frame = Matrix::CreateTranslation(center);
+
+		const PxTransform blockerPose(To_PxVec3(center), To_PxQuat(Extract_Rotation(frame)));
+		_blockers[i].actor->setGlobalPose(blockerPose);
+		_blockers[i].actor->setKinematicTarget(blockerPose);
 	}
 }
 
@@ -736,8 +1153,8 @@ void PhysicsModifier::Sync_KinematicActors(ModelCom* model, const ModelCom* coll
 			{
 				PxTransform nodePose(To_PxVec3(Get_Position(node.originalWorld)), To_PxQuat(Extract_Rotation(node.originalWorld)));
 				node.actor->setKinematicTarget(nodePose);
+				node.actor->wakeUp();
 			}
-			if (node.actor) node.actor->wakeUp();
 		}
 	}
 
@@ -777,13 +1194,384 @@ void PhysicsModifier::Update_SolvedPositionsFromActors()
 	}
 }
 
-void PhysicsModifier::Apply_PostSimulationConstraints(ModelCom* model, const Matrix& ownerWorld, const vector<WorldCapsule>& worldCapsules, float timeDelta)
+void PhysicsModifier::Apply_OwnerInertiaForce(const Vec3& ownerMotionDelta, float timeDelta, bool isOwnerIdle)
+{
+	const float inertiaScale = std::max(0.f, _desc.movementInertiaScale);
+	if (timeDelta <= 0.0001f || inertiaScale <= 0.0001f)
+		return;
+
+	_desc.debugInertiaMagnitude = 0.f;
+	if (isOwnerIdle)
+	{
+		for (auto& chain : _chains)
+		{
+			chain.prevDriverVelocity = Vec3::Zero;
+			chain.hasPrevDriverVelocity = false;
+			for (auto& node : chain.nodes)
+			{
+				node.smoothedInertiaVelocity = Vec3::Zero;
+				node.hasSmoothedInertiaVelocity = false;
+			}
+		}
+		return;
+	}
+
+	const float maxSpeed = std::max(0.f, _desc.maxMovementInertiaSpeed);
+	const float lateralScale = std::max(0.f, _desc.lateralInertiaScale);
+	const float verticalScale = std::max(0.f, _desc.verticalInertiaScale);
+	const float depthScale = std::max(0.f, _desc.depthInertiaScale);
+	const float accelerationScale = std::max(0.f, _desc.accelerationInertiaScale);
+	const float velocitySmoothAlpha = std::clamp(_desc.inertiaVelocitySmoothAlpha, 0.f, 1.f);
+	const float releaseVelocityAlpha = std::clamp(_desc.releaseInertiaDamping, 0.f, 0.98f);
+
+	for (auto& chain : _chains)
+	{
+		Vec3 poseDriverDelta = chain.driverMotionDelta;
+		if (poseDriverDelta.LengthSquared() <= 0.000001f)
+			poseDriverDelta = ownerMotionDelta;
+
+		const Vec3 inertiaDriverDelta = poseDriverDelta;
+
+		const Vec3 rawDriverVelocity = inertiaDriverDelta / timeDelta;
+		Vec3 driverVelocity = rawDriverVelocity;
+		Vec3 driverVelocityDelta = Vec3::Zero;
+		if (chain.hasPrevDriverVelocity)
+		{
+			const float driverFollowAlpha = rawDriverVelocity.LengthSquared() < chain.prevDriverVelocity.LengthSquared()
+				? std::max(velocitySmoothAlpha, releaseVelocityAlpha)
+				: velocitySmoothAlpha;
+			driverVelocity = Vec3::Lerp(chain.prevDriverVelocity, rawDriverVelocity, driverFollowAlpha);
+			driverVelocityDelta = driverVelocity - chain.prevDriverVelocity;
+		}
+		chain.prevDriverVelocity = driverVelocity;
+		chain.hasPrevDriverVelocity = true;
+
+		const Vec3 rootPosition = !chain.nodes.empty()
+			? Get_Position(chain.nodes.front().originalWorld)
+			: Get_Position(chain.anchorWorld);
+		const Vec3 tipPosition = !chain.nodes.empty()
+			? Get_Position(chain.nodes.back().originalWorld)
+			: rootPosition + Vec3::UnitZ;
+
+		Vec3 chainAxis = tipPosition - rootPosition;
+		if (chainAxis.LengthSquared() <= 0.000001f)
+			chainAxis = Vec3::TransformNormal(Vec3::UnitZ, chain.anchorWorld);
+		if (chainAxis.LengthSquared() <= 0.000001f)
+			chainAxis = Vec3::UnitZ;
+		chainAxis.Normalize();
+
+		Vec3 upAxis = Vec3::TransformNormal(Vec3::UnitY, chain.anchorWorld);
+		if (upAxis.LengthSquared() <= 0.000001f)
+			upAxis = Vec3::UnitY;
+		upAxis.Normalize();
+
+		Vec3 lateralAxis = Vec3::TransformNormal(Vec3::UnitX, chain.anchorWorld);
+		lateralAxis -= chainAxis * lateralAxis.Dot(chainAxis);
+		if (lateralAxis.LengthSquared() <= 0.000001f)
+			lateralAxis = upAxis.Cross(chainAxis);
+		if (lateralAxis.LengthSquared() <= 0.000001f)
+			lateralAxis = Vec3::UnitX;
+		lateralAxis.Normalize();
+		if (chain.hasSmoothedLateralAxis)
+		{
+			if (chain.smoothedLateralAxis.Dot(lateralAxis) < 0.f)
+				lateralAxis = -lateralAxis;
+
+			const float lateralAxisFollowAlpha = std::clamp(_desc.outputSmoothAlpha, 0.f, 1.f);
+			if (lateralAxisFollowAlpha > 0.f)
+			{
+				lateralAxis = Vec3::Lerp(chain.smoothedLateralAxis, lateralAxis, lateralAxisFollowAlpha);
+				if (lateralAxis.LengthSquared() <= 0.000001f)
+					lateralAxis = chain.smoothedLateralAxis;
+				else
+					lateralAxis.Normalize();
+			}
+		}
+		chain.smoothedLateralAxis = lateralAxis;
+		chain.hasSmoothedLateralAxis = true;
+
+		Vec3 depthAxis = Vec3::TransformNormal(Vec3::UnitZ, chain.anchorWorld);
+		depthAxis -= chainAxis * depthAxis.Dot(chainAxis);
+		depthAxis -= lateralAxis * depthAxis.Dot(lateralAxis);
+		if (depthAxis.LengthSquared() <= 0.000001f)
+			depthAxis = chainAxis.Cross(lateralAxis);
+		if (depthAxis.LengthSquared() <= 0.000001f)
+			depthAxis = Vec3::UnitZ;
+		depthAxis.Normalize();
+
+		Vec3 verticalAxis = upAxis;
+		verticalAxis -= chainAxis * verticalAxis.Dot(chainAxis);
+		if (verticalAxis.LengthSquared() > 0.000001f)
+			verticalAxis.Normalize();
+
+		auto buildWeightedTangentialVelocity =
+			[&](const Vec3& worldVelocity, bool includeLateral) -> Vec3
+			{
+				Vec3 weightedVelocity =
+					depthAxis * (worldVelocity.Dot(depthAxis) * depthScale);
+				if (includeLateral)
+					weightedVelocity += lateralAxis * (worldVelocity.Dot(lateralAxis) * lateralScale);
+				if (verticalAxis.LengthSquared() > 0.000001f)
+					weightedVelocity += verticalAxis * (worldVelocity.Dot(verticalAxis) * verticalScale);
+				weightedVelocity -= chainAxis * weightedVelocity.Dot(chainAxis);
+				return weightedVelocity;
+		};
+
+		const Vec3 driverTangentialVelocity = buildWeightedTangentialVelocity(driverVelocity, false);
+		const Vec3 driverTangentialVelocityDelta = buildWeightedTangentialVelocity(driverVelocityDelta, true);
+
+		for (auto& node : chain.nodes)
+		{
+			if (node.isKinematic || node.actor == nullptr)
+				continue;
+
+			const float depth = std::clamp(node.depthRatio, 0.f, 1.f);
+			const float tipRatio = SmoothStep(depth);
+			const float tipBias = tipRatio;
+			const float tipWeight = 1.f + (std::max(0.f, _desc.tipMovementInertiaScale) - 1.f) * tipBias;
+			auto releaseSmoothedInertiaVelocity =
+				[releaseVelocityAlpha](Node& targetNode)
+				{
+					if (!targetNode.hasSmoothedInertiaVelocity)
+						return;
+
+					targetNode.smoothedInertiaVelocity = Vec3::Lerp(
+						targetNode.smoothedInertiaVelocity,
+						Vec3::Zero,
+						releaseVelocityAlpha);
+					if (targetNode.smoothedInertiaVelocity.LengthSquared() <= 0.000001f)
+					{
+						targetNode.smoothedInertiaVelocity = Vec3::Zero;
+						targetNode.hasSmoothedInertiaVelocity = false;
+					}
+				};
+			const Vec3 relativePoseDelta = node.poseMotionDelta - poseDriverDelta;
+			const Vec3 relativePoseVelocity = relativePoseDelta / timeDelta;
+			const Vec3 relativeTangentialVelocity = buildWeightedTangentialVelocity(relativePoseVelocity, true);
+			const Vec3 tangentialVelocity = driverTangentialVelocity + relativeTangentialVelocity;
+			const Vec3 tangentialVelocityDelta = driverTangentialVelocityDelta;
+			const Vec3 inertiaVelocity = tangentialVelocity + tangentialVelocityDelta * accelerationScale;
+
+			if (inertiaVelocity.LengthSquared() <= 0.000001f)
+			{
+				releaseSmoothedInertiaVelocity(node);
+				continue;
+			}
+
+			Vec3 targetVelocity =
+				-inertiaVelocity *
+				(inertiaScale * tipWeight);
+
+			if (targetVelocity.LengthSquared() <= 0.000001f)
+			{
+				releaseSmoothedInertiaVelocity(node);
+				continue;
+			}
+
+			const float finalMaxSpeed = maxSpeed;
+			const float targetVelocityLength = targetVelocity.Length();
+			if (finalMaxSpeed > 0.0001f && targetVelocityLength > finalMaxSpeed)
+			{
+				targetVelocity /= targetVelocityLength;
+				targetVelocity *= finalMaxSpeed;
+			}
+
+			if (node.hasSmoothedInertiaVelocity)
+			{
+				const float targetFollowAlpha = targetVelocity.LengthSquared() < node.smoothedInertiaVelocity.LengthSquared()
+					? std::max(std::max(velocitySmoothAlpha, _desc.outputSmoothAlpha), releaseVelocityAlpha)
+					: std::max(velocitySmoothAlpha, _desc.outputSmoothAlpha);
+				targetVelocity = Vec3::Lerp(
+					node.smoothedInertiaVelocity,
+					targetVelocity,
+					std::clamp(targetFollowAlpha, 0.f, 1.f));
+			}
+			node.smoothedInertiaVelocity = targetVelocity;
+			node.hasSmoothedInertiaVelocity = true;
+
+			Vec3 velocityChange = targetVelocity;
+			const float smoothedTargetLength = targetVelocity.Length();
+			if (smoothedTargetLength > 0.000001f)
+			{
+				Vec3 targetDirection = targetVelocity / smoothedTargetLength;
+				const Vec3 currentVelocity = From_PxVec3(node.actor->getLinearVelocity());
+				const float currentAlongTarget = currentVelocity.Dot(targetDirection);
+				if (currentAlongTarget > 0.f)
+					velocityChange -= targetDirection * std::min(currentAlongTarget, smoothedTargetLength);
+			}
+
+			if (velocityChange.LengthSquared() <= 0.000001f)
+				continue;
+
+			_desc.debugInertiaMagnitude = std::max(_desc.debugInertiaMagnitude, velocityChange.Length());
+
+			node.actor->addForce(To_PxVec3(velocityChange), PxForceMode::eVELOCITY_CHANGE);
+			node.actor->wakeUp();
+		}
+	}
+}
+
+void PhysicsModifier::Apply_PoseSpringForces(float timeDelta, bool isOwnerIdle)
+{
+	if (timeDelta <= 0.0001f)
+		return;
+
+	const bool windActive =
+		_desc.windScale > 0.001f &&
+		_desc.windDirection.LengthSquared() > 0.001f;
+	if (isOwnerIdle && !windActive)
+		return;
+
+	const float springStrength = std::max(0.f, _desc.poseSpringStrength);
+	const float springDamping = std::clamp(_desc.poseSpringDamping, 0.f, 1.f);
+	if (springStrength <= 0.0001f && springDamping <= 0.0001f)
+		return;
+
+	for (auto& chain : _chains)
+	{
+		for (auto& node : chain.nodes)
+		{
+			if (node.isKinematic || node.actor == nullptr)
+				continue;
+
+			const PxTransform actorPose = node.actor->getGlobalPose();
+			const Vec3 currentPosition = From_PxVec3(actorPose.p);
+			const Vec3 restPosition = Get_Position(node.originalWorld);
+			const Vec3 linearVelocity = From_PxVec3(node.actor->getLinearVelocity());
+
+			Vec3 velocityChange = Vec3::Zero;
+			if (springStrength > 0.0001f)
+			{
+				const float restoreWeight = std::max(0.f, chain.desc.restoreMul);
+				velocityChange += (restPosition - currentPosition) * springStrength * restoreWeight;
+			}
+			if (springDamping > 0.0001f)
+			{
+				velocityChange -= linearVelocity * springDamping;
+			}
+
+			const float maxSpringSpeed = std::max(0.f, _desc.poseRestoreMaxSpeed);
+			const float velocityChangeLength = velocityChange.Length();
+			if (maxSpringSpeed > 0.0001f && velocityChangeLength > maxSpringSpeed)
+			{
+				velocityChange /= velocityChangeLength;
+				velocityChange *= maxSpringSpeed;
+			}
+
+			if (velocityChange.LengthSquared() <= 0.000001f)
+				continue;
+
+			node.actor->addForce(To_PxVec3(velocityChange), PxForceMode::eVELOCITY_CHANGE);
+			node.actor->wakeUp();
+		}
+	}
+}
+
+void PhysicsModifier::Apply_LengthAndBendConstraints()
+{
+	const float lengthAlpha = std::clamp(_desc.lengthConstraintAlpha, 0.f, 1.f);
+	const float bendAlpha = std::clamp(_desc.bendConstraintAlpha, 0.f, 1.f);
+	if (lengthAlpha <= 0.0001f && bendAlpha <= 0.0001f)
+		return;
+
+	const uint32 iterations = std::max<uint32>(_desc.projectionIterations, 1u);
+
+	for (uint32 iter = 0; iter < iterations; ++iter)
+	{
+		for (auto& chain : _chains)
+		{
+			for (auto& node : chain.nodes)
+			{
+				if (node.isKinematic || node.parentNodeIndex < 0 || node.length <= 0.0001f)
+					continue;
+
+				Node& parentNode = chain.nodes[static_cast<size_t>(node.parentNodeIndex)];
+				const Vec3 parentPosition = parentNode.solvedPosition;
+				Vec3 projectedPosition = node.solvedPosition;
+
+				if (lengthAlpha > 0.0001f)
+				{
+					Vec3 parentToNode = projectedPosition - parentPosition;
+					const float currentLength = parentToNode.Length();
+					if (currentLength > 0.0001f)
+					{
+						const Vec3 lengthTarget = parentPosition + (parentToNode / currentLength) * node.length;
+						projectedPosition = Vec3::Lerp(projectedPosition, lengthTarget, lengthAlpha);
+					}
+				}
+
+				if (bendAlpha > 0.0001f)
+				{
+					Vec3 parentToNode = projectedPosition - parentPosition;
+					if (parentToNode.LengthSquared() > 0.0001f)
+					{
+						parentToNode.Normalize();
+
+						const Vec3 restLocalDir =
+							node.poseLocalDir.LengthSquared() > 0.0001f
+							? node.poseLocalDir
+							: node.bindLocalDir;
+
+						if (restLocalDir.LengthSquared() > 0.0001f)
+						{
+							const Matrix& parentWorld = parentNode.originalWorld;
+							const Vec3 simulatedLocalDir = Get_LocalDirection(parentWorld, parentToNode);
+							const float maxAngle = Compute_NodeAngleLimitDegree(chain, node.depthRatio);
+							const Vec3 limitedLocalDir = Limit_LocalDirectionByAngle(restLocalDir, simulatedLocalDir, maxAngle);
+							Vec3 limitedWorldDir = Vec3::TransformNormal(limitedLocalDir, parentWorld);
+							if (limitedWorldDir.LengthSquared() > 0.0001f)
+							{
+								limitedWorldDir.Normalize();
+								const Vec3 bendTarget = parentPosition + limitedWorldDir * node.length;
+								projectedPosition = Vec3::Lerp(projectedPosition, bendTarget, bendAlpha);
+							}
+						}
+					}
+				}
+
+				if ((projectedPosition - node.solvedPosition).LengthSquared() <= 0.000001f)
+					continue;
+
+				node.solvedPosition = projectedPosition;
+				++_desc.debugConstraintProjectionCount;
+
+				if (node.actor == nullptr)
+					continue;
+
+				PxTransform pose = node.actor->getGlobalPose();
+				pose.p = To_PxVec3(projectedPosition);
+				node.actor->setGlobalPose(pose);
+
+				Vec3 segmentDirection = projectedPosition - parentPosition;
+				if (segmentDirection.LengthSquared() > 0.000001f)
+				{
+					segmentDirection.Normalize();
+					Vec3 linearVelocity = From_PxVec3(node.actor->getLinearVelocity());
+					const Vec3 radialVelocity = segmentDirection * linearVelocity.Dot(segmentDirection);
+					const Vec3 tangentVelocity = linearVelocity - radialVelocity;
+					const float radialKeep = 1.f - std::clamp(
+						lengthAlpha +
+						bendAlpha,
+						0.f,
+						1.f);
+					linearVelocity = tangentVelocity + radialVelocity * radialKeep;
+					node.actor->setLinearVelocity(To_PxVec3(linearVelocity));
+				}
+			}
+		}
+	}
+}
+
+void PhysicsModifier::Apply_PostSimulationConstraints(const vector<WorldCapsule>& worldCapsules)
 {
 	if (!_desc.enableCollision || worldCapsules.empty()) return;
 
-	float skinWidth = _desc.collisionContactSkinWidth;
-	float pushOutScale = _desc.collisionPushOutScale;
-	uint32 iterations = _desc.collisionProjectionIterations;
+	const float skinWidth = std::max(0.f, _desc.collisionContactSkinWidth);
+	const float pushOutScale = std::max(0.f, _desc.collisionPushOutScale);
+	const float snapAlpha = std::clamp(_desc.contactSnapAlpha, 0.f, 1.f);
+	const float correctionSmoothAlpha = std::clamp(_desc.collisionCorrectionSmoothAlpha, 0.f, 1.f);
+	const float normalSmoothAlpha = std::clamp(_desc.collisionNormalSmoothAlpha, 0.f, 1.f);
+	const uint32 iterations = _desc.collisionProjectionIterations;
 
 	for (auto& chain : _chains)
 	{
@@ -794,44 +1582,184 @@ void PhysicsModifier::Apply_PostSimulationConstraints(ModelCom* model, const Mat
 				auto& node = chain.nodes[i];
 				if (node.isKinematic) continue;
 
-				float combinedRadius = node.debugSphereRadius + skinWidth;
-				Vec3 position = node.solvedPosition;
+				const float nodeRadius = std::max(0.02f, node.debugSphereRadius);
+				const Vec3 currentPosition = node.solvedPosition;
+				Vec3 position = currentPosition;
 				bool resolved = false;
+				Vec3 contactNormal = Vec3::Zero;
+				uint32 contactCount = 0;
+				float maxPenetration = 0.f;
+
+				Vec3 parentPosition = currentPosition;
+				if (node.parentNodeIndex >= 0)
+				{
+					const Node& parentNode = chain.nodes[static_cast<size_t>(node.parentNodeIndex)];
+					parentPosition = parentNode.actor != nullptr
+						? From_PxVec3(parentNode.actor->getGlobalPose().p)
+						: parentNode.solvedPosition;
+				}
+
+				auto pushPositionOut = [&](const Vec3& rawNormal, float penetration, float scale)
+					{
+						if (penetration <= 0.f)
+							return;
+
+						Vec3 normal = rawNormal;
+						if (normal.LengthSquared() <= 0.0001f)
+							normal = position - parentPosition;
+						if (normal.LengthSquared() <= 0.0001f)
+							normal = Get_Position(node.originalWorld) - parentPosition;
+						if (normal.LengthSquared() <= 0.0001f)
+							normal = Vec3::UnitY;
+						normal.Normalize();
+
+						const float depenetration = penetration * scale + 0.0005f;
+						position += normal * depenetration;
+						contactNormal += normal;
+						++contactCount;
+						maxPenetration = std::max(maxPenetration, penetration);
+						resolved = true;
+					};
 
 				for (const auto& capsule : worldCapsules)
 				{
-					Vec3 closest = Closest_PointOnSegment(position, capsule.startPoint, capsule.endPoint);
-					Vec3 delta = position - closest;
-					float dist = delta.Length();
-					float targetDist = combinedRadius + capsule.radius;
+					const float combinedRadius = nodeRadius + skinWidth + capsule.radius;
+					const Vec3 closest = Closest_PointOnSegment(position, capsule.startPoint, capsule.endPoint);
+					const Vec3 delta = position - closest;
+					const float dist = delta.Length();
 
-					if (dist < targetDist)
+					if (dist < combinedRadius)
 					{
-						if (dist > 0.0001f)
+						const Vec3 normal = dist > 0.0001f ? delta / dist : Vec3::Zero;
+						pushPositionOut(
+							normal,
+							combinedRadius - dist,
+							pushOutScale);
+					}
+
+					if ((node.prevSolvedPosition - currentPosition).LengthSquared() > 0.000001f)
+					{
+						Vec3 sweepClosest = Vec3::Zero;
+						Vec3 capsuleClosest = Vec3::Zero;
+						float sweepT = 0.f;
+						float capsuleT = 0.f;
+						const float distanceSq = SegmentSegmentClosestPoints(
+							node.prevSolvedPosition,
+							currentPosition,
+							capsule.startPoint,
+							capsule.endPoint,
+							sweepClosest,
+							capsuleClosest,
+							sweepT,
+							capsuleT);
+						const float combinedRadiusSq = combinedRadius * combinedRadius;
+						if (distanceSq < combinedRadiusSq)
 						{
-							Vec3 normal = delta / dist;
-							float penetration = targetDist - dist;
-							float depenetration = penetration * (0.82f + pushOutScale * 0.12f) + 0.0005f;
-							position += normal * depenetration;
+							const float sweepDistance = sqrtf(std::max(0.f, distanceSq));
+							Vec3 sweepNormal = sweepClosest - capsuleClosest;
+							pushPositionOut(
+								sweepNormal,
+								combinedRadius - sweepDistance,
+								pushOutScale);
 						}
-						else
-						{
-							position += Vec3::UnitY * (targetDist + 0.0005f);
-						}
-						node.hadContactThisFrame = true;
-						node.hadPushThisFrame = true;
-						resolved = true;
 					}
 				}
 				if (resolved)
 				{
+					if (snapAlpha > 0.f)
+					{
+						const float appliedSnapAlpha = std::clamp(snapAlpha, 0.f, 1.f);
+						position = Vec3::Lerp(currentPosition, position, appliedSnapAlpha);
+					}
+
+					const Vec3 correctionOffset = position - currentPosition;
+					if (node.hasSmoothedCollisionOffset)
+					{
+						const float correctionAlpha = std::clamp(correctionSmoothAlpha, 0.f, 1.f);
+						node.smoothedCollisionOffset = Vec3::Lerp(node.smoothedCollisionOffset, correctionOffset, correctionAlpha);
+
+						const float targetLength = correctionOffset.Length();
+						const float smoothedLength = node.smoothedCollisionOffset.Length();
+						const float maxSmoothedLength = targetLength + 0.001f;
+						if (smoothedLength > maxSmoothedLength && smoothedLength > 0.0001f)
+							node.smoothedCollisionOffset *= maxSmoothedLength / smoothedLength;
+					}
+					else
+					{
+						node.smoothedCollisionOffset = correctionOffset;
+						node.hasSmoothedCollisionOffset = true;
+					}
+
+					const float penetrationAlpha = std::clamp(
+						maxPenetration / std::max(0.001f, nodeRadius + skinWidth),
+						0.f,
+						1.f);
+					position = Vec3::Lerp(
+						currentPosition + node.smoothedCollisionOffset,
+						position,
+						penetrationAlpha);
+
 					node.solvedPosition = position;
+					node.hadContactThisFrame = true;
+					node.hadPushThisFrame = true;
+					++_desc.debugCollisionHitCount;
+
 					if (node.actor)
 					{
 						PxTransform pose = node.actor->getGlobalPose();
 						pose.p = To_PxVec3(position);
 						node.actor->setGlobalPose(pose);
-						node.actor->setLinearVelocity(node.actor->getLinearVelocity() * (1.f - _desc.contactInertiaDamping));
+
+						Vec3 linearVelocity = From_PxVec3(node.actor->getLinearVelocity());
+						if (contactCount > 0)
+						{
+							contactNormal /= static_cast<float>(contactCount);
+							if (contactNormal.LengthSquared() > 0.0001f)
+							{
+								contactNormal.Normalize();
+								if (node.hasSmoothedContactNormal && node.smoothedContactNormal.Dot(contactNormal) > -0.15f)
+								{
+									contactNormal = Vec3::Lerp(node.smoothedContactNormal, contactNormal, normalSmoothAlpha);
+									if (contactNormal.LengthSquared() > 0.0001f)
+										contactNormal.Normalize();
+								}
+
+								node.smoothedContactNormal = contactNormal;
+								node.hasSmoothedContactNormal = true;
+
+								const float normalSpeed = linearVelocity.Dot(contactNormal);
+								const Vec3 tangentVelocity = linearVelocity - contactNormal * normalSpeed;
+								if (normalSpeed < 0.f)
+									linearVelocity = tangentVelocity;
+								else
+									linearVelocity = tangentVelocity + contactNormal * normalSpeed;
+							}
+						}
+
+						linearVelocity *= (1.f - std::clamp(_desc.contactInertiaDamping, 0.f, 1.f));
+						node.actor->setLinearVelocity(To_PxVec3(linearVelocity));
+					}
+				}
+				else
+				{
+					if (node.hasSmoothedCollisionOffset)
+					{
+						node.smoothedCollisionOffset *= std::clamp(correctionSmoothAlpha, 0.f, 1.f);
+						if (node.smoothedCollisionOffset.LengthSquared() <= 0.000001f)
+						{
+							node.smoothedCollisionOffset = Vec3::Zero;
+							node.hasSmoothedCollisionOffset = false;
+						}
+					}
+
+					if (node.hasSmoothedContactNormal)
+					{
+						node.smoothedContactNormal *= std::clamp(normalSmoothAlpha, 0.f, 1.f);
+						if (node.smoothedContactNormal.LengthSquared() <= 0.0001f)
+						{
+							node.smoothedContactNormal = Vec3::Zero;
+							node.hasSmoothedContactNormal = false;
+						}
 					}
 				}
 			}
@@ -839,53 +1767,315 @@ void PhysicsModifier::Apply_PostSimulationConstraints(ModelCom* model, const Mat
 	}
 }
 
-void PhysicsModifier::Write_BackToModel(ModelCom* model, const Matrix& ownerWorld, bool isOwnerIdle)
+void PhysicsModifier::Apply_PoseRestoreAndDamping(float timeDelta, bool isOwnerIdle)
 {
-	float smoothAlpha = isOwnerIdle ? _desc.idleOutputSmoothAlpha : _desc.outputSmoothAlpha;
+	if (timeDelta <= 0.f)
+		return;
+
+	const float baseDampingAlpha = std::clamp(_desc.releaseInertiaDamping, 0.f, 0.98f);
+	const float dampingAlpha = isOwnerIdle
+		? std::max(baseDampingAlpha, std::clamp(_desc.idleOutputSmoothAlpha, 0.f, 0.98f))
+		: baseDampingAlpha;
+	const float restoreAlpha = std::clamp(
+		_desc.poseRestoreAlpha,
+		0.f,
+		1.f);
+	const float idlePositionRestoreAlpha = std::clamp(
+		_desc.poseRestoreAlpha,
+		0.f,
+		1.f);
+	const bool windActive =
+		_desc.windScale > 0.001f &&
+		_desc.windDirection.LengthSquared() > 0.001f;
+	const float idleSettleDistance = std::max(
+		_desc.idleMotionDeadzone * 0.20f,
+		_desc.poseRestoreMaxSpeed * timeDelta * 0.05f);
+	const float idleSettleDistanceSq = idleSettleDistance * idleSettleDistance;
+	const float idleSettleSpeed = std::max(
+		_desc.poseRestoreMaxSpeed * 0.01f,
+		0.0001f);
+	const float idleSettleSpeedSq = idleSettleSpeed * idleSettleSpeed;
 
 	for (auto& chain : _chains)
 	{
-		for (size_t i = 0; i < chain.nodes.size(); ++i)
+		for (auto& node : chain.nodes)
 		{
-			auto& node = chain.nodes[i];
-			if (node.isKinematic) continue;
+			if (node.isKinematic || node.actor == nullptr)
+				continue;
 
-			Matrix parentWorld;
-			if (node.parentNodeIndex >= 0)
+			const PxTransform actorPose = node.actor->getGlobalPose();
+			const Vec3 currentPosition = From_PxVec3(actorPose.p);
+			const Vec3 restPosition = Get_Position(node.originalWorld);
+			Vec3 correctedPosition = currentPosition;
+
+			Vec3 linearVelocity = From_PxVec3(node.actor->getLinearVelocity());
+			if (restoreAlpha > 0.f && _desc.poseRestoreMaxSpeed > 0.f)
 			{
-				parentWorld = chain.nodes[node.parentNodeIndex].originalWorld;
-			}
-			else
-			{
-				parentWorld = chain.anchorWorld;
+				Vec3 restDelta = restPosition - currentPosition;
+				const float restDistance = restDelta.Length();
+				if (restDistance > 0.0001f)
+				{
+					restDelta /= restDistance;
+					const float maxRestoreSpeed = _desc.poseRestoreMaxSpeed * std::max(0.10f, chain.desc.restoreMul);
+					const Vec3 restoreVelocity = restDelta * std::min(restDistance / timeDelta, maxRestoreSpeed);
+					linearVelocity = Vec3::Lerp(linearVelocity, restoreVelocity, restoreAlpha);
+				}
 			}
 
-			Vec3 targetLocalDir;
-			if (node.childNodeIndices.empty())
+			if (isOwnerIdle && idlePositionRestoreAlpha > 0.f)
 			{
-				targetLocalDir = Get_LocalDirection(parentWorld, node.solvedPosition - Get_Position(parentWorld));
-			}
-			else
-			{
-				targetLocalDir = Get_LocalDirection(parentWorld, node.solvedPosition - Get_Position(parentWorld));
+				correctedPosition = Vec3::Lerp(currentPosition, restPosition, idlePositionRestoreAlpha);
+				PxTransform correctedPose = actorPose;
+				correctedPose.p = To_PxVec3(correctedPosition);
+				node.actor->setGlobalPose(correctedPose);
 			}
 
-			float nodeAngleLimit = _desc.maxOutputAngleDegree * chain.desc.maxAngleMul * (0.45f + node.depthRatio * 0.55f);
-			targetLocalDir = Limit_LocalDirectionByAngle(node.bindLocalDir, targetLocalDir, nodeAngleLimit);
+			if (dampingAlpha > 0.f)
+				linearVelocity *= (1.f - dampingAlpha);
+
+			Vec3 angularVelocity = From_PxVec3(node.actor->getAngularVelocity());
+			const float angularDampingAlpha = std::clamp(
+				dampingAlpha,
+				0.f,
+				0.98f);
+			angularVelocity *= (1.f - angularDampingAlpha);
+			bool shouldSleep = false;
+
+			if (isOwnerIdle && !windActive)
+			{
+				const float restDistanceSq = (correctedPosition - restPosition).LengthSquared();
+				if (restDistanceSq <= idleSettleDistanceSq
+					&& linearVelocity.LengthSquared() <= idleSettleSpeedSq
+					&& angularVelocity.LengthSquared() <= idleSettleSpeedSq)
+				{
+					correctedPosition = restPosition;
+					PxTransform settledPose = actorPose;
+					settledPose.p = To_PxVec3(restPosition);
+					node.actor->setGlobalPose(settledPose);
+					linearVelocity = Vec3::Zero;
+					angularVelocity = Vec3::Zero;
+					node.smoothedInertiaVelocity = Vec3::Zero;
+					node.hasSmoothedInertiaVelocity = false;
+					shouldSleep = true;
+				}
+			}
+
+			node.actor->setLinearVelocity(To_PxVec3(linearVelocity), !shouldSleep);
+			node.actor->setAngularVelocity(To_PxVec3(angularVelocity), !shouldSleep);
+			if (shouldSleep)
+				node.actor->putToSleep();
+		}
+	}
+}
+
+void PhysicsModifier::Apply_LocalOffsetConstraints(float timeDelta, bool isOwnerIdle)
+{
+	Vec3 maxLocalOffset(
+		std::max(0.f, fabsf(_desc.maxLocalOffset.x)),
+		std::max(0.f, fabsf(_desc.maxLocalOffset.y)),
+		std::max(0.f, fabsf(_desc.maxLocalOffset.z)));
+	if (!Has_LocalOffsetLimit(maxLocalOffset))
+		return;
+
+	const float idleRestoreAlpha = isOwnerIdle
+		? std::clamp(_desc.poseRestoreAlpha, 0.f, 1.f)
+		: 0.f;
+	const float idleVelocityDamp = isOwnerIdle
+		? std::max(
+			std::clamp(_desc.releaseInertiaDamping, 0.f, 0.98f),
+			std::clamp(_desc.idleOutputSmoothAlpha, 0.f, 0.98f))
+		: 0.f;
+
+	for (auto& chain : _chains)
+	{
+		for (auto& node : chain.nodes)
+		{
+			if (node.isKinematic)
+				continue;
+
+			const Matrix parentWorld = node.parentNodeIndex >= 0
+				? chain.nodes[static_cast<size_t>(node.parentNodeIndex)].originalWorld
+				: chain.anchorWorld;
+			const Matrix parentInv = parentWorld.Invert();
+			const Vec3 restPosition = Get_Position(node.originalWorld);
+			const Vec3 currentPosition = node.solvedPosition;
+			const Vec3 localOffset = Vec3::TransformNormal(currentPosition - restPosition, parentInv);
+
+			bool wasClamped = false;
+			Vec3 constrainedLocalOffset = Clamp_LocalOffset(localOffset, maxLocalOffset, wasClamped);
+			Vec3 constrainedPosition = restPosition + Vec3::TransformNormal(constrainedLocalOffset, parentWorld);
+
+			if (idleRestoreAlpha > 0.f)
+				constrainedPosition = Vec3::Lerp(constrainedPosition, restPosition, idleRestoreAlpha);
+
+			const bool shouldApply = wasClamped
+				|| (idleRestoreAlpha > 0.f && (constrainedPosition - currentPosition).LengthSquared() > 0.000001f);
+			if (!shouldApply)
+				continue;
+
+			if (wasClamped && !isOwnerIdle && timeDelta > 0.0001f)
+			{
+				Vec3 correction = constrainedPosition - currentPosition;
+				const float correctionLength = correction.Length();
+				if (correctionLength > 0.0001f)
+				{
+					const float correctionAlpha = std::clamp(
+						1.f - std::clamp(_desc.releaseInertiaDamping, 0.f, 0.98f),
+						std::clamp(_desc.outputSmoothAlpha, 0.f, 1.f),
+						1.f);
+					const float correctionMaxStep = std::max(0.f, _desc.poseRestoreMaxSpeed) * timeDelta;
+					correction *= correctionAlpha;
+					const float smoothedLength = correction.Length();
+					if (correctionMaxStep > 0.0001f && smoothedLength > correctionMaxStep)
+					{
+						correction /= smoothedLength;
+						correction *= correctionMaxStep;
+					}
+					constrainedPosition = currentPosition + correction;
+				}
+			}
+
+			node.solvedPosition = constrainedPosition;
+			if (wasClamped)
+			{
+				++_desc.debugLocalClampCount;
+				if (fabsf(constrainedLocalOffset.x - localOffset.x) > 0.000001f)
+					++_desc.debugLocalClampXCount;
+				if (fabsf(constrainedLocalOffset.y - localOffset.y) > 0.000001f)
+					++_desc.debugLocalClampYCount;
+				if (fabsf(constrainedLocalOffset.z - localOffset.z) > 0.000001f)
+					++_desc.debugLocalClampZCount;
+			}
+
+			if (node.actor == nullptr)
+				continue;
+
+			PxTransform pose = node.actor->getGlobalPose();
+			pose.p = To_PxVec3(constrainedPosition);
+			node.actor->setGlobalPose(pose);
+
+			Vec3 linearVelocity = From_PxVec3(node.actor->getLinearVelocity());
+			Vec3 localVelocity = Vec3::TransformNormal(linearVelocity, parentInv);
+			if (wasClamped)
+			{
+				const float clampVelocityKeep = std::clamp(
+					1.f - std::clamp(_desc.releaseInertiaDamping, 0.f, 0.98f),
+					0.f,
+					0.35f);
+				if (maxLocalOffset.x > 0.0001f
+					&& fabsf(localOffset.x) >= maxLocalOffset.x - 0.0001f
+					&& localOffset.x * localVelocity.x > 0.f)
+					localVelocity.x *= clampVelocityKeep;
+				if (maxLocalOffset.y > 0.0001f
+					&& fabsf(localOffset.y) >= maxLocalOffset.y - 0.0001f
+					&& localOffset.y * localVelocity.y > 0.f)
+					localVelocity.y *= clampVelocityKeep;
+				if (maxLocalOffset.z > 0.0001f
+					&& fabsf(localOffset.z) >= maxLocalOffset.z - 0.0001f
+					&& localOffset.z * localVelocity.z > 0.f)
+					localVelocity.z *= clampVelocityKeep;
+			}
+			if (idleVelocityDamp > 0.f)
+				localVelocity *= (1.f - idleVelocityDamp);
+
+			linearVelocity = Vec3::TransformNormal(localVelocity, parentWorld);
+			node.actor->setLinearVelocity(To_PxVec3(linearVelocity));
+			if (isOwnerIdle)
+				node.actor->setAngularVelocity(node.actor->getAngularVelocity() * (1.f - idleVelocityDamp));
+		}
+	}
+}
+
+void PhysicsModifier::Write_BackToModel(ModelCom* model, const Matrix& ownerWorld, bool isOwnerIdle)
+{
+	if (model == nullptr) return;
+
+	const float smoothAlpha = std::clamp(isOwnerIdle ? _desc.idleOutputSmoothAlpha : _desc.outputSmoothAlpha, 0.f, 1.f);
+	const float overallOutputAlpha = std::clamp(_desc.outputAlpha, 0.f, 1.f);
+	bool wroteAnyBone = false;
+
+	const auto getNodePosition = [](const Node& node) -> Vec3
+		{
+			if (node.actor != nullptr)
+				return From_PxVec3(node.actor->getGlobalPose().p);
+			return node.solvedPosition;
+		};
+
+	auto writeNodeRotation =
+		[this, model, smoothAlpha, overallOutputAlpha, isOwnerIdle](
+			Chain& chain,
+			Node& node,
+			const Vec3& restLocalDirection,
+			const Vec3& simulatedLocalDirection,
+			const Vec3& simulatedLocalTranslation,
+			bool allowTranslationOutput,
+			float outputDepthRatio,
+			bool hadContact) -> bool
+		{
+			Vec3 restLocalDir = restLocalDirection;
+			Vec3 targetLocalDir = simulatedLocalDirection;
+			if (restLocalDir.LengthSquared() <= 0.0001f || targetLocalDir.LengthSquared() <= 0.0001f)
+				return false;
+
+			restLocalDir.Normalize();
+			targetLocalDir.Normalize();
+
+			const float clampedDepth = std::clamp(outputDepthRatio, 0.f, 1.f);
+			const float nodeAngleLimit = Compute_NodeAngleLimitDegree(chain, clampedDepth);
+			targetLocalDir = Limit_LocalDirectionByAngle(restLocalDir, targetLocalDir, nodeAngleLimit);
+
+			const float outputRestoreAlpha = std::clamp(
+				isOwnerIdle ? _desc.poseRestoreAlpha : 0.f,
+				0.f,
+				1.f);
+			if (outputRestoreAlpha > 0.f)
+			{
+				targetLocalDir = Vec3::Lerp(targetLocalDir, restLocalDir, outputRestoreAlpha);
+				if (targetLocalDir.LengthSquared() > 0.0001f)
+					targetLocalDir.Normalize();
+				else
+					targetLocalDir = restLocalDir;
+			}
+
+			const float minimumFollowAlpha = hadContact
+				? _desc.contactRotationFollowAlpha - clampedDepth * _desc.rotationFollowDepthScale
+				: _desc.freeRotationFollowAlpha - clampedDepth * _desc.rotationFollowDepthScale;
+			const float baseRotationFollowAlpha = std::max(
+				std::clamp(minimumFollowAlpha, 0.f, 1.f),
+				std::clamp(smoothAlpha * chain.desc.smoothMultiplier, 0.f, 1.f));
+			const float depthSmoothWeight = SmoothStep(clampedDepth);
+			const float rotationFollowAlpha = baseRotationFollowAlpha;
+			if (node.hasSmoothedLocalDirection &&
+				node.smoothedLocalDirection.Dot(targetLocalDir) > -std::clamp(smoothAlpha, 0.f, 1.f))
+			{
+				targetLocalDir = Vec3::Lerp(node.smoothedLocalDirection, targetLocalDir, rotationFollowAlpha);
+				if (targetLocalDir.LengthSquared() > 0.0001f)
+					targetLocalDir.Normalize();
+				else
+					targetLocalDir = restLocalDir;
+			}
+			node.smoothedLocalDirection = targetLocalDir;
+			node.hasSmoothedLocalDirection = true;
 
 			Quat poseRotation = Extract_Rotation(node.poseLocal);
-			Quat solvedRotation = Build_RotationDelta(node.bindLocalDir, targetLocalDir) * poseRotation;
+			poseRotation.Normalize();
 
-			float nodeRotationOutputAlpha = _desc.outputAlpha * chain.desc.outputMultiplier * _desc.rotationOutputAlpha;
+			Quat solvedRotation = Build_RotationDelta(restLocalDir, targetLocalDir) * poseRotation;
+			solvedRotation.Normalize();
+
+			const float depthOutputAlpha = std::clamp(
+				std::lerp(std::clamp(chain.desc.smoothMultiplier, 0.f, 1.f), 1.f, depthSmoothWeight),
+				0.f,
+				1.f);
+			const float nodeRotationOutputAlpha = std::clamp(
+				overallOutputAlpha * chain.desc.outputMultiplier * _desc.rotationOutputAlpha * depthOutputAlpha,
+				0.f,
+				1.f);
 			Quat blendedRotation = Quat::Slerp(poseRotation, solvedRotation, nodeRotationOutputAlpha);
+			blendedRotation.Normalize();
 
-			float rotationFollowAlpha = node.hadContactThisFrame ? 
-				_desc.contactRotationFollowAlpha - node.depthRatio * _desc.rotationFollowDepthScale :
-				_desc.freeRotationFollowAlpha - node.depthRatio * (_desc.rotationFollowDepthScale + 0.02f);
-			
-			rotationFollowAlpha = max(0.02f, rotationFollowAlpha * chain.desc.smoothMultiplier);
-			
-			if (node.hasSmoothedLocalTransform)
+			const bool hadSmoothedLocalTransform = node.hasSmoothedLocalTransform;
+			if (hadSmoothedLocalTransform)
 			{
 				node.smoothedLocalRotation = Quat::Slerp(node.smoothedLocalRotation, blendedRotation, rotationFollowAlpha);
 			}
@@ -894,15 +2084,184 @@ void PhysicsModifier::Write_BackToModel(ModelCom* model, const Matrix& ownerWorl
 				node.smoothedLocalRotation = blendedRotation;
 				node.hasSmoothedLocalTransform = true;
 			}
+			node.smoothedLocalRotation.Normalize();
 
-			Vec3 translation = Get_Position(node.poseLocal);
-			Matrix finalLocal = Build_LocalMatrix_FromSRT(node.bindScale, node.smoothedLocalRotation, translation);
-			
+			Vec3 poseScale = Vec3::One;
+			Quat unusedPoseRotation = Quat::Identity;
+			Vec3 translation = Vec3::Zero;
+			Matrix poseLocal = node.poseLocal;
+			poseLocal.Decompose(poseScale, unusedPoseRotation, translation);
+			if (poseScale.LengthSquared() <= 0.000001f)
+				poseScale = node.bindScale;
+
+			Vec3 targetTranslation = translation;
+			if (allowTranslationOutput)
+			{
+				targetTranslation = simulatedLocalTranslation;
+				const float restTranslationLength = translation.Length();
+				const float targetTranslationLength = targetTranslation.Length();
+				if (restTranslationLength > 0.0001f && targetTranslationLength > 0.0001f)
+				{
+					targetTranslation /= targetTranslationLength;
+					targetTranslation *= restTranslationLength;
+				}
+
+				Vec3 translationOffset = targetTranslation - translation;
+				Vec3 maxLocalOffset(
+					std::max(0.f, fabsf(_desc.maxLocalOffset.x)),
+					std::max(0.f, fabsf(_desc.maxLocalOffset.y)),
+					std::max(0.f, fabsf(_desc.maxLocalOffset.z)));
+				if (Has_LocalOffsetLimit(maxLocalOffset))
+				{
+					bool unusedClamped = false;
+					translationOffset = Clamp_LocalOffset(translationOffset, maxLocalOffset, unusedClamped);
+					targetTranslation = translation + translationOffset;
+				}
+			}
+
+			if (hadSmoothedLocalTransform)
+			{
+				const float translationFollowAlpha = allowTranslationOutput
+					? std::clamp(
+						std::lerp(
+							smoothAlpha,
+							_desc.freeRotationFollowAlpha,
+							std::clamp(chain.desc.smoothMultiplier, 0.f, 1.f)),
+						0.f,
+						1.f)
+					: std::clamp(
+						std::max(
+							rotationFollowAlpha,
+							std::lerp(smoothAlpha, _desc.freeRotationFollowAlpha, depthSmoothWeight)),
+						0.f,
+						1.f);
+				node.smoothedLocalTranslation = Vec3::Lerp(node.smoothedLocalTranslation, targetTranslation, translationFollowAlpha);
+			}
+			else
+			{
+				node.smoothedLocalTranslation = targetTranslation;
+			}
+
+			Matrix finalLocal = Build_LocalMatrix_FromSRT(poseScale, node.smoothedLocalRotation, node.smoothedLocalTranslation);
 			model->Set_BoneLocalMatrix(node.boneIndex, finalLocal);
-			model->Rebuild_BoneCombinedMatrices();
-			node.originalWorld = (*model->Get_BoneMatrixPtr(node.boneIndex)) * ownerWorld;
+			return true;
+		};
+
+	for (auto& chain : _chains)
+	{
+		for (auto& node : chain.nodes)
+		{
+			if (node.parentNodeIndex >= 0 || node.childNodeIndices.empty())
+				continue;
+
+			const int32 childNodeIndex = node.childNodeIndices.front();
+			if (childNodeIndex < 0 || static_cast<size_t>(childNodeIndex) >= chain.nodes.size())
+				continue;
+
+			Node& childNode = chain.nodes[static_cast<size_t>(childNodeIndex)];
+			Vec3 simulatedWorldDir = getNodePosition(childNode) - getNodePosition(node);
+			if (simulatedWorldDir.LengthSquared() <= 0.0001f)
+				continue;
+
+			simulatedWorldDir.Normalize();
+			const Vec3 simulatedLocalDir = Get_LocalDirection(node.originalWorld, simulatedWorldDir);
+			const Vec3 restLocalDir = childNode.poseLocalDir.LengthSquared() > 0.0001f
+				? childNode.poseLocalDir
+				: childNode.bindLocalDir;
+
+			wroteAnyBone = writeNodeRotation(
+				chain,
+				node,
+				restLocalDir,
+				simulatedLocalDir,
+				Get_Position(node.poseLocal),
+				false,
+				childNode.depthRatio,
+				childNode.hadContactThisFrame) || wroteAnyBone;
 		}
 	}
+
+	if (wroteAnyBone)
+		model->Rebuild_BoneCombinedMatrices();
+
+	for (auto& chain : _chains)
+	{
+		for (size_t i = 0; i < chain.nodes.size(); ++i)
+		{
+			auto& node = chain.nodes[i];
+			if (node.isKinematic || node.parentNodeIndex < 0)
+				continue;
+
+			if (!node.childNodeIndices.empty())
+			{
+				const int32 childNodeIndex = node.childNodeIndices.front();
+				if (childNodeIndex >= 0 && static_cast<size_t>(childNodeIndex) < chain.nodes.size())
+				{
+					Node& childNode = chain.nodes[static_cast<size_t>(childNodeIndex)];
+					Vec3 simulatedWorldDir = getNodePosition(childNode) - getNodePosition(node);
+					if (simulatedWorldDir.LengthSquared() > 0.0001f)
+					{
+						simulatedWorldDir.Normalize();
+						const Vec3 simulatedLocalDir = Get_LocalDirection(node.originalWorld, simulatedWorldDir);
+						const Vec3 restLocalDir = childNode.poseLocalDir.LengthSquared() > 0.0001f
+							? childNode.poseLocalDir
+							: childNode.bindLocalDir;
+
+						if (writeNodeRotation(
+							chain,
+							node,
+							restLocalDir,
+							simulatedLocalDir,
+							Get_Position(node.poseLocal),
+							false,
+							childNode.depthRatio,
+							childNode.hadContactThisFrame))
+						{
+							wroteAnyBone = true;
+							model->Rebuild_BoneCombinedMatrices();
+						}
+					}
+				}
+
+				continue;
+			}
+
+			Node& parentNode = chain.nodes[static_cast<size_t>(node.parentNodeIndex)];
+			const Matrix* parentCombined = model->Get_BoneMatrixPtr(parentNode.boneIndex);
+			const Matrix parentWorld = parentCombined != nullptr
+				? (*parentCombined) * ownerWorld
+				: parentNode.originalWorld;
+
+			Vec3 simulatedWorldDir = getNodePosition(node) - getNodePosition(parentNode);
+			if (simulatedWorldDir.LengthSquared() <= 0.0001f)
+				continue;
+
+			simulatedWorldDir.Normalize();
+			const Vec3 simulatedLocalDir = Get_LocalDirection(parentWorld, simulatedWorldDir);
+			const Vec3 simulatedLocalTranslation =
+				Vec3::Transform(getNodePosition(node), parentWorld.Invert());
+			const Vec3 restLocalDir = node.poseLocalDir.LengthSquared() > 0.0001f
+				? node.poseLocalDir
+				: node.bindLocalDir;
+
+			if (writeNodeRotation(
+				chain,
+				node,
+				restLocalDir,
+				simulatedLocalDir,
+				simulatedLocalTranslation,
+				true,
+				node.depthRatio,
+				node.hadContactThisFrame))
+			{
+				wroteAnyBone = true;
+				model->Rebuild_BoneCombinedMatrices();
+			}
+		}
+	}
+
+	if (wroteAnyBone)
+		model->Rebuild_BoneCombinedMatrices();
 }
 
 vector<PhysicsModifier::WorldCapsule> PhysicsModifier::Build_WorldCapsules(const ModelCom* collisionModel, const Matrix& collisionOwnerWorld) const
@@ -920,19 +2279,46 @@ vector<PhysicsModifier::WorldCapsule> PhysicsModifier::Build_WorldCapsules(const
 			}
 		}
 
-		uint32 boneIndex = collisionModel->Get_BoneIndex(collider.boneName);
-		if (boneIndex == -1) continue;
+		const int32 boneIndex = collisionModel->Get_BoneIndex(collider.boneName);
+		if (boneIndex < 0) continue;
 
-		Matrix boneWorld = (*collisionModel->Get_BoneMatrixPtr(boneIndex)) * collisionOwnerWorld;
-		Vec3 center = Vec3::Transform(collider.center, boneWorld);
-		Vec3 axis = Vec3::TransformNormal(Vec3::TransformNormal(Vec3::UnitY, Matrix::CreateFromQuaternion(collider.rotationQuat)), boneWorld);
-		if (axis.LengthSquared() > 0.0001f) axis.Normalize();
+		const Matrix* boneCombined = collisionModel->Get_BoneMatrixPtr(static_cast<uint32>(boneIndex));
+		if (boneCombined == nullptr) continue;
 
-		float radiusScale = max({ 1.0f, 1.0f, 1.0f }); // Assuming uniform scale for now
-		float scaledHalfHeight = collider.halfLength * radiusScale;
+		Matrix boneWorld = (*boneCombined) * collisionOwnerWorld;
+		Vec3 worldScale = Vec3::One;
+		Quat worldRotation = Quat::Identity;
+		Vec3 worldTranslation = Vec3::Zero;
+		Matrix boneWorldForDecompose = boneWorld;
+		boneWorldForDecompose.Decompose(worldScale, worldRotation, worldTranslation);
+
+		Vec3 localAxis = Vec3::TransformNormal(Vec3::UnitY, Matrix::CreateFromQuaternion(collider.rotationQuat));
+		if (localAxis.LengthSquared() <= 0.0001f)
+			localAxis = Vec3::UnitY;
+		else
+			localAxis.Normalize();
+
+		Vec3 axis = Vec3::TransformNormal(localAxis, Matrix::CreateFromQuaternion(worldRotation));
+		if (axis.LengthSquared() <= 0.0001f)
+			axis = Vec3::UnitY;
+		else
+			axis.Normalize();
+
+		Vec3 scaledLocalAxis(
+			localAxis.x * fabsf(worldScale.x),
+			localAxis.y * fabsf(worldScale.y),
+			localAxis.z * fabsf(worldScale.z));
+		float lengthScale = scaledLocalAxis.Length();
+		if (lengthScale <= 0.0001f)
+			lengthScale = 1.f;
+
+		const float primitiveScale = std::max(0.001f, _desc.collisionPrimitiveScale);
+		const float radiusScale = std::max(std::max(fabsf(worldScale.x), fabsf(worldScale.y)), fabsf(worldScale.z));
+		const float scaledHalfHeight = collider.halfLength * primitiveScale * std::max(0.001f, lengthScale);
+		const Vec3 center = Vec3::Transform(collider.center, boneWorld);
 		
 		WorldCapsule cap;
-		cap.radius = collider.radius * _desc.collisionPrimitiveScale * radiusScale + _desc.collisionRadiusPadding;
+		cap.radius = collider.radius * primitiveScale * std::max(0.001f, radiusScale) + _desc.collisionRadiusPadding;
 		cap.startPoint = center - axis * scaledHalfHeight;
 		cap.endPoint = center + axis * scaledHalfHeight;
 		capsules.push_back(cap);
@@ -945,39 +2331,192 @@ void PhysicsModifier::Build_DebugOutput(ModelCom* model, const Matrix& ownerWorl
 	_runtimeDebugCapsules.clear();
 	_runtimeDebugSpheres.clear();
 	_runtimeDebugSegments.clear();
-	// Logic to fill debug visualization vectors can be implemented here if needed.
+
+	_desc.debugActiveChainCount = static_cast<int32>(_chains.size());
+	_desc.debugActiveNodeCount = 0;
+	for (const Chain& chain : _chains)
+	{
+		for (const Node& node : chain.nodes)
+		{
+			if (!node.isKinematic)
+				++_desc.debugActiveNodeCount;
+		}
+	}
+
+	const ModelCom* collisionModel = _desc.collisionModel ? _desc.collisionModel : model;
+	const Matrix collisionOwnerWorld = _desc.collisionOwnerWorldMatrix ? *_desc.collisionOwnerWorldMatrix : ownerWorld;
+	const vector<WorldCapsule> worldCapsules = Build_WorldCapsules(collisionModel, collisionOwnerWorld);
+	_desc.debugLoadedCapsuleCount = static_cast<int32>(_colliders.size());
+	_desc.debugActiveCapsuleCount = static_cast<int32>(worldCapsules.size());
+
+	if (!_desc.debugDrawCollisionCapsules)
+		return;
+
+	const float nodeRadius = std::max(0.02f, _desc.collisionSphereRadius);
+	const float skinWidth = std::max(0.f, _desc.collisionContactSkinWidth);
+	for (const WorldCapsule& capsule : worldCapsules)
+	{
+		RuntimeDebugCapsule debugCapsule{};
+		debugCapsule.startPoint = capsule.startPoint;
+		debugCapsule.endPoint = capsule.endPoint;
+		debugCapsule.sourceRadius = std::max(0.f, capsule.radius - _desc.collisionRadiusPadding);
+		debugCapsule.collisionRadius = capsule.radius + nodeRadius + skinWidth;
+		_runtimeDebugCapsules.push_back(debugCapsule);
+	}
+
+	for (const Chain& chain : _chains)
+	{
+		Vec3 anchorPosition = Get_Position(chain.anchorWorld);
+		if (chain.anchorActor != nullptr)
+			anchorPosition = From_PxVec3(chain.anchorActor->getGlobalPose().p);
+
+		for (const Node& node : chain.nodes)
+		{
+			Vec3 actorPosition = node.solvedPosition;
+			if (node.actor != nullptr)
+				actorPosition = From_PxVec3(node.actor->getGlobalPose().p);
+
+			if (node.debugSphereRadius > 0.f)
+			{
+				RuntimeDebugSphere sphere{};
+				sphere.center = actorPosition;
+				sphere.radius = node.debugSphereRadius;
+				sphere.hasContact = node.hadContactThisFrame;
+				_runtimeDebugSpheres.push_back(sphere);
+			}
+
+			RuntimeDebugSegment segment{};
+			if (node.parentNodeIndex >= 0)
+			{
+				const Node& parentNode = chain.nodes[static_cast<size_t>(node.parentNodeIndex)];
+				segment.startPoint = parentNode.actor != nullptr
+					? From_PxVec3(parentNode.actor->getGlobalPose().p)
+					: parentNode.solvedPosition;
+			}
+			else
+			{
+				segment.startPoint = anchorPosition;
+			}
+
+			segment.endPoint = actorPosition;
+			segment.hasContact = node.hadContactThisFrame;
+			segment.hasPush = node.hadPushThisFrame;
+			_runtimeDebugSegments.push_back(segment);
+		}
+	}
 }
 
 bool PhysicsModifier::Validate_RootAlignment(ModelCom* model, const Matrix& ownerWorld)
 {
-	return true; // Simplified for this rewrite. Add rigorous check if necessary.
+	if (model == nullptr || _chains.empty())
+		return true;
+
+	constexpr float kSevereRootMismatch = 150.f;
+	for (const Chain& chain : _chains)
+	{
+		if (chain.nodes.empty())
+			continue;
+
+		const Node& rootNode = chain.nodes.front();
+		const Matrix* rootCombined = model->Get_BoneMatrixPtr(rootNode.boneIndex);
+		if (rootCombined == nullptr || rootNode.actor == nullptr)
+			continue;
+
+		const Vec3 rootPosition = Get_Position((*rootCombined) * ownerWorld);
+		const Vec3 actorPosition = From_PxVec3(rootNode.actor->getGlobalPose().p);
+		if (Vec3::Distance(rootPosition, actorPosition) > kSevereRootMismatch)
+			return false;
+	}
+
+	return true;
 }
 
 const ClassReflectionInfo* PhysicsModifier::Get_RuntimeReflectionInfo() const
 {
-	static ClassReflectionInfo info{};
-	static bool initialized = false;
-	if (!initialized)
-	{
-		info.className = "PhysicsModifierDesc";
-		AddRuntimeProperty(info.properties, PropertyType::Bool, "writeBackEnabled", "Write Back Enabled", PhysicsOffset(&PhysicsModifierDesc::writeBackEnabled));
-		AddRuntimeProperty(info.properties, PropertyType::Bool, "enableCollision", "Enable Collision", PhysicsOffset(&PhysicsModifierDesc::enableCollision));
-		AddRuntimeProperty(info.properties, PropertyType::Float, "outputAlpha", "Output Alpha", PhysicsOffset(&PhysicsModifierDesc::outputAlpha), 0.01f, 0.f, 1.f);
-		AddRuntimeProperty(info.properties, PropertyType::Float, "rotationOutputAlpha", "Rotation Output Alpha", PhysicsOffset(&PhysicsModifierDesc::rotationOutputAlpha), 0.01f, 0.f, 1.f);
-		AddRuntimeProperty(info.properties, PropertyType::Float, "contactInertiaDamping", "Contact Inertia Damping", PhysicsOffset(&PhysicsModifierDesc::contactInertiaDamping), 0.01f, 0.f, 1.f);
-		AddRuntimeProperty(info.properties, PropertyType::Float, "releaseInertiaDamping", "Release Inertia Damping", PhysicsOffset(&PhysicsModifierDesc::releaseInertiaDamping), 0.01f, 0.f, 1.f);
-		initialized = true;
-	}
+	static ClassReflectionInfo info = []()
+		{
+			ClassReflectionInfo result{};
+			result.className = "PhysicsModifierRuntime";
+			result.displayName = "Physics Modifier Runtime";
+			result.category = "Animation";
+			result.type = RegisteredType::None;
+
+			AddRuntimeProperty(result.properties, PropertyType::Bool, "writeBackEnabled", "Write Back", PhysicsOffset(&PhysicsModifierDesc::writeBackEnabled));
+			AddRuntimeProperty(result.properties, PropertyType::Bool, "enableCollision", "Collision", PhysicsOffset(&PhysicsModifierDesc::enableCollision));
+			AddRuntimeProperty(result.properties, PropertyType::Bool, "debugDrawCollisionCapsules", "Debug Col", PhysicsOffset(&PhysicsModifierDesc::debugDrawCollisionCapsules));
+			AddRuntimeProperty(result.properties, PropertyType::Int, "debugActiveChainCount", "Dbg Chain", PhysicsOffset(&PhysicsModifierDesc::debugActiveChainCount), 1.f, 0.f, 256.f);
+			AddRuntimeProperty(result.properties, PropertyType::Int, "debugActiveNodeCount", "Dbg Node", PhysicsOffset(&PhysicsModifierDesc::debugActiveNodeCount), 1.f, 0.f, 4096.f);
+			AddRuntimeProperty(result.properties, PropertyType::Int, "debugLoadedCapsuleCount", "Dbg Col Load", PhysicsOffset(&PhysicsModifierDesc::debugLoadedCapsuleCount), 1.f, 0.f, 4096.f);
+			AddRuntimeProperty(result.properties, PropertyType::Int, "debugActiveCapsuleCount", "Dbg Col Act", PhysicsOffset(&PhysicsModifierDesc::debugActiveCapsuleCount), 1.f, 0.f, 4096.f);
+			AddRuntimeProperty(result.properties, PropertyType::Int, "debugCollisionHitCount", "Dbg Col Hit", PhysicsOffset(&PhysicsModifierDesc::debugCollisionHitCount), 1.f, 0.f, 4096.f);
+			AddRuntimeProperty(result.properties, PropertyType::Int, "debugConstraintProjectionCount", "Dbg Project", PhysicsOffset(&PhysicsModifierDesc::debugConstraintProjectionCount), 1.f, 0.f, 4096.f);
+			AddRuntimeProperty(result.properties, PropertyType::Int, "debugLocalClampCount", "Dbg Clamp", PhysicsOffset(&PhysicsModifierDesc::debugLocalClampCount), 1.f, 0.f, 4096.f);
+			AddRuntimeProperty(result.properties, PropertyType::Int, "debugLocalClampXCount", "Dbg Clamp X", PhysicsOffset(&PhysicsModifierDesc::debugLocalClampXCount), 1.f, 0.f, 4096.f);
+			AddRuntimeProperty(result.properties, PropertyType::Int, "debugLocalClampYCount", "Dbg Clamp Y", PhysicsOffset(&PhysicsModifierDesc::debugLocalClampYCount), 1.f, 0.f, 4096.f);
+			AddRuntimeProperty(result.properties, PropertyType::Int, "debugLocalClampZCount", "Dbg Clamp Z", PhysicsOffset(&PhysicsModifierDesc::debugLocalClampZCount), 1.f, 0.f, 4096.f);
+			AddRuntimeProperty(result.properties, PropertyType::Float, "debugInertiaMagnitude", "Dbg Inertia", PhysicsOffset(&PhysicsModifierDesc::debugInertiaMagnitude), 0.001f, 0.f, 100.f);
+
+			AddRuntimeProperty(result.properties, PropertyType::Float, "outputAlpha", "Output", PhysicsOffset(&PhysicsModifierDesc::outputAlpha), 0.005f, 0.f, 1.f);
+			AddRuntimeProperty(result.properties, PropertyType::Float, "rotationOutputAlpha", "Rot Out", PhysicsOffset(&PhysicsModifierDesc::rotationOutputAlpha), 0.005f, 0.f, 1.f);
+			AddRuntimeProperty(result.properties, PropertyType::Float, "outputSmoothAlpha", "Smooth", PhysicsOffset(&PhysicsModifierDesc::outputSmoothAlpha), 0.005f, 0.f, 1.f);
+			AddRuntimeProperty(result.properties, PropertyType::Float, "idleOutputSmoothAlpha", "Idle Smooth", PhysicsOffset(&PhysicsModifierDesc::idleOutputSmoothAlpha), 0.005f, 0.f, 1.f);
+			AddRuntimeProperty(result.properties, PropertyType::Float, "idleMotionDeadzone", "Idle Dead", PhysicsOffset(&PhysicsModifierDesc::idleMotionDeadzone), 0.001f, 0.f, 10.f);
+			AddRuntimeProperty(result.properties, PropertyType::Float, "maxOutputAngleDegree", "Max Angle", PhysicsOffset(&PhysicsModifierDesc::maxOutputAngleDegree), 0.25f, 0.f, 180.f);
+
+			AddRuntimeProperty(result.properties, PropertyType::Float, "contactRotationFollowAlpha", "Contact Follow", PhysicsOffset(&PhysicsModifierDesc::contactRotationFollowAlpha), 0.005f, 0.f, 1.f);
+			AddRuntimeProperty(result.properties, PropertyType::Float, "freeRotationFollowAlpha", "Free Follow", PhysicsOffset(&PhysicsModifierDesc::freeRotationFollowAlpha), 0.005f, 0.f, 1.f);
+			AddRuntimeProperty(result.properties, PropertyType::Float, "rotationFollowDepthScale", "Depth Follow", PhysicsOffset(&PhysicsModifierDesc::rotationFollowDepthScale), 0.005f, 0.f, 1.f);
+			AddRuntimeProperty(result.properties, PropertyType::Float, "poseRestoreAlpha", "Restore", PhysicsOffset(&PhysicsModifierDesc::poseRestoreAlpha), 0.005f, 0.f, 1.f);
+			AddRuntimeProperty(result.properties, PropertyType::Float, "poseRestoreMaxSpeed", "Restore Speed", PhysicsOffset(&PhysicsModifierDesc::poseRestoreMaxSpeed), 0.05f, 0.f, 100.f);
+			AddRuntimeProperty(result.properties, PropertyType::Vec3, "maxLocalOffset", "Max Local", PhysicsOffset(&PhysicsModifierDesc::maxLocalOffset), 0.005f);
+			AddRuntimeProperty(result.properties, PropertyType::Float, "movementInertiaScale", "Move Inertia", PhysicsOffset(&PhysicsModifierDesc::movementInertiaScale), 0.005f, 0.f, 5.f);
+			AddRuntimeProperty(result.properties, PropertyType::Float, "tipMovementInertiaScale", "Tip Inertia", PhysicsOffset(&PhysicsModifierDesc::tipMovementInertiaScale), 0.01f, 0.f, 30.f);
+			AddRuntimeProperty(result.properties, PropertyType::Float, "maxMovementInertiaSpeed", "Max Inertia", PhysicsOffset(&PhysicsModifierDesc::maxMovementInertiaSpeed), 0.05f, 0.f, 80.f);
+			AddRuntimeProperty(result.properties, PropertyType::Float, "lateralInertiaScale", "Side Inertia", PhysicsOffset(&PhysicsModifierDesc::lateralInertiaScale), 0.01f, 0.f, 10.f);
+			AddRuntimeProperty(result.properties, PropertyType::Float, "verticalInertiaScale", "Up Inertia", PhysicsOffset(&PhysicsModifierDesc::verticalInertiaScale), 0.01f, 0.f, 10.f);
+			AddRuntimeProperty(result.properties, PropertyType::Float, "depthInertiaScale", "Depth Inertia", PhysicsOffset(&PhysicsModifierDesc::depthInertiaScale), 0.01f, 0.f, 10.f);
+			AddRuntimeProperty(result.properties, PropertyType::Float, "accelerationInertiaScale", "Accel Inertia", PhysicsOffset(&PhysicsModifierDesc::accelerationInertiaScale), 0.01f, 0.f, 10.f);
+			AddRuntimeProperty(result.properties, PropertyType::Float, "inertiaVelocitySmoothAlpha", "Inertia Smooth", PhysicsOffset(&PhysicsModifierDesc::inertiaVelocitySmoothAlpha), 0.005f, 0.f, 1.f);
+			AddRuntimeProperty(result.properties, PropertyType::Float, "poseSpringStrength", "Spring", PhysicsOffset(&PhysicsModifierDesc::poseSpringStrength), 0.01f, 0.f, 20.f);
+			AddRuntimeProperty(result.properties, PropertyType::Float, "poseSpringDamping", "Spring Damp", PhysicsOffset(&PhysicsModifierDesc::poseSpringDamping), 0.005f, 0.f, 1.f);
+			AddRuntimeProperty(result.properties, PropertyType::Float, "lengthConstraintAlpha", "Length Cst", PhysicsOffset(&PhysicsModifierDesc::lengthConstraintAlpha), 0.005f, 0.f, 1.f);
+			AddRuntimeProperty(result.properties, PropertyType::Float, "bendConstraintAlpha", "Bend Cst", PhysicsOffset(&PhysicsModifierDesc::bendConstraintAlpha), 0.005f, 0.f, 1.f);
+			AddRuntimeProperty(result.properties, PropertyType::Int, "projectionIterations", "Proj Iter", PhysicsOffset(&PhysicsModifierDesc::projectionIterations), 1.f, 1.f, 16.f);
+
+			AddRuntimeProperty(result.properties, PropertyType::Float, "contactInertiaDamping", "Contact Damp", PhysicsOffset(&PhysicsModifierDesc::contactInertiaDamping), 0.005f, 0.f, 1.f);
+			AddRuntimeProperty(result.properties, PropertyType::Float, "releaseInertiaDamping", "Release Damp", PhysicsOffset(&PhysicsModifierDesc::releaseInertiaDamping), 0.005f, 0.f, 1.f);
+
+			AddRuntimeProperty(result.properties, PropertyType::Float, "collisionPrimitiveScale", "Col Scale", PhysicsOffset(&PhysicsModifierDesc::collisionPrimitiveScale), 0.005f, 0.001f, 10.f);
+			AddRuntimeProperty(result.properties, PropertyType::Float, "collisionRadiusPadding", "Col Pad", PhysicsOffset(&PhysicsModifierDesc::collisionRadiusPadding), 0.005f, 0.f, 10.f);
+			AddRuntimeProperty(result.properties, PropertyType::Float, "collisionContactSkinWidth", "Col Skin", PhysicsOffset(&PhysicsModifierDesc::collisionContactSkinWidth), 0.005f, 0.f, 10.f);
+			AddRuntimeProperty(result.properties, PropertyType::Float, "collisionSphereRadius", "Node Radius", PhysicsOffset(&PhysicsModifierDesc::collisionSphereRadius), 0.005f, 0.001f, 10.f);
+			AddRuntimeProperty(result.properties, PropertyType::Float, "collisionPushOutScale", "Push Out", PhysicsOffset(&PhysicsModifierDesc::collisionPushOutScale), 0.01f, 0.f, 10.f);
+			AddRuntimeProperty(result.properties, PropertyType::Float, "contactSnapAlpha", "Contact Snap", PhysicsOffset(&PhysicsModifierDesc::contactSnapAlpha), 0.005f, 0.f, 1.f);
+			AddRuntimeProperty(result.properties, PropertyType::Float, "collisionCorrectionSmoothAlpha", "Col Smooth", PhysicsOffset(&PhysicsModifierDesc::collisionCorrectionSmoothAlpha), 0.005f, 0.f, 1.f);
+			AddRuntimeProperty(result.properties, PropertyType::Float, "collisionNormalSmoothAlpha", "Normal Smooth", PhysicsOffset(&PhysicsModifierDesc::collisionNormalSmoothAlpha), 0.005f, 0.f, 1.f);
+			AddRuntimeProperty(result.properties, PropertyType::Int, "collisionProjectionIterations", "Col Iter", PhysicsOffset(&PhysicsModifierDesc::collisionProjectionIterations), 1.f, 0.f, 32.f);
+
+			AddRuntimeProperty(result.properties, PropertyType::Vec3, "windDirection", "Wind Dir", PhysicsOffset(&PhysicsModifierDesc::windDirection), 0.01f);
+			AddRuntimeProperty(result.properties, PropertyType::Float, "windScale", "Wind", PhysicsOffset(&PhysicsModifierDesc::windScale), 0.001f, 0.f, 100.f);
+			AddRuntimeProperty(result.properties, PropertyType::Float, "windWaveScale", "Wind Wave", PhysicsOffset(&PhysicsModifierDesc::windWaveScale), 0.005f, 0.f, 2.f);
+			AddRuntimeProperty(result.properties, PropertyType::Float, "windWaveFrequency", "Wind Freq", PhysicsOffset(&PhysicsModifierDesc::windWaveFrequency), 0.01f, 0.f, 20.f);
+			AddRuntimeProperty(result.properties, PropertyType::Float, "windWaveDepthPhase", "Wind Phase", PhysicsOffset(&PhysicsModifierDesc::windWaveDepthPhase), 0.01f, -10.f, 10.f);
+			AddRuntimeProperty(result.properties, PropertyType::Float, "gravityScale", "Gravity", PhysicsOffset(&PhysicsModifierDesc::gravityScale), 0.01f, 0.f, 10.f);
+			AddRuntimeProperty(result.properties, PropertyType::Float, "teleportDistance", "Reset Dist", PhysicsOffset(&PhysicsModifierDesc::teleportDistance), 0.05f, 0.f, 1000.f);
+			AddRuntimeProperty(result.properties, PropertyType::Int, "solverIterations", "Solver Iter", PhysicsOffset(&PhysicsModifierDesc::solverIterations), 1.f, 1.f, 64.f);
+
+			return result;
+		}();
+
 	return &info;
 }
 
 void PhysicsModifier::On_RuntimeReflectionChanged(ModelCom* model, const PropertyInfo& property)
 {
-	if (_isActive)
-	{
-		Restore_PoseLocals(model);
-		ResetPose(model);
-	}
+	if (property.name.rfind("debug", 0) == 0)
+		return;
+
+	RuntimeRebuild(model);
 }
 
 NS_END

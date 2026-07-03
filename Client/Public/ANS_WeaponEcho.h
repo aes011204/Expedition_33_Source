@@ -43,7 +43,7 @@ public:
 private:
     Mon_Simon_Weapon* Resolve_TargetSimonWeapon(const AnimNotifyContext& context) const;
     uint32  Resolve_EchoCount(const AnimNotifyContext& context) const;
-    bool    Is_SecondEchoPhase(const AnimNotifyContext& context) const;
+    uint32  Resolve_AutoEchoCount(const AnimNotifyContext& context) const;
     void    Record_Sample(const AnimNotifyContext& context, bool force);
     float   Get_ElapsedSec(const AnimNotifyContext& context) const;
 

@@ -60,10 +60,17 @@ void ClientScreenFxManager::Transition_To_BattleField()
     wipeDesc.duration = 2.f;
     wipeDesc.edgeSoftness = 0.1f;
     wipeDesc.maxRadius = 2.f;
+    wipeDesc.useBlackSource = _useBlackSourceForNextBattleTransition;
+    _useBlackSourceForNextBattleTransition = false;
 
     wipeDesc.endPredicate = nullptr;
 
     GAME->Play_ScreenFx(BattleTransition_ScreenFx::Create(&wipeDesc));
+}
+
+void ClientScreenFxManager::Request_NextBattleTransitionBlackSource()
+{
+    _useBlackSourceForNextBattleTransition = true;
 }
 
 Shared<ClientScreenFxManager> ClientScreenFxManager::Create()

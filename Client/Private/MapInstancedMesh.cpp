@@ -198,12 +198,22 @@ void MapInstancedMesh::Late_Update(float timeDelta)
         return;
     }
 
+    if (!ClientInstance::Should_RenderMapObjectInPotatoBagArena(_groupBounds))
+    {
+        return;
+    }
+
     const Vec4* cam4 = GAME->Get_CamPosition();
     const bool hasCamPos = cam4 != nullptr;
     const Vec3 camPos = hasCamPos ? Vec3(cam4->x, cam4->y, cam4->z) : Vec3{};
 
     auto submitShadowIfInRange = [&]()
     {
+        if (ClientInstance::Is_PotatoBagArenaMapRenderGateActive())
+        {
+            return;
+        }
+
         if (!_castShadow || !Casts_DynamicShadow())
         {
             return;
@@ -285,6 +295,25 @@ HRESULT MapInstancedMesh::Render()
         return S_OK;
     }
 
+    Buffer* instanceVB = _instanceVB.Get();
+    uint32 renderInstanceCount = _instanceCount;
+    const bool usePotatoBagArenaInstances = ClientInstance::Is_PotatoBagArenaMapRenderGateActive();
+    if (usePotatoBagArenaInstances)
+    {
+        if (FAILED(Prepare_PotatoBagArenaInstanceBuffer()))
+        {
+            return E_FAIL;
+        }
+
+        if (_potatoBagArenaInstanceCount == 0 || !_potatoBagArenaInstanceVB)
+        {
+            return S_OK;
+        }
+
+        instanceVB = _potatoBagArenaInstanceVB.Get();
+        renderInstanceCount = _potatoBagArenaInstanceCount;
+    }
+
 #pragma region for using Renderdoc
     //ComPtr<ID3DUserDefinedAnnotation> annotation;
     //_context->QueryInterface(IID_PPV_ARGS(&annotation));
@@ -343,7 +372,7 @@ HRESULT MapInstancedMesh::Render()
                     return E_FAIL;
                 }
 
-                if (FAILED(_lodModels[lod]->RenderInstanced(i, _instanceVB.Get(), sizeof(Matrix), _instanceCount)))
+                if (FAILED(_lodModels[lod]->RenderInstanced(i, instanceVB, sizeof(Matrix), renderInstanceCount)))
                 {
                     return E_FAIL;
                 }
@@ -355,7 +384,7 @@ HRESULT MapInstancedMesh::Render()
     const bool forceGestralPalisadeCull =
         ClientInstance::Is_DebugForceGestralPalisadeInstancedCull() &&
         Is_GestralPalisadeModelPath(_modelPath);
-    const bool useCullPath = _cullEnabled || forceGestralPalisadeCull;
+    const bool useCullPath = !usePotatoBagArenaInstances && (_cullEnabled || forceGestralPalisadeCull);
 
     bool useIndirect = false;
     if (useCullPath && _cullShader && _instanceSrcBuffer && _sphereBuffer && _visibleVB[0] && !_indirectArgsBuffers[0].empty())
@@ -369,7 +398,7 @@ HRESULT MapInstancedMesh::Render()
         for (uint32 lod = 0; lod < 3; ++lod)
         {
             if (_lodModels[lod])
-                _debugLastDrawInstanceCounts[lod] = _instanceCount;
+                _debugLastDrawInstanceCounts[lod] = renderInstanceCount;
         }
         _debugHasDrawInstanceCounts = true;
         _debugLastVisibleCountReadbackRequestId =
@@ -422,7 +451,7 @@ HRESULT MapInstancedMesh::Render()
             }
             else
             {
-                if (FAILED(_lodModels[lod]->RenderInstanced(i, _instanceVB.Get(), sizeof(Matrix), _instanceCount)))
+                if (FAILED(_lodModels[lod]->RenderInstanced(i, instanceVB, sizeof(Matrix), renderInstanceCount)))
                 {
                     return E_FAIL;
                 }
@@ -651,6 +680,95 @@ HRESULT MapInstancedMesh::CreateInstanceBuffer(const vector<Matrix>& matrices)
     }
 
     _instanceCount = count;
+    return S_OK;
+}
+
+HRESULT MapInstancedMesh::Prepare_PotatoBagArenaInstanceBuffer()
+{
+    if (!ClientInstance::Is_PotatoBagArenaMapRenderGateActive())
+    {
+        _potatoBagArenaInstanceBufferReady = false;
+        _potatoBagArenaInstanceCount = 0;
+        return S_OK;
+    }
+
+    if (_potatoBagArenaInstanceBufferReady)
+    {
+        return S_OK;
+    }
+
+    Vec3 localMin{}, localMax{};
+    const bool hasBounds = _lodModels[0] && _lodModels[0]->Try_Get_LocalBounds(localMin, localMax);
+    const Matrix preTransform = _lodModels[0] ? _lodModels[0]->Get_PreLocalTransformMatrix() : Matrix::Identity;
+
+    BoundingBox localBox{};
+    if (hasBounds)
+    {
+        BoundingBox::CreateFromPoints(localBox,
+            XMVectorSet(localMin.x, localMin.y, localMin.z, 0.f),
+            XMVectorSet(localMax.x, localMax.y, localMax.z, 0.f));
+    }
+
+    vector<Matrix> filteredMatrices;
+    filteredMatrices.reserve(_transforms.size());
+
+    for (const InstanceTransform& transform : _transforms)
+    {
+        const Matrix world =
+            Matrix::CreateScale(transform._scale) *
+            Matrix::CreateFromQuaternion(Quat(transform._rotation.x, transform._rotation.y, transform._rotation.z, transform._rotation.w)) *
+            Matrix::CreateTranslation(transform._position);
+
+        BoundingSphere worldSphere{};
+        if (hasBounds)
+        {
+            BoundingBox worldBox{};
+            localBox.Transform(worldBox, preTransform * world);
+            BoundingSphere::CreateFromBoundingBox(worldSphere, worldBox);
+        }
+        else
+        {
+            worldSphere.Center = transform._position;
+            worldSphere.Radius = 500.f;
+        }
+
+        if (ClientInstance::Should_RenderMapInstanceInPotatoBagArena(worldSphere))
+        {
+            filteredMatrices.push_back(world);
+        }
+    }
+
+    _potatoBagArenaInstanceCount = static_cast<uint32>(filteredMatrices.size());
+    _potatoBagArenaInstanceBufferReady = true;
+
+    if (_potatoBagArenaInstanceCount == 0)
+    {
+        return S_OK;
+    }
+
+    if (!_potatoBagArenaInstanceVB)
+    {
+        D3D11_BUFFER_DESC bd{};
+        bd.ByteWidth = sizeof(Matrix) * _instanceCapacity;
+        bd.Usage = D3D11_USAGE_DYNAMIC;
+        bd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+        bd.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+
+        if (FAILED(_device->CreateBuffer(&bd, nullptr, _potatoBagArenaInstanceVB.GetAddressOf())))
+        {
+            return E_FAIL;
+        }
+    }
+
+    D3D11_MAPPED_SUBRESOURCE mapped{};
+    if (FAILED(_context->Map(_potatoBagArenaInstanceVB.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped)))
+    {
+        return E_FAIL;
+    }
+
+    memcpy(mapped.pData, filteredMatrices.data(), sizeof(Matrix) * _potatoBagArenaInstanceCount);
+    _context->Unmap(_potatoBagArenaInstanceVB.Get(), 0);
+
     return S_OK;
 }
 
@@ -885,6 +1003,11 @@ HRESULT MapInstancedMesh::CreateCullBuffers(const vector<Matrix>& matrices, cons
 
 HRESULT MapInstancedMesh::Render_Shadow()
 {
+    if (ClientInstance::Is_PotatoBagArenaMapRenderGateActive())
+    {
+        return S_OK;
+    }
+
     if (GAME->Is_UseInstancedShadowCache() && GAME->Has_InstancedShadowCache())
     {
         return S_OK;
@@ -893,6 +1016,25 @@ HRESULT MapInstancedMesh::Render_Shadow()
     if (_shader == nullptr || _lodModels[0] == nullptr || _instanceCount == 0)
     {
         return S_OK;
+    }
+
+    Buffer* instanceVB = _instanceVB.Get();
+    uint32 renderInstanceCount = _instanceCount;
+    const bool usePotatoBagArenaInstances = ClientInstance::Is_PotatoBagArenaMapRenderGateActive();
+    if (usePotatoBagArenaInstances)
+    {
+        if (FAILED(Prepare_PotatoBagArenaInstanceBuffer()))
+        {
+            return E_FAIL;
+        }
+
+        if (_potatoBagArenaInstanceCount == 0 || !_potatoBagArenaInstanceVB)
+        {
+            return S_OK;
+        }
+
+        instanceVB = _potatoBagArenaInstanceVB.Get();
+        renderInstanceCount = _potatoBagArenaInstanceCount;
     }
 
     const bool isBaking = GAME->Is_BakingInstancedShadow();
@@ -916,6 +1058,7 @@ HRESULT MapInstancedMesh::Render_Shadow()
     }
 
     bool useShadowIndirect =
+        !usePotatoBagArenaInstances &&
         !isBaking &&
         _shadowCullShader &&
         _shadowVisibleVB &&
@@ -952,7 +1095,7 @@ HRESULT MapInstancedMesh::Render_Shadow()
         }
         else
         {
-            if (FAILED(_lodModels[shadowLod]->RenderInstanced(i, _instanceVB.Get(), sizeof(Matrix), _instanceCount)))
+            if (FAILED(_lodModels[shadowLod]->RenderInstanced(i, instanceVB, sizeof(Matrix), renderInstanceCount)))
             {
                 return E_FAIL;
             }

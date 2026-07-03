@@ -71,6 +71,20 @@ void MB_Bishop::Update(float timeDelta)
     }
 }
 
+bool MB_Bishop::Try_GetDamageFeedbackSocketWorldPosition(Vec3& outWorldPos) const
+{
+    if (_body == nullptr)
+        return false;
+
+    const Matrix* socketMatrix = _body->Get_SocketBoneMatrixPtr("Aim_Target");
+    if (socketMatrix == nullptr)
+        return false;
+
+    const Matrix socketWorldMatrix = *socketMatrix * _body->Get_CombinedWorldMatrix();
+    outWorldPos = Vec3(socketWorldMatrix._41, socketWorldMatrix._42, socketWorldMatrix._43);
+    return true;
+}
+
 HRESULT MB_Bishop::Ready_PartObjects()
 {
     Mon_Bishop_Body::BODY_DESC bodyDesc{};

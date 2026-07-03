@@ -15,9 +15,11 @@ public:
     struct ActivationDesc
     {
         HeroId heroId = HeroId::END;
+        string pictosId{};
         wstring displayName{};
         Vec2 anchorPosition{};
         uint32 stackIndex = 0;
+        uint32 activationCount = 1;
     };
 
 public:
@@ -29,6 +31,7 @@ public:
     void Close_Immediately();
 
     HeroId Get_HeroId() const { return _heroId; }
+    const string& Get_PictosId() const { return _pictosId; }
     uint32 Get_StackIndex() const { return _stackIndex; }
     float Get_Elapsed() const { return _elapsed; }
 
@@ -47,7 +50,9 @@ private:
     Shared<UI_Text> _stackValueText{};
 
     HeroId _heroId = HeroId::END;
+    string _pictosId{};
     uint32 _stackIndex = 0;
+    uint32 _activationCount = 1;
     float _elapsed = 0.f;
     bool _isDeactivating = false;
 

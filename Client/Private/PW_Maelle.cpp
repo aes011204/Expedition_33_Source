@@ -59,8 +59,6 @@ HRESULT PW_Maelle::Initialize(void* arg)
     //skilltreeCom->ForceUnlock("Stendhal");
 
 
-	CHECK_FAILED(Ready_Modifier(), E_FAIL);
-
 	return S_OK;
 }
 
@@ -69,16 +67,9 @@ void PW_Maelle::BeginPlay()
 	Player_WorldBase::BeginPlay();
 }
 
-HRESULT PW_Maelle::Ready_Modifier()
+HRESULT PW_Maelle::Ready_BodyModifiers(Body_Player* body, const string& costumePresetId)
 {
-	auto* body = dynamic_cast<Body_Player*>(Find_PartObject(TEXT("Part_Body")));
-	CHECK_NULL(body, E_FAIL);
-
-	return Ready_BodyModifiers(body);
-}
-
-HRESULT PW_Maelle::Ready_BodyModifiers(Body_Player* body)
-{
+    UNREFERENCED_PARAMETER(costumePresetId);
 	CHECK_NULL(body, E_FAIL);
 
 		OffsetAnimationModifier::OffsetModifierDesc aimOffsetDesc{};

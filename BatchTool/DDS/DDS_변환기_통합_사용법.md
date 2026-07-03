@@ -105,7 +105,7 @@ Client\Bin\Resources\Map\SmallLevel_MF_Zone_01\Textures
 
 ### Model
 
-`Resources\Models` 아래의 상대 경로를 입력합니다.
+`Resources\Models` 아래의 상대 경로를 입력합니다. 비워두면 `Resources\Models` 전체를 순회합니다.
 
 예:
 

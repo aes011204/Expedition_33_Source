@@ -23,7 +23,7 @@ private:
     void    Draw_FeatureControl(Shared<PostProcessPipeline> pipeline, bool& dirty);
     void    Draw_ParameterControl(PostProcessCB& params, bool& dirty);
     void    Draw_LightShaftControl(LightShaftCB& params, bool& dirty);
-    void    Draw_QuickAction(PostProcessCB& params, LightShaftCB& lightShaftParams, Shared<LightingPipeline> lightingPipeline, bool& dirty, bool& lightingDirty);
+    void    Draw_QuickAction(PostProcessCB& params, LightShaftCB& lightShaftParams, Shared<PostProcessPipeline> pipeline, Shared<LightingPipeline> lightingPipeline, bool& dirty, bool& lightingDirty);
     void    Draw_LightingControl(Shared<LightingPipeline> pipeline, bool& dirty);
     void    Draw_StatusBadge();
     void    Cache_DefaultSnapshots();

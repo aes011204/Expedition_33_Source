@@ -78,9 +78,10 @@ public:
 protected:
     HRESULT Ready_Components();
 	HRESULT Ready_PartObjects();
-    virtual HRESULT Ready_BodyModifiers(Body_Player* body)
+    virtual HRESULT Ready_BodyModifiers(Body_Player* body, const string& costumePresetId)
     {
         UNREFERENCED_PARAMETER(body);
+        UNREFERENCED_PARAMETER(costumePresetId);
         return S_OK;
     }
 

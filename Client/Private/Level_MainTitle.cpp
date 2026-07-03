@@ -30,7 +30,7 @@ void Level_MainTitle::BeginPlay()
 {
     Level::BeginPlay();
 
-    GAME->Play_BGM(Constants::SoundBGM::MainTitleBGM, 1.f, true, 0.f);
+    GAME->Play_BGM(Constants::SoundBGM::MainTitleBGM, 0.7f, true, 0.f);
 }
 
 void Level_MainTitle::Update(float timeDelta)

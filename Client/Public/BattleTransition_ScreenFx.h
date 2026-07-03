@@ -16,11 +16,12 @@ public:
     {
         float edgeSoftness{ 0.05f };
         float maxRadius{ 1.5f };
+        bool useBlackSource{ false };
     };
 
 public:
     BattleTransition_ScreenFx() = default;
-    ~BattleTransition_ScreenFx() override = default;
+    ~BattleTransition_ScreenFx() override;
 
 public:
     HRESULT Initialize(ScreenFxDesc* desc) override;
@@ -31,6 +32,7 @@ public:
 
 private:
     void RoseFlare();
+    void Release_RoseFlare();
 
 private:
     EffectInstancePool::AttachedHandle _roseFlareHandle{};

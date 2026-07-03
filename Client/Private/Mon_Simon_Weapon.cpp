@@ -329,7 +329,7 @@ void Mon_Simon_Weapon::Begin_WeaponEchoPlayback(float delaySec, uint32 echoCount
     for (WeaponEchoLane& lane : _weaponEchoLanes)
         Reset_WeaponEchoLane(lane);
 
-    const uint32 clampedEchoCount = std::clamp(echoCount, 1u, kMaxWeaponEchoLaneCount);
+    const uint32 clampedEchoCount = std::clamp(echoCount, 0u, kMaxWeaponEchoLaneCount);
     for (uint32 laneIndex = 0; laneIndex < clampedEchoCount; ++laneIndex)
     {
         WeaponEchoLane& lane = _weaponEchoLanes[laneIndex];

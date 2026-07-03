@@ -7,7 +7,7 @@
 
 namespace Internal
 {
-    void Play_TargetHitEffect(const BattleChar& target, const BattleHitSequenceRunner::HitEffectDesc& hitEffect)
+    static void Play_TargetHitEffect(const BattleChar& target, const BattleHitSequenceRunner::HitEffectDesc& hitEffect)
     {
         if (!hitEffect.Is_Valid() || target.actor == nullptr)
             return;
@@ -28,7 +28,7 @@ namespace Internal
         effectCom->Play_Effect(effectDesc);
     }
 
-    void Play_TargetHitSound(const BattleChar& target, const wstring& hitSoundCue)
+    static void Play_TargetHitSound(const BattleChar& target, const wstring& hitSoundCue)
     {
         if (hitSoundCue.empty())
             return;
@@ -43,6 +43,15 @@ namespace Internal
         }
 
         GAME->Play_SoundCue(hitSoundCue, soundPositionPtr);
+    }
+
+    void Add_PrewarmRequest(vector<EffectPrewarmRequest>& outRequests, const wstring& effectName, uint32 targetCount)
+    {
+        EffectPrewarmRequest request{};
+        request.effectName = effectName;
+        request.layerTag = L"Layer_Effect";
+        request.targetCount = max(1u, targetCount);
+        outRequests.push_back(request);
     }
 }
 
@@ -80,6 +89,14 @@ void Skill_Lune_Immolation::Execute(const Skill_Data& skill, const BattleAction&
 Shared<Skill_Lune_Immolation> Skill_Lune_Immolation::Create()
 {
     return make_shared<Skill_Lune_Immolation>();
+}
+
+void Skill_Lune_Immolation::Collect_PrewarmEffects(const Skill_Data& skill, const BattleEffectPrewarmContext& context, vector<EffectPrewarmRequest>& outRequests) const
+{
+    UNREFERENCED_PARAMETER(skill);
+    UNREFERENCED_PARAMETER(context);
+
+    Internal::Add_PrewarmRequest(outRequests, L"Lune_Immolation_Hit", 2);
 }
 
 /* 얼음 창 */
@@ -151,6 +168,14 @@ Shared<Skill_Lune_Thunderfall> Skill_Lune_Thunderfall::Create()
     return make_shared<Skill_Lune_Thunderfall>();
 }
 
+void Skill_Lune_Thunderfall::Collect_PrewarmEffects(const Skill_Data& skill, const BattleEffectPrewarmContext& context, vector<EffectPrewarmRequest>& outRequests) const
+{
+    UNREFERENCED_PARAMETER(context);
+
+    const uint32 hitCount = skill.AttackCount > 0 ? static_cast<uint32>(skill.AttackCount) : 6u;
+    Internal::Add_PrewarmRequest(outRequests, L"Lune_ThunderFall_Attack", hitCount + 2u);
+}
+
 /* 대지 전율 */
 void Skill_Lune_TerraQuake::Execute(const Skill_Data& skill, const BattleAction& action, AttackType attackType)
 {
@@ -179,6 +204,13 @@ void Skill_Lune_TerraQuake::Execute(const Skill_Data& skill, const BattleAction&
 Shared<Skill_Lune_TerraQuake> Skill_Lune_TerraQuake::Create()
 {
     return make_shared<Skill_Lune_TerraQuake>();
+}
+
+void Skill_Lune_TerraQuake::Collect_PrewarmEffects(const Skill_Data& skill, const BattleEffectPrewarmContext& context, vector<EffectPrewarmRequest>& outRequests) const
+{
+    UNREFERENCED_PARAMETER(skill);
+
+    Internal::Add_PrewarmRequest(outRequests, L"Lune_TerraQuake_Attack", max(2u, context.currentEnemyCount));
 }
 
 /* 억압의 쓰나미 */
