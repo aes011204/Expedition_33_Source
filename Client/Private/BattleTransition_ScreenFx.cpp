@@ -97,6 +97,7 @@ HRESULT BattleTransition_ScreenFx::Bind_FxConstantBuffer(ShaderCom* shader)
     cbData.wipeRadius = _currentRadius;
     cbData.edgeSoftness = _originalDesc.edgeSoftness;
     cbData.transitionProgress = _elapsedTime / _duration;
+    cbData.transitionUseBlackSource = _originalDesc.useBlackSource ? 1.f : 0.f;
 
     cbData.vignetteRadius = 0.8f;
     cbData.vignetteSoftness = 0.5f;

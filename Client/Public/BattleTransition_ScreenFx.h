@@ -16,6 +16,7 @@ public:
     {
         float edgeSoftness{ 0.05f };
         float maxRadius{ 1.5f };
+        bool useBlackSource{ false };
     };
 
 public:

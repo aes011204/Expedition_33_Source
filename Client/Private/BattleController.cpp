@@ -35,6 +35,7 @@
 #include "BattleFollowupManager.h"
 #include "BattleMechanismCom.h"
 #include "Battle_Event.h"
+#include "ClientScreenFxManager.h"
 #include "Character.h"
 #include "Event_Bus.h"
 #include "DamageSystem.h"
@@ -585,7 +586,7 @@ EBattleEndResult BattleController::OnExitBattleField(EBattleEndResult result)
         }
         else if (isBishopCinematicBGM)  // 주교잡고나서는 Victory 브금
         {
-            GAME->Play_BGM(Constants::SoundBGM::BishopBattleBossVictory, 1.f, true, 0.f);
+            GAME->Play_BGM(Constants::SoundBGM::BishopBattleBossVictory, 0.7f, true, 0.f);
         }
         else
         {
@@ -1050,7 +1051,7 @@ bool BattleController::Try_ResolveSimonBattleBGM(wstring& outIntroBGM, wstring& 
         const string& sourcePrefabName = enemy.actor->Get_SourcePrefabName();
         if (sourcePrefabName == Constants::Prefab::MB_Simon_V2)
         {
-            outIntroBGM = Constants::SoundBGM::SimonBattlePhase2Intro;
+            outIntroBGM.clear();
             outMainBGM = Constants::SoundBGM::SimonBattlePhase2Main;
             return true;
         }
@@ -2727,6 +2728,9 @@ void BattleController::Spawn_BattleChar(bool IsHero, string prefabName, Vec3 pos
 
 
         Push_TurnEntry(battleChar, _battleTime + 100.f / max(battleChar.statCom->Get_Speed(), 1.f));
+
+        if (_battleTurnCamera)
+            _battleTurnCamera->Set_Participants(_heroes, _enemies, _pendingBattleMonsterSpawnDescs);
     }
 }
 
@@ -2837,6 +2841,9 @@ void BattleController::Confirm_Victory()
 
     if (hasFollowupBattle)
     {
+        if (Shared<ClientScreenFxManager> screenFxManager = CLIENT->Get_ScreenFxManager())
+            screenFxManager->Request_NextBattleTransitionBlackSource();
+
         OnEnterBattleField(
             followupDesc.battleFieldId,
             followupDesc.isPlayerAdvantage,
@@ -3506,13 +3513,16 @@ void BattleController::Complete_BattleField()
         wstring simonMainBGM{};
         if (Try_ResolveSimonBattleBGM(simonIntroBGM, simonMainBGM))
         {
-            GAME->Play_BGMIntroThenLoop(simonIntroBGM, simonMainBGM, 1.f, true, 0.f);
+            if (simonIntroBGM.empty())
+                GAME->Play_BGM(simonMainBGM, 0.7f, true, 0.f);
+            else
+                GAME->Play_BGMIntroThenLoop(simonIntroBGM, simonMainBGM, 0.7f, true, 0.f);
         }
         else
         {
             GAME->Play_BGM(
                 hasBossEnemy ? Constants::SoundBGM::BattleBossBGM : Constants::SoundBGM::BattleNormalBGM,
-                1.f,
+                0.7f,
                 true,
                 0.f);
         }
@@ -3631,7 +3641,7 @@ void BattleController::Restore_PreBattleBGM()
     if (_preBattleBGM.empty())
         GAME->Stop_SoundChannel(SoundChannel::BGM, 0.f);
     else
-        GAME->Play_BGM(_preBattleBGM, 1.f, true, 0.f);
+        GAME->Play_BGM(_preBattleBGM, 0.7f, true, 0.f);
 
     _preBattleBGM.clear();
     _hasCapturedPreBattleBGM = false;

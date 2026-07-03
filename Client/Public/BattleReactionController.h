@@ -180,7 +180,7 @@ private:
     void ResetJumpCounterSequence();
     void ClearConsumedInput();
     bool Is_ConsumeKeyPending(uint32 consumeKey) const;
-    bool CanReceiveInput(const BattleChar& target) const;
+    bool CanReceiveInput(const BattleChar& target, BattleReactionType reactionType) const;
     bool IsHitOrDeadBattleAnim(BattleAnimType animType) const;
 
     void PlayReactionAnimation(

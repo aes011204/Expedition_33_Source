@@ -427,6 +427,8 @@ HRESULT UI_BattleSystemHUD::Bind_UI()
         }
     }
 
+    Capture_TargetAnimationBaseColors();
+
     // 구스타브 portrait 전용 메커니즘
     _gustaveMechanismRoot = Find_UI(_uiByName, L"Panel_BattlePortrait_Gustave_Mechanism");
     _gustaveCurrentChargeText = Find_TypedUI<UI_Text>(_uiByName, L"Text_BattlePortrait_Gustave_Current_Charge");
@@ -880,6 +882,32 @@ void UI_BattleSystemHUD::Stop_TargetAnimations()
     }
 }
 
+void UI_BattleSystemHUD::Capture_TargetAnimationBaseColors()
+{
+    _targetAnimationBaseColors.clear();
+
+    for (auto& [uiName, ui] : _uiByName)
+    {
+        UNREFERENCED_PARAMETER(uiName);
+
+        if (ui == nullptr)
+            continue;
+
+        _targetAnimationBaseColors.emplace_back(ui, ui->Get_Color());
+    }
+}
+
+void UI_BattleSystemHUD::Restore_TargetAnimationBaseColors()
+{
+    for (auto& [ui, color] : _targetAnimationBaseColors)
+    {
+        if (ui == nullptr)
+            continue;
+
+        ui->Set_Color(color);
+    }
+}
+
 void UI_BattleSystemHUD::Reset_TargetAnimationState(bool includeRoot)
 {
     for (auto& [uiName, ui] : _uiByName)
@@ -895,6 +923,8 @@ void UI_BattleSystemHUD::Reset_TargetAnimationState(bool includeRoot)
         ui->Open();
         ui->Stop_UIAnimation();
     }
+
+    Restore_TargetAnimationBaseColors();
 
     Close_AllLuneStains();
     Close_AllMaelleStanceBadges();
