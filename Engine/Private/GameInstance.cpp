@@ -2145,6 +2145,16 @@ bool GameInstance::Play_BGM(const wstring& soundFile, float volume, bool stopPre
     return _soundManager ? _soundManager->Play_BGM(soundFile, volume, stopPrevBGM, fadeOutDuration) : false;
 }
 
+bool GameInstance::Play_BGMIntroThenLoop(
+    const wstring& introFile,
+    const wstring& loopFile,
+    float volume,
+    bool stopPrevBGM,
+    float fadeOutDuration)
+{
+    return _soundManager ? _soundManager->Play_BGMIntroThenLoop(introFile, loopFile, volume, stopPrevBGM, fadeOutDuration) : false;
+}
+
 bool GameInstance::Play_LoopSound(
     const wstring& soundFile,
     SoundChannel channel,

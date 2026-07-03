@@ -10,6 +10,9 @@ namespace
 {
     constexpr wchar_t kItemCrystalEffectName[] = L"Effects\\Assets\\Item\\Crystal.effect.json";
     constexpr wchar_t kItemEatEffectName[] = L"Effects\\Assets\\Item\\EatItem.effect.json";
+    constexpr float kItemVisualBaseOffsetY = 0.7f;
+    constexpr float kItemHoverFrequency = 1.8f;
+    constexpr float kItemHoverAmplitude = 0.06f;
 }
 
 Item::Item(const ComPtr<Device>& device, const ComPtr<Context>& context)
@@ -42,6 +45,10 @@ HRESULT Item::Initialize(void* arg)
     _spawnedLevelIndex = GAME->Current_LevelIndex();
     _hasPlayerOverlap = false;
     _pickedUp = false;
+    _visualHoverTimeSec = 0.f;
+    _spawnRevealActive = false;
+    _spawnRevealElapsed = 0.f;
+    _spawnRevealDuration = 0.f;
 
     UNREFERENCED_PARAMETER(arg);
     return S_OK;
@@ -50,6 +57,9 @@ HRESULT Item::Initialize(void* arg)
 void Item::Update(float timeDelta)
 {
     GameObject::Update(timeDelta);
+
+    Update_VisualHover(timeDelta);
+    Update_SpawnReveal(timeDelta);
 
     if (_effectCom)
         _effectCom->Update(timeDelta);
@@ -73,6 +83,16 @@ void Item::Late_Update(float timeDelta)
 
     _colliderCom->Update_Collider(_transformCom->Get_WorldMatrix());
     GAME->Add_Collider(_colliderCom);
+}
+
+void Item::Start_SpawnReveal(float durationSec)
+{
+    _spawnRevealActive = durationSec > 0.f;
+    _spawnRevealElapsed = 0.f;
+    _spawnRevealDuration = max(durationSec, 0.001f);
+
+    if (_effectCom)
+        _effectCom->Set_AttachedEffectMaterialReveal(0.f, 1.f);
 }
 
 void Item::OnBeginOverlap(Shared<ColliderCom> self, Shared<ColliderCom> other)
@@ -159,11 +179,21 @@ void Item::From_Json(const json& data)
 
     _pickedUp = false;
     _spawnedLevelIndex = GAME->Current_LevelIndex();
+    _visualHoverTimeSec = 0.f;
+    _spawnRevealActive = false;
+    _spawnRevealElapsed = 0.f;
+    _spawnRevealDuration = 0.f;
 
     if (_colliderCom)
     {
         _colliderCom->Set_IsActive(true);
         _colliderCom->Clear_Overlap();
+    }
+
+    if (_effectCom)
+    {
+        _visualEffectBaseLocalOffset = _effectCom->Get_InspectorEffectSettings().localOffset;
+        _effectCom->Set_AttachedEffectMaterialReveal(1.f, 0.f);
     }
 
     if (!data.contains("custom_properties") || !data["custom_properties"].is_object())
@@ -195,16 +225,43 @@ HRESULT Item::Ready_Components()
             settings.effectName = kItemCrystalEffectName;
         settings.target = EffectCom::EffectPlayTarget::OwnerRoot;
         settings.layerTag = L"Layer_Effect";
-        settings.localOffset = Vec3(0.f, 0.7f, 0.f);
+        settings.localOffset = Vec3(0.f, kItemVisualBaseOffsetY, 0.f);
         settings.localRotation = Vec3::Zero;
         settings.scale = Vec3::One;
         settings.followTarget = false;
         settings.requiresManualRelease = true;
 
         _effectCom->Set_InspectorEffectSettings(settings);
+        _visualEffectBaseLocalOffset = settings.localOffset;
     }
 
     return S_OK;
+}
+
+void Item::Update_VisualHover(float timeDelta)
+{
+    _visualHoverTimeSec += max(timeDelta, 0.f);
+
+    if (_effectCom == nullptr)
+        return;
+
+    Vec3 hoverOffset = _visualEffectBaseLocalOffset;
+    hoverOffset.y += sinf(_visualHoverTimeSec * kItemHoverFrequency) * kItemHoverAmplitude;
+    _effectCom->Set_InspectorEffectLocalOffset(hoverOffset);
+}
+
+void Item::Update_SpawnReveal(float timeDelta)
+{
+    if (!_spawnRevealActive || _effectCom == nullptr)
+        return;
+
+    _spawnRevealElapsed += max(timeDelta, 0.f);
+    const float revealRatio = clamp(_spawnRevealElapsed / _spawnRevealDuration, 0.f, 1.f);
+
+    _effectCom->Set_AttachedEffectMaterialReveal(revealRatio, 1.f - revealRatio);
+
+    if (revealRatio >= 1.f)
+        _spawnRevealActive = false;
 }
 
 void Item::Try_Pickup()

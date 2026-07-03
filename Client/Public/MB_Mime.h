@@ -33,6 +33,7 @@ public:
     void Start_WallDamageReduction();
 
 protected:
+    bool Try_GetDamageFeedbackSocketWorldPosition(Vec3& outWorldPos) const override;
     HRESULT Ready_PartObjects();
 
 private:

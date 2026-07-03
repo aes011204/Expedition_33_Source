@@ -36,6 +36,33 @@ namespace Internal
         effectCom->Play_Effect(effectDesc);
     }
 
+    void Play_FirstTargetHitEffect(const BattleAction& action, const wstring& effectName)
+    {
+        const auto& curTargets = action.GetCurStepTarget();
+        if (curTargets.empty() || curTargets.front().actor == nullptr)
+            return;
+
+        BattleHitSequenceRunner::HitEffectDesc effectDesc{};
+        effectDesc.effectName = effectName;
+        effectDesc.localOffset = Vec3(0.f, 0.f, 0.f);
+
+        Play_TargetHitEffect(curTargets.front(), effectDesc);
+    }
+
+    void Play_AllTargetHitEffect(const BattleAction& action, const wstring& effectName)
+    {
+        const auto& curTargets = action.GetCurStepTarget();
+        if (curTargets.empty())
+            return;
+
+        BattleHitSequenceRunner::HitEffectDesc effectDesc{};
+        effectDesc.effectName = effectName;
+        effectDesc.localOffset = Vec3(0.f, 0.f, 0.f);
+
+        for (const BattleChar& target : curTargets)
+            Play_TargetHitEffect(target, effectDesc);
+    }
+
     void Restore_SpawnedActorVisibility(const Shared<GameObject>& actor)
     {
         if (actor == nullptr)
@@ -132,17 +159,14 @@ void Base_Mon_Attack_Projectile::Execute(const Skill_Data& skill, const BattleAc
 
     DamageSystem::ApplyDamage(damage, attacker, action.GetCurStepTarget(), attackType);
 
-    const auto& curTargets = action.GetCurStepTarget();
-    if (!curTargets.empty() && curTargets.front().actor != nullptr)
-    {
-        BattleHitSequenceRunner::HitEffectDesc effectDesc{};
-        effectDesc.effectName = L"Bishop_Projectile_Attack";
-        effectDesc.localOffset = Vec3(0.f, 0.f, 0.f);
-
-        Internal::Play_TargetHitEffect(curTargets.front(), effectDesc);
-    }
+    Play_GuardedHitEffect(action);
 
     CurIndex++;
+}
+
+void Base_Mon_Attack_Projectile::Play_GuardedHitEffect(const BattleAction& action)
+{
+    Internal::Play_FirstTargetHitEffect(action, L"Bishop_Projectile_Attack");
 }
 
 Shared<Base_Mon_Attack_Projectile> Base_Mon_Attack_Projectile::Create()
@@ -173,18 +197,22 @@ void Potato_Fire_Skill::Execute(const Skill_Data& skill, const BattleAction& act
 
     DamageSystem::ApplyDamage(damage, action.GetCurStepTarget(), attackType);
 
-    const auto& curTargets = action.GetCurStepTarget();
-    if (!curTargets.empty())
-    {
-        BattleHitSequenceRunner::HitEffectDesc effectDesc{};
-        effectDesc.effectName = L"PotatoBag_Fire_Attack";
-        effectDesc.localOffset = Vec3(0.f, 0.f, 0.f);
-
-        for (const BattleChar& target : curTargets)
-            Internal::Play_TargetHitEffect(target, effectDesc);
-    }
+    Play_GuardedHitEffect(action);
 
     CurIndex++;
+}
+
+void Potato_Fire_Skill::Play_GuardedHitEffect(const BattleAction& action)
+{
+    Internal::Play_AllTargetHitEffect(action, L"PotatoBag_Fire_Attack");
+}
+
+void Potato_Fire_Skill::Collect_PrewarmEffects(const Skill_Data& skill, const BattleEffectPrewarmContext& context, vector<EffectPrewarmRequest>& outRequests) const
+{
+    EffectPrewarmRequest request{};
+    request.effectName = L"PotatoBag_Fire_Attack";
+    request.targetCount = max(1u, static_cast<uint32>(skill.targetingType.size())) * max(1u, context.currentHeroCount);
+    outRequests.push_back(request);
 }
 
 Shared<Potato_Fire_Skill> Potato_Fire_Skill::Create()
@@ -215,17 +243,22 @@ void Potato_Thunder_Skill::Execute(const Skill_Data& skill, const BattleAction& 
 
     DamageSystem::ApplyDamage(damage, action.GetCurStepTarget(), attackType);
 
-    const auto& curTargets = action.GetCurStepTarget();
-    if (!curTargets.empty() && curTargets.front().actor != nullptr)
-    {
-        BattleHitSequenceRunner::HitEffectDesc effectDesc{};
-        effectDesc.effectName = L"PotatoBag_Thunder_Attack";
-        effectDesc.localOffset = Vec3(0.f, 0.f, 0.f);
-
-        Internal::Play_TargetHitEffect(curTargets.front(), effectDesc);
-    }
+    Play_GuardedHitEffect(action);
 
     CurIndex++;
+}
+
+void Potato_Thunder_Skill::Play_GuardedHitEffect(const BattleAction& action)
+{
+    Internal::Play_FirstTargetHitEffect(action, L"PotatoBag_Thunder_Attack");
+}
+
+void Potato_Thunder_Skill::Collect_PrewarmEffects(const Skill_Data& skill, const BattleEffectPrewarmContext&, vector<EffectPrewarmRequest>& outRequests) const
+{
+    EffectPrewarmRequest request{};
+    request.effectName = L"PotatoBag_Thunder_Attack";
+    request.targetCount = max(1u, static_cast<uint32>(skill.targetingType.size()));
+    outRequests.push_back(request);
 }
 
 Shared<Potato_Thunder_Skill> Potato_Thunder_Skill::Create()
@@ -257,18 +290,15 @@ void Bishop_Spear::Execute(const Skill_Data& skill, const BattleAction& action, 
 
     DamageSystem::ApplyDamage(damage, attacker, action.GetCurStepTarget(), attackType);
 
-    const auto& curTargets = action.GetCurStepTarget();
-    if (!curTargets.empty() && curTargets.front().actor != nullptr)
-    {
-        BattleHitSequenceRunner::HitEffectDesc effectDesc{};
-        effectDesc.effectName = L"Bishop_Spear_Attack";
-        effectDesc.localOffset = Vec3(0.f, 0.f, 0.f);
-
-        Internal::Play_TargetHitEffect(curTargets.front(), effectDesc);
-    }
+    Play_GuardedHitEffect(action);
 
 
     CurIndex++;
+}
+
+void Bishop_Spear::Play_GuardedHitEffect(const BattleAction& action)
+{
+    Internal::Play_FirstTargetHitEffect(action, L"Bishop_Spear_Attack");
 }
 
 Shared<Bishop_Spear> Bishop_Spear::Create()

@@ -359,6 +359,8 @@
     <ClInclude Include="..\Public\WorldDesaturate_ScreenFx.h" />
     <ClInclude Include="..\Public\EffectCom.h" />
     <ClInclude Include="..\Public\EffectInstancePool.h" />
+    <ClInclude Include="..\Public\BattleEffectPrewarmCollector.h" />
+    <ClInclude Include="..\Public\BattleEffectPrewarmTypes.h" />
     <ClInclude Include="..\Private\EffectAssetRuntimeLoader_Support.h" />
     <ClInclude Include="..\Public\ExpeditionStat_Panel.h" />
     <ClInclude Include="..\Public\ComputeTrailEmitter.h" />
@@ -910,6 +912,7 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
     </ClCompile>
+    <ClCompile Include="..\Private\BattleEffectPrewarmCollector.cpp" />
     <ClCompile Include="..\private\BattleStateMachine.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>

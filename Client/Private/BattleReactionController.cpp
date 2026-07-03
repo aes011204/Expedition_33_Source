@@ -16,6 +16,7 @@
 namespace
 {
     constexpr uint32 kReactionConsumeKeyStride = 16;
+    constexpr float kAutoJumpCounterInputDelaySec = 0.025f;
 
     size_t ReactionIndex(BattleReactionType type)
     {
@@ -252,6 +253,7 @@ void BattleReactionController::NotifyJumpCounterWindowBegin(float worldTimeScale
 
     _jumpCounterState = JumpCounterState::CounterWindowOpen;
     OpenWindow(BattleReactionType::JumpCounter);
+    _reactionWindowElapsedSec[ReactionIndex(BattleReactionType::JumpCounter)] = 0.f;
     GAME->Set_WorldTimeScale(clamp(worldTimeScale, 0.01f, 1.f));
 }
 
@@ -293,8 +295,15 @@ bool BattleReactionController::Try_GetJumpCounterTarget(BattleChar& outTarget) c
     return true;
 }
 
-bool BattleReactionController::TryConsumeGuard(const BattleChar& target, uint32 stepIndex, uint32 consumeKey)
+bool BattleReactionController::TryConsumeGuard(
+    const BattleChar& target,
+    uint32 stepIndex,
+    uint32 consumeKey,
+    BattleReactionType* outConsumedReaction)
 {
+    if (outConsumedReaction != nullptr)
+        *outConsumedReaction = BattleReactionType::None;
+
     if (target.actor == nullptr || target.statCom == nullptr)
         return false;
 
@@ -325,6 +334,9 @@ bool BattleReactionController::TryConsumeGuard(const BattleChar& target, uint32 
     const bool guarded =
         result == BattleReactionType::Dodge ||
         result == BattleReactionType::Parry;
+
+    if (guarded && outConsumedReaction != nullptr)
+        *outConsumedReaction = result;
 
     if (guarded && result == BattleReactionType::Parry)
     {
@@ -605,11 +617,23 @@ BattleReactionController::BattleReactionInputResult BattleReactionController::Up
         turnAction.Get_CurChar().statCom != nullptr &&
         !turnAction.Get_CurChar().statCom->Is_Player())
     {
+        if (IsWindowOpen(BattleReactionType::JumpCounter))
+        {
+            const size_t index = ReactionIndex(BattleReactionType::JumpCounter);
+            _reactionWindowElapsedSec[index] += max(0.f, GAME->Get_UnscaledTimeDelta());
+
+            if (_reactionWindowElapsedSec[index] >= kAutoJumpCounterInputDelaySec)
+                return SubmitInput(BattleReactionType::JumpCounter, turnAction);
+        }
+
         if (const ReactionInputContext* echoContext = Find_ActiveEchoReactionContext(BattleReactionType::Parry))
             return SubmitInput(*echoContext);
 
         if (IsWindowOpen(BattleReactionType::Parry))
             return SubmitInput(BattleReactionType::Parry, turnAction);
+
+        if (IsWindowOpen(BattleReactionType::Jump))
+            return SubmitInput(BattleReactionType::Jump, turnAction);
     }
 
     if (GAME->KeyDown(KEY_TYPE::SPACE))
@@ -1219,6 +1243,16 @@ bool BattleReactionController::CanReceiveInput(const BattleChar& target) const
 
     if (!target.statCom->Is_Player())
         return false;
+
+    for (const BattleChar& reactionTarget : _reactionAnimTargets)
+    {
+        if (reactionTarget.actor == target.actor &&
+            reactionTarget.ModelCom != nullptr &&
+            !reactionTarget.ModelCom->Is_AnimationFinished())
+        {
+            return false;
+        }
+    }
 
     const BattleAnimType animType =
         static_cast<BattleAnimType>(target.ModelCom->Get_AnimationStateIndex());

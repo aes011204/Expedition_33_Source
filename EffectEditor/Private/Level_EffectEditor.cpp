@@ -31,7 +31,6 @@ namespace Internal
                prototypeTag == L"Model_Simon_Hair" ||
                prototypeTag == L"Model_Simon_Weapon";
     }
-
 }
 
 Level_EffectEditor::Level_EffectEditor(const ComPtr<Device>& device, const ComPtr<Context>& context)
@@ -138,7 +137,6 @@ HRESULT Level_EffectEditor::Ensure_TrailPreviewFixture()
             ++registeredModelCount;
             continue;
         }
-
     }
 
     if (registeredModelCount < 6)

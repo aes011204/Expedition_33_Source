@@ -24,6 +24,10 @@ public:
 
     bool  Is_Playing() const { return _isPlaying; }
     float Get_Elapsed() const { return _elapsed; }
+    bool  Is_PlayingForTarget(const BattleChar& target) const
+    {
+        return _isPlaying && _hasTarget && target.actor != nullptr && _target.actor.get() == target.actor.get();
+    }
 
 protected:
     bool Begin_FloatingText(const BattleChar& target, uint32 stackIndex);
@@ -37,7 +41,6 @@ protected:
 
     // projection 이후 화면 좌표 오프셋 세팅
     void Set_ScreenBaseOffset(const Vec2& screenBaseOffset) { _screenBaseOffset = screenBaseOffset; }
-    void Set_ScreenClamp(bool enabled, const Vec2& padding) { _screenClampEnabled = enabled; _screenClampPadding = padding; }
     void Set_WorldAnchorRandomYRange(float minY, float maxY) { _worldAnchorRandomMinY = minY; _worldAnchorRandomMaxY = maxY; }
     void Set_AnchorMode(AnchorMode anchorMode) { _anchorMode = anchorMode; }
 
@@ -54,7 +57,6 @@ private:
 
     // 동시에 뜬 숫자끼리 겹치지 않도록 기존 좌우/상하 분산 규칙을 유지한다.
     void Apply_StackOffset(Vec2& screenPos) const;
-    void Apply_ScreenClamp(Vec2& screenPos) const;
     void Apply_RiseOffset(Vec2& screenPos, float t) const;
 
 protected:
@@ -73,8 +75,6 @@ protected:
 
     Vec3        _worldAnchorOffset = Vec3::Zero;       // projection 전 월드 기준점 보정값
     Vec2        _screenBaseOffset = Vec2(0.f, -10.f);  // projection 후 미세 보정값
-    bool        _screenClampEnabled = false;
-    Vec2        _screenClampPadding = Vec2::Zero;
     float       _worldAnchorRandomMinY = 0.f;
     float       _worldAnchorRandomMaxY = 0.f;
     float       _worldAnchorRandomY = 0.f;

@@ -265,6 +265,7 @@ private:
     void    Clear_BattleRuntimeState();
     void    Push_TurnEntry(const BattleChar& actor, float nextTime);
     float   Resolve_PrefabGroundOffsetY(const Shared<GameObject>& actor) const;
+    bool    Try_ResolveSimonBattleBGM(wstring& outIntroBGM, wstring& outMainBGM) const;
 
     void    Complete_BattleField();          // 2초 슬로우모션이 끝난 뒤 실제 PB/MB 생성과 턴 시작을 처리한다.
     void    Clear_BattleEnterPending();      // 전투 진입 대기 데이터만 정리

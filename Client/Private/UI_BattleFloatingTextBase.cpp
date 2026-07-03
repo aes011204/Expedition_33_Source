@@ -82,6 +82,7 @@ bool UI_BattleFloatingTextBase::Begin_FloatingText(const BattleChar& target, uin
     if (_root && _root->Get_Transform())
         _root->Get_Transform()->Set_Position(startPos);
 
+    Set_EditorPositionDrivenByCode(true); // Open()이 JSON 기본 위치로 되돌리지 않게 floating text 위치 소유권을 코드에 둔다.
     UI_RuntimePanelBase::Open();
     return true;
 }
@@ -162,7 +163,6 @@ bool UI_BattleFloatingTextBase::Try_ResolveScreenPosition(float t, Vec2& outScre
     outScreenPos += Resolve_ScreenBaseOffset(worldPos);
     Apply_EditorOffsets(outScreenPos);
     Apply_StackOffset(outScreenPos);
-    Apply_ScreenClamp(outScreenPos); // 근접 카메라/튀는 anchor도 최종 UI 위치는 화면 안에 잡는다.
     Apply_RiseOffset(outScreenPos, t);
     return true;
 }
@@ -178,18 +178,6 @@ void UI_BattleFloatingTextBase::Apply_StackOffset(Vec2& screenPos) const
 
     screenPos.x += horizontal;
     screenPos.y += vertical;
-}
-
-void UI_BattleFloatingTextBase::Apply_ScreenClamp(Vec2& screenPos) const
-{
-    if (!_screenClampEnabled)
-        return;
-
-    const float width = static_cast<float>(max(1u, GAME->Get_ViewportWidth()));
-    const float height = static_cast<float>(max(1u, GAME->Get_ViewportHeight()));
-
-    screenPos.x = clamp(screenPos.x, _screenClampPadding.x, width - _screenClampPadding.x);
-    screenPos.y = clamp(screenPos.y, _screenClampPadding.y, height - _screenClampPadding.y);
 }
 
 void UI_BattleFloatingTextBase::Apply_RiseOffset(Vec2& screenPos, float t) const
