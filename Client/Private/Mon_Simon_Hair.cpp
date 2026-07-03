@@ -197,64 +197,31 @@ void Mon_Simon_Hair::RuntimeRebuild()
     _hairPhysicsReady = true;
 }
 
-void Mon_Simon_Hair::Build_RuntimeDebugCapsules(vector<SimonHairRuntime::RuntimeDebugCapsule>& outCapsules) const
+void Mon_Simon_Hair::Build_RuntimeDebugCapsules(vector<PhysicsModifier::RuntimeDebugCapsule>& outCapsules) const
 {
     outCapsules.clear();
     if (!_hairPhysicsReady || !_hairPhysicsModifier)
         return;
 
-    vector<PhysicsModifier::RuntimeDebugCapsule> physicsCapsules{};
-    _hairPhysicsModifier->Build_RuntimeDebugCapsules(physicsCapsules);
-    outCapsules.reserve(physicsCapsules.size());
-    for (const auto& capsule : physicsCapsules)
-    {
-        SimonHairRuntime::RuntimeDebugCapsule outCapsule{};
-        outCapsule.startPoint = capsule.startPoint;
-        outCapsule.endPoint = capsule.endPoint;
-        outCapsule.sourceRadius = capsule.sourceRadius;
-        outCapsule.collisionRadius = capsule.collisionRadius;
-        outCapsules.push_back(outCapsule);
-    }
+    _hairPhysicsModifier->Build_RuntimeDebugCapsules(outCapsules);
 }
 
-void Mon_Simon_Hair::Build_RuntimeDebugSpheres(vector<SimonHairRuntime::RuntimeDebugSphere>& outSpheres) const
+void Mon_Simon_Hair::Build_RuntimeDebugSpheres(vector<PhysicsModifier::RuntimeDebugSphere>& outSpheres) const
 {
     outSpheres.clear();
     if (!_hairPhysicsReady || !_hairPhysicsModifier)
         return;
 
-    vector<PhysicsModifier::RuntimeDebugSphere> physicsSpheres{};
-    _hairPhysicsModifier->Build_RuntimeDebugSpheres(physicsSpheres);
-    outSpheres.reserve(physicsSpheres.size());
-    for (const auto& sphere : physicsSpheres)
-    {
-        SimonHairRuntime::RuntimeDebugSphere outSphere{};
-        outSphere.center = sphere.center;
-        outSphere.radius = sphere.radius;
-        outSphere.hasContact = sphere.hasContact;
-        outSpheres.push_back(outSphere);
-    }
+    _hairPhysicsModifier->Build_RuntimeDebugSpheres(outSpheres);
 }
 
-void Mon_Simon_Hair::Build_RuntimeDebugSegments(vector<SimonHairRuntime::RuntimeDebugSegment>& outSegments) const
+void Mon_Simon_Hair::Build_RuntimeDebugSegments(vector<PhysicsModifier::RuntimeDebugSegment>& outSegments) const
 {
     outSegments.clear();
     if (!_hairPhysicsReady || !_hairPhysicsModifier)
         return;
 
-    vector<PhysicsModifier::RuntimeDebugSegment> physicsSegments{};
-    _hairPhysicsModifier->Build_RuntimeDebugSegments(physicsSegments);
-    outSegments.reserve(physicsSegments.size());
-    for (const auto& segment : physicsSegments)
-    {
-        SimonHairRuntime::RuntimeDebugSegment outSegment{};
-        outSegment.startPoint = segment.startPoint;
-        outSegment.endPoint = segment.endPoint;
-        outSegment.hasContact = segment.hasContact;
-        outSegment.hasPush = segment.hasPush;
-        outSegment.type = SimonHairRuntime::RuntimeDebugSegmentType::ActorChain;
-        outSegments.push_back(outSegment);
-    }
+    _hairPhysicsModifier->Build_RuntimeDebugSegments(outSegments);
 }
 
 uint32 Mon_Simon_Hair::Decide_PassIndex(Shared<Material> mat)
