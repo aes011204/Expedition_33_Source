@@ -466,12 +466,78 @@ void BattleActionExecutor::Update_RatioMoveTo(BattleAction& action, const Shared
 {
     //ReturnToOrigin
     //MoveToTarget
+    const auto& phases = action.GetSkillData().AnimPhases;
+    if (action.GetCurAnimIndex() >= phases.size())
+        return;
+
+    const BattleActionPhase& phase = phases[action.GetCurAnimIndex()];
+    const bool keepFaceTarget = phase.faceTarget;
+    const Shared<GameObject> faceTargetActor = action.GetInitTarget().actor;
+
+    auto applyInterpolatedRotation = [&](float ratio, bool snapToGoal)
+    {
+        Vec3 startRot = action.GetOriginRot();
+        if (phase.movementPolicy != BattleMovementPolicy::ReturnToOrigin)
+            startRot = transform->Get_RotationEuler();
+
+        Vec3 goalRot = action.GetOriginRot();
+
+        if (keepFaceTarget && faceTargetActor != nullptr)
+        {
+            const Shared<TransformCom> targetTransform = faceTargetActor->Get_Transform();
+            if (targetTransform != nullptr)
+            {
+                const Vec3 pivotPos = snapToGoal ? action.GetPhaseGoalPos() : transform->Get_Position();
+                Vec3 dir = targetTransform->Get_Position() - pivotPos;
+                dir.y = 0.f;
+
+                if (dir.LengthSquared() > 0.0001f)
+                {
+                    const float goalYaw = XMConvertToDegrees(atan2f(dir.x, dir.z));
+                    const float currentYaw = transform->Get_RotationEuler().y;
+
+                    if (snapToGoal)
+                    {
+                        Vec3 finalRot = transform->Get_RotationEuler();
+                        finalRot.y = goalYaw;
+                        transform->Set_RotationEuler(finalRot);
+                        return;
+                    }
+
+                    float deltaYaw = goalYaw - currentYaw;
+                    while (deltaYaw > 180.f)
+                        deltaYaw -= 360.f;
+                    while (deltaYaw < -180.f)
+                        deltaYaw += 360.f;
+
+                    Vec3 nextRot = transform->Get_RotationEuler();
+                    nextRot.y = currentYaw + deltaYaw * ratio;
+                    transform->Set_RotationEuler(nextRot);
+                    return;
+                }
+            }
+        }
+
+        float startYaw = startRot.y;
+        float goalYaw = goalRot.y;
+        float deltaYaw = goalYaw - startYaw;
+        while (deltaYaw > 180.f)
+            deltaYaw -= 360.f;
+        while (deltaYaw < -180.f)
+            deltaYaw += 360.f;
+
+        Vec3 nextRot = startRot;
+        nextRot.y = snapToGoal ? goalYaw : startYaw + deltaYaw * ratio;
+        transform->Set_RotationEuler(nextRot);
+    };
+
     Vec3 path = action.GetPhaseGoalPos() - action.GetPhaseStartPos();
     path.y = 0.f;
     const float totalDistance = path.Length();
 
     if (totalDistance <= 0.05f)
     {
+        applyInterpolatedRotation(1.f, true);
         return;
     }
 
@@ -483,6 +549,7 @@ void BattleActionExecutor::Update_RatioMoveTo(BattleAction& action, const Shared
 
     if (remain <= 0.05f)
     {
+        applyInterpolatedRotation(1.f, true);
         return;
     }
 
@@ -501,16 +568,15 @@ void BattleActionExecutor::Update_RatioMoveTo(BattleAction& action, const Shared
  /*   if (moveAmount <= 0.f)
         return;*/
 
- 
     const float clampedMove = min(moveAmount, remain);
-
-
+    const float moveRatio = clamp(1.f - (remain - clampedMove) / totalDistance, 0.f, 1.f);
 
     const auto& rm = action.Get_CurChar().ModelCom->Get_RootTransformVelocity();
     Vec3 right = transform->Get_WorldRight();
     right.y = 0.f;
     right.Normalize();
     transform->Set_Position(currentPos + path * clampedMove + right * (rm.position.x * 0.01f));
+    applyInterpolatedRotation(moveRatio, false);
    // transform->Set_Position(currentPos + path * clampedMove);
 
 }
