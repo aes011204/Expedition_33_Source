@@ -217,6 +217,10 @@ private: //## Helper::Setup
 private: //## Helper::TrailRuntime
     // provider sample을 history에 누적하고 수명/개수를 정리한다.
     void Update_History(float timeDelta);
+    // segment lifetime 안쪽의 visible history sample 수다.
+    uint32 Count_VisibleHistorySamples() const;
+    // visible sample을 우선 보존하고 tail control-only sample 하나만 남긴다.
+    void Prune_HistoryForVisibleControl();
     // render-time tessellation을 포함한 최대 segment capacity다.
     uint32 Compute_MaxRenderSegmentCount() const;
     // SpawnPerUnit 정책에 따라 provider sample과 보강 sample을 history에 삽입한다.

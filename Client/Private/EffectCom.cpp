@@ -1732,8 +1732,8 @@ bool EffectCom::Try_ResolveTrailAnchorWorldPosition(
         return false;
 
     const Matrix anchorLocalMatrix = weaponModel->Get_ModelType() == ModelType::NonAnim
-        ? Matrix::Identity
-        : *boneMatrix;
+                                     ? Matrix::Identity
+                                     : *boneMatrix;
     const Matrix anchorWorldMatrix = anchorLocalMatrix * trailPart.Get_CombinedWorldMatrix();
     outWorldPosition = Vec3::Transform(anchor.localPosition, anchorWorldMatrix);
     return true;
@@ -1789,8 +1789,8 @@ bool EffectCom::Try_ResolveWeaponAnchorWorldPosition(
         return false;
 
     const Matrix sourceLocalMatrix = weaponModel->Get_ModelType() == ModelType::NonAnim
-        ? Matrix::Identity
-        : *boneMatrix;
+                                     ? Matrix::Identity
+                                     : *boneMatrix;
     const Matrix sourceWorldMatrix = sourceLocalMatrix * weaponPart.Get_CombinedWorldMatrix();
     outWorldPosition = Vec3::Transform(anchor->localPosition + localOffset, sourceWorldMatrix);
     return true;
