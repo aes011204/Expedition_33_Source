@@ -24,6 +24,21 @@ PB_Gustave::PB_Gustave(const PB_Gustave& prototype)
 {
 }
 
+HRESULT PB_Gustave::Ready_BodyModifiers(Body_Player* body, const wchar_t* bodyModelTag)
+{
+    CHECK_NULL(body, E_FAIL);
+    if (bodyModelTag == nullptr)
+        return S_OK;
+
+    if (wcscmp(bodyModelTag, L"Model_GustaveBody") == 0)
+        return Add_BodyArmbandAndCoatModifiers(body, PlayerCharacterType::Gustave);
+
+    if (wcscmp(bodyModelTag, L"Model_Gustave_Body_Potato") == 0)
+        return Add_GustavePotatoCapeModifier(body);
+
+    return S_OK;
+}
+
 HairChainPhysicsDesc PB_Gustave::Get_HairChainPhysicsDesc() const
 {
     HairChainPhysicsDesc desc{};

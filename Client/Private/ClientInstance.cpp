@@ -34,17 +34,17 @@
 #include "PlayerStatCom.h"
 #include "SoulLikeController.h"
 #include "TargetCamera.h"
+#include "Trigger_Cinematic.h"
 #include "BattleTurnCamera.h"
 #include "BattleEncounterProfile.h"
 #include "CameraPresetIO.h"
 #include "Unlock_Manager.h"
-#include "DialogueDB.h"
 #include "DialogueManager.h"
 #include "DialogueCamera.h"
 #include "BattleFollowupManager.h"
-#include "Client_Constants.h"
 #include "Monster_WorldBase.h"
 #include "NPC_Base.h"
+#include "SimonCriticalGlowController.h"
 #include "ContainerObject.h"
 #include "ModelCom.h"
 
@@ -123,7 +123,28 @@ namespace
             return;
 
         GAME->Set_UseInstancedShadowCache(g_potatoBagArenaSavedUseInstancedShadowCache);
+        GAME->Set_DynamicShadowCascadeTemporalUpdateIntervals(1u, 2u, 4u, 12u);
         g_potatoBagArenaInstancedShadowOverrideActive = false;
+    }
+
+    int32 Resolve_InteractionPromptPriority(InteractionPromptType type)
+    {
+        switch (type)
+        {
+        case InteractionPromptType::Dialogue:
+            return 300;
+
+        case InteractionPromptType::Picking:
+            return 200;
+
+        case InteractionPromptType::Cross:
+        case InteractionPromptType::Up:
+        case InteractionPromptType::Down:
+            return 100;
+
+        default:
+            return 0;
+        }
     }
 
     bool Should_CaptureReplayWorldObject(const wstring& layerTag, const Shared<GameObject>& gameObject)
@@ -325,6 +346,9 @@ HRESULT ClientInstance::Initialize_Client(const ComPtr<Device>& device, const Co
 
     _battleFollowupManager = BattleFollowupManager::Create();
     CHECK_NULL(_battleFollowupManager, E_FAIL);
+
+    _simonCriticalGlowController = SimonCriticalGlowController::Create();
+    CHECK_NULL(_simonCriticalGlowController, E_FAIL);
 
     _isInitialized = true;
 
@@ -569,6 +593,7 @@ void ClientInstance::Update_PotatoBagArenaMapInstancedShadowOverride()
         {
             g_potatoBagArenaSavedUseInstancedShadowCache = GAME->Is_UseInstancedShadowCache();
             GAME->Set_UseInstancedShadowCache(false);
+            GAME->Set_DynamicShadowCascadeTemporalUpdateIntervals(1u, 2u, 2u, 12u);
             g_potatoBagArenaInstancedShadowOverrideActive = true;
         }
         return;
@@ -739,7 +764,7 @@ HRESULT ClientInstance::Reload_CameraPresetData()
         battleTurnCamera->Reload_BattleCameraAuthoringData();
 
     if (auto dialogueCamera = dynamic_pointer_cast<DialogueCamera>(GAME->Get_CameraByType(ObjectType::DialogueCamera)))
-        dialogueCamera->Set_CameraPresetId(dialogueCamera->Get_CameraPresetId());
+        dialogueCamera->Load_PresetFromId();
 
     return S_OK;
 }
@@ -1727,6 +1752,64 @@ void ClientInstance::Clear_CinematicCompletedCallbacks()
     _cinematicSequenceRunner->Clear_CompletedCallbacks();
 }
 
+void ClientInstance::Queue_CinematicPrewarmForLevel(uint32 targetLevelIndex)
+{
+    if (_cinematicSequenceRunner == nullptr)
+        return;
+
+    unordered_set<wstring> queuedSequencePaths{};
+    auto queueSequencePath = [&](const wstring& sequencePath)
+        {
+            if (sequencePath.empty())
+                return;
+
+            if (!queuedSequencePaths.insert(sequencePath).second)
+                return;
+
+            _cinematicSequenceRunner->Queue_PrewarmSequence(sequencePath, targetLevelIndex);
+        };
+
+    GAME->Visit_LevelObjects(
+        targetLevelIndex,
+        [&](const wstring& layerTag, const Shared<GameObject>& gameObject)
+        {
+            UNREFERENCED_PARAMETER(layerTag);
+
+            const Shared<Trigger_Cinematic> trigger = dynamic_pointer_cast<Trigger_Cinematic>(gameObject);
+            if (trigger == nullptr)
+                return;
+
+            const wstring& sequenceFileId = trigger->Get_SequenceFileId();
+            if (sequenceFileId.empty())
+                return;
+
+            const wstring sequencePath = Constants::Cinematic::RuntimeJson_Dir + sequenceFileId;
+            queueSequencePath(sequencePath);
+        });
+
+    if (targetLevelIndex == ETOI(LevelType::GestralVillage))
+    {
+        queueSequencePath(wstring(Constants::Cinematic::RuntimeJson_Dir) + Constants::Cinematic::Dualliste_Intro);
+        queueSequencePath(wstring(Constants::Cinematic::RuntimeJson_Dir) + Constants::Cinematic::Dualliste_PhaseChange);
+    }
+}
+
+void ClientInstance::Flush_CinematicPrewarmQueue(uint32 createBudget)
+{
+    if (_cinematicSequenceRunner == nullptr)
+        return;
+
+    _cinematicSequenceRunner->Flush_PrewarmQueue(createBudget);
+}
+
+void ClientInstance::Clear_CinematicPrewarmQueue()
+{
+    if (_cinematicSequenceRunner == nullptr)
+        return;
+
+    _cinematicSequenceRunner->Clear_PrewarmQueue();
+}
+
 Shared<CinematicCamera> ClientInstance::Ensure_CinematicCamera()
 {
     if (auto camera = dynamic_pointer_cast<CinematicCamera>(GAME->Get_CameraByType(ObjectType::CinematicCamera)))
@@ -2106,8 +2189,8 @@ void ClientInstance::Clear_RuntimeEffects()
     if (_effectInstancePool == nullptr)
         return;
 
-    // 월드에 남아있는 이팩트들 제거
-    _effectInstancePool->Discard_All();
+    // F4 Stop에서는 owner가 아직 들고 있는 active handle을 깨지 않고, Stop 콜백으로 반환된 캐시만 비운다.
+    _effectInstancePool->Discard_AllInactive();
 }
 
 void ClientInstance::Notify_FreeAimShotHit()
@@ -2232,13 +2315,21 @@ void ClientInstance::RemoveItemInteractionOverlap()
         --_itemInteractionOverlapCount;
 
 }
-void ClientInstance::Request_InteractionPrompt(const void* sourceId, const Vec3& worldAnchor)
+void ClientInstance::Request_InteractionPrompt(const void* sourceId, InteractionPromptType type)
 {
-    if (sourceId == nullptr)
+    if (sourceId == nullptr || type == InteractionPromptType::None)
         return;
 
+    const int32 priority = Resolve_InteractionPromptPriority(type);
+    if (_hasInteractionPromptRequest && _interactionPromptSourceId != sourceId)
+    {
+        if (priority <= _interactionPromptPriority)
+            return;
+    }
+
     _interactionPromptSourceId = sourceId;
-    _interactionPromptWorldAnchor = worldAnchor;
+    _interactionPromptType = type;
+    _interactionPromptPriority = priority;
     _hasInteractionPromptRequest = true;
 }
 
@@ -2252,15 +2343,19 @@ void ClientInstance::Clear_InteractionPrompt(const void* sourceId)
 
     _hasInteractionPromptRequest = false;
     _interactionPromptSourceId = nullptr;
-    _interactionPromptWorldAnchor = Vec3::Zero;
+    _interactionPromptType = InteractionPromptType::None;
+    _interactionPromptPriority = 0;
 }
 
-bool ClientInstance::Try_GetInteractionPromptAnchor(Vec3& outWorldAnchor) const
+bool ClientInstance::Try_GetInteractionPromptType(InteractionPromptType& outType) const
 {
     if (!_hasInteractionPromptRequest)
         return false;
 
-    outWorldAnchor = _interactionPromptWorldAnchor;
+    if (_interactionPromptType == InteractionPromptType::None)
+        return false;
+
+    outType = _interactionPromptType;
     return true;
 }
 

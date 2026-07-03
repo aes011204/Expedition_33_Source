@@ -33,6 +33,7 @@ public:
     void OnEndOverlap(Shared<ColliderCom> self, Shared<ColliderCom> other) override;
     bool Can_Interact(const Shared<Player_WorldBase>& activeHero) const override;
     bool Build_InteractionRequest(const Shared<Player_WorldBase>& activeHero, WorldInteractionRequest& outRequest) const override;
+    InteractionPromptType Get_InteractionPromptType(const Shared<Player_WorldBase>& activeHero) const override;
 
 private:
     enum class RopeEntry

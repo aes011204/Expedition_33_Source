@@ -20,6 +20,9 @@ protected:
     const wchar_t* Get_HeadModelTag() const override { return L"Model_LuneHead"; }
     const wchar_t* Get_HairModelTag() const override { return L"Model_LuneHair"; }
 
+    HRESULT Ready_BodyModifiers(Body_Player* body, const wchar_t* bodyModelTag) override;
+    HRESULT Ready_HairModifiers(Hair_Player* hair, const wchar_t* hairModelTag) override;
+
     void Get_WeaponAttachDescs(vector<WeaponAttachDesc>& outDescs) const override;
 
     HeroId Get_HeroId() const override { return HeroId::Lune; }

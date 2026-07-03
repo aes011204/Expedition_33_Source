@@ -75,6 +75,12 @@ void Hair_Player::BeginPlay()
 
 }
 
+void Hair_Player::Enable_PoseFollowModifier()
+{
+    _usePoseFollowModifier = true;
+    _hairPoseFollowModifierReady = false;
+}
+
 void Hair_Player::Priority_Update(float timeDelta)
 {
 }

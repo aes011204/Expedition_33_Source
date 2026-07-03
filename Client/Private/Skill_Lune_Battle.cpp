@@ -7,7 +7,7 @@
 
 namespace Internal
 {
-    void Play_TargetHitEffect(const BattleChar& target, const BattleHitSequenceRunner::HitEffectDesc& hitEffect)
+    static void Play_TargetHitEffect(const BattleChar& target, const BattleHitSequenceRunner::HitEffectDesc& hitEffect)
     {
         if (!hitEffect.Is_Valid() || target.actor == nullptr)
             return;
@@ -28,7 +28,7 @@ namespace Internal
         effectCom->Play_Effect(effectDesc);
     }
 
-    void Play_TargetHitSound(const BattleChar& target, const wstring& hitSoundCue)
+    static void Play_TargetHitSound(const BattleChar& target, const wstring& hitSoundCue)
     {
         if (hitSoundCue.empty())
             return;
@@ -190,7 +190,7 @@ void Skill_Lune_TerraQuake::Execute(const Skill_Data& skill, const BattleAction&
     effectDesc.scale = { 1.3f, 1.4f, 1.3f };
 
     const float damage = DamageSystem::CalculatePlayerAttackDamage(attacker, skill.powerMultiplier);
-    DamageSystem::ApplyDamage(damage, attacker, curTargets, attackType);
+    DamageSystem::ApplyDamage(damage, attacker, curTargets, attackType, true);
 
     for (auto& target : curTargets)
     {
@@ -223,7 +223,7 @@ void Skill_Lune_CripplingTsunami::Execute(const Skill_Data& skill, const BattleA
         return;
 
     const float damage = DamageSystem::CalculatePlayerAttackDamage(attacker, skill.powerMultiplier);
-    DamageSystem::ApplyDamage(damage, attacker, curTargets, attackType);
+    DamageSystem::ApplyDamage(damage, attacker, curTargets, attackType, true);
 
     auto battle = CLIENT->Get_BattleController();
     CHECK_NULL(battle);
@@ -252,7 +252,7 @@ void Skill_Lune_SkyBreak::Execute(const Skill_Data& skill, const BattleAction& a
         attacker.mechanismCom->Add_LuneStains({ ElementalType::Ice, ElementalType::Light });
 
     const float damage = DamageSystem::CalculatePlayerAttackDamage(attacker, skill.powerMultiplier);
-    DamageSystem::ApplyDamage(damage, attacker, curTargets, attackType);
+    DamageSystem::ApplyDamage(damage, attacker, curTargets, attackType, true);
 }
 
 Shared<Skill_Lune_SkyBreak> Skill_Lune_SkyBreak::Create()

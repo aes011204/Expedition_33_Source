@@ -3,6 +3,7 @@
 #include "Character_BattleBase.h"
 #include "Client_Constants.h"
 #include "CombatStatCom.h"
+#include "Monster_Part.h"
 #include "UI_Base.h"
 #include "UI_RuntimeLoader.h"
 #include "UI_Utils.h"
@@ -13,7 +14,8 @@ using namespace UI_Utils;
 
 namespace
 {
-    constexpr Vec3 kMarkWorldAnchorOffset = Vec3(0.f, 1.2f, 0.f);
+    constexpr char kMarkSocketName[] = "spine_01";
+    constexpr Vec3 kMarkFallbackWorldAnchorOffset = Vec3(0.f, 1.2f, 0.f);
     constexpr Vec2 kMarkScreenBaseOffset = Vec2(0.f, -10.f);
 }
 
@@ -148,14 +150,24 @@ bool UI_MarkEffect::Try_GetMarkWorldPosition(const BattleChar& target, Vec3& out
 
     if (PartObject* body = target.actor->Get_PartObject(L"Part_Body"))
     {
+        if (const Monster_Part* monsterBody = dynamic_cast<const Monster_Part*>(body))
+        {
+            if (const Matrix* socketMatrix = monsterBody->Get_SocketBoneMatrixPtr(kMarkSocketName))
+            {
+                const Matrix socketWorldMatrix = *socketMatrix * body->Get_CombinedWorldMatrix();
+                outWorldPos = Vec3(socketWorldMatrix._41, socketWorldMatrix._42, socketWorldMatrix._43);
+                return true;
+            }
+        }
+
         const Matrix& bodyWorld = body->Get_CombinedWorldMatrix();
         outWorldPos = Vec3(bodyWorld._41, bodyWorld._42, bodyWorld._43);
-        outWorldPos += kMarkWorldAnchorOffset;
+        outWorldPos += kMarkFallbackWorldAnchorOffset;
         return true;
     }
 
     outWorldPos = target.actor->Get_Transform()->Get_WorldPosition();
-    outWorldPos += kMarkWorldAnchorOffset;
+    outWorldPos += kMarkFallbackWorldAnchorOffset;
     return true;
 }
 

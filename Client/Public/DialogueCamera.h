@@ -42,7 +42,7 @@ public:
     void Snap_ToDialogueTargets();
     void Apply_ImmediatePose(const Vec3& eye, const Vec3& lookAt);
 
-private:
+public:
     void Load_PresetFromId();
     bool Try_ResolveDialoguePose(Vec3& outEye, Vec3& outLookAt) const;
     void Apply_DriftToPose(float timeSec, Vec3& inOutEye, Vec3& inOutLookAt, float& inOutRollOffset) const;

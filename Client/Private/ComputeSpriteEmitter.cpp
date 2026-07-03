@@ -1102,6 +1102,9 @@ int ComputeSpriteEmitter::Resolve_OpacitySourceIndex() const
     if (_desc.required.material.opacitySource == "Luminance" || _desc.required.material.opacitySource == "luminance")
         return kOpacitySourceLuminance;
 
+    if (_desc.required.material.opacitySource == "One" || _desc.required.material.opacitySource == "one")
+        return kOpacitySourceOne;
+
     return kOpacitySourceAlpha;
 }
 

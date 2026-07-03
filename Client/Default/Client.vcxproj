@@ -190,6 +190,7 @@
     <ClInclude Include="..\public\AN_Change_Anim.h" />
     <ClInclude Include="..\Public\AN_CounterDamage.h" />
     <ClInclude Include="..\Public\AN_CounterReturnAll.h" />
+    <ClInclude Include="..\Public\AN_SimonCriticalGlow.h" />
     <ClInclude Include="..\Public\AN_SL_CachePlayerPosition.h" />
     <ClInclude Include="..\Public\AN_SL_PlayCachedPlayerEffect.h" />
     <ClInclude Include="..\Public\AN_SL_DuallisteCloneSkill.h" />
@@ -252,7 +253,9 @@
     <ClInclude Include="..\Public\CA_ScreenFx.h" />
     <ClInclude Include="..\Public\ChangeSkill_Panel.h" />
     <ClInclude Include="..\public\ChangeWeapon_Panel.h" />
+    <ClInclude Include="..\Public\SimonCriticalGlowController.h" />
     <ClInclude Include="..\Public\SL_UseItem.h" />
+    <ClInclude Include="..\Public\Trigger_FallTornadoZone.h" />
     <ClInclude Include="..\Public\UpgradeWeapon_Panel.h" />
     <ClInclude Include="..\Public\Merchant_Panel.h" />
     <ClInclude Include="..\public\BT_FinishDecision.h" />
@@ -392,7 +395,7 @@
     <ClInclude Include="..\Private\BattleWorldUI_SurfaceAnim.h" />
     <ClInclude Include="..\Public\GameplayUI_Battle.h" />
     <ClInclude Include="..\Public\GameplayUI_World.h" />
-    <ClInclude Include="..\Public\UI_InteractionPrompt.h" />
+    <ClInclude Include="..\Public\UI_Interaction.h" />
     <ClInclude Include="..\Public\MapLandscape.h" />
     <ClInclude Include="..\Public\MainTitleMenuSound.h" />
     <ClInclude Include="..\public\Level_GameEntry.h" />
@@ -691,6 +694,7 @@
     <ClCompile Include="..\private\AN_Change_Anim.cpp" />
     <ClCompile Include="..\Private\AN_CounterDamage.cpp" />
     <ClCompile Include="..\Private\AN_CounterReturnAll.cpp" />
+    <ClCompile Include="..\Private\AN_SimonCriticalGlow.cpp" />
     <ClCompile Include="..\Private\AN_SL_CachePlayerPosition.cpp" />
     <ClCompile Include="..\Private\AN_SL_PlayCachedPlayerEffect.cpp" />
     <ClCompile Include="..\Private\AN_SL_DuallisteCloneSkill.cpp" />
@@ -776,6 +780,7 @@
     <ClCompile Include="..\Private\ANS_SL_TargetTrack.cpp" />
     <ClCompile Include="..\Private\ANS_SL_JumpCounterThreat.cpp" />
     <ClCompile Include="..\Private\ANS_SL_JumpCounterWindow.cpp" />
+    <ClCompile Include="..\Private\SimonCriticalGlowController.cpp" />
     <ClCompile Include="..\Private\SL_Base.cpp" />
     <ClCompile Include="..\Private\SL_BasicAttack.cpp" />
     <ClCompile Include="..\Private\SL_DamageSystem.cpp" />
@@ -812,6 +817,7 @@
     <ClCompile Include="..\Private\SL_StateMachineCom.cpp" />
     <ClCompile Include="..\Private\Trigger_BGMZone.cpp" />
     <ClCompile Include="..\private\Trigger_Cinematic.cpp" />
+    <ClCompile Include="..\Private\Trigger_FallTornadoZone.cpp" />
     <ClCompile Include="..\Private\Trigger_Interaction.cpp" />
     <ClCompile Include="..\Private\UI_AbilityPentagon.cpp" />
     <ClCompile Include="..\Private\ComputeGeneratedBeamEmitter.cpp" />
@@ -864,7 +870,7 @@
     <ClCompile Include="..\Private\BattleWorldUI_SkillCards.cpp" />
     <ClCompile Include="..\Private\GameplayUI_Battle.cpp" />
     <ClCompile Include="..\Private\GameplayUI_World.cpp" />
-    <ClCompile Include="..\Private\UI_InteractionPrompt.cpp" />
+    <ClCompile Include="..\Private\UI_Interaction.cpp" />
     <ClCompile Include="..\Private\MapLandscape.cpp" />
     <ClCompile Include="..\Private\MainTitleMenuSound.cpp" />
     <ClCompile Include="..\private\Level_GameEntry.cpp" />
