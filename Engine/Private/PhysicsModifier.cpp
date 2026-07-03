@@ -526,7 +526,7 @@ void PhysicsModifier::Evaluate_Modifier(ModelCom* model, float timeDelta)
 		
 		Apply_LengthAndBendConstraints();
 		Apply_PostSimulationConstraints(worldCapsules);
-		Apply_LocalOffsetConstraints(isOwnerIdle);
+		Apply_LocalOffsetConstraints(timeDelta, isOwnerIdle);
 
 		if (_desc.writeBackEnabled)
 			Write_BackToModel(model, ownerWorld, isOwnerIdle);
@@ -1089,6 +1089,8 @@ void PhysicsModifier::Reset_PhysXStateToPose(ModelCom* model, const ModelCom* co
 			node.prevPosePosition = posePosition;
 			node.poseMotionDelta = Vec3::Zero;
 			node.hasPrevPosePosition = true;
+			node.smoothedInertiaVelocity = Vec3::Zero;
+			node.hasSmoothedInertiaVelocity = false;
 
 			Vec3 poseScale = Vec3::One;
 			Quat poseRotation = Quat::Identity;
@@ -1213,6 +1215,11 @@ void PhysicsModifier::Apply_OwnerInertiaForce(const Vec3& ownerMotionDelta, floa
 		{
 			chain.prevDriverVelocity = Vec3::Zero;
 			chain.hasPrevDriverVelocity = false;
+			for (auto& node : chain.nodes)
+			{
+				node.smoothedInertiaVelocity = Vec3::Zero;
+				node.hasSmoothedInertiaVelocity = false;
+			}
 		}
 		return;
 	}
@@ -1223,6 +1230,7 @@ void PhysicsModifier::Apply_OwnerInertiaForce(const Vec3& ownerMotionDelta, floa
 	const float depthScale = std::max(0.f, _desc.depthInertiaScale);
 	const float accelerationScale = std::max(0.f, _desc.accelerationInertiaScale);
 	const float velocitySmoothAlpha = std::clamp(_desc.inertiaVelocitySmoothAlpha, 0.f, 1.f);
+	const float releaseVelocityAlpha = std::clamp(_desc.releaseInertiaDamping, 0.f, 0.98f);
 
 	for (auto& chain : _chains)
 	{
@@ -1237,7 +1245,10 @@ void PhysicsModifier::Apply_OwnerInertiaForce(const Vec3& ownerMotionDelta, floa
 		Vec3 driverVelocityDelta = Vec3::Zero;
 		if (chain.hasPrevDriverVelocity)
 		{
-			driverVelocity = Vec3::Lerp(chain.prevDriverVelocity, rawDriverVelocity, velocitySmoothAlpha);
+			const float driverFollowAlpha = rawDriverVelocity.LengthSquared() < chain.prevDriverVelocity.LengthSquared()
+				? std::max(velocitySmoothAlpha, releaseVelocityAlpha)
+				: velocitySmoothAlpha;
+			driverVelocity = Vec3::Lerp(chain.prevDriverVelocity, rawDriverVelocity, driverFollowAlpha);
 			driverVelocityDelta = driverVelocity - chain.prevDriverVelocity;
 		}
 		chain.prevDriverVelocity = driverVelocity;
@@ -1302,15 +1313,35 @@ void PhysicsModifier::Apply_OwnerInertiaForce(const Vec3& ownerMotionDelta, floa
 			verticalAxis.Normalize();
 
 		auto buildWeightedTangentialVelocity =
-			[&](const Vec3& worldVelocity) -> Vec3
+			[&](const Vec3& worldVelocity, bool includeLateral) -> Vec3
 			{
 				Vec3 weightedVelocity =
-					lateralAxis * (worldVelocity.Dot(lateralAxis) * lateralScale) +
 					depthAxis * (worldVelocity.Dot(depthAxis) * depthScale);
+				if (includeLateral)
+					weightedVelocity += lateralAxis * (worldVelocity.Dot(lateralAxis) * lateralScale);
 				if (verticalAxis.LengthSquared() > 0.000001f)
 					weightedVelocity += verticalAxis * (worldVelocity.Dot(verticalAxis) * verticalScale);
 				weightedVelocity -= chainAxis * weightedVelocity.Dot(chainAxis);
 				return weightedVelocity;
+			};
+
+		const Vec3 driverTangentialVelocity = buildWeightedTangentialVelocity(driverVelocity, false);
+		const Vec3 driverTangentialVelocityDelta = buildWeightedTangentialVelocity(driverVelocityDelta, true);
+		const float inertiaVelocityDeadzone = (_desc.idleMotionDeadzone / timeDelta) *
+			std::clamp(_desc.releaseInertiaDamping, 0.f, 1.f);
+		auto applyInertiaVelocityGate =
+			[inertiaVelocityDeadzone](const Vec3& velocity) -> Vec3
+			{
+				const float length = velocity.Length();
+				if (length <= 0.000001f)
+					return Vec3::Zero;
+				if (inertiaVelocityDeadzone <= 0.000001f)
+					return velocity;
+				const float gate = SmoothStep(std::clamp(
+					(length - inertiaVelocityDeadzone) / inertiaVelocityDeadzone,
+					0.f,
+					1.f));
+				return velocity * gate;
 			};
 
 		for (auto& node : chain.nodes)
@@ -1320,37 +1351,82 @@ void PhysicsModifier::Apply_OwnerInertiaForce(const Vec3& ownerMotionDelta, floa
 
 			const float depth = std::clamp(node.depthRatio, 0.f, 1.f);
 			const float tipRatio = SmoothStep(depth);
-			const float tipBias = tipRatio * tipRatio;
+			const float tipBias = tipRatio;
 			const float tipWeight = 1.f + (std::max(0.f, _desc.tipMovementInertiaScale) - 1.f) * tipBias;
+			auto releaseSmoothedInertiaVelocity =
+				[releaseVelocityAlpha](Node& targetNode)
+				{
+					if (!targetNode.hasSmoothedInertiaVelocity)
+						return;
+
+					targetNode.smoothedInertiaVelocity = Vec3::Lerp(
+						targetNode.smoothedInertiaVelocity,
+						Vec3::Zero,
+						releaseVelocityAlpha);
+					if (targetNode.smoothedInertiaVelocity.LengthSquared() <= 0.000001f)
+					{
+						targetNode.smoothedInertiaVelocity = Vec3::Zero;
+						targetNode.hasSmoothedInertiaVelocity = false;
+					}
+				};
 			const Vec3 relativePoseDelta = node.poseMotionDelta - poseDriverDelta;
 			const Vec3 relativePoseVelocity = relativePoseDelta / timeDelta;
-			const Vec3 effectiveVelocity = driverVelocity + relativePoseVelocity;
-			const Vec3 effectiveVelocityDelta = driverVelocityDelta;
-			const Vec3 tangentialVelocity = buildWeightedTangentialVelocity(effectiveVelocity);
-			const Vec3 tangentialVelocityDelta = buildWeightedTangentialVelocity(effectiveVelocityDelta);
+			const Vec3 relativeTangentialVelocity = buildWeightedTangentialVelocity(relativePoseVelocity, true);
+			const Vec3 tangentialVelocity = driverTangentialVelocity + relativeTangentialVelocity;
+			const Vec3 tangentialVelocityDelta = driverTangentialVelocityDelta;
+			const Vec3 inertiaVelocity = applyInertiaVelocityGate(
+				tangentialVelocity + tangentialVelocityDelta * accelerationScale);
 
-			if (tangentialVelocity.LengthSquared() <= 0.000001f &&
-				tangentialVelocityDelta.LengthSquared() <= 0.000001f)
+			if (inertiaVelocity.LengthSquared() <= 0.000001f)
 			{
+				releaseSmoothedInertiaVelocity(node);
 				continue;
 			}
 
-			Vec3 velocityChange =
-				-(tangentialVelocity + tangentialVelocityDelta * accelerationScale) *
+			Vec3 targetVelocity =
+				-inertiaVelocity *
 				(inertiaScale * tipWeight);
+
+			if (targetVelocity.LengthSquared() <= 0.000001f)
+			{
+				releaseSmoothedInertiaVelocity(node);
+				continue;
+			}
+
+			const float finalMaxSpeed = maxSpeed;
+			const float targetVelocityLength = targetVelocity.Length();
+			if (finalMaxSpeed > 0.0001f && targetVelocityLength > finalMaxSpeed)
+			{
+				targetVelocity /= targetVelocityLength;
+				targetVelocity *= finalMaxSpeed;
+			}
+
+			if (node.hasSmoothedInertiaVelocity)
+			{
+				const float targetFollowAlpha = targetVelocity.LengthSquared() < node.smoothedInertiaVelocity.LengthSquared()
+					? std::max(std::max(velocitySmoothAlpha, _desc.outputSmoothAlpha), releaseVelocityAlpha)
+					: std::max(velocitySmoothAlpha, _desc.outputSmoothAlpha);
+				targetVelocity = Vec3::Lerp(
+					node.smoothedInertiaVelocity,
+					targetVelocity,
+					std::clamp(targetFollowAlpha, 0.f, 1.f));
+			}
+			node.smoothedInertiaVelocity = targetVelocity;
+			node.hasSmoothedInertiaVelocity = true;
+
+			Vec3 velocityChange = targetVelocity;
+			const float smoothedTargetLength = targetVelocity.Length();
+			if (smoothedTargetLength > 0.000001f)
+			{
+				Vec3 targetDirection = targetVelocity / smoothedTargetLength;
+				const Vec3 currentVelocity = From_PxVec3(node.actor->getLinearVelocity());
+				const float currentAlongTarget = currentVelocity.Dot(targetDirection);
+				if (currentAlongTarget > 0.f)
+					velocityChange -= targetDirection * std::min(currentAlongTarget, smoothedTargetLength);
+			}
 
 			if (velocityChange.LengthSquared() <= 0.000001f)
 				continue;
-
-			const float finalMaxSpeed = maxSpeed > 0.0001f
-				? maxSpeed * tipWeight
-				: 0.f;
-			const float finalVelocityChangeLength = velocityChange.Length();
-			if (finalMaxSpeed > 0.0001f && finalVelocityChangeLength > finalMaxSpeed)
-			{
-				velocityChange /= finalVelocityChangeLength;
-				velocityChange *= finalMaxSpeed;
-			}
 
 			_desc.debugInertiaMagnitude = std::max(_desc.debugInertiaMagnitude, velocityChange.Length());
 
@@ -1779,15 +1855,14 @@ void PhysicsModifier::Apply_PoseRestoreAndDamping(float timeDelta, bool isOwnerI
 			if (isOwnerIdle && !windActive)
 			{
 				const float restDistanceSq = (correctedPosition - restPosition).LengthSquared();
-				if (restDistanceSq <= 0.0004f
-					&& linearVelocity.LengthSquared() <= 0.0001f
-					&& angularVelocity.LengthSquared() <= 0.0001f)
+				if (restDistanceSq <= 0.000025f
+					&& linearVelocity.LengthSquared() <= 0.000004f
+					&& angularVelocity.LengthSquared() <= 0.000004f)
 				{
-					PxTransform restPose = actorPose;
-					restPose.p = To_PxVec3(restPosition);
-					node.actor->setGlobalPose(restPose);
 					linearVelocity = Vec3::Zero;
 					angularVelocity = Vec3::Zero;
+					node.smoothedInertiaVelocity = Vec3::Zero;
+					node.hasSmoothedInertiaVelocity = false;
 					shouldSleep = true;
 				}
 			}
@@ -1800,7 +1875,7 @@ void PhysicsModifier::Apply_PoseRestoreAndDamping(float timeDelta, bool isOwnerI
 	}
 }
 
-void PhysicsModifier::Apply_LocalOffsetConstraints(bool isOwnerIdle)
+void PhysicsModifier::Apply_LocalOffsetConstraints(float timeDelta, bool isOwnerIdle)
 {
 	Vec3 maxLocalOffset(
 		std::max(0.f, fabsf(_desc.maxLocalOffset.x)),
@@ -1845,6 +1920,28 @@ void PhysicsModifier::Apply_LocalOffsetConstraints(bool isOwnerIdle)
 			if (!shouldApply)
 				continue;
 
+			if (wasClamped && !isOwnerIdle && timeDelta > 0.0001f)
+			{
+				Vec3 correction = constrainedPosition - currentPosition;
+				const float correctionLength = correction.Length();
+				if (correctionLength > 0.0001f)
+				{
+					const float correctionAlpha = std::clamp(
+						1.f - std::clamp(_desc.releaseInertiaDamping, 0.f, 0.98f),
+						std::clamp(_desc.outputSmoothAlpha, 0.f, 1.f),
+						1.f);
+					const float correctionMaxStep = std::max(0.f, _desc.poseRestoreMaxSpeed) * timeDelta;
+					correction *= correctionAlpha;
+					const float smoothedLength = correction.Length();
+					if (correctionMaxStep > 0.0001f && smoothedLength > correctionMaxStep)
+					{
+						correction /= smoothedLength;
+						correction *= correctionMaxStep;
+					}
+					constrainedPosition = currentPosition + correction;
+				}
+			}
+
 			node.solvedPosition = constrainedPosition;
 			if (wasClamped)
 			{
@@ -1868,18 +1965,22 @@ void PhysicsModifier::Apply_LocalOffsetConstraints(bool isOwnerIdle)
 			Vec3 localVelocity = Vec3::TransformNormal(linearVelocity, parentInv);
 			if (wasClamped)
 			{
+				const float clampVelocityKeep = std::clamp(
+					1.f - std::clamp(_desc.releaseInertiaDamping, 0.f, 0.98f),
+					0.f,
+					0.35f);
 				if (maxLocalOffset.x > 0.0001f
 					&& fabsf(localOffset.x) >= maxLocalOffset.x - 0.0001f
 					&& localOffset.x * localVelocity.x > 0.f)
-					localVelocity.x = 0.f;
+					localVelocity.x *= clampVelocityKeep;
 				if (maxLocalOffset.y > 0.0001f
 					&& fabsf(localOffset.y) >= maxLocalOffset.y - 0.0001f
 					&& localOffset.y * localVelocity.y > 0.f)
-					localVelocity.y = 0.f;
+					localVelocity.y *= clampVelocityKeep;
 				if (maxLocalOffset.z > 0.0001f
 					&& fabsf(localOffset.z) >= maxLocalOffset.z - 0.0001f
 					&& localOffset.z * localVelocity.z > 0.f)
-					localVelocity.z = 0.f;
+					localVelocity.z *= clampVelocityKeep;
 			}
 			if (idleVelocityDamp > 0.f)
 				localVelocity *= (1.f - idleVelocityDamp);

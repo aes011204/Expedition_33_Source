@@ -169,10 +169,12 @@ private:
 		Vec3 prevSolvedPosition{ Vec3::Zero };
 		Vec3 prevPosePosition{ Vec3::Zero };
 		Vec3 poseMotionDelta{ Vec3::Zero };
+		Vec3 smoothedInertiaVelocity{ Vec3::Zero };
 		Vec3 smoothedCollisionOffset{ Vec3::Zero };
 		Vec3 smoothedContactNormal{ Vec3::Zero };
 
 		bool hasPrevPosePosition{ false };
+		bool hasSmoothedInertiaVelocity{ false };
 		bool hasSmoothedLocalDirection{ false };
 		bool hasSmoothedLocalTransform{ false };
 		bool hasSmoothedCollisionOffset{ false };
@@ -252,7 +254,7 @@ private:
 	void Apply_LengthAndBendConstraints();
 	void Apply_PostSimulationConstraints(const vector<WorldCapsule>& worldCapsules);
 	void Apply_PoseRestoreAndDamping(float timeDelta, bool isOwnerIdle);
-	void Apply_LocalOffsetConstraints(bool isOwnerIdle);
+	void Apply_LocalOffsetConstraints(float timeDelta, bool isOwnerIdle);
 	void Write_BackToModel(ModelCom* model, const Matrix& ownerWorld, bool isOwnerIdle);
 	vector<WorldCapsule> Build_WorldCapsules(const ModelCom* collisionModel, const Matrix& collisionOwnerWorld) const;
 	void Build_DebugOutput(ModelCom* model, const Matrix& ownerWorld);
