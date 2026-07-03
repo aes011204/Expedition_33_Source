@@ -1303,17 +1303,28 @@ void PhysicsModifier::Apply_OwnerInertiaForce(const Vec3& ownerMotionDelta, cons
 		chain.smoothedLateralAxis = lateralAxis;
 		chain.hasSmoothedLateralAxis = true;
 
-		const Matrix anchorMotionWorld = chain.anchorWorld;
-		const Matrix anchorMotionInv = anchorMotionWorld.Invert();
+		Vec3 depthAxis = Vec3::TransformNormal(Vec3::UnitZ, chain.anchorWorld);
+		depthAxis -= chainAxis * depthAxis.Dot(chainAxis);
+		depthAxis -= lateralAxis * depthAxis.Dot(lateralAxis);
+		if (depthAxis.LengthSquared() <= 0.000001f)
+			depthAxis = chainAxis.Cross(lateralAxis);
+		if (depthAxis.LengthSquared() <= 0.000001f)
+			depthAxis = Vec3::UnitZ;
+		depthAxis.Normalize();
+
+		Vec3 verticalAxis = upAxis;
+		verticalAxis -= chainAxis * verticalAxis.Dot(chainAxis);
+		if (verticalAxis.LengthSquared() > 0.000001f)
+			verticalAxis.Normalize();
+
 		auto buildWeightedTangentialVelocity =
 			[&](const Vec3& worldVelocity) -> Vec3
 			{
-				Vec3 localVelocity = Vec3::TransformNormal(worldVelocity, anchorMotionInv);
-				localVelocity.x *= lateralScale;
-				localVelocity.y *= verticalScale;
-				localVelocity.z *= depthScale;
-
-				Vec3 weightedVelocity = Vec3::TransformNormal(localVelocity, anchorMotionWorld);
+				Vec3 weightedVelocity =
+					lateralAxis * (worldVelocity.Dot(lateralAxis) * lateralScale) +
+					depthAxis * (worldVelocity.Dot(depthAxis) * depthScale);
+				if (verticalAxis.LengthSquared() > 0.000001f)
+					weightedVelocity += verticalAxis * (worldVelocity.Dot(verticalAxis) * verticalScale);
 				weightedVelocity -= chainAxis * weightedVelocity.Dot(chainAxis);
 				return weightedVelocity;
 			};
@@ -1325,7 +1336,8 @@ void PhysicsModifier::Apply_OwnerInertiaForce(const Vec3& ownerMotionDelta, cons
 
 			const float depth = std::clamp(node.depthRatio, 0.f, 1.f);
 			const float tipRatio = SmoothStep(depth);
-			const float tipWeight = 1.f + (std::max(0.f, _desc.tipMovementInertiaScale) - 1.f) * tipRatio;
+			const float tipBias = tipRatio * tipRatio;
+			const float tipWeight = 1.f + (std::max(0.f, _desc.tipMovementInertiaScale) - 1.f) * tipBias;
 			const Vec3 relativePoseDelta = node.poseMotionDelta - poseDriverDelta;
 			const Vec3 relativePoseVelocity = relativePoseDelta / timeDelta;
 			const Vec3 effectiveVelocity = driverVelocity + relativePoseVelocity;
@@ -1970,8 +1982,9 @@ void PhysicsModifier::Write_BackToModel(ModelCom* model, const Matrix& ownerWorl
 			Quat solvedRotation = Build_RotationDelta(restLocalDir, targetLocalDir) * poseRotation;
 			solvedRotation.Normalize();
 
+			const float depthOutputAlpha = clampedDepth;
 			const float nodeRotationOutputAlpha = std::clamp(
-				overallOutputAlpha * chain.desc.outputMultiplier * _desc.rotationOutputAlpha,
+				overallOutputAlpha * chain.desc.outputMultiplier * _desc.rotationOutputAlpha * depthOutputAlpha,
 				0.f,
 				1.f);
 			Quat blendedRotation = Quat::Slerp(poseRotation, solvedRotation, nodeRotationOutputAlpha);
@@ -2089,14 +2102,6 @@ void PhysicsModifier::Write_BackToModel(ModelCom* model, const Matrix& ownerWorl
 
 			if (!node.childNodeIndices.empty())
 			{
-				Node& parentNode = chain.nodes[static_cast<size_t>(node.parentNodeIndex)];
-				const Matrix* parentCombined = model->Get_BoneMatrixPtr(parentNode.boneIndex);
-				const Matrix parentWorld = parentCombined != nullptr
-					? (*parentCombined) * ownerWorld
-					: parentNode.originalWorld;
-				const Vec3 simulatedLocalTranslation =
-					Vec3::Transform(getNodePosition(node), parentWorld.Invert());
-
 				const int32 childNodeIndex = node.childNodeIndices.front();
 				if (childNodeIndex >= 0 && static_cast<size_t>(childNodeIndex) < chain.nodes.size())
 				{
@@ -2141,8 +2146,6 @@ void PhysicsModifier::Write_BackToModel(ModelCom* model, const Matrix& ownerWorl
 
 			simulatedWorldDir.Normalize();
 			const Vec3 simulatedLocalDir = Get_LocalDirection(parentWorld, simulatedWorldDir);
-			const Vec3 simulatedLocalTranslation =
-				Vec3::Transform(getNodePosition(node), parentWorld.Invert());
 			const Vec3 restLocalDir = node.poseLocalDir.LengthSquared() > 0.0001f
 				? node.poseLocalDir
 				: node.bindLocalDir;
@@ -2152,8 +2155,8 @@ void PhysicsModifier::Write_BackToModel(ModelCom* model, const Matrix& ownerWorl
 				node,
 				restLocalDir,
 				simulatedLocalDir,
-				simulatedLocalTranslation,
-				true,
+				Get_Position(node.poseLocal),
+				false,
 				node.depthRatio,
 				node.hadContactThisFrame))
 			{

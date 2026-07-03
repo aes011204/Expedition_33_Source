@@ -1128,9 +1128,9 @@ void ChainModifierPreset::BuildGustavePotatoCapePhysicsDesc(
     };
 
     desc.chains = {
-        { "Verso_Potato_Cape_01_01", 1.00f, 0.20f, 2.00f, 1.00f, 0.055f, 0.88f },
-        { "Verso_Potato_Cape_02_01", 1.00f, 0.20f, 2.00f, 1.00f, 0.055f, 0.88f },
-        { "Verso_Potato_Cape_03_01", 1.00f, 0.20f, 2.00f, 1.00f, 0.055f, 0.88f }
+        { "Verso_Potato_Cape_01_01", 1.00f, 0.20f, 2.40f, 1.00f, 0.055f, 0.88f },
+        { "Verso_Potato_Cape_02_01", 1.00f, 0.20f, 2.40f, 1.00f, 0.055f, 0.88f },
+        { "Verso_Potato_Cape_03_01", 1.00f, 0.20f, 2.40f, 1.00f, 0.055f, 0.88f }
     };
 
     desc.outputAlpha = 1.00f;
@@ -1138,30 +1138,30 @@ void ChainModifierPreset::BuildGustavePotatoCapePhysicsDesc(
     desc.outputSmoothAlpha = 0.09f;
     desc.idleOutputSmoothAlpha = 0.82f;
     desc.idleMotionDeadzone = 0.035f;
-    desc.maxOutputAngleDegree = 130.f;
+    desc.maxOutputAngleDegree = 95.f;
 
     desc.contactRotationFollowAlpha = 0.22f;
-    desc.freeRotationFollowAlpha = 0.52f;
-    desc.rotationFollowDepthScale = 0.02f;
+    desc.freeRotationFollowAlpha = 0.36f;
+    desc.rotationFollowDepthScale = 0.10f;
     desc.poseRestoreAlpha = 0.22f;
     desc.poseRestoreMaxSpeed = 14.0f;
     desc.maxLocalOffset = Vec3(5.00f, 1.45f, 5.00f);
-    desc.movementInertiaScale = 2.80f;
-    desc.tipMovementInertiaScale = 28.00f;
+    desc.movementInertiaScale = 2.20f;
+    desc.tipMovementInertiaScale = 24.00f;
     desc.maxMovementInertiaSpeed = 80.0f;
     desc.lateralInertiaScale = 10.00f;
     desc.verticalInertiaScale = 0.65f;
     desc.depthInertiaScale = 1.60f;
     desc.accelerationInertiaScale = 0.18f;
     desc.inertiaVelocitySmoothAlpha = 0.08f;
-    desc.poseSpringStrength = 0.46f;
-    desc.poseSpringDamping = 0.180f;
+    desc.poseSpringStrength = 0.42f;
+    desc.poseSpringDamping = 0.300f;
     desc.lengthConstraintAlpha = 0.040f;
-    desc.bendConstraintAlpha = 0.015f;
+    desc.bendConstraintAlpha = 0.010f;
     desc.projectionIterations = 2;
 
     desc.contactInertiaDamping = 0.06f;
-    desc.releaseInertiaDamping = 0.105f;
+    desc.releaseInertiaDamping = 0.160f;
 
     desc.enableCollision = false;
     desc.collisionSphereRadius = 0.18f;
