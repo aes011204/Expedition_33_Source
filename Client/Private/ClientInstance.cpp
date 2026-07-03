@@ -34,6 +34,7 @@
 #include "PlayerStatCom.h"
 #include "SoulLikeController.h"
 #include "TargetCamera.h"
+#include "Trigger_Cinematic.h"
 #include "BattleTurnCamera.h"
 #include "BattleEncounterProfile.h"
 #include "CameraPresetIO.h"
@@ -123,6 +124,7 @@ namespace
             return;
 
         GAME->Set_UseInstancedShadowCache(g_potatoBagArenaSavedUseInstancedShadowCache);
+        GAME->Set_DynamicShadowCascadeTemporalUpdateIntervals(1u, 2u, 4u, 12u);
         g_potatoBagArenaInstancedShadowOverrideActive = false;
     }
 
@@ -569,6 +571,7 @@ void ClientInstance::Update_PotatoBagArenaMapInstancedShadowOverride()
         {
             g_potatoBagArenaSavedUseInstancedShadowCache = GAME->Is_UseInstancedShadowCache();
             GAME->Set_UseInstancedShadowCache(false);
+            GAME->Set_DynamicShadowCascadeTemporalUpdateIntervals(1u, 2u, 2u, 12u);
             g_potatoBagArenaInstancedShadowOverrideActive = true;
         }
         return;
@@ -739,7 +742,7 @@ HRESULT ClientInstance::Reload_CameraPresetData()
         battleTurnCamera->Reload_BattleCameraAuthoringData();
 
     if (auto dialogueCamera = dynamic_pointer_cast<DialogueCamera>(GAME->Get_CameraByType(ObjectType::DialogueCamera)))
-        dialogueCamera->Set_CameraPresetId(dialogueCamera->Get_CameraPresetId());
+        dialogueCamera->Load_PresetFromId();
 
     return S_OK;
 }
@@ -1727,6 +1730,50 @@ void ClientInstance::Clear_CinematicCompletedCallbacks()
     _cinematicSequenceRunner->Clear_CompletedCallbacks();
 }
 
+void ClientInstance::Queue_CinematicPrewarmForLevel(uint32 targetLevelIndex)
+{
+    if (_cinematicSequenceRunner == nullptr)
+        return;
+
+    unordered_set<wstring> queuedSequencePaths{};
+    GAME->Visit_LevelObjects(
+        targetLevelIndex,
+        [&](const wstring& layerTag, const Shared<GameObject>& gameObject)
+        {
+            UNREFERENCED_PARAMETER(layerTag);
+
+            const Shared<Trigger_Cinematic> trigger = dynamic_pointer_cast<Trigger_Cinematic>(gameObject);
+            if (trigger == nullptr)
+                return;
+
+            const wstring& sequenceFileId = trigger->Get_SequenceFileId();
+            if (sequenceFileId.empty())
+                return;
+
+            const wstring sequencePath = Constants::Cinematic::RuntimeJson_Dir + sequenceFileId;
+            if (!queuedSequencePaths.insert(sequencePath).second)
+                return;
+
+            _cinematicSequenceRunner->Queue_PrewarmSequence(sequencePath, targetLevelIndex);
+        });
+}
+
+void ClientInstance::Flush_CinematicPrewarmQueue(uint32 createBudget)
+{
+    if (_cinematicSequenceRunner == nullptr)
+        return;
+
+    _cinematicSequenceRunner->Flush_PrewarmQueue(createBudget);
+}
+
+void ClientInstance::Clear_CinematicPrewarmQueue()
+{
+    if (_cinematicSequenceRunner == nullptr)
+        return;
+
+    _cinematicSequenceRunner->Clear_PrewarmQueue();
+}
+
 Shared<CinematicCamera> ClientInstance::Ensure_CinematicCamera()
 {
     if (auto camera = dynamic_pointer_cast<CinematicCamera>(GAME->Get_CameraByType(ObjectType::CinematicCamera)))
@@ -2106,8 +2153,8 @@ void ClientInstance::Clear_RuntimeEffects()
     if (_effectInstancePool == nullptr)
         return;
 
-    // 월드에 남아있는 이팩트들 제거
-    _effectInstancePool->Discard_All();
+    // F4 Stop에서는 owner가 아직 들고 있는 active handle을 깨지 않고, Stop 콜백으로 반환된 캐시만 비운다.
+    _effectInstancePool->Discard_AllInactive();
 }
 
 void ClientInstance::Notify_FreeAimShotHit()

@@ -329,10 +329,10 @@ void TargetCamera::Update_SmoothedTargetPosition(const Vec3& targetPos, float ti
     constexpr float kHorizontalSettleDistanceSq = 0.0004f;
     constexpr float kTargetStillYFrameDelta = 0.005f;
     constexpr float kVerticalSettleDistance = 0.035f;
-    constexpr float kParkourVerticalReleaseSpeedMin = 1.1f;
-    constexpr float kParkourVerticalReleaseSpeedMax = 1.85f;
-    constexpr float kParkourVerticalReleaseSpeedRange = 0.75f;
-    constexpr float kParkourVerticalReleaseFinishDistance = 0.06f;
+    constexpr float kParkourVerticalReleaseSpeedMin = 2.4f;
+    constexpr float kParkourVerticalReleaseSpeedMax = 3.6f;
+    constexpr float kParkourVerticalReleaseSpeedRange = 0.55f;
+    constexpr float kParkourVerticalReleaseFinishDistance = 0.08f;
 
     const Vec3 targetDelta = targetPos - _prevTargetPos;
     const float horizontalFollowT = Evaluate_TargetFollowT(

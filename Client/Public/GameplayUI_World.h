@@ -78,6 +78,7 @@ private:
     void    Try_ShowPendingGetPictos();
     void    Try_ShowPendingGetChroma();
     void    Try_ShowPendingLevelAnnounce(float timeDelta);
+    void    Try_ApplyPendingActiveHeroWarp();
     bool    Is_GetCharacterOpen() const;
     bool    Is_GetClothesOpen() const;
     bool    Is_GetWeaponOpen() const;

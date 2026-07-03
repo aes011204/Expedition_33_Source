@@ -139,6 +139,7 @@ public:
 
     SkillChoiceContext _cachedContext = {};
 protected:
+    bool Try_GetDamageFeedbackSocketWorldPosition(Vec3& outWorldPos) const override;
     virtual HRESULT Ready_Components();
     void ActionFromDecision(ActionRequest& request, const BattleDecision decision, const vector<BattleChar>& heroes);
 

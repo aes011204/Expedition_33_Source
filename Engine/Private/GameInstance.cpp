@@ -3600,6 +3600,18 @@ bool GameInstance::Is_DynamicShadowCascadeTemporalUpdateEnabled() const
     return _renderer->Is_DynamicShadowCascadeTemporalUpdateEnabled();
 }
 
+void GameInstance::Set_DynamicShadowCascadeTemporalUpdateIntervals(uint32 cascade0, uint32 cascade1, uint32 cascade2, uint32 cascade3)
+{
+    CHECK_NULL(_renderer);
+    _renderer->Set_DynamicShadowCascadeTemporalUpdateIntervals(cascade0, cascade1, cascade2, cascade3);
+}
+
+void GameInstance::Reset_DynamicShadowCascadeTemporalUpdateIntervals()
+{
+    CHECK_NULL(_renderer);
+    _renderer->Reset_DynamicShadowCascadeTemporalUpdateIntervals();
+}
+
 uint32 GameInstance::Get_ShadowCascadeCount() const
 {
     CHECK_NULL(_shadow, 0u);

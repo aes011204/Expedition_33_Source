@@ -6,6 +6,7 @@
 #include "Cinematic_Types.h"
 
 NS_BEGIN(Engine)
+class ColliderCom;
 class GameObject;
 NS_END
 
@@ -71,6 +72,9 @@ public:
 
     FDelegateHandle Add_CompletedCallback(const FOnCinematicCompleted::FunctionType& callback);;
     void Clear_CompletedCallbacks(); // 시퀀스 교체/수동 중단 전에 오래된 완료 콜백을 제거
+    void Queue_PrewarmSequence(const wstring& filePath, uint32 targetLevelIndex);
+    void Flush_PrewarmQueue(uint32 createBudget = UINT32_MAX);
+    void Clear_PrewarmQueue();
 
 private:
     bool Resolve_CameraTrackSelection(
@@ -149,6 +153,54 @@ private:
     void Cleanup_Context(bool forceRemoveAllSpawned = false);
     void Set_GameplayUIHiddenForCinematic(bool hidden) const;
 
+    struct PrewarmedColliderState
+    {
+        Shared<ColliderCom> collider = nullptr;
+        bool wasActive = true;
+    };
+
+    struct PrewarmedActorState
+    {
+        wstring sequencePath{};
+        string targetId{};
+        string prefabName{};
+        uint32 levelIndex = ETOI(LevelType::GamePlay);
+        Shared<GameObject> actor = nullptr;
+        bool wasVisible = true;
+        vector<PrewarmedColliderState> colliderStates{};
+    };
+
+    struct PrewarmSequenceResult
+    {
+        wstring filePath{};
+        uint32 targetLevelIndex = ETOI(LevelType::GamePlay);
+        bool succeeded = false;
+        CINEMATIC_SEQUENCE sequence{};
+    };
+
+    struct PrewarmSpawnRequest
+    {
+        wstring sequencePath{};
+        uint32 targetLevelIndex = ETOI(LevelType::GamePlay);
+        string targetId{};
+        CinematicSpawnEventData payload{};
+    };
+
+    void Drain_CompletedPrewarmSequences();
+    size_t Process_PrewarmSpawnRequests(uint32 createBudget);
+    void Queue_StartFrameSpawnPrewarmRequests(
+        const wstring& sequencePath,
+        uint32 targetLevelIndex,
+        const CINEMATIC_SEQUENCE& sequence);
+    bool Is_PrewarmSpawnAlreadyQueuedOrReady(
+        const wstring& sequencePath,
+        const string& targetId,
+        const string& prefabName) const;
+    bool Try_ConsumePrewarmedActor(const string& targetId, const CinematicSpawnEventData& payload);
+    Shared<GameObject> Find_ReusableActorByPrefabName(uint32 levelIndex, const string& prefabName) const;
+    void Suppress_PrewarmedActor(PrewarmedActorState& state) const;
+    void Restore_PrewarmedActor(PrewarmedActorState& state) const;
+
 private:
     CINEMATIC_SEQUENCE _sequence{};
     Shared<Cinematic_Player> _player = nullptr;
@@ -164,6 +216,15 @@ private:
     bool _applyActorTransformTrack = true;
     bool _hasWorldTimeScaleOverride = false;
     float _restoreWorldTimeScale = 1.f;
+    wstring _activeSequencePath{};
+
+    std::unordered_map<wstring, CINEMATIC_SEQUENCE> _prewarmedSequences{};
+    std::unordered_set<wstring> _queuedPrewarmSequencePaths{};
+    vector<PrewarmSpawnRequest> _pendingPrewarmSpawnRequests{};
+    vector<PrewarmedActorState> _prewarmedActors{};
+    deque<PrewarmSequenceResult> _completedPrewarmSequences{};
+    mutable mutex _prewarmMutex{};
+    atomic<uint32> _activePrewarmSequenceJobs = 0;
 
     FOnCinematicCompleted _onNaturalCompleted;
 

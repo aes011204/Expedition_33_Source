@@ -57,6 +57,7 @@
 #include "PostProcessPipeline.h"
 #include "TransformCom.h"
 #include "GradientSkill.h"
+#include "Monster_Part.h"
 #include "PictosBattleSystem.h"
 #include "Unlock_Manager.h"
 
@@ -75,9 +76,40 @@ namespace
     constexpr char kNpcSumoAfterPotatoBagDialogueKey[] = "NPC_Sumo_AfterPotatoBag";
 
     constexpr float kSkillPresentationDissolveDuration = 0.12f;
+    constexpr float kSkillPresentationHideConfirmDuration = 0.04f;
+    constexpr float kSkillPresentationRevealGraceDuration = 0.10f;
     constexpr char kSkillPresentationDissolveNoise[] = "T_Perlin_Noise_M";
     constexpr float kSkillPresentationOcclusionDepthMargin = 0.25f;
     constexpr float kSkillPresentationOcclusionCapsuleRadius = 0.58f;
+
+    constexpr const char* kSimonHairMaterialName = "MI_Hair_Simon";
+    constexpr Vec4 kSimonPhase2HairTint{ 0.8f, 0.8f, 0.8f, 1.f };
+
+    void Apply_SimonPhase2HairTint(const Shared<GameObject>& sourceWorldObject)
+    {
+        auto* container = dynamic_cast<ContainerObject*>(sourceWorldObject.get());
+        if (container == nullptr)
+            return;
+
+        auto* hairPart = dynamic_cast<Monster_Part*>(container->Get_PartObject(L"Part_Hair"));
+        if (hairPart == nullptr)
+            return;
+
+        const Shared<ModelCom> hairModel = hairPart->Get_Model();
+        if (hairModel == nullptr)
+            return;
+
+        for (uint32 materialIndex = 0; materialIndex < static_cast<uint32>(hairModel->Get_NumMaterials()); ++materialIndex)
+        {
+            const Shared<Material> material = hairModel->Get_Material(materialIndex);
+            if (material == nullptr || material->Get_MaterialName() != kSimonHairMaterialName)
+                continue;
+
+            MaterialCB cb = material->Get_CB();
+            cb.baseColorTint = kSimonPhase2HairTint;
+            material->Set_CB(cb);
+        }
+    }
 }
 
 BattleController::BattleController()
@@ -1628,8 +1660,20 @@ void BattleController::Refresh_SkillPresentationHeroVisibility(float timeDelta)
 
         if (keepHidden)
         {
+            iter->clearElapsedSec = 0.f;
             iter->hiddenElapsedSec += timeDelta;
-            if (!iter->visibilityForcedOff && iter->hiddenElapsedSec >= kSkillPresentationDissolveDuration)
+
+            if (iter->wasVisible &&
+                !iter->dissolveStarted &&
+                iter->hiddenElapsedSec >= kSkillPresentationHideConfirmDuration)
+            {
+                Begin_SkillPresentationVanish(iter->actor);
+                iter->dissolveStarted = true;
+            }
+
+            if (iter->dissolveStarted &&
+                !iter->visibilityForcedOff &&
+                iter->hiddenElapsedSec >= kSkillPresentationHideConfirmDuration + kSkillPresentationDissolveDuration)
             {
                 if (iter->actor != nullptr)
                     iter->actor->Set_Visible(false);
@@ -1647,7 +1691,14 @@ void BattleController::Refresh_SkillPresentationHeroVisibility(float timeDelta)
             continue;
         }
 
-        if (iter->actor != nullptr && iter->wasVisible)
+        iter->clearElapsedSec += timeDelta;
+        if (iter->clearElapsedSec < kSkillPresentationRevealGraceDuration)
+        {
+            ++iter;
+            continue;
+        }
+
+        if (iter->dissolveStarted && iter->actor != nullptr && iter->wasVisible)
         {
             iter->actor->Set_Visible(true);
             for (const SkillPresentationHiddenHero::PartVisibility& partVisibility : iter->partVisibilities)
@@ -1703,9 +1754,6 @@ void BattleController::Refresh_SkillPresentationHeroVisibility(float timeDelta)
         }
 
         _skillPresentationHiddenHeroes.push_back(hiddenHero);
-
-        if (hiddenHero.wasVisible)
-            Begin_SkillPresentationVanish(hero.actor);
     }
 }
 
@@ -2578,8 +2626,12 @@ void BattleController::Begin_FreeAimShot(const BattleAction& shotAction)
         const BattleChar& attacker = _freeAimShotAction.Get_CurChar();
         const BattleChar& target = _freeAimShotAction.GetInitTarget();
         const bool hadShieldBeforeShot = target.statCom->Get_CurrentShield() > 0;
+        const Vec3* freeAimHitWorldPos =
+            _hasFreeAimHitTarget && _freeAimHitTarget.target.actor == target.actor
+            ? &_freeAimHitTarget.hitWorldPos
+            : nullptr;
 
-        DamageSystem::ApplyDamage(freeAimDamage, attacker, target, AttackType::FreeAimLight);
+        DamageSystem::ApplyDamage(freeAimDamage, attacker, target, AttackType::FreeAimLight, freeAimHitWorldPos);
 
         // 약점 파츠를 맞췄을 때만 추가딜
         if (!hadShieldBeforeShot && _hasFreeAimHitTarget && _freeAimHitTarget.target.actor == target.actor)
@@ -2726,6 +2778,28 @@ void BattleController::Spawn_BattleChar(bool IsHero, string prefabName, Vec3 pos
 
         _enemies.push_back(battleChar);
 
+        const float battlePlaneYawRad = XMConvertToRadians(_pendingBattlePlaneYaw);
+        const Vec3 battleRight(cosf(battlePlaneYawRad), 0.f, -sinf(battlePlaneYawRad));
+
+        stable_sort(_enemies.begin(), _enemies.end(),
+            [&battleRight](const BattleChar& lhs, const BattleChar& rhs)
+            {
+                const bool lhsValid = lhs.actor != nullptr && lhs.actor->Get_Transform() != nullptr;
+                const bool rhsValid = rhs.actor != nullptr && rhs.actor->Get_Transform() != nullptr;
+
+                if (lhsValid != rhsValid)
+                    return lhsValid;
+
+                if (!lhsValid)
+                    return false;
+
+                const Vec3 lhsPos = lhs.actor->Get_Transform()->Get_Position();
+                const Vec3 rhsPos = rhs.actor->Get_Transform()->Get_Position();
+                const float lhsLocalX = lhsPos.x * battleRight.x + lhsPos.z * battleRight.z;
+                const float rhsLocalX = rhsPos.x * battleRight.x + rhsPos.z * battleRight.z;
+
+                return lhsLocalX < rhsLocalX;
+            });
 
         Push_TurnEntry(battleChar, _battleTime + 100.f / max(battleChar.statCom->Get_Speed(), 1.f));
 
@@ -3485,6 +3559,19 @@ void BattleController::Complete_BattleField()
 
     // 현제 케릭 아이디 , 적 아이디로 전투 용 객체 생성
     Create_BattleChar(_pendingBattleHeroIds, _pendingBattleMonsterSpawnDescs);
+
+    for (const BattleChar& enemy : _enemies)
+    {
+        if (enemy.actor == nullptr)
+            continue;
+
+        if (enemy.actor->Get_SourcePrefabName() != Constants::Prefab::MB_Simon_V2)
+            continue;
+
+        Apply_SimonPhase2HairTint(enemy.actor);
+        break;
+    }
+
     Capture_PreBattleBGM();
 
     if (_battleTutorialController)
@@ -3619,7 +3706,8 @@ bool BattleController::Try_ApplyFreeAimWeakPointBonus(const BattleFreeAimHitTarg
         freeAimWeakPointDamage,
         attacker,
         hitTarget.target,
-        AttackType::FreeAimWeak);
+        AttackType::FreeAimWeak,
+        &hitTarget.hitWorldPos);
 
     return true;
 }
