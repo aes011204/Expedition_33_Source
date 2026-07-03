@@ -57,20 +57,6 @@ void MB_Lancelier::Update(float timeDelta)
     Monster_BattleBase::Update(timeDelta);
 }
 
-bool MB_Lancelier::Try_GetDamageFeedbackSocketWorldPosition(Vec3& outWorldPos) const
-{
-    if (_body == nullptr)
-        return false;
-
-    const Matrix* socketMatrix = _body->Get_SocketBoneMatrixPtr("neck_02");
-    if (socketMatrix == nullptr)
-        return false;
-
-    const Matrix socketWorldMatrix = *socketMatrix * _body->Get_CombinedWorldMatrix();
-    outWorldPos = Vec3(socketWorldMatrix._41, socketWorldMatrix._42, socketWorldMatrix._43);
-    return true;
-}
-
 HRESULT MB_Lancelier::Ready_PartObjects()
 {
     Mon_Lancelier_Body::BODY_DESC bodyDesc{};

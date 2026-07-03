@@ -26,11 +26,16 @@ public:
     // 단일 대상 데미지 처리
     static void ApplyDamage(float damage, const BattleChar& target, AttackType attackType);
     // Attacker 포함 단일 대상 처리 / 징표 소비, 추후 버프/상태이상 데미지 보정용
-    static void ApplyDamage(float damage, const BattleChar& attacker, const BattleChar& target, AttackType attackType);
+    static void ApplyDamage(
+        float damage,
+        const BattleChar& attacker,
+        const BattleChar& target,
+        AttackType attackType,
+        const Vec3* feedbackWorldPos = nullptr);
     // 다중 대상 처리
-    static void ApplyDamage(float damage, const vector<BattleChar>& target, AttackType attackType);
+    static void ApplyDamage(float damage, const vector<BattleChar>& target, AttackType attackType, bool useTargetFeedbackWorldPos = false);
     // Asttacker 포함 다중 대상 처리
-    static void ApplyDamage(float damage, const BattleChar& attacker, const vector<BattleChar>& target, AttackType attackType);
+    static void ApplyDamage(float damage, const BattleChar& attacker, const vector<BattleChar>& target, AttackType attackType, bool useTargetFeedbackWorldPos = false);
     // 플레이어 공격력 포함
     static float CalculatePlayerAttackDamage(const BattleChar& attacker, float multiplier);
 

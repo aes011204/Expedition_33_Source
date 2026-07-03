@@ -517,6 +517,8 @@ public: /* For.Shadow */
     void                    Set_ShadowEnabled(bool enabled);
     void                    Set_DynamicShadowCascadeTemporalUpdateEnabled(bool enabled);
     bool                    Is_DynamicShadowCascadeTemporalUpdateEnabled() const;
+    void                    Set_DynamicShadowCascadeTemporalUpdateIntervals(uint32 cascade0, uint32 cascade1, uint32 cascade2, uint32 cascade3);
+    void                    Reset_DynamicShadowCascadeTemporalUpdateIntervals();
     uint32                  Get_ShadowCascadeCount() const;
     HRESULT                 Set_ShadowCascadeLevel(CascadeLevel level);
     CascadeLevel            Get_ShadowCascadeLevel() const;

@@ -26,12 +26,14 @@
 #include "Wardrobe_Panel.h"
 #include "Pictos_Panel.h"
 #include "UI_GradientSkillPreviewTest.h"
-#include "UI_InteractionPrompt.h"
+#include "UI_Interaction.h"
 #include "UI_Replay.h"
+#include "WorldInteractionSpot.h"
 
 #include "RuntimeRuleStateService.h"
 #include "Client_Constants.h"
 #include "GameObject.h"
+#include "MovementCom.h"
 #include "Spawn_Prefab.h"
 #include "TransformCom.h"
 
@@ -66,6 +68,23 @@ namespace
         return levelType == LevelType::GestralVillage
             ? kLevelAnnounceGestralVillageDelaySec
             : kLevelAnnounceDefaultDelaySec;
+    }
+
+    InteractionPromptType Resolve_WorldInteractionPromptType()
+    {
+        const Shared<Player_WorldBase> activeHero = CLIENT->Get_ActiveHero();
+        if (activeHero == nullptr || activeHero->Is_WorldInteracting())
+            return InteractionPromptType::None;
+
+        const Shared<GameObject> candidate = activeHero->Get_WorldInteractionCandidate();
+        if (candidate == nullptr)
+            return InteractionPromptType::None;
+
+        const IWorldInteractionProvider* provider = dynamic_cast<IWorldInteractionProvider*>(candidate.get());
+        if (provider == nullptr)
+            return InteractionPromptType::None;
+
+        return provider->Get_InteractionPromptType(activeHero);
     }
 }
 
@@ -125,8 +144,8 @@ HRESULT GameplayUI_World::Initialize(uint32 levelIndex)
     _crossHair = UI_CrossHair::Create(levelIndex);
     CHECK_NULL(_crossHair, E_FAIL);
 
-    _interactionPrompt = UI_InteractionPrompt::Create(levelIndex);
-    CHECK_NULL(_interactionPrompt, E_FAIL);
+    _interactionUI = UI_Interaction::Create(levelIndex);
+    CHECK_NULL(_interactionUI, E_FAIL);
 
     _getCharacterPanel = UI_GetCharacter::Create(levelIndex);
     CHECK_NULL(_getCharacterPanel, E_FAIL);
@@ -218,7 +237,7 @@ void GameplayUI_World::Update(float timeDelta)
         _replayPanel->Update(timeDelta);
 
     Update_CrossHair(timeDelta);
-    Update_InteractionPrompt();
+    Update_InteractionPrompt(timeDelta);
 
     if (!CLIENT->Is_FadeTransitionPlaying())
     {
@@ -226,6 +245,8 @@ void GameplayUI_World::Update(float timeDelta)
 
         if (Is_LevelAnnounceOpen())
             return;
+
+        Try_ApplyPendingActiveHeroWarp();
 
         Try_ShowPendingGetCharacter();
 
@@ -370,7 +391,10 @@ vector<RuntimeUIEntry> GameplayUI_World::Get_RuntimeUIEntries() const
 
     if (_crossHair)
         _crossHair->Append_RuntimeUIEntries(entries, "World", "CrossHair");
-    Append_RuntimePanelEntry(entries, "World", "InteractionPrompt", _interactionPrompt.get());
+
+    if (_interactionUI)
+        _interactionUI->Append_RuntimeUIEntries(entries, "World", "Interaction");
+
     Append_RuntimePanelEntry(entries, "World", "GradientSkillPreviewTest", _gradientSkillPreviewTestPanel.get());
 
     return entries;
@@ -1304,6 +1328,38 @@ void GameplayUI_World::Try_ShowPendingGetChroma()
     _getChromaPanel->Open_ForChromaAmounts(pendingChromaAmounts);
 }
 
+void GameplayUI_World::Try_ApplyPendingActiveHeroWarp()
+{
+    if (CLIENT->Is_WorldControlSuspended() || CLIENT->Is_BattleEntering())
+        return;
+
+    if (GAME->Is_WorldGameplayInputBlocked())
+        return;
+
+    Unlock_Manager* unlockManager = CLIENT->Get_UnlockManager();
+    if (unlockManager == nullptr)
+        return;
+
+    const Shared<Player_WorldBase> activeHero = CLIENT->Get_ActiveHero();
+    if (activeHero == nullptr)
+        return;
+
+    const Shared<TransformCom> transform = activeHero->Get_Transform();
+    if (transform == nullptr)
+        return;
+
+    Vec3 warpPosition = Vec3::Zero;
+    Vec3 warpRotation = Vec3::Zero;
+    if (!unlockManager->Consume_PendingActiveHeroWarp(warpPosition, warpRotation))
+        return;
+
+    transform->Set_WorldPosition(warpPosition);
+    transform->Set_WorldRotationEuler(warpRotation);
+
+    if (const Shared<MovementCom> movement = activeHero->Get_Component<MovementCom>())
+        movement->Sync_RuntimePositionToTransform(); // CCT/runtime 위치를 보상 워프 위치와 맞춘다.
+}
+
 bool GameplayUI_World::Is_GetClothesOpen() const
 {
     return _getClothesPanel && _getClothesPanel->Is_Open();
@@ -1367,22 +1423,34 @@ void GameplayUI_World::Update_CrossHair(float timeDelta)
     _crossHair->Update(timeDelta);
 }
 
-void GameplayUI_World::Update_InteractionPrompt()
+void GameplayUI_World::Update_InteractionPrompt(float timeDelta)
 {
-    if (_interactionPrompt == nullptr)
+    if (_interactionUI == nullptr)
         return;
 
-    Vec3 worldAnchor{};
+    _interactionUI->Update(timeDelta);
+
     if (Is_AnyMenuOpen() ||
+        CLIENT->Is_WorldControlSuspended() ||
         CLIENT->IsDialogueActive() ||
         CLIENT->IsDialogueInteractLocked() ||
-        !CLIENT->Try_GetInteractionPromptAnchor(worldAnchor))
+        GAME->Is_WorldGameplayInputBlocked())
     {
-        _interactionPrompt->Clear_Target();
+        _interactionUI->Hide();
         return;
     }
 
-    _interactionPrompt->Show_AtWorldPosition(worldAnchor);
+    InteractionPromptType promptType = InteractionPromptType::None;
+    if (!CLIENT->Try_GetInteractionPromptType(promptType))
+        promptType = Resolve_WorldInteractionPromptType();
+
+    if (promptType == InteractionPromptType::None)
+    {
+        _interactionUI->Hide();
+        return;
+    }
+
+    _interactionUI->Show(promptType);
 }
 
 void GameplayUI_World::Push_Menu(GameplayMenu menu)

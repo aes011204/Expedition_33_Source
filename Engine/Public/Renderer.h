@@ -48,6 +48,18 @@ public:
         _dynamicShadowCascadeTemporalUpdateEnabled = enabled;
     }
     bool    Is_DynamicShadowCascadeTemporalUpdateEnabled() const { return _dynamicShadowCascadeTemporalUpdateEnabled; }
+    void    Set_DynamicShadowCascadeTemporalUpdateIntervals(uint32 cascade0, uint32 cascade1, uint32 cascade2, uint32 cascade3)
+    {
+        _dynamicShadowCascadeUpdateIntervals[0] = max(1u, cascade0);
+        _dynamicShadowCascadeUpdateIntervals[1] = max(1u, cascade1);
+        _dynamicShadowCascadeUpdateIntervals[2] = max(1u, cascade2);
+        _dynamicShadowCascadeUpdateIntervals[3] = max(1u, cascade3);
+        _shadowFrameIndex = 0;
+    }
+    void    Reset_DynamicShadowCascadeTemporalUpdateIntervals()
+    {
+        Set_DynamicShadowCascadeTemporalUpdateIntervals(1u, 1u, 2u, 4u);
+    }
     void    Set_RenderOnlyPreviewMode(bool enabled) { _renderOnlyPreviewMode = enabled; }
     bool    Is_RenderOnlyPreviewMode() const { return _renderOnlyPreviewMode; }
     void    Set_RenderEnvironment(bool enabled) { _renderEnvironment = enabled; }
@@ -210,6 +222,7 @@ private:
 
 private:
     uint64                          _shadowFrameIndex = 0;
+    uint32                          _dynamicShadowCascadeUpdateIntervals[4] = { 1u, 1u, 2u, 4u };
     bool                            _hasLastShadowTemporalCameraPosition = false;
     Vec3                            _lastShadowTemporalCameraPosition = Vec3::Zero;
 

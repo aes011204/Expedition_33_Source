@@ -2,6 +2,8 @@
 #include "Loader.h"
 
 #include "Client_Constants.h"
+#include "BattleEffectPrewarmTypes.h"
+#include "BattleTransition_ScreenFx.h"
 #include "ClientInstance.h"
 #include "GameInstance.h"
 #include "MapLoader.h"
@@ -125,6 +127,10 @@ void Level_Loading::Update(float fTimeDelta)
             return;
         }
 
+        const uint32 targetLevelIndex = ETOI(_nextLevel);
+        CLIENT->Queue_CinematicPrewarmForLevel(targetLevelIndex);
+        CLIENT->Flush_CinematicPrewarmQueue();
+
         Queue_BattleEffectPrewarmForNextLevel();
         CLIENT->Flush_EffectPrewarmQueue();
 
@@ -175,6 +181,13 @@ HRESULT Level_Loading::Ready_LoadingUIRenderResources()
 void Level_Loading::Queue_BattleEffectPrewarmForNextLevel()
 {
     const uint32 targetLevelIndex = ETOI(_nextLevel);
+
+    EffectPrewarmRequest battleTransitionFxRequest{};
+    battleTransitionFxRequest.effectName = BattleTransition_ScreenFx::Get_RoseFlareEffectName();
+    battleTransitionFxRequest.layerTag = BattleTransition_ScreenFx::Get_RoseFlareLayerTag();
+    battleTransitionFxRequest.targetCount = 1;
+    battleTransitionFxRequest.targetLevelIndex = BattleTransition_ScreenFx::Get_RoseFlareLayerLevelIndex();
+    CLIENT->Queue_EffectPrewarmRequests(vector<EffectPrewarmRequest>{ battleTransitionFxRequest });
 
     GAME->Visit_LevelObjects(
         targetLevelIndex,

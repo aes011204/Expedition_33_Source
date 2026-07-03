@@ -12,6 +12,12 @@
 
 NS_BEGIN(Client)
 
+namespace
+{
+    constexpr wchar_t kRoseFlareEffectName[] = L"Effects\\Assets\\Screen\\RoseFlare.effect.json";
+    constexpr wchar_t kRoseFlareLayerTag[] = L"Layer_UI_Effect";
+}
+
 IMPLEMENT_REFLECTION(BattleTransition_ScreenFx)
 {
     auto& info = GetStaticReflectionInfo();
@@ -116,14 +122,30 @@ HRESULT BattleTransition_ScreenFx::Bind_ShaderResources(const Shared<ShaderCom>&
     return hr;
 }
 
+const wchar_t* BattleTransition_ScreenFx::Get_RoseFlareEffectName()
+{
+    return kRoseFlareEffectName;
+}
+
+const wchar_t* BattleTransition_ScreenFx::Get_RoseFlareLayerTag()
+{
+    return kRoseFlareLayerTag;
+}
+
+uint32 BattleTransition_ScreenFx::Get_RoseFlareLayerLevelIndex()
+{
+    return ETOI(LevelType::Static);
+}
+
 void BattleTransition_ScreenFx::RoseFlare()
 {
     EffectInstancePool* effectPool = CLIENT->Get_EffectInstancePool();
     if (effectPool != nullptr)
     {
         EffectInstancePool::AcquireDesc acquireDesc{};
-        acquireDesc.effectName = L"Effects\\Assets\\Screen\\RoseFlare.effect.json";
-        acquireDesc.layerTag = L"Layer_UI_Effect";
+        acquireDesc.effectName = Get_RoseFlareEffectName();
+        acquireDesc.layerLevelIndex = Get_RoseFlareLayerLevelIndex();
+        acquireDesc.layerTag = Get_RoseFlareLayerTag();
 
         acquireDesc.worldPosition = Vec3(0.f, 0.f, 0.f);
         effectPool->Acquire(acquireDesc, _roseFlareHandle);

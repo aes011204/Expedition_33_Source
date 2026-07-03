@@ -18,27 +18,12 @@ namespace
     constexpr float kLandHeavyFallTimeThreshold = 0.75f;
     constexpr float kLandHeavyRootMotionScale = 0.5f;
 
-    const char* Get_ParkourActionName(Player_ParkourAction::ParkourActionType actionType)
-    {
-        switch (actionType)
-        {
-        case Player_ParkourAction::ParkourActionType::HighMantle:
-            return "High";
-        case Player_ParkourAction::ParkourActionType::LowMantle:
-        default:
-            return "Low";
-        }
-    }
-
     bool Try_EnterParkourAction(
         PlayerStateMachineCom* stateCom,
         Player_ParkourAction::ParkourActionType actionType)
     {
-        LOG_WARN("[Parkour] Try {} from Jump", Get_ParkourActionName(actionType));
-
         if (stateCom == nullptr)
         {
-            LOG_WARN("[Parkour] Reject {}: missing state machine", Get_ParkourActionName(actionType));
             return false;
         }
 
@@ -46,18 +31,15 @@ namespace
             dynamic_pointer_cast<Player_ParkourAction>(stateCom->Get_State(PlayerState::Parkour));
         if (parkourAction == nullptr)
         {
-            LOG_WARN("[Parkour] Reject {}: missing parkour state", Get_ParkourActionName(actionType));
             return false;
         }
 
         if (!parkourAction->Try_PrepareAction(actionType))
         {
-            LOG_WARN("[Parkour] {} rejected", Get_ParkourActionName(actionType));
             return false;
         }
 
         const bool changed = stateCom->Change_State(PlayerState::Parkour);
-        LOG_WARN("[Parkour] {} {}", Get_ParkourActionName(actionType), changed ? "accepted" : "change failed");
         if (!changed)
             parkourAction->Clear_PreparedAction();
 

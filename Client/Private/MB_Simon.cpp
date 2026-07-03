@@ -4,8 +4,42 @@
 #include "Mon_Simon_Hair.h"
 #include "Mon_Simon_Weapon.h"
 #include "GameInstance.h"
+#include "Material.h"
+#include "ModelCom.h"
 #include "MonsterStatCom.h"
 #include "WeaponPrefabLoader.h"
+
+namespace
+{
+    constexpr const char* kSimonHairMaterialName = "MI_Hair_Simon";
+    constexpr Vec4 kSimonPhase2HairTint{ 0.8f, 0.8f, 0.8f, 1.f };
+
+    bool Is_SimonPhase2PrefabJson(const json& data)
+    {
+        return data.value("prefab_name", string{}) == Constants::Prefab::MB_Simon_V2;
+    }
+
+    void Apply_SimonPhase2HairTint(const Shared<Mon_Simon_Hair>& hair)
+    {
+        if (hair == nullptr)
+            return;
+
+        const Shared<ModelCom> hairModel = hair->Get_Model();
+        if (hairModel == nullptr)
+            return;
+
+        for (uint32 materialIndex = 0; materialIndex < static_cast<uint32>(hairModel->Get_NumMaterials()); ++materialIndex)
+        {
+            const Shared<Material> material = hairModel->Get_Material(materialIndex);
+            if (material == nullptr || material->Get_MaterialName() != kSimonHairMaterialName)
+                continue;
+
+            MaterialCB cb = material->Get_CB();
+            cb.baseColorTint = kSimonPhase2HairTint;
+            material->Set_CB(cb);
+        }
+    }
+}
 
 IMPLEMENT_REFLECTION(MB_Simon)
 {
@@ -138,6 +172,9 @@ void MB_Simon::From_Json(const json& data)
     Monster_BattleBase::From_Json(data);
 
     Apply_WeaponScaleMultiplier();
+
+    if (Is_SimonPhase2PrefabJson(data))
+        Apply_SimonPhase2HairTint(_hair);
 }
 
 void MB_Simon::Apply_WeaponScaleMultiplier()

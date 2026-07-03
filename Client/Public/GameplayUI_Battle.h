@@ -3,7 +3,6 @@
 #include "Base.h"
 #include "Battle_Enum.h"
 #include "Delegate.h"
-#include "EffectInstancePool.h"
 #include "GameplayUI_Types.h"
 #include "UI_BattleSystem_TurnOrder.h"
 #include "BattleController.h"
@@ -46,7 +45,7 @@ class UI_BattleJumpReaction;
 class UI_QTE;
 class UI_BattleTutorial;
 class UI_BattleGradientGauge;
-class EffectCom;
+class UI_MarkEffect;
 
 class Monster_BattleBase;
 
@@ -237,9 +236,13 @@ private:
 private:
     static constexpr uint32 kDamageFontPoolSize = 8; // 폰트 최대 8개까지만
     array<Unique<UI_DamageFont>, kDamageFontPoolSize> _damageFonts{};
+    Character_BattleBase* _lastDamageFontTargetActor = nullptr;
+    uint32 _damageFontTargetStackIndex = 0;
 
     static constexpr uint32 kDestroyShieldPoolSize = 4;
     array<Unique<UI_DestroyShield>, kDestroyShieldPoolSize> _destroyShields{};
+    Character_BattleBase* _lastDestroyShieldTargetActor = nullptr;
+    uint32 _destroyShieldTargetStackIndex = 0;
 
     static constexpr uint32 kHealFontPoolSize = 8;
     array<Unique<UI_HealFont>, kHealFontPoolSize> _healFonts{};
@@ -275,9 +278,7 @@ private:
     // Buff
     FDelegateHandle          _buffAppliedHandle{};
     FDelegateHandle          _buffConsumedHandle{};
-    Weak<EffectCom>          _markEffectOwner{};
-    EffectInstancePool::AttachedHandle  _markEffectHandle{};
-    bool                     _hasMarkEffect = false;
+    Unique<UI_MarkEffect>    _markEffect{};
 
     FDelegateHandle          _counterAnnounceRequestedHandle{};
     FDelegateHandle          _battleWeakPointConsumedHandle{};

@@ -273,6 +273,10 @@ public: /*CinematicSequenceRunner*/
     FDelegateHandle Add_CinematicCompletedCallback(const FOnCinematicCompleted::FunctionType& callback);
     void Clear_CinematicCompletedCallbacks();
 
+    void Queue_CinematicPrewarmForLevel(uint32 targetLevelIndex);
+    void Flush_CinematicPrewarmQueue(uint32 createBudget = UINT32_MAX);
+    void Clear_CinematicPrewarmQueue();
+
 public:
     Shared<CinematicCamera> Ensure_CinematicCamera();
     Shared<DialogueCamera> Ensure_DialogueCamera();
@@ -358,9 +362,9 @@ public:
     void RemoveItemInteractionOverlap();
     bool HasItemInteractionOverlap() const { return _itemInteractionOverlapCount > 0; }
 
-    void Request_InteractionPrompt(const void* sourceId, const Vec3& worldAnchor);
+    void Request_InteractionPrompt(const void* sourceId, InteractionPromptType type);
     void Clear_InteractionPrompt(const void* sourceId);
-    bool Try_GetInteractionPromptAnchor(Vec3& outWorldAnchor) const;
+    bool Try_GetInteractionPromptType(InteractionPromptType& outType) const;
 
     void Set_DialogueOverride(const string& sourceDialogueKey, const string& targetDialogueKey);
 
@@ -391,7 +395,8 @@ private:
     int          _itemInteractionOverlapCount = 0;
     bool         _hasInteractionPromptRequest = false;
     const void*  _interactionPromptSourceId = nullptr;
-    Vec3         _interactionPromptWorldAnchor = Vec3::Zero;
+    InteractionPromptType _interactionPromptType = InteractionPromptType::None;
+    int32        _interactionPromptPriority = 0;
 
 private:
     Shared<CameraDirector>              _cameraDirector;

@@ -45,6 +45,7 @@ private:
     void    Set_ShieldIconPosition(uint32 iconIndex, uint32 visibleOrder, uint32 visibleCount);
     Vec2    Resolve_ShieldIconScreenCenter() const;
     void    Play_BrokenShieldIcon(uint32 iconIndex);
+    void    Begin_ShieldIconFadeIn(uint32 iconIndex);
     bool    Has_ActiveBrokenShieldAnimation() const;
     void    Update_ShieldIconAnimations(float timeDelta);
     void    Close_ShieldIcons();
@@ -62,6 +63,7 @@ private:
     Shared<UI_Text>             _bossNameBgText{};
     array<Shared<UI_Base>, 5>   _shieldIcons{};
     array<float, 5>             _shieldIconCloseTimers{};
+    array<float, 5>             _shieldIconFadeInTimers{};
 
     BattleChar _displayTarget{};
     bool       _hasDisplayTarget = false;
@@ -71,9 +73,11 @@ private:
     uint32     _maxShield = 0;
     uint32     _lastShieldIconCount = 0;
     bool       _hasShieldIconState = false;
+    bool       _wasShieldIconRepositionDeferred = false;
 
     static constexpr float kDelayedHpLerpSpeed = 3.5f;
     static constexpr float kBrokenShieldAnimationDurationSec = 1.f;
+    static constexpr float kShieldIconFadeInDurationSec = 0.18f;
     static constexpr uint32 kMaxBossShieldIconCount = 5;
 
 public:
