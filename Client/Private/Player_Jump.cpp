@@ -15,6 +15,7 @@ Player_Jump::Player_Jump(const Shared<Player_WorldBase>& owner)
 namespace
 {
     constexpr float kHighParkourProbeInterval = 0.f;
+    constexpr float kLandHeavyFallTimeThreshold = 0.75f;
     constexpr float kLandHeavyRootMotionScale = 0.5f;
 
     const char* Get_ParkourActionName(Player_ParkourAction::ParkourActionType actionType)
@@ -90,7 +91,8 @@ using plAnim = Body_Player::PlayerWorldAnimation;
 
 bool Player_Jump::EnterInvoke()
 {
-	_fallTime = 0.0f;
+	_fallTime = _initialFallTime;
+    _initialFallTime = 0.f;
     _parkourProbeElapsed = 0.f;
     _hasLeftGroundForParkourProbe = false;
 
@@ -196,7 +198,7 @@ void Player_Jump::Update(float timeDelta)
 
 		if (animIndex != ETOI(plAnim::Pl_LandLight) && animIndex != ETOI(plAnim::Pl_LandHeavy))
 		{
-			if (_fallTime >= 1.f)
+			if (_fallTime >= kLandHeavyFallTimeThreshold)
 			{
 				_bodyPlayer->Set_AnimationByState(ETOI(plAnim::Pl_LandHeavy), 0.2f, false);
                 _bodyPlayer->Set_AnimationSpeed(1.5f);

@@ -16,9 +16,11 @@ public:
     void Update(float timeDelta) override;
     void LateUpdate(float timeDelta) override;
     void ExitInvoke() override;
+    void Set_InitialFallTime(float fallTime) { _initialFallTime = fallTime > 0.f ? fallTime : 0.f; }
 
 private:
 	float _fallTime{ 0.f };
+    float _initialFallTime{ 0.f };
     float _parkourProbeElapsed{ 0.f };
     bool _hasLeftGroundForParkourProbe{ false };
     bool _canProbeParkour{ false };
