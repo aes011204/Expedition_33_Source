@@ -732,9 +732,9 @@ void ComputeTrailEmitter::Prune_HistoryForVisibleControl()
 
     const uint32 maxVisibleCount = max(2u, _desc.historyCount);
     const uint32 keepCount = visibleCount > maxVisibleCount ? maxVisibleCount : min(
-        maxVisibleCount + 1u,
-        visibleCount + 1u
-    );
+                                 maxVisibleCount + 1u,
+                                 visibleCount + 1u
+                             );
 
     if (_history.size() > keepCount)
         _history.resize(keepCount);
