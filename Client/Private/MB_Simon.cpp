@@ -54,7 +54,7 @@ HRESULT MB_Simon::Initialize(void* arg)
     // Skill06 -> 지면에 꽂기
     // Skill08 -> 체력 1
     // Skill04 -> 강력한 콤보
-    // Skill1  -> 긴 콤보
+    // Skill1  -> 긴 콤보 
     // Skill2  -> 짧은 콤보
 
     // 2페

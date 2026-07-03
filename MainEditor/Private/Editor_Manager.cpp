@@ -1066,26 +1066,42 @@ void Editor_Manager::Render_ReloadDataButton()
     {
         if (ImGui::MenuItem("GameDataTable"))
         {
-            if (FAILED(CLIENT->Reload_GameDataTables()))
-                MSG_BOX("Failed to reload game data tables.");
+            Notify_ReloadDataResult(
+                "GameDataTable",
+                CLIENT->Reload_GameDataTables(),
+                "Failed to reload game data tables.");
         }
 
         if (ImGui::MenuItem("SoundCue"))
         {
-            if (FAILED(GAME->Reload_SoundCues()))
-                MSG_BOX("Failed to reload sound cues.");
+            Notify_ReloadDataResult(
+                "SoundCue",
+                GAME->Reload_SoundCues(),
+                "Failed to reload sound cues.");
         }
 
         if (ImGui::MenuItem("Effect Data"))
         {
-            if (FAILED(CLIENT->Reload_EffectJsons()))
-                MSG_BOX("Failed to reload effect jsons.");
+            Notify_ReloadDataResult(
+                "Effect Data",
+                CLIENT->Reload_EffectJsons(),
+                "Failed to reload effect jsons.");
+        }
+
+        if (ImGui::MenuItem("Notify Data"))
+        {
+            Notify_ReloadDataResult(
+                "Notify Data",
+                CLIENT->Reload_AnimNotifyJsons(),
+                "Failed to reload notify jsons.");
         }
 
         if (ImGui::MenuItem("Camera Preset Data"))
         {
-            if (FAILED(CLIENT->Reload_CameraPresetData()))
-                MSG_BOX("Failed to reload camera preset data.");
+            Notify_ReloadDataResult(
+                "Camera Preset Data",
+                CLIENT->Reload_CameraPresetData(),
+                "Failed to reload camera preset data.");
         }
 
         ImGui::EndPopup();
@@ -1097,6 +1113,26 @@ void Editor_Manager::Render_ReloadDataButton()
         ImGui::Text("재로드할 데이터 종류 선택");
         ImGui::EndTooltip();
     }
+}
+
+void Editor_Manager::Notify_ReloadDataResult(const char* dataName, HRESULT hr, const char* failureMessage) const
+{
+    Notification_Manager* notification = EDITOR->Get_Notification();
+    if (notification == nullptr)
+    {
+        if (FAILED(hr))
+            MSG_BOX(failureMessage);
+
+        return;
+    }
+
+    if (FAILED(hr))
+    {
+        notification->Add_Notification_With_Type(NotifyType::Error, "{}", failureMessage);
+        return;
+    }
+
+    notification->Add_Notification_With_Type(NotifyType::Success, "Reloaded {}.", dataName);
 }
 
 void Editor_Manager::Render_SoundCheck()

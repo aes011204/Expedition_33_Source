@@ -23,6 +23,8 @@ public:
     void    Update(float timeDelta) override;
     void    Late_Update(float timeDelta) override;
 
+    void    Start_SpawnReveal(float durationSec);
+
     void    OnBeginOverlap(Shared<ColliderCom> self, Shared<ColliderCom> other) override;
     void    OnStayOverlap(Shared<ColliderCom> self, Shared<ColliderCom> other) override;
     void    OnEndOverlap(Shared<ColliderCom> self, Shared<ColliderCom> other) override;
@@ -37,6 +39,7 @@ protected:
 private:
     HRESULT Ready_Components();
     void    Update_VisualHover(float timeDelta);
+    void    Update_SpawnReveal(float timeDelta);
     void    Try_Pickup();
 
 protected:
@@ -53,6 +56,9 @@ private:
     uint32              _spawnedLevelIndex = 0;
     Vec3                _visualEffectBaseLocalOffset = Vec3(0.f, 0.7f, 0.f);
     float               _visualHoverTimeSec = 0.f;
+    bool                _spawnRevealActive = false;
+    float               _spawnRevealElapsed = 0.f;
+    float               _spawnRevealDuration = 0.f;
 
 public:
     void    Free() override;

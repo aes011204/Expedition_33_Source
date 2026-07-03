@@ -45,6 +45,8 @@
 #include "Client_Constants.h"
 #include "Monster_WorldBase.h"
 #include "NPC_Base.h"
+#include "ContainerObject.h"
+#include "ModelCom.h"
 
 IMPLEMENT_SINGLETON(ClientInstance)
 
@@ -2012,6 +2014,38 @@ HRESULT ClientInstance::Reload_EffectJsons()
 
     // 새/수정된 effect registry 반영 뒤, 다음 Play_Effect가 최신 .effect.json을 디스크에서 다시 접게 한다.
     _effectInstancePool->Discard_AllInactive();
+    return S_OK;
+}
+
+HRESULT ClientInstance::Reload_AnimNotifyJsons()
+{
+    function<void(const Shared<GameObject>&)> invalidateObjectNotifyData;
+    invalidateObjectNotifyData = [&](const Shared<GameObject>& gameObject)
+    {
+        if (gameObject == nullptr)
+            return;
+
+        if (const Shared<ModelCom> modelCom = gameObject->Get_Component<ModelCom>())
+            modelCom->Invalidate_AnimNotifyAsset();
+
+        const Shared<ContainerObject> container = dynamic_pointer_cast<ContainerObject>(gameObject);
+        if (container == nullptr)
+            return;
+
+        for (const auto& [partTag, partObject] : container->Get_PartObjects())
+        {
+            UNREFERENCED_PARAMETER(partTag);
+            invalidateObjectNotifyData(partObject);
+        }
+    };
+
+    GAME->Visit_CurrentLevelObjects(
+        [&](const wstring& layerTag, const Shared<GameObject>& gameObject)
+        {
+            UNREFERENCED_PARAMETER(layerTag);
+            invalidateObjectNotifyData(gameObject);
+        });
+
     return S_OK;
 }
 

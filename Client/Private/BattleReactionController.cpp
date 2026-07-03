@@ -1244,6 +1244,16 @@ bool BattleReactionController::CanReceiveInput(const BattleChar& target) const
     if (!target.statCom->Is_Player())
         return false;
 
+    for (const BattleChar& reactionTarget : _reactionAnimTargets)
+    {
+        if (reactionTarget.actor == target.actor &&
+            reactionTarget.ModelCom != nullptr &&
+            !reactionTarget.ModelCom->Is_AnimationFinished())
+        {
+            return false;
+        }
+    }
+
     const BattleAnimType animType =
         static_cast<BattleAnimType>(target.ModelCom->Get_AnimationStateIndex());
 
