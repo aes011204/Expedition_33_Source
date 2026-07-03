@@ -6,6 +6,8 @@
 #include "TargetCamera.h"
 #include "SoulLikeController.h"
 #include "SkyBoxFlow.h"
+#include "Trigger_FallTornadoZone.h"
+#include "SimonCriticalGlowController.h"
 
 namespace
 {
@@ -54,12 +56,30 @@ void Level_Stage01::BeginPlay()
     ParticlDesc.worldPosition = Vec3(200.29f, -4023.47f, 106.4f);
     CLIENT->Play_Effect(ParticlDesc);
 
+    //
+
+    GameObject::GAMEOBJECT_DESC fallTornadoDesc{};
+    fallTornadoDesc.position = Vec3(220.62f, -82.56f, -0.98f);
+    fallTornadoDesc.scale = Vec3(8.f, 1.f, 8.f);
+
+    Shared<GameObject> fallTornadoZone = nullptr;
+    GAME->Add_GameObject(
+        ETOI(LevelType::Stage01),
+        TEXT("GameObject_Trigger_FallTornadoZone_Stage01"),
+        ETOI(LevelType::Stage01),
+        TEXT("Layer_ETC"),
+        fallTornadoZone,
+        &fallTornadoDesc);
 
     CLIENT->Capture_InitialWorldSnapshot();
 }
 
 void Level_Stage01::Update(float fTimeDelta)
 {
+    if (SimonCriticalGlowController* glowController = CLIENT->Get_SimonCriticalGlowController())
+    {
+        glowController->Update(fTimeDelta);
+    }
 }
 
 HRESULT Level_Stage01::Render()

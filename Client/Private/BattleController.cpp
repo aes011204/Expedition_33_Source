@@ -2792,6 +2792,11 @@ void BattleController::Confirm_Victory()
 
     if (hasFollowupBattle)
     {
+        if (BattleFollowupManager* followManager = CLIENT->Get_BattleFollowupManager())
+        {
+            followManager->Apply_SimonPhase2WorldVisualChange();
+        }
+
         OnEnterBattleField(
             followupDesc.battleFieldId,
             followupDesc.isPlayerAdvantage,
