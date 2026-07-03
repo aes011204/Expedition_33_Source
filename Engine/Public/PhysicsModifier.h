@@ -55,6 +55,23 @@ public:
 
 		float poseRestoreAlpha{ 0.08f };
 		float poseRestoreMaxSpeed{ 2.50f };
+		Vec3 maxLocalOffset{ Vec3::Zero };
+
+		float movementInertiaScale{ 0.f };
+		float tipMovementInertiaScale{ 1.f };
+		float maxMovementInertiaSpeed{ 2.f };
+		float lateralInertiaScale{ 1.f };
+		float verticalInertiaScale{ 1.f };
+		float depthInertiaScale{ 1.f };
+		float accelerationInertiaScale{ 0.35f };
+		float inertiaVelocitySmoothAlpha{ 0.25f };
+
+		float poseSpringStrength{ 0.f };
+		float poseSpringDamping{ 0.f };
+
+		float lengthConstraintAlpha{ 0.f };
+		float bendConstraintAlpha{ 0.f };
+		uint32 projectionIterations{ 1 };
 
 		float contactInertiaDamping{ 0.18f };
 		float releaseInertiaDamping{ 0.12f };
@@ -72,6 +89,10 @@ public:
 
 		Vec3 windDirection{ Vec3::Zero };
 		float windScale{ 0.f };
+		float windWaveScale{ 0.f };
+		float windWaveFrequency{ 0.f };
+		float windWaveDepthPhase{ 0.f };
+		float gravityScale{ 1.f };
 
 		float teleportDistance{ 300.f };
 		uint32 solverIterations{ 5 };
@@ -84,6 +105,11 @@ public:
 		mutable int32 debugLoadedCapsuleCount{ 0 };
 		mutable int32 debugActiveCapsuleCount{ 0 };
 		mutable int32 debugCollisionHitCount{ 0 };
+		mutable int32 debugConstraintProjectionCount{ 0 };
+		mutable int32 debugLocalClampCount{ 0 };
+		mutable int32 debugLocalClampXCount{ 0 };
+		mutable int32 debugLocalClampYCount{ 0 };
+		mutable int32 debugLocalClampZCount{ 0 };
 		mutable float debugInertiaMagnitude{ 0.f };
 	};
 
@@ -131,6 +157,7 @@ private:
 		Vec3 bindLocalDir{ Vec3::Zero };
 		Vec3 bindScale{ Vec3::One };
 		Vec3 poseLocalDir{ Vec3::Zero };
+		Vec3 smoothedLocalDirection{ Vec3::Zero };
 		Vec3 smoothedLocalTranslation{ Vec3::Zero };
 		Quat smoothedLocalRotation{ Quat::Identity };
 
@@ -140,9 +167,15 @@ private:
 
 		Vec3 solvedPosition{ Vec3::Zero };
 		Vec3 prevSolvedPosition{ Vec3::Zero };
+		Vec3 prevPosePosition{ Vec3::Zero };
+		Vec3 poseMotionDelta{ Vec3::Zero };
+		Vec3 smoothedInertiaVelocity{ Vec3::Zero };
 		Vec3 smoothedCollisionOffset{ Vec3::Zero };
 		Vec3 smoothedContactNormal{ Vec3::Zero };
 
+		bool hasPrevPosePosition{ false };
+		bool hasSmoothedInertiaVelocity{ false };
+		bool hasSmoothedLocalDirection{ false };
 		bool hasSmoothedLocalTransform{ false };
 		bool hasSmoothedCollisionOffset{ false };
 		bool hasSmoothedContactNormal{ false };
@@ -160,16 +193,19 @@ private:
 		int32 anchorBoneIndex{ -1 };
 		PxRigidDynamic* anchorActor{ nullptr };
 		Matrix anchorWorld{ Matrix::Identity };
+		Vec3 prevDriverPosition{ Vec3::Zero };
+		Vec3 driverMotionDelta{ Vec3::Zero };
+		Vec3 prevDriverVelocity{ Vec3::Zero };
+		Vec3 smoothedLateralAxis{ Vec3::UnitX };
+		bool hasPrevDriverPosition{ false };
+		bool hasPrevDriverVelocity{ false };
+		bool hasSmoothedLateralAxis{ false };
 		vector<Node> nodes{};
 	};
 
 	struct Blocker
 	{
-		string boneName{};
 		PxRigidDynamic* actor{ nullptr };
-		float radius{ 0.f };
-		float halfHeight{ 0.f };
-		bool isSphere{ false };
 	};
 
 protected:
@@ -182,14 +218,13 @@ public:
 	void* Get_RuntimeReflectionTarget() override { return &_desc; }
 	void On_RuntimeReflectionChanged(ModelCom* model, const PropertyInfo& property) override;
 	bool Can_RuntimeResetPose() const override { return true; }
-	void RuntimeResetPose(ModelCom* model) override { ResetPose(model); }
+	void RuntimeResetPose(ModelCom* model) override;
 	bool Can_RuntimeRebuild() const override { return true; }
 	void RuntimeRebuild(ModelCom* model) override;
 	void ResetPose(ModelCom* model);
 	void Build_RuntimeDebugCapsules(vector<RuntimeDebugCapsule>& outCapsules) const { outCapsules = _runtimeDebugCapsules; }
 	void Build_RuntimeDebugSpheres(vector<RuntimeDebugSphere>& outSpheres) const { outSpheres = _runtimeDebugSpheres; }
 	void Build_RuntimeDebugSegments(vector<RuntimeDebugSegment>& outSegments) const { outSegments = _runtimeDebugSegments; }
-	void Set_RuntimeTestOwnerMotion(bool enabled, const Vec3& delta);
 
 	void Apply_WindForce(const Vec3& direction, float scale);
 
@@ -214,11 +249,12 @@ private:
 		const Matrix& ownerWorld,
 		const Matrix& collisionOwnerWorld);
 	void Update_SolvedPositionsFromActors();
-	void Apply_PostSimulationConstraints(
-		ModelCom* model,
-		const Matrix& ownerWorld,
-		const vector<WorldCapsule>& worldCapsules,
-		float timeDelta);
+	void Apply_OwnerInertiaForce(const Vec3& ownerMotionDelta, float timeDelta, bool isOwnerIdle);
+	void Apply_PoseSpringForces(float timeDelta, bool isOwnerIdle);
+	void Apply_LengthAndBendConstraints();
+	void Apply_PostSimulationConstraints(const vector<WorldCapsule>& worldCapsules);
+	void Apply_PoseRestoreAndDamping(float timeDelta, bool isOwnerIdle);
+	void Apply_LocalOffsetConstraints(float timeDelta, bool isOwnerIdle);
 	void Write_BackToModel(ModelCom* model, const Matrix& ownerWorld, bool isOwnerIdle);
 	vector<WorldCapsule> Build_WorldCapsules(const ModelCom* collisionModel, const Matrix& collisionOwnerWorld) const;
 	void Build_DebugOutput(ModelCom* model, const Matrix& ownerWorld);
@@ -231,6 +267,7 @@ private:
 	static Quat Build_RotationDelta(const Vec3& fromDirection, const Vec3& toDirection);
 	static Matrix Build_LocalMatrix_FromSRT(const Vec3& scale, const Quat& rotation, const Vec3& translation);
 	static Vec3 Closest_PointOnSegment(const Vec3& point, const Vec3& start, const Vec3& end);
+	float Compute_NodeAngleLimitDegree(const Chain& chain, float depthRatio) const;
 
 private:
 	PhysicsModifierDesc _desc{};
@@ -240,14 +277,12 @@ private:
 	vector<RuntimeDebugCapsule> _runtimeDebugCapsules{};
 	vector<RuntimeDebugSphere> _runtimeDebugSpheres{};
 	vector<RuntimeDebugSegment> _runtimeDebugSegments{};
-	unordered_set<string> _configuredRoots{};
 	bool _chainsInitialized{ false };
 	bool _physxResourcesReady{ false };
 	Vec3 _prevOwnerPos{ Vec3::Zero };
-	Matrix _prevOwnerWorld{ Matrix::Identity };
 	bool _hasPrevOwnerWorld{ false };
-	bool _runtimeTestOwnerMotionEnabled{ false };
-	Vec3 _runtimeTestOwnerMotionDelta{ Vec3::Zero };
+	bool _hasCapturedPose{ false };
+	float _windTime{ 0.f };
 
 	PxPhysics* _physics{ nullptr };
 	PxScene* _scene{ nullptr };

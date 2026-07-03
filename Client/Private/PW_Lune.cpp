@@ -57,8 +57,6 @@ HRESULT PW_Lune::Initialize(void* arg)
     // 그래디언트
     //skilltreeCom->ForceUnlock("SkyBreak");
 
-    CHECK_FAILED(Ready_Modifier(), E_FAIL);
-
     return S_OK;
 }
 
@@ -68,16 +66,9 @@ void PW_Lune::BeginPlay()
 
 }
 
-HRESULT PW_Lune::Ready_Modifier()
+HRESULT PW_Lune::Ready_BodyModifiers(Body_Player* body, const string& costumePresetId)
 {
-    auto* body = dynamic_cast<Body_Player*>(Find_PartObject(TEXT("Part_Body")));
-    CHECK_NULL(body, E_FAIL);
-
-    return Ready_BodyModifiers(body);
-}
-
-HRESULT PW_Lune::Ready_BodyModifiers(Body_Player* body)
-{
+    UNREFERENCED_PARAMETER(costumePresetId);
     CHECK_NULL(body, E_FAIL);
 
         OffsetAnimationModifier::OffsetModifierDesc aimOffsetDesc{};
