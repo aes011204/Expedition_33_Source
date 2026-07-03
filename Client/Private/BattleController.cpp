@@ -81,35 +81,6 @@ namespace
     constexpr char kSkillPresentationDissolveNoise[] = "T_Perlin_Noise_M";
     constexpr float kSkillPresentationOcclusionDepthMargin = 0.25f;
     constexpr float kSkillPresentationOcclusionCapsuleRadius = 0.58f;
-
-    constexpr const char* kSimonHairMaterialName = "MI_Hair_Simon";
-    constexpr Vec4 kSimonPhase2HairTint{ 0.8f, 0.8f, 0.8f, 1.f };
-
-    void Apply_SimonPhase2HairTint(const Shared<GameObject>& sourceWorldObject)
-    {
-        auto* container = dynamic_cast<ContainerObject*>(sourceWorldObject.get());
-        if (container == nullptr)
-            return;
-
-        auto* hairPart = dynamic_cast<Monster_Part*>(container->Get_PartObject(L"Part_Hair"));
-        if (hairPart == nullptr)
-            return;
-
-        const Shared<ModelCom> hairModel = hairPart->Get_Model();
-        if (hairModel == nullptr)
-            return;
-
-        for (uint32 materialIndex = 0; materialIndex < static_cast<uint32>(hairModel->Get_NumMaterials()); ++materialIndex)
-        {
-            const Shared<Material> material = hairModel->Get_Material(materialIndex);
-            if (material == nullptr || material->Get_MaterialName() != kSimonHairMaterialName)
-                continue;
-
-            MaterialCB cb = material->Get_CB();
-            cb.baseColorTint = kSimonPhase2HairTint;
-            material->Set_CB(cb);
-        }
-    }
 }
 
 BattleController::BattleController()
@@ -3559,19 +3530,6 @@ void BattleController::Complete_BattleField()
 
     // 현제 케릭 아이디 , 적 아이디로 전투 용 객체 생성
     Create_BattleChar(_pendingBattleHeroIds, _pendingBattleMonsterSpawnDescs);
-
-    for (const BattleChar& enemy : _enemies)
-    {
-        if (enemy.actor == nullptr)
-            continue;
-
-        if (enemy.actor->Get_SourcePrefabName() != Constants::Prefab::MB_Simon_V2)
-            continue;
-
-        Apply_SimonPhase2HairTint(enemy.actor);
-        break;
-    }
-
     Capture_PreBattleBGM();
 
     if (_battleTutorialController)

@@ -1736,6 +1736,17 @@ void ClientInstance::Queue_CinematicPrewarmForLevel(uint32 targetLevelIndex)
         return;
 
     unordered_set<wstring> queuedSequencePaths{};
+    auto queueSequencePath = [&](const wstring& sequencePath)
+        {
+            if (sequencePath.empty())
+                return;
+
+            if (!queuedSequencePaths.insert(sequencePath).second)
+                return;
+
+            _cinematicSequenceRunner->Queue_PrewarmSequence(sequencePath, targetLevelIndex);
+        };
+
     GAME->Visit_LevelObjects(
         targetLevelIndex,
         [&](const wstring& layerTag, const Shared<GameObject>& gameObject)
@@ -1751,11 +1762,14 @@ void ClientInstance::Queue_CinematicPrewarmForLevel(uint32 targetLevelIndex)
                 return;
 
             const wstring sequencePath = Constants::Cinematic::RuntimeJson_Dir + sequenceFileId;
-            if (!queuedSequencePaths.insert(sequencePath).second)
-                return;
-
-            _cinematicSequenceRunner->Queue_PrewarmSequence(sequencePath, targetLevelIndex);
+            queueSequencePath(sequencePath);
         });
+
+    if (targetLevelIndex == ETOI(LevelType::GestralVillage))
+    {
+        queueSequencePath(wstring(Constants::Cinematic::RuntimeJson_Dir) + Constants::Cinematic::Dualliste_Intro);
+        queueSequencePath(wstring(Constants::Cinematic::RuntimeJson_Dir) + Constants::Cinematic::Dualliste_PhaseChange);
+    }
 }
 
 void ClientInstance::Flush_CinematicPrewarmQueue(uint32 createBudget)

@@ -579,7 +579,7 @@ namespace Client::Constants::Cinematic
     inline constexpr wchar_t BishopCinematicFileId[] = L"Bishop_Cinematic_2.json";
     inline constexpr wchar_t TutorialCinematicFileId[] = L"Lancelier_Intro.json";
 
-    inline constexpr wchar_t Dualliste_Intro[] = L"Dualliste_1.json";
+    inline constexpr wchar_t Dualliste_Intro[] = L"Dualliste_Intro.json";
     inline constexpr wchar_t Dualliste_PhaseChange[] = L"Dualliste.json";
 }
 
