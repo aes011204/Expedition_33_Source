@@ -135,13 +135,16 @@ PS_OUT_LIGHT PS_MAIN_DIRECTIONAL(PS_IN In)
     return Out;
 }
 
+// 점조명의 표면 조명 패스. 현재 픽셀이 점조명에 얼마나 밝아지는지 계산한다.
 PS_OUT_LIGHT PS_MAIN_POINT(PS_IN In)
 {
+    // MRT::LightAcc의 Shade/Specular에 additive blend로 누적된다.
     PS_OUT_LIGHT Out;
     Out.Shade = float4(0.f, 0.f, 0.f, 1.f);
     Out.Specular = float4(0.f, 0.f, 0.f, 1.f);
     Out.Ambient = float4(0.f, 0.f, 0.f, 1.f);
 
+    // range가 없으면 영향 반경이 없는 조명이므로 누적할 값 없이 종료.
     if (g_LightRange <= EPSILON)
         return Out;
 
@@ -159,7 +162,8 @@ PS_OUT_LIGHT PS_MAIN_POINT(PS_IN In)
     float roughness = ApplySpecAA(N, MaterialDesc.g);   // Specular Anti-Aliasing 적용된 roughness
     float metalness = saturate(MaterialDesc.b);
 
-    // Light
+    // Depth에서 복원한 월드 좌표 기준으로, 픽셀 -> 점조명 방향과 거리를 구한다.
+    // 이 패스는 화면 사각형을 전체에 그리므로 실제 반경 밖 픽셀은 attenuation으로 0에 가까워진다.
     float4 WorldPos = Reconstruct_WorldPos(In.Texcoord);
     float3 LightVec = g_LightPos.xyz - WorldPos.xyz;
     float Distance = length(LightVec);
@@ -169,11 +173,14 @@ PS_OUT_LIGHT PS_MAIN_POINT(PS_IN In)
     float invHLen = rsqrt(max(dot(Hraw, Hraw), EPSILON));
     float3 H = Hraw * invHLen;                                                      // V와 L의 중간 방향. 하프벡터
 
+    // 단순 선형 감쇠. g_LightRange 위치에서 0, 조명 중심에 가까울수록 1.
     float att = saturate(1.f - Distance / g_LightRange);
 
     float NdotL = saturate(dot(N, L));  // 표면이 빛을 얼마나 정면으로 받는지
     if (NdotL <= 0.0f)
     {
+        // 뒷면은 표면 조명만 끄고, discard하지 않는다.
+        // LightAcc RT에는 검은 값이 더해져 다른 조명 누적 결과를 해치지 않는다.
         return Out;
     }
 
@@ -193,10 +200,15 @@ PS_OUT_LIGHT PS_MAIN_POINT(PS_IN In)
     float3 kD = (1.0f - kS) * (1.0f - metalness);
     float3 diffuseBRDF = kD * baseColor / PI;
 
+    // 조명 색/세기에 거리 감쇠를 곱해 이 픽셀에 도달한 광량으로 사용한다.
     float3 radiance = g_LightDiffuse.rgb * att;
 
+    // 완전히 옆면으로 꺼지는 것을 막는 아트 보정.
+    // 물리 기반 NdotL보다 더 넓게 점조명 영향이 보이게 만든다.
     NdotL = max(NdotL, 0.25f);
 
+    // CombinedHDR에서 g_ShadeTexture/g_SpecularTexture로 다시 읽혀 최종 HDR 색에 합쳐진다.
+    // Ambient는 현재 점조명에서 사용하지 않으므로 0 유지.
     Out.Shade = float4(diffuseBRDF * radiance * NdotL, 1.f);
     Out.Specular = float4(specularBRDF * radiance * NdotL, 1.f);
     Out.Ambient = float4(0.f, 0.f, 0.f, 1.f);
@@ -206,12 +218,18 @@ PS_OUT_LIGHT PS_MAIN_POINT(PS_IN In)
 
 PS_OUT_BACKBUFFER PS_POINT_GLOW_SOURCE(PS_IN In)
 {
+    // 점조명의 "보이는 광륜" 소스 패스.
+    // 표면을 밝히는 PS_MAIN_POINT와 별개로, 카메라 광선이 점조명 구체를 얼마나 통과하는지 계산해
+    // RT::PointGlow에 glow 색을 쌓고 이후 PostProcess의 PointGlowCompositeHDR에서 HDRColor에 합성한다.
     PS_OUT_BACKBUFFER Out;
     Out.Color = float4(0.f, 0.f, 0.f, 0.f);
 
+    // 반경이 없으면 광륜 구체도 만들 수 없으므로 종료.
     if (g_LightRange <= EPSILON)
         return Out;
 
+    // glow 전용 아트 튜닝 값.
+    // 표면 조명 밝기와는 별개라서, "공중에 보이는 빛 덩어리"만 조절하고 싶을 때는 여기 계열을 만진다.
     static const float POINT_GLOW_INTENSITY = 6.f;
     static const float POINT_GLOW_RADIUS_SCALE = 2.5f;
     static const float POINT_GLOW_MIN_RADIUS_PIXELS = 96.f;
@@ -219,6 +237,7 @@ PS_OUT_BACKBUFFER PS_POINT_GLOW_SOURCE(PS_IN In)
     static const float POINT_GLOW_CORE_POWER = 12.f;
     static const float POINT_GLOW_CORE_WEIGHT = 0.75f;
 
+    // 조명 중심을 화면에 투영해 대략적인 화면 반경과 화면 밖 컬링을 계산한다.
     float4 lightViewPos = mul(float4(g_LightPos.xyz, 1.f), g_ViewMatrix);
 
     // 카메라 뒤쪽에 완전히 있는 점조명만 제거
@@ -237,6 +256,8 @@ PS_OUT_BACKBUFFER PS_POINT_GLOW_SOURCE(PS_IN In)
 
     float lightDepth = max(lightViewPos.z, 1.f);
 
+    // 월드 반경을 현재 깊이 기준의 픽셀 반경으로 환산한다.
+    // 가까운 조명은 크게, 먼 조명은 작게 보이지만 최소 픽셀 반경은 보장한다.
     float radiusPixels = (g_LightRange * POINT_GLOW_RADIUS_SCALE / lightDepth) * g_ProjMatrix._22 * g_ScreenSize.y * 0.5f;
 
     radiusPixels = clamp(
@@ -253,6 +274,8 @@ PS_OUT_BACKBUFFER PS_POINT_GLOW_SOURCE(PS_IN In)
         return Out;
     }
 
+    // 현재 화면 픽셀에서 카메라가 바라보는 월드 방향을 복원한다.
+    // 이 ray와 점조명 구체의 교차 길이가 glow의 기본 세기가 된다.
     float4 rayClip = float4(In.Texcoord.x * 2.f - 1.f, In.Texcoord.y * -2.f + 1.f, 1.f, 1.f);
     float4 rayView = mul(rayClip, g_DeferredProjMatrixInverse);
     rayView.xyz /= max(rayView.w, EPSILON);
@@ -260,6 +283,8 @@ PS_OUT_BACKBUFFER PS_POINT_GLOW_SOURCE(PS_IN In)
     float3 rayWorld = mul(float4(rayView.xyz, 0.f), g_DeferredViewMatrixInverse).xyz;
     float3 rayDir = normalize(rayWorld);
 
+    // Ray-Sphere 교차: 카메라 ray가 점조명의 영향 구체를 지나가는지 판정한다.
+    // 교차하지 않으면 이 픽셀에는 공중 glow가 없다.
     float3 cameraToLight = g_DeferredCamPosition.xyz - g_LightPos.xyz;
     float b = dot(cameraToLight, rayDir);
     float c = dot(cameraToLight, cameraToLight) - g_LightRange * g_LightRange;
@@ -273,6 +298,8 @@ PS_OUT_BACKBUFFER PS_POINT_GLOW_SOURCE(PS_IN In)
     if (exitDistance <= enterDistance)
         return Out;
 
+    // 실제 씬 geometry가 더 앞에 있으면 그 지점까지만 ray 길이를 인정한다.
+    // 덕분에 glow가 벽/오브젝트 앞뒤 관계를 어느 정도 따라가며, 표면에 붙은 평면 원처럼 보이는 문제를 줄인다.
     float sceneViewDepth01 = g_DepthTexture.Sample(PointClampSampler, In.Texcoord).y;
     float maxRayDistance = g_DeferredFar;
     if (sceneViewDepth01 > EPSILON)
@@ -285,6 +312,7 @@ PS_OUT_BACKBUFFER PS_POINT_GLOW_SOURCE(PS_IN In)
     if (exitDistance <= enterDistance)
         return Out;
 
+    // 구체 내부를 통과한 길이가 길수록, 그리고 조명 중심선에 가까울수록 glow가 강해진다.
     float rayLength = exitDistance - enterDistance;
     float rayLength01 = saturate(rayLength / max(g_LightRange * 2.f, EPSILON));
 
@@ -296,6 +324,7 @@ PS_OUT_BACKBUFFER PS_POINT_GLOW_SOURCE(PS_IN In)
     if (glow <= EPSILON)
         return Out;
 
+    // 합성 패스에서 depth 비교에 쓸 조명 중심 깊이.
     float lightDepth01 = saturate(lightDepth / max(g_DeferredFar, EPSILON));
 
     // RGB: 원형 glow 색
