@@ -164,6 +164,7 @@ bool UI_BattleFloatingTextBase::Try_ResolveScreenPosition(float t, Vec2& outScre
     Apply_EditorOffsets(outScreenPos);
     Apply_StackOffset(outScreenPos);
     Apply_RiseOffset(outScreenPos, t);
+    Apply_ScreenClamp(outScreenPos);
     return true;
 }
 
@@ -184,6 +185,21 @@ void UI_BattleFloatingTextBase::Apply_RiseOffset(Vec2& screenPos, float t) const
 {
     const float eased = 1.f - (1.f - t) * (1.f - t);
     screenPos.y -= _riseDistance * eased;
+}
+
+void UI_BattleFloatingTextBase::Apply_ScreenClamp(Vec2& screenPos) const
+{
+    if (!_screenClampEnabled)
+        return;
+
+    const float width = static_cast<float>(max(1u, GAME->Get_ViewportWidth()));
+    const float height = static_cast<float>(max(1u, GAME->Get_ViewportHeight()));
+
+    const float paddingX = min(max(0.f, _screenClampPadding.x), width * 0.5f);
+    const float paddingY = min(max(0.f, _screenClampPadding.y), height * 0.5f);
+
+    screenPos.x = clamp(screenPos.x, paddingX, width - paddingX);
+    screenPos.y = clamp(screenPos.y, paddingY, height - paddingY);
 }
 
 void UI_BattleFloatingTextBase::Free()

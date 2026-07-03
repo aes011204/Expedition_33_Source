@@ -99,12 +99,15 @@ private:
 
     void    Play_TargetAnimation(const wchar_t* animationName); // Target_Animation은 이름으로 전 UI에 브로드캐스트 재생
     void    Stop_TargetAnimations();  
+    void    Capture_TargetAnimationBaseColors();
+    void    Restore_TargetAnimationBaseColors();
     void    Reset_TargetAnimationState(bool includeRoot);
 
 private:
     PartyBattleStatSlot _partySlots[3]{};
     array<bool, 3> _visiblePartySlots{ true, true, true }; // 이번 전투에 실제 참여하는 portrait만 연다.
     HeroId _activePortraitHeroId = HeroId::END;
+    vector<pair<Shared<UI_Base>, Vec4>> _targetAnimationBaseColors{};
 
 private: /* 구스타브 */
     Shared<UI_Base> _gustaveMechanismRoot{};

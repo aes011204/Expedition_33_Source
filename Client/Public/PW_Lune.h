@@ -18,11 +18,8 @@ public:
     HRESULT Initialize(void* arg) override;
     void    BeginPlay() override;
 
-private:
-    HRESULT Ready_Modifier();
-
 protected:
-    HRESULT Ready_BodyModifiers(Body_Player* body) override;
+    HRESULT Ready_BodyModifiers(Body_Player* body, const string& costumePresetId) override;
     HairChainPhysicsDesc Get_HairChainPhysicsDesc() const override;
 
     const wchar_t* Get_BodyModelTag() const override { return L"Model_LuneBody"; }

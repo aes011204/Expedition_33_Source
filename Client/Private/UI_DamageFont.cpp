@@ -24,6 +24,7 @@ IMPLEMENT_REFLECTION(UI_DamageFont)
 
     PROPERTY_VEC3("Damage World Anchor Offset", _damageWorldAnchorOffset, 0.01f);
     PROPERTY_VEC2("Damage Screen Base Offset", _damageScreenBaseOffset, 1.f);
+    PROPERTY_VEC2("Damage Screen Clamp Padding", _damageScreenClampPadding, 1.f);
 
     PROPERTY_FLOAT("Damage Random Y Min", _damageWorldAnchorRandomMinY, -1.f, 1.f, 0.01f);
     PROPERTY_FLOAT("Damage Random Y Max", _damageWorldAnchorRandomMaxY, -1.f, 1.f, 0.01f);
@@ -218,6 +219,8 @@ bool UI_DamageFont::Apply_DamageFontTuning()
         _appliedDamageWorldAnchorOffset.z != _damageWorldAnchorOffset.z ||
         _appliedDamageScreenBaseOffset.x != _damageScreenBaseOffset.x ||
         _appliedDamageScreenBaseOffset.y != _damageScreenBaseOffset.y ||
+        _appliedDamageScreenClampPadding.x != _damageScreenClampPadding.x ||
+        _appliedDamageScreenClampPadding.y != _damageScreenClampPadding.y ||
         _appliedDamageWorldAnchorRandomMinY != _damageWorldAnchorRandomMinY ||
         _appliedDamageWorldAnchorRandomMaxY != _damageWorldAnchorRandomMaxY;
 
@@ -231,6 +234,7 @@ bool UI_DamageFont::Apply_DamageFontTuning()
 
     Set_WorldAnchorOffset(_damageWorldAnchorOffset);
     Set_ScreenBaseOffset(_damageScreenBaseOffset);
+    Set_ScreenClamp(true, _damageScreenClampPadding);
     Set_WorldAnchorRandomYRange(_damageWorldAnchorRandomMinY, _damageWorldAnchorRandomMaxY);
     Set_AnchorMode(AnchorMode::FollowWorld);
 
@@ -241,6 +245,7 @@ bool UI_DamageFont::Apply_DamageFontTuning()
     _appliedDamageStackVerticalOffset = _damageStackVerticalOffset;
     _appliedDamageWorldAnchorOffset = _damageWorldAnchorOffset;
     _appliedDamageScreenBaseOffset = _damageScreenBaseOffset;
+    _appliedDamageScreenClampPadding = _damageScreenClampPadding;
     _appliedDamageWorldAnchorRandomMinY = _damageWorldAnchorRandomMinY;
     _appliedDamageWorldAnchorRandomMaxY = _damageWorldAnchorRandomMaxY;
 

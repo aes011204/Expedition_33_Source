@@ -259,7 +259,8 @@ cbuffer ScreenFxBuffer
 
     float g_wipeRadius;
     float g_edgeSoftness;
-    float2 pad;
+    float g_transitionUseBlackSource;
+    float pad;
 
     float4 g_flashColor;
     float4 g_screenFxShape;

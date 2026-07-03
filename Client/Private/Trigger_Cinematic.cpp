@@ -80,7 +80,7 @@ void Trigger_Cinematic::OnBeginOverlap(Shared<ColliderCom> self, Shared<Collider
             if (const Shared<BattleController> battleController = CLIENT->Get_BattleController())
                 battleController->Capture_PreBattleBGM();
 
-            GAME->Play_BGM(Constants::SoundBGM::BishopBattleBossMain, 1.f, true, 0.f);
+            GAME->Play_BGM(Constants::SoundBGM::BishopBattleBossMain, 0.7f, true, 0.f);
         }
 
         CLIENT->Clear_CinematicCompletedCallbacks();

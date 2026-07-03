@@ -84,6 +84,7 @@ public:
 
     void Begin_ParkourVerticalLag(const Shared<TransformCom>& targetTransform);
     void End_ParkourVerticalLag(const Shared<TransformCom>& targetTransform);
+    void Snap_TargetVerticalPosition(const Shared<TransformCom>& targetTransform);
 
     Vec3 Get_FreeAimQueryOrigin() const;
     Vec3 Get_FreeAimQueryDirection() const;
