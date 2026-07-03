@@ -659,7 +659,7 @@
     <ClCompile Include="..\Private\GameplayUI_World.cpp">
       <Filter>02. GameObject\UI</Filter>
     </ClCompile>
-    <ClCompile Include="..\Private\UI_InteractionPrompt.cpp">
+    <ClCompile Include="..\Private\UI_Interaction.cpp">
       <Filter>02. GameObject\UI</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\MapLandscape.cpp">
@@ -2150,7 +2150,7 @@
     <ClInclude Include="..\Public\GameplayUI_World.h">
       <Filter>02. GameObject\UI</Filter>
     </ClInclude>
-    <ClInclude Include="..\Public\UI_InteractionPrompt.h">
+    <ClInclude Include="..\Public\UI_Interaction.h">
       <Filter>02. GameObject\UI</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\MapLandscape.h">

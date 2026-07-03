@@ -265,6 +265,11 @@ bool WorldGrapplingRopeSpot::Build_InteractionRequest(const Shared<Player_WorldB
     return true;
 }
 
+InteractionPromptType WorldGrapplingRopeSpot::Get_InteractionPromptType(const Shared<Player_WorldBase>& activeHero) const
+{
+    return Can_Interact(activeHero) ? InteractionPromptType::Cross : InteractionPromptType::None;
+}
+
 HRESULT WorldGrapplingRopeSpot::Ready_Components()
 {
     CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Shader_VtxMesh"), _shader), E_FAIL);

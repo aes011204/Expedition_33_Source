@@ -540,6 +540,7 @@ void Editor_Manager::Render_ShortcutHelp()
             DrawShortcutRow("Ctrl + Wheel", "Free Camera Speed");
             DrawShortcutRow("Shift +", "배속 증가");
             DrawShortcutRow("Shift -", "배속 감소");
+            DrawShortcutRow("Shift + F11", "GameLauncher Preview");
             DrawShortcutRow("Ctrl -", "배속 1x 복귀");
             DrawShortcutRow("Alt + Enter", "Fullscreen Toggle");
             DrawShortcutRow("Ctrl + Space", "Focus Scene/Game/Profile/Camera Tool");
