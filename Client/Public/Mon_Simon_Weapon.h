@@ -3,6 +3,7 @@
 #include "Client_Defines.h"
 #include "EffectCom.h"
 #include "Monster_Part.h"
+#include "ModelCom.h"
 #include "TrailAnchor_Asset.h"
 #include "Weapon.h"
 
@@ -41,10 +42,14 @@ public:
 
     void Begin_WeaponEchoPlayback(
         float delaySec,
-        uint32 echoCount = 1);
+        uint32 echoCount = 1,
+        ModelCom* sourceModel = nullptr,
+        const string& sourceAnimationName = {},
+        float sourceTimeSec = 0.f);
 
     void Record_WeaponEchoSample(float elapsedSec);
     void End_WeaponEchoPlayback();
+    void Update_WeaponEchoSource(ModelCom* sourceModel, const string& sourceAnimationName, float sourceTimeSec);
     bool Has_WeaponEchoPlayback() const;
     void Queue_WeaponEchoRender();
     const wstring& Get_TrailEffectName() const { return _trailEffectName; }
@@ -117,6 +122,10 @@ private:
     wstring _weaponEchoPendingTrailLayerTag{};
     EffectCom::TrailOffsetRuntimeDesc _weaponEchoPendingTrailOffset{};
     float _weaponEchoPendingTrailAgeSec = 0.f;
+    ModelCom* _weaponEchoSourceModel = nullptr;
+    string _weaponEchoSourceAnimationName{};
+    float _weaponEchoLastKnownSourceTimeSec = 0.f;
+    bool _weaponEchoHasSourceTime = false;
 
     wstring _trailEffectName = L"";
     vector<WeaponSourceHistoryAnchorDesc> _sourceHistoryAnchors{};

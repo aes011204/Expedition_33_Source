@@ -93,7 +93,7 @@ IMPLEMENT_REFLECTION(ANS_WeaponEcho)
 void ANS_WeaponEcho::On_Begin(const AnimNotifyContext& context)
 {
     _lastSampleElapsedSec = -1.f;
-    _stateStartTimeSec = context.currentTimeSec - Get_ElapsedSec(context);
+    _stateStartTimeSec = context.currentTimeSec;
 
     g_activeWeaponEchoWindows.erase(
         remove_if(
@@ -162,7 +162,10 @@ void ANS_WeaponEcho::On_Begin(const AnimNotifyContext& context)
         {
             simonWeapon->Begin_WeaponEchoPlayback(
                 _delaySec,
-                window.echoCount);
+                window.echoCount,
+                context.model,
+                context.animationName,
+                context.currentTimeSec);
 
             if (Shared<EffectCom> effectCom = EffectCom::Find_FromNotifyOwner(context.owner))
             {
@@ -374,6 +377,8 @@ void ANS_WeaponEcho::Record_Sample(const AnimNotifyContext& context, bool force)
     if (simonWeapon == nullptr)
         return;
 
+    simonWeapon->Update_WeaponEchoSource(context.model, context.animationName, context.currentTimeSec);
+
     const float elapsedSec = Get_ElapsedSec(context);
     const float interval = max(0.f, _sampleInterval);
     const bool timeMovedBackward = _lastSampleElapsedSec >= 0.f && elapsedSec + 1e-4f < _lastSampleElapsedSec;
@@ -394,8 +399,5 @@ void ANS_WeaponEcho::Record_Sample(const AnimNotifyContext& context, bool force)
 
 float ANS_WeaponEcho::Get_ElapsedSec(const AnimNotifyContext& context) const
 {
-    if (context.notifyStateDurationSec > 0.f)
-        return max(0.f, context.notifyStateDurationSec * context.notifyStateProgress);
-
-    return max(0.f, context.currentTimeSec - _stateStartTimeSec);
+    return max(0.f, context.currentTimeSec);
 }
