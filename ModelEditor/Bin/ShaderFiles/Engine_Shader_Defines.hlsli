@@ -75,5 +75,6 @@
 #define POSTPROCESS_FLAG_GAMMA       (1u << 4)
 #define POSTPROCESS_FLAG_LIGHTSHAFT  (1u << 5)
 #define POSTPROCESS_FLAG_DOF         (1u << 6)
+#define POSTPROCESS_FLAG_COLORGRADE  (1u << 7)
 
 #endif

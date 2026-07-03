@@ -68,9 +68,9 @@ namespace
     constexpr wchar_t kMarkEffectLayerTag[] = L"Layer_Effect";
     constexpr wchar_t kMarkEffectPartTag[] = L"Part_Body";
     constexpr char kMarkEffectSocketName[] = "HealthBar";
-    constexpr Vec3 kMarkEffectSocketLocalOffset = Vec3(0.f, -1.15f, 0.45f);
-    constexpr Vec3 kMarkEffectFallbackLocalOffset = Vec3(0.f, 0.85f, 0.45f);
-    constexpr Vec3 kMarkEffectScale = Vec3(1.3f, 1.3f, 1.3f);
+    constexpr Vec3 kMarkEffectSocketLocalOffset = Vec3(0.f, 0.f, 0.45f);
+    constexpr Vec3 kMarkEffectFallbackLocalOffset = Vec3(0.f, 0.f, 0.45f);
+    constexpr Vec3 kMarkEffectScale = Vec3(1.5f, 1.5f, 1.5f);
 
     void Append_RuntimePanelEntry(
         vector<RuntimeUIEntry>& outEntries,

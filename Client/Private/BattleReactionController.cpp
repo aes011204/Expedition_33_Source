@@ -16,7 +16,6 @@
 namespace
 {
     constexpr uint32 kReactionConsumeKeyStride = 16;
-    constexpr float kAutoJumpCounterInputDelaySec = 0.025f;
 
     size_t ReactionIndex(BattleReactionType type)
     {
@@ -253,7 +252,6 @@ void BattleReactionController::NotifyJumpCounterWindowBegin(float worldTimeScale
 
     _jumpCounterState = JumpCounterState::CounterWindowOpen;
     OpenWindow(BattleReactionType::JumpCounter);
-    _reactionWindowElapsedSec[ReactionIndex(BattleReactionType::JumpCounter)] = 0.f;
     GAME->Set_WorldTimeScale(clamp(worldTimeScale, 0.01f, 1.f));
 }
 
@@ -395,7 +393,7 @@ BattleReactionController::BattleReactionInputResult BattleReactionController::Su
     {
         for (const BattleChar& target : context.targets)
         {
-            if (CanReceiveInput(target))
+            if (CanReceiveInput(target, context.type))
                 inputTargets.push_back(target);
         }
 
@@ -539,6 +537,7 @@ BattleReactionController::BattleReactionInputResult BattleReactionController::Su
         _isCounterPending = true;
         _isCounterDamageApplied = false;
         _jumpCounterStarted = false;
+        GAME->Set_WorldTimeScale(1.f);
         CloseWindow(BattleReactionType::JumpCounter);
         LOG_INFO("JUMPCOUNTER success step={}", context.stepIndex);
     }
@@ -617,20 +616,14 @@ BattleReactionController::BattleReactionInputResult BattleReactionController::Up
         turnAction.Get_CurChar().statCom != nullptr &&
         !turnAction.Get_CurChar().statCom->Is_Player())
     {
-        if (IsWindowOpen(BattleReactionType::JumpCounter))
-        {
-            const size_t index = ReactionIndex(BattleReactionType::JumpCounter);
-            _reactionWindowElapsedSec[index] += max(0.f, GAME->Get_UnscaledTimeDelta());
-
-            if (_reactionWindowElapsedSec[index] >= kAutoJumpCounterInputDelaySec)
-                return SubmitInput(BattleReactionType::JumpCounter, turnAction);
-        }
-
         if (const ReactionInputContext* echoContext = Find_ActiveEchoReactionContext(BattleReactionType::Parry))
             return SubmitInput(*echoContext);
 
         if (IsWindowOpen(BattleReactionType::Parry))
             return SubmitInput(BattleReactionType::Parry, turnAction);
+
+        if (IsWindowOpen(BattleReactionType::JumpCounter))
+            return SubmitInput(BattleReactionType::JumpCounter, turnAction);
 
         if (IsWindowOpen(BattleReactionType::Jump))
             return SubmitInput(BattleReactionType::Jump, turnAction);
@@ -1236,7 +1229,7 @@ bool BattleReactionController::Is_GroupParryActive() const
     return _reactionAnimTargets.size() >= 2 && _animPhase == ReactionAnimPhase::Counter;
 }
 
-bool BattleReactionController::CanReceiveInput(const BattleChar& target) const
+bool BattleReactionController::CanReceiveInput(const BattleChar& target, BattleReactionType reactionType) const
 {
     if (target.actor == nullptr || target.statCom == nullptr || target.ModelCom == nullptr)
         return false;
@@ -1250,7 +1243,22 @@ bool BattleReactionController::CanReceiveInput(const BattleChar& target) const
             reactionTarget.ModelCom != nullptr &&
             !reactionTarget.ModelCom->Is_AnimationFinished())
         {
-            return false;
+            const BattleAnimType currentAnimType =
+                static_cast<BattleAnimType>(reactionTarget.ModelCom->Get_AnimationStateIndex());
+            const bool isRepeatableInput =
+                reactionType == BattleReactionType::Dodge ||
+                reactionType == BattleReactionType::Parry ||
+                reactionType == BattleReactionType::Jump;
+            const bool isRepeatableAnim =
+                currentAnimType == BattleAnimType::Dodge ||
+                currentAnimType == BattleAnimType::Parray ||
+                (currentAnimType == BattleAnimType::JumpCounter &&
+                    reactionType == BattleReactionType::Parry);
+
+            if (!isRepeatableInput || !isRepeatableAnim)
+            {
+                return false;
+            }
         }
     }
 
@@ -1355,6 +1363,24 @@ void BattleReactionController::FinishReactionAnimation()
         target.ModelCom->Set_RootMotionEnabled(true);
 
         target.ModelCom->Set_FrameSpeed(1.f);
+
+        const auto battle = CLIENT->Get_BattleController();
+        const bool shouldReturnToTargetedIdle =
+            battle != nullptr &&
+            target.statCom != nullptr &&
+            target.statCom->Is_Player() &&
+            battle->Get_TurnAction().Get_CurChar().statCom != nullptr &&
+            !battle->Get_TurnAction().Get_CurChar().statCom->Is_Player();
+
+        if (shouldReturnToTargetedIdle &&
+            target.ModelCom->Set_AnimationByState(
+                ETOI(BattleAnimType::Targeted_Idle),
+                0.15f,
+                true))
+        {
+            continue;
+        }
+
         target.ModelCom->Set_AnimationByState(
             ETOI(BattleAnimType::Base_Idle),
             0.15f,
@@ -1433,10 +1459,19 @@ BattleReactionController::ReactionInputContext BattleReactionController::BuildRe
 {
     ReactionInputContext context{};
     context.type = type;
-    context.stepIndex = turnAction.GetCurStepIndex();
+    context.stepIndex =
+        type == BattleReactionType::JumpCounter && _jumpCounterStepIndex != UINT32_MAX
+        ? _jumpCounterStepIndex
+        : turnAction.GetCurStepIndex();
     context.consumeKey = Make_ReactionConsumeKey(context.stepIndex);
-    context.targets = turnAction.GetCurStepTarget();
-    context.counterTarget = turnAction.Get_CurChar();
+    context.targets =
+        type == BattleReactionType::JumpCounter && !_reactionAnimTargets.empty()
+        ? _reactionAnimTargets
+        : turnAction.GetCurStepTarget();
+    context.counterTarget =
+        type == BattleReactionType::JumpCounter && _jumpCounterTarget.actor != nullptr
+        ? _jumpCounterTarget
+        : turnAction.Get_CurChar();
 
     context.allowCounterOnSuccess =
         type == BattleReactionType::Parry &&

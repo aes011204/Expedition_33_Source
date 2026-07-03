@@ -7,7 +7,7 @@
 
 namespace Internal
 {
-    void Play_TargetHitEffect(const BattleChar& target, const BattleHitSequenceRunner::HitEffectDesc& hitEffect)
+    static void Play_TargetHitEffect(const BattleChar& target, const BattleHitSequenceRunner::HitEffectDesc& hitEffect)
     {
         if (!hitEffect.Is_Valid() || target.actor == nullptr)
             return;
@@ -28,7 +28,7 @@ namespace Internal
         effectCom->Play_Effect(effectDesc);
     }
 
-    void Play_TargetHitSound(const BattleChar& target, const wstring& hitSoundCue)
+    static void Play_TargetHitSound(const BattleChar& target, const wstring& hitSoundCue)
     {
         if (hitSoundCue.empty())
             return;

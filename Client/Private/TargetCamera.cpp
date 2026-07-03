@@ -424,6 +424,20 @@ void TargetCamera::End_ParkourVerticalLag(const Shared<TransformCom>& targetTran
     }
 }
 
+void TargetCamera::Snap_TargetVerticalPosition(const Shared<TransformCom>& targetTransform)
+{
+    if (targetTransform == nullptr)
+        return;
+
+    Shared<TransformCom> currentTarget;
+    if (!Try_GetTargetTransform(currentTarget) || currentTarget != targetTransform)
+        return;
+
+    const Vec3 targetPos = targetTransform->Get_WorldPosition();
+    _smoothedTargetPos.y = targetPos.y;
+    _prevTargetPos.y = targetPos.y;
+}
+
 bool TargetCamera::Is_ParkourVerticalLagActive(const Shared<TransformCom>& targetTransform) const
 {
     const Shared<TransformCom> lagTarget = _parkourVerticalLagTarget.lock();

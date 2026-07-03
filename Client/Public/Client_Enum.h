@@ -115,7 +115,14 @@ namespace Client
         Pictos_Idle,
     };
 
-
+    enum class InteractionPromptType
+    {
+        None,
+        Dialogue,
+        Picking,
+        Cross,
+        Up,
+        Down,
+    };
 
 }
-

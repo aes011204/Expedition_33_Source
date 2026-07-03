@@ -282,6 +282,9 @@ PS_OUT_BACKBUFFER PS_ToneMapping(PS_IN In)
             color = mapped / max(whiteScale, EPSILON);
         }
     }
+
+    if (HasPostProcessFeature(POSTPROCESS_FLAG_COLORGRADE))
+        color = ApplyColorGrading(color);
     
     // Gamma
     if (HasPostProcessFeature(POSTPROCESS_FLAG_GAMMA))

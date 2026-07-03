@@ -214,7 +214,14 @@ struct alignas(16) PostProcessCB
     float dofFarIntensity = 0.48f;
     uint32 dofSampleCount = 12;
     uint32 dofDebugMode = 0;
-    float _pad3[2]{};
+
+    Vec4 colorGradeShadowTint{ 0.82f, 0.90f, 1.08f, 0.12f };
+    Vec4 colorGradeHighlightTint{ 1.08f, 0.98f, 0.86f, 0.06f };
+
+    float colorGradeContrast = 1.0f;
+    float colorGradeSaturation = 1.0f;
+    float colorGradePivot = 0.18f;
+    float colorGradeStrength = 0.0f;
 };
 
 struct alignas(16) LightShaftCB
@@ -329,7 +336,8 @@ struct alignas(16) ScreenFxCB
     // Transition
     float wipeRadius{ 0.f };
     float edgeSoftness{ 0.05f };
-    Vec2 pad;
+    float transitionUseBlackSource{ 0.f };
+    float pad;
 
     // ScreenFX cue shape
     Vec4 flashColor{ 1.f, 1.f, 1.f, 1.f };

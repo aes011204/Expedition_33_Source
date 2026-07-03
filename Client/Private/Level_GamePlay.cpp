@@ -113,7 +113,7 @@ HRESULT Level_GamePlay::Initialize()
         L"../../../Client/Bin/Resources/Textures/Shader/IBL/perfilter_eye.dds")))
         return E_FAIL;
 
-    GAME->Play_BGM(Constants::SoundBGM::SpringBGM, 1.f, true, 0.f);
+    GAME->Play_BGM(Constants::SoundBGM::SpringBGM, 0.7f, true, 0.f);
 
     return S_OK;
 }

@@ -7,6 +7,7 @@
 #include "Bounding_OBB.h"
 #include "ChainModifierPreset.h"
 #include "ColliderCom.h"
+#include "ModelCom.h"
 #include "PlayableParts.h"
 #include "PlayerStatCom.h"
 #include "SkillTreeCom.h"
@@ -57,8 +58,6 @@ HRESULT PW_Gustave::Initialize(void* arg)
     //skillTreeCom->ForceUnlock("StrikeStorm");
     //skillTreeCom->ForceUnlock("PerfectRecovery");
 
-    CHECK_FAILED(Ready_Modifier(), E_FAIL);
-
     return S_OK; 
 }
 
@@ -68,147 +67,168 @@ void PW_Gustave::BeginPlay()
 
 }
 
-HRESULT PW_Gustave::Ready_Modifier()
-{
-    auto* body = dynamic_cast<Body_Player*>(Find_PartObject(TEXT("Part_Body")));
-    CHECK_NULL(body, E_FAIL);
-
-    return Ready_BodyModifiers(body);
-}
-
-HRESULT PW_Gustave::Ready_BodyModifiers(Body_Player* body)
+HRESULT PW_Gustave::Ready_BodyModifiers(Body_Player* body, const string& costumePresetId)
 {
     CHECK_NULL(body, E_FAIL);
 
-        OffsetAnimationModifier::OffsetModifierDesc aimOffsetDesc{};
-        aimOffsetDesc.baseModelCom = body->Get_Model().get();
-        aimOffsetDesc.animName = "Gustave_IdleFreeAim_LoopingWorld_Sweep";
-        aimOffsetDesc.offsetBoneRanges = { { "spine_01", "hand_r" } };
-        aimOffsetDesc.blendMode = AnimationModifier::ModifierBlendMode::ModifyAddictive;
-        aimOffsetDesc.blendInTime = 0.75f;
-        aimOffsetDesc.blendOutTime = 0.75f;
-        aimOffsetDesc.responseCurve = 1.5f;
-        aimOffsetDesc.modifierTag = L"AimOffset";
-        if (auto modifier = OffsetAnimationModifier::Create(&aimOffsetDesc))
+    const Shared<ModelCom> model = body->Get_Model();
+    CHECK_NULL(model, E_FAIL);
+
+    if (model->Find_AnimModifierByTag(L"AimOffset") != nullptr)
+        return S_OK;
+
+    OffsetAnimationModifier::OffsetModifierDesc aimOffsetDesc{};
+    aimOffsetDesc.baseModelCom = model.get();
+    aimOffsetDesc.animName = "Gustave_IdleFreeAim_LoopingWorld_Sweep";
+    aimOffsetDesc.offsetBoneRanges = { { "spine_01", "hand_r" } };
+    aimOffsetDesc.blendMode = AnimationModifier::ModifierBlendMode::ModifyAddictive;
+    aimOffsetDesc.blendInTime = 0.75f;
+    aimOffsetDesc.blendOutTime = 0.75f;
+    aimOffsetDesc.responseCurve = 1.5f;
+    aimOffsetDesc.modifierTag = L"AimOffset";
+    if (auto modifier = OffsetAnimationModifier::Create(&aimOffsetDesc))
+    {
+        modifier->Set_Active(false);
+        model->Add_AnimModifier(modifier);
+    }
+    else return E_FAIL;
+
+    OffsetAnimationModifier::OffsetModifierDesc wOffsetDesc{};
+    wOffsetDesc.baseModelCom = model.get();
+    wOffsetDesc.animName = "Gustave_Walk_F";
+    wOffsetDesc.offsetBoneRanges = {
+        {"pelvis", "ball_l"},
+        {"pelvis", "ball_r"},
+    };
+    wOffsetDesc.translationOnlyBones = { "pelvis" };
+    wOffsetDesc.blendMode = AnimationModifier::ModifierBlendMode::ModifyReplace;
+    wOffsetDesc.blendInTime = 0.25f;
+    wOffsetDesc.blendOutTime = 0.25f;
+    wOffsetDesc.responseCurve = 1.5f;
+    wOffsetDesc.isDynamicPlay = true;
+    wOffsetDesc.playRate = 1.f;
+    wOffsetDesc.modifierTag = L"Walk_F";
+    if (auto modifier = OffsetAnimationModifier::Create(&wOffsetDesc))
+    {
+        modifier->Set_Active(false);
+        model->Add_AnimModifier(modifier);
+    }
+    else return E_FAIL;
+
+    wOffsetDesc.animName = "Gustave_Walk_B";
+    wOffsetDesc.modifierTag = L"Walk_B";
+    if (auto modifier = OffsetAnimationModifier::Create(&wOffsetDesc))
+    {
+        modifier->Set_Active(false);
+        model->Add_AnimModifier(modifier);
+    }
+    else return E_FAIL;
+
+    wOffsetDesc.animName = "Gustave_Walk_LF";
+    wOffsetDesc.modifierTag = L"Walk_L";
+    if (auto modifier = OffsetAnimationModifier::Create(&wOffsetDesc))
+    {
+        modifier->Set_Active(false);
+        model->Add_AnimModifier(modifier);
+    }
+    else return E_FAIL;
+
+    wOffsetDesc.animName = "Gustave_Walk_RF";
+    wOffsetDesc.modifierTag = L"Walk_R";
+    if (auto modifier = OffsetAnimationModifier::Create(&wOffsetDesc))
+    {
+        modifier->Set_Active(false);
+        model->Add_AnimModifier(modifier);
+    }
+    else return E_FAIL;
+
+    wOffsetDesc.animName = "Gustave_Walk_LB";
+    wOffsetDesc.modifierTag = L"Walk_LB";
+    if (auto modifier = OffsetAnimationModifier::Create(&wOffsetDesc))
+    {
+        modifier->Set_Active(false);
+        model->Add_AnimModifier(modifier);
+    }
+    else return E_FAIL;
+
+    wOffsetDesc.animName = "Gustave_Walk_RB";
+    wOffsetDesc.modifierTag = L"Walk_RB";
+    if (auto modifier = OffsetAnimationModifier::Create(&wOffsetDesc))
+    {
+        modifier->Set_Active(false);
+        model->Add_AnimModifier(modifier);
+    }
+    else return E_FAIL;
+
+    if (costumePresetId == "Baguette")
+        return S_OK;
+
+    if (costumePresetId == "Potato")
+    {
+        PhysicsModifier::PhysicsModifierDesc potatoCapeDesc{};
+        ChainModifierPreset::BuildGustavePotatoCapePhysicsDesc(
+            potatoCapeDesc,
+            Get_Transform().get());
+
+        const Matrix* bodyWorldMatrix = &body->Get_CombinedWorldMatrix();
+        potatoCapeDesc.ownerWorldMatrix = bodyWorldMatrix;
+        potatoCapeDesc.collisionModel = model.get();
+        potatoCapeDesc.collisionOwnerWorldMatrix = bodyWorldMatrix;
+
+        if (auto modifier = PhysicsModifier::Create(&potatoCapeDesc))
         {
-            modifier->Set_Active(false);
-            aimOffsetDesc.baseModelCom->Add_AnimModifier(modifier);
-        }
-        else return E_FAIL;
-
-        OffsetAnimationModifier::OffsetModifierDesc wOffsetDesc{};
-        wOffsetDesc.baseModelCom = body->Get_Model().get();
-        wOffsetDesc.animName = "Gustave_Walk_F";
-        wOffsetDesc.offsetBoneRanges = {
-            {"pelvis", "ball_l"},  
-            {"pelvis", "ball_r"},
-        };
-        wOffsetDesc.translationOnlyBones = { "pelvis" };
-        wOffsetDesc.blendMode = AnimationModifier::ModifierBlendMode::ModifyReplace;
-        wOffsetDesc.blendInTime = 0.25f;
-        wOffsetDesc.blendOutTime = 0.25f;
-        wOffsetDesc.responseCurve = 1.5f;
-        wOffsetDesc.isDynamicPlay = true;
-        wOffsetDesc.playRate = 1.f;
-        wOffsetDesc.modifierTag = L"Walk_F";
-        if (auto modifier = OffsetAnimationModifier::Create(&wOffsetDesc))
-        {
-            modifier->Set_Active(false);
-            aimOffsetDesc.baseModelCom->Add_AnimModifier(modifier);
-        }
-        else return E_FAIL;
-
-        wOffsetDesc.animName = "Gustave_Walk_B";
-        wOffsetDesc.modifierTag = L"Walk_B";
-        if (auto modifier = OffsetAnimationModifier::Create(&wOffsetDesc))
-        {
-            modifier->Set_Active(false);
-            aimOffsetDesc.baseModelCom->Add_AnimModifier(modifier);
-        }
-        else return E_FAIL;
-
-        wOffsetDesc.animName = "Gustave_Walk_LF";
-        wOffsetDesc.modifierTag = L"Walk_L";
-        if (auto modifier = OffsetAnimationModifier::Create(&wOffsetDesc))
-        {
-            modifier->Set_Active(false);
-            wOffsetDesc.baseModelCom->Add_AnimModifier(modifier);
-        }
-        else return E_FAIL;
-
-        wOffsetDesc.animName = "Gustave_Walk_RF";
-        wOffsetDesc.modifierTag = L"Walk_R";
-        if (auto modifier = OffsetAnimationModifier::Create(&wOffsetDesc))
-        {
-            modifier->Set_Active(false);
-            wOffsetDesc.baseModelCom->Add_AnimModifier(modifier);
-        }
-        else return E_FAIL;
-        
-        wOffsetDesc.animName = "Gustave_Walk_LB";
-        wOffsetDesc.modifierTag = L"Walk_LB";
-        if (auto modifier = OffsetAnimationModifier::Create(&wOffsetDesc))
-        {
-            modifier->Set_Active(false);
-            wOffsetDesc.baseModelCom->Add_AnimModifier(modifier);
-        }
-        else return E_FAIL;
-
-        wOffsetDesc.animName = "Gustave_Walk_RB";
-        wOffsetDesc.modifierTag = L"Walk_RB";
-        if (auto modifier = OffsetAnimationModifier::Create(&wOffsetDesc))
-        {
-            modifier->Set_Active(false);
-            wOffsetDesc.baseModelCom->Add_AnimModifier(modifier);
-        }
-        else return E_FAIL;
-
-        PoseFollowChainModifier::PoseFollowChainModifierDesc scarfDesc{};
-        ChainModifierPreset::BuildPoseFollowScarfDesc(
-            scarfDesc,
-            Get_Transform().get(),
-            PlayerCharacterType::Gustave);
-
-        if (auto modifier = PoseFollowChainModifier::Create(&scarfDesc))
-        {
-            body->Get_Model()->Add_AnimModifier(modifier);
-        }
-
-        ChainModifier::ChainModifierDesc armbandDesc{};
-        ChainModifierPreset::BuildArmbandDesc(
-            armbandDesc,
-            Get_Transform().get(),
-            PlayerCharacterType::Gustave);
-
-        if (auto modifier = ChainModifier::Create(&armbandDesc))
-        {
-            body->Get_Model()->Add_AnimModifier(modifier);
-        }
-
-        ChainModifier::ChainModifierDesc backpackBandDesc{};
-        ChainModifierPreset::BuildBackpackBandDesc(
-            backpackBandDesc,
-            Get_Transform().get(),
-            PlayerCharacterType::Gustave);
-
-        if (!backpackBandDesc.groups.empty())
-        {
-            if (auto modifier = ChainModifier::Create(&backpackBandDesc))
-            {
-                body->Get_Model()->Add_AnimModifier(modifier);
-            }
+            model->Add_AnimModifier(modifier);
         }
 
-        PoseFollowChainModifier::PoseFollowChainModifierDesc coatDesc{};
-        ChainModifierPreset::BuildPoseFollowCoatDesc(
-            coatDesc,
-            Get_Transform().get(),
-            PlayerCharacterType::Gustave);
+        return S_OK;
+    }
 
-        if (auto modifier = PoseFollowChainModifier::Create(&coatDesc))
+    PoseFollowChainModifier::PoseFollowChainModifierDesc scarfDesc{};
+    ChainModifierPreset::BuildPoseFollowScarfDesc(
+        scarfDesc,
+        Get_Transform().get(),
+        PlayerCharacterType::Gustave);
+
+    if (auto modifier = PoseFollowChainModifier::Create(&scarfDesc))
+    {
+        model->Add_AnimModifier(modifier);
+    }
+
+    ChainModifier::ChainModifierDesc armbandDesc{};
+    ChainModifierPreset::BuildArmbandDesc(
+        armbandDesc,
+        Get_Transform().get(),
+        PlayerCharacterType::Gustave);
+
+    if (auto modifier = ChainModifier::Create(&armbandDesc))
+    {
+        model->Add_AnimModifier(modifier);
+    }
+
+    ChainModifier::ChainModifierDesc backpackBandDesc{};
+    ChainModifierPreset::BuildBackpackBandDesc(
+        backpackBandDesc,
+        Get_Transform().get(),
+        PlayerCharacterType::Gustave);
+
+    if (!backpackBandDesc.groups.empty())
+    {
+        if (auto modifier = ChainModifier::Create(&backpackBandDesc))
         {
-            body->Get_Model()->Add_AnimModifier(modifier);
+            model->Add_AnimModifier(modifier);
         }
+    }
+
+    PoseFollowChainModifier::PoseFollowChainModifierDesc coatDesc{};
+    ChainModifierPreset::BuildPoseFollowCoatDesc(
+        coatDesc,
+        Get_Transform().get(),
+        PlayerCharacterType::Gustave);
+
+    if (auto modifier = PoseFollowChainModifier::Create(&coatDesc))
+    {
+        model->Add_AnimModifier(modifier);
+    }
 
     return S_OK;
 }
