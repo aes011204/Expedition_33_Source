@@ -3,6 +3,7 @@
 #include "ClientInstance.h"
 #include "DialogueCamera.h"
 #include "GameplayUI.h"
+#include "Item.h"
 #include "UI_Dialogue.h"
 #include "Player_WorldBase.h"
 #include "NPC_Base.h"
@@ -430,7 +431,12 @@ bool DialogueManager::ExecuteLineAction(const string& action)
             .Spawn();
 
         if (spawned != nullptr)
+        {
             spawned->Set_RuntimeAuthoringLoaded(true);
+
+            if (const Shared<Item> spawnedItem = dynamic_pointer_cast<Item>(spawned))
+                spawnedItem->Start_SpawnReveal(0.45f);
+        }
 
         if (const Shared<NPC_Base> npc = dynamic_pointer_cast<NPC_Base>(npcObject))
             npc->Remove_InteractionTrigger();

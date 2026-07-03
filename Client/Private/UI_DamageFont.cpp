@@ -44,9 +44,10 @@ HRESULT UI_DamageFont::Initialize(uint32 levelIndex)
     return S_OK;
 }
 
-void UI_DamageFont::Play_DamageFont(const BattleChar& target, float damage, uint32 stackIndex, bool isCritical)
+void UI_DamageFont::Play_DamageFont(const BattleChar& target, float damage, uint32 stackIndex, bool isCritical, AttackType attackType)
 {
     Apply_DamageFontTuning();
+    _activeAttackType = attackType;
 
     auto bCriticalCheck = isCritical ? DamageFontStyle::Critical : DamageFontStyle::Normal;
     Set_ActiveStyle(bCriticalCheck);
@@ -66,15 +67,13 @@ void UI_DamageFont::Play_DamageFont(const BattleChar& target, float damage, uint
 
 void UI_DamageFont::Update(float timeDelta)
 {
-    if (Apply_DamageFontTuning())
-        Refresh_SnapshotScreenPosition();
-
+    Apply_DamageFontTuning();
     UI_BattleFloatingTextBase::Update(timeDelta);
 }
 
 void UI_DamageFont::Apply_EditorReflectionRuntimeTuning()
 {
-    if (Apply_DamageFontTuning())
+    if (Apply_DamageFontTuning() && !Is_Playing())
         Refresh_SnapshotScreenPosition();
 }
 
@@ -94,6 +93,7 @@ void UI_DamageFont::Close()
         _criticalRoot->Close();
 
     Set_ActiveStyle(DamageFontStyle::Normal); // 닫힌 뒤에 Normal로 세팅해주기
+    _activeAttackType = AttackType::Invalid;
 }
 
 HRESULT UI_DamageFont::Load_UI(uint32 levelIndex)
@@ -196,8 +196,13 @@ Vec2 UI_DamageFont::Resolve_ScreenBaseOffset(const Vec3& worldPos) const
     const float range = max(_damageScreenOffsetFarDistance - _damageScreenOffsetCloseDistance, 0.0001f);
     const float farT = clamp((distance - _damageScreenOffsetCloseDistance) / range, 0.f, 1.f);
 
-    // 가까운 타격은 현재 높이를 유지하고, 먼 타격은 고정 Y 보정을 줄여 숫자가 과하게 위로 뜨지 않게 한다.
-    return _damageScreenBaseOffset + (_damageFarScreenBaseOffset - _damageScreenBaseOffset) * farT;
+    const bool isFreeAimDamage =
+        _activeAttackType == AttackType::FreeAimLight ||
+        _activeAttackType == AttackType::FreeAimWeak;
+    const Vec2 farScreenBaseOffset = isFreeAimDamage ? _damageFreeAimFarScreenBaseOffset : _damageFarScreenBaseOffset;
+
+    // 가까운 타격은 현재 높이를 유지하고, FreeAim 원거리 타격만 더 아래쪽으로 보정한다.
+    return _damageScreenBaseOffset + (farScreenBaseOffset - _damageScreenBaseOffset) * farT;
 }
 
 bool UI_DamageFont::Apply_DamageFontTuning()
@@ -216,13 +221,18 @@ bool UI_DamageFont::Apply_DamageFontTuning()
         _appliedDamageWorldAnchorRandomMinY != _damageWorldAnchorRandomMinY ||
         _appliedDamageWorldAnchorRandomMaxY != _damageWorldAnchorRandomMaxY;
 
+    const bool isFreeAimDamage =
+        _activeAttackType == AttackType::FreeAimLight ||
+        _activeAttackType == AttackType::FreeAimWeak;
+    const float stackHorizontalOffset = isFreeAimDamage ? _damageFreeAimStackHorizontalOffset : _damageStackHorizontalOffset;
+
     Set_FloatingMotion(_damageLifeTime, _damageRiseDistance);
-    Set_StackStep(_damageStackHorizontalOffset, _damageStackVerticalOffset);
+    Set_StackStep(stackHorizontalOffset, _damageStackVerticalOffset);
 
     Set_WorldAnchorOffset(_damageWorldAnchorOffset);
     Set_ScreenBaseOffset(_damageScreenBaseOffset);
-    Set_ScreenClamp(true, _damageScreenClampPadding);
     Set_WorldAnchorRandomYRange(_damageWorldAnchorRandomMinY, _damageWorldAnchorRandomMaxY);
+    Set_AnchorMode(AnchorMode::FollowWorld);
 
     _hasAppliedDamageFontTuning = true;
     _appliedDamageLifeTime = _damageLifeTime;

@@ -14,6 +14,7 @@ public:
 
 public:
     void Execute(const Skill_Data& skill, const BattleAction& action, AttackType attackType) override;
+    void Collect_PrewarmEffects(const Skill_Data& skill, const BattleEffectPrewarmContext& context, vector<EffectPrewarmRequest>& outRequests) const override;
 
 public:
     static Shared<Skill_Lune_Immolation> Create();
@@ -46,6 +47,7 @@ public:
 
 public:
     void Execute(const Skill_Data& skill, const BattleAction& action, AttackType attackType) override;
+    void Collect_PrewarmEffects(const Skill_Data& skill, const BattleEffectPrewarmContext& context, vector<EffectPrewarmRequest>& outRequests) const override;
 
 public:
     static Shared<Skill_Lune_Thunderfall> Create();
@@ -62,6 +64,7 @@ public:
 
 public:
     void Execute(const Skill_Data& skill, const BattleAction& action, AttackType attackType) override;
+    void Collect_PrewarmEffects(const Skill_Data& skill, const BattleEffectPrewarmContext& context, vector<EffectPrewarmRequest>& outRequests) const override;
 
 public:
     static Shared<Skill_Lune_TerraQuake> Create();

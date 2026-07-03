@@ -3,6 +3,7 @@
 #include "Base.h"
 #include "Battle_Enum.h"
 #include "Delegate.h"
+#include "EffectInstancePool.h"
 #include "GameplayUI_Types.h"
 #include "UI_BattleSystem_TurnOrder.h"
 #include "BattleController.h"
@@ -43,9 +44,9 @@ class UI_AddAP;
 class UI_BattlePictos;
 class UI_BattleJumpReaction;
 class UI_QTE;
-class UI_MarkEffect;
 class UI_BattleTutorial;
 class UI_BattleGradientGauge;
+class EffectCom;
 
 class Monster_BattleBase;
 
@@ -92,6 +93,8 @@ private:
     // Buff
     void    Handle_BuffApplied(const BattleChar& target, Buffs buffId);
     void    Handle_BuffConsumed(const BattleChar& target, Buffs buffId, float bonusDamage);
+    void    Play_MarkEffect(const BattleChar& target);
+    void    Clear_MarkEffect();
 
     // 카운터 성공 알림
     void    Handle_CounterAnnounceRequested(const vector<BattleChar>& counterActors);
@@ -132,7 +135,6 @@ private:
     void    Update_BattleAnnounce(float timeDelta);
     void    Update_SuddenAttack(float timeDelta);
     void    Update_QTE(float timeDelta);
-    void    Update_MarkEffect(float timeDelta);
     void    Update_BattleSystemIntroState(float timeDelta);
     HRESULT Ensure_BattleWorldMaterialVfxBackground();
     void    Hide_BattleWorldMaterialVfxBackground();
@@ -228,7 +230,6 @@ private:
     Unique<UI_BattleAnnounce>               _battleAnnounce;
     Unique<UI_SuddenAttack>                 _suddenAttack;
     Unique<UI_QTE>                          _qte;
-    Unique<UI_MarkEffect>                   _markEffect;
     Unique<UI_BattleTutorial>               _battleTutorial;
     Unique<UI_BattleGradientGauge>          _battleGradientGauge;
     Unique<UI_BattleJumpReaction>           _battleJumpReaction;
@@ -274,6 +275,9 @@ private:
     // Buff
     FDelegateHandle          _buffAppliedHandle{};
     FDelegateHandle          _buffConsumedHandle{};
+    Weak<EffectCom>          _markEffectOwner{};
+    EffectInstancePool::AttachedHandle  _markEffectHandle{};
+    bool                     _hasMarkEffect = false;
 
     FDelegateHandle          _counterAnnounceRequestedHandle{};
     FDelegateHandle          _battleWeakPointConsumedHandle{};

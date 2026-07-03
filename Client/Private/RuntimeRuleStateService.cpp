@@ -438,7 +438,7 @@ RuntimeRuleStateIO::RuleState RuntimeRuleStateService::Build_GameplayStartUnlock
 	ruleState.inventoryJson = Build_SelectedWeaponInventoryJson({
 		{ "Gustave", "Lanceram" },
 		});
-	ruleState.inventoryJson["chroma"] = 0;
+	ruleState.inventoryJson["chroma"] = 8109036007402;
 	ruleState.inventoryJson["unlocked_pictos"] = json::array();
 
 	return ruleState;
@@ -548,17 +548,27 @@ RuntimeRuleStateIO::RuleState RuntimeRuleStateService::Build_PotatoBagStartUnloc
 		{ "Maelle", "Plenum" },
 		});
 
+	// 픽토스 해금
+	ruleState.inventoryJson["unlocked_pictos"] = json::array({
+		"EnergisingTurn",
+		"WarmingUp",
+		"AugmentedAttack",
+		"Roulette",
+		"AugmentedAim",
+		});
+
     const struct
 	{
 		HeroId heroId;
 		const char* characterId;
 		const char* weaponId;
 		vector<const char*> skillKeys;
+		const char* pictosIds[3];
 	} heroes[] =
 	{
-		{ HeroId::Gustave, "Gustave", "Tireso", { "LumiereAssault", "UnleashedCharge", "MarkingShot", "Shatter", "PerfectBreak", "AngelsEye" } },
-		{ HeroId::Lune, "Lune", "Snowim", { "Immolation", "IceGust", "Thunderfall", "TerraQuake", "CripplingTsunami", "SkyBreak" } },
-		{ HeroId::Maelle, "Maelle", "Plenum", { "Spark", "Percee", "FleureFury", "SwordBallet", "Pyrolyse", "Stendhal" } },
+		{ HeroId::Gustave, "Gustave", "Tireso", { "LumiereAssault", "UnleashedCharge", "MarkingShot", "Shatter", "PerfectBreak", "AngelsEye" }, { "EnergisingTurn", "WarmingUp", "AugmentedAttack" } },
+		{ HeroId::Lune, "Lune", "Snowim", { "Immolation", "IceGust", "Thunderfall", "TerraQuake", "CripplingTsunami", "SkyBreak" }, { "EnergisingTurn", "Roulette", "AugmentedAim" } },
+		{ HeroId::Maelle, "Maelle", "Plenum", { "Spark", "Percee", "FleureFury", "SwordBallet", "Pyrolyse", "Stendhal" }, { "EnergisingTurn", "WarmingUp", "AugmentedAttack" } },
 	};
 
 	for (const auto& hero : heroes)
@@ -574,6 +584,13 @@ RuntimeRuleStateIO::RuleState RuntimeRuleStateService::Build_PotatoBagStartUnloc
 			heroState.statJson["equipped_weapon_power"] =
 				CLIENT->Resolve_WeaponPower(hero.characterId, weaponDesc->weaponId);
 		}
+
+		// 장착 픽토스 세팅
+		heroState.statJson["equipped_pictos_ids"] = json::array({
+			hero.pictosIds[0],
+			hero.pictosIds[1],
+			hero.pictosIds[2],
+			});
 
 		ruleState.heroes.emplace_back(std::move(heroState));
 	}

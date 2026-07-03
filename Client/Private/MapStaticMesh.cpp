@@ -270,9 +270,14 @@ void MapStaticMesh::Late_Update(float timeDelta)
         BoundingBox worldBox{};
         localBox.Transform(worldBox, _model->Get_PreLocalTransformMatrix() * _transformCom->Get_WorldMatrix());
 
+        if (!ClientInstance::Should_RenderMapObjectInPotatoBagArena(worldBox))
+            return;
+
+        const bool suppressPotatoBagArenaMapShadow = ClientInstance::Is_PotatoBagArenaMapRenderGateActive();
+
         if (_cullEnabled && !GAME->IsVisible(worldBox))
         {
-            if (_castShadow && Casts_DynamicShadow() && !ClientInstance::Is_DebugDisableMapStaticMeshShadow())
+            if (!suppressPotatoBagArenaMapShadow && _castShadow && Casts_DynamicShadow() && !ClientInstance::Is_DebugDisableMapStaticMeshShadow())
                 GAME->Add_RenderGroup(RenderGroup::Shadow, GetSharedPtr<GameObject>());
             return;
         }
@@ -304,7 +309,8 @@ void MapStaticMesh::Late_Update(float timeDelta)
     if (_hasEclipseGlow)
         GAME->Add_RenderGroup(RenderGroup::Glow, GetSharedPtr<GameObject>());
 
-    if (_castShadow && Casts_DynamicShadow() && !ClientInstance::Is_DebugDisableMapStaticMeshShadow())
+    if (!ClientInstance::Is_PotatoBagArenaMapRenderGateActive() &&
+        _castShadow && Casts_DynamicShadow() && !ClientInstance::Is_DebugDisableMapStaticMeshShadow())
         GAME->Add_RenderGroup(RenderGroup::Shadow, GetSharedPtr<GameObject>());
 }
 

@@ -559,6 +559,9 @@ void ComputeSourceHistorySpriteTrailEmitter::Update_ParticleFollowers(float time
         if (sourceEmitter != nullptr && _desc.followerLaneCount > 0u)
             sourceEmitter->Collect_FollowerSourcePoints(sourcePoints, _desc.followerLaneCount);
 
+        if (sourceEmitter != nullptr && sourceEmitter->Is_EffectFinished() && sourcePoints.empty())
+            _finishEmissionAfterUpdate = true;
+
         for (const EffectFollowerSourcePoint& sourcePoint : sourcePoints)
         {
             HistoryLane* lane = Find_HistoryLane(sourcePoint.sourceIndex);

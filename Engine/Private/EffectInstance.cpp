@@ -167,6 +167,7 @@ HRESULT EffectInstance::Reset()
     _playbackState = EffectPlaybackState::Stopped;
     _isPlaybackPaused = false; // Reset 이후 새 재생은 pause되지 않은 상태로 시작한다.
     Set_Visible(false);
+    Set_MaterialRevealOverride(1.f, 0.f);
     Sync_Emitters();
 
     for (const Shared<EffectEmitter>& emitter : _emitters)
@@ -208,6 +209,17 @@ bool EffectInstance::Is_Finished() const
 void EffectInstance::Set_PlaybackSpeed(float speed)
 {
     _playbackSpeed = speed < 0.f ? 0.f : speed > 10.f ? 10.f : speed;
+}
+
+void EffectInstance::Set_MaterialRevealOverride(float alphaMultiplier, float alphaErosion)
+{
+    for (const Shared<EffectEmitter>& emitter : _emitters)
+    {
+        if (emitter == nullptr)
+            continue;
+
+        emitter->Set_MaterialRevealOverride(alphaMultiplier, alphaErosion);
+    }
 }
 
 void EffectInstance::Bind_TrailSampleProvider(const Weak<IEffectTrailSampleProvider>& provider)
