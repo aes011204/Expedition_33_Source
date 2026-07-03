@@ -57,7 +57,7 @@ HRESULT Level_MapTest::Render()
 
 void Level_MapTest::Play_MapBGM()
 {
-    GAME->Play_BGM(Constants::SoundBGM::SpringBGM, 1.f, true, 0.f);
+    GAME->Play_BGM(Constants::SoundBGM::SpringBGM, 0.7f, true, 0.f);
 }
 
 HRESULT Level_MapTest::Ready_Lights()

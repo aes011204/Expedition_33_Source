@@ -426,7 +426,7 @@ bool DialogueManager::ExecuteLineAction(const string& action)
         const Shared<GameObject> spawned = Spawn_Prefab::Prefab(Constants::Prefab::Item_Pictos_WarmingUp)
             .AtLevel(GAME->Current_LevelIndex())
             .InLayer(TEXT("Layer_GameObject"))
-            .Position(spawnPosition)
+            .Position(Vec3(-82.34f, 20.75f, 71.09f))
             .Rotation(Vec3::Zero)
             .Spawn();
 

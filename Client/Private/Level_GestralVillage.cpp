@@ -618,7 +618,7 @@ void Level_GestralVillage::UnlockRules_GestralVillage()
 
 void Level_GestralVillage::Play_MapBGM()
 {
-    GAME->Play_BGM(Constants::SoundBGM::GestralVillageMarket, 1.f, true, 0.f);
+    GAME->Play_BGM(Constants::SoundBGM::GestralVillageMarket, 0.7f, true, 0.f);
 }
 
 Shared<Level_GestralVillage> Level_GestralVillage::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)

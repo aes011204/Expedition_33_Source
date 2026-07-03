@@ -2,10 +2,12 @@
 #include "Player_Jump.h"
 #include "ClientInstance.h"
 #include "Body_Player.h"
+#include "GameInstance.h"
 #include "Player_ParkourAction.h"
 #include "PlayerControllerCom.h"
 #include "PlayerStateMachineCom.h"
 #include "Player_WorldBase.h"
+#include "TargetCamera.h"
 
 Player_Jump::Player_Jump(const Shared<Player_WorldBase>& owner)
 	: Player_State{ owner } {}
@@ -65,6 +67,18 @@ namespace
     {
         return Try_EnterParkourAction(stateCom, Player_ParkourAction::ParkourActionType::HighMantle);
     }
+
+    void Snap_TargetCameraVerticalToOwner(const Shared<Player_WorldBase>& owner)
+    {
+        if (owner == nullptr || !CLIENT->Is_ActiveHero(static_pointer_cast<GameObject>(owner)))
+            return;
+
+        if (const Shared<TargetCamera> targetCamera =
+            dynamic_pointer_cast<TargetCamera>(GAME->Get_CameraByType(ObjectType::TargetCamera)))
+        {
+            targetCamera->Snap_TargetVerticalPosition(owner->Get_Transform());
+        }
+    }
 }
 
 HRESULT Player_Jump::Initialize()
@@ -100,6 +114,7 @@ bool Player_Jump::EnterInvoke()
     else
     {
         _bodyPlayer->Set_AnimationByState(ETOI(plAnim::Pl_Fall), 0.2f, true);
+        Snap_TargetCameraVerticalToOwner(owner);
     }
 
 	return true;
@@ -158,6 +173,9 @@ void Player_Jump::Update(float timeDelta)
         }
     }
 
+    if (animIndex == ETOI(plAnim::Pl_Fall))
+        Snap_TargetCameraVerticalToOwner(owner);
+
 	if (!isGrounded)
 	{
 		_fallTime += timeDelta;
@@ -167,6 +185,7 @@ void Player_Jump::Update(float timeDelta)
 			if (animIndex == ETOI(plAnim::Pl_JumpWalk) || animIndex == ETOI(plAnim::Pl_JumpRun))
 			{
 				_bodyPlayer->Set_AnimationByState(ETOI(plAnim::Pl_Fall), 0.5f, true);
+                Snap_TargetCameraVerticalToOwner(owner);
 			}
 		}
 	}

@@ -21,6 +21,7 @@ HRESULT ShaderCom_Controller::Initialize()
 
 bool ShaderCom_Controller::Is_ReloadTarget(ShaderType shaderType)
 {
+    // VtxMesh includes custom mesh shaders such as Shader_VictoriaFlag.
     return shaderType == ShaderType::VtxMesh
         || shaderType == ShaderType::VtxAnimMesh
         || shaderType == ShaderType::VtxInstanceMeshExact;

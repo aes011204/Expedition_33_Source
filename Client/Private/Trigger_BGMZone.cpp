@@ -153,7 +153,7 @@ void Trigger_BGMZone::Play_OverrideBGM()
     if (_savedBGM == bgm)
         return;
 
-    GAME->Play_BGM(bgm, 1.f, true, _fadeOutDuration);
+    GAME->Play_BGM(bgm, 0.7f, true, _fadeOutDuration);
 }
 
 void Trigger_BGMZone::Restore_PreviousBGM()
@@ -164,7 +164,7 @@ void Trigger_BGMZone::Restore_PreviousBGM()
     if (_savedBGM.empty())
         GAME->Stop_SoundChannel(SoundChannel::BGM, _fadeOutDuration);
     else
-        GAME->Play_BGM(_savedBGM, 1.f, true, _fadeOutDuration);
+        GAME->Play_BGM(_savedBGM, 0.7f, true, _fadeOutDuration);
 
     _savedBGM.clear();
     _hasSavedBGM = false;

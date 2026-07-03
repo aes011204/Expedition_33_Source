@@ -15,6 +15,8 @@ IMPLEMENT_REFLECTION(MB_Simon)
     info.displayName = "MB_Simon";
     info.category = "Monster";
     PROPERTY_FLOAT("Battle Ground Offset Y", _battleGroundOffsetY, -5.f, 5.f, 0.01f);
+    PROPERTY_FLOAT("Weapon Scale Multiplier", _weaponScaleMultiplier, 0.1f, 3.f, 0.01f);
+
 
     return true;
 }
@@ -117,6 +119,10 @@ HRESULT MB_Simon::Ready_PartObjects()
     CHECK_NULL(_weapon, E_FAIL);
 
     _weapon->From_Json(loadedPrefab.rootJson);
+
+    if (const Shared<TransformCom> weaponTransform = _weapon->Get_Transform())
+    _weaponBaseScale = weaponTransform->Get_Scale();
+
     _weapon->Set_SourcePrefabName(Constants::Prefab::Simon_Weapon);
 
     return S_OK;
@@ -125,6 +131,29 @@ HRESULT MB_Simon::Ready_PartObjects()
 bool MB_Simon::Should_ApplySerializedPart(const wstring& partTag, const json& partObjectJson) const
 {
     return partTag != TEXT("Part_Weapon");
+}
+
+void MB_Simon::From_Json(const json& data)
+{
+    Monster_BattleBase::From_Json(data);
+
+    Apply_WeaponScaleMultiplier();
+}
+
+void MB_Simon::Apply_WeaponScaleMultiplier()
+{
+    if (!_weapon)
+        return;
+
+    const Shared<TransformCom> transform = _weapon->Get_Transform();
+    if (!transform)
+        return;
+
+    const float multiplier = max(_weaponScaleMultiplier, 0.1f);
+    transform->Set_Scale(Vec3(
+        _weaponBaseScale.x * multiplier,
+        _weaponBaseScale.y * multiplier,
+        _weaponBaseScale.z * multiplier));
 }
 
 Shared<MB_Simon> MB_Simon::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)
