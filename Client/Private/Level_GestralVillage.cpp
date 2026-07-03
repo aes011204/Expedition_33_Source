@@ -121,6 +121,8 @@ void Level_GestralVillage::BeginPlay()
 {
     Level::BeginPlay();
 
+    Apply_StylizedLightContrast();
+
     GAME->Set_VolumetricLightShaftZoneCullingDistance(30.f);
     GAME->Set_VolumetricLightShaftZones(Build_GestralVillageLightShaftZones());
     Play_MapBGM();
@@ -623,6 +625,39 @@ void Level_GestralVillage::Play_MapBGM()
     GAME->Play_BGM(Constants::SoundBGM::GestralVillageMarket, 0.7f, true, 0.f);
 }
 
+void Level_GestralVillage::Apply_StylizedLightContrast()
+{
+    Shared<LightingPipeline> lightingPipeline = GAME->Get_LightingPipeline();
+    if (lightingPipeline == nullptr || _hasSavedDeferredLightingCB)
+        return;
+
+    _savedDeferredLightingCB = lightingPipeline->Get_DeferredLightingParams();
+    _hasSavedDeferredLightingCB = true;
+
+    DeferredLightingCB gestralVillageLighting = _savedDeferredLightingCB;
+    gestralVillageLighting.stylizedLightContrastEnabled = 1u;
+    gestralVillageLighting.stylizedLightContrastStrength = 1.f;
+    gestralVillageLighting.stylizedLightThreshold = 0.35f;
+    gestralVillageLighting.stylizedLightSoftness = 0.25f;
+    gestralVillageLighting.stylizedLitBoost = 1.2f;
+    gestralVillageLighting.stylizedUnlitAmbientScale = 0.2f;
+
+    lightingPipeline->Set_DeferredLightingParams(gestralVillageLighting);
+}
+
+void Level_GestralVillage::Restore_StylizedLightContrast()
+{
+    if (!_hasSavedDeferredLightingCB)
+        return;
+
+    Shared<LightingPipeline> lightingPipeline = GAME->Get_LightingPipeline();
+    if (lightingPipeline != nullptr)
+        lightingPipeline->Set_DeferredLightingParams(_savedDeferredLightingCB);
+
+    _savedDeferredLightingCB = DeferredLightingCB{};
+    _hasSavedDeferredLightingCB = false;
+}
+
 Shared<Level_GestralVillage> Level_GestralVillage::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)
 {
     auto pInstance = make_shared<Level_GestralVillage>(device, context);
@@ -638,6 +673,8 @@ Shared<Level_GestralVillage> Level_GestralVillage::Create(const ComPtr<Device>& 
 void Level_GestralVillage::Free()
 {
     ClientInstance::Clear_PotatoBagArenaMapRenderGateBasis();
+
+    Restore_StylizedLightContrast();
 
     GAME->Set_VolumetricLightShaftZones(VolumetricLightShaftZoneCB{});
 

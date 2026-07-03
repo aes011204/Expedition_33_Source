@@ -66,6 +66,7 @@ struct PS_OUT_LIGHT
     vector Shade    : SV_TARGET0;   // 픽셀의 재질이 그 빛을 받아 diffuse 방향으로 반사한 결과 색
     vector Ambient  : SV_TARGET1;   // 픽셀이 빛을 받아서 카메라 방향으로 반사한 스페큘러 결과
     vector Specular : SV_TARGET2;
+    float LightMask : SV_TARGET3;
 };
 
 PS_OUT_LIGHT PS_MAIN_DIRECTIONAL(PS_IN In)
@@ -101,6 +102,7 @@ PS_OUT_LIGHT PS_MAIN_DIRECTIONAL(PS_IN In)
         Out.Shade = float4(0, 0, 0, 1);
         Out.Specular = float4(0, 0, 0, 1);
         Out.Ambient = float4(0, 0, 0, 1);
+        Out.LightMask = 0.f;
         return Out;
     }
 
@@ -131,6 +133,7 @@ PS_OUT_LIGHT PS_MAIN_DIRECTIONAL(PS_IN In)
     Out.Shade = float4(diffuseBRDF * radiance * NdotL, 1.f);
     Out.Specular = float4(specularBRDF * radiance * NdotL, 1.f);
     Out.Ambient = float4(0.f, 0.f, 0.f, 1.f);
+    Out.LightMask = NdotL;
 
     return Out;
 }
@@ -143,6 +146,7 @@ PS_OUT_LIGHT PS_MAIN_POINT(PS_IN In)
     Out.Shade = float4(0.f, 0.f, 0.f, 1.f);
     Out.Specular = float4(0.f, 0.f, 0.f, 1.f);
     Out.Ambient = float4(0.f, 0.f, 0.f, 1.f);
+    Out.LightMask = 0.f;
 
     // range가 없으면 영향 반경이 없는 조명이므로 누적할 값 없이 종료.
     if (g_LightRange <= EPSILON)
@@ -337,6 +341,7 @@ PS_OUT_HDR_WITH_MASK PS_CombinedHDR(PS_IN In)
     vector Emissive = g_EmissiveTexture.Sample(LinearWrapSampler, In.Texcoord);
     vector NormalDesc = g_NormalTexture.Sample(LinearWrapSampler, In.Texcoord);
     vector MaterialDesc = g_MaterialTexture.Sample(LinearWrapSampler, In.Texcoord);
+    float lightMask = g_LightMaskTexture.Sample(PointClampSampler, In.Texcoord).r;
 
     float ambientVisibility = g_AmbientVisibilityTexture.Sample(PointClampSampler, In.Texcoord).r;
 
@@ -347,6 +352,21 @@ PS_OUT_HDR_WITH_MASK PS_CombinedHDR(PS_IN In)
     // Direct BRDF는 Light pass에서 계산 완료.
     vector direct = Shade + Specular;
     vector indirect = float4(0.f, 0.f, 0.f, 0.f);
+
+    // Stylized Light Contrast 넣어야 하는지
+    float stylizedLightContrastStrength = (g_StylizedLightContrastEnabled != 0u) ? saturate(g_StylizedLightContrastStrength) : 0.f;
+    float stylizedLitMask = 1.f;
+    if (stylizedLightContrastStrength > 0.f)
+    {
+        // Light pass에서 기록한 방향성 조명의 NdotL 마스크를 사용한다.
+        // direct 색 밝기가 아니라 표면이 빛 방향을 얼마나 정면으로 받는지를 기준으로 lit/unlit을 나눈다.
+        float threshold = max(g_StylizedLightThreshold, 0.f);
+        float softness = max(g_StylizedLightSoftness, EPSILON);
+        stylizedLitMask = smoothstep(threshold, threshold + softness, saturate(lightMask)); // 0 : 빛 안 받음, 1 : 빛 받음
+
+        float litBoost = max(g_StylizedLitBoost, 0.f);
+        direct.rgb *= lerp(1.f, litBoost, stylizedLitMask * stylizedLightContrastStrength);
+    }
 
     // IBL 계산용 표면 정보
     float3 N = normalize(DecodeNormal(NormalDesc.xyz));               // 월드 노멀
@@ -374,7 +394,7 @@ PS_OUT_HDR_WITH_MASK PS_CombinedHDR(PS_IN In)
         float3 envDiffuse = g_IrradianceMap.Sample(LinearSampler, N).rgb;
         float3 diffuseIBL = envDiffuse * baseColor * kD;
 
-        // Specular IBL : prefilter map + BRDF LUT(split-sum)
+        // Specular IBL : prefilter map + BRDF LUT
         float3 R = reflect(-V, N);
         float prefilterMip = roughness * g_IBLPrefilterMaxMip;
         float3 envSpecular = g_PrefilterMap.SampleLevel(LinearSampler, R, prefilterMip).rgb;
@@ -389,6 +409,13 @@ PS_OUT_HDR_WITH_MASK PS_CombinedHDR(PS_IN In)
         float3 indirectDiffuse = diffuseIBL * finalAO * g_IBLDiffuseIntensity;
         float3 indirectSpecular = specularIBL * g_IBLSpecularIntensity;
         indirect.rgb = (indirectDiffuse + indirectSpecular) * g_IBLIntensity;
+    }
+
+    // 빛이 안 들어오는 부분을 더 어둡게 
+    if (stylizedLightContrastStrength > 0.f)
+    {
+        float unlitAmbientScale = saturate(g_StylizedUnlitAmbientScale);
+        indirect.rgb *= lerp(1.f, unlitAmbientScale, (1.f - stylizedLitMask) * stylizedLightContrastStrength);
     }
 
     indirect.rgb *= ambientVisibility;

@@ -1,6 +1,7 @@
 ﻿#pragma once
 #include "Client_Defines.h"
 #include "Delegate.h"
+#include "LightingPipeline.h"
 #include "Level_WindowTitleFps.h"
 #include "Level.h"
 
@@ -38,10 +39,14 @@ private:
     void    UnlockRules_GestralVillage();
 
     void    Play_MapBGM();
+    void    Apply_StylizedLightContrast();
+    void    Restore_StylizedLightContrast();
 
 private:
     WindowTitleFpsState _windowTitleFps = {};
     FDelegateHandle _editorPlayRuntimeHandle{};
+    DeferredLightingCB _savedDeferredLightingCB{};
+    bool _hasSavedDeferredLightingCB = false;
 
 private:
     Shared<BattleStartSpawner> _bssPotatoBag;

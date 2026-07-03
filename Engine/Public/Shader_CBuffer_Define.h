@@ -290,7 +290,14 @@ struct alignas(16) DeferredLightingCB
     uint32 iblEnabled{ 1u };
 
     uint32 specAAEnabled{ 1u };
-    uint32 _pad0[3]{};
+    uint32 stylizedLightContrastEnabled{ 0u };
+    float stylizedLightContrastStrength{ 0.f };
+    float stylizedLightThreshold{ 0.35f };
+
+    float stylizedLightSoftness{ 0.25f };
+    float stylizedLitBoost{ 1.2f };
+    float stylizedUnlitAmbientScale{ 0.2f };
+    float _pad0{ 0.f };
 };
 
 /* ------------------------------------------ */
