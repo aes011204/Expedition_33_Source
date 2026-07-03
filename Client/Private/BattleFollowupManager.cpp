@@ -1,8 +1,5 @@
 ﻿#include "BattleFollowupManager.h"
 #include "GameObject.h"
-#include "GameInstance.h"
-#include "MapInstancedMesh.h"
-#include "MapStaticMesh.h"
 
 HRESULT BattleFollowupManager::Initialize()
 {
@@ -79,28 +76,6 @@ void BattleFollowupManager::Clear_PendingFollowup()
 {
     _hasPendingFollowup = false;
     _pendingFollowup = {};
-}
-
-void BattleFollowupManager::Apply_SimonPhase2WorldVisualChange()
-{
-    GAME->Visit_LevelObjects(
-        GAME->Current_LevelIndex(),
-        [](const wstring& layerTag, const Shared<GameObject>& gameObject)
-        {
-            if (const Shared<MapInstancedMesh> instancedMesh = dynamic_pointer_cast<MapInstancedMesh>(gameObject))
-            {
-                instancedMesh->Set_MapVisible(false);
-                return;
-            }
-
-            if (const Shared<MapStaticMesh> staticMesh = dynamic_pointer_cast<MapStaticMesh>(gameObject))
-            {
-                if (staticMesh->Get_Name() == TEXT("EditorSphere_11"))
-                {
-                    staticMesh->Set_MapVisible(true);
-                }
-            }
-        });
 }
 
 Unique<BattleFollowupManager> BattleFollowupManager::Create()
