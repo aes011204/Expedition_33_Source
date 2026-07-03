@@ -392,7 +392,7 @@
     <ClInclude Include="..\Private\BattleWorldUI_SurfaceAnim.h" />
     <ClInclude Include="..\Public\GameplayUI_Battle.h" />
     <ClInclude Include="..\Public\GameplayUI_World.h" />
-    <ClInclude Include="..\Public\UI_InteractionPrompt.h" />
+    <ClInclude Include="..\Public\UI_Interaction.h" />
     <ClInclude Include="..\Public\MapLandscape.h" />
     <ClInclude Include="..\Public\MainTitleMenuSound.h" />
     <ClInclude Include="..\public\Level_GameEntry.h" />
@@ -864,7 +864,7 @@
     <ClCompile Include="..\Private\BattleWorldUI_SkillCards.cpp" />
     <ClCompile Include="..\Private\GameplayUI_Battle.cpp" />
     <ClCompile Include="..\Private\GameplayUI_World.cpp" />
-    <ClCompile Include="..\Private\UI_InteractionPrompt.cpp" />
+    <ClCompile Include="..\Private\UI_Interaction.cpp" />
     <ClCompile Include="..\Private\MapLandscape.cpp" />
     <ClCompile Include="..\Private\MainTitleMenuSound.cpp" />
     <ClCompile Include="..\private\Level_GameEntry.cpp" />
