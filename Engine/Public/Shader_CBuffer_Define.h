@@ -297,7 +297,11 @@ struct alignas(16) DeferredLightingCB
     float stylizedLightSoftness{ 0.25f };
     float stylizedLitBoost{ 1.2f };
     float stylizedUnlitAmbientScale{ 0.2f };
-    float _pad0{ 0.f };
+    float stylizedDeepUnlitThreshold{ 0.12f };
+
+    float stylizedDeepUnlitSoftness{ 0.18f };
+    float stylizedDeepUnlitAmbientScale{ 0.08f };
+    float _pad0[2]{};
 };
 
 /* ------------------------------------------ */

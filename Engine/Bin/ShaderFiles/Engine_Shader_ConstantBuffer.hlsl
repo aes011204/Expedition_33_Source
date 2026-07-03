@@ -158,7 +158,11 @@ cbuffer DeferredLightingBuffer
     float g_StylizedLightSoftness;
     float g_StylizedLitBoost;
     float g_StylizedUnlitAmbientScale;
-    float g_DeferredLightingPadding0;
+    float g_StylizedDeepUnlitThreshold;
+
+    float g_StylizedDeepUnlitSoftness;
+    float g_StylizedDeepUnlitAmbientScale;
+    float2 g_DeferredLightingPadding0;
 };
 
 cbuffer PostProcessBuffer

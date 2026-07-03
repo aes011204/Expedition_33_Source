@@ -390,6 +390,9 @@ void PostProcess_View::Draw_LightingControl(Shared<LightingPipeline> pipeline, b
             dirty |= ImGui::DragFloat("Stylized Softness", &lightingParams.stylizedLightSoftness, 0.001f, 0.001f, 1.f, "%.3f");
             dirty |= ImGui::DragFloat("Stylized Lit Boost", &lightingParams.stylizedLitBoost, 0.01f, 1.f, 4.f, "%.2f");
             dirty |= ImGui::DragFloat("Stylized Unlit Ambient", &lightingParams.stylizedUnlitAmbientScale, 0.01f, 0.f, 1.f, "%.2f");
+            dirty |= ImGui::DragFloat("Stylized Deep Unlit Threshold", &lightingParams.stylizedDeepUnlitThreshold, 0.01f, 0.f, 1.f, "%.2f");
+            dirty |= ImGui::DragFloat("Stylized Deep Unlit Softness", &lightingParams.stylizedDeepUnlitSoftness, 0.001f, 0.001f, 1.f, "%.3f");
+            dirty |= ImGui::DragFloat("Stylized Deep Unlit Ambient", &lightingParams.stylizedDeepUnlitAmbientScale, 0.01f, 0.f, 1.f, "%.2f");
         }
 
         if (ImGui::CollapsingHeader("Specular AA / Deferred", ImGuiTreeNodeFlags_DefaultOpen))

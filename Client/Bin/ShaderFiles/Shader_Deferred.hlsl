@@ -416,6 +416,12 @@ PS_OUT_HDR_WITH_MASK PS_CombinedHDR(PS_IN In)
     {
         float unlitAmbientScale = saturate(g_StylizedUnlitAmbientScale);
         indirect.rgb *= lerp(1.f, unlitAmbientScale, (1.f - stylizedLitMask) * stylizedLightContrastStrength);
+
+        float deepUnlitThreshold = saturate(g_StylizedDeepUnlitThreshold);
+        float deepUnlitSoftness = max(g_StylizedDeepUnlitSoftness, EPSILON);
+        float deepUnlitMask = 1.f - smoothstep(deepUnlitThreshold, deepUnlitThreshold + deepUnlitSoftness, saturate(lightMask));
+        float deepUnlitAmbientScale = saturate(g_StylizedDeepUnlitAmbientScale);
+        indirect.rgb *= lerp(1.f, deepUnlitAmbientScale, deepUnlitMask * stylizedLightContrastStrength);
     }
 
     indirect.rgb *= ambientVisibility;

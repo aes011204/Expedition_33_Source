@@ -641,6 +641,9 @@ void Level_GestralVillage::Apply_StylizedLightContrast()
     gestralVillageLighting.stylizedLightSoftness = 0.25f;
     gestralVillageLighting.stylizedLitBoost = 1.2f;
     gestralVillageLighting.stylizedUnlitAmbientScale = 0.2f;
+    gestralVillageLighting.stylizedDeepUnlitThreshold = 0.12f;
+    gestralVillageLighting.stylizedDeepUnlitSoftness = 0.18f;
+    gestralVillageLighting.stylizedDeepUnlitAmbientScale = 0.08f;
 
     lightingPipeline->Set_DeferredLightingParams(gestralVillageLighting);
 }
