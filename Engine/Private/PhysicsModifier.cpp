@@ -439,6 +439,9 @@ void PhysicsModifier::Evaluate_Modifier(ModelCom* model, float timeDelta)
 
 	if (_chains.empty()) return;
 
+	Restore_PoseLocals(model);
+	model->Rebuild_BoneCombinedMatrices();
+
 	_desc.debugCollisionHitCount = 0;
 	_desc.debugConstraintProjectionCount = 0;
 	_desc.debugLocalClampCount = 0;
@@ -470,26 +473,14 @@ void PhysicsModifier::Evaluate_Modifier(ModelCom* model, float timeDelta)
 	Capture_CurrentPose(model, ownerWorld);
 	if (isOwnerIdle)
 	{
-		const float poseMotionDeadzoneSq = _desc.idleMotionDeadzone * _desc.idleMotionDeadzone;
+		const float driverMotionDeadzoneSq = _desc.idleMotionDeadzone * _desc.idleMotionDeadzone;
 		for (const auto& chain : _chains)
 		{
-			if (chain.driverMotionDelta.LengthSquared() > poseMotionDeadzoneSq)
+			if (chain.driverMotionDelta.LengthSquared() > driverMotionDeadzoneSq)
 			{
 				isOwnerIdle = false;
 				break;
 			}
-
-			for (const auto& node : chain.nodes)
-			{
-				if (node.poseMotionDelta.LengthSquared() > poseMotionDeadzoneSq)
-				{
-					isOwnerIdle = false;
-					break;
-				}
-			}
-
-			if (!isOwnerIdle)
-				break;
 		}
 	}
 
@@ -511,7 +502,7 @@ void PhysicsModifier::Evaluate_Modifier(ModelCom* model, float timeDelta)
 			Apply_WindForce(_desc.windDirection, _desc.windScale);
 		}
 		Apply_OwnerInertiaForce(ownerMotionDelta, timeDelta, isOwnerIdle);
-		Apply_PoseSpringForces(timeDelta);
+		Apply_PoseSpringForces(timeDelta, isOwnerIdle);
 
 		if (_scene)
 		{
@@ -597,7 +588,7 @@ void PhysicsModifier::ResetPose(ModelCom* model)
 
 void PhysicsModifier::Restore_PoseLocals(ModelCom* model)
 {
-	if (model == nullptr || !_hasCapturedPose) return;
+	if (model == nullptr || _chains.empty()) return;
 
 	for (auto& chain : _chains)
 	{
@@ -1044,6 +1035,7 @@ void PhysicsModifier::Reset_PhysXStateToPose(ModelCom* model, const ModelCom* co
 {
 	if (model == nullptr) return;
 
+	Restore_PoseLocals(model);
 	Capture_CurrentPose(model, ownerWorld);
 	Sync_KinematicActors(model, collisionModel, ownerWorld, collisionOwnerWorld);
 	
@@ -1419,9 +1411,15 @@ void PhysicsModifier::Apply_OwnerInertiaForce(const Vec3& ownerMotionDelta, floa
 	}
 }
 
-void PhysicsModifier::Apply_PoseSpringForces(float timeDelta)
+void PhysicsModifier::Apply_PoseSpringForces(float timeDelta, bool isOwnerIdle)
 {
 	if (timeDelta <= 0.0001f)
+		return;
+
+	const bool windActive =
+		_desc.windScale > 0.001f &&
+		_desc.windDirection.LengthSquared() > 0.001f;
+	if (isOwnerIdle && !windActive)
 		return;
 
 	const float springStrength = std::max(0.f, _desc.poseSpringStrength);
@@ -1789,6 +1787,14 @@ void PhysicsModifier::Apply_PoseRestoreAndDamping(float timeDelta, bool isOwnerI
 	const bool windActive =
 		_desc.windScale > 0.001f &&
 		_desc.windDirection.LengthSquared() > 0.001f;
+	const float idleSettleDistance = std::max(
+		_desc.idleMotionDeadzone * 0.20f,
+		_desc.poseRestoreMaxSpeed * timeDelta * 0.05f);
+	const float idleSettleDistanceSq = idleSettleDistance * idleSettleDistance;
+	const float idleSettleSpeed = std::max(
+		_desc.poseRestoreMaxSpeed * 0.01f,
+		0.0001f);
+	const float idleSettleSpeedSq = idleSettleSpeed * idleSettleSpeed;
 
 	for (auto& chain : _chains)
 	{
@@ -1838,10 +1844,14 @@ void PhysicsModifier::Apply_PoseRestoreAndDamping(float timeDelta, bool isOwnerI
 			if (isOwnerIdle && !windActive)
 			{
 				const float restDistanceSq = (correctedPosition - restPosition).LengthSquared();
-				if (restDistanceSq <= 0.000025f
-					&& linearVelocity.LengthSquared() <= 0.000004f
-					&& angularVelocity.LengthSquared() <= 0.000004f)
+				if (restDistanceSq <= idleSettleDistanceSq
+					&& linearVelocity.LengthSquared() <= idleSettleSpeedSq
+					&& angularVelocity.LengthSquared() <= idleSettleSpeedSq)
 				{
+					correctedPosition = restPosition;
+					PxTransform settledPose = actorPose;
+					settledPose.p = To_PxVec3(restPosition);
+					node.actor->setGlobalPose(settledPose);
 					linearVelocity = Vec3::Zero;
 					angularVelocity = Vec3::Zero;
 					node.smoothedInertiaVelocity = Vec3::Zero;

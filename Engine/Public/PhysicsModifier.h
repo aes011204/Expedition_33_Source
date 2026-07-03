@@ -250,7 +250,7 @@ private:
 		const Matrix& collisionOwnerWorld);
 	void Update_SolvedPositionsFromActors();
 	void Apply_OwnerInertiaForce(const Vec3& ownerMotionDelta, float timeDelta, bool isOwnerIdle);
-	void Apply_PoseSpringForces(float timeDelta);
+	void Apply_PoseSpringForces(float timeDelta, bool isOwnerIdle);
 	void Apply_LengthAndBendConstraints();
 	void Apply_PostSimulationConstraints(const vector<WorldCapsule>& worldCapsules);
 	void Apply_PoseRestoreAndDamping(float timeDelta, bool isOwnerIdle);
