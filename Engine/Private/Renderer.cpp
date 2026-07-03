@@ -1785,6 +1785,7 @@ HRESULT Renderer::Render_PointLightGlow()
         lightCB.ambient = desc.ambient;
         lightCB.specular = desc.specular;
         lightCB.range = desc.range;
+        lightCB.pointAttenuationPower = desc.pointAttenuationPower;
 
         ENDMRT_RETURN_FAIL_LOG_IF_FAILED(
             _deferredShader->Bind_CBufferData(lightCB),

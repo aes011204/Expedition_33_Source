@@ -77,7 +77,8 @@ cbuffer LightBuffer
     float4 g_LightSpecular;
 
     float g_LightRange;
-    float3 g_LightPadding0;
+    float g_PointLightAttenuationPower;
+    float2 g_LightPadding0;
 };
 
 cbuffer MaterialBuffer

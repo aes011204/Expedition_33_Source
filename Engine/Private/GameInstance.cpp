@@ -1994,6 +1994,52 @@ HRESULT GameInstance::Bind_PrimaryShadowLightCB(Shared<ShaderCom> shader) const
     return _lightManager->Bind_PrimaryShadowLightCB(shader);
 }
 
+const LIGHT_DESC* GameInstance::Get_PointLightDesc(uint32 pointIndex) const
+{
+    return _lightManager->Get_PointLightDesc(pointIndex);
+}
+
+uint32 GameInstance::Get_PointLightCount() const
+{
+    return _lightManager->Get_PointLightCount();
+}
+
+HRESULT GameInstance::Add_PointLight(
+    const Vec3& position,
+    float range,
+    const Vec4& diffuse,
+    const Vec4& ambient,
+    const Vec4& specular,
+    float attenuationPower)
+{
+    return _lightManager->Add_PointLight(position, range, diffuse, ambient, specular, attenuationPower);
+}
+
+HRESULT GameInstance::Update_PointLightDesc(uint32 pointIndex, const LIGHT_DESC& lightDesc)
+{
+    return _lightManager->Update_PointLightDesc(pointIndex, lightDesc);
+}
+
+HRESULT GameInstance::Set_PointLightPosition(uint32 pointIndex, const Vec3& position)
+{
+    return _lightManager->Set_PointLightPosition(pointIndex, position);
+}
+
+HRESULT GameInstance::Set_PointLightRange(uint32 pointIndex, float range)
+{
+    return _lightManager->Set_PointLightRange(pointIndex, range);
+}
+
+HRESULT GameInstance::Set_PointLightAlpha(uint32 pointIndex, float alpha)
+{
+    return _lightManager->Set_PointLightAlpha(pointIndex, alpha);
+}
+
+HRESULT GameInstance::Set_PointLightAttenuationPower(uint32 pointIndex, float attenuationPower)
+{
+    return _lightManager->Set_PointLightAttenuationPower(pointIndex, attenuationPower);
+}
+
 HRESULT GameInstance::Add_Font(const wstring& fontTag, const wchar_t* fontFilePath)
 {
     return _fontManager->Add_Font(fontTag, fontFilePath);

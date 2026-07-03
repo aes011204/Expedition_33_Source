@@ -1122,7 +1122,7 @@ void Editor_Manager::Notify_ReloadDataResult(const char* dataName, HRESULT hr, c
     if (notification == nullptr)
     {
         if (FAILED(hr))
-            MSG_BOX(failureMessage);
+            MessageBoxA(nullptr, failureMessage, "System Message", MB_OK);
 
         return;
     }

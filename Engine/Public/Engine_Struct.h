@@ -34,6 +34,7 @@ using LIGHT_DESC = struct tagLightDesc
     Vec4 direction;
     Vec4 position;
     float range;
+    float pointAttenuationPower = 1.f;
 
     Vec4 diffuse;
     Vec4 ambient;

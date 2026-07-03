@@ -172,7 +172,8 @@ struct alignas(16) LightCB
     Vec4 specular;
 
     float range = 0.f;
-    float _pad0[3]{};
+    float pointAttenuationPower = 1.f;
+    float _pad0[2]{};
 };
 
 /* ------------------------------------------ */
