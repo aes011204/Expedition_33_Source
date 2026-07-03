@@ -1128,9 +1128,9 @@ void ChainModifierPreset::BuildGustavePotatoCapePhysicsDesc(
     };
 
     desc.chains = {
-        { "Verso_Potato_Cape_01_01", 1.00f, 0.20f, 2.70f, 1.00f, 0.066f, 0.78f },
-        { "Verso_Potato_Cape_02_01", 1.00f, 0.20f, 2.70f, 1.00f, 0.066f, 0.78f },
-        { "Verso_Potato_Cape_03_01", 1.00f, 0.20f, 2.70f, 1.00f, 0.066f, 0.78f }
+        { "Verso_Potato_Cape_01_01", 1.00f, 0.20f, 1.60f, 1.00f, 0.066f, 0.78f },
+        { "Verso_Potato_Cape_02_01", 1.00f, 0.20f, 1.60f, 1.00f, 0.066f, 0.78f },
+        { "Verso_Potato_Cape_03_01", 1.00f, 0.20f, 1.60f, 1.00f, 0.066f, 0.78f }
     };
 
     desc.outputAlpha = 1.00f;
@@ -1138,7 +1138,7 @@ void ChainModifierPreset::BuildGustavePotatoCapePhysicsDesc(
     desc.outputSmoothAlpha = 0.065f;
     desc.idleOutputSmoothAlpha = 0.88f;
     desc.idleMotionDeadzone = 0.055f;
-    desc.maxOutputAngleDegree = 142.f;
+    desc.maxOutputAngleDegree = 105.f;
 
     desc.contactRotationFollowAlpha = 0.14f;
     desc.freeRotationFollowAlpha = 0.22f;

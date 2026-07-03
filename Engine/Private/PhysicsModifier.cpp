@@ -366,7 +366,7 @@ float PhysicsModifier::Compute_NodeAngleLimitDegree(const Chain& chain, float de
 	const float tipMultiplier = std::max(0.f, chain.desc.maxAngleMul);
 	const float depth = SmoothStep(std::clamp(depthRatio, 0.f, 1.f));
 	const float depthMultiplier = std::max(0.f, 1.f + depth * (tipMultiplier - 1.f));
-	return baseAngle * depthMultiplier;
+	return std::clamp(baseAngle * depthMultiplier, 0.f, 175.f);
 }
 
 Quat PhysicsModifier::Build_RotationDelta(const Vec3& fromDirection, const Vec3& toDirection)
@@ -1323,26 +1323,10 @@ void PhysicsModifier::Apply_OwnerInertiaForce(const Vec3& ownerMotionDelta, floa
 					weightedVelocity += verticalAxis * (worldVelocity.Dot(verticalAxis) * verticalScale);
 				weightedVelocity -= chainAxis * weightedVelocity.Dot(chainAxis);
 				return weightedVelocity;
-			};
+		};
 
 		const Vec3 driverTangentialVelocity = buildWeightedTangentialVelocity(driverVelocity, false);
 		const Vec3 driverTangentialVelocityDelta = buildWeightedTangentialVelocity(driverVelocityDelta, true);
-		const float inertiaVelocityDeadzone = (_desc.idleMotionDeadzone / timeDelta) *
-			std::clamp(_desc.releaseInertiaDamping, 0.f, 1.f);
-		auto applyInertiaVelocityGate =
-			[inertiaVelocityDeadzone](const Vec3& velocity) -> Vec3
-			{
-				const float length = velocity.Length();
-				if (length <= 0.000001f)
-					return Vec3::Zero;
-				if (inertiaVelocityDeadzone <= 0.000001f)
-					return velocity;
-				const float gate = SmoothStep(std::clamp(
-					(length - inertiaVelocityDeadzone) / inertiaVelocityDeadzone,
-					0.f,
-					1.f));
-				return velocity * gate;
-			};
 
 		for (auto& node : chain.nodes)
 		{
@@ -1374,8 +1358,7 @@ void PhysicsModifier::Apply_OwnerInertiaForce(const Vec3& ownerMotionDelta, floa
 			const Vec3 relativeTangentialVelocity = buildWeightedTangentialVelocity(relativePoseVelocity, true);
 			const Vec3 tangentialVelocity = driverTangentialVelocity + relativeTangentialVelocity;
 			const Vec3 tangentialVelocityDelta = driverTangentialVelocityDelta;
-			const Vec3 inertiaVelocity = applyInertiaVelocityGate(
-				tangentialVelocity + tangentialVelocityDelta * accelerationScale);
+			const Vec3 inertiaVelocity = tangentialVelocity + tangentialVelocityDelta * accelerationScale;
 
 			if (inertiaVelocity.LengthSquared() <= 0.000001f)
 			{
