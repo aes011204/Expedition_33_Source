@@ -15,6 +15,7 @@ public:
         HeroId heroId = HeroId::END;
         string pictosId{};
         wstring displayName{};
+        uint32 activationCount = 1;
     };
 
 public:

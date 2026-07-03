@@ -1688,16 +1688,34 @@ void GameplayUI_Battle::Update_BattlePictos(float timeDelta)
         if (stackCounterIndex >= stackCounts.size())
             continue;
 
-        const uint32 stackIndex = stackCounts[stackCounterIndex]++;
-
         UI_BattlePictos* selectedSlot = nullptr;
         UI_BattlePictos* oldestSlot = nullptr;
         float oldestElapsed = -1.f;
 
         for (auto& battlePictos : _battlePictos)
         {
+            if (battlePictos == nullptr || !battlePictos->Is_Open())
+                continue;
+
+            if (battlePictos->Get_HeroId() == event.heroId &&
+                battlePictos->Get_PictosId() == event.pictosId)
+            {
+                selectedSlot = battlePictos.get();
+                break;
+            }
+        }
+
+        uint32 stackIndex = selectedSlot != nullptr
+            ? selectedSlot->Get_StackIndex()
+            : stackCounts[stackCounterIndex]++;
+
+        for (auto& battlePictos : _battlePictos)
+        {
             if (battlePictos == nullptr)
                 continue;
+
+            if (selectedSlot != nullptr)
+                break;
 
             if (!battlePictos->Is_Open())
             {
@@ -1720,9 +1738,11 @@ void GameplayUI_Battle::Update_BattlePictos(float timeDelta)
 
         UI_BattlePictos::ActivationDesc activationDesc{};
         activationDesc.heroId = event.heroId;
+        activationDesc.pictosId = event.pictosId;
         activationDesc.displayName = event.displayName;
         activationDesc.anchorPosition = anchorPosition;
         activationDesc.stackIndex = stackIndex;
+        activationDesc.activationCount = event.activationCount;
 
         selectedSlot->Play_Activation(activationDesc);
     }

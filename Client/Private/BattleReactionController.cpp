@@ -16,7 +16,7 @@
 namespace
 {
     constexpr uint32 kReactionConsumeKeyStride = 16;
-    constexpr float kAutoJumpCounterInputDelaySec = 0.08f;
+    constexpr float kAutoJumpCounterInputDelaySec = 0.025f;
 
     size_t ReactionIndex(BattleReactionType type)
     {

@@ -36,6 +36,7 @@ protected:
 
 private:
     HRESULT Ready_Components();
+    void    Update_VisualHover(float timeDelta);
     void    Try_Pickup();
 
 protected:
@@ -50,6 +51,8 @@ private:
     bool                _hasPlayerOverlap = false;
     bool                _pickedUp = false;
     uint32              _spawnedLevelIndex = 0;
+    Vec3                _visualEffectBaseLocalOffset = Vec3(0.f, 0.7f, 0.f);
+    float               _visualHoverTimeSec = 0.f;
 
 public:
     void    Free() override;

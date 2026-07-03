@@ -451,6 +451,51 @@ void EffectCom::Set_InspectorEffectSettings(const InspectorEffectSettings& setti
     _inspectorEffectPlayed = false;
 }
 
+void EffectCom::Set_InspectorEffectLocalOffset(const Vec3& localOffset)
+{
+    _inspectorLocalOffset = localOffset;
+
+    const EffectPlayTarget inspectorTarget = static_cast<EffectPlayTarget>(_inspectorEffectTarget);
+    for (AttachedEffect& attached : _attachedEffects)
+    {
+        if (attached.role != AttachedEffectRole::Normal)
+            continue;
+        if (attached.effectName != _inspectorEffectName ||
+            attached.target != inspectorTarget ||
+            attached.partTag != _inspectorPartTag ||
+            attached.socketName != _inspectorSocketName)
+            continue;
+
+        attached.localOffset = localOffset;
+        if (attached.poolHandle.effectObject == nullptr)
+            continue;
+
+        Vec3 targetWorldPosition{};
+        Quat targetWorldRotation{ Quat::Identity };
+        Vec3 targetWorldScale{};
+        if (!Try_ResolveEffectWorldTransform(
+            attached.target,
+            attached.partTag,
+            attached.socketName,
+            attached.localOffset,
+            attached.localRotation,
+            attached.scale,
+            attached.transformInheritance,
+            targetWorldPosition,
+            targetWorldRotation,
+            targetWorldScale
+        ))
+            continue;
+
+        const Shared<TransformCom> effectTransform = attached.poolHandle.effectObject->Get_Transform();
+        CHECK_NULL(effectTransform);
+
+        effectTransform->Set_WorldPosition(targetWorldPosition);
+        effectTransform->Set_WorldRotationQuaternion(targetWorldRotation);
+        effectTransform->Set_Scale(targetWorldScale);
+    }
+}
+
 HRESULT EffectCom::Play_InspectorEffect()
 {
     if (_inspectorEffectName.empty())

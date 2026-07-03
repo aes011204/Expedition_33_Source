@@ -138,6 +138,7 @@ public: //## Behavior::AttachedEffects
 
     InspectorEffectSettings Get_InspectorEffectSettings() const;
     void Set_InspectorEffectSettings(const InspectorEffectSettings& settings);
+    void Set_InspectorEffectLocalOffset(const Vec3& localOffset);
     HRESULT Play_InspectorEffect();
 
 public: //## Behavior::PlayEffect

@@ -10,6 +10,9 @@ namespace
 {
     constexpr wchar_t kItemCrystalEffectName[] = L"Effects\\Assets\\Item\\Crystal.effect.json";
     constexpr wchar_t kItemEatEffectName[] = L"Effects\\Assets\\Item\\EatItem.effect.json";
+    constexpr float kItemVisualBaseOffsetY = 0.7f;
+    constexpr float kItemHoverFrequency = 1.8f;
+    constexpr float kItemHoverAmplitude = 0.06f;
 }
 
 Item::Item(const ComPtr<Device>& device, const ComPtr<Context>& context)
@@ -42,6 +45,7 @@ HRESULT Item::Initialize(void* arg)
     _spawnedLevelIndex = GAME->Current_LevelIndex();
     _hasPlayerOverlap = false;
     _pickedUp = false;
+    _visualHoverTimeSec = 0.f;
 
     UNREFERENCED_PARAMETER(arg);
     return S_OK;
@@ -50,6 +54,8 @@ HRESULT Item::Initialize(void* arg)
 void Item::Update(float timeDelta)
 {
     GameObject::Update(timeDelta);
+
+    Update_VisualHover(timeDelta);
 
     if (_effectCom)
         _effectCom->Update(timeDelta);
@@ -159,12 +165,16 @@ void Item::From_Json(const json& data)
 
     _pickedUp = false;
     _spawnedLevelIndex = GAME->Current_LevelIndex();
+    _visualHoverTimeSec = 0.f;
 
     if (_colliderCom)
     {
         _colliderCom->Set_IsActive(true);
         _colliderCom->Clear_Overlap();
     }
+
+    if (_effectCom)
+        _visualEffectBaseLocalOffset = _effectCom->Get_InspectorEffectSettings().localOffset;
 
     if (!data.contains("custom_properties") || !data["custom_properties"].is_object())
         return;
@@ -195,16 +205,29 @@ HRESULT Item::Ready_Components()
             settings.effectName = kItemCrystalEffectName;
         settings.target = EffectCom::EffectPlayTarget::OwnerRoot;
         settings.layerTag = L"Layer_Effect";
-        settings.localOffset = Vec3(0.f, 0.7f, 0.f);
+        settings.localOffset = Vec3(0.f, kItemVisualBaseOffsetY, 0.f);
         settings.localRotation = Vec3::Zero;
         settings.scale = Vec3::One;
         settings.followTarget = false;
         settings.requiresManualRelease = true;
 
         _effectCom->Set_InspectorEffectSettings(settings);
+        _visualEffectBaseLocalOffset = settings.localOffset;
     }
 
     return S_OK;
+}
+
+void Item::Update_VisualHover(float timeDelta)
+{
+    _visualHoverTimeSec += max(timeDelta, 0.f);
+
+    if (_effectCom == nullptr)
+        return;
+
+    Vec3 hoverOffset = _visualEffectBaseLocalOffset;
+    hoverOffset.y += sinf(_visualHoverTimeSec * kItemHoverFrequency) * kItemHoverAmplitude;
+    _effectCom->Set_InspectorEffectLocalOffset(hoverOffset);
 }
 
 void Item::Try_Pickup()
