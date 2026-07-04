@@ -381,6 +381,8 @@ void BattleController::Run_EnemyTurn()
 
     Play_EnemyTargetedStart(targetedHeroes);
 
+    CLIENT->Play_BattleMonsterTargetingVoice(Get_TurnActionRequest(), targetedHeroes);
+
     ExecuteActionRequest(Get_TurnActionRequest());
 
     // EvtBattlePresentation event;

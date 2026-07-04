@@ -231,6 +231,7 @@
     <ClInclude Include="..\Public\BattleResultRecoder.h" />
     <ClInclude Include="..\Public\BattleSpawnRegistry.h" />
     <ClInclude Include="..\Public\BattleStartSpawner.h" />
+    <ClInclude Include="..\Public\BattleTargetingVoicePreset.h" />
     <ClInclude Include="..\Public\BattleTransition_ScreenFx.h" />
     <ClInclude Include="..\Public\BattleTurnCameraPoseUtils.h" />
     <ClInclude Include="..\Public\BattleTutorialController.h" />
@@ -732,6 +733,7 @@
     <ClCompile Include="..\Private\BattleResultRecoder.cpp" />
     <ClCompile Include="..\Private\BattleSpawnRegistry.cpp" />
     <ClCompile Include="..\Private\BattleStartSpawner.cpp" />
+    <ClCompile Include="..\Private\BattleTargetingVoicePreset.cpp" />
     <ClCompile Include="..\Private\BattleTransition_ScreenFx.cpp" />
     <ClCompile Include="..\Private\BattleTurnCamera.cpp" />
     <ClCompile Include="..\Private\BattleTutorialController.cpp" />
