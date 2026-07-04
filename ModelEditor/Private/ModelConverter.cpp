@@ -224,7 +224,7 @@ namespace ModelEditor
 	        LOG_INFO("ModelConverter Called");
 	        _importFlags = aiProcess_ConvertToLeftHanded |
 	                                  aiProcess_Triangulate |
-	                                  // aiProcess_CalcTangentSpace | // [TEST] 탄젠트 계산 임시 제외
+	                                  aiProcess_CalcTangentSpace |
 	                                  aiProcess_GenSmoothNormals |
 	                                  aiProcess_LimitBoneWeights |
 	                                  aiProcess_JoinIdenticalVertices |

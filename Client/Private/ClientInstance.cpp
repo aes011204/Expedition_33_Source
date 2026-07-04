@@ -39,13 +39,12 @@
 #include "BattleEncounterProfile.h"
 #include "CameraPresetIO.h"
 #include "Unlock_Manager.h"
-#include "DialogueDB.h"
 #include "DialogueManager.h"
 #include "DialogueCamera.h"
 #include "BattleFollowupManager.h"
-#include "Client_Constants.h"
 #include "Monster_WorldBase.h"
 #include "NPC_Base.h"
+#include "SimonCriticalGlowController.h"
 #include "ContainerObject.h"
 #include "ModelCom.h"
 
@@ -67,18 +66,24 @@ namespace
     bool g_potatoBagArenaRenderGateDebugVisible = false;
     bool g_potatoBagArenaInstancedShadowOverrideActive = false;
     bool g_potatoBagArenaSavedUseInstancedShadowCache = false;
+    uint32 g_arenaMapRenderGateRevision = 0;
     Vec3 g_potatoBagArenaOrigin = Vec3::Zero;
     Vec3 g_potatoBagArenaRight = Vec3::Right;
     Vec3 g_potatoBagArenaForward = Vec3::Forward;
+    bool g_soulLikeArenaRenderGateReady = false;
+    Vec3 g_soulLikeArenaOrigin = Vec3::Zero;
+    Vec3 g_soulLikeArenaRight = Vec3::Right;
+    Vec3 g_soulLikeArenaForward = Vec3::Forward;
     constexpr Vec3 kPotatoBagArenaGateExtents = Vec3(36.f, 28.f, 58.f);
+    constexpr Vec3 kSoulLikeArenaGateExtents = Vec3(36.f, 28.f, 58.f);
 
-    Quat Build_PotatoBagArenaGateRotation()
+    Quat Build_ArenaMapRenderGateRotation(const Vec3& gateRight, const Vec3& gateForward)
     {
-        Vec3 forward = g_potatoBagArenaForward;
+        Vec3 forward = gateForward;
         forward.y = 0.f;
         if (forward.LengthSquared() <= 0.0001f)
         {
-            Vec3 right = g_potatoBagArenaRight;
+            Vec3 right = gateRight;
             right.y = 0.f;
             if (right.LengthSquared() > 0.0001f)
             {
@@ -98,12 +103,54 @@ namespace
         return Quat::CreateFromYawPitchRoll(atan2f(forward.x, forward.z), 0.f, 0.f);
     }
 
-    BoundingOrientedBox Build_PotatoBagArenaGateBox()
+    BoundingOrientedBox Build_ArenaMapRenderGateBox(
+        const Vec3& origin,
+        const Vec3& right,
+        const Vec3& forward,
+        const Vec3& extents)
     {
         return BoundingOrientedBox(
+            origin,
+            extents,
+            Build_ArenaMapRenderGateRotation(right, forward));
+    }
+
+    bool Is_PotatoBagArenaGateActive()
+    {
+        const Shared<ClientInstance>& instance = ClientInstance::GetInstance();
+
+        return g_potatoBagArenaRenderGateReady &&
+            GAME->Current_LevelIndex() == ETOI(LevelType::GestralVillage) &&
+            instance != nullptr &&
+            instance->Is_PotatoBagBattleActive();
+    }
+
+    bool Is_SoulLikeArenaGateActive()
+    {
+        const Shared<ClientInstance>& instance = ClientInstance::GetInstance();
+
+        return g_soulLikeArenaRenderGateReady &&
+            GAME->Current_LevelIndex() == ETOI(LevelType::GestralVillage) &&
+            instance != nullptr &&
+            instance->Is_SoulLikeBattleActive();
+    }
+
+    BoundingOrientedBox Build_ActiveArenaMapRenderGateBox()
+    {
+        if (Is_SoulLikeArenaGateActive())
+        {
+            return Build_ArenaMapRenderGateBox(
+                g_soulLikeArenaOrigin,
+                g_soulLikeArenaRight,
+                g_soulLikeArenaForward,
+                kSoulLikeArenaGateExtents);
+        }
+
+        return Build_ArenaMapRenderGateBox(
             g_potatoBagArenaOrigin,
-            kPotatoBagArenaGateExtents,
-            Build_PotatoBagArenaGateRotation());
+            g_potatoBagArenaRight,
+            g_potatoBagArenaForward,
+            kPotatoBagArenaGateExtents);
     }
 
     wstring Normalize_EffectNameForPool(const wstring& effectName)
@@ -124,7 +171,7 @@ namespace
             return;
 
         GAME->Set_UseInstancedShadowCache(g_potatoBagArenaSavedUseInstancedShadowCache);
-        GAME->Set_DynamicShadowCascadeTemporalUpdateIntervals(1u, 2u, 4u, 12u);
+        GAME->Set_DynamicShadowCascadeTemporalUpdateIntervals(1u, 1u, 2u, 12u);
         g_potatoBagArenaInstancedShadowOverrideActive = false;
     }
 
@@ -348,6 +395,9 @@ HRESULT ClientInstance::Initialize_Client(const ComPtr<Device>& device, const Co
     _battleFollowupManager = BattleFollowupManager::Create();
     CHECK_NULL(_battleFollowupManager, E_FAIL);
 
+    _simonCriticalGlowController = SimonCriticalGlowController::Create();
+    CHECK_NULL(_simonCriticalGlowController, E_FAIL);
+
     _isInitialized = true;
 
     return S_OK;
@@ -545,6 +595,7 @@ void ClientInstance::Set_PotatoBagArenaMapRenderGateBasis(const Vec3& origin, co
     g_potatoBagArenaRight = right;
     g_potatoBagArenaForward = forward;
     g_potatoBagArenaRenderGateReady = true;
+    ++g_arenaMapRenderGateRevision;
 }
 
 void ClientInstance::Clear_PotatoBagArenaMapRenderGateBasis()
@@ -553,16 +604,35 @@ void ClientInstance::Clear_PotatoBagArenaMapRenderGateBasis()
 
     g_potatoBagArenaRenderGateReady = false;
     g_potatoBagArenaRenderGateDebugVisible = false;
+    ++g_arenaMapRenderGateRevision;
+}
+
+void ClientInstance::Set_SoulLikeArenaMapRenderGateBasis(const Vec3& origin, const Vec3& right, const Vec3& forward)
+{
+    g_soulLikeArenaOrigin = origin;
+    g_soulLikeArenaRight = right;
+    g_soulLikeArenaForward = forward;
+    g_soulLikeArenaRenderGateReady = true;
+    ++g_arenaMapRenderGateRevision;
+}
+
+void ClientInstance::Clear_SoulLikeArenaMapRenderGateBasis()
+{
+    if (!g_soulLikeArenaRenderGateReady)
+        return;
+
+    g_soulLikeArenaRenderGateReady = false;
+    ++g_arenaMapRenderGateRevision;
 }
 
 bool ClientInstance::Is_PotatoBagArenaMapRenderGateActive()
 {
-    const Shared<ClientInstance>& instance = ClientInstance::GetInstance();
+    return Is_PotatoBagArenaGateActive() || Is_SoulLikeArenaGateActive();
+}
 
-    return g_potatoBagArenaRenderGateReady &&
-        GAME->Current_LevelIndex() == ETOI(LevelType::GestralVillage) &&
-        instance != nullptr &&
-        instance->Is_PotatoBagBattleActive();
+uint32 ClientInstance::Get_PotatoBagArenaMapRenderGateRevision()
+{
+    return g_arenaMapRenderGateRevision;
 }
 
 bool ClientInstance::Should_RenderMapObjectInPotatoBagArena(const BoundingBox& worldBounds)
@@ -570,7 +640,7 @@ bool ClientInstance::Should_RenderMapObjectInPotatoBagArena(const BoundingBox& w
     if (!Is_PotatoBagArenaMapRenderGateActive())
         return true;
 
-    return Build_PotatoBagArenaGateBox().Intersects(worldBounds);
+    return Build_ActiveArenaMapRenderGateBox().Intersects(worldBounds);
 }
 
 bool ClientInstance::Should_RenderMapInstanceInPotatoBagArena(const BoundingSphere& worldSphere)
@@ -578,7 +648,7 @@ bool ClientInstance::Should_RenderMapInstanceInPotatoBagArena(const BoundingSphe
     if (!Is_PotatoBagArenaMapRenderGateActive())
         return true;
 
-    return Build_PotatoBagArenaGateBox().Intersects(worldSphere);
+    return Build_ActiveArenaMapRenderGateBox().Intersects(worldSphere);
 }
 
 void ClientInstance::Update_PotatoBagArenaMapInstancedShadowOverride()
@@ -591,7 +661,7 @@ void ClientInstance::Update_PotatoBagArenaMapInstancedShadowOverride()
         {
             g_potatoBagArenaSavedUseInstancedShadowCache = GAME->Is_UseInstancedShadowCache();
             GAME->Set_UseInstancedShadowCache(false);
-            GAME->Set_DynamicShadowCascadeTemporalUpdateIntervals(1u, 2u, 2u, 12u);
+            GAME->Set_DynamicShadowCascadeTemporalUpdateIntervals(1u, 1u, 2u, 12u);
             g_potatoBagArenaInstancedShadowOverrideActive = true;
         }
         return;
@@ -611,9 +681,18 @@ void ClientInstance::Draw_PotatoBagArenaMapRenderGateDebug()
         return;
 
     DebugBoxDesc desc{};
-    desc.center = g_potatoBagArenaOrigin;
-    desc.extents = kPotatoBagArenaGateExtents;
-    desc.rotation = Build_PotatoBagArenaGateRotation();
+    if (Is_SoulLikeArenaGateActive())
+    {
+        desc.center = g_soulLikeArenaOrigin;
+        desc.extents = kSoulLikeArenaGateExtents;
+        desc.rotation = Build_ArenaMapRenderGateRotation(g_soulLikeArenaRight, g_soulLikeArenaForward);
+    }
+    else
+    {
+        desc.center = g_potatoBagArenaOrigin;
+        desc.extents = kPotatoBagArenaGateExtents;
+        desc.rotation = Build_ArenaMapRenderGateRotation(g_potatoBagArenaRight, g_potatoBagArenaForward);
+    }
     desc.style.color = Color(0.2f, 1.f, 0.35f, 1.f);
     desc.style.depthEnabled = false;
 

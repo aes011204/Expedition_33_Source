@@ -10,6 +10,7 @@
 uint g_iObjectID;
 float4 g_WeaponGhostColor;
 uint g_WeaponGhostBladeMaterial;
+uint g_WeaponGhostUseMaterialOverride;
 float g_AmbientVisibilityAmount = 0.15f;
 
 //==================================================
@@ -472,15 +473,20 @@ PS_OUT_GLOW PS_GlowOnly(PS_IN In)
 
 PS_OUT PS_WeaponGhost(PS_IN In)
 {
+    bool useMaterialOverride = g_WeaponGhostUseMaterialOverride != 0;
+
+    if (useMaterialOverride)
+        return PS_Opaque(In);
+
     ApplyPlayerNearClip(In.WorldPos);
 
     PS_OUT Out;
 
     float2 finalUV = ApplyUVTransform(In.Texcoord);
-    float4 baseColor = SampleBaseColor(finalUV);
+    bool isBladeMaterial = g_WeaponGhostBladeMaterial != 0;
+    float4 baseColor = SampleBaseColorFallback(finalUV);
     float3 worldNormal = normalize(In.Normal.xyz);
     float alpha = 1.f;
-    bool isBladeMaterial = g_WeaponGhostBladeMaterial != 0;
     float3 color = isBladeMaterial ? saturate(g_WeaponGhostColor.rgb) : saturate(baseColor.rgb);
     float3 orm = isBladeMaterial ? float3(1.f, 0.35f, 0.f) : SampleOrm(finalUV);
     float3 emissive = isBladeMaterial ? color * 0.35f : 0.f;
@@ -679,7 +685,7 @@ technique11 DefaultTechnique
     PASS_RS_DS_BS_VP(FaceAccessoryBeardPass,    RS_CullNone, DSS_Default, BS_Default, VS_Default, PS_FaceAccessoryBeard)// 12
     PASS_RS_DS_BS_VP(FaceAccAlphaBlend,         RS_CullNone, DSS_Default, BS_AlphaBlend, VS_Default, PS_FaceAccAlphaBlend) // 13
     PASS_RS_DS_BS_VP(SignDecalPass,             RS_CullNone, DSS_Default, BS_Default, VS_Default, PS_SignDecal)         // 14
-    PASS_RS_DS_BS_VP(WeaponGhostPass,           RS_CullNone, DSS_None, BS_AlphaBlend, VS_Default, PS_WeaponGhost)       // 15
+    PASS_RS_DS_BS_VP(WeaponGhostPass,           RS_CullNone, DSS_DepthRead, BS_Default, VS_Default, PS_WeaponGhost)     // 15
     PASS_RS_DS_BS_VP(WeaponAlphaPass,           RS_CullNone, DSS_None, BS_Default, VS_Default, PS_WeaponAlpha)       // 16
     PASS_RS_DS_BS_VP(HairMesh,                  RS_CullNone, DSS_None, BS_Default, VS_Default, PS_CharacterHair)       // 17
     PASS_RS_DS_BS_VP(EclipseSpherePass,         RS_Default, DSS_DepthRead, BS_EffectAdditive, VS_Default, PS_GlowOnly) // 18

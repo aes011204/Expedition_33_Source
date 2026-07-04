@@ -87,13 +87,17 @@ IMPLEMENT_REFLECTION(ANS_WeaponEcho)
 
     PROPERTY_INT("에코 개수 Override", _echoCountOverride, 0.f, 2.f, 1.f);
 
+    PROPERTY_BOOL("Echo Material Override", _overrideEchoMaterial);
+    PROPERTY_WSTRING("Ec1 Material Bundle", _echoCount1MaterialBundleKey);
+    PROPERTY_WSTRING("Ec2 Material Bundle", _echoCount2MaterialBundleKey);
+
     return true;
 }
 
 void ANS_WeaponEcho::On_Begin(const AnimNotifyContext& context)
 {
     _lastSampleElapsedSec = -1.f;
-    _stateStartTimeSec = context.currentTimeSec - Get_ElapsedSec(context);
+    _stateStartTimeSec = context.currentTimeSec;
 
     g_activeWeaponEchoWindows.erase(
         remove_if(
@@ -160,9 +164,32 @@ void ANS_WeaponEcho::On_Begin(const AnimNotifyContext& context)
     {
         if (Mon_Simon_Weapon* simonWeapon = Resolve_TargetSimonWeapon(context))
         {
+            Mon_Simon_Weapon::WeaponEchoMaterialOverrideDesc materialOverrides[2]{};
+            uint32 materialOverrideCount = 0;
+
+            if (_overrideEchoMaterial)
+            {
+                materialOverrideCount = std::min<uint32>(window.echoCount, 2u);
+                for (uint32 laneIndex = 0; laneIndex < materialOverrideCount; ++laneIndex)
+                {
+                    const bool useSecondEchoMaterial = window.echoCount >= 2;
+                    const wstring& bundleKey = useSecondEchoMaterial
+                        ? _echoCount2MaterialBundleKey
+                        : _echoCount1MaterialBundleKey;
+
+                    materialOverrides[laneIndex].enabled = !bundleKey.empty();
+                    materialOverrides[laneIndex].materialBundleKey = String::ToString(bundleKey);
+                }
+            }
+
             simonWeapon->Begin_WeaponEchoPlayback(
                 _delaySec,
-                window.echoCount);
+                window.echoCount,
+                context.model,
+                context.animationName,
+                context.currentTimeSec,
+                materialOverrideCount > 0 ? materialOverrides : nullptr,
+                materialOverrideCount);
 
             if (Shared<EffectCom> effectCom = EffectCom::Find_FromNotifyOwner(context.owner))
             {
@@ -374,6 +401,8 @@ void ANS_WeaponEcho::Record_Sample(const AnimNotifyContext& context, bool force)
     if (simonWeapon == nullptr)
         return;
 
+    simonWeapon->Update_WeaponEchoSource(context.model, context.animationName, context.currentTimeSec);
+
     const float elapsedSec = Get_ElapsedSec(context);
     const float interval = max(0.f, _sampleInterval);
     const bool timeMovedBackward = _lastSampleElapsedSec >= 0.f && elapsedSec + 1e-4f < _lastSampleElapsedSec;
@@ -394,8 +423,5 @@ void ANS_WeaponEcho::Record_Sample(const AnimNotifyContext& context, bool force)
 
 float ANS_WeaponEcho::Get_ElapsedSec(const AnimNotifyContext& context) const
 {
-    if (context.notifyStateDurationSec > 0.f)
-        return max(0.f, context.notifyStateDurationSec * context.notifyStateProgress);
-
-    return max(0.f, context.currentTimeSec - _stateStartTimeSec);
+    return max(0.f, context.currentTimeSec);
 }

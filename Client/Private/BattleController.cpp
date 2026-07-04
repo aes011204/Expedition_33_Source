@@ -75,12 +75,26 @@ namespace
     constexpr char kNpcSumoDialogueKey[] = "NPC_Sumo";
     constexpr char kNpcSumoAfterPotatoBagDialogueKey[] = "NPC_Sumo_AfterPotatoBag";
 
+    const Vec3 kBishopPostBattleWorldPosition = Vec3(122.10f, 21.61f, -2.56f);
+    const Vec3 kBishopPostBattleWorldRotation = Vec3(0.f, 80.3f, 0.f);
+
     constexpr float kSkillPresentationDissolveDuration = 0.12f;
     constexpr float kSkillPresentationHideConfirmDuration = 0.04f;
     constexpr float kSkillPresentationRevealGraceDuration = 0.10f;
     constexpr char kSkillPresentationDissolveNoise[] = "T_Perlin_Noise_M";
     constexpr float kSkillPresentationOcclusionDepthMargin = 0.25f;
     constexpr float kSkillPresentationOcclusionCapsuleRadius = 0.58f;
+
+    bool Has_BishopBattleSpawnDesc(const vector<BattleMonsterSpawnDesc>& battleMonsterSpawnDescs)
+    {
+        for (const BattleMonsterSpawnDesc& spawnDesc : battleMonsterSpawnDescs)
+        {
+            if (spawnDesc.prefabName == Constants::Prefab::MB_Bishop)
+                return true;
+        }
+
+        return false;
+    }
 }
 
 BattleController::BattleController()
@@ -436,6 +450,9 @@ void BattleController::OnEnterBattleField(
 
     if (completeImmediately)
     {
+        if (Has_BishopBattleSpawnDesc(battleMonsterSpawnDescs))
+            CLIENT->Warp_PartyToFormation(kBishopPostBattleWorldPosition, kBishopPostBattleWorldRotation);
+
         if (!GAME->Is_ActiveCameraType(ObjectType::BattleTurnCamera))
             CLIENT->Request_TargetCameraMode(TargetCameraMode::BATTLE_ENTER); // 월드/시네마틱 즉시 진입은 기존 전투 진입 카메라 요청을 유지한다.
 
@@ -765,29 +782,14 @@ void BattleController::EndTurn()
 
     // 상태 이상 엔드
     const auto actor = _currentTurnActor;
+    _lastCompletedTurnWasPlayer =
+        actor.statCom != nullptr &&
+        actor.statCom->Is_Player();
     const float scheduleSpeed =
         _buffSystem ? _buffSystem->Resolve_TurnScheduleSpeed(actor)
         : max(actor.statCom->Get_Speed(), 1.f);
 
     _buffSystem->ProcessTurnEnd(_currentTurnActor);
-
-    string gradientSkillKey{};
-    if (actor.statCom->Is_Player() &&
-        actor.statCom->Try_GetSkillKeyBySlot(GradientSkill::SlotIndex, gradientSkillKey))
-    {
-        for (const BattleChar& hero : _heroes)
-        {
-            if (hero.statCom == nullptr)
-                continue;
-
-            if (hero.statCom->Get_AliveStatus() == EAliveStatus::Dead)
-                continue;
-
-            string heroGradientSkillKey{};
-            if (hero.statCom->Try_GetSkillKeyBySlot(GradientSkill::SlotIndex, heroGradientSkillKey))
-                hero.statCom->Add_GradientGauge(GradientSkill::GaugeGainPerTurn);
-        }
-    }
 
     OnTurnEnded.Broadcast(_currentTurnActor); // 턴 종료 신호
 
@@ -829,6 +831,14 @@ void BattleController::StartTurn()
     _turnAction.ResetAction();
     _turnActionRequest = {};
     _turnActionRequest.actor = _currentTurnActor;
+
+    if (const auto monster = dynamic_pointer_cast<Monster_BattleBase>(_currentTurnActor.actor))
+    {
+        if (_lastCompletedTurnWasPlayer)
+            monster->Reset_TurnLimitedSpecialUsage();
+        else
+            monster->Mark_TurnLimitedSpecialUsed();
+    }
 
     _processedTurnStartStatuses.clear();
     _isWaitingTurnStartStatusHit = false;
@@ -1072,24 +1082,6 @@ bool BattleController::Try_ResolveSimonBattleBGM(wstring& outIntroBGM, wstring& 
 
 void BattleController::SetCharInitPos()
 {
-    auto normalizeAngleDegrees = [](float angle) -> float
-        {
-            while (angle > 180.f)
-                angle -= 360.f;
-            while (angle < -180.f)
-                angle += 360.f;
-            return angle;
-        };
-
-    auto projectToSpawnerLocal = [](const Vec3& worldPos, const Vec3& origin, const Vec3& localRight, const Vec3& localForward) -> Vec3
-        {
-            const Vec3 delta = worldPos - origin;
-            const float localX = delta.x * localRight.x + delta.y * localRight.y + delta.z * localRight.z;
-            const float localY = delta.y;
-            const float localZ = delta.x * localForward.x + delta.y * localForward.y + delta.z * localForward.z;
-            return Vec3(localX, localY, localZ);
-        };
-
     Vec3 startPos = Vec3(145.f, 23.5f, 7.24f);
     Vec3 right = Vec3::Right;
     Vec3 forward = Vec3::Forward;
@@ -1139,22 +1131,6 @@ void BattleController::SetCharInitPos()
         forward.Normalize();
 
     _pendingBattlePlaneYaw = XMConvertToDegrees(atan2f(forward.x, forward.z));
-    LOG_INFO(
-        "[BattleLayout] spawnerId={} start=({:.3f},{:.3f},{:.3f}) right=({:.3f},{:.3f},{:.3f}) forward=({:.3f},{:.3f},{:.3f}) planeYaw={:.3f} startOffset=({:.3f},{:.3f},{:.3f})",
-        _pendingBattleStartSpawnerId,
-        startPos.x,
-        startPos.y,
-        startPos.z,
-        right.x,
-        right.y,
-        right.z,
-        forward.x,
-        forward.y,
-        forward.z,
-        _pendingBattlePlaneYaw,
-        _pendingBattleStartOffset.x,
-        _pendingBattleStartOffset.y,
-        _pendingBattleStartOffset.z);
 
     const Vec3 playerLocalPos[3] =
     {
@@ -1289,74 +1265,12 @@ void BattleController::SetCharInitPos()
         }
     }
 
-    for (size_t i = 0; i < _heroes.size() && i < 3; ++i)
-    {
-        const auto& hero = _heroes[i];
-        if (hero.actor == nullptr || hero.actor->Get_Transform() == nullptr)
-            continue;
-
-        const Shared<TransformCom> transform = hero.actor->Get_Transform();
-        const Vec3 worldPos = transform->Get_Position();
-        const Vec3 localPos = projectToSpawnerLocal(worldPos, startPos, right, forward);
-        const float relativeYaw = normalizeAngleDegrees(transform->Get_RotationEuler().y - _pendingBattlePlaneYaw);
-        const Vec3 toEnemyCenterLocal = projectToSpawnerLocal(enemyCenter, worldPos, right, forward);
-
-        LOG_INFO(
-            "[BattleLayout][Hero{}] heroId={} world=({:.3f},{:.3f},{:.3f}) local=({:.3f},{:.3f},{:.3f}) yaw={:.3f} relativeYaw={:.3f} enemyCenterLocal=({:.3f},{:.3f},{:.3f})",
-            i,
-            static_cast<int>(hero.heroId),
-            worldPos.x,
-            worldPos.y,
-            worldPos.z,
-            localPos.x,
-            localPos.y,
-            localPos.z,
-            transform->Get_RotationEuler().y,
-            relativeYaw,
-            toEnemyCenterLocal.x,
-            toEnemyCenterLocal.y,
-            toEnemyCenterLocal.z);
-    }
-
-    for (size_t i = 0; i < _enemies.size(); ++i)
-    {
-        const auto& enemy = _enemies[i];
-        if (enemy.actor == nullptr || enemy.actor->Get_Transform() == nullptr)
-            continue;
-
-        const Shared<TransformCom> transform = enemy.actor->Get_Transform();
-        const Vec3 worldPos = transform->Get_Position();
-        const Vec3 localPos = projectToSpawnerLocal(worldPos, startPos, right, forward);
-        const float relativeYaw = normalizeAngleDegrees(transform->Get_RotationEuler().y - _pendingBattlePlaneYaw);
-
-        Vec3 localOffset = Vec3::Zero;
-        if (i < _pendingBattleMonsterSpawnDescs.size())
-            localOffset = _pendingBattleMonsterSpawnDescs[i].offset;
-
-        LOG_INFO(
-            "[BattleLayout][Enemy{}] prefab={} world=({:.3f},{:.3f},{:.3f}) local=({:.3f},{:.3f},{:.3f}) yaw={:.3f} relativeYaw={:.3f} spawnOffset=({:.3f},{:.3f},{:.3f})",
-            i,
-            enemy.actor->Get_SourcePrefabName().c_str(),
-            worldPos.x,
-            worldPos.y,
-            worldPos.z,
-            localPos.x,
-            localPos.y,
-            localPos.z,
-            transform->Get_RotationEuler().y,
-            relativeYaw,
-            localOffset.x,
-            localOffset.y,
-            localOffset.z);
-    }
 }
 
 void BattleController::Request_WidePresentationMode()
 {
     if (!_battleTurnCamera)
         return;
-
-    LOG_INFO("[BattleCamTrace] Request_WidePresentationMode");
 
     EvtBattlePresentation event{};
     event.cameraMode = BattleCameraMode::WIDE;
@@ -2161,6 +2075,22 @@ void BattleController::Execute_Skill()
         }
     }
 
+    if (actor.statCom->Is_Player() && apCost > 0)
+    {
+        for (const BattleChar& hero : _heroes)
+        {
+            if (hero.statCom == nullptr)
+                continue;
+
+            if (hero.statCom->Get_AliveStatus() == EAliveStatus::Dead)
+                continue;
+
+            string heroGradientSkillKey{};
+            if (hero.statCom->Try_GetSkillKeyBySlot(GradientSkill::SlotIndex, heroGradientSkillKey))
+                hero.statCom->Add_GradientGauge(apCost);
+        }
+    }
+
     action.InitActionDirection();
 
     _isActionExecuting = true;
@@ -2592,10 +2522,12 @@ void BattleController::Begin_FreeAimShot(const BattleAction& shotAction)
     // Free Aim은 히트스캔 즉발데미지
     if (_freeAimShotAction.GetInitTarget().actor != nullptr && _freeAimShotAction.GetInitTarget().statCom != nullptr)
     {
-        constexpr float freeAimDamage = 20.f; // 우선 테스트용 데미지
-
         const BattleChar& attacker = _freeAimShotAction.Get_CurChar();
         const BattleChar& target = _freeAimShotAction.GetInitTarget();
+        constexpr float freeAimDamageMultiplier = 1.f;
+        const float freeAimDamage =
+            DamageSystem::CalculatePlayerAttackDamage(attacker, freeAimDamageMultiplier);
+
         const bool hadShieldBeforeShot = target.statCom->Get_CurrentShield() > 0;
         const Vec3* freeAimHitWorldPos =
             _hasFreeAimHitTarget && _freeAimHitTarget.target.actor == target.actor
@@ -2886,6 +2818,10 @@ void BattleController::Confirm_Victory()
 
     if (hasFollowupBattle)
     {
+        if (BattleFollowupManager* followManager = CLIENT->Get_BattleFollowupManager())
+        {
+            followManager->Apply_SimonPhase2WorldVisualChange();
+        }
         if (Shared<ClientScreenFxManager> screenFxManager = CLIENT->Get_ScreenFxManager())
             screenFxManager->Request_NextBattleTransitionBlackSource();
 
@@ -3513,14 +3449,6 @@ void BattleController::Complete_BattleField()
     _battleEnded = false;
     _pendingNextTurn = false;
 
-    const Shared<Camera> activeCamera = GAME->Get_ActiveCamera();
-    LOG_INFO(
-        "[BattleCamTrace] BattleController::Complete_BattleField begin activeCameraType={} pendingHeroes={} pendingMonsterSpawns={} worldScale={:.3f}",
-        static_cast<int>(activeCamera ? activeCamera->Get_ObjectType() : ObjectType::None),
-        _pendingBattleHeroIds.size(),
-        _pendingBattleMonsterSpawnDescs.size(),
-        GAME->Get_WorldTimeScale());
-
     //// 카메라 저장
     //_worldCamera = GAME->Get_ActiveCamera();
     const uint32 battleFieldId = _pendingBattleFieldID;
@@ -3647,10 +3575,11 @@ bool BattleController::Try_ApplyFreeAimWeakPointBonus(const BattleFreeAimHitTarg
     if (!monster->Try_Consume_FreeAimWeakPoint())
         return false; // 이미 소비됐으면 추가딜 없이 본체 피격만 남긴다.
 
-    Play_BattleHitStop(0.08f, 0.10f); // 약간 슬로우
+    Play_BattleHitStop(0.07f, 0.14f); // 약간 슬로우
 
-    // 일단은 고정 추가 데미지
-    float freeAimWeakPointDamage = 11.f;
+    constexpr float freeAimWeakPointDamageMultiplier = 0.55f;
+    float freeAimWeakPointDamage =
+        DamageSystem::CalculatePlayerAttackDamage(attacker, freeAimWeakPointDamageMultiplier);
 
     // 튜토리얼은 즉사
     if (_activeBattleFieldID == BattleEncounterIds::LancelierTutorial &&
@@ -3957,7 +3886,6 @@ void BattleController::Continue_StartTurnAfterStatusEffects()
         event.cameraMode = BattleCameraMode::PLAYERFOCUS;
         event.subject = _currentTurnActor.actor;
         event.presetId = magic_enum::enum_name(_currentTurnActor.heroId);
-        LOG_INFO("[BattleCamTrace] Publish PLAYERFOCUS from BattleController::Continue_StartTurnAfterStatusEffects");
         GAME->Get_EventBus().Publish(event);
 
         OnTurnStarted.Broadcast(_currentTurnActor, BattleTurnState::ChooseAction);

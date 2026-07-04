@@ -29,8 +29,6 @@ void ANS_JumpCounter::On_Begin(const AnimNotifyContext& context)
 
 void ANS_JumpCounter::On_Tick(const AnimNotifyContext& context)
 {
-    LOG_INFO("JUMPCOUNTER");
-
     auto battle = CLIENT->Get_BattleController();
     if (battle == nullptr)
         return;

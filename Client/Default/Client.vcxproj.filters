@@ -298,11 +298,17 @@
     <Filter Include="02. GameObject\NPC\Tall">
       <UniqueIdentifier>{dc4a2d7a-92f0-4806-ae7e-0a5d7fb28ce3}</UniqueIdentifier>
     </Filter>
-    <Filter Include="02. GameObject\Map\MapEffect">
-      <UniqueIdentifier>{cc4c3c31-ef8d-4930-8aaf-8abeaf1b9800}</UniqueIdentifier>
-    </Filter>
     <Filter Include="02. GameObject\NPC\Buff">
       <UniqueIdentifier>{2fdb7288-f390-490d-a6d9-31f300e8977a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="02. GameObject\Map\MapTrigger">
+      <UniqueIdentifier>{cc4c3c31-ef8d-4930-8aaf-8abeaf1b9800}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="02. GameObject\Map\MapTrigger\Tornado">
+      <UniqueIdentifier>{fc11b881-fe33-4e97-ae17-acac039556a0}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="96. Manager\Controller">
+      <UniqueIdentifier>{9af68b11-6fb2-47c0-b1f6-3bcd6ad32f74}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -377,6 +383,9 @@
       <Filter>95. AnimNotify\00. Notifies</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\AN_CounterReturnAll.cpp">
+      <Filter>95. AnimNotify\00. Notifies</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\AN_SimonPlayEffectToggle.cpp">
       <Filter>95. AnimNotify\00. Notifies</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\AN_SL_CachePlayerPosition.cpp">
@@ -1080,9 +1089,6 @@
     <ClCompile Include="..\Private\TrailAnchor_Asset.cpp">
       <Filter>06. Effect System\Trail Support</Filter>
     </ClCompile>
-    <ClCompile Include="..\Private\Trigger_WorldAction.cpp">
-      <Filter>02. GameObject\Map</Filter>
-    </ClCompile>
     <ClCompile Include="..\private\UIPreviewManager.cpp">
       <Filter>02. GameObject\Camera\Preview\Manager</Filter>
     </ClCompile>
@@ -1278,9 +1284,6 @@
     <ClCompile Include="..\Private\Mon_Dualliste_Sword_L.cpp" />
     <ClCompile Include="..\Private\Mon_Dualliste_Sword_R.cpp" />
     <ClCompile Include="..\Private\MW_Dualliste.cpp" />
-    <ClCompile Include="..\private\Trigger_Cinematic.cpp">
-      <Filter>02. GameObject\Map</Filter>
-    </ClCompile>
     <ClCompile Include="..\Private\SL_Parry.cpp" />
     <ClCompile Include="..\Private\ANS_ParryWindow.cpp" />
     <ClCompile Include="..\Private\SL_JumpCounter.cpp" />
@@ -1419,11 +1422,7 @@
     <ClCompile Include="..\Private\UI_GradientSkillPreviewTest.cpp">
       <Filter>02. GameObject\UI</Filter>
     </ClCompile>
-    <ClCompile Include="..\Private\Trigger_Interaction.cpp">
-      <Filter>02. GameObject\Map</Filter>
-    </ClCompile>
     <ClCompile Include="..\Private\Trigger_BGMZone.cpp" />
-    <ClCompile Include="..\Private\SimonHairRuntime.cpp" />
     <ClCompile Include="..\Private\DamageTrigger.cpp" />
     <ClCompile Include="..\Private\UI_Replay.cpp" />
     <ClCompile Include="..\Private\MapAmbientVisibility.cpp" />
@@ -1449,6 +1448,24 @@
     <ClCompile Include="..\Private\WorldUpDownRopeSpot.cpp" />
     <ClCompile Include="..\Private\ANS_ParkourCameraLag.cpp" />
     <ClCompile Include="..\Private\AN_CanFreeAimShoot.cpp" />
+    <ClCompile Include="..\private\Trigger_Cinematic.cpp">
+      <Filter>02. GameObject\Map\MapTrigger</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\Trigger_Interaction.cpp">
+      <Filter>02. GameObject\Map\MapTrigger</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\Trigger_WorldAction.cpp">
+      <Filter>02. GameObject\Map\MapTrigger</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\Trigger_FallTornadoZone.cpp">
+      <Filter>02. GameObject\Map\MapTrigger\Tornado</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\SimonCriticalGlowController.cpp">
+      <Filter>96. Manager\Controller</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\AN_SimonCriticalGlow.cpp">
+      <Filter>95. AnimNotify\00. Notifies</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\Public\ANS_AnimSpeed.h">
@@ -1473,9 +1490,6 @@
     <ClInclude Include="..\Public\Mon_Dualliste_Sword_L.h" />
     <ClInclude Include="..\Public\Mon_Dualliste_Sword_R.h" />
     <ClInclude Include="..\Public\MW_Dualliste.h" />
-    <ClInclude Include="..\public\Trigger_Cinematic.h">
-      <Filter>02. GameObject\Map</Filter>
-    </ClInclude>
     <ClInclude Include="..\Public\SL_Parry.h" />
     <ClInclude Include="..\Public\ANS_ParryWindow.h" />
     <ClInclude Include="..\Public\AN_SL_JumpCounterDamage.h">
@@ -1562,11 +1576,7 @@
     <ClInclude Include="..\Public\UI_GradientSkillPreviewTest.h">
       <Filter>02. GameObject\UI</Filter>
     </ClInclude>
-    <ClInclude Include="..\Public\Trigger_Interaction.h">
-      <Filter>02. GameObject\Map</Filter>
-    </ClInclude>
     <ClInclude Include="..\Public\Trigger_BGMZone.h" />
-    <ClInclude Include="..\Public\SimonHairRuntime.h" />
     <ClInclude Include="..\Public\DamageTrigger.h" />
     <ClInclude Include="..\Public\UI_Replay.h" />
     <ClInclude Include="..\Public\MapAmbientVisibility.h" />
@@ -1592,6 +1602,24 @@
     <ClInclude Include="..\Public\WorldUpDownRopeSpot.h" />
     <ClInclude Include="..\Public\ANS_ParkourCameraLag.h" />
     <ClInclude Include="..\Public\AN_CanFreeAimShoot.h" />
+    <ClInclude Include="..\public\Trigger_Cinematic.h">
+      <Filter>02. GameObject\Map\MapTrigger</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Trigger_Interaction.h">
+      <Filter>02. GameObject\Map\MapTrigger</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Trigger_WorldAction.h">
+      <Filter>02. GameObject\Map\MapTrigger</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Trigger_FallTornadoZone.h">
+      <Filter>02. GameObject\Map\MapTrigger\Tornado</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\SimonCriticalGlowController.h">
+      <Filter>96. Manager\Controller</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\AN_SimonCriticalGlow.h">
+      <Filter>95. AnimNotify\00. Notifies</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimAdditive.hlsl">
@@ -1808,6 +1836,9 @@
       <Filter>95. AnimNotify\00. Notifies</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\AN_CounterReturnAll.h">
+      <Filter>95. AnimNotify\00. Notifies</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\AN_SimonPlayEffectToggle.h">
       <Filter>95. AnimNotify\00. Notifies</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\AN_SL_CachePlayerPosition.h">
@@ -2557,9 +2588,6 @@
     </ClInclude>
     <ClInclude Include="..\Public\TrailAnchor_Asset.h">
       <Filter>06. Effect System\Trail Support</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\Trigger_WorldAction.h">
-      <Filter>02. GameObject\Map</Filter>
     </ClInclude>
     <ClInclude Include="..\public\UIPreviewManager.h">
       <Filter>02. GameObject\Camera\Preview\Manager</Filter>

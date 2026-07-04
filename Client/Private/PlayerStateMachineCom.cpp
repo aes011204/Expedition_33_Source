@@ -86,8 +86,6 @@ bool PlayerStateMachineCom::Change_State(PlayerState playerState)
 
     if (!_statesBegunPlay)
     {
-        LOG_WARN("[PlayerStateMachine] Change_State ignored before registered states Begin_Play: {}",
-            String::ToString(str));
         return false;
     }
 

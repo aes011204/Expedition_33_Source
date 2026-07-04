@@ -1546,12 +1546,25 @@ void Inspector::Draw_Components(const Shared<GameObject>& target)
     {
         ImGui::PushID("InspectorObjectFlags");
 
-        bool visible = target->Is_Visible();
+        Shared<Client::MapStaticMesh> mapStaticMesh = dynamic_pointer_cast<Client::MapStaticMesh>(target);
+        Shared<Client::MapInstancedMesh> mapInstancedMesh = dynamic_pointer_cast<Client::MapInstancedMesh>(target);
+
+        bool visible = mapStaticMesh != nullptr ? mapStaticMesh->Is_MapVisible()
+            : mapInstancedMesh != nullptr ? mapInstancedMesh->Is_MapVisible()
+            : target->Is_Visible();
+
         ImGui::AlignTextToFramePadding();
         ImGui::TextDisabled("Visible");
         ImGui::SameLine(InspectorLabelWidth);
         if (ImGui::Checkbox("##Visible", &visible))
-            target->Set_Visible(visible);
+        {
+            if (mapStaticMesh != nullptr)
+                mapStaticMesh->Set_MapVisible(visible);
+            else if (mapInstancedMesh != nullptr)
+                mapInstancedMesh->Set_MapVisible(visible);
+            else
+                target->Set_Visible(visible);
+        }
 
         ImGui::PopID();
         ImGui::Spacing();

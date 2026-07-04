@@ -44,6 +44,8 @@ IMPLEMENT_REFLECTION(ANS_SL_MoveTo)
 
 void ANS_SL_MoveTo::On_Begin(const AnimNotifyContext& context)
 {
+    _goalClampedByPlayer = false;
+
     Shared<GameObject> target = Resolve_MoveTarget(context.owner);
     if (target == nullptr || target->Get_Transform() == nullptr)
         return;
@@ -63,7 +65,9 @@ void ANS_SL_MoveTo::On_Tick(const AnimNotifyContext& context)
     if (target == nullptr || target->Get_Transform() == nullptr)
         return;
 
-    const Vec3 desiredWorldPos = Vec3::Lerp(_startPos, _goalPos, context.notifyStateProgress);
+    const Vec3 desiredWorldPos = _goalClampedByPlayer
+        ? _goalPos
+        : Vec3::Lerp(_startPos, _goalPos, context.notifyStateProgress);
     Apply_Position(context, target, desiredWorldPos);
 }
 
@@ -164,7 +168,7 @@ Vec3 ANS_SL_MoveTo::Resolve_GoalPosition(const Shared<GameObject>& moveTarget, c
     }
 }
 
-void ANS_SL_MoveTo::Apply_Position(const AnimNotifyContext& context, const Shared<GameObject>& target, const Vec3& desiredWorldPos) const
+void ANS_SL_MoveTo::Apply_Position(const AnimNotifyContext& context, const Shared<GameObject>& target, const Vec3& desiredWorldPos)
 {
     const Shared<TransformCom> transform = target ? target->Get_Transform() : nullptr;
     if (transform == nullptr)
@@ -177,6 +181,8 @@ void ANS_SL_MoveTo::Apply_Position(const AnimNotifyContext& context, const Share
             const Vec3 currentWorldPos = transform->Get_WorldPosition();
             Vec3 displacement = desiredWorldPos - currentWorldPos;
             const Shared<ColliderCom> collider = Resolve_MovementCollider(target);
+            bool clampedByPlayer = false;
+            bool hitPlayerBody = false;
 
             if (collider)
             {
@@ -202,6 +208,7 @@ void ANS_SL_MoveTo::Apply_Position(const AnimNotifyContext& context, const Share
                         const float allowedDistance = max(0.f, hit.distance - skinWidth);
 
                         displacement = sweepDir * allowedDistance;
+                        hitPlayerBody = true;
                     }
                 }
             }
@@ -228,8 +235,17 @@ void ANS_SL_MoveTo::Apply_Position(const AnimNotifyContext& context, const Share
                 const Vec3 playerPos = playerTransform->Get_WorldPosition();
                 const Vec3 candidatePos = currentWorldPos + displacement;
 
+                Vec3 currentFromPlayer = currentWorldPos - playerPos;
+                currentFromPlayer.y = 0.f;
+
                 Vec3 fromPlayer = candidatePos - playerPos;
                 fromPlayer.y = 0.f;
+
+                const float currentPlayerDistance = currentFromPlayer.Length();
+                const float candidatePlayerDistance = fromPlayer.Length();
+
+                if (hitPlayerBody && candidatePlayerDistance <= currentPlayerDistance + 0.0001f)
+                    clampedByPlayer = true;
 
                 if (fromPlayer.LengthSquared() <= 0.0001f)
                 {
@@ -256,7 +272,20 @@ void ANS_SL_MoveTo::Apply_Position(const AnimNotifyContext& context, const Share
                     clampedPos.y = candidatePos.y;
 
                     displacement = clampedPos - currentWorldPos;
+                    if (candidatePlayerDistance <= currentPlayerDistance + 0.0001f)
+                        clampedByPlayer = true;
                 }
+            }
+            else if (hitPlayerBody)
+            {
+                clampedByPlayer = true;
+            }
+
+            if (clampedByPlayer)
+            {
+                // 한 번 플레이어 body 앞에서 막힌 MoveTo는 원래 goal로 다시 밀어붙이지 않는다.
+                _goalPos = currentWorldPos + displacement;
+                _goalClampedByPlayer = true;
             }
 
             if (displacement.LengthSquared() <= 0.000001f)

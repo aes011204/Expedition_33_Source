@@ -74,6 +74,7 @@ public:
     float Get_ParkourHighProbeDistance() const { return _parkourHighProbeDistance; }
     const Vec3& Get_ParkourLowProbeCenter() const { return _parkourLowProbeCenter; }
     const Vec3& Get_ParkourHighProbeCenter() const { return _parkourHighProbeCenter; }
+    bool Is_ParkourBlockedByCurrentLevel() const;
 
 protected:
     HRESULT Ready_Components();
@@ -176,6 +177,7 @@ protected:
     umap<string, CostumeVariantParts> _costumeVariantsByPreset{};
     string                          _activeCostumePresetId{};
     float                           _fallStateEnterAcc = 0.f; // 점프 입력 없는 짧은 공중 흔들림은 바로 Jump 상태로 소비하지 않기 위한 누적 시간
+    float                           _airborneFallTimeAcc = 0.f; // Jump 상태 진입 전부터 실제 공중에 있던 시간을 착지 판정에 반영한다.
     bool                            _partyVisibilityAllowed = true; // 파티 해금 전에는 culling이 다시 켜도 월드 렌더를 막는다.
     bool                            _isCinematicDriven = false;
     float                           _parkourLowProbeDistance = 0.15f;

@@ -190,6 +190,8 @@
     <ClInclude Include="..\public\AN_Change_Anim.h" />
     <ClInclude Include="..\Public\AN_CounterDamage.h" />
     <ClInclude Include="..\Public\AN_CounterReturnAll.h" />
+    <ClInclude Include="..\Public\AN_SimonPlayEffectToggle.h" />
+    <ClInclude Include="..\Public\AN_SimonCriticalGlow.h" />
     <ClInclude Include="..\Public\AN_SL_CachePlayerPosition.h" />
     <ClInclude Include="..\Public\AN_SL_PlayCachedPlayerEffect.h" />
     <ClInclude Include="..\Public\AN_SL_DuallisteCloneSkill.h" />
@@ -252,7 +254,9 @@
     <ClInclude Include="..\Public\CA_ScreenFx.h" />
     <ClInclude Include="..\Public\ChangeSkill_Panel.h" />
     <ClInclude Include="..\public\ChangeWeapon_Panel.h" />
+    <ClInclude Include="..\Public\SimonCriticalGlowController.h" />
     <ClInclude Include="..\Public\SL_UseItem.h" />
+    <ClInclude Include="..\Public\Trigger_FallTornadoZone.h" />
     <ClInclude Include="..\Public\UpgradeWeapon_Panel.h" />
     <ClInclude Include="..\Public\Merchant_Panel.h" />
     <ClInclude Include="..\public\BT_FinishDecision.h" />
@@ -415,7 +419,6 @@
     <ClInclude Include="..\Public\Mon_PotatoBag_Weapon.h" />
     <ClInclude Include="..\public\Mon_Simon_Body.h" />
     <ClInclude Include="..\Public\Mon_Simon_Hair.h" />
-    <ClInclude Include="..\Public\SimonHairRuntime.h" />
     <ClInclude Include="..\public\Mon_Volester_Body.h" />
     <ClInclude Include="..\Public\MW_Abbest.h" />
     <ClInclude Include="..\Public\MW_Dualliste.h" />
@@ -691,6 +694,8 @@
     <ClCompile Include="..\private\AN_Change_Anim.cpp" />
     <ClCompile Include="..\Private\AN_CounterDamage.cpp" />
     <ClCompile Include="..\Private\AN_CounterReturnAll.cpp" />
+    <ClCompile Include="..\Private\AN_SimonPlayEffectToggle.cpp" />
+    <ClCompile Include="..\Private\AN_SimonCriticalGlow.cpp" />
     <ClCompile Include="..\Private\AN_SL_CachePlayerPosition.cpp" />
     <ClCompile Include="..\Private\AN_SL_PlayCachedPlayerEffect.cpp" />
     <ClCompile Include="..\Private\AN_SL_DuallisteCloneSkill.cpp" />
@@ -776,6 +781,7 @@
     <ClCompile Include="..\Private\ANS_SL_TargetTrack.cpp" />
     <ClCompile Include="..\Private\ANS_SL_JumpCounterThreat.cpp" />
     <ClCompile Include="..\Private\ANS_SL_JumpCounterWindow.cpp" />
+    <ClCompile Include="..\Private\SimonCriticalGlowController.cpp" />
     <ClCompile Include="..\Private\SL_Base.cpp" />
     <ClCompile Include="..\Private\SL_BasicAttack.cpp" />
     <ClCompile Include="..\Private\SL_DamageSystem.cpp" />
@@ -812,6 +818,7 @@
     <ClCompile Include="..\Private\SL_StateMachineCom.cpp" />
     <ClCompile Include="..\Private\Trigger_BGMZone.cpp" />
     <ClCompile Include="..\private\Trigger_Cinematic.cpp" />
+    <ClCompile Include="..\Private\Trigger_FallTornadoZone.cpp" />
     <ClCompile Include="..\Private\Trigger_Interaction.cpp" />
     <ClCompile Include="..\Private\UI_AbilityPentagon.cpp" />
     <ClCompile Include="..\Private\ComputeGeneratedBeamEmitter.cpp" />
@@ -887,7 +894,6 @@
     <ClCompile Include="..\Private\Mon_PotatoBag_Weapon.cpp" />
     <ClCompile Include="..\private\Mon_Simon_Body.cpp" />
     <ClCompile Include="..\Private\Mon_Simon_Hair.cpp" />
-    <ClCompile Include="..\Private\SimonHairRuntime.cpp" />
     <ClCompile Include="..\private\Mon_Volester_Body.cpp" />
     <ClCompile Include="..\Private\MW_Abbest.cpp" />
     <ClCompile Include="..\Private\MW_Dualliste.cpp" />

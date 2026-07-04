@@ -60,6 +60,8 @@ public:
     const wstring& Get_SourceStaticMeshId() const { return _sourceStaticMeshId; }
     const wstring& Get_SourceStaticMeshModelPath() const { return _sourceStaticMeshModelPath; }
     const wstring& Get_SourceMapPath() const { return _sourceMapPath; }
+    bool Is_MapVisible() const { return _visible; }
+    void Set_MapVisible(bool visible) { _visible = visible; }
 
 private:
     Shared<ShaderCom>   _shader;

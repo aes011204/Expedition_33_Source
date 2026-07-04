@@ -20,7 +20,6 @@ public:
         UnlockHero,
         UnlockPictos,
         UnlockWeapon,
-        WarpActiveHero,
     };
 
     struct UnlockReward
@@ -49,10 +48,6 @@ public:
         bool        useRewardOrigin = false;
         Vec3        spawnOffsetFromOrigin = Vec3::Zero;
         Vec3        spawnRotation = Vec3::Zero;
-
-        // 액티브 히어로 워프용. 전투 승리 확인 후 월드 UI에서 1회 소비한다.
-        Vec3        heroWarpPosition = Vec3::Zero;
-        Vec3        heroWarpRotation = Vec3::Zero;
     };
 
     struct UnlockRule
@@ -92,7 +87,6 @@ public:
 
     vector<string> Consume_GetPictosPresentationIds();
     void Queue_GetPictosPresentation(const string& pictosId);
-    bool Consume_PendingActiveHeroWarp(Vec3& outPosition, Vec3& outRotation);
 
 private:
     void Register_DefaultRules();
@@ -118,9 +112,6 @@ private:
     vector<string> _pendingGetClothesPresetIds{};
     vector<string> _pendingGetWeaponPresentationIds{};
     vector<string> _pendingGetPictosPresentationIds{};
-    bool _hasPendingActiveHeroWarp = false;
-    Vec3 _pendingActiveHeroWarpPosition = Vec3::Zero;
-    Vec3 _pendingActiveHeroWarpRotation = Vec3::Zero;
 
 public:
     static Unique<Unlock_Manager> Create();
