@@ -212,7 +212,7 @@ void Player_FreeAim::LateUpdate(float timeDelta)
 
 void Player_FreeAim::ExitInvoke()
 {
-    GAME->Play_SoundCue(Constants::SoundCue::SFX_FreeAimEnd);
+    GAME->Play_SoundCue(Constants::SoundCue::SFX_FreeAimStop);
 
     _hasHitObject = false;
     _hitObject.reset();

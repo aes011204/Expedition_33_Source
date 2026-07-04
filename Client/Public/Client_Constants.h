@@ -608,7 +608,7 @@ namespace Client::Constants::SoundCue
     constexpr const wchar_t* SFX_Dodge_Success = L"SFX_Dodge_Success";
     constexpr const wchar_t* SFX_UI_Dodge_Success = L"SFX_UI_Dodge_Success";
     constexpr const wchar_t* SFX_FreeAimStart = L"SFX_FreeAimStart";
-    constexpr const wchar_t* SFX_FreeAimEnd = L"SFX_FreeAimEnd";
+    constexpr const wchar_t* SFX_FreeAimStop = L"SFX_FreeAimStop";
     constexpr const wchar_t* SFX_FreeAimHit = L"SFX_FreeAimHit";
     constexpr const wchar_t* UI_SkillTree_Navigate = L"UI_SkillTree_Navigate";
     constexpr const wchar_t* UI_SkillTree_Learn = L"UI_SkillTree_Learn";
