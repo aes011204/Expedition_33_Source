@@ -8,6 +8,7 @@
 
 NS_BEGIN(Engine)
 
+class Material;
 class ModelCom;
 
 /**
@@ -41,6 +42,7 @@ public:
     bool Try_ApplyModelMaterialOverridesFromJson(ModelCom& model, const json& data) const;
 
     bool Try_GetBaseCBForMaterial(std::string_view bundleKey, uint32 materialIndex, MaterialCB& outCB) const;
+    bool Try_ApplyBundleMaterialToMaterial(std::string_view bundleKey, uint32 materialIndex, Material& material) const;
 
 private:
     // 머테리얼의 기본 RenderState / 기본 CB / 기본 텍스처 경로를 들고 있는 구조체

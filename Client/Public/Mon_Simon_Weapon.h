@@ -19,6 +19,12 @@ public:
         const  Matrix* socketMatrix = nullptr;
     };
 
+    struct WeaponEchoMaterialOverrideDesc
+    {
+        bool enabled = false;
+        string materialBundleKey{};
+    };
+
 public:
     Mon_Simon_Weapon(const ComPtr<Device>& device, const ComPtr<Context>& context);
     Mon_Simon_Weapon(const Mon_Simon_Weapon& prototype);
@@ -45,7 +51,9 @@ public:
         uint32 echoCount = 1,
         ModelCom* sourceModel = nullptr,
         const string& sourceAnimationName = {},
-        float sourceTimeSec = 0.f);
+        float sourceTimeSec = 0.f,
+        const WeaponEchoMaterialOverrideDesc* materialOverrides = nullptr,
+        uint32 materialOverrideCount = 0);
 
     void Record_WeaponEchoSample(float elapsedSec);
     void End_WeaponEchoPlayback();
@@ -94,12 +102,19 @@ private:
         EffectInstancePool::AttachedHandle trailHandle{};
         EffectCom::TrailOffsetRuntimeDesc trailOffset{};
         bool trailStarted = false;
+
+        WeaponEchoMaterialOverrideDesc materialOverride{};
+        unordered_map<uint32, Shared<Material>> materialOverrideCache{};
     };
 
     void Reset_WeaponEchoLane(WeaponEchoLane& lane);
     void Push_WeaponEchoSample(WeaponEchoLane& lane, float elapsedSec);
     bool Has_WeaponEchoPlayback(const WeaponEchoLane& lane) const;
     bool Try_SampleWeaponEchoMatrix(const WeaponEchoLane& lane, float elapsedSec, Matrix& outWorldMatrix) const;
+    Shared<Material> Resolve_WeaponEchoRenderMaterial(
+        WeaponEchoLane& lane,
+        uint32 materialIndex,
+        const Shared<Material>& sourceMaterial);
     void Start_WeaponEchoTrail(
         WeaponEchoLane& lane,
         uint32 laneIndex,

@@ -87,6 +87,10 @@ IMPLEMENT_REFLECTION(ANS_WeaponEcho)
 
     PROPERTY_INT("에코 개수 Override", _echoCountOverride, 0.f, 2.f, 1.f);
 
+    PROPERTY_BOOL("Echo Material Override", _overrideEchoMaterial);
+    PROPERTY_WSTRING("Ec1 Material Bundle", _echoCount1MaterialBundleKey);
+    PROPERTY_WSTRING("Ec2 Material Bundle", _echoCount2MaterialBundleKey);
+
     return true;
 }
 
@@ -160,12 +164,32 @@ void ANS_WeaponEcho::On_Begin(const AnimNotifyContext& context)
     {
         if (Mon_Simon_Weapon* simonWeapon = Resolve_TargetSimonWeapon(context))
         {
+            Mon_Simon_Weapon::WeaponEchoMaterialOverrideDesc materialOverrides[2]{};
+            uint32 materialOverrideCount = 0;
+
+            if (_overrideEchoMaterial)
+            {
+                materialOverrideCount = std::min<uint32>(window.echoCount, 2u);
+                for (uint32 laneIndex = 0; laneIndex < materialOverrideCount; ++laneIndex)
+                {
+                    const bool useSecondEchoMaterial = window.echoCount >= 2;
+                    const wstring& bundleKey = useSecondEchoMaterial
+                        ? _echoCount2MaterialBundleKey
+                        : _echoCount1MaterialBundleKey;
+
+                    materialOverrides[laneIndex].enabled = !bundleKey.empty();
+                    materialOverrides[laneIndex].materialBundleKey = String::ToString(bundleKey);
+                }
+            }
+
             simonWeapon->Begin_WeaponEchoPlayback(
                 _delaySec,
                 window.echoCount,
                 context.model,
                 context.animationName,
-                context.currentTimeSec);
+                context.currentTimeSec,
+                materialOverrideCount > 0 ? materialOverrides : nullptr,
+                materialOverrideCount);
 
             if (Shared<EffectCom> effectCom = EffectCom::Find_FromNotifyOwner(context.owner))
             {

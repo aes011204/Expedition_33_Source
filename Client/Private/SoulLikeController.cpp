@@ -32,6 +32,7 @@
 namespace
 {
     constexpr float kDuallisteBGMFadeOutDuration = 1.f;
+    constexpr float kDuallisteCinematicMonsterBackOffset = 2.f;
     constexpr wchar_t kHealTintEffect[] = L"Effects\\Assets\\Item\\HealTint_G.effect.json";
     constexpr char kPlayerJumpCameraPresetKey[] = "PlayerJump";
 
@@ -42,6 +43,46 @@ namespace
     {
         return chrono::duration_cast<chrono::milliseconds>(
             chrono::steady_clock::now() - startedAt).count();
+    }
+
+    Vec3 MakePlanarForwardFromRotationDegree(const Vec3& rotationDegree)
+    {
+        const Vec3 rotationRad = Vec3(
+            XMConvertToRadians(rotationDegree.x),
+            XMConvertToRadians(rotationDegree.y),
+            XMConvertToRadians(rotationDegree.z));
+        const Matrix rotationMatrix = Matrix::CreateFromYawPitchRoll(
+            rotationRad.y,
+            rotationRad.x,
+            rotationRad.z);
+
+        Vec3 forward = Vec3::TransformNormal(Vec3::Look, rotationMatrix);
+        forward.y = 0.f;
+
+        if (forward.LengthSquared() <= 0.0001f)
+            forward = Vec3::Look;
+        else
+            forward.Normalize();
+
+        return forward;
+    }
+
+    Vec3 MakePlanarForwardToMonster(const Vec3& playerPosition, const Vec3& playerRotation, const Vec3& monsterPosition)
+    {
+        Vec3 forward = monsterPosition - playerPosition;
+        forward.y = 0.f;
+
+        if (forward.LengthSquared() <= 0.0001f)
+            return MakePlanarForwardFromRotationDegree(playerRotation);
+
+        forward.Normalize();
+        return forward;
+    }
+
+    Vec3 ApplyDuallisteCinematicMonsterBackOffset(const Vec3& playerPosition, const Vec3& playerRotation, const Vec3& monsterPosition)
+    {
+        const Vec3 forward = MakePlanarForwardToMonster(playerPosition, playerRotation, monsterPosition);
+        return monsterPosition + forward * kDuallisteCinematicMonsterBackOffset;
     }
 }
 
@@ -1032,6 +1073,13 @@ bool SoulLikeController::Spawn_Monster(const Shared<SL_Maelle>& player)
         opponentRotation = player->Get_Transform()->Get_WorldRotationEuler();
         opponentRotation.y += 180.f;
     }
+    else if (Is_DuallisteBattle())
+    {
+        opponentPosition = ApplyDuallisteCinematicMonsterBackOffset(
+            player->Get_Transform()->Get_WorldPosition(),
+            player->Get_Transform()->Get_WorldRotationEuler(),
+            opponentPosition);
+    }
 
     const auto spawnStartedAt = chrono::steady_clock::now();
     Shared<GameObject> monsterObject = Spawn_Prefab::Prefab(_monsterPrefab)
@@ -1107,25 +1155,17 @@ void SoulLikeController::Apply_SoulLikeArenaMapRenderGateBasis()
 
     if (!_hasBattleSpawnPoseOverride)
     {
-        const Vec3 playerRotationRad = Vec3(
-            XMConvertToRadians(playerRotation.x),
-            XMConvertToRadians(playerRotation.y),
-            XMConvertToRadians(playerRotation.z));
-        const Matrix playerRotationMatrix = Matrix::CreateFromYawPitchRoll(
-            playerRotationRad.y,
-            playerRotationRad.x,
-            playerRotationRad.z);
-
-        Vec3 forward = Vec3::TransformNormal(Vec3::Look, playerRotationMatrix);
-        forward.y = 0.f;
-
-        if (forward.LengthSquared() <= 0.0001f)
-            forward = Vec3::Look;
-        else
-            forward.Normalize();
+        const Vec3 forward = MakePlanarForwardFromRotationDegree(playerRotation);
 
         opponentPosition = playerPosition + forward * max(0.f, _monsterSpawnDistance);
         opponentPosition.y = playerPosition.y;
+    }
+    else
+    {
+        opponentPosition = ApplyDuallisteCinematicMonsterBackOffset(
+            playerPosition,
+            playerRotation,
+            opponentPosition);
     }
 
     Vec3 forward = opponentPosition - playerPosition;
