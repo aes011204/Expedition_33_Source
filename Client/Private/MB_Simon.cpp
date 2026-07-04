@@ -229,7 +229,7 @@ void MB_Simon::PlaySimonEffect()
     desc.layerTag = L"Layer_Effect";
     desc.localOffset = Vec3{ 0.f,0.f,0.f };
     desc.localRotation = Vec3{ 0.f,0.f,-47.f };
-    desc.scale = Vec3{ 1.f,1.5f,1.f };
+    desc.scale = Vec3{ 1.f,1.f,1.f };
     desc.playbackSpeed = 1;
     desc.transformInheritance.inheritPosition = true;
     desc.transformInheritance.inheritRotation = true;
@@ -248,7 +248,7 @@ void MB_Simon::PlaySimonEffect()
     desc.layerTag = L"Layer_Effect";
     desc.localOffset = Vec3{ 0.f,0.f,0.f };
     desc.localRotation = Vec3{ 0.f,0.f,0.f };
-    desc.scale = Vec3{ 1.f,1.f,1.f };
+    desc.scale = Vec3{ 2.f,1.f,1.f };
     desc.playbackSpeed = 1;
     desc.transformInheritance.inheritPosition = true;
     desc.transformInheritance.inheritRotation = true;
