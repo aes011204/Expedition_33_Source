@@ -14,11 +14,21 @@
 #include "Monster_BattleBase.h"
 #include "TransformCom.h"
 #include "Client_Constants.h"
+#include <mutex>
+#include <unordered_map>
 
 namespace fs = std::filesystem;
 
 namespace
 {
+mutex g_prefabJsonCacheMutex{};
+unordered_map<wstring, json> g_prefabJsonCache{};
+
+wstring Make_PrefabJsonCacheKey(const fs::path& prefabPath)
+{
+    return prefabPath.lexically_normal().wstring();
+}
+
 void Refresh_PlayerBodyAnimMapping(const Shared<GameObject>& gameObject)
 {
     if (auto worldPlayer = dynamic_pointer_cast<Player_WorldBase>(gameObject))
@@ -176,7 +186,11 @@ Shared<GameObject> Spawn_Prefab::SpawnForEditorPlacement(
 {
     const fs::path prefabPath = Resolve_PrefabPath(prefabName);
 
-    Shared<GameObject> gameObject = GAME->Instantiate_GameObjectJson(prefabPath);
+    json root{};
+    if (!Load_PrefabJson(prefabPath, root))
+        return nullptr;
+
+    Shared<GameObject> gameObject = GAME->Instantiate_GameObjectJson(root);
     CHECK_NULL(gameObject, nullptr);
 
     gameObject->Set_SourcePrefabName(Resolve_CanonicalPrefabName(prefabName, prefabPath));
@@ -252,6 +266,54 @@ fs::path Spawn_Prefab::Resolve_PrefabPath(const string& prefabName)
     return rootFallback;
 }
 
+bool Spawn_Prefab::Load_PrefabJson(const fs::path& prefabPath, json& outRoot)
+{
+    outRoot = json{};
+
+    if (prefabPath.empty())
+        return false;
+
+    const wstring cacheKey = Make_PrefabJsonCacheKey(prefabPath);
+
+    {
+        lock_guard<mutex> lock(g_prefabJsonCacheMutex);
+        const auto iter = g_prefabJsonCache.find(cacheKey);
+        if (iter != g_prefabJsonCache.end())
+        {
+            outRoot = iter->second;
+            return outRoot.is_object();
+        }
+    }
+
+    json root = GAME->Load_JsonFile(prefabPath);
+    if (!root.is_object())
+        return false;
+
+    outRoot = root;
+
+    {
+        lock_guard<mutex> lock(g_prefabJsonCacheMutex);
+        g_prefabJsonCache.emplace(cacheKey, std::move(root));
+    }
+
+    return true;
+}
+
+void Spawn_Prefab::Cache_PrefabJson(const fs::path& prefabPath, const json& root)
+{
+    if (prefabPath.empty() || !root.is_object())
+        return;
+
+    lock_guard<mutex> lock(g_prefabJsonCacheMutex);
+    g_prefabJsonCache[Make_PrefabJsonCacheKey(prefabPath)] = root;
+}
+
+void Spawn_Prefab::Clear_PrefabJsonCache()
+{
+    lock_guard<mutex> lock(g_prefabJsonCacheMutex);
+    g_prefabJsonCache.clear();
+}
+
 void Spawn_Prefab::Apply_Overrides(const Shared<GameObject>& gameObject, const json& overrides)
 {
     if (gameObject == nullptr || overrides.is_null() || !overrides.is_object())
@@ -300,7 +362,10 @@ void Spawn_Prefab::Apply_Overrides(const Shared<GameObject>& gameObject, const j
 
 wstring Spawn_Prefab::Resolve_DefaultLayerTagFromPrefabFile(const fs::path& prefabPath)
 {
-    const json root = GAME->Load_JsonFile(prefabPath);
+    json root{};
+    if (!Load_PrefabJson(prefabPath, root))
+        return {};
+
     if (!root.is_object() || !root.contains("default_layer_tag") || !root["default_layer_tag"].is_string())
         return {};
 
@@ -328,7 +393,11 @@ Shared<GameObject> Spawn_Prefab::Spawn_Implementation(const FSpawnDesc& desc)
 
     const fs::path prefabPath = Resolve_PrefabPath(desc.prefabName);
 
-    Shared<GameObject> gameObject = GAME->Instantiate_GameObjectJson(prefabPath);
+    json root{};
+    if (!Load_PrefabJson(prefabPath, root))
+        return nullptr;
+
+    Shared<GameObject> gameObject = GAME->Instantiate_GameObjectJson(root);
     CHECK_NULL(gameObject, nullptr);
 
     gameObject->Set_SourcePrefabName(Resolve_CanonicalPrefabName(desc.prefabName, prefabPath));

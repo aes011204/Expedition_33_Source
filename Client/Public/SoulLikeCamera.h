@@ -63,9 +63,14 @@ public:
     const TargetCameraPreset& Get_Preset() const;
     void Set_Preset(const TargetCameraPreset& preset);
     void Apply_PreviewPreset(const TargetCameraPreset& preset);
-    bool Apply_PresetOverride(const string& presetKey);
-    bool Apply_SkillPreset(const string& skillKey);
+    bool Apply_PresetOverride(const string& presetKey, float clipStartTimeSec = 0.f, bool syncClipToExternalTime = false);
+    bool Apply_ClipOverride(const string& presetKey, float clipStartTimeSec = 0.f, bool syncClipToExternalTime = false);
+    bool Apply_SkillPreset(const string& skillKey, float clipStartTimeSec = 0.f);
+    void Set_ActiveClipExternalTime(float timeSec);
     void Restore_BasePreset();
+    bool Restore_PresetOverride(const string& presetKey);
+    void Begin_TargetYLock();
+    void End_TargetYLock();
 
 private:
     void Build_DefaultPreset(const SOULLIKE_CAMERA_DESC& desc);
@@ -89,6 +94,9 @@ private:
     TargetCameraPreset _activeClipBaseSettings{};
     float _activeClipTime = 0.f;
     bool _hasActiveClip = false;
+    bool _activeClipExternalTimeSync = false;
+    bool _targetYLocked = false;
+    float _targetYLockValue = 0.f;
 
     Weak<TransformCom> _targetTransformCom{};
     Weak<TransformCom> _opponentTransformCom{};

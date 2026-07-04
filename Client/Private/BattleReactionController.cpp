@@ -168,6 +168,12 @@ bool BattleReactionController::TryInput(BattleReactionType type, uint32 consumeK
     if (type == BattleReactionType::Jump)
     {
         LOG_INFO("Jump Time Scale");
+        if (!_isJumpCounterTimeScaleActive)
+        {
+            _jumpCounterTimeScaleRestoreScale = GAME->Get_WorldTimeScaleRestoreBase();
+            _isJumpCounterTimeScaleActive = true;
+        }
+
         GAME->Set_WorldTimeScale(0.15f);
     }
 
@@ -226,8 +232,20 @@ bool BattleReactionController::Is_ConsumeKeyPending(uint32 consumeKey) const
     return false;
 }
 
+void BattleReactionController::RestoreJumpCounterTimeScale()
+{
+    if (!_isJumpCounterTimeScaleActive)
+        return;
+
+    GAME->Set_WorldTimeScale(_jumpCounterTimeScaleRestoreScale);
+    _isJumpCounterTimeScaleActive = false;
+    _jumpCounterTimeScaleRestoreScale = 1.f;
+}
+
 void BattleReactionController::ResetJumpCounterSequence()
 {
+    RestoreJumpCounterTimeScale();
+
     const size_t index = ReactionIndex(BattleReactionType::JumpCounter);
     const bool wasOpen = _reactionWindowOpenCounts[index] > 0;
 
@@ -252,6 +270,12 @@ void BattleReactionController::NotifyJumpCounterWindowBegin(float worldTimeScale
 
     _jumpCounterState = JumpCounterState::CounterWindowOpen;
     OpenWindow(BattleReactionType::JumpCounter);
+    if (!_isJumpCounterTimeScaleActive)
+    {
+        _jumpCounterTimeScaleRestoreScale = GAME->Get_WorldTimeScaleRestoreBase();
+        _isJumpCounterTimeScaleActive = true;
+    }
+
     GAME->Set_WorldTimeScale(clamp(worldTimeScale, 0.01f, 1.f));
 }
 
@@ -261,7 +285,6 @@ void BattleReactionController::NotifyJumpCounterWindowEnd()
 
     if (_jumpCounterState == JumpCounterState::CounterWindowOpen)
     {
-        GAME->Set_WorldTimeScale(1.f);
         ResetJumpCounterSequence();
     }
 }
@@ -271,7 +294,7 @@ bool BattleReactionController::TryStartQueuedJumpCounter(ModelCom* sourceModel)
     if (_jumpCounterState != JumpCounterState::CounterSucceeded || _jumpCounterStarted)
         return false;
 
-    GAME->Set_WorldTimeScale(1.f);
+    RestoreJumpCounterTimeScale();
 
     StartCounter(sourceModel);
 
@@ -446,6 +469,7 @@ BattleReactionController::BattleReactionInputResult BattleReactionController::Su
             _isCounterPending = false;
             _isCounterDamageApplied = false;
             _animPhase = ReactionAnimPhase::None;
+            ResetJumpCounterSequence();
 
             if (allowCounterOnSuccess)
                 _pendingParryCounterTarget = context.counterTarget;
@@ -537,7 +561,7 @@ BattleReactionController::BattleReactionInputResult BattleReactionController::Su
         _isCounterPending = true;
         _isCounterDamageApplied = false;
         _jumpCounterStarted = false;
-        GAME->Set_WorldTimeScale(1.f);
+        RestoreJumpCounterTimeScale();
         CloseWindow(BattleReactionType::JumpCounter);
         LOG_INFO("JUMPCOUNTER success step={}", context.stepIndex);
     }

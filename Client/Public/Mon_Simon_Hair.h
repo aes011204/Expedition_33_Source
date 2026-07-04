@@ -2,7 +2,7 @@
 
 #include "Client_Defines.h"
 #include "Monster_Part.h"
-#include "SimonHairRuntime.h"
+#include "PhysicsModifier.h"
 
 NS_BEGIN(Client)
 
@@ -40,12 +40,12 @@ public:
     void On_RuntimeReflectionChanged();
     void RuntimeResetPose();
     void RuntimeRebuild();
-    void Build_RuntimeDebugCapsules(vector<SimonHairRuntime::RuntimeDebugCapsule>& outCapsules) const;
-    void Build_RuntimeDebugSpheres(vector<SimonHairRuntime::RuntimeDebugSphere>& outSpheres) const;
-    void Build_RuntimeDebugSegments(vector<SimonHairRuntime::RuntimeDebugSegment>& outSegments) const;
+    void Build_RuntimeDebugCapsules(vector<PhysicsModifier::RuntimeDebugCapsule>& outCapsules) const;
+    void Build_RuntimeDebugSpheres(vector<PhysicsModifier::RuntimeDebugSphere>& outSpheres) const;
+    void Build_RuntimeDebugSegments(vector<PhysicsModifier::RuntimeDebugSegment>& outSegments) const;
 
 private:
-    HRESULT Ready_Runtime();
+    HRESULT Ready_PhysicsModifier();
     uint32 Decide_PassIndex(Shared<Material> mat) override;
 
 private:
@@ -53,8 +53,8 @@ private:
     ModelCom* _collisionModel = nullptr;
     const Matrix* _collisionOwnerWorldMatrix = nullptr;
     Matrix _offsetMatrix = {};
-    SimonHairRuntime _hairRuntime{};
-    bool _hairRuntimeReady = false;
+    Shared<PhysicsModifier> _hairPhysicsModifier = {};
+    bool _hairPhysicsReady = false;
     bool _useHairAnimationPlayback = true;
 
 public:

@@ -82,7 +82,10 @@ bool Player_Jump::EnterInvoke()
     const bool isActiveHero = owner != nullptr &&
     CLIENT->Is_ActiveHero(static_pointer_cast<GameObject>(owner));
 
-    _canProbeParkour = isActiveHero && IsEnterJump();
+    _canProbeParkour = isActiveHero &&
+        IsEnterJump() &&
+        owner != nullptr &&
+        !owner->Is_ParkourBlockedByCurrentLevel();
     _lowParkourProbeDone = false;
     _repeatHighParkourProbe = false;
 

@@ -689,10 +689,13 @@ HRESULT MapInstancedMesh::Prepare_PotatoBagArenaInstanceBuffer()
     {
         _potatoBagArenaInstanceBufferReady = false;
         _potatoBagArenaInstanceCount = 0;
+        _potatoBagArenaInstanceBufferRevision = ClientInstance::Get_PotatoBagArenaMapRenderGateRevision();
         return S_OK;
     }
 
-    if (_potatoBagArenaInstanceBufferReady)
+    const uint32 renderGateRevision = ClientInstance::Get_PotatoBagArenaMapRenderGateRevision();
+    if (_potatoBagArenaInstanceBufferReady &&
+        _potatoBagArenaInstanceBufferRevision == renderGateRevision)
     {
         return S_OK;
     }
@@ -739,6 +742,7 @@ HRESULT MapInstancedMesh::Prepare_PotatoBagArenaInstanceBuffer()
     }
 
     _potatoBagArenaInstanceCount = static_cast<uint32>(filteredMatrices.size());
+    _potatoBagArenaInstanceBufferRevision = renderGateRevision;
     _potatoBagArenaInstanceBufferReady = true;
 
     if (_potatoBagArenaInstanceCount == 0)

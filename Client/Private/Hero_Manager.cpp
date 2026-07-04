@@ -112,6 +112,9 @@ void Hero_Manager::Update_HeroManager(float timeDelta)
 
     Apply_UnlockedHeroVisibility();
 
+    if (_dialogueFocusActive)
+        return; // 대화 중 숨겨진 follower에게 새 follow intent를 다시 쓰지 않는다.
+
     auto activeHero = Get_ActiveHero();
     if (!activeHero)
         return;
@@ -239,6 +242,38 @@ void Hero_Manager::Set_DialogueFocusActive(bool active)
         return;
 
     _dialogueFocusActive = active;
+
+    Reset_FollowerRuntime();
+    _activeTrail.clear();
+    _recordTimer = 0.f;
+    Set_ActiveTrail(_recordInterval);
+
+    if (_dialogueFocusActive)
+    {
+        for (uint32 i = 0; i < _heroes.size(); ++i)
+        {
+            if (i == _activeIndex)
+                continue;
+
+            auto hero = _heroes[i].hero;
+            if (hero == nullptr)
+                continue;
+
+            if (auto controller = hero->Get_Component<PlayerControllerCom>())
+                controller->Clear_FollowControl();
+
+            if (auto movement = hero->Get_Component<MovementCom>())
+            {
+                movement->Clear_FollowMoveCommand();
+                movement->Apply_Input({});
+                movement->Stop_AllMovement();
+            }
+
+            if (auto state = hero->Get_Component<PlayerStateMachineCom>())
+                state->Change_State(PlayerState::Idle); // 대화 중 숨겨지는 follower가 직전 Run 상태로 멈추지 않게 한다.
+        }
+    }
+
     Apply_UnlockedHeroVisibility();
 }
 
