@@ -1071,24 +1071,6 @@ bool BattleController::Try_ResolveSimonBattleBGM(wstring& outIntroBGM, wstring& 
 
 void BattleController::SetCharInitPos()
 {
-    auto normalizeAngleDegrees = [](float angle) -> float
-        {
-            while (angle > 180.f)
-                angle -= 360.f;
-            while (angle < -180.f)
-                angle += 360.f;
-            return angle;
-        };
-
-    auto projectToSpawnerLocal = [](const Vec3& worldPos, const Vec3& origin, const Vec3& localRight, const Vec3& localForward) -> Vec3
-        {
-            const Vec3 delta = worldPos - origin;
-            const float localX = delta.x * localRight.x + delta.y * localRight.y + delta.z * localRight.z;
-            const float localY = delta.y;
-            const float localZ = delta.x * localForward.x + delta.y * localForward.y + delta.z * localForward.z;
-            return Vec3(localX, localY, localZ);
-        };
-
     Vec3 startPos = Vec3(145.f, 23.5f, 7.24f);
     Vec3 right = Vec3::Right;
     Vec3 forward = Vec3::Forward;
@@ -1138,22 +1120,6 @@ void BattleController::SetCharInitPos()
         forward.Normalize();
 
     _pendingBattlePlaneYaw = XMConvertToDegrees(atan2f(forward.x, forward.z));
-    LOG_INFO(
-        "[BattleLayout] spawnerId={} start=({:.3f},{:.3f},{:.3f}) right=({:.3f},{:.3f},{:.3f}) forward=({:.3f},{:.3f},{:.3f}) planeYaw={:.3f} startOffset=({:.3f},{:.3f},{:.3f})",
-        _pendingBattleStartSpawnerId,
-        startPos.x,
-        startPos.y,
-        startPos.z,
-        right.x,
-        right.y,
-        right.z,
-        forward.x,
-        forward.y,
-        forward.z,
-        _pendingBattlePlaneYaw,
-        _pendingBattleStartOffset.x,
-        _pendingBattleStartOffset.y,
-        _pendingBattleStartOffset.z);
 
     const Vec3 playerLocalPos[3] =
     {
@@ -1288,74 +1254,12 @@ void BattleController::SetCharInitPos()
         }
     }
 
-    for (size_t i = 0; i < _heroes.size() && i < 3; ++i)
-    {
-        const auto& hero = _heroes[i];
-        if (hero.actor == nullptr || hero.actor->Get_Transform() == nullptr)
-            continue;
-
-        const Shared<TransformCom> transform = hero.actor->Get_Transform();
-        const Vec3 worldPos = transform->Get_Position();
-        const Vec3 localPos = projectToSpawnerLocal(worldPos, startPos, right, forward);
-        const float relativeYaw = normalizeAngleDegrees(transform->Get_RotationEuler().y - _pendingBattlePlaneYaw);
-        const Vec3 toEnemyCenterLocal = projectToSpawnerLocal(enemyCenter, worldPos, right, forward);
-
-        LOG_INFO(
-            "[BattleLayout][Hero{}] heroId={} world=({:.3f},{:.3f},{:.3f}) local=({:.3f},{:.3f},{:.3f}) yaw={:.3f} relativeYaw={:.3f} enemyCenterLocal=({:.3f},{:.3f},{:.3f})",
-            i,
-            static_cast<int>(hero.heroId),
-            worldPos.x,
-            worldPos.y,
-            worldPos.z,
-            localPos.x,
-            localPos.y,
-            localPos.z,
-            transform->Get_RotationEuler().y,
-            relativeYaw,
-            toEnemyCenterLocal.x,
-            toEnemyCenterLocal.y,
-            toEnemyCenterLocal.z);
-    }
-
-    for (size_t i = 0; i < _enemies.size(); ++i)
-    {
-        const auto& enemy = _enemies[i];
-        if (enemy.actor == nullptr || enemy.actor->Get_Transform() == nullptr)
-            continue;
-
-        const Shared<TransformCom> transform = enemy.actor->Get_Transform();
-        const Vec3 worldPos = transform->Get_Position();
-        const Vec3 localPos = projectToSpawnerLocal(worldPos, startPos, right, forward);
-        const float relativeYaw = normalizeAngleDegrees(transform->Get_RotationEuler().y - _pendingBattlePlaneYaw);
-
-        Vec3 localOffset = Vec3::Zero;
-        if (i < _pendingBattleMonsterSpawnDescs.size())
-            localOffset = _pendingBattleMonsterSpawnDescs[i].offset;
-
-        LOG_INFO(
-            "[BattleLayout][Enemy{}] prefab={} world=({:.3f},{:.3f},{:.3f}) local=({:.3f},{:.3f},{:.3f}) yaw={:.3f} relativeYaw={:.3f} spawnOffset=({:.3f},{:.3f},{:.3f})",
-            i,
-            enemy.actor->Get_SourcePrefabName().c_str(),
-            worldPos.x,
-            worldPos.y,
-            worldPos.z,
-            localPos.x,
-            localPos.y,
-            localPos.z,
-            transform->Get_RotationEuler().y,
-            relativeYaw,
-            localOffset.x,
-            localOffset.y,
-            localOffset.z);
-    }
 }
 
 void BattleController::Request_WidePresentationMode()
 {
     if (!_battleTurnCamera)
         return;
-
-    LOG_INFO("[BattleCamTrace] Request_WidePresentationMode");
 
     EvtBattlePresentation event{};
     event.cameraMode = BattleCameraMode::WIDE;
@@ -3534,14 +3438,6 @@ void BattleController::Complete_BattleField()
     _battleEnded = false;
     _pendingNextTurn = false;
 
-    const Shared<Camera> activeCamera = GAME->Get_ActiveCamera();
-    LOG_INFO(
-        "[BattleCamTrace] BattleController::Complete_BattleField begin activeCameraType={} pendingHeroes={} pendingMonsterSpawns={} worldScale={:.3f}",
-        static_cast<int>(activeCamera ? activeCamera->Get_ObjectType() : ObjectType::None),
-        _pendingBattleHeroIds.size(),
-        _pendingBattleMonsterSpawnDescs.size(),
-        GAME->Get_WorldTimeScale());
-
     //// 카메라 저장
     //_worldCamera = GAME->Get_ActiveCamera();
     const uint32 battleFieldId = _pendingBattleFieldID;
@@ -3668,7 +3564,7 @@ bool BattleController::Try_ApplyFreeAimWeakPointBonus(const BattleFreeAimHitTarg
     if (!monster->Try_Consume_FreeAimWeakPoint())
         return false; // 이미 소비됐으면 추가딜 없이 본체 피격만 남긴다.
 
-    Play_BattleHitStop(0.08f, 0.10f); // 약간 슬로우
+    Play_BattleHitStop(0.07f, 0.14f); // 약간 슬로우
 
     constexpr float freeAimWeakPointDamageMultiplier = 0.55f;
     float freeAimWeakPointDamage =
@@ -3979,7 +3875,6 @@ void BattleController::Continue_StartTurnAfterStatusEffects()
         event.cameraMode = BattleCameraMode::PLAYERFOCUS;
         event.subject = _currentTurnActor.actor;
         event.presetId = magic_enum::enum_name(_currentTurnActor.heroId);
-        LOG_INFO("[BattleCamTrace] Publish PLAYERFOCUS from BattleController::Continue_StartTurnAfterStatusEffects");
         GAME->Get_EventBus().Publish(event);
 
         OnTurnStarted.Broadcast(_currentTurnActor, BattleTurnState::ChooseAction);

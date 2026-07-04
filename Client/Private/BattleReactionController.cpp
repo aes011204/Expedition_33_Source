@@ -4,6 +4,7 @@
 #include "DamageSystem.h"
 #include "ClientInstance.h"
 #include "BattleController.h"
+#include "BattleTurnCamera.h"
 #include "BattleSpawnRegistry.h"
 #include "GameInstance.h"
 #include "ModelCom.h"
@@ -261,6 +262,12 @@ void BattleReactionController::ResetJumpCounterSequence()
     _jumpCounterStepIndex = UINT32_MAX;
     _jumpCounterTarget = {};
     _jumpCounterStarted = false;
+
+    if (const auto battle = CLIENT->Get_BattleController())
+    {
+        if (const auto camera = battle->Get_BattleTurnCamera())
+            camera->Set_JumpCounterPoseOffsetActive(false);
+    }
 }
 
 void BattleReactionController::NotifyJumpCounterWindowBegin(float worldTimeScale)
@@ -776,12 +783,6 @@ void BattleReactionController::StartCounterReturn()
         target.ModelCom->Set_RootMotionEnabled(true);
         target.ModelCom->Set_FrameSpeed(1.f);
 
-        LOG_INFO(
-            "[BattleCamTrace] StartCounterReturn prefab={} anim=Return targetAlive={} phaseBefore={}",
-            target.actor ? target.actor->Get_SourcePrefabName().c_str() : "",
-            target.statCom && target.statCom->Get_AliveStatus() == EAliveStatus::Alive,
-            static_cast<int>(_animPhase));
-
         if (!target.ModelCom->Set_AnimationByState(ETOI(BattleAnimType::Return), 0.15f, false))
         {
             TryRestoreTargetToSpawnPose(target);
@@ -1137,7 +1138,19 @@ void BattleReactionController::StartCounter(ModelCom* sourceModel)
     _isCounterDamageApplied = false;
     _animPhase = ReactionAnimPhase::Counter;
     if (counterAnimType == BattleAnimType::JumpCounter)
+    {
         _jumpCounterState = JumpCounterState::Started;
+        if (const auto battle = CLIENT->Get_BattleController())
+        {
+            if (const auto camera = battle->Get_BattleTurnCamera())
+                camera->Set_JumpCounterPoseOffsetActive(true);
+        }
+    }
+    else if (const auto battle = CLIENT->Get_BattleController())
+    {
+        if (const auto camera = battle->Get_BattleTurnCamera())
+            camera->Set_JumpCounterPoseOffsetActive(false);
+    }
 
     OnCounterStarted.Broadcast(_reactionAnimTargets);
 }
