@@ -60,6 +60,11 @@ public:
 
 public:
     void    Reset_ForHero(HeroId heroId);
+    void    Apply_WeaponMilestoneBattleStart(
+                const string& characterId,
+                const string& weaponId,
+                uint32 enhanceLevel);
+
 
     HeroId  Get_HeroId() const { return _heroId; }
 
@@ -84,11 +89,16 @@ public: /* 루네 */
 
     void          Add_LuneStains(initializer_list<ElementalType> elements);
     void          Clear_LuneStains();
+    bool          Consume_LuneStain(ElementalType element);
 
     bool          Is_LuneStainElement(ElementalType element);
 
 public: /* 마엘 */
     MaelleStance Get_MaelleStance() const { return _maelle.currentStance; }
+
+    // 받는 피해, 주는 피해
+    float   Get_MaelleOutgoingDamageMultiplier() const;
+    float   Get_MaelleIncomingDamageMultiplier() const;
 
     void    Set_MaelleStance(MaelleStance stance);
     void    Reset_MaelleStance(); // 전투 시작 시 태세 없음으로 초기화

@@ -31,7 +31,7 @@ namespace
 
     constexpr wchar_t UI_BattleSkillTooltip_OffensiveSwitch_Path[] = L"UI/UI_Json/BattleSystem/SkillTooltip/Maelle/UI_BattleSystem_SkillTooltip_OffensiveSwitch.json";
     constexpr wchar_t UI_BattleSkillTooltip_Percee_Path[] = L"UI/UI_Json/BattleSystem/SkillTooltip/Maelle/UI_BattleSystem_SkillTooltip_Percee.json";
-    constexpr wchar_t UI_BattleSkillTooltip_FireRise_Path[] = L"UI/UI_Json/BattleSystem/SkillTooltip/Maelle/UI_BattleSystem_SkillTooltip_FireRise.json";
+    constexpr wchar_t UI_BattleSkillTooltip_Spark_Path[] = L"UI/UI_Json/BattleSystem/SkillTooltip/Maelle/UI_BattleSystem_SkillTooltip_Spark.json";
     constexpr wchar_t UI_BattleSkillTooltip_SwordBallet_Path[] = L"UI/UI_Json/BattleSystem/SkillTooltip/Maelle/UI_BattleSystem_SkillTooltip_SwordBallet.json";
     constexpr wchar_t UI_BattleSkillTooltip_Stendhal_Path[] = L"UI/UI_Json/BattleSystem/SkillTooltip/Maelle/UI_BattleSystem_SkillTooltip_Stendhal.json";
     constexpr wchar_t UI_BattleSkillTooltip_Pyrolyse_Path[] = L"UI/UI_Json/BattleSystem/SkillTooltip/Maelle/UI_BattleSystem_SkillTooltip_Pyrolyse.json";
@@ -532,7 +532,7 @@ HRESULT UI_BattleSkillPanel::Load_UI(uint32 levelIndex)
     CHECK_FAILED(Load_AndMerge(UI_BattleSkillTooltip_SwordBallet_Path, L"BattleSkillTooltipSwordBallet", {}, nullptr, {}), E_FAIL);
     CHECK_FAILED(Load_AndMerge(UI_BattleSkillTooltip_Stendhal_Path, L"BattleSkillTooltipStendhal", {}, nullptr, {}), E_FAIL);
     CHECK_FAILED(Load_AndMerge(UI_BattleSkillTooltip_Pyrolyse_Path, L"BattleSkillTooltipPyrolyse", {}, nullptr, {}), E_FAIL);
-    //CHECK_FAILED(Load_AndMerge(UI_BattleSkillTooltip_FireRise_Path, L"BattleSkillTooltipFireRise"), E_FAIL);
+    CHECK_FAILED(Load_AndMerge(UI_BattleSkillTooltip_Spark_Path, L"BattleSkillTooltipSpark", {}, nullptr, {}), E_FAIL);
 
 
     return S_OK;
@@ -583,9 +583,7 @@ HRESULT UI_BattleSkillPanel::Bind_UI()
     CHECK_FAILED(Bind_Tooltip("SwordBallet", L"Panel_BattleSystem_SkillTooltip_SwordBallet"), E_FAIL);
     CHECK_FAILED(Bind_Tooltip("Stendhal", L"Panel_BattleSystem_SkillTooltip_Stendhal"), E_FAIL);
     CHECK_FAILED(Bind_Tooltip("Pyrolyse", L"Panel_BattleSystem_SkillTooltip_Pyrolyse"), E_FAIL);
-
-
-    //CHECK_FAILED(Bind_Tooltip("FireRise", L"Panel_BattleSystem_SkillTooltip_FireRise"), E_FAIL);
+    CHECK_FAILED(Bind_Tooltip("Spark", L"Panel_BattleSystem_SkillTooltip_Spark"), E_FAIL);
 
     return S_OK;
 }

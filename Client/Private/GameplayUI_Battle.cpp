@@ -14,6 +14,7 @@
 #include "CombatStatCom.h"
 #include "DamageSystem.h"
 #include "Debug_Profile.h"
+#include "EffectCom.h"
 #include "PlayerStatCom.h"
 #include "ScreenFx_Manager.h"
 #include "Skill_Gustave_Battle.h"
@@ -33,6 +34,8 @@
 #include "UI_PlayerHpBar.h"
 #include "UI_CrossHair.h"
 #include "UI_DamageFont.h"
+#include "UI_Burn.h"
+#include "UI_Slow.h"
 #include "UI_DestroyShield.h"
 #include "UI_EscapeSkipTurnBack.h"
 #include "UI_ReactionResult.h"
@@ -64,6 +67,9 @@ GameplayUI_Battle::~GameplayUI_Battle() = default;
 namespace
 {
     constexpr float kBattleSystemIntroDurationSec = 3.f;
+    constexpr wchar_t kMarkWorldEffectName[] = L"Effects\\Assets\\Player\\Attack_Mark_X.effect.json";
+    constexpr wchar_t kMarkWorldEffectPartTag[] = L"Part_Body";
+    constexpr char kMarkWorldEffectSocketName[] = "spine_01";
 
     void Append_RuntimePanelEntry(
         vector<RuntimeUIEntry>& outEntries,
@@ -176,6 +182,18 @@ HRESULT GameplayUI_Battle::Initialize(uint32 levelIndex)
         CHECK_NULL(damageFont, E_FAIL);
     }
 
+    for (auto& burn : _burns)
+    {
+        burn = UI_Burn::Create(levelIndex);
+        CHECK_NULL(burn, E_FAIL);
+    }
+
+    for (auto& slow : _slows)
+    {
+        slow = UI_Slow::Create(levelIndex);
+        CHECK_NULL(slow, E_FAIL);
+    }
+
     for (auto& destroyShield : _destroyShields)
     {
         destroyShield = UI_DestroyShield::Create(levelIndex);
@@ -247,6 +265,8 @@ void GameplayUI_Battle::Update(float timeDelta)
     Update_BattleMechanism(timeDelta);  // 플레이어 공격 액션 중 캐릭터별 메커니즘 UI
     Update_TurnOrder(timeDelta);        // 좌측상단 턴 UI
     Update_DamageFonts(timeDelta);      // 데미지 폰트
+    Update_Burns(timeDelta);            // 화상 부여 텍스트
+    Update_Slows(timeDelta);            // 감속 부여 텍스트
     Update_DestroyShields(timeDelta);   // 쉴드 파괴 아이콘
     Update_HealFonts(timeDelta);        // 힐 폰트
     Update_BattleJumpReaction(timeDelta); // BattleTurn 점프/점프카운터 프롬프트
@@ -325,6 +345,12 @@ vector<RuntimeUIEntry> GameplayUI_Battle::Get_RuntimeUIEntries() const
 
     for (uint32 i = 0; i < _damageFonts.size(); ++i)
         Append_OpenedRuntimePanelEntry(entries, ("DamageFont_" + to_string(i)).c_str(), _damageFonts[i].get());
+
+    for (uint32 i = 0; i < _burns.size(); ++i)
+        Append_OpenedRuntimePanelEntry(entries, ("Burn_" + to_string(i)).c_str(), _burns[i].get());
+
+    for (uint32 i = 0; i < _slows.size(); ++i)
+        Append_OpenedRuntimePanelEntry(entries, ("Slow_" + to_string(i)).c_str(), _slows[i].get());
 
     for (uint32 i = 0; i < _destroyShields.size(); ++i)
         Append_OpenedRuntimePanelEntry(entries, ("DestroyShield_" + to_string(i)).c_str(), _destroyShields[i].get());
@@ -647,6 +673,17 @@ void GameplayUI_Battle::Handle_BattleStarted(uint32 fieldId, bool isPlayerAdvant
     {
         if (damageFont)
             damageFont->Close();
+    }
+    for (auto& burn : _burns)
+    {
+        if (burn)
+            burn->Close();
+    }
+
+    for (auto& slow : _slows)
+    {
+        if (slow)
+            slow->Close();
     }
 
     for (auto& destroyShield : _destroyShields)
@@ -1312,10 +1349,15 @@ void GameplayUI_Battle::Handle_QTEResolved(BattleQTEResult result)
 
 void GameplayUI_Battle::Handle_BuffApplied(const BattleChar& target, Buffs buffId)
 {
-    if (!_isBattleUiActive || buffId != Buffs::Mark)
+    if (!_isBattleUiActive)
         return;
 
-    Play_MarkEffect(target);
+    if (buffId == Buffs::Mark)
+        Play_MarkEffect(target);
+    else if (buffId == Buffs::Burn)
+        Play_BurnApplied(target);
+    else if (buffId == Buffs::Slow)
+        Play_SlowApplied(target);
 }
 
 void GameplayUI_Battle::Handle_BuffConsumed(const BattleChar& target, Buffs buffId, float bonusDamage)
@@ -1334,16 +1376,188 @@ void GameplayUI_Battle::Play_MarkEffect(const BattleChar& target)
 {
     Clear_MarkEffect();
 
-    if (!_isBattleUiActive || _markEffect == nullptr)
+    if (!_isBattleUiActive || target.actor == nullptr)
         return;
 
-    _markEffect->Show_Target(target);
+    const Shared<EffectCom> effectCom = target.actor->Get_Component<EffectCom>();
+    if (effectCom == nullptr)
+        return;
+
+    if (SUCCEEDED(effectCom->Play_AttachedPartEffect(
+        GAME->Current_LevelIndex(),
+        kMarkWorldEffectName,
+        kMarkWorldEffectPartTag,
+        kMarkWorldEffectSocketName,
+        L"Layer_Effect",
+        Vec3::Zero,
+        Vec3::Zero,
+        Vec3::One)))
+    {
+        _markEffectTarget = target;
+        _hasMarkEffectTarget = true;
+    }
 }
 
 void GameplayUI_Battle::Clear_MarkEffect()
 {
     if (_markEffect)
         _markEffect->Clear_Target();
+
+    if (!_hasMarkEffectTarget)
+        return;
+
+    const BattleChar markEffectTarget = _markEffectTarget;
+    _markEffectTarget = {};
+    _hasMarkEffectTarget = false;
+
+    if (markEffectTarget.actor == nullptr)
+        return;
+
+    const Shared<EffectCom> effectCom = markEffectTarget.actor->Get_Component<EffectCom>();
+    if (effectCom == nullptr)
+        return;
+
+    effectCom->Stop_Effect(
+        kMarkWorldEffectName,
+        EffectCom::EffectPlayTarget::PartSocket,
+        kMarkWorldEffectPartTag,
+        kMarkWorldEffectSocketName);
+}
+
+void GameplayUI_Battle::Play_BurnApplied(const BattleChar& target)
+{
+    if (!_isBattleUiActive)
+        return;
+
+    UI_Burn* selectedSlot = nullptr;
+    UI_Burn* oldestSlot = nullptr;
+    float longestElapsed = -1.f;
+
+    for (auto& burn : _burns)
+    {
+        if (!burn)
+            continue;
+
+        if (burn->Is_Playing())
+        {
+            if (burn->Get_Elapsed() > longestElapsed)
+            {
+                longestElapsed = burn->Get_Elapsed();
+                oldestSlot = burn.get();
+            }
+
+            continue;
+        }
+
+        if (selectedSlot == nullptr)
+            selectedSlot = burn.get();
+    }
+
+    if (selectedSlot == nullptr)
+        selectedSlot = oldestSlot;
+
+    if (selectedSlot == nullptr)
+        return;
+
+    if (UI_DamageFont* damageFont = Find_PlayingDamageFontForTarget(target))
+        damageFont->Play_BurnDamageIcon();
+
+    Character_BattleBase* targetActor = target.actor.get();
+    uint32 targetStackIndex = 0;
+    if (_lastDamageFontTargetActor == targetActor)
+    {
+        targetStackIndex = _damageFontTargetStackIndex++;
+    }
+    else
+    {
+        _lastDamageFontTargetActor = targetActor;
+        _damageFontTargetStackIndex = 1;
+    }
+
+    constexpr uint32 kDamageFontAlternationBandCount = (kDamageFontPoolSize - 1) / 2;
+    const uint32 verticalBand = min(targetStackIndex / 2, kDamageFontAlternationBandCount - 1);
+    const bool useLeftSide = (targetStackIndex % 2u) == 0u;
+    const uint32 visualStackIndex = verticalBand * 2u + (useLeftSide ? 1u : 2u);
+
+    selectedSlot->Show_Burn(target, visualStackIndex);
+}
+
+void GameplayUI_Battle::Play_SlowApplied(const BattleChar& target)
+{
+    if (!_isBattleUiActive)
+        return;
+
+    UI_Slow* selectedSlot = nullptr;
+    UI_Slow* oldestSlot = nullptr;
+    float longestElapsed = -1.f;
+
+    for (auto& slow : _slows)
+    {
+        if (!slow)
+            continue;
+
+        if (slow->Is_Playing())
+        {
+            if (slow->Get_Elapsed() > longestElapsed)
+            {
+                longestElapsed = slow->Get_Elapsed();
+                oldestSlot = slow.get();
+            }
+
+            continue;
+        }
+
+        if (selectedSlot == nullptr)
+            selectedSlot = slow.get();
+    }
+
+    if (selectedSlot == nullptr)
+        selectedSlot = oldestSlot;
+
+    if (selectedSlot == nullptr)
+        return;
+
+    if (UI_DamageFont* damageFont = Find_PlayingDamageFontForTarget(target))
+        damageFont->Play_SlowDamageIcon();
+
+    Character_BattleBase* targetActor = target.actor.get();
+    uint32 targetStackIndex = 0;
+    if (_lastDamageFontTargetActor == targetActor)
+    {
+        targetStackIndex = _damageFontTargetStackIndex++;
+    }
+    else
+    {
+        _lastDamageFontTargetActor = targetActor;
+        _damageFontTargetStackIndex = 1;
+    }
+
+    constexpr uint32 kDamageFontAlternationBandCount = (kDamageFontPoolSize - 1) / 2;
+    const uint32 verticalBand = min(targetStackIndex / 2, kDamageFontAlternationBandCount - 1);
+    const bool useLeftSide = (targetStackIndex % 2u) == 0u;
+    const uint32 visualStackIndex = verticalBand * 2u + (useLeftSide ? 1u : 2u);
+
+    selectedSlot->Show_Slow(target, visualStackIndex);
+}
+
+UI_DamageFont* GameplayUI_Battle::Find_PlayingDamageFontForTarget(const BattleChar& target) const
+{
+    UI_DamageFont* selectedSlot = nullptr;
+    float shortestElapsed = FLT_MAX;
+
+    for (const auto& damageFont : _damageFonts)
+    {
+        if (!damageFont || !damageFont->Is_PlayingForTarget(target))
+            continue;
+
+        if (damageFont->Get_Elapsed() < shortestElapsed)
+        {
+            shortestElapsed = damageFont->Get_Elapsed();
+            selectedSlot = damageFont.get();
+        }
+    }
+
+    return selectedSlot;
 }
 
 void GameplayUI_Battle::Handle_CounterAnnounceRequested(const vector<BattleChar>& counterActors)
@@ -2043,6 +2257,24 @@ void GameplayUI_Battle::Update_DamageFonts(float timeDelta)
     {
         if (damageFont)
             damageFont->Update(timeDelta);
+    }
+}
+
+void GameplayUI_Battle::Update_Burns(float timeDelta)
+{
+    for (auto& burn : _burns)
+    {
+        if (burn)
+            burn->Update(timeDelta);
+    }
+}
+
+void GameplayUI_Battle::Update_Slows(float timeDelta)
+{
+    for (auto& slow : _slows)
+    {
+        if (slow)
+            slow->Update(timeDelta);
     }
 }
 
@@ -2986,6 +3218,18 @@ void GameplayUI_Battle::Reset_BattleUiRuntimeState(bool closeVictoryUi)
             damageFont->Close();
     }
 
+    for (auto& burn : _burns)
+    {
+        if (burn)
+            burn->Close();
+    }
+
+    for (auto& slow : _slows)
+    {
+        if (slow)
+            slow->Close();
+    }
+
     for (auto& destroyShield : _destroyShields)
     {
         if (destroyShield)
@@ -3098,6 +3342,12 @@ void GameplayUI_Battle::Free()
 
     for (auto& damageFont : _damageFonts)
         Release_UI(damageFont);
+
+    for (auto& burn : _burns)
+        Release_UI(burn);
+
+    for (auto& slow : _slows)
+        Release_UI(slow);
 
     for (auto& destroyShield : _destroyShields)
         Release_UI(destroyShield);

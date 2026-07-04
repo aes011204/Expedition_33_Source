@@ -905,6 +905,19 @@ void BattleController::Create_BattleChar(const vector<HeroId>& heroIds, const ve
                 CHECK_FAILED(battlePlayer->Rebuild_WeaponPartsFromCurrentStat());
 
             battleStat->Set_BattleStartAp();
+
+            if (battleChar.mechanismCom)
+            {
+                const string characterId = string(magic_enum::enum_name(heroId));
+                const string& weaponId = battleStat->Get_PlayerRuntimeStat().CurEquippedWeaponId;
+                const uint32 enhanceLevel = CLIENT->Resolve_WeaponEnhanceLevel(characterId, weaponId);
+
+                battleChar.mechanismCom->Apply_WeaponMilestoneBattleStart(
+                    characterId,
+                    weaponId,
+                    enhanceLevel);
+            }
+
         }
 
 
@@ -2627,7 +2640,7 @@ void BattleController::Begin_FreeAimShot(const BattleAction& shotAction)
         const BattleChar& target = _freeAimShotAction.GetInitTarget();
         constexpr float freeAimDamageMultiplier = 1.f;
         const float freeAimDamage =
-            DamageSystem::CalculatePlayerAttackDamage(attacker, freeAimDamageMultiplier);
+            DamageSystem::CalculatePlayerAttackDamage(attacker, freeAimDamageMultiplier) * 0.5f;
 
         const bool hadShieldBeforeShot = target.statCom->Get_CurrentShield() > 0;
         const Vec3* freeAimHitWorldPos =

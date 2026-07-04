@@ -95,6 +95,10 @@ namespace Client::Constants::UI
     inline constexpr wchar_t UI_Mark_Path[] = L"UI/UI_Json/BattleSystem/StatusEffect/UI_Mark.json";
     inline constexpr wchar_t UI_Shield_Path[] = L"UI/UI_Json/BattleSystem/StatusEffect/UI_Shield.json";
     inline constexpr wchar_t UI_Destroy_Shield_Path[] = L"UI/UI_Json/BattleSystem/StatusEffect/UI_Destroy_Shield.json";
+    inline constexpr wchar_t UI_BurnIcon_Path[] = L"UI/UI_Json/BattleSystem/StatusEffect/UI_Burn_Icon.json";
+    inline constexpr wchar_t UI_Burn_Path[] = L"UI/UI_Json/BattleSystem/StatusEffect/UI_Burn.json";
+    inline constexpr wchar_t UI_SlowIcon_Path[] = L"UI/UI_Json/BattleSystem/StatusEffect/UI_Slow_Icon.json";
+    inline constexpr wchar_t UI_Slow_Path[] = L"UI/UI_Json/BattleSystem/StatusEffect/UI_Slow.json";
 
     // Tutorial
     inline constexpr wchar_t UI_Tutorial_BattleSystem_Path[] = L"UI/UI_Json/BattleSystem/Tutorial/UI_Tutorial_BattleSystem.json";

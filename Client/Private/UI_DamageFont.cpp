@@ -65,19 +65,28 @@ void UI_DamageFont::Play_DamageFont(
     Set_DamageText(damageValue);
 
     if (!Begin_FloatingText(target, stackIndex))
+    {
+        Close_StatusDamageIcons();
         return;
+    }
 
     if (_root)
     {
         const wstring animationName = isCritical ? L"CriticalDamageFont" : L"DamageFont";
         _root->Play_UIAnimation(animationName, true);
     }
+
+    if (Should_ShowBurnDamageIcon())
+        Play_BurnDamageIcon();
+    else
+        Close_StatusDamageIcons();
 }
 
 void UI_DamageFont::Update(float timeDelta)
 {
     Apply_DamageFontTuning();
     UI_BattleFloatingTextBase::Update(timeDelta);
+    Sync_StatusDamageIconPosition();
 }
 
 void UI_DamageFont::Apply_EditorReflectionRuntimeTuning()
@@ -101,6 +110,8 @@ void UI_DamageFont::Close()
     if (_criticalRoot)
         _criticalRoot->Close();
 
+    Close_StatusDamageIcons();
+
     Set_ActiveStyle(DamageFontStyle::Normal); // 닫힌 뒤에 Normal로 세팅해주기
     _activeAttackType = AttackType::Invalid;
     _hasOverrideWorldAnchor = false;
@@ -111,6 +122,8 @@ HRESULT UI_DamageFont::Load_UI(uint32 levelIndex)
 {
     umap<wstring, Shared<UI_Base>> normalUIByName{};
     umap<wstring, Shared<UI_Base>> criticalUIByName{};
+    umap<wstring, Shared<UI_Base>> burnIconUIByName{};
+    umap<wstring, Shared<UI_Base>> slowIconUIByName{};
 
     UI_RuntimeLoader::UI_LoadDesc normalDesc{};
     normalDesc.levelIndex = levelIndex;
@@ -130,15 +143,37 @@ HRESULT UI_DamageFont::Load_UI(uint32 levelIndex)
 
     CHECK_FAILED(UI_RuntimeLoader::Load_Document(criticalDesc), E_FAIL);
 
+    UI_RuntimeLoader::UI_LoadDesc burnIconDesc{};
+    burnIconDesc.levelIndex = levelIndex;
+    burnIconDesc.jsonPath = Constants::UI::UI_BurnIcon_Path;
+    burnIconDesc.prototypeTagPrefix = L"BurnDamageIcon";
+    burnIconDesc.outUIByName = &burnIconUIByName;
+
+    CHECK_FAILED(UI_RuntimeLoader::Load_Document(burnIconDesc), E_FAIL);
+
+    UI_RuntimeLoader::UI_LoadDesc slowIconDesc{};
+    slowIconDesc.levelIndex = levelIndex;
+    slowIconDesc.jsonPath = Constants::UI::UI_SlowIcon_Path;
+    slowIconDesc.prototypeTagPrefix = L"SlowDamageIcon";
+    slowIconDesc.outUIByName = &slowIconUIByName;
+
+    CHECK_FAILED(UI_RuntimeLoader::Load_Document(slowIconDesc), E_FAIL);
+
     _uiByName.clear();
     _uiByName.insert(normalUIByName.begin(), normalUIByName.end());
     _uiByName.insert(criticalUIByName.begin(), criticalUIByName.end());
+    _uiByName.insert(burnIconUIByName.begin(), burnIconUIByName.end());
+    _uiByName.insert(slowIconUIByName.begin(), slowIconUIByName.end());
 
     _normalRoot = Find_UI(normalUIByName, L"Panel_NormalDamageFont");
     _criticalRoot = Find_UI(criticalUIByName, L"Panel_CriticalDamageFont");
+    _burnDamageIcon = Find_UI(burnIconUIByName, L"Image_Burn_Icon");
+    _slowDamageIcon = Find_UI(slowIconUIByName, L"Image_Slow_Icon");
 
     CHECK_NULL(_normalRoot, E_FAIL);
     CHECK_NULL(_criticalRoot, E_FAIL);
+    CHECK_NULL(_burnDamageIcon, E_FAIL);
+    CHECK_NULL(_slowDamageIcon, E_FAIL);
 
     _root = _normalRoot;
     return S_OK;
@@ -158,6 +193,7 @@ HRESULT UI_DamageFont::Bind_UI()
     CHECK_NULL(_criticalDamageTextBg, E_FAIL);
 
     Set_ActiveStyle(DamageFontStyle::Normal);
+    Close_StatusDamageIcons();
 
     return S_OK;
 }
@@ -194,6 +230,97 @@ void UI_DamageFont::Set_DamageText(int32 damageValue)
 
     if (_damageTextBg)
         _damageTextBg->Set_Text(text);
+}
+
+bool UI_DamageFont::Should_ShowBurnDamageIcon() const
+{
+    return _activeAttackType == AttackType::BuffEffect;
+}
+
+void UI_DamageFont::Play_BurnDamageIcon()
+{
+    Play_StatusDamageIcon(_burnDamageIcon);
+}
+
+void UI_DamageFont::Play_SlowDamageIcon()
+{
+    Play_StatusDamageIcon(_slowDamageIcon);
+}
+
+void UI_DamageFont::Play_StatusDamageIcon(const Shared<UI_Base>& icon)
+{
+    if (icon == nullptr || _root == nullptr)
+        return;
+
+    Close_StatusDamageIcons();
+    _activeStatusDamageIcon = icon;
+    icon->Open();
+    Sync_StatusDamageIconPosition();
+}
+
+void UI_DamageFont::Close_StatusDamageIcons()
+{
+    if (_burnDamageIcon)
+    {
+        _burnDamageIcon->Close();
+        _burnDamageIcon->Clear_Parent();
+    }
+
+    if (_slowDamageIcon)
+    {
+        _slowDamageIcon->Close();
+        _slowDamageIcon->Clear_Parent();
+    }
+
+    _activeStatusDamageIcon.reset();
+}
+
+Vec2 UI_DamageFont::Resolve_StatusDamageIconLocalPosition(const Shared<UI_Base>& icon) const
+{
+    if (_damageText == nullptr || icon == nullptr)
+        return Vec2(0.f, 0.f);
+
+    UI_Transform* textTransform = _damageText->Get_Transform();
+    UI_Transform* iconTransform = icon->Get_Transform();
+    if (textTransform == nullptr || iconTransform == nullptr)
+        return Vec2(0.f, 0.f);
+
+    const Vec2 localPivotPosition = _damageText->Get_ResolvedLocalPosition();
+    const Vec2 textSize = _damageText->Get_ResolvedLocalSize();
+    const Vec2& textPivot = textTransform->Get_Pivot();
+    const float localTextScale = max(0.01f, textTransform->Get_Scale().x);
+    const float textBoxWidth = max(0.f, textSize.x * localTextScale);
+    const float textWidth = GAME->Measure_Font(_damageText->Get_FontTag(), _damageText->Get_Text().c_str()).x * localTextScale;
+
+    float textOffsetX = 0.f;
+    if (_damageText->Get_TextAlign() == UI_Text::TextAlign::Center)
+        textOffsetX = (textBoxWidth - textWidth) * 0.5f;
+    else if (_damageText->Get_TextAlign() == UI_Text::TextAlign::Right)
+        textOffsetX = textBoxWidth - textWidth;
+
+    const Vec2 localBoxTopLeft(
+        localPivotPosition.x - textSize.x * textPivot.x * localTextScale,
+        localPivotPosition.y - textSize.y * textPivot.y * localTextScale);
+    const float localTextRightX = localBoxTopLeft.x + textOffsetX + textWidth;
+    const Vec2 textRightCenter =
+        _damageText->Transform_LocalPointToWorld(Vec2(localTextRightX, localPivotPosition.y));
+
+    const Vec2& iconSize = iconTransform->Get_Size();
+    const Vec2& iconScale = iconTransform->Get_Scale();
+    const Vec2& iconPivot = iconTransform->Get_Pivot();
+
+    return Vec2(
+        textRightCenter.x + iconSize.x * max(0.01f, iconScale.x) * iconPivot.x + _statusDamageIconGap,
+        textRightCenter.y);
+}
+
+void UI_DamageFont::Sync_StatusDamageIconPosition()
+{
+    if (_activeStatusDamageIcon == nullptr || !_activeStatusDamageIcon->Is_Open())
+        return;
+
+    if (UI_Transform* iconTransform = _activeStatusDamageIcon->Get_Transform())
+        iconTransform->Set_Position(Resolve_StatusDamageIconLocalPosition(_activeStatusDamageIcon));
 }
 
 bool UI_DamageFont::Try_GetFeedbackWorldPosition(const BattleChar& target, Vec3& outWorldPos) const

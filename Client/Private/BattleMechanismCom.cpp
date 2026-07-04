@@ -75,6 +75,56 @@ void BattleMechanismCom::Reset_ForHero(HeroId heroId)
     }
 }
 
+void BattleMechanismCom::Apply_WeaponMilestoneBattleStart(const string& characterId, const string& weaponId,
+    uint32 enhanceLevel)
+{
+    if (weaponId.empty() || enhanceLevel < 8)
+        return;
+
+    if (characterId == "Gustave")
+    {
+        if (!Is_Gustave())
+            return;
+
+        if (weaponId == "Lanceram")
+            Add_GustaveCharge(3);
+        else if (weaponId == "Baguette")
+            Add_GustaveCharge(5);
+        else if (weaponId == "Tireso")
+            Add_GustaveCharge(Get_GustaveMaxCharge());
+
+        return;
+    }
+
+    if (characterId == "Lune")
+    {
+        if (!Is_Lune())
+            return;
+
+        if (weaponId == "Colim")
+            Add_LuneStains({ ElementalType::Fire });
+        else if (weaponId == "Baguette")
+            Add_LuneStains({ ElementalType::Ice, ElementalType::Fire });
+        else if (weaponId == "Snowim")
+            Add_LuneStains({ ElementalType::Earth, ElementalType::Lightning, ElementalType::Fire });
+
+        return;
+    }
+
+    if (characterId == "Maelle")
+    {
+        if (!Is_Maelle())
+            return;
+
+        if (weaponId == "Baguette")
+            Set_MaelleStance(MaelleStance::Offensive);
+        else if (weaponId == "Medalum")
+            Set_MaelleStance(MaelleStance::Defensive);
+        else if (weaponId == "Plenum")
+            Set_MaelleStance(MaelleStance::Virtuose);
+    }
+}
+
 bool BattleMechanismCom::Can_UseGustaveOvercharge() const
 {
     return Is_Gustave() && _gustave.currentCharge >= _gustave.maxCharge; // 과충전 사용 가능
@@ -153,6 +203,28 @@ void BattleMechanismCom::Clear_LuneStains()
     _lune = {};
 }
 
+bool BattleMechanismCom::Consume_LuneStain(ElementalType element)
+{
+    if (!Is_Lune() || !Is_LuneStainElement(element))
+        return false;
+
+    for (uint32 i = 0; i < _lune.stainCount; ++i)
+    {
+        if (_lune.stains[i] != element)
+            continue;
+
+        for (uint32 j = i + 1; j < _lune.stainCount; ++j)
+            _lune.stains[j - 1] = _lune.stains[j];
+
+        --_lune.stainCount;
+        _lune.stains[_lune.stainCount] = ElementalType::None;
+        ++_lune.visualRevision;
+        return true;
+    }
+
+    return false;
+}
+
 bool BattleMechanismCom::Is_LuneStainElement(ElementalType element)
 {
     switch (element)
@@ -165,6 +237,46 @@ bool BattleMechanismCom::Is_LuneStainElement(ElementalType element)
         return true;
     default:
         return false;
+    }
+}
+
+float BattleMechanismCom::Get_MaelleOutgoingDamageMultiplier() const
+{
+    if (!Is_Maelle())
+        return 1.f;
+
+    switch (_maelle.currentStance)
+    {
+    case MaelleStance::Offensive:
+        return 1.5f; // 공격 태세: 주는 피해 +50%
+
+    case MaelleStance::Virtuose:
+        return 2.f; // 명인 태세: 주는 피해 200%
+
+    case MaelleStance::Defensive:
+    case MaelleStance::Stanceless:
+    default:
+        return 1.f;
+    }
+}
+
+float BattleMechanismCom::Get_MaelleIncomingDamageMultiplier() const
+{
+    if (!Is_Maelle())
+        return 1.f;
+
+    switch (_maelle.currentStance)
+    {
+    case MaelleStance::Offensive:
+        return 1.5f; // 공격 태세: 받는 피해 +50%
+
+    case MaelleStance::Defensive:
+        return 0.5f; // 방어 태세: 받는 피해 -50%
+
+    case MaelleStance::Virtuose:
+    case MaelleStance::Stanceless:
+    default:
+        return 1.f;
     }
 }
 

@@ -51,12 +51,15 @@ void Skill_Gustave_LumiereAssault::Execute(const Skill_Data& skill, const Battle
         return;
 
     const BattleChar& target = curTargets.front();
+    const float damage = (DamageSystem::CalculatePlayerAttackDamage(attacker, skill.powerMultiplier)) / 5.f;
+    const DamageAppliedInfo damageInfo = DamageSystem::ApplyDamage(damage, attacker, target, attackType);
 
-    const float damage = DamageSystem::CalculatePlayerAttackDamage(attacker, skill.powerMultiplier);
-    DamageSystem::ApplyDamage(damage, attacker, target, attackType);
-
+    // 크리티컬이면 2스택
     if (attacker.mechanismCom)
-        attacker.mechanismCom->Add_GustaveCharge(1);
+    {
+        const int32 charge = damageInfo.isCritical ? 2 : 1;
+        attacker.mechanismCom->Add_GustaveCharge(charge);
+    }
 }
 
 Shared<Skill_Gustave_LumiereAssault> Skill_Gustave_LumiereAssault::Create()
@@ -75,7 +78,6 @@ void Skill_Gustave_UnleashedCharge::Execute(const Skill_Data& skill, const Battl
 
     const BattleChar& target = curTargets.front();
 
-    // 과충전은 추후에, 게이지 비례한 데미지로 변경 예정
     const float damage = DamageSystem::CalculatePlayerAttackDamage(attacker, skill.powerMultiplier);
     DamageSystem::ApplyDamage(damage, attacker, target, attackType);
 
@@ -161,7 +163,7 @@ void Skill_Gustave_PerfectBreak::Execute(const Skill_Data& skill, const BattleAc
     battle->Try_ApplySkillBuff(skill, target);
 
     if (attacker.mechanismCom)
-        attacker.mechanismCom->Add_GustaveCharge(1);
+        attacker.mechanismCom->Add_GustaveCharge(2);
 }
 
 Shared<Skill_Gustave_PerfectBreak> Skill_Gustave_PerfectBreak::Create()
@@ -188,7 +190,7 @@ void Skill_Gustave_AnglesEye::Execute(const Skill_Data& skill, const BattleActio
 
     const BattleChar& target = curTargets.front();
 
-    const float damage = DamageSystem::CalculatePlayerAttackDamage(attacker, skill.powerMultiplier);
+    const float damage = (DamageSystem::CalculatePlayerAttackDamage(attacker, skill.powerMultiplier)) / 8.f;
     DamageSystem::ApplyDamage(damage, attacker, target, attackType);
 
     // 7연격 스폰 로컬 위치 및 회전 세팅
@@ -214,8 +216,11 @@ void Skill_Gustave_AnglesEye::Execute(const Skill_Data& skill, const BattleActio
         slashEffect.localRotation,
         slashEffect.scale);
 
-    if (attacker.mechanismCom)
-        attacker.mechanismCom->Add_GustaveCharge(1);
+    if (attacker.mechanismCom != nullptr &&
+        action.GetCurStepIndex() + 1 >= action.GetSteps().size())
+    {
+        attacker.mechanismCom->Add_GustaveCharge(attacker.mechanismCom->Get_GustaveMaxCharge());
+    }
 }
 
 Shared<Skill_Gustave_AnglesEye> Skill_Gustave_AnglesEye::Create()
