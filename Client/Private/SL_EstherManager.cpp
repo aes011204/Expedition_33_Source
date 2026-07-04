@@ -105,7 +105,8 @@ bool SL_EstherManager::Notify_Attack(GameObject* notifyOwner)
         return true;
 
     const float damageRatio = kEstherMaxHpDamageRatio / static_cast<float>(expectedAttackCount);
-    if (Apply_EstherDamage(runtime, damageRatio))
+    const bool isFinalAttack = runtime.appliedAttackCount + 1 >= expectedAttackCount;
+    if (Apply_EstherDamage(runtime, damageRatio, isFinalAttack))
     {
         ++runtime.appliedAttackCount;
 
@@ -347,7 +348,7 @@ bool SL_EstherManager::Is_NotifyOwnerActiveEsther(GameObject* notifyOwner) const
     return false;
 }
 
-bool SL_EstherManager::Apply_EstherDamage(const EstherRuntime& runtime, float damageRatio)
+bool SL_EstherManager::Apply_EstherDamage(const EstherRuntime& runtime, float damageRatio, bool applyBreak)
 {
     Shared<SL_Base> target = runtime.target.lock();
     if (target == nullptr || target->Is_Dead())
@@ -372,8 +373,11 @@ bool SL_EstherManager::Apply_EstherDamage(const EstherRuntime& runtime, float da
         return false;
     }
 
-    if (Shared<MonsterStatCom> monsterStat = dynamic_pointer_cast<MonsterStatCom>(targetStat))
-        monsterStat->Set_Break(monsterStat->Get_MaxBreak());
+    if (applyBreak)
+    {
+        if (Shared<MonsterStatCom> monsterStat = dynamic_pointer_cast<MonsterStatCom>(targetStat))
+            monsterStat->Set_Break(monsterStat->Get_MaxBreak());
+    }
 
     target->Apply_Damage(damageInfo);
     return true;

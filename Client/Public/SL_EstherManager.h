@@ -61,7 +61,7 @@ private:
 
     bool Play_EstherAnimation(const Shared<Player_BattleBase>& actor, const string& animationName, float animationSpeed);
     bool Is_NotifyOwnerActiveEsther(GameObject* notifyOwner) const;
-    bool Apply_EstherDamage(const EstherRuntime& runtime, float damageRatio);
+    bool Apply_EstherDamage(const EstherRuntime& runtime, float damageRatio, bool applyBreak);
     void Apply_TargetSlow(EstherRuntime& runtime);
     void Restore_TargetSlow(EstherRuntime& runtime);
 
