@@ -10,7 +10,7 @@ namespace
 {
     constexpr uint32 kSimonWeaponEchoPassIndex = 15;
     constexpr const char* kSimonBladeMaterialName = "MI_Simon_Blade_Retake";
-    const Vec4 kSimonBladeGhostColor = Vec4(0.70f, 1.0f, 0.92f, 1.f);
+    const Vec4 kSimonBladeGhostColor = Vec4(0.70f, 1.0f, 0.92f, 0.38f);
     constexpr float kSimonWeaponEchoScale = 0.95f;
 
     class SimonWeaponEchoTrailSampleProvider final : public IEffectTrailSampleProvider
