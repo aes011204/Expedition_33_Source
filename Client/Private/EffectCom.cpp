@@ -989,7 +989,7 @@ HRESULT EffectCom::Play_TrailEffect(
     acquireDesc.effectName = resolvedEffectName;
     acquireDesc.layerLevelIndex = GAME->Current_LevelIndex();
     acquireDesc.layerTag = layerTag;
-    acquireDesc.worldPosition = initialSample.baseWorldPosition;
+    acquireDesc.worldPosition = initialSample.tipWorldPosition;
     acquireDesc.trailSampleProvider = attached.trailSampleProvider;
     acquireDesc.autoReleaseOnFinished = false;
 
@@ -1459,7 +1459,7 @@ void EffectCom::Update_AttachedEffects(float timeDelta)
             if (!Try_BuildTrailSample(attached.partTag, attached.trailAnchorAsset, &attached.trailOffset, trailSample))
                 continue;
 
-            effectTransform->Set_WorldPosition(trailSample.baseWorldPosition);
+            effectTransform->Set_WorldPosition(trailSample.tipWorldPosition);
             continue;
         }
 
