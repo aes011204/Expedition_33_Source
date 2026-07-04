@@ -10,6 +10,8 @@
 
 namespace
 {
+    constexpr char kPlayerJumpCameraPresetKey[] = "PlayerJump";
+
     float Evaluate_SoulLikeFollowT(BattleCameraTransitionEasing easing, float t)
     {
         t = clamp(t, 0.f, 1.f);
@@ -312,7 +314,7 @@ void SoulLikeCamera::Apply_PreviewPreset(const TargetCameraPreset& preset)
     Update_FromCurrentSettings(0.f);
 }
 
-bool SoulLikeCamera::Apply_PresetOverride(const string& presetKey)
+bool SoulLikeCamera::Apply_PresetOverride(const string& presetKey, float clipStartTimeSec, bool syncClipToExternalTime)
 {
     if (presetKey.empty())
         return false;
@@ -330,7 +332,8 @@ bool SoulLikeCamera::Apply_PresetOverride(const string& presetKey)
     _hasActiveClip =
         BattleCameraClipIO::LoadSoulLikeCameraClipFromFile(presetKey, _activeClip) &&
         Has_ClipKeys(_activeClip);
-    _activeClipTime = 0.f;
+    _activeClipTime = std::clamp(clipStartTimeSec, 0.f, std::max(0.f, _activeClip.duration));
+    _activeClipExternalTimeSync = syncClipToExternalTime;
 
     if (_targetSettings.snapOnEnter)
         _currentSettings = _targetSettings;
@@ -346,12 +349,43 @@ bool SoulLikeCamera::Apply_PresetOverride(const string& presetKey)
     return true;
 }
 
-bool SoulLikeCamera::Apply_SkillPreset(const string& skillKey)
+bool SoulLikeCamera::Apply_ClipOverride(const string& presetKey, float clipStartTimeSec, bool syncClipToExternalTime)
+{
+    if (presetKey.empty())
+        return false;
+
+    BattleCameraClip loadedClip{};
+    if (!BattleCameraClipIO::LoadSoulLikeCameraClipFromFile(presetKey, loadedClip) ||
+        !Has_ClipKeys(loadedClip))
+    {
+        return false;
+    }
+
+    _activePresetKey = presetKey;
+    _activeClip = loadedClip;
+    _activeClipBaseSettings = _targetSettings;
+    _hasActiveClip = true;
+    _activeClipTime = std::clamp(clipStartTimeSec, 0.f, std::max(0.f, _activeClip.duration));
+    _activeClipExternalTimeSync = syncClipToExternalTime;
+
+    return true;
+}
+
+bool SoulLikeCamera::Apply_SkillPreset(const string& skillKey, float clipStartTimeSec)
 {
     if (skillKey.empty())
         return false;
 
-    return Apply_PresetOverride("PlayerSkill_" + skillKey);
+    return Apply_PresetOverride("PlayerSkill_" + skillKey, clipStartTimeSec, true);
+}
+
+void SoulLikeCamera::Set_ActiveClipExternalTime(float timeSec)
+{
+    if (!_hasActiveClip)
+        return;
+
+    _activeClipTime = std::clamp(timeSec, 0.f, std::max(0.f, _activeClip.duration));
+    _activeClipExternalTimeSync = true;
 }
 
 void SoulLikeCamera::Restore_BasePreset()
@@ -369,6 +403,44 @@ void SoulLikeCamera::Restore_BasePreset()
     Set_FovY(_currentSettings.camera.fovy);
     Set_Near(_currentSettings.camera.nearPlane);
     Set_Far(_currentSettings.camera.farPlane);
+
+    _collisionQueryAccum = 0.f;
+    _hasCollisionQueryCache = false;
+    _collisionDistance = -1.f;
+}
+
+bool SoulLikeCamera::Restore_PresetOverride(const string& presetKey)
+{
+    if (_activePresetKey != presetKey)
+        return false;
+
+    Restore_BasePreset();
+    return true;
+}
+
+void SoulLikeCamera::Begin_TargetYLock()
+{
+    Vec3 subjectPos = Resolve_SubjectPosition();
+    if (Shared<TransformCom> targetTransformCom; Try_GetTargetTransform(targetTransformCom))
+        subjectPos.y = targetTransformCom->Get_WorldPosition().y;
+
+    _targetYLocked = true;
+    _targetYLockValue = subjectPos.y;
+    _smoothedTargetPos.y = _targetYLockValue;
+    _prevTargetPos.y = _targetYLockValue;
+
+    _collisionQueryAccum = 0.f;
+    _hasCollisionQueryCache = false;
+    _collisionDistance = -1.f;
+}
+
+void SoulLikeCamera::End_TargetYLock()
+{
+    if (!_targetYLocked)
+        return;
+
+    _targetYLocked = false;
+    _prevTargetPos = Resolve_SubjectPosition();
 
     _collisionQueryAccum = 0.f;
     _hasCollisionQueryCache = false;
@@ -439,6 +511,7 @@ void SoulLikeCamera::Reset_ActiveClip()
     _activeClipBaseSettings = TargetCameraPreset{};
     _activeClipTime = 0.f;
     _hasActiveClip = false;
+    _activeClipExternalTimeSync = false;
 }
 
 void SoulLikeCamera::Apply_ActiveClip(float timeDelta)
@@ -446,28 +519,34 @@ void SoulLikeCamera::Apply_ActiveClip(float timeDelta)
     if (!_hasActiveClip)
         return;
 
-    _activeClipTime = std::clamp(
-        _activeClipTime + std::max(0.f, timeDelta),
-        0.f,
-        std::max(0.f, _activeClip.duration));
+    if (!_activeClipExternalTimeSync)
+    {
+        _activeClipTime = std::clamp(
+            _activeClipTime + std::max(0.f, timeDelta),
+            0.f,
+            std::max(0.f, _activeClip.duration));
+    }
 
-    TargetCameraPreset sampledSettings = _activeClipBaseSettings;
+    const bool usePlayerJumpVerticalOnly = _activePresetKey == kPlayerJumpCameraPresetKey;
+    TargetCameraPreset sampledSettings = usePlayerJumpVerticalOnly
+        ? _baseSettings
+        : _activeClipBaseSettings;
 
-    if (!_activeClip.distanceOffset.keyframes.empty())
+    if (!usePlayerJumpVerticalOnly && !_activeClip.distanceOffset.keyframes.empty())
         sampledSettings.distance = Sample_BattleCameraTrack(_activeClip.distanceOffset, _activeClipTime);
-    if (!_activeClip.fovOffset.keyframes.empty())
+    if (!usePlayerJumpVerticalOnly && !_activeClip.fovOffset.keyframes.empty())
         sampledSettings.camera.fovy = Sample_BattleCameraTrack(_activeClip.fovOffset, _activeClipTime);
-    if (!_activeClip.sideOffset.keyframes.empty())
+    if (!usePlayerJumpVerticalOnly && !_activeClip.sideOffset.keyframes.empty())
         sampledSettings.sideOffset = Sample_BattleCameraTrack(_activeClip.sideOffset, _activeClipTime);
     if (!_activeClip.pivotOffset.keyframes.empty())
         sampledSettings.pivotHeight = Sample_BattleCameraTrack(_activeClip.pivotOffset, _activeClipTime);
     if (!_activeClip.heightOffset.keyframes.empty())
         sampledSettings.heightOffset = Sample_BattleCameraTrack(_activeClip.heightOffset, _activeClipTime);
-    if (!_activeClip.aimOffset.keyframes.empty())
+    if (!usePlayerJumpVerticalOnly && !_activeClip.aimOffset.keyframes.empty())
         sampledSettings.aimOffset = Sample_BattleCameraTrack(_activeClip.aimOffset, _activeClipTime);
     if (!_activeClip.lookHeightOffset.keyframes.empty())
         sampledSettings.lookHeight = Sample_BattleCameraTrack(_activeClip.lookHeightOffset, _activeClipTime);
-    if (!_activeClip.yawOffset.keyframes.empty())
+    if (!usePlayerJumpVerticalOnly && !_activeClip.yawOffset.keyframes.empty())
         sampledSettings.yawOffset = Sample_BattleCameraTrack(_activeClip.yawOffset, _activeClipTime);
 
     _currentSettings.distance = sampledSettings.distance;
@@ -520,19 +599,21 @@ Vec3 SoulLikeCamera::Resolve_SubjectPosition()
     Shared<TransformCom> opponentTransformCom;
     const bool hasOpponent = Try_GetOpponentTransform(opponentTransformCom);
 
+    Vec3 subjectPos = _smoothedTargetPos;
+
     if (_currentSettings.focusMode == SoulLikeCameraFocusMode::PlayerOpponentMidpoint && hasTarget && hasOpponent)
-        return (targetTransformCom->Get_WorldPosition() + opponentTransformCom->Get_WorldPosition()) * 0.5f;
+        subjectPos = (targetTransformCom->Get_WorldPosition() + opponentTransformCom->Get_WorldPosition()) * 0.5f;
+    else if (_currentSettings.focusMode == SoulLikeCameraFocusMode::Opponent && hasOpponent)
+        subjectPos = opponentTransformCom->Get_WorldPosition();
+    else if (hasTarget)
+        subjectPos = targetTransformCom->Get_WorldPosition();
+    else if (hasOpponent)
+        subjectPos = opponentTransformCom->Get_WorldPosition();
 
-    if (_currentSettings.focusMode == SoulLikeCameraFocusMode::Opponent && hasOpponent)
-        return opponentTransformCom->Get_WorldPosition();
+    if (_targetYLocked)
+        subjectPos.y = _targetYLockValue;
 
-    if (hasTarget)
-        return targetTransformCom->Get_WorldPosition();
-
-    if (hasOpponent)
-        return opponentTransformCom->Get_WorldPosition();
-
-    return _smoothedTargetPos;
+    return subjectPos;
 }
 
 void SoulLikeCamera::Update_SmoothedTargetPosition(const Vec3& targetPos, float timeDelta)
@@ -566,6 +647,12 @@ void SoulLikeCamera::Update_SmoothedTargetPosition(const Vec3& targetPos, float 
     {
         _smoothedTargetPos.x = lerp(_smoothedTargetPos.x, targetPos.x, horizontalFollowT);
         _smoothedTargetPos.z = lerp(_smoothedTargetPos.z, targetPos.z, horizontalFollowT);
+    }
+
+    if (_targetYLocked)
+    {
+        _smoothedTargetPos.y = _targetYLockValue;
+        return;
     }
 
     const float yDelta = fabsf(targetPos.y - _smoothedTargetPos.y);
@@ -636,7 +723,7 @@ void SoulLikeCamera::Update_FromCurrentSettings(float timeDelta)
     const Vec3 collisionStart = lookTarget;
     Vec3 newPos = desiredPos;
 
-    if (_currentSettings.doCollisionTest)
+    if (_currentSettings.doCollisionTest && !_targetYLocked)
     {
         const float sweepStartDeltaSq = (collisionStart - _lastCollisionSweepStart).LengthSquared();
         const float desiredPosDeltaSq = (desiredPos - _lastCollisionDesiredPos).LengthSquared();

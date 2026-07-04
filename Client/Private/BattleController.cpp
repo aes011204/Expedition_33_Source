@@ -75,12 +75,26 @@ namespace
     constexpr char kNpcSumoDialogueKey[] = "NPC_Sumo";
     constexpr char kNpcSumoAfterPotatoBagDialogueKey[] = "NPC_Sumo_AfterPotatoBag";
 
+    const Vec3 kBishopPostBattleWorldPosition = Vec3(122.10f, 21.61f, -2.56f);
+    const Vec3 kBishopPostBattleWorldRotation = Vec3(0.f, 80.3f, 0.f);
+
     constexpr float kSkillPresentationDissolveDuration = 0.12f;
     constexpr float kSkillPresentationHideConfirmDuration = 0.04f;
     constexpr float kSkillPresentationRevealGraceDuration = 0.10f;
     constexpr char kSkillPresentationDissolveNoise[] = "T_Perlin_Noise_M";
     constexpr float kSkillPresentationOcclusionDepthMargin = 0.25f;
     constexpr float kSkillPresentationOcclusionCapsuleRadius = 0.58f;
+
+    bool Has_BishopBattleSpawnDesc(const vector<BattleMonsterSpawnDesc>& battleMonsterSpawnDescs)
+    {
+        for (const BattleMonsterSpawnDesc& spawnDesc : battleMonsterSpawnDescs)
+        {
+            if (spawnDesc.prefabName == Constants::Prefab::MB_Bishop)
+                return true;
+        }
+
+        return false;
+    }
 }
 
 BattleController::BattleController()
@@ -436,6 +450,9 @@ void BattleController::OnEnterBattleField(
 
     if (completeImmediately)
     {
+        if (Has_BishopBattleSpawnDesc(battleMonsterSpawnDescs))
+            CLIENT->Warp_PartyToFormation(kBishopPostBattleWorldPosition, kBishopPostBattleWorldRotation);
+
         if (!GAME->Is_ActiveCameraType(ObjectType::BattleTurnCamera))
             CLIENT->Request_TargetCameraMode(TargetCameraMode::BATTLE_ENTER); // 월드/시네마틱 즉시 진입은 기존 전투 진입 카메라 요청을 유지한다.
 
@@ -770,24 +787,6 @@ void BattleController::EndTurn()
         : max(actor.statCom->Get_Speed(), 1.f);
 
     _buffSystem->ProcessTurnEnd(_currentTurnActor);
-
-    string gradientSkillKey{};
-    if (actor.statCom->Is_Player() &&
-        actor.statCom->Try_GetSkillKeyBySlot(GradientSkill::SlotIndex, gradientSkillKey))
-    {
-        for (const BattleChar& hero : _heroes)
-        {
-            if (hero.statCom == nullptr)
-                continue;
-
-            if (hero.statCom->Get_AliveStatus() == EAliveStatus::Dead)
-                continue;
-
-            string heroGradientSkillKey{};
-            if (hero.statCom->Try_GetSkillKeyBySlot(GradientSkill::SlotIndex, heroGradientSkillKey))
-                hero.statCom->Add_GradientGauge(GradientSkill::GaugeGainPerTurn);
-        }
-    }
 
     OnTurnEnded.Broadcast(_currentTurnActor); // 턴 종료 신호
 
@@ -2161,6 +2160,22 @@ void BattleController::Execute_Skill()
         }
     }
 
+    if (actor.statCom->Is_Player() && apCost > 0)
+    {
+        for (const BattleChar& hero : _heroes)
+        {
+            if (hero.statCom == nullptr)
+                continue;
+
+            if (hero.statCom->Get_AliveStatus() == EAliveStatus::Dead)
+                continue;
+
+            string heroGradientSkillKey{};
+            if (hero.statCom->Try_GetSkillKeyBySlot(GradientSkill::SlotIndex, heroGradientSkillKey))
+                hero.statCom->Add_GradientGauge(apCost);
+        }
+    }
+
     action.InitActionDirection();
 
     _isActionExecuting = true;
@@ -2592,10 +2607,12 @@ void BattleController::Begin_FreeAimShot(const BattleAction& shotAction)
     // Free Aim은 히트스캔 즉발데미지
     if (_freeAimShotAction.GetInitTarget().actor != nullptr && _freeAimShotAction.GetInitTarget().statCom != nullptr)
     {
-        constexpr float freeAimDamage = 20.f; // 우선 테스트용 데미지
-
         const BattleChar& attacker = _freeAimShotAction.Get_CurChar();
         const BattleChar& target = _freeAimShotAction.GetInitTarget();
+        constexpr float freeAimDamageMultiplier = 1.f;
+        const float freeAimDamage =
+            DamageSystem::CalculatePlayerAttackDamage(attacker, freeAimDamageMultiplier);
+
         const bool hadShieldBeforeShot = target.statCom->Get_CurrentShield() > 0;
         const Vec3* freeAimHitWorldPos =
             _hasFreeAimHitTarget && _freeAimHitTarget.target.actor == target.actor
@@ -3649,8 +3666,9 @@ bool BattleController::Try_ApplyFreeAimWeakPointBonus(const BattleFreeAimHitTarg
 
     Play_BattleHitStop(0.08f, 0.10f); // 약간 슬로우
 
-    // 일단은 고정 추가 데미지
-    float freeAimWeakPointDamage = 11.f;
+    constexpr float freeAimWeakPointDamageMultiplier = 0.55f;
+    float freeAimWeakPointDamage =
+        DamageSystem::CalculatePlayerAttackDamage(attacker, freeAimWeakPointDamageMultiplier);
 
     // 튜토리얼은 즉사
     if (_activeBattleFieldID == BattleEncounterIds::LancelierTutorial &&

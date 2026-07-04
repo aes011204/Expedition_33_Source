@@ -680,7 +680,8 @@ HRESULT Player_WorldBase::Activate_CostumeVariant(const CostumePreset& preset)
     if (_playerStateMachineCom)
     {
         _playerStateMachineCom->Refresh_BodyPlayerForStates();
-        _playerStateMachineCom->Reenter_CurrentState();
+        if (!GAME->Is_GameplayPaused())
+            _playerStateMachineCom->Reenter_CurrentState();
     }
 
     return S_OK;
