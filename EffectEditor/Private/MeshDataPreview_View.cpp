@@ -1043,39 +1043,50 @@ struct MeshDataPreview_View::PreviewRenderer
         return S_OK;
     }
 
-    HRESULT Bind_ModelMaterialResourcesForMesh(uint32 meshIndex, bool useModelMaterials)
+    HRESULT Bind_ModelMaterialResourcesForMesh(uint32 meshIndex, const EffectMaterialInstanceData& material, bool useModelMaterials)
     {
         Vec4 modelMaterialFlags = Vec4::Zero;
+        const bool supportsModelOrm = !Internal::Is_MeshGlassPreviewFamily(material);
         if (!useModelMaterials || model == nullptr)
         {
             if (mainTexture != nullptr)
-                CHECK_FAILED(mainTexture->Bind_ShaderResourceView(shader.get(), "g_Texture", 0), E_FAIL);
+                CHECK_FAILED_THROTTLED(mainTexture->Bind_ShaderResourceView(shader.get(), "g_Texture", 0), 60, E_FAIL);
             else
-                CHECK_FAILED(shader->Bind_SRV("g_Texture", nullptr), E_FAIL);
-            CHECK_FAILED(shader->Bind_SRV("g_ModelNormalTexture", nullptr), E_FAIL);
-            CHECK_FAILED(shader->Bind_SRV("g_ModelEmissiveTexture", nullptr), E_FAIL);
-            CHECK_FAILED(shader->Bind_RawValue("g_EffectMeshModelMaterialFlags", &modelMaterialFlags, sizeof(modelMaterialFlags)), E_FAIL);
+                CHECK_FAILED_THROTTLED(shader->Bind_SRV("g_Texture", nullptr), 60, E_FAIL);
+            CHECK_FAILED_THROTTLED(shader->Bind_SRV("g_ModelNormalTexture", nullptr), 60, E_FAIL);
+            CHECK_FAILED_THROTTLED(shader->Bind_SRV("g_ModelEmissiveTexture", nullptr), 60, E_FAIL);
+            if (supportsModelOrm)
+                CHECK_FAILED_THROTTLED(shader->Bind_SRV("g_ModelOrmTexture", nullptr), 60, E_FAIL);
+            CHECK_FAILED_THROTTLED(shader->Bind_RawValue("g_EffectMeshModelMaterialFlags", &modelMaterialFlags, sizeof(modelMaterialFlags)), 60, E_FAIL);
             return S_OK;
         }
 
         if (SUCCEEDED(model->Bind_Material(shader.get(), "g_Texture", meshIndex, MaterialTextureSlot::BaseColor)))
             modelMaterialFlags.x = 1.f;
         else if (mainTexture == nullptr)
-            CHECK_FAILED(shader->Bind_SRV("g_Texture", nullptr), E_FAIL);
+            CHECK_FAILED_THROTTLED(shader->Bind_SRV("g_Texture", nullptr), 60, E_FAIL);
         else
-            CHECK_FAILED(mainTexture->Bind_ShaderResourceView(shader.get(), "g_Texture", 0), E_FAIL);
+            CHECK_FAILED_THROTTLED(mainTexture->Bind_ShaderResourceView(shader.get(), "g_Texture", 0), 60, E_FAIL);
 
         if (SUCCEEDED(model->Bind_Material(shader.get(), "g_ModelNormalTexture", meshIndex, MaterialTextureSlot::Normal)))
             modelMaterialFlags.y = 1.f;
         else
-            CHECK_FAILED(shader->Bind_SRV("g_ModelNormalTexture", nullptr), E_FAIL);
+            CHECK_FAILED_THROTTLED(shader->Bind_SRV("g_ModelNormalTexture", nullptr), 60, E_FAIL);
 
         if (SUCCEEDED(model->Bind_Material(shader.get(), "g_ModelEmissiveTexture", meshIndex, MaterialTextureSlot::Emissive)))
             modelMaterialFlags.z = 1.f;
         else
-            CHECK_FAILED(shader->Bind_SRV("g_ModelEmissiveTexture", nullptr), E_FAIL);
+            CHECK_FAILED_THROTTLED(shader->Bind_SRV("g_ModelEmissiveTexture", nullptr), 60, E_FAIL);
 
-        CHECK_FAILED(shader->Bind_RawValue("g_EffectMeshModelMaterialFlags", &modelMaterialFlags, sizeof(modelMaterialFlags)), E_FAIL);
+        if (supportsModelOrm)
+        {
+            if (SUCCEEDED(model->Bind_Material(shader.get(), "g_ModelOrmTexture", meshIndex, MaterialTextureSlot::ORM)))
+                modelMaterialFlags.w = 1.f;
+            else
+                CHECK_FAILED_THROTTLED(shader->Bind_SRV("g_ModelOrmTexture", nullptr), 60, E_FAIL);
+        }
+
+        CHECK_FAILED_THROTTLED(shader->Bind_RawValue("g_EffectMeshModelMaterialFlags", &modelMaterialFlags, sizeof(modelMaterialFlags)), 60, E_FAIL);
         return S_OK;
     }
 
@@ -1174,10 +1185,10 @@ struct MeshDataPreview_View::PreviewRenderer
         for (uint32 meshIndex = 0; meshIndex < numMeshes; ++meshIndex)
         {
             if (!Internal::Is_MeshDistortionPreviewFamily(material))
-                CHECK_FAILED(Bind_ModelMaterialResourcesForMesh(meshIndex, useModelMaterials), E_FAIL);
+                CHECK_FAILED_THROTTLED(Bind_ModelMaterialResourcesForMesh(meshIndex, material, useModelMaterials), 60, E_FAIL);
 
-            CHECK_FAILED(shader->Begin(passIndex), E_FAIL);
-            CHECK_FAILED(model->Render(meshIndex), E_FAIL);
+            CHECK_FAILED_THROTTLED(shader->Begin(passIndex), 60, E_FAIL);
+            CHECK_FAILED_THROTTLED(model->Render(meshIndex), 60, E_FAIL);
         }
 
         return S_OK;
