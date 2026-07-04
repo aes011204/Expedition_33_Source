@@ -23,15 +23,53 @@ namespace
     constexpr char kBattleDOFOwnerTag[] = "BattleTurn";
     constexpr float kMaxFormationYawBiasDegrees = 35.f;
     constexpr float kAbbestExtraPlayerAttackYawBiasDegrees = 22.f;
-    constexpr float kJumpCounterLookOffsetY = 2.f;
-    constexpr float kJumpCounterOffsetFadeInSpeed = 10.f;
-    constexpr float kJumpCounterOffsetFadeOutSpeed = 12.f;
+    constexpr float kJumpCounterLookOffsetY = 0.75f;
+    constexpr float kJumpCounterOffsetFadeInSpeed = 1.8f;
+    constexpr float kJumpCounterOffsetFadeOutSpeed = 1.6f;
+    constexpr float kAnimationSyncClipDiscontinuityFadeSeconds = 0.18f;
     constexpr char kAbbestBattlePrefabName[] = "MB_Abbest";
+    constexpr char kSimonBattlePrefabName[] = "MB_Simon";
+    constexpr char kSimonV2BattlePrefabName[] = "MB_Simon_V2";
+    constexpr char kSimonWorldPrefabName[] = "MW_Simon";
+    constexpr char kSimonV2WorldPrefabName[] = "MW_Simon_V2";
+    constexpr float kSimonPlayerAttackSideOffsetScale = 0.7f;
+    constexpr float kSimonPlayerAttackYawOffsetScale = 0.85f;
     constexpr char kPotatoBagDashOutReversedPresetId[] = "PotatoBag_DashOut_Reversed";
     constexpr char kPotatoBagAttShieldPresetId[] = "PotatoBag_AttShield";
 
     constexpr wchar_t kBattleClipShakeDebugSlot[] =
         L"[BattleClipShake] anim={:.3f} sample={:.3f} shakeT={:.3f} amp={:.3f}";
+    constexpr wchar_t kBattlePlayerAttackFramingDebugSlot[] =
+        L"[BattlePlayerAttackFraming] mode={} opponent={} simon={} yaw={:.2f}->{:.2f} clipYaw={:.2f}->{:.2f} side={:.2f}->{:.2f} clipSide={:.2f}->{:.2f}";
+
+float Evaluate_ClipDiscontinuityFadeWeight(float elapsed)
+{
+    const float t = kAnimationSyncClipDiscontinuityFadeSeconds > 0.f
+        ? clamp(elapsed / kAnimationSyncClipDiscontinuityFadeSeconds, 0.f, 1.f)
+        : 1.f;
+    const float smootherStep = t * t * t * (t * (t * 6.f - 15.f) + 10.f);
+    return 1.f - smootherStep;
+}
+
+BattleCameraClipSample Scale_BattleCameraClipSample(const BattleCameraClipSample& sample, float weight)
+{
+    BattleCameraClipSample scaled = sample;
+    scaled.distanceOffset *= weight;
+    scaled.fovOffset *= weight;
+    scaled.sideOffset *= weight;
+    scaled.pivotOffset *= weight;
+    scaled.heightOffset *= weight;
+    scaled.aimOffset *= weight;
+    scaled.lookHeightOffset *= weight;
+    // Discontinuity fade is only meant to soften framing/zoom loss; do not keep angle tracks alive.
+    scaled.yawOffset = 0.f;
+    scaled.orbitYaw = 0.f;
+    scaled.orbitRadius *= weight;
+    scaled.orbitHeight *= weight;
+    scaled.orbitLookHeight *= weight;
+    scaled.shakeAmplitude *= weight;
+    return scaled;
+}
 
 BattleCameraClipTimeMode Get_DefaultBattleCameraClipTimeMode(BattleCameraMode cameraMode)
 {
@@ -508,6 +546,7 @@ void BattleTurnCamera::Reset_RuntimeState()
     _battleDOFLastAppliedFocusDistance = 0.f;
     _runtimeDrift = {};
     _isJumpCounterPoseOffsetActive = false;
+    _jumpCounterPoseOffsetProgress = 0.f;
     _jumpCounterPoseOffsetWeight = 0.f;
 }
 
@@ -630,7 +669,55 @@ bool BattleTurnCamera::Is_BossEnemyAttackRequest(const BattleShotRequest& reques
 
 const BattleCameraDriftProfile* BattleTurnCamera::Resolve_RuntimeDriftProfile(const BattleShotRequest& request) const
 {
+    if (request.mode == BattleCameraMode::ENEMYATTACK)
+    {
+        const string prefabName = Resolve_EnemyAttackPrefabDriftKey(request);
+        if (const BattleCameraDriftProfile* prefabDrift = Find_EnemyAttackPrefabDriftOverride(prefabName))
+            return prefabDrift;
+    }
+
     return Find_DriftStorage(request.mode, Is_BossEnemyAttackRequest(request));
+}
+
+string BattleTurnCamera::Resolve_EnemyAttackPrefabDriftKey(const BattleShotRequest& request) const
+{
+    if (request.mode != BattleCameraMode::ENEMYATTACK || request.subject == nullptr)
+        return {};
+
+    return request.subject->Get_SourcePrefabName();
+}
+
+BattleCameraDriftProfile* BattleTurnCamera::Find_EnemyAttackPrefabDriftOverride(const string& prefabName)
+{
+    if (prefabName.empty())
+        return nullptr;
+
+    if (const BattleCameraDriftProfile* profile =
+            static_cast<const BattleTurnCamera*>(this)->Find_EnemyAttackPrefabDriftOverride(prefabName))
+        return &_enemyAttackPrefabDriftOverrides[prefabName];
+
+    return nullptr;
+}
+
+const BattleCameraDriftProfile* BattleTurnCamera::Find_EnemyAttackPrefabDriftOverride(const string& prefabName) const
+{
+    if (prefabName.empty())
+        return nullptr;
+
+    if (const auto found = _enemyAttackPrefabDriftOverrides.find(prefabName); found != _enemyAttackPrefabDriftOverrides.end())
+        return &found->second;
+
+    if (_enemyAttackPrefabDriftLoadAttempts.contains(prefabName))
+        return nullptr;
+
+    _enemyAttackPrefabDriftLoadAttempts.insert(prefabName);
+
+    BattleCameraDriftProfile profile{};
+    if (!CameraPresetIO::LoadBattleDriftFromFile(BattleCameraMode::ENEMYATTACK, profile, false, prefabName))
+        return nullptr;
+
+    auto [iter, inserted] = const_cast<BattleTurnCamera*>(this)->_enemyAttackPrefabDriftOverrides.emplace(prefabName, profile);
+    return &iter->second;
 }
 
 BattleTurnCamera::ResolvedShotAssets BattleTurnCamera::Resolve_ShotAssets(
@@ -839,16 +926,19 @@ void BattleTurnCamera::Apply_RuntimeShake(EvaluatedPose& pose, float timeDelta)
 
 void BattleTurnCamera::Update_JumpCounterPoseOffset(float timeDelta)
 {
-    const float targetWeight = _isJumpCounterPoseOffsetActive ? 1.f : 0.f;
     const float speed = _isJumpCounterPoseOffsetActive
         ? kJumpCounterOffsetFadeInSpeed
         : kJumpCounterOffsetFadeOutSpeed;
-    const float alpha = 1.f - expf(-speed * std::max(0.f, timeDelta));
+    const float delta = std::max(0.f, timeDelta) * speed;
 
-    _jumpCounterPoseOffsetWeight = lerp(_jumpCounterPoseOffsetWeight, targetWeight, alpha);
+    if (_isJumpCounterPoseOffsetActive)
+        _jumpCounterPoseOffsetProgress = std::min(1.f, _jumpCounterPoseOffsetProgress + delta);
+    else
+        _jumpCounterPoseOffsetProgress = std::max(0.f, _jumpCounterPoseOffsetProgress - delta);
 
-    if (fabsf(_jumpCounterPoseOffsetWeight - targetWeight) <= 0.001f)
-        _jumpCounterPoseOffsetWeight = targetWeight;
+    const float t = std::clamp(_jumpCounterPoseOffsetProgress, 0.f, 1.f);
+    // JumpCounter 카메라는 반응성보다 화면상 부드러움을 우선해 in/out 모두 완만한 smootherstep을 사용한다.
+    _jumpCounterPoseOffsetWeight = t * t * t * (t * (t * 6.f - 15.f) + 10.f);
 }
 
 void BattleTurnCamera::Apply_RuntimeDrift(EvaluatedPose& pose, float timeDelta)
@@ -966,6 +1056,34 @@ void BattleTurnCamera::Debug_PrintClipShakeSample(
         shakeSampleTime,
         clipSample.shakeAmplitude,
         duration(0.f));
+#endif
+}
+
+void BattleTurnCamera::Debug_PrintPlayerAttackFramingSample(
+    const BattleShotRequest& request,
+    const BattleCameraPreset& preset,
+    const BattleCameraPreset& framingPreset,
+    const BattleCameraClipSample& clipSample,
+    const BattleCameraClipSample& framingClipSample) const
+{
+#ifdef _DEBUG
+    const string opponentPrefab = request.opponent ? request.opponent->Get_SourcePrefabName() : string{};
+    const string modeName = string(magic_enum::enum_name(request.mode));
+
+    GAME->Print(
+        kBattlePlayerAttackFramingDebugSlot,
+        String::ToWString(modeName),
+        String::ToWString(opponentPrefab),
+        Is_SimonPlayerAttackTarget(request),
+        preset.yawOffset,
+        framingPreset.yawOffset,
+        clipSample.yawOffset,
+        framingClipSample.yawOffset,
+        preset.sideOffset,
+        framingPreset.sideOffset,
+        clipSample.sideOffset,
+        framingClipSample.sideOffset,
+        duration(0.1f));
 #endif
 }
 
@@ -1366,6 +1484,46 @@ float BattleTurnCamera::Resolve_YawBaseForPresetMode(const BattleShotRequest& re
     }
 }
 
+bool BattleTurnCamera::Is_SimonPlayerAttackTarget(const BattleShotRequest& request) const
+{
+    if (request.mode != BattleCameraMode::PLAYERATTACK || request.opponent == nullptr)
+        return false;
+
+    const string prefabName = request.opponent->Get_SourcePrefabName();
+    return prefabName == kSimonBattlePrefabName ||
+        prefabName == kSimonV2BattlePrefabName ||
+        prefabName == kSimonWorldPrefabName ||
+        prefabName == kSimonV2WorldPrefabName;
+}
+
+BattleCameraPreset BattleTurnCamera::Build_PlayerAttackFramingPreset(
+    const BattleShotRequest& request,
+    const BattleCameraPreset& preset) const
+{
+    BattleCameraPreset adjustedPreset = preset;
+    if (Is_SimonPlayerAttackTarget(request))
+    {
+        adjustedPreset.sideOffset *= kSimonPlayerAttackSideOffsetScale;
+        adjustedPreset.yawOffset *= kSimonPlayerAttackYawOffsetScale;
+    }
+
+    return adjustedPreset;
+}
+
+BattleCameraClipSample BattleTurnCamera::Build_PlayerAttackFramingClipSample(
+    const BattleShotRequest& request,
+    const BattleCameraClipSample& clipSample) const
+{
+    BattleCameraClipSample adjustedSample = clipSample;
+    if (Is_SimonPlayerAttackTarget(request))
+    {
+        adjustedSample.sideOffset *= kSimonPlayerAttackSideOffsetScale;
+        adjustedSample.yawOffset *= kSimonPlayerAttackYawOffsetScale;
+    }
+
+    return adjustedSample;
+}
+
 bool BattleTurnCamera::Should_StartPoseTransition(const BattleShotRequest& request) const
 {
     if (_transformCom == nullptr)
@@ -1747,8 +1905,12 @@ void BattleTurnCamera::Apply_ShotRequest(const BattleShotRequest& request)
         !shouldReAnchored &&
         Is_PotatoBagSamePosePresetSwap(_currentRequest, request);
 
+    const string subjectPrefabName = request.subject ? request.subject->Get_SourcePrefabName() : string{};
+    const string opponentPrefabName = request.opponent ? request.opponent->Get_SourcePrefabName() : string{};
+    const bool isSimonPlayerAttackTarget = Is_SimonPlayerAttackTarget(request);
+
     LOG_INFO(
-        "[BattleCam][ShotRequest] id={} elapsedMs={} prev={} next={} preset={} clip={} useClip={} samePreset={} sameClip={} reanchor={} snap={} transitionActive={} restartClip={} keepClip={} disableClip={}",
+        "[BattleCam][ShotRequest] id={} elapsedMs={} prev={} next={} preset={} clip={} useClip={} samePreset={} sameClip={} reanchor={} snap={} transitionActive={} restartClip={} keepClip={} disableClip={} subjectPrefab={} opponentPrefab={} simonTarget={}",
         requestId,
         elapsedMs,
         previousModeName.c_str(),
@@ -1763,7 +1925,10 @@ void BattleTurnCamera::Apply_ShotRequest(const BattleShotRequest& request)
         _poseTransition.active,
         shouldRestartClip,
         shouldKeepCurrentClip,
-        shouldDisableClip);
+        shouldDisableClip,
+        subjectPrefabName.c_str(),
+        opponentPrefabName.c_str(),
+        isSimonPlayerAttackTarget);
 
     if (request.subject && (nextPreset.snapOnEnter || shouldReAnchored)) //|| _currentRequest.subject == nullptr))
     {
@@ -2067,7 +2232,26 @@ void BattleTurnCamera::Update_FromCurrentPreset(float timeDelta)
     
     EvaluatedPose pose{};
     const float yawBase = Resolve_YawBaseForPresetMode(_currentRequest);
-    Evaluate_CurrentPresetPose(_smoothedTargetPos, _currentPreset, clip, yawBase, _pitch, &_smoothedTargetPos, pose);
+    const bool useSimonPlayerAttackFraming = Is_SimonPlayerAttackTarget(_currentRequest);
+    BattleCameraPreset posePreset = _currentPreset;
+    BattleCameraClipSample poseClip = clip;
+    if (useSimonPlayerAttackFraming)
+    {
+        posePreset = Build_PlayerAttackFramingPreset(_currentRequest, _currentPreset);
+        poseClip = Build_PlayerAttackFramingClipSample(_currentRequest, clip);
+        Debug_PrintPlayerAttackFramingSample(
+            _currentRequest,
+            _currentPreset,
+            posePreset,
+            clip,
+            poseClip);
+    }
+
+    if (!Evaluate_CurrentPresetPose(_smoothedTargetPos, posePreset, poseClip, yawBase, _pitch, &_smoothedTargetPos, pose))
+    {
+        return;
+    }
+
     Apply_RuntimeDrift(pose, timeDelta);
     Apply_ClipShake(pose, clip, _clipShakeTime);
     Apply_RuntimeShake(pose,timeDelta);
@@ -2133,8 +2317,17 @@ const BattleCameraPreset& BattleTurnCamera::Get_Preset(BattleCameraMode mode) co
     return _wideModePreset;
 }
 
-const BattleCameraDriftProfile& BattleTurnCamera::Get_DriftProfile(BattleCameraMode mode, bool enemyAttackBossVariant) const
+const BattleCameraDriftProfile& BattleTurnCamera::Get_DriftProfile(
+    BattleCameraMode mode,
+    bool enemyAttackBossVariant,
+    const string& prefabName) const
 {
+    if (mode == BattleCameraMode::ENEMYATTACK && !prefabName.empty())
+    {
+        if (const BattleCameraDriftProfile* profile = Find_EnemyAttackPrefabDriftOverride(prefabName))
+            return *profile;
+    }
+
     if (const BattleCameraDriftProfile* profile = Find_DriftStorage(mode, enemyAttackBossVariant))
         return *profile;
 
@@ -2159,15 +2352,28 @@ void BattleTurnCamera::Set_Preset(BattleCameraMode mode, const BattleCameraPrese
         _playerAttackDefaultProfile.preset = preset;
 }
 
-void BattleTurnCamera::Set_DriftProfile(BattleCameraMode mode, const BattleCameraDriftProfile& profile, bool enemyAttackBossVariant)
+void BattleTurnCamera::Set_DriftProfile(
+    BattleCameraMode mode,
+    const BattleCameraDriftProfile& profile,
+    bool enemyAttackBossVariant,
+    const string& prefabName)
 {
-    BattleCameraDriftProfile* targetProfile = Find_DriftStorage(mode, enemyAttackBossVariant);
+    BattleCameraDriftProfile* targetProfile = nullptr;
+    if (mode == BattleCameraMode::ENEMYATTACK && !prefabName.empty())
+        targetProfile = &_enemyAttackPrefabDriftOverrides[prefabName];
+    else
+        targetProfile = Find_DriftStorage(mode, enemyAttackBossVariant);
+
     if (targetProfile == nullptr)
         return;
 
     *targetProfile = profile;
-    if (mode == _currentRequest.mode && Is_BossEnemyAttackRequest(_currentRequest) == enemyAttackBossVariant)
-        Refresh_RuntimeDriftFromProfile(*targetProfile, false);
+    if (mode == _currentRequest.mode)
+    {
+        if (const BattleCameraDriftProfile* activeProfile = Resolve_RuntimeDriftProfile(_currentRequest);
+            activeProfile == targetProfile)
+            Refresh_RuntimeDriftFromProfile(*targetProfile, false);
+    }
 }
 
 void BattleTurnCamera::Set_Clip(BattleCameraMode mode, const BattleCameraClip& clip, const string& clipId)
@@ -2191,6 +2397,8 @@ void BattleTurnCamera::Reload_BattleCameraAuthoringData()
 {
     _presetsById.clear();
     _clipsById.clear();
+    _enemyAttackPrefabDriftOverrides.clear();
+    _enemyAttackPrefabDriftLoadAttempts.clear();
 
     CameraPresetIO::LoadBattlePresetFromFile(BattleCameraMode::WIDE, _wideModePreset);
     CameraPresetIO::LoadBattlePresetFromFile(BattleCameraMode::BATTLEINTRO, _battleIntroPreset);
@@ -2280,11 +2488,27 @@ void BattleTurnCamera::Preview_CurrentPresetAtTime(float time)
     BattleCameraClip* clip = Get_MutableClip(_currentRequest.mode);
     const BattleCameraClipSample clipSample = clip ? Sample_BattleCameraClip(*clip, clamp(time, 0.f, clip->duration)) : BattleCameraClipSample {};
 
-    const Vec3 targetPos = _currentRequest.subject->Get_Transform()->Get_WorldPosition();
-
     EvaluatedPose pose{};
     const float yawBase = Resolve_YawBaseForPresetMode(_currentRequest);
-    Evaluate_CurrentPresetPose(targetPos, _currentPreset, clipSample, yawBase, _pitch, nullptr, pose);
+    const bool useSimonPlayerAttackFraming = Is_SimonPlayerAttackTarget(_currentRequest);
+    BattleCameraPreset posePreset = _currentPreset;
+    BattleCameraClipSample poseClipSample = clipSample;
+    if (useSimonPlayerAttackFraming)
+    {
+        posePreset = Build_PlayerAttackFramingPreset(_currentRequest, _currentPreset);
+        poseClipSample = Build_PlayerAttackFramingClipSample(_currentRequest, clipSample);
+        Debug_PrintPlayerAttackFramingSample(
+            _currentRequest,
+            _currentPreset,
+            posePreset,
+            clipSample,
+            poseClipSample);
+    }
+
+    const Vec3 targetPos = _currentRequest.subject->Get_Transform()->Get_WorldPosition();
+    if (!Evaluate_CurrentPresetPose(targetPos, posePreset, poseClipSample, yawBase, _pitch, nullptr, pose))
+        return;
+
     if (const BattleCameraDriftProfile* drift = Resolve_RuntimeDriftProfile(_currentRequest))
         Refresh_RuntimeDriftFromProfile(*drift, false);
     Apply_RuntimeDrift(pose, 0.f);
@@ -2373,17 +2597,64 @@ float BattleTurnCamera::Evaluate_CameraTransitionT(BattleCameraTransitionEasing 
     }
 }
 
+BattleCameraClipSample BattleTurnCamera::Advance_ClipDiscontinuityFade(float timeDelta)
+{
+    if (!_isClipDiscontinuityFadeActive)
+    {
+        GAME->Clear_Print(kBattleClipShakeDebugSlot);
+        return BattleCameraClipSample{};
+    }
+
+    _clipDiscontinuityFadeElapsed += std::max(0.f, timeDelta);
+    const float weight = Evaluate_ClipDiscontinuityFadeWeight(_clipDiscontinuityFadeElapsed);
+    if (weight <= 0.f)
+    {
+        _isClipDiscontinuityFadeActive = false;
+        _clipDiscontinuityFadeElapsed = 0.f;
+        _clipDiscontinuityFadeSample = {};
+        _lastActiveClipSample = {};
+        _hasLastActiveClipSample = false;
+        GAME->Clear_Print(kBattleClipShakeDebugSlot);
+        return BattleCameraClipSample{};
+    }
+
+    return Scale_BattleCameraClipSample(_clipDiscontinuityFadeSample, weight);
+}
+
+void BattleTurnCamera::Begin_ClipDiscontinuityFade()
+{
+    if (_hasLastActiveClipSample)
+    {
+        _clipDiscontinuityFadeSample = _lastActiveClipSample;
+        _clipDiscontinuityFadeElapsed = 0.f;
+        _isClipDiscontinuityFadeActive = true;
+    }
+
+    _activeClip = nullptr;
+    _clipTime = 0.f;
+    _clipSyncBaseTime = 0.f;
+    _clipSyncPrevAnimationTime = 0.f;
+    _clipSyncAnimationDuration = 0.f;
+    _clipSyncAnimationName.clear();
+    _clipDebugSampleLogCount = 0;
+    _clipDebugLoggedShake = false;
+}
+
 BattleCameraClipSample BattleTurnCamera::Advance_ActiveClip(float timeDelta, const BattleShotRequest& request)
 {
     BattleCameraClipSample sample{};
 
+    const float unscaledDelta = std::max(0.f, GAME->Get_UnscaledTimeDelta());
+
     if(_activeClip == nullptr)
     {
-        GAME->Clear_Print(kBattleClipShakeDebugSlot);
-        return sample;
+        if (_isClipDiscontinuityFadeActive)
+            _clipShakeTime += unscaledDelta;
+        return Advance_ClipDiscontinuityFade(timeDelta);
     }
 
-    _clipShakeTime += std::max(0.f, GAME->Get_UnscaledTimeDelta());
+    _isClipDiscontinuityFadeActive = false;
+    _clipShakeTime += unscaledDelta;
 
     if (_activeClip->timeMode == BattleCameraClipTimeMode::AnimationSync)
     {
@@ -2407,16 +2678,14 @@ BattleCameraClipSample BattleTurnCamera::Advance_ActiveClip(float timeDelta, con
         }
         else if (!_clipSyncAnimationName.empty() && currentAnimationName != _clipSyncAnimationName)
         {
-            _activeClip = nullptr;
-            Reset_ClipPlaybackState();
-            return sample;
+            Begin_ClipDiscontinuityFade();
+            return Advance_ClipDiscontinuityFade(0.f);
         }
 
         if (currentAnimationTimeSec + 0.0001f < _clipSyncPrevAnimationTime)
         {
-            _activeClip = nullptr;
-            Reset_ClipPlaybackState();
-            return sample;
+            Begin_ClipDiscontinuityFade();
+            return Advance_ClipDiscontinuityFade(0.f);
         }
 
         const float syncDurationSec = _clipSyncAnimationDuration > 0.f
@@ -2435,11 +2704,12 @@ BattleCameraClipSample BattleTurnCamera::Advance_ActiveClip(float timeDelta, con
         // 런타임에서 월드 시간이나 애니메이션 배속이 바뀌어도 툴에서 편집한 shake의 리듬과 감쇠 느낌을 최대한 그대로 유지하기 위함
         Apply_BattleCameraClipShakeSample(*_activeClip, sampleTime, sample);
         Debug_PrintClipShakeSample(currentAnimationTimeSec, sampleTime, _clipShakeTime, sample);
+        _lastActiveClipSample = sample;
+        _hasLastActiveClipSample = true;
 
         if (sampleTime >= 1.f)
         {
-            _activeClip = nullptr;
-            Reset_ClipPlaybackState();
+            Begin_ClipDiscontinuityFade();
         }
 
         return sample;
@@ -2451,11 +2721,12 @@ BattleCameraClipSample BattleTurnCamera::Advance_ActiveClip(float timeDelta, con
 
     sample = Sample_BattleCameraClip(*_activeClip, sampleTime);
     Debug_PrintClipShakeSample(_clipTime, sampleTime, sampleTime, sample);
+    _lastActiveClipSample = sample;
+    _hasLastActiveClipSample = true;
 
     if(sampleTime >= _activeClip->duration)
     {
-        _clipTime = _activeClip->duration;
-        _activeClip = nullptr;
+        Begin_ClipDiscontinuityFade();
     }
 
     return sample;
@@ -2469,6 +2740,11 @@ void BattleTurnCamera::Reset_ClipPlaybackState()
     _clipSyncPrevAnimationTime = 0.f;
     _clipSyncAnimationDuration = 0.f;
     _clipSyncAnimationName.clear();
+    _lastActiveClipSample = {};
+    _clipDiscontinuityFadeSample = {};
+    _clipDiscontinuityFadeElapsed = 0.f;
+    _hasLastActiveClipSample = false;
+    _isClipDiscontinuityFadeActive = false;
     _clipDebugSampleLogCount = 0;
     _clipDebugLoggedShake = false;
     GAME->Clear_Print(kBattleClipShakeDebugSlot);

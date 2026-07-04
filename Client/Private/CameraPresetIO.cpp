@@ -49,12 +49,17 @@ namespace
         return "../../../Client/Bin/Resources/Data/json/CameraPreset/" + fileName + ".json";
     }
 
-    string Build_BattleDriftFilePath(BattleCameraMode cameraMode, bool isBossVariant)
+    string Build_BattleDriftFilePath(BattleCameraMode cameraMode, bool isBossVariant, const string& prefabName)
     {
         const string modeName = string(magic_enum::enum_name(cameraMode));
         string fileName = "BattleDrift_" + modeName;
-        if (cameraMode == BattleCameraMode::ENEMYATTACK && isBossVariant)
-            fileName += "_Boss";
+        if (cameraMode == BattleCameraMode::ENEMYATTACK)
+        {
+            if (!prefabName.empty())
+                fileName += "_" + prefabName;
+            else if (isBossVariant)
+                fileName += "_Boss";
+        }
 
         return "../../../Client/Bin/Resources/Data/json/CameraPreset/" + fileName + ".json";
     }
@@ -627,7 +632,11 @@ bool CameraPresetIO:: LoadBattlePresetFromFile(BattleCameraMode cameraMode, Batt
     
 }
 
-void CameraPresetIO::SaveBattleDriftToFile(BattleCameraMode mode, const BattleCameraDriftProfile& profile, bool isBossVariant)
+void CameraPresetIO::SaveBattleDriftToFile(
+    BattleCameraMode mode,
+    const BattleCameraDriftProfile& profile,
+    bool isBossVariant,
+    const string& prefabName)
 {
     json jsonData{};
 
@@ -641,7 +650,7 @@ void CameraPresetIO::SaveBattleDriftToFile(BattleCameraMode mode, const BattleCa
     jsonData["depthFrequency"] = profile.depthFrequency;
     jsonData["rollFrequency"] = profile.rollFrequency;
 
-    const string filePath = Build_BattleDriftFilePath(mode, isBossVariant);
+    const string filePath = Build_BattleDriftFilePath(mode, isBossVariant, prefabName);
 
     const fs::path savePath = filePath;
     if (!fs::exists(savePath.parent_path()))
@@ -657,9 +666,13 @@ void CameraPresetIO::SaveBattleDriftToFile(BattleCameraMode mode, const BattleCa
     file << jsonData.dump(4);
 }
 
-bool CameraPresetIO::LoadBattleDriftFromFile(BattleCameraMode mode, BattleCameraDriftProfile& outProfile, bool isBossVariant)
+bool CameraPresetIO::LoadBattleDriftFromFile(
+    BattleCameraMode mode,
+    BattleCameraDriftProfile& outProfile,
+    bool isBossVariant,
+    const string& prefabName)
 {
-    const string filePath = Build_BattleDriftFilePath(mode, isBossVariant);
+    const string filePath = Build_BattleDriftFilePath(mode, isBossVariant, prefabName);
 
     ifstream file(filePath);
     if (!file.is_open())

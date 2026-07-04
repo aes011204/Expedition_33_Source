@@ -8,6 +8,8 @@
 #include "BattleCameraClipTypes.h"
 #include "BattleCameraProfileTypes.h"
 #include "PostProcessPipeline.h"
+#include <unordered_map>
+#include <unordered_set>
 
 namespace Engine
 {
@@ -55,9 +57,16 @@ public:
 public:
     void Focus_Battle(const vector<BattleChar>& heroes, const vector<BattleChar>& enemies, float timeDelta);
     const BattleCameraPreset& Get_Preset(BattleCameraMode mode) const;
-    const BattleCameraDriftProfile& Get_DriftProfile(BattleCameraMode mode, bool enemyAttackBossVariant = false) const;
+    const BattleCameraDriftProfile& Get_DriftProfile(
+        BattleCameraMode mode,
+        bool enemyAttackBossVariant = false,
+        const string& prefabName = "") const;
     void Set_Preset(BattleCameraMode mode, const BattleCameraPreset& preset);
-    void Set_DriftProfile(BattleCameraMode mode, const BattleCameraDriftProfile& profile, bool enemyAttackBossVariant = false);
+    void Set_DriftProfile(
+        BattleCameraMode mode,
+        const BattleCameraDriftProfile& profile,
+        bool enemyAttackBossVariant = false,
+        const string& prefabName = "");
     void Set_Clip(BattleCameraMode mode, const BattleCameraClip& clip, const string& clipId = "");
     void Reload_BattleCameraAuthoringData();
     void Set_ClipScrubPreviewEnabled(bool enabled) { _isClipPreview = enabled; }
@@ -211,6 +220,9 @@ private:
     float Resolve_EnemyFormationYawBiasDegrees(const Shared<Character>& enemyActor) const;
     float Resolve_RequestFormationYawBiasDegrees(const BattleShotRequest& request) const;
     float Resolve_YawBaseForPresetMode(const BattleShotRequest& request) const;
+    bool Is_SimonPlayerAttackTarget(const BattleShotRequest& request) const;
+    BattleCameraPreset Build_PlayerAttackFramingPreset(const BattleShotRequest& request, const BattleCameraPreset& preset) const;
+    BattleCameraClipSample Build_PlayerAttackFramingClipSample(const BattleShotRequest& request, const BattleCameraClipSample& clipSample) const;
     bool Try_CaptureWideAnchor(Vec3& outHeroCenter, float& outYawDegrees) const;
     bool Try_CaptureEnemyGroupAnchor(Vec3& outEnemyCenter, float& outYawDegrees) const;
     BattleCameraPreset* Find_PresetStorage(BattleCameraMode cameraMode);
@@ -223,6 +235,9 @@ private:
     const BattleCameraDriftProfile* Find_DriftStorage(BattleCameraMode cameraMode, bool enemyAttackBossVariant = false) const;
     const BattleCameraDriftProfile* Resolve_RuntimeDriftProfile(const BattleShotRequest& request) const;
     bool Is_BossEnemyAttackRequest(const BattleShotRequest& request) const;
+    string Resolve_EnemyAttackPrefabDriftKey(const BattleShotRequest& request) const;
+    BattleCameraDriftProfile* Find_EnemyAttackPrefabDriftOverride(const string& prefabName);
+    const BattleCameraDriftProfile* Find_EnemyAttackPrefabDriftOverride(const string& prefabName) const;
     BattleCameraClip* Find_ClipStorage(BattleCameraMode cameraMode);
     const BattleCameraClip* Find_ClipStorage(BattleCameraMode cameraMode) const;
     void Refresh_RuntimeDriftFromProfile(const BattleCameraDriftProfile& profile, bool resetElapsed = false);
@@ -232,6 +247,12 @@ private:
     void Apply_ClipShake(EvaluatedPose& pose, const BattleCameraClipSample& clipSample, float clipShakeTime) const;
     void Apply_RuntimeShake(EvaluatedPose& pose, float timeDelta);
     void Debug_PrintClipShakeSample(float animationTimeSec, float sampleTime, float shakeSampleTime, const BattleCameraClipSample& clipSample) const;
+    void Debug_PrintPlayerAttackFramingSample(
+        const BattleShotRequest& request,
+        const BattleCameraPreset& preset,
+        const BattleCameraPreset& framingPreset,
+        const BattleCameraClipSample& clipSample,
+        const BattleCameraClipSample& framingClipSample) const;
     void Update_JumpCounterPoseOffset(float timeDelta);
 
 private:
@@ -250,7 +271,9 @@ public:
     void Reset_ClipPlaybackState();
 
 private:
+    BattleCameraClipSample   Advance_ClipDiscontinuityFade(float timeDelta);
     BattleCameraClipSample   Advance_ActiveClip(float timeDelta, const BattleShotRequest& request);
+    void                     Begin_ClipDiscontinuityFade();
 
 private:
     bool                  _isClipPreview = false;
@@ -271,6 +294,8 @@ private:
     BattleCameraDriftProfile _enemyGroupDrift{};
     BattleCameraDriftProfile _enemyAttackDrift{};
     BattleCameraDriftProfile _enemyAttackBossDrift{};
+    unordered_map<string, BattleCameraDriftProfile> _enemyAttackPrefabDriftOverrides{};
+    mutable unordered_set<string> _enemyAttackPrefabDriftLoadAttempts{};
     BattleCameraDriftProfile _playerAttackDrift{};
     BattleCameraDriftProfile _selectItemDrift{};
     BattleCameraDriftProfile _selectSkillDrift{};
@@ -295,6 +320,7 @@ private:
     bool                 _isFirstUpdate = true;
     bool                 _isRuntimePausedByTutorial = false;
     bool                 _isJumpCounterPoseOffsetActive = false;
+    float                _jumpCounterPoseOffsetProgress = 0.f;
     float                _jumpCounterPoseOffsetWeight = 0.f;
 
     // DOF_MODIFY 
@@ -328,6 +354,11 @@ private:
     float                _clipSyncPrevAnimationTime = 0.f;
     float                _clipSyncAnimationDuration = 0.f;
     string               _clipSyncAnimationName{};
+    BattleCameraClipSample _lastActiveClipSample{};
+    BattleCameraClipSample _clipDiscontinuityFadeSample{};
+    float                _clipDiscontinuityFadeElapsed = 0.f;
+    bool                 _hasLastActiveClipSample = false;
+    bool                 _isClipDiscontinuityFadeActive = false;
     int                  _clipDebugSampleLogCount = 0;
     bool                 _clipDebugLoggedShake = false;
 
