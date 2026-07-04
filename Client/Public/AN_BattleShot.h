@@ -23,6 +23,7 @@ private:
     bool             _restartClip = false;
     bool             _useClip = false;
     bool             _keepCurrentClip = false;
+    bool             _skipIfParryActive = false;
 };
 
 NS_END

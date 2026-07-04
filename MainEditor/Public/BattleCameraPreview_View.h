@@ -360,8 +360,10 @@ private:
     bool _hasLoadedDialogueClip = false;
     BattleCameraMode _loadedBattleDriftMode = BattleCameraMode::PLAYERATTACK;
     bool _loadedBattleDriftBossVariant = false;
+    string _loadedBattleDriftPrefabName{};
     bool _hasLoadedBattleDrift = false;
     bool _editingEnemyAttackBossDrift = false;
+    bool _editingEnemyAttackPrefabDrift = false;
     BattleCameraMode _loadedBattleClipMode = BattleCameraMode::PLAYERATTACK;
     string _loadedBattleClipSkillId{};
     BattleCameraClip _editingBattleClip{ 1.f };

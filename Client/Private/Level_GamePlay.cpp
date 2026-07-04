@@ -31,7 +31,7 @@ namespace
     constexpr Vec3 kPortierBattleRotation = Vec3(0.f, 0.f, 0.f);
 
     // 보스 전투 시작 위치
-    constexpr Vec3 kBossBattlePosition = Vec3(123.46f, 21.82f, -9.67f);
+    constexpr Vec3 kBossBattlePosition = Vec3(138.35f, 21.8f, -9.67f);
     constexpr Vec3 kBossBattleRotation = Vec3(0.f, 0.f, 0.f);
 
     VolumetricLightShaftZoneCB Build_GamePlayLightShaftZones()
