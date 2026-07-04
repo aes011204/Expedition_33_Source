@@ -15,7 +15,8 @@
 #include "UI_GetPictos.h"
 #include "UI_GetChroma.h"
 #include "UI_LevelAnnounce.h"
-#include "UI_WorldDialogue.h"
+#include "UI_EventDialoguePlayer.h"
+#include "UI_DailyLog.h"
 #include "ClientInstance.h"
 #include "GameplayUI.h"
 #include "Player_FreeAim.h"
@@ -165,8 +166,11 @@ HRESULT GameplayUI_World::Initialize(uint32 levelIndex)
     _levelAnnouncePanel = UI_LevelAnnounce::Create(levelIndex);
     CHECK_NULL(_levelAnnouncePanel, E_FAIL);
 
-    _worldDialoguePanel = UI_WorldDialogue::Create(levelIndex);
-    CHECK_NULL(_worldDialoguePanel, E_FAIL);
+    _eventDialoguePlayer = UI_EventDialoguePlayer::Create(levelIndex);
+    CHECK_NULL(_eventDialoguePlayer, E_FAIL);
+
+    _dailyLogPanel = UI_DailyLog::Create(levelIndex);
+    CHECK_NULL(_dailyLogPanel, E_FAIL);
 
     _arenaCharacterSelectPanel = UI_ArenaCharacterSelect::Create(levelIndex);
     CHECK_NULL(_arenaCharacterSelectPanel, E_FAIL);
@@ -230,8 +234,11 @@ void GameplayUI_World::Update(float timeDelta)
     if (_levelAnnouncePanel)
         _levelAnnouncePanel->Update(timeDelta);
 
-    if (_worldDialoguePanel)
-        _worldDialoguePanel->Update(timeDelta);
+    if (_eventDialoguePlayer)
+        _eventDialoguePlayer->Update(timeDelta);
+
+    if (_dailyLogPanel)
+        _dailyLogPanel->Update(timeDelta);
 
     if (_arenaCharacterSelectPanel)
         _arenaCharacterSelectPanel->Update(timeDelta);
@@ -387,8 +394,11 @@ vector<RuntimeUIEntry> GameplayUI_World::Get_RuntimeUIEntries() const
     if (_levelAnnouncePanel)
         _levelAnnouncePanel->Append_RuntimeUIEntries(entries, "World", "LevelAnnouncePanel");
 
-    if (_worldDialoguePanel)
-        _worldDialoguePanel->Append_RuntimeUIEntries(entries, "World", "WorldDialoguePanel");
+    if (_eventDialoguePlayer)
+        _eventDialoguePlayer->Append_RuntimeUIEntries(entries, "World", "EventDialoguePlayer");
+
+    if (_dailyLogPanel)
+        _dailyLogPanel->Append_RuntimeUIEntries(entries, "World", "DailyLogPanel");
 
     if (_arenaCharacterSelectPanel)
         _arenaCharacterSelectPanel->Append_RuntimeUIEntries(entries, "World", "ArenaCharacterSelectPanel");
@@ -457,14 +467,20 @@ void GameplayUI_World::Force_CloseAllMenus()
 
     if (_gradientSkillPreviewTestPanel && _gradientSkillPreviewTestPanel->Is_Open())
         _gradientSkillPreviewTestPanel->Close_Immediately();
+
+    if (_eventDialoguePlayer && _eventDialoguePlayer->Is_Open())
+        _eventDialoguePlayer->Close_Immediately();
+
+    if (_dailyLogPanel && _dailyLogPanel->Is_Open())
+        _dailyLogPanel->Close();
 }
 
 void GameplayUI_World::Handle_EditorStopRuntime()
 {
     Force_CloseAllMenus();
 
-    if (_worldDialoguePanel)
-        _worldDialoguePanel->Clear_Lines();
+    if (_eventDialoguePlayer)
+        _eventDialoguePlayer->Close_Immediately();
 
     GAME->Set_GameplayInputMode(GameplayInputMode::Normal);
 }
@@ -554,6 +570,28 @@ bool GameplayUI_World::Request_WeaponUpgrade()
     return true;
 }
 
+bool GameplayUI_World::Request_Journal(JournalOpenAnimation openAnimation)
+{
+    if (_dailyLogPanel == nullptr)
+        return false;
+
+    if (_expeditionStatPanel && _expeditionStatPanel->Is_Open())
+        return false;
+
+    if (Get_CurrentMenu() != GameplayMenu::None)
+        return false;
+
+    if (CLIENT->Is_WorldControlSuspended() || CLIENT->Is_BattleEntering())
+        return false;
+
+    if (GAME->Is_WorldGameplayInputBlocked())
+        return false;
+
+    _pendingJournalOpenAnimation = openAnimation;
+    Push_Menu(GameplayMenu::Journal);
+    return true;
+}
+
 void GameplayUI_World::Queue_GetChromaPresentation(uint32 chromaAmount)
 {
     if (chromaAmount == 0)
@@ -571,22 +609,18 @@ void GameplayUI_World::Queue_LevelAnnounce(LevelType levelType)
     _pendingLevelAnnounceDelay = Get_LevelAnnounceDelay(levelType);
 }
 
-void GameplayUI_World::Push_WorldDialogueLine(const wstring& text, const wstring& portraitTexturePath)
+bool GameplayUI_World::Open_EventDialogueUI(const EventDialogueUIRequest& request)
 {
-    if (_worldDialoguePanel)
-        _worldDialoguePanel->Push_Line(text, portraitTexturePath);
+    if (_eventDialoguePlayer == nullptr)
+        return false;
+
+    return _eventDialoguePlayer->Open_EventDialogue(request);
 }
 
-void GameplayUI_World::Clear_WorldDialogue()
+void GameplayUI_World::Close_EventDialogueUI()
 {
-    if (_worldDialoguePanel)
-        _worldDialoguePanel->Clear_Lines();
-}
-
-void GameplayUI_World::Close_WorldDialogue()
-{
-    if (_worldDialoguePanel)
-        _worldDialoguePanel->Close();
+    if (_eventDialoguePlayer)
+        _eventDialoguePlayer->Close_Immediately();
 }
 
 Shared<SoulLikeController> GameplayUI_World::Spawn_SoulLikeControllerForArena()
@@ -1125,6 +1159,11 @@ void GameplayUI_World::Close_Menu(GameplayMenu menu, bool restoreWorldControl)
         }
         break;
 
+    case GameplayMenu::Journal:
+        if (_dailyLogPanel)
+            _dailyLogPanel->Close();
+        break;
+
     case GameplayMenu::Replay:
         if (_replayPanel)
         {
@@ -1591,6 +1630,11 @@ void GameplayUI_World::Open_Menu(GameplayMenu menu)
             _arenaCharacterSelectPanel->Open();
         break;
 
+    case GameplayMenu::Journal:
+        if (_dailyLogPanel)
+            _dailyLogPanel->Open(_pendingJournalOpenAnimation);
+        break;
+
     case GameplayMenu::Replay:
         if (_replayPanel)
             _replayPanel->Open();
@@ -1673,7 +1717,8 @@ void GameplayUI_World::Free()
     Release_Panel(_getPictosPanel);
     Release_Panel(_getChromaPanel);
     Release_Panel(_levelAnnouncePanel);
-    Release_Panel(_worldDialoguePanel);
+    Release_Panel(_eventDialoguePlayer);
+    Release_Panel(_dailyLogPanel);
     Release_Panel(_arenaCharacterSelectPanel);
     Release_Panel(_replayPanel);
     Release_Panel(_gradientSkillPreviewTestPanel);

@@ -220,6 +220,11 @@ bool GameplayUI::Open_ArenaCharacterSelect()
     return _worldUI && _worldUI->Request_ArenaCharacterSelect();
 }
 
+bool GameplayUI::Open_Journal(JournalOpenAnimation openAnimation)
+{
+    return _worldUI && _worldUI->Request_Journal(openAnimation);
+}
+
 void GameplayUI::Queue_GetChromaPresentation(uint32 chromaAmount)
 {
     if (_worldUI)
@@ -232,22 +237,18 @@ void GameplayUI::Queue_LevelAnnounce(LevelType levelType)
         _worldUI->Queue_LevelAnnounce(levelType);
 }
 
-void GameplayUI::Push_WorldDialogueLine(const wstring& text, const wstring& portraitTexturePath)
+bool GameplayUI::Open_EventDialogueUI(const EventDialogueUIRequest& request)
 {
-    if (_worldUI)
-        _worldUI->Push_WorldDialogueLine(text, portraitTexturePath);
+    if (_worldUI == nullptr)
+        return false;
+
+    return _worldUI->Open_EventDialogueUI(request);
 }
 
-void GameplayUI::Clear_WorldDialogue()
+void GameplayUI::Close_EventDialogueUI()
 {
     if (_worldUI)
-        _worldUI->Clear_WorldDialogue();
-}
-
-void GameplayUI::Close_WorldDialogue()
-{
-    if (_worldUI)
-        _worldUI->Close_WorldDialogue();
+        _worldUI->Close_EventDialogueUI();
 }
 
 void GameplayUI::Set_CinematicUIHidden(bool hidden)

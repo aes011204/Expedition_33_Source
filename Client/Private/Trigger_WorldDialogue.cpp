@@ -3,6 +3,7 @@
 #include "Bounding_AABB.h"
 #include "ClientInstance.h"
 #include "ColliderCom.h"
+#include "GameplayUI_Types.h"
 
 IMPLEMENT_REFLECTION(Trigger_WorldDialogue)
 {
@@ -12,16 +13,12 @@ IMPLEMENT_REFLECTION(Trigger_WorldDialogue)
     info.displayName = "Trigger_WorldDialogue";
     info.category = "Trigger";
 
-    PROPERTY_WSTRING("Line 1", _line1);
-    PROPERTY_WSTRING("Line 2", _line2);
-    PROPERTY_WSTRING("Line 3", _line3);
-    PROPERTY_WSTRING("Portrait 1", _portrait1);
-    PROPERTY_WSTRING("Portrait 2", _portrait2);
-    PROPERTY_WSTRING("Portrait 3", _portrait3);
-    PROPERTY_FLOAT("Line Interval", _lineIntervalSec, 0.f, 10.f, 0.05f);
-    PROPERTY_FLOAT("Auto Close Delay", _autoCloseDelaySec, 0.f, 30.f, 0.1f);
-    PROPERTY_BOOL("Trigger Once", _triggerOnce);
-    PROPERTY_BOOL("Close On Exit", _closeOnExit);
+    PROPERTY_WSTRING("_uiJsonPath", _uiJsonPath);
+    PROPERTY_WSTRING("_rootUIName", _rootUIName);
+    PROPERTY_WSTRING("_animationPath", _animationPath);
+    PROPERTY_FLOAT("_autoCloseDelaySec", _autoCloseDelaySec, 0.f, 60.f, 0.1f);
+    PROPERTY_BOOL("_triggerOnce", _triggerOnce);
+    PROPERTY_BOOL("_closeOnExit", _closeOnExit);
 
     return true;
 }
@@ -33,13 +30,9 @@ Trigger_WorldDialogue::Trigger_WorldDialogue(const ComPtr<Device>& device, const
 
 Trigger_WorldDialogue::Trigger_WorldDialogue(const Trigger_WorldDialogue& prototype)
     : GameObject(prototype)
-    , _line1(prototype._line1)
-    , _line2(prototype._line2)
-    , _line3(prototype._line3)
-    , _portrait1(prototype._portrait1)
-    , _portrait2(prototype._portrait2)
-    , _portrait3(prototype._portrait3)
-    , _lineIntervalSec(prototype._lineIntervalSec)
+    , _uiJsonPath(prototype._uiJsonPath)
+    , _rootUIName(prototype._rootUIName)
+    , _animationPath(prototype._animationPath)
     , _autoCloseDelaySec(prototype._autoCloseDelaySec)
     , _triggerOnce(prototype._triggerOnce)
     , _closeOnExit(prototype._closeOnExit)
@@ -61,11 +54,8 @@ HRESULT Trigger_WorldDialogue::Initialize(void* arg)
     CHECK_FAILED(Ready_Components(), E_FAIL);
 
     _playerOverlapColliders.clear();
-    _sequenceActive = false;
+    _openedForCurrentOverlap = false;
     _played = false;
-    _nextLineIndex = 0;
-    _lineElapsedSec = 0.f;
-    _afterLastLineElapsedSec = 0.f;
 
     return S_OK;
 }
@@ -74,29 +64,16 @@ void Trigger_WorldDialogue::Update(float timeDelta)
 {
     GameObject::Update(timeDelta);
 
-    if (!_sequenceActive)
-    {
-        if (Has_PlayerOverlap() && (!_triggerOnce || !_played) && Can_StartSequence())
-            Start_Sequence();
-
-        return;
-    }
-
-    if (_nextLineIndex < 3)
-    {
-        _lineElapsedSec += timeDelta;
-        if (_lineElapsedSec >= max(0.f, _lineIntervalSec))
-            Push_NextLine();
-
-        return;
-    }
-
-    if (_autoCloseDelaySec <= 0.f)
+    if (!Has_PlayerOverlap())
         return;
 
-    _afterLastLineElapsedSec += timeDelta;
-    if (_afterLastLineElapsedSec >= _autoCloseDelaySec)
-        Stop_Sequence(true);
+    if (_openedForCurrentOverlap)
+        return;
+
+    if (_triggerOnce && _played)
+        return;
+
+    Try_OpenUI();
 }
 
 void Trigger_WorldDialogue::Late_Update(float timeDelta)
@@ -123,8 +100,8 @@ void Trigger_WorldDialogue::OnBeginOverlap(Shared<ColliderCom> self, Shared<Coll
     if (other != nullptr)
         _playerOverlapColliders.insert(other.get());
 
-    if (!_sequenceActive && (!_triggerOnce || !_played) && Can_StartSequence())
-        Start_Sequence();
+    if (!_openedForCurrentOverlap && (!_triggerOnce || !_played))
+        Try_OpenUI();
 }
 
 void Trigger_WorldDialogue::OnEndOverlap(Shared<ColliderCom> self, Shared<ColliderCom> other)
@@ -140,8 +117,16 @@ void Trigger_WorldDialogue::OnEndOverlap(Shared<ColliderCom> self, Shared<Collid
     if (other != nullptr)
         _playerOverlapColliders.erase(other.get());
 
-    if (_closeOnExit && !Has_PlayerOverlap())
-        Stop_Sequence(true);
+    if (Has_PlayerOverlap())
+        return;
+
+    if (_closeOnExit && _openedForCurrentOverlap)
+        Close_UI();
+
+    _openedForCurrentOverlap = false;
+
+    if (_triggerOnce && _played)
+        Disable_TriggerCollider();
 }
 
 HRESULT Trigger_WorldDialogue::Ready_Components()
@@ -157,31 +142,18 @@ HRESULT Trigger_WorldDialogue::Ready_Components()
     return S_OK;
 }
 
-void Trigger_WorldDialogue::Set_Line(uint32 index, const wstring& text, const wstring& portraitTexturePath)
+void Trigger_WorldDialogue::Set_UIRequest(
+    const wstring& uiJsonPath,
+    const wstring& rootUIName,
+    const wstring& animationPath,
+    float autoCloseDelaySec)
 {
-    switch (index)
-    {
-    case 0:
-        _line1 = text;
-        _portrait1 = portraitTexturePath;
-        break;
-    case 1:
-        _line2 = text;
-        _portrait2 = portraitTexturePath;
-        break;
-    case 2:
-        _line3 = text;
-        _portrait3 = portraitTexturePath;
-        break;
-    default:
-        break;
-    }
-}
+    _uiJsonPath = uiJsonPath;
+    _rootUIName = rootUIName;
+    _animationPath = animationPath;
 
-void Trigger_WorldDialogue::Set_Timing(float lineIntervalSec, float autoCloseDelaySec)
-{
-    _lineIntervalSec = max(0.f, lineIntervalSec);
-    _autoCloseDelaySec = max(0.f, autoCloseDelaySec);
+    if (autoCloseDelaySec >= 0.f)
+        _autoCloseDelaySec = max(0.f, autoCloseDelaySec);
 }
 
 void Trigger_WorldDialogue::Set_TriggerOptions(bool triggerOnce, bool closeOnExit)
@@ -203,14 +175,9 @@ bool Trigger_WorldDialogue::Is_ActivePlayerCollider(const Shared<ColliderCom>& o
     return CLIENT->Is_ActiveHero(heroOwner);
 }
 
-bool Trigger_WorldDialogue::Has_AnyLine() const
+bool Trigger_WorldDialogue::Can_OpenUI() const
 {
-    return !_line1.empty() || !_line2.empty() || !_line3.empty();
-}
-
-bool Trigger_WorldDialogue::Can_StartSequence() const
-{
-    if (!Has_AnyLine())
+    if (_uiJsonPath.empty() || _rootUIName.empty())
         return false;
 
     if (CLIENT->Is_WorldControlSuspended())
@@ -225,93 +192,42 @@ bool Trigger_WorldDialogue::Can_StartSequence() const
     return true;
 }
 
-void Trigger_WorldDialogue::Start_Sequence()
+bool Trigger_WorldDialogue::Try_OpenUI()
 {
-    _sequenceActive = true;
-    _nextLineIndex = 0;
-    _lineElapsedSec = 0.f;
-    _afterLastLineElapsedSec = 0.f;
+    if (!Can_OpenUI())
+        return false;
 
-    CLIENT->Clear_WorldDialogue();
+    EventDialogueUIRequest request{};
+    request.uiJsonPath = _uiJsonPath;
+    request.rootUIName = _rootUIName;
+    request.animationPath = _animationPath;
+    request.autoCloseDelaySec = _autoCloseDelaySec;
 
-    if (!Push_NextLine())
-    {
-        Stop_Sequence(true);
-        return;
-    }
+    if (!CLIENT->Open_EventDialogueUI(request))
+        return false;
 
+    _openedForCurrentOverlap = true;
     _played = true;
 
-    if (_triggerOnce && _colliderCom)
-    {
-        _colliderCom->Set_IsActive(false);
-        _colliderCom->Clear_Overlap();
-    }
+    if (_triggerOnce && !_closeOnExit)
+        Disable_TriggerCollider();
+
+    return true;
 }
 
-bool Trigger_WorldDialogue::Push_NextLine()
+void Trigger_WorldDialogue::Close_UI()
 {
-    while (_nextLineIndex < 3)
-    {
-        const uint32 lineIndex = _nextLineIndex++;
-        const wstring& text = Get_LineText(lineIndex);
-        if (text.empty())
-            continue;
-
-        CLIENT->Push_WorldDialogueLine(text, Get_LinePortrait(lineIndex));
-        _lineElapsedSec = 0.f;
-        _afterLastLineElapsedSec = 0.f;
-        return true;
-    }
-
-    _lineElapsedSec = 0.f;
-    _afterLastLineElapsedSec = 0.f;
-    return false;
+    CLIENT->Close_EventDialogueUI();
 }
 
-void Trigger_WorldDialogue::Stop_Sequence(bool clearDialogue)
+void Trigger_WorldDialogue::Disable_TriggerCollider()
 {
-    _sequenceActive = false;
-    _nextLineIndex = 0;
-    _lineElapsedSec = 0.f;
-    _afterLastLineElapsedSec = 0.f;
+    if (_colliderCom == nullptr)
+        return;
 
-    if (clearDialogue)
-        CLIENT->Clear_WorldDialogue();
-}
-
-const wstring& Trigger_WorldDialogue::Get_LineText(uint32 index) const
-{
-    static const wstring empty{};
-
-    switch (index)
-    {
-    case 0:
-        return _line1;
-    case 1:
-        return _line2;
-    case 2:
-        return _line3;
-    default:
-        return empty;
-    }
-}
-
-const wstring& Trigger_WorldDialogue::Get_LinePortrait(uint32 index) const
-{
-    static const wstring empty{};
-
-    switch (index)
-    {
-    case 0:
-        return _portrait1;
-    case 1:
-        return _portrait2;
-    case 2:
-        return _portrait3;
-    default:
-        return empty;
-    }
+    _colliderCom->Set_IsActive(false);
+    _colliderCom->Clear_Overlap();
+    _playerOverlapColliders.clear();
 }
 
 Shared<Trigger_WorldDialogue> Trigger_WorldDialogue::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)
@@ -342,8 +258,8 @@ Shared<GameObject> Trigger_WorldDialogue::Clone(void* arg)
 
 void Trigger_WorldDialogue::Free()
 {
-    if (_sequenceActive)
-        CLIENT->Clear_WorldDialogue();
+    if (_openedForCurrentOverlap && _closeOnExit)
+        Close_UI();
 
     _playerOverlapColliders.clear();
 

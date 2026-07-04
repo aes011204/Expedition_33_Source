@@ -11,6 +11,7 @@ namespace Client::Constants::UI
     inline constexpr wchar_t UI_SavePoint_Path[] = L"UI/UI_Json/CommonSystem/UI_SavePoint.json";
     inline constexpr wchar_t UI_Interaction_Path[] = L"UI/UI_Json/CommonSystem/UI_Interaction.json";
     inline constexpr wchar_t UI_ExpeditionStatus_Path[] = L"UI/UI_Json/CommonSystem/UI_ExpeditionStatus.json";
+    inline constexpr wchar_t UI_Journal_Path[] = L"UI/UI_Json/CommonSystem/UI_Journal.json";
     inline constexpr wchar_t UI_ChangeWeapon_Path[] = L"UI/UI_Json/CommonSystem/UI_ChangeWeapon.json";
     inline constexpr wchar_t UI_ChangeWeapon_Current_Weapon_Tooltip_Path[] =
         L"UI/UI_Json/CommonSystem/UI_ChangeWeapon_Current_Weapon_Tooltip.json";
@@ -213,6 +214,10 @@ namespace Client::Constants::UI
 #pragma region Dialogue
     inline constexpr wchar_t UI_Dialogue[] = L"UI/UI_Json/CommonSystem/UI_Dialogue.json";
     inline constexpr wchar_t UI_WorldDialogue[] = L"UI/UI_Json/CommonSystem/UI_WorldDialogue.json";
+    inline constexpr wchar_t UI_WorldDialogue_GestralVillage[] =
+        L"UI/UI_Json/CommonSystem/UI_WorldDialogue_GestralVillage.json";
+    inline constexpr wchar_t UI_WorldDialogue_Simon[] =
+        L"UI/UI_Json/CommonSystem/UI_WorldDialogue_Simon.json";
 #pragma endregion
 
 }
@@ -246,6 +251,14 @@ namespace Client::Constants::UI_Anim
     inline constexpr wchar_t UI_LevelAnnounceIntroAnim_Path[] = L"UI/UI_Animations/Scene/Level_Announce_Intro";
     inline constexpr wchar_t UI_InteractionIntroAnim_Path[] = L"UI/UI_Animations/Common/Interaction_Intro";
     inline constexpr wchar_t UI_InteractionOutroAnim_Path[] = L"UI/UI_Animations/Common/Interaction_Outro";
+    inline constexpr wchar_t UI_WorldDialogue_GestralVillageAnim_Path[] =
+        L"UI/UI_Animations/Common/WorldDialogue_GestralVillage";
+    inline constexpr wchar_t UI_WorldDialogue_SimonAnim_Path[] =
+        L"UI/UI_Animations/Common/WorldDialogue_Simon";
+    inline constexpr wchar_t UI_JournalUIIntroAnim_Path[] =
+        L"UI/UI_Animations/Common/Journal/Journal_UI_Intro";
+    inline constexpr wchar_t UI_JournalMapIntroAnim_Path[] =
+        L"UI/UI_Animations/Common/Journal/Journal_Map_Intro";
     inline constexpr wchar_t UI_FirstStrikeAnim_Path[] = L"UI/UI_Animations/BattleSystem/FirstStrike";
 
     inline constexpr wchar_t UI_AddAPAnim_Path[] = L"UI/UI_Animations/BattleSystem/Add_AP";

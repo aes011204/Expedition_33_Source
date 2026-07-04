@@ -53,12 +53,12 @@ public:
     bool    Open_MerchantShop();
     bool    Open_WeaponUpgrade();
     bool    Open_ArenaCharacterSelect();
+    bool    Open_Journal(JournalOpenAnimation openAnimation = JournalOpenAnimation::JournalUI);
 
     void    Queue_GetChromaPresentation(uint32 chromaAmount);
     void    Queue_LevelAnnounce(LevelType levelType);
-    void    Push_WorldDialogueLine(const wstring& text, const wstring& portraitTexturePath = L"");
-    void    Clear_WorldDialogue();
-    void    Close_WorldDialogue();
+    bool    Open_EventDialogueUI(const EventDialogueUIRequest& request);
+    void    Close_EventDialogueUI();
     void    Set_CinematicUIHidden(bool hidden);
     bool    Is_CinematicUIHidden() const { return _isCinematicUIHidden; }
 

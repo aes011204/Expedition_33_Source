@@ -9,6 +9,7 @@
 #include "TargetCamera.h"
 #include "MovementCom.h"
 #include "Player_WorldBase.h"
+#include "Trigger_WorldDialogue.h"
 
 namespace
 {
@@ -202,12 +203,22 @@ HRESULT Level_Stage01::Ready_Layer_ETC(const wstring& strLayerTag)
     const Shared<GameObject> dialogueObject = Spawn_Prefab::Prefab(Constants::Prefab::Trigger_WorldDialogue)
         .AtLevel(levelIndex)
         .InLayer(strLayerTag)
-        .Position(Vec3(66.f, 3.65f, -1.0f))
+        .Position(Vec3(116.2f, 2.8f, -2.7f))
         .Rotation(Vec3(0.f, 0.f, 0.f))
-        .Scale(Vec3(1.6f, 1.f, 1.6f))
+        .Scale(Vec3(1.f, 1.f, 3.f))
         .Spawn();
 
     CHECK_NULL(dialogueObject, E_FAIL);
+    if (const Shared<Trigger_WorldDialogue> dialogueTrigger =
+        dynamic_pointer_cast<Trigger_WorldDialogue>(dialogueObject))
+    {
+        dialogueTrigger->Set_UIRequest(
+            Constants::UI::UI_WorldDialogue_Simon,
+            L"Panel_WorldDialogue_Simon",
+            Constants::UI_Anim::UI_WorldDialogue_SimonAnim_Path,
+            10.f);
+    }
+
     dialogueObject->Set_RuntimeAuthoringLoaded(true);
 
     return S_OK;

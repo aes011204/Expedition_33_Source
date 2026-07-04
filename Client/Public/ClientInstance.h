@@ -4,6 +4,7 @@
 #include "CameraPresetTypes.h"
 #include "Cinematic_Types.h"
 #include "GameDataTable.h"
+#include "GameplayUI_Types.h"
 #include "Delegate.h"
 #include "PreviewShotTable.h"
 #include "RuntimeCheckpointIO.h"
@@ -18,6 +19,7 @@ NS_END
 NS_BEGIN(Client)
 
 struct DialogueRequest;
+struct EventDialogueUIRequest;
 
     class DialogueCamera;
 class DialogueManager;
@@ -183,9 +185,9 @@ public: /* For.Gameplay UI */
     void    Stop_BattleEnterTransition();
     bool    Is_BattleEnterTransitionPlaying() const;
     void    Queue_LevelAnnounce(LevelType levelType);
-    void    Push_WorldDialogueLine(const wstring& text, const wstring& portraitTexturePath = L"");
-    void    Clear_WorldDialogue();
-    void    Close_WorldDialogue();
+    bool    Open_Journal(JournalOpenAnimation openAnimation = JournalOpenAnimation::JournalUI);
+    bool    Open_EventDialogueUI(const EventDialogueUIRequest& request);
+    void    Close_EventDialogueUI();
 
 public: /* For.Fade Transition */
     bool Request_ScreenFadeTransition(const function<void()>& CoveredAction);

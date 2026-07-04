@@ -1012,22 +1012,23 @@ void ClientInstance::Queue_LevelAnnounce(LevelType levelType)
         _gamePlayUI->Queue_LevelAnnounce(levelType);
 }
 
-void ClientInstance::Push_WorldDialogueLine(const wstring& text, const wstring& portraitTexturePath)
+bool ClientInstance::Open_Journal(JournalOpenAnimation openAnimation)
 {
-    if (_gamePlayUI)
-        _gamePlayUI->Push_WorldDialogueLine(text, portraitTexturePath);
+    return _gamePlayUI && _gamePlayUI->Open_Journal(openAnimation);
 }
 
-void ClientInstance::Clear_WorldDialogue()
+bool ClientInstance::Open_EventDialogueUI(const EventDialogueUIRequest& request)
 {
-    if (_gamePlayUI)
-        _gamePlayUI->Clear_WorldDialogue();
+    if (_gamePlayUI == nullptr)
+        return false;
+
+    return _gamePlayUI->Open_EventDialogueUI(request);
 }
 
-void ClientInstance::Close_WorldDialogue()
+void ClientInstance::Close_EventDialogueUI()
 {
     if (_gamePlayUI)
-        _gamePlayUI->Close_WorldDialogue();
+        _gamePlayUI->Close_EventDialogueUI();
 }
 
 bool ClientInstance::Request_ScreenFadeTransition(const function<void()>& CoveredAction)

@@ -14,6 +14,7 @@
 #include "NPC_Base.h"
 #include "Player_WorldBase.h"
 #include "MovementCom.h"
+#include "Trigger_WorldDialogue.h"
 
 namespace
 {
@@ -469,12 +470,22 @@ HRESULT Level_GestralVillage::Ready_Layer_ETC(const wstring& strLayerTag)
             const Shared<GameObject> dialogueObject = Spawn_Prefab::Prefab(Constants::Prefab::Trigger_WorldDialogue)
                 .AtLevel(levelIndex)
                 .InLayer(strLayerTag)
-                .Position(Vec3(-2.f, -5.45f, 176.8f))
+                .Position(Vec3(-16.3f, 1.05f, 131.6f))
                 .Rotation(Vec3(0.f, 0.f, 0.f))
-                .Scale(Vec3(1.6f, 1.f, 1.6f))
+                .Scale(Vec3(1.f, 1.f, 1.f))
                 .Spawn();
 
             CHECK_NULL(dialogueObject, E_FAIL);
+            if (const Shared<Trigger_WorldDialogue> dialogueTrigger =
+                dynamic_pointer_cast<Trigger_WorldDialogue>(dialogueObject))
+            {
+                dialogueTrigger->Set_UIRequest(
+                    Constants::UI::UI_WorldDialogue_GestralVillage,
+                    L"Panel_WorldDialogue_GestralVillage",
+                    Constants::UI_Anim::UI_WorldDialogue_GestralVillageAnim_Path,
+                    10.f);
+            }
+
             dialogueObject->Set_RuntimeAuthoringLoaded(true);
         }
     }

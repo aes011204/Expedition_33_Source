@@ -1419,7 +1419,7 @@
     <ClCompile Include="..\private\UI_Dialogue.cpp">
       <Filter>02. GameObject\UI</Filter>
     </ClCompile>
-    <ClCompile Include="..\Private\UI_WorldDialogue.cpp">
+    <ClCompile Include="..\Private\UI_EventDialoguePlayer.cpp">
       <Filter>02. GameObject\UI</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\UI_GradientSkillPreviewTest.cpp">
@@ -1568,7 +1568,7 @@
     <ClInclude Include="..\public\UI_Dialogue.h">
       <Filter>02. GameObject\UI</Filter>
     </ClInclude>
-    <ClInclude Include="..\Public\UI_WorldDialogue.h">
+    <ClInclude Include="..\Public\UI_EventDialoguePlayer.h">
       <Filter>02. GameObject\UI</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\UI_GradientSkillPreviewTest.h">
