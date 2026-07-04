@@ -14,6 +14,7 @@ IMPLEMENT_REFLECTION(MapAmbientVisibility)
     info.properties.clear();
     info.displayName = "MapAmbientVisibility";
     info.category = "World";
+    PROPERTY_FLOAT("Ambient Visibility Amount", _ambientVisibilityAmount, 0.f, 1.f, 0.01f);
     return true;
 }
 

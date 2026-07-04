@@ -102,17 +102,12 @@ float GetOpacityMaskForMasked(float2 uv, float4 baseColor)
 
 float3 ComputeWorldNormal(float3 normalW, float3 tangentW, float3 binormalW, float2 uv)
 {
-    float normalLenSq = dot(normalW, normalW);
-    float3 n = (normalLenSq > 1e-6f) ? normalW * rsqrt(normalLenSq) : float3(0.f, 1.f, 0.f);
+    float3 n = normalize(normalW);
+    float3 t = normalize(tangentW);
+    float3 b = normalize(binormalW);
 
-    float tLenSq = dot(tangentW, tangentW);
-    float bLenSq = dot(binormalW, binormalW);
-
-    if (!HasMaterialTexture(MATERIAL_SLOT_NORMAL) || !(tLenSq > 1e-6f) || !(bLenSq > 1e-6f))
+    if (!HasMaterialTexture(MATERIAL_SLOT_NORMAL))
         return n;
-
-    float3 t = tangentW * rsqrt(tLenSq);
-    float3 b = binormalW * rsqrt(bLenSq);
 
     float4 normalSample = g_MaterialTextures[MATERIAL_SLOT_NORMAL].Sample(LinearWrapSampler, uv);
 

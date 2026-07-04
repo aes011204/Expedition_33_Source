@@ -1560,12 +1560,12 @@ bool GameInstance::Try_GetRenderViewHotspotSnapshot(RenderViewHotspotSnapshot& o
 
 const Shared<PostProcessPipeline> GameInstance::Get_PostProcessPipeline() const
 {
-    return _renderer->Get_PostProcessPipeline();
+    return _renderer ? _renderer->Get_PostProcessPipeline() : nullptr;
 }
 
 Shared<PostProcessPipeline> GameInstance::Get_PostProcessPipeline()
 {
-    return _renderer->Get_PostProcessPipeline();
+    return _renderer ? _renderer->Get_PostProcessPipeline() : nullptr;
 }
 
 HRESULT GameInstance::Begin_DOFOverrideScope(const string& ownerTag)
@@ -1605,7 +1605,7 @@ const Shared<LightingPipeline> GameInstance::Get_LightingPipeline() const
 
 Shared<LightingPipeline> GameInstance::Get_LightingPipeline()
 {
-    return _renderer->Get_LightingPipeline();
+    return _renderer ? _renderer->Get_LightingPipeline() : nullptr;
 }
 
 HRESULT GameInstance::Reload_RendererShaders()
@@ -1986,7 +1986,7 @@ void GameInstance::Get_LightDescs(vector<LIGHT_DESC>& outLightDescs) const
 
 HRESULT GameInstance::Set_Lights(const vector<LIGHT_DESC>& lightDescs)
 {
-    return _lightManager->Set_Lights(lightDescs);
+    return _lightManager ? _lightManager->Set_Lights(lightDescs) : S_OK;
 }
 
 HRESULT GameInstance::Bind_PrimaryShadowLightCB(Shared<ShaderCom> shader) const

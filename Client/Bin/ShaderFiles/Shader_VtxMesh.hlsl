@@ -531,6 +531,41 @@ PS_OUT PS_WeaponAlpha(PS_IN In)
     return Out;
 }
 
+PS_OUT PS_BaseAlphaBlackFill(PS_IN In)
+{
+    ApplyPlayerNearClip(In.WorldPos);
+
+    PS_OUT Out;
+
+    float2 finalUV = ApplyUVTransform(In.Texcoord);
+    float dissolveEdge = 0.f;
+
+    if (IsSwitchDissolveEnabled())
+        dissolveEdge = ApplySwitchDissolveClip(finalUV);
+
+    float4 baseColor = g_MaterialTextures[MATERIAL_SLOT_BASECOLOR].Sample(LinearWrapSampler, finalUV);
+    float sampledAlpha = baseColor.a;
+
+    if (sampledAlpha < 0.3f)
+        baseColor.rgb = float3(0.f, 0.f, 0.f);
+    else
+        baseColor.rgb *= g_BaseColorTint.rgb;
+    baseColor.a = 1.f;
+
+    float3 worldNormal = ComputeWorldNormal(In.Normal.xyz, In.Tangent, In.Binormal, finalUV);
+
+    Out.Diffuse = baseColor;
+    Out.Normal = float4(EncodeNormal(worldNormal), 1.f);
+    Out.Depth = float4(In.ProjPos.z / In.ProjPos.w, In.ProjPos.w / g_Far, 0.f, 1.f);
+    Out.Material = float4(g_AoScale, saturate(sampledAlpha * g_RoughnessScale), g_MetalnessScale, 1.f);
+
+    float3 emissive = SampleEmissive(finalUV);
+    emissive += dissolveEdge * g_FeatureParam1.rgb * 0.45f;
+    Out.Emissive = float4(emissive.xyz, 1.f);
+
+    return Out;
+}
+
 PS_OUT PS_CharacterHair(PS_IN In, bool IsFrontFace : SV_IsFrontFace)
 {
     ApplyPlayerNearClip(In.WorldPos);
@@ -623,7 +658,7 @@ PS_OUT_AmbientVisibility PS_AmbientVisibility(PS_IN In)
     const float depth = In.ProjPos.w / g_Far;
     Out.FrontDepth = In.IsFrontFace ? depth : 1.f;
     Out.BackDepth = In.IsFrontFace ? 0.f : depth;
-    Out.Amount = 0.2f;// saturate(g_AmbientVisibilityAmount);
+    Out.Amount = saturate(g_AmbientVisibilityAmount);
     return Out;
 }
 
@@ -649,4 +684,5 @@ technique11 DefaultTechnique
     PASS_RS_DS_BS_VP(HairMesh,                  RS_CullNone, DSS_None, BS_Default, VS_Default, PS_CharacterHair)       // 17
     PASS_RS_DS_BS_VP(EclipseSpherePass,         RS_Default, DSS_DepthRead, BS_EffectAdditive, VS_Default, PS_GlowOnly) // 18
     PASS_RS_DS_BS_VP(AmbientVisibility,         RS_CullNone, DSS_None, BS_AmbientVisibilityDepthInterval, VS_Default, PS_AmbientVisibility) // 19
+    PASS_RS_DS_BS_VP(BaseAlphaBlackFillPass,    RS_Default, DSS_Default, BS_Default, VS_Default, PS_BaseAlphaBlackFill) // 20
 }
