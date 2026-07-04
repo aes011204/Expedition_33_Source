@@ -8,8 +8,18 @@
 #include "UI_RuntimeLoader.h"
 #include "UI_Utils.h"
 #include "UI_Button.h"
+#include "ClientInstance.h"
+#include "FreeCamera.h"
 
 using namespace UI_Utils;
+
+namespace
+{
+    constexpr wchar_t kLeafEffectName[] = L"Effects/Assets/Map/FX_FallingFire.effect.json";
+
+    constexpr Vec4 kCameraEye = Vec4(0.f, 2.f, -8.f, 1.f);
+    constexpr Vec4 kCameraAt = Vec4(0.f, 1.f, 0.f, 1.f);
+}
 
 Level_MainTitle::Level_MainTitle(const ComPtr<Device>& device, const ComPtr<Context>& context)
     : Level{ device, context }
@@ -19,6 +29,9 @@ Level_MainTitle::Level_MainTitle(const ComPtr<Device>& device, const ComPtr<Cont
 HRESULT Level_MainTitle::Initialize()
 {
     if (FAILED(Ready_Layer_UI(TEXT("Layer_UI"))))
+        return E_FAIL;
+
+    if (FAILED(Ready_Layer_Camera(TEXT("Layer_Camera"))))
         return E_FAIL;
 
     GAME->Set_RenderEnvironment(false);
@@ -31,6 +44,13 @@ void Level_MainTitle::BeginPlay()
     Level::BeginPlay();
 
     GAME->Play_BGM(Constants::SoundBGM::MainTitleBGM, 0.7f, true, 0.f);
+
+    PlayEffectDesc leafDesc{};
+    leafDesc.effectName = kLeafEffectName;
+    leafDesc.worldPosition = Vec3(0.f, 0.f, 0.f);
+    leafDesc.scale = Vec3(1.f, 1.f, 1.f);
+
+    CLIENT->Play_Effect(leafDesc);
 }
 
 void Level_MainTitle::Update(float timeDelta)
@@ -87,6 +107,33 @@ HRESULT Level_MainTitle::Ready_Layer_UI(const wstring& strLayerTag)
         _uiByName,
         L"Button_MainTitle_Exit",
         "Level_MainTitle"); 
+
+    return S_OK;
+}
+
+HRESULT Level_MainTitle::Ready_Layer_Camera(const wstring& strLayerTag)
+{
+    FreeCamera::FREECAMERA_DESC cameraDesc{};
+    cameraDesc.eye = kCameraEye;
+    cameraDesc.at = kCameraAt;
+    cameraDesc.fovy = XMConvertToRadians(60.f);
+    cameraDesc.nearPlane = 0.1f;
+    cameraDesc.farPlane = 500.f;
+    cameraDesc.mouseSensor = 0.05f;
+
+    Shared<GameObject> cameraObject;
+
+    CHECK_FAILED(
+        GAME->Add_GameObject(
+            ETOI(LevelType::Static),
+            TEXT("GameObject_FreeCamera"),
+            ETOI(LevelType::MainTitle),
+            strLayerTag,
+            cameraObject,
+            &cameraDesc),
+        E_FAIL);
+
+    GAME->Change_ActiveCamera(dynamic_pointer_cast<Camera>(cameraObject));
 
     return S_OK;
 }
