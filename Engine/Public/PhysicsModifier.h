@@ -63,6 +63,7 @@ public:
 		float lateralInertiaScale{ 1.f };
 		float verticalInertiaScale{ 1.f };
 		float depthInertiaScale{ 1.f };
+		bool includeDriverLateralInertia{ false };
 		float accelerationInertiaScale{ 0.35f };
 		float inertiaVelocitySmoothAlpha{ 0.25f };
 
@@ -86,6 +87,9 @@ public:
 		float collisionCorrectionSmoothAlpha{ 0.30f };
 		float collisionNormalSmoothAlpha{ 0.30f };
 		uint32 collisionProjectionIterations{ 3 };
+		bool useHardCollisionProjection{ false };
+		uint32 hardCollisionProjectionIterations{ 2 };
+		float hardCollisionLengthAlpha{ 1.f };
 
 		Vec3 windDirection{ Vec3::Zero };
 		float windScale{ 0.f };
