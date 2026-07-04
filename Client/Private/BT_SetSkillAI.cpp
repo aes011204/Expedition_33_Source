@@ -173,6 +173,9 @@ void BT_SetSkillAI::SelectSkill(const Shared<BlackBoard>& bb, int32 SkillIndex)
 			owner->Push_SkillHistory(skillKey);
 			owner->_cachedContext.lastSkillIndex = skillKey;
 			owner->_cachedContext.previousPhase = owner->Get_CurPhase();
+
+            if (skillKey == "Simon_Debuff")
+                owner->Mark_TurnLimitedSpecialUsed();
 		}
 	}
 

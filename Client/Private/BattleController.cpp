@@ -782,6 +782,9 @@ void BattleController::EndTurn()
 
     // 상태 이상 엔드
     const auto actor = _currentTurnActor;
+    _lastCompletedTurnWasPlayer =
+        actor.statCom != nullptr &&
+        actor.statCom->Is_Player();
     const float scheduleSpeed =
         _buffSystem ? _buffSystem->Resolve_TurnScheduleSpeed(actor)
         : max(actor.statCom->Get_Speed(), 1.f);
@@ -828,6 +831,14 @@ void BattleController::StartTurn()
     _turnAction.ResetAction();
     _turnActionRequest = {};
     _turnActionRequest.actor = _currentTurnActor;
+
+    if (const auto monster = dynamic_pointer_cast<Monster_BattleBase>(_currentTurnActor.actor))
+    {
+        if (_lastCompletedTurnWasPlayer)
+            monster->Reset_TurnLimitedSpecialUsage();
+        else
+            monster->Mark_TurnLimitedSpecialUsed();
+    }
 
     _processedTurnStartStatuses.clear();
     _isWaitingTurnStartStatusHit = false;
