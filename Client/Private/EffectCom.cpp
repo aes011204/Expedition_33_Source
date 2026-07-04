@@ -989,7 +989,7 @@ HRESULT EffectCom::Play_TrailEffect(
     acquireDesc.effectName = resolvedEffectName;
     acquireDesc.layerLevelIndex = GAME->Current_LevelIndex();
     acquireDesc.layerTag = layerTag;
-    acquireDesc.worldPosition = initialSample.baseWorldPosition;
+    acquireDesc.worldPosition = initialSample.tipWorldPosition;
     acquireDesc.trailSampleProvider = attached.trailSampleProvider;
     acquireDesc.autoReleaseOnFinished = false;
 
@@ -1422,6 +1422,13 @@ void EffectCom::Update_AttachedEffects(float timeDelta)
         if (attached.poolHandle.effectObject == nullptr)
             continue;
 
+        const Shared<TransformCom> effectTransform = attached.poolHandle.effectObject->Get_Transform();
+        if (effectTransform == nullptr)
+        {
+            Release_AttachedEffect(attached);
+            continue;
+        }
+
         if (attached.isTrailDraining)
         {
             attached.trailDrainElapsed += max(0.f, timeDelta);
@@ -1452,10 +1459,7 @@ void EffectCom::Update_AttachedEffects(float timeDelta)
             if (!Try_BuildTrailSample(attached.partTag, attached.trailAnchorAsset, &attached.trailOffset, trailSample))
                 continue;
 
-            const Shared<TransformCom> effectTransform = attached.poolHandle.effectObject->Get_Transform();
-            CHECK_NULL(effectTransform);
-
-            effectTransform->Set_WorldPosition(trailSample.baseWorldPosition);
+            effectTransform->Set_WorldPosition(trailSample.tipWorldPosition);
             continue;
         }
 
@@ -1479,9 +1483,6 @@ void EffectCom::Update_AttachedEffects(float timeDelta)
             targetWorldScale
         ))
             continue;
-
-        const Shared<TransformCom> effectTransform = attached.poolHandle.effectObject->Get_Transform();
-        CHECK_NULL(effectTransform);
 
         effectTransform->Set_WorldPosition(targetWorldPosition);
         effectTransform->Set_WorldRotationQuaternion(targetWorldRotation);
