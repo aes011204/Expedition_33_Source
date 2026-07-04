@@ -446,6 +446,8 @@ RuntimeRuleStateIO::RuleState RuntimeRuleStateService::Build_GameplayStartUnlock
 
 	ruleState.inventoryJson = Build_SelectedWeaponInventoryJson({
 		{ "Gustave", "Lanceram" },
+		{ "Lune", "Colim" },
+		{ "Maelle", "Medalum" },
 		});
 	ruleState.inventoryJson["chroma"] = 8109036007402;
 	ruleState.inventoryJson["unlocked_pictos"] = json::array();

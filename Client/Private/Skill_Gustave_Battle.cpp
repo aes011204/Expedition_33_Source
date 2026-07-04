@@ -78,7 +78,14 @@ void Skill_Gustave_UnleashedCharge::Execute(const Skill_Data& skill, const Battl
 
     const BattleChar& target = curTargets.front();
 
-    const float damage = DamageSystem::CalculatePlayerAttackDamage(attacker, skill.powerMultiplier);
+    float damage = DamageSystem::CalculatePlayerAttackDamage(attacker, skill.powerMultiplier);
+
+    if (attacker.mechanismCom != nullptr &&
+        attacker.mechanismCom->Consume_NextGustaveOverchargeDamageDouble())
+    {
+        damage *= 2.f;
+    }
+
     DamageSystem::ApplyDamage(damage, attacker, target, attackType);
 
     auto battle = CLIENT->Get_BattleController();
@@ -220,6 +227,7 @@ void Skill_Gustave_AnglesEye::Execute(const Skill_Data& skill, const BattleActio
         action.GetCurStepIndex() + 1 >= action.GetSteps().size())
     {
         attacker.mechanismCom->Add_GustaveCharge(attacker.mechanismCom->Get_GustaveMaxCharge());
+        attacker.mechanismCom->Set_NextGustaveOverchargeDamageDouble();
     }
 }
 

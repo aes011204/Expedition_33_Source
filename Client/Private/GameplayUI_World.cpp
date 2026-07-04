@@ -41,6 +41,7 @@ GameplayUI_World::~GameplayUI_World() = default;
 namespace
 {
     constexpr char kSoulLikeMaelleTargetId[] = "SL_Maelle";
+    constexpr wchar_t kSavePointRestHealEffect[] = L"Effects\\Assets\\Item\\HealTint_G.effect.json";
     constexpr float kLevelAnnounceDefaultDelaySec = 3.f;
     constexpr float kLevelAnnounceGestralVillageDelaySec = 4.f;
 
@@ -598,8 +599,32 @@ void GameplayUI_World::Handle_SavePointAction(SavePoint_Panel::SavePointAction a
     switch (action)
     {
     case SavePoint_Panel::SavePointAction::Rest:
-        Close_AllMenus(); // 현재는 SavePoint 닫기만. 나중에 Rest 처리 연결
+    {
+        Close_AllMenus();
+        CLIENT->Restore_CurrentHeroesHpToMax();
+
+        Unlock_Manager* unlockManager = CLIENT->Get_UnlockManager();
+        for (const HeroPartyEntry& entry : CLIENT->Get_HeroEntries())
+        {
+            if (entry.hero == nullptr)
+                continue;
+
+            const bool isUnlocked =
+                entry.heroId == HeroId::Gustave ||
+                (unlockManager != nullptr && unlockManager->Is_HeroUnlocked(entry.heroId));
+            if (!isUnlocked)
+                continue;
+
+            PlayEffectDesc effectDesc{};
+            effectDesc.effectName = kSavePointRestHealEffect;
+            effectDesc.spawnBasisTarget = entry.hero;
+            effectDesc.localOffset = Vec3(0.f, 0.f, 0.f);
+            effectDesc.scale = Vec3(1.f, 1.f, 1.f);
+
+            CLIENT->Play_Effect(effectDesc);
+        }
         break;
+    }
 
     case SavePoint_Panel::SavePointAction::UpgradeStat:
         Push_Menu(GameplayMenu::CharacterStatus);   // SavePoint 위에 CharacterStatus push

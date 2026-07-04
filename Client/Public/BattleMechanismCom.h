@@ -17,6 +17,7 @@ public:
     {
         int32 currentCharge = 0;
         int32 maxCharge = 10;
+        bool nextOverchargeDamageDouble = false;
     };
 
     struct LuneMechanism
@@ -81,6 +82,8 @@ public: /* 구스타브 */
     void    Add_GustaveCharge(int32 amount = 1);
     int32   Consume_AllGustaveCharge(); // 과충전 사용
     void    Clear_GustaveCharge();
+    void    Set_NextGustaveOverchargeDamageDouble();
+    bool    Consume_NextGustaveOverchargeDamageDouble();
 
 public: /* 루네 */
     uint32        Get_LuneStainCount() const { return _lune.stainCount; }

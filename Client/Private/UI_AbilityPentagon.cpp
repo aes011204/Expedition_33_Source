@@ -4,12 +4,14 @@
 #include "ResourceLoader.h"
 #include "ShaderCom.h"
 
+#include <cmath>
 #include <filesystem>
 
 namespace
 {
     constexpr float kHalfExtent = 0.5f;
-    constexpr float kAxisRotationOffsetRadians = 0.0872665f; // 전체 축을 5도 정도 반시계로 돌려 행운 꼭짓점이 조금 더 아래를 보게 맞춘다.
+    constexpr float kOuterInsetRatio = 0.92f;
+    constexpr float kAxisRotationOffsetRadians = 0.f; // 같은 값이면 위 꼭짓점 기준의 정확한 정오각형이 되게 축 보정을 끈다.
     constexpr std::array<Vec2, 5> kAbilityAxisDirections =
     {
         Vec2(0.f, 1.f),                 // 활력 : 위
@@ -184,9 +186,10 @@ void UI_AbilityPentagon::Set_StatValues(const array<int32, 5>& statValues)
 
     for (size_t i = 0; i < statValues.size(); ++i)
     {
-        ratios[i] = (_maxStatValue > 0.f)
+        const float linearRatio = (_maxStatValue > 0.f)
             ? ::clamp(static_cast<float>(statValues[i]) / _maxStatValue, 0.f, 1.f)
             : 0.f;
+        ratios[i] = sqrtf(linearRatio); // 낮은 스탯끼리 한 점처럼 뭉쳐 보이지 않게 표시 비율만 벌린다.
     }
 
     Set_NormalizedRatios(ratios);
@@ -316,7 +319,7 @@ void UI_AbilityPentagon::Rebuild_Geometry()
 
     for (size_t i = 0; i < 5; ++i)
     {
-        const float finalRatio = _baseInnerRatio + (_normalizedRatios[i] * (1.f - _baseInnerRatio));
+        const float finalRatio = (_baseInnerRatio + (_normalizedRatios[i] * (1.f - _baseInnerRatio))) * kOuterInsetRatio;
         const Vec2 baseAxisDirection = kAbilityAxisDirections[i];
         const float cosAngle = cosf(kAxisRotationOffsetRadians);
         const float sinAngle = sinf(kAxisRotationOffsetRadians);

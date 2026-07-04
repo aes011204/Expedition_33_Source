@@ -156,6 +156,23 @@ void BattleMechanismCom::Clear_GustaveCharge()
     _gustave.currentCharge = 0;
 }
 
+void BattleMechanismCom::Set_NextGustaveOverchargeDamageDouble()
+{
+    if (!Is_Gustave())
+        return;
+
+    _gustave.nextOverchargeDamageDouble = true;
+}
+
+bool BattleMechanismCom::Consume_NextGustaveOverchargeDamageDouble()
+{
+    if (!Is_Gustave() || !_gustave.nextOverchargeDamageDouble)
+        return false;
+
+    _gustave.nextOverchargeDamageDouble = false;
+    return true;
+}
+
 ElementalType BattleMechanismCom::Get_LuneStain(uint32 index) const
 {
     if (!Is_Lune() || index >= _lune.stainCount)
