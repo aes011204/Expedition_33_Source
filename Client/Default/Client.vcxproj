@@ -190,6 +190,7 @@
     <ClInclude Include="..\public\AN_Change_Anim.h" />
     <ClInclude Include="..\Public\AN_CounterDamage.h" />
     <ClInclude Include="..\Public\AN_CounterReturnAll.h" />
+    <ClInclude Include="..\Public\AN_SimonPlayEffectToggle.h" />
     <ClInclude Include="..\Public\AN_SimonCriticalGlow.h" />
     <ClInclude Include="..\Public\AN_SL_CachePlayerPosition.h" />
     <ClInclude Include="..\Public\AN_SL_PlayCachedPlayerEffect.h" />
@@ -231,6 +232,7 @@
     <ClInclude Include="..\Public\BattleResultRecoder.h" />
     <ClInclude Include="..\Public\BattleSpawnRegistry.h" />
     <ClInclude Include="..\Public\BattleStartSpawner.h" />
+    <ClInclude Include="..\Public\BattleTargetingVoicePreset.h" />
     <ClInclude Include="..\Public\BattleTransition_ScreenFx.h" />
     <ClInclude Include="..\Public\BattleTurnCameraPoseUtils.h" />
     <ClInclude Include="..\Public\BattleTutorialController.h" />
@@ -695,6 +697,7 @@
     <ClCompile Include="..\private\AN_Change_Anim.cpp" />
     <ClCompile Include="..\Private\AN_CounterDamage.cpp" />
     <ClCompile Include="..\Private\AN_CounterReturnAll.cpp" />
+    <ClCompile Include="..\Private\AN_SimonPlayEffectToggle.cpp" />
     <ClCompile Include="..\Private\AN_SimonCriticalGlow.cpp" />
     <ClCompile Include="..\Private\AN_SL_CachePlayerPosition.cpp" />
     <ClCompile Include="..\Private\AN_SL_PlayCachedPlayerEffect.cpp" />
@@ -734,6 +737,7 @@
     <ClCompile Include="..\Private\BattleResultRecoder.cpp" />
     <ClCompile Include="..\Private\BattleSpawnRegistry.cpp" />
     <ClCompile Include="..\Private\BattleStartSpawner.cpp" />
+    <ClCompile Include="..\Private\BattleTargetingVoicePreset.cpp" />
     <ClCompile Include="..\Private\BattleTransition_ScreenFx.cpp" />
     <ClCompile Include="..\Private\BattleTurnCamera.cpp" />
     <ClCompile Include="..\Private\BattleTutorialController.cpp" />

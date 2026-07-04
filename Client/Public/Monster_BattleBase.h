@@ -133,6 +133,9 @@ public:
     void Push_TargetHistory(const int32 prevTarget);
     void Advance_SkillRuntimeTurn();
     void Notify_SkillExecutionSucceeded(const string& skillKey);
+    bool Has_UsedTurnLimitedSpecialThisTurn() const { return _usedTurnLimitedSpecialThisTurn; }
+    void Reset_TurnLimitedSpecialUsage() { _usedTurnLimitedSpecialThisTurn = false; }
+    void Mark_TurnLimitedSpecialUsed() { _usedTurnLimitedSpecialThisTurn = true; }
     SkillChoiceContext Build_SkillChoiceContext(
         const Shared<BlackBoard>& bb,
         const vector<BattleChar>& heroes);
@@ -150,6 +153,7 @@ protected:
     float                           _battleGroundOffsetY = 0.f;
     Vec3                            _revivePosition = Vec3::Zero;
     bool                            _hasRevivePosition = false;
+    bool                            _usedTurnLimitedSpecialThisTurn = false;
 
 public:
     void Free() override;

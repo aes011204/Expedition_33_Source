@@ -4,6 +4,7 @@
 #include "BlackBoard.h"
 #include "ClientInstance.h"
 #include "GameObject.h"
+#include "Monster_BattleBase.h"
 #include "MonsterStatCom.h"
 
 NS_BEGIN(Client)
@@ -42,6 +43,9 @@ BNode::NODE_STATE BT_ForceSkillOnDeadHero::Logic_Update(float deltaTime)
     const Shared<GameObject> owner = _owner.lock();
     CHECK_NULL(owner, BNode::NODE_STATE::FAILED);
 
+    const Shared<Monster_BattleBase> monster = dynamic_pointer_cast<Monster_BattleBase>(owner);
+    CHECK_NULL(monster, BNode::NODE_STATE::FAILED);
+
     const Shared<MonsterStatCom> stat = owner->Get_Component<MonsterStatCom>();
     CHECK_NULL(stat, BNode::NODE_STATE::FAILED);
 
@@ -60,6 +64,7 @@ BNode::NODE_STATE BT_ForceSkillOnDeadHero::Logic_Update(float deltaTime)
 
         bb->Set_Value("SkillIndex", i);
         bb->Set_Value("ActionType", static_cast<int>(EBattleContext::Skill));
+        monster->Mark_TurnLimitedSpecialUsed();
         return BNode::NODE_STATE::SUCCESS;
     }
 
