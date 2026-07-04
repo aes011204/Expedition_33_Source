@@ -1469,18 +1469,13 @@ namespace
 
         for (const RuntimeUIAnimationAssetBinding& binding : animationBindings)
         {
-            bool bound = false;
             for (RuntimeUIObject& object : document.objects)
             {
                 if (object.name != binding.targetName)
                     continue;
 
                 object.keyframeAnimationAssets.push_back(binding.asset);
-                bound = true;
             }
-
-            if (!bound)
-                LOG_WARN("UI RuntimeLoader keyframe animation target not found: {}", binding.targetName);
         }
     }
 

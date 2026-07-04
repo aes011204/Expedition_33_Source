@@ -1,7 +1,11 @@
 ﻿#include "SL_Jump.h"
 
+#include "Body_Player.h"
+#include "ClientInstance.h"
+#include "ModelCom.h"
 #include "SL_Maelle.h"
 #include "SL_StateMachineCom.h"
+#include "SoulLikeController.h"
 
 namespace
 {
@@ -25,6 +29,9 @@ bool SL_Jump::EnterInvoke()
     Stop_Movement();
     Play_Anim(SoulLikeAnim::Jump, 0.05f, false);
 
+    if (Shared<SoulLikeController> soulLikeController = CLIENT->Get_SoulLikeController())
+        soulLikeController->Apply_PlayerJumpCameraClip(0.f);
+
     return true;
 }
 
@@ -33,6 +40,12 @@ void SL_Jump::Update(float timeDelta)
     UNREFERENCED_PARAMETER(timeDelta);
 
     Shared<SL_Maelle> owner = _owner.lock();
+
+    if (Shared<SoulLikeController> soulLikeController = CLIENT->Get_SoulLikeController())
+    {
+        if (_body != nullptr && _body->Get_Model() != nullptr)
+            soulLikeController->Sync_PlayerJumpCameraClipTime(_body->Get_Model()->Get_CurrentAnimationTimeSec());
+    }
 
     if (!Is_AnimFinished())
     {
@@ -54,6 +67,9 @@ void SL_Jump::Update(float timeDelta)
 
 void SL_Jump::ExitInvoke()
 {
+    if (Shared<SoulLikeController> soulLikeController = CLIENT->Get_SoulLikeController())
+        soulLikeController->Restore_PlayerJumpCameraClip();
+
     if (Shared<SL_Maelle> owner = _owner.lock())
     {
         owner->Set_CombatLocked(false);

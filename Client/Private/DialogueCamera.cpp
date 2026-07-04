@@ -131,6 +131,9 @@ void DialogueCamera::Clear_Targets()
 
 void DialogueCamera::Set_CameraPresetId(const string& cameraPresetId)
 {
+    if (_cameraPresetId == cameraPresetId)
+        return;
+
     _cameraPresetId = cameraPresetId;
     Load_PresetFromId();
 }

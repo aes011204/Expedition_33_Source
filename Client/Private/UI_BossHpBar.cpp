@@ -77,6 +77,7 @@ void UI_BossHpBar::Close()
     _maxShield = 0;
     _lastShieldIconCount = 0;
     _hasShieldIconState = false;
+    _wasShieldIconRepositionDeferred = false;
 
     UI_RuntimePanelBase::Close();
 }
@@ -340,6 +341,8 @@ void UI_BossHpBar::Apply_ShieldIcons(uint32 currentShield)
     }
 
     const bool deferReposition = Has_ActiveBrokenShieldAnimation();
+    const bool fadeRepositionedIcons =
+        _wasShieldIconRepositionDeferred && !deferReposition && consumedShield > 0 && visibleShield > 0;
 
     for (uint32 i = 0; i < kMaxBossShieldIconCount; ++i)
     {
@@ -353,7 +356,11 @@ void UI_BossHpBar::Apply_ShieldIcons(uint32 currentShield)
             if (deferReposition)
                 Set_ShieldIconPosition(i, i, maxShield);
             else
+            {
                 Set_ShieldIconPosition(i, i - consumedShield, visibleShield);
+                if (fadeRepositionedIcons)
+                    Begin_ShieldIconFadeIn(i);
+            }
 
             if (!_shieldIcons[i]->Is_Open())
                 _shieldIcons[i]->Open();
@@ -366,6 +373,7 @@ void UI_BossHpBar::Apply_ShieldIcons(uint32 currentShield)
 
     _lastShieldIconCount = currentShield;
     _hasShieldIconState = true;
+    _wasShieldIconRepositionDeferred = deferReposition;
 }
 
 void UI_BossHpBar::Reset_ShieldIconDefaultVisual(uint32 iconIndex)
@@ -374,7 +382,8 @@ void UI_BossHpBar::Reset_ShieldIconDefaultVisual(uint32 iconIndex)
         return;
 
     _shieldIcons[iconIndex]->Stop_UIAnimation();
-    _shieldIcons[iconIndex]->Set_AlphaMultiplier(1.f);
+    if (_shieldIconFadeInTimers[iconIndex] <= 0.f)
+        _shieldIcons[iconIndex]->Set_AlphaMultiplier(1.f);
     _shieldIcons[iconIndex]->Set_Color(Vec4(1.f, 1.f, 1.f, 1.f));
 
     if (UI_Transform* transform = _shieldIcons[iconIndex]->Get_Transform())
@@ -403,6 +412,15 @@ void UI_BossHpBar::Set_ShieldIconPosition(uint32 iconIndex, uint32 visibleOrder,
     _shieldIcons[iconIndex]->Refresh_OpenBaseTransform();
 }
 
+void UI_BossHpBar::Begin_ShieldIconFadeIn(uint32 iconIndex)
+{
+    if (iconIndex >= kMaxBossShieldIconCount || _shieldIcons[iconIndex] == nullptr)
+        return;
+
+    _shieldIconFadeInTimers[iconIndex] = kShieldIconFadeInDurationSec;
+    _shieldIcons[iconIndex]->Set_AlphaMultiplier(0.f);
+}
+
 Vec2 UI_BossHpBar::Resolve_ShieldIconScreenCenter() const
 {
     if (_root == nullptr)
@@ -420,6 +438,7 @@ void UI_BossHpBar::Play_BrokenShieldIcon(uint32 iconIndex)
     _shieldIcons[iconIndex]->Open();
     _shieldIcons[iconIndex]->Play_UIAnimation(kBrokenShieldAnimationName, true);
     _shieldIconCloseTimers[iconIndex] = kBrokenShieldAnimationDurationSec;
+    _shieldIconFadeInTimers[iconIndex] = 0.f;
 }
 
 bool UI_BossHpBar::Has_ActiveBrokenShieldAnimation() const
@@ -435,17 +454,23 @@ bool UI_BossHpBar::Has_ActiveBrokenShieldAnimation() const
 
 void UI_BossHpBar::Update_ShieldIconAnimations(float timeDelta)
 {
+    const float clampedDelta = max(0.f, timeDelta);
+
     for (uint32 i = 0; i < kMaxBossShieldIconCount; ++i)
     {
-        if (_shieldIconCloseTimers[i] <= 0.f)
-            continue;
-
-        _shieldIconCloseTimers[i] = max(0.f, _shieldIconCloseTimers[i] - max(0.f, timeDelta));
         if (_shieldIconCloseTimers[i] > 0.f)
+        {
+            _shieldIconCloseTimers[i] = max(0.f, _shieldIconCloseTimers[i] - clampedDelta);
+            if (_shieldIconCloseTimers[i] <= 0.f && _shieldIcons[i])
+                _shieldIcons[i]->Close();
+        }
+
+        if (_shieldIconFadeInTimers[i] <= 0.f || _shieldIcons[i] == nullptr)
             continue;
 
-        if (_shieldIcons[i])
-            _shieldIcons[i]->Close();
+        _shieldIconFadeInTimers[i] = max(0.f, _shieldIconFadeInTimers[i] - clampedDelta);
+        const float alpha = 1.f - (_shieldIconFadeInTimers[i] / kShieldIconFadeInDurationSec);
+        _shieldIcons[i]->Set_AlphaMultiplier(clamp(alpha, 0.f, 1.f));
     }
 }
 
@@ -458,6 +483,8 @@ void UI_BossHpBar::Close_ShieldIcons()
     }
 
     _shieldIconCloseTimers.fill(0.f);
+    _shieldIconFadeInTimers.fill(0.f);
+    _wasShieldIconRepositionDeferred = false;
 }
 
 void UI_BossHpBar::Update_DelayHpGauge(float timeDelta, float targetRatio)

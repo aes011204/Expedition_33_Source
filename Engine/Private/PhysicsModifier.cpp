@@ -516,8 +516,8 @@ void PhysicsModifier::Evaluate_Modifier(ModelCom* model, float timeDelta)
 		vector<WorldCapsule> worldCapsules = Build_WorldCapsules(collisionModel, collisionOwnerWorld);
 		
 		Apply_LengthAndBendConstraints();
-		Apply_PostSimulationConstraints(worldCapsules);
 		Apply_LocalOffsetConstraints(timeDelta, isOwnerIdle);
+		Apply_PostSimulationConstraints(worldCapsules);
 
 		if (_desc.writeBackEnabled)
 			Write_BackToModel(model, ownerWorld, isOwnerIdle);
@@ -1069,11 +1069,16 @@ void PhysicsModifier::Reset_PhysXStateToPose(ModelCom* model, const ModelCom* co
 			{
 				node.actor->setGlobalPose(pose);
 				if (node.isKinematic)
+				{
 					node.actor->setKinematicTarget(pose);
-				node.actor->setLinearVelocity(PxVec3(0.f));
-				node.actor->setAngularVelocity(PxVec3(0.f));
-				node.actor->clearForce();
-				node.actor->clearTorque();
+				}
+				else
+				{
+					node.actor->setLinearVelocity(PxVec3(0.f));
+					node.actor->setAngularVelocity(PxVec3(0.f));
+					node.actor->clearForce();
+					node.actor->clearTorque();
+				}
 			}
 
 			node.solvedPosition = posePosition;
@@ -1220,6 +1225,7 @@ void PhysicsModifier::Apply_OwnerInertiaForce(const Vec3& ownerMotionDelta, floa
 	const float lateralScale = std::max(0.f, _desc.lateralInertiaScale);
 	const float verticalScale = std::max(0.f, _desc.verticalInertiaScale);
 	const float depthScale = std::max(0.f, _desc.depthInertiaScale);
+	const bool includeDriverLateralInertia = _desc.includeDriverLateralInertia;
 	const float accelerationScale = std::max(0.f, _desc.accelerationInertiaScale);
 	const float velocitySmoothAlpha = std::clamp(_desc.inertiaVelocitySmoothAlpha, 0.f, 1.f);
 	const float releaseVelocityAlpha = std::clamp(_desc.releaseInertiaDamping, 0.f, 0.98f);
@@ -1317,7 +1323,7 @@ void PhysicsModifier::Apply_OwnerInertiaForce(const Vec3& ownerMotionDelta, floa
 				return weightedVelocity;
 		};
 
-		const Vec3 driverTangentialVelocity = buildWeightedTangentialVelocity(driverVelocity, false);
+		const Vec3 driverTangentialVelocity = buildWeightedTangentialVelocity(driverVelocity, includeDriverLateralInertia);
 		const Vec3 driverTangentialVelocityDelta = buildWeightedTangentialVelocity(driverVelocityDelta, true);
 
 		for (auto& node : chain.nodes)
@@ -1571,7 +1577,14 @@ void PhysicsModifier::Apply_PostSimulationConstraints(const vector<WorldCapsule>
 	const float snapAlpha = std::clamp(_desc.contactSnapAlpha, 0.f, 1.f);
 	const float correctionSmoothAlpha = std::clamp(_desc.collisionCorrectionSmoothAlpha, 0.f, 1.f);
 	const float normalSmoothAlpha = std::clamp(_desc.collisionNormalSmoothAlpha, 0.f, 1.f);
-	const uint32 iterations = _desc.collisionProjectionIterations;
+	const bool useHardCollisionProjection = _desc.useHardCollisionProjection;
+	const uint32 iterations = useHardCollisionProjection
+		? std::max(1u, _desc.collisionProjectionIterations)
+		: _desc.collisionProjectionIterations;
+	const uint32 hardProjectionIterations = useHardCollisionProjection
+		? std::max(1u, _desc.hardCollisionProjectionIterations)
+		: 0u;
+	const float hardLengthAlpha = std::clamp(_desc.hardCollisionLengthAlpha, 0.f, 1.f);
 
 	for (auto& chain : _chains)
 	{
@@ -1759,6 +1772,235 @@ void PhysicsModifier::Apply_PostSimulationConstraints(const vector<WorldCapsule>
 						{
 							node.smoothedContactNormal = Vec3::Zero;
 							node.hasSmoothedContactNormal = false;
+						}
+					}
+				}
+
+				if (useHardCollisionProjection && iter + 1u == iterations)
+				{
+					auto resolveParentPosition = [&]() -> Vec3
+						{
+							if (node.parentNodeIndex >= 0)
+							{
+								const Node& parentNode = chain.nodes[static_cast<size_t>(node.parentNodeIndex)];
+								return parentNode.actor != nullptr
+									? From_PxVec3(parentNode.actor->getGlobalPose().p)
+									: parentNode.solvedPosition;
+							}
+
+							return chain.anchorActor != nullptr
+								? From_PxVec3(chain.anchorActor->getGlobalPose().p)
+								: Get_Position(chain.anchorWorld);
+						};
+
+					Vec3 hardPosition = node.solvedPosition;
+					Vec3 hardParentPosition = resolveParentPosition();
+					Vec3 hardContactNormal = Vec3::Zero;
+					uint32 hardContactCount = 0;
+					bool hardResolved = false;
+
+					auto accumulateHardContact = [&](const Vec3& normal)
+						{
+							if (normal.LengthSquared() <= 0.0001f)
+								return;
+
+							Vec3 normalized = normal;
+							normalized.Normalize();
+							hardContactNormal += normalized;
+							++hardContactCount;
+							hardResolved = true;
+						};
+
+					auto preserveNodeLength = [&]()
+						{
+							if (hardLengthAlpha <= 0.f || node.length <= 0.0001f)
+								return;
+
+							Vec3 segment = hardPosition - hardParentPosition;
+							if (segment.LengthSquared() <= 0.0001f)
+								segment = Get_Position(node.originalWorld) - hardParentPosition;
+							if (segment.LengthSquared() <= 0.0001f)
+								return;
+
+							segment.Normalize();
+							const Vec3 lengthLockedPosition = hardParentPosition + segment * node.length;
+							hardPosition = Vec3::Lerp(hardPosition, lengthLockedPosition, hardLengthAlpha);
+						};
+
+					auto buildFallbackNormal = [&](const Vec3& capsuleClosest) -> Vec3
+						{
+							Vec3 normal = hardPosition - capsuleClosest;
+							if (normal.LengthSquared() <= 0.0001f)
+								normal = hardPosition - hardParentPosition;
+							if (normal.LengthSquared() <= 0.0001f)
+								normal = Get_Position(node.originalWorld) - hardParentPosition;
+							if (normal.LengthSquared() <= 0.0001f)
+								normal = Vec3::UnitY;
+							normal.Normalize();
+							return normal;
+						};
+
+					auto projectPointAgainstCapsule = [&](const WorldCapsule& capsule)
+						{
+							const float combinedRadius = nodeRadius + skinWidth + capsule.radius;
+							const Vec3 closest = Closest_PointOnSegment(hardPosition, capsule.startPoint, capsule.endPoint);
+							Vec3 normal = hardPosition - closest;
+							const float distance = normal.Length();
+							if (distance >= combinedRadius)
+								return false;
+
+							if (distance > 0.0001f)
+								normal /= distance;
+							else
+								normal = buildFallbackNormal(closest);
+
+							hardPosition += normal * (combinedRadius - distance + 0.0005f);
+							accumulateHardContact(normal);
+							return true;
+						};
+
+					auto projectSegmentAgainstCapsule = [&](const WorldCapsule& capsule)
+						{
+							const float combinedRadius = nodeRadius + skinWidth + capsule.radius;
+							Vec3 hairClosest = Vec3::Zero;
+							Vec3 capsuleClosest = Vec3::Zero;
+							float hairT = 0.f;
+							float capsuleT = 0.f;
+							const float distanceSq = SegmentSegmentClosestPoints(
+								hardParentPosition,
+								hardPosition,
+								capsule.startPoint,
+								capsule.endPoint,
+								hairClosest,
+								capsuleClosest,
+								hairT,
+								capsuleT);
+							if (distanceSq >= combinedRadius * combinedRadius)
+								return false;
+
+							Vec3 normal = hairClosest - capsuleClosest;
+							const float distance = sqrtf(std::max(0.f, distanceSq));
+							if (distance > 0.0001f)
+								normal /= distance;
+							else
+								normal = buildFallbackNormal(capsuleClosest);
+
+							const float penetration = combinedRadius - distance;
+							const float childWeight = std::clamp(hairT, 0.30f, 1.f);
+							hardPosition += normal * (penetration / childWeight + 0.0005f);
+							accumulateHardContact(normal);
+							return true;
+						};
+
+					for (uint32 hardIter = 0; hardIter < hardProjectionIterations; ++hardIter)
+					{
+						const Vec3 beforeProjection = hardPosition;
+						bool projectedThisIteration = false;
+
+						for (const WorldCapsule& capsule : worldCapsules)
+						{
+							projectedThisIteration = projectPointAgainstCapsule(capsule) || projectedThisIteration;
+							projectedThisIteration = projectSegmentAgainstCapsule(capsule) || projectedThisIteration;
+						}
+
+						if (projectedThisIteration)
+						{
+							preserveNodeLength();
+							hardParentPosition = resolveParentPosition();
+						}
+
+						if (!projectedThisIteration || (hardPosition - beforeProjection).LengthSquared() <= 0.000001f)
+							break;
+					}
+
+					for (const WorldCapsule& capsule : worldCapsules)
+					{
+						const float combinedRadius = nodeRadius + skinWidth + capsule.radius;
+						Vec3 sweepClosest = Vec3::Zero;
+						Vec3 capsuleClosest = Vec3::Zero;
+						float sweepT = 0.f;
+						float capsuleT = 0.f;
+						const float distanceSq = SegmentSegmentClosestPoints(
+							node.prevSolvedPosition,
+							hardPosition,
+							capsule.startPoint,
+							capsule.endPoint,
+							sweepClosest,
+							capsuleClosest,
+							sweepT,
+							capsuleT);
+						if (distanceSq >= combinedRadius * combinedRadius)
+							continue;
+
+						Vec3 normal = sweepClosest - capsuleClosest;
+						const float distance = sqrtf(std::max(0.f, distanceSq));
+						if (distance > 0.0001f)
+							normal /= distance;
+						else
+							normal = buildFallbackNormal(capsuleClosest);
+
+						const Vec3 capsuleSurface = capsuleClosest + normal * (combinedRadius + 0.0005f);
+						hardPosition = Vec3::Lerp(hardPosition, capsuleSurface, std::clamp(0.65f + sweepT * 0.25f, 0.f, 0.92f));
+						accumulateHardContact(normal);
+						preserveNodeLength();
+					}
+
+					if (hardResolved)
+					{
+						for (uint32 hardIter = 0; hardIter < hardProjectionIterations; ++hardIter)
+						{
+							const Vec3 beforeProjection = hardPosition;
+							bool projectedThisIteration = false;
+
+							for (const WorldCapsule& capsule : worldCapsules)
+							{
+								projectedThisIteration = projectPointAgainstCapsule(capsule) || projectedThisIteration;
+								projectedThisIteration = projectSegmentAgainstCapsule(capsule) || projectedThisIteration;
+							}
+
+							if (projectedThisIteration)
+							{
+								hardParentPosition = resolveParentPosition();
+							}
+
+							if (!projectedThisIteration || (hardPosition - beforeProjection).LengthSquared() <= 0.000001f)
+								break;
+						}
+					}
+
+					if (hardResolved)
+					{
+						const bool wasAlreadyCounted = node.hadPushThisFrame;
+						node.solvedPosition = hardPosition;
+						node.hadContactThisFrame = true;
+						node.hadPushThisFrame = true;
+						if (!wasAlreadyCounted)
+							++_desc.debugCollisionHitCount;
+
+						if (node.actor)
+						{
+							PxTransform pose = node.actor->getGlobalPose();
+							pose.p = To_PxVec3(hardPosition);
+							node.actor->setGlobalPose(pose);
+
+							Vec3 linearVelocity = From_PxVec3(node.actor->getLinearVelocity());
+							if (hardContactCount > 0)
+							{
+								hardContactNormal /= static_cast<float>(hardContactCount);
+								if (hardContactNormal.LengthSquared() > 0.0001f)
+								{
+									hardContactNormal.Normalize();
+									node.smoothedContactNormal = hardContactNormal;
+									node.hasSmoothedContactNormal = true;
+
+									const float normalSpeed = linearVelocity.Dot(hardContactNormal);
+									if (normalSpeed < 0.f)
+										linearVelocity -= hardContactNormal * normalSpeed;
+								}
+							}
+
+							linearVelocity *= (1.f - std::clamp(_desc.contactInertiaDamping, 0.f, 1.f));
+							node.actor->setLinearVelocity(To_PxVec3(linearVelocity));
 						}
 					}
 				}
@@ -2111,7 +2353,7 @@ void PhysicsModifier::Write_BackToModel(ModelCom* model, const Matrix& ownerWorl
 					std::max(0.f, fabsf(_desc.maxLocalOffset.x)),
 					std::max(0.f, fabsf(_desc.maxLocalOffset.y)),
 					std::max(0.f, fabsf(_desc.maxLocalOffset.z)));
-				if (Has_LocalOffsetLimit(maxLocalOffset))
+				if (Has_LocalOffsetLimit(maxLocalOffset) && !hadContact)
 				{
 					bool unusedClamped = false;
 					translationOffset = Clamp_LocalOffset(translationOffset, maxLocalOffset, unusedClamped);
@@ -2475,6 +2717,7 @@ const ClassReflectionInfo* PhysicsModifier::Get_RuntimeReflectionInfo() const
 			AddRuntimeProperty(result.properties, PropertyType::Float, "lateralInertiaScale", "Side Inertia", PhysicsOffset(&PhysicsModifierDesc::lateralInertiaScale), 0.01f, 0.f, 10.f);
 			AddRuntimeProperty(result.properties, PropertyType::Float, "verticalInertiaScale", "Up Inertia", PhysicsOffset(&PhysicsModifierDesc::verticalInertiaScale), 0.01f, 0.f, 10.f);
 			AddRuntimeProperty(result.properties, PropertyType::Float, "depthInertiaScale", "Depth Inertia", PhysicsOffset(&PhysicsModifierDesc::depthInertiaScale), 0.01f, 0.f, 10.f);
+			AddRuntimeProperty(result.properties, PropertyType::Bool, "includeDriverLateralInertia", "Driver Side", PhysicsOffset(&PhysicsModifierDesc::includeDriverLateralInertia));
 			AddRuntimeProperty(result.properties, PropertyType::Float, "accelerationInertiaScale", "Accel Inertia", PhysicsOffset(&PhysicsModifierDesc::accelerationInertiaScale), 0.01f, 0.f, 10.f);
 			AddRuntimeProperty(result.properties, PropertyType::Float, "inertiaVelocitySmoothAlpha", "Inertia Smooth", PhysicsOffset(&PhysicsModifierDesc::inertiaVelocitySmoothAlpha), 0.005f, 0.f, 1.f);
 			AddRuntimeProperty(result.properties, PropertyType::Float, "poseSpringStrength", "Spring", PhysicsOffset(&PhysicsModifierDesc::poseSpringStrength), 0.01f, 0.f, 20.f);
@@ -2495,6 +2738,9 @@ const ClassReflectionInfo* PhysicsModifier::Get_RuntimeReflectionInfo() const
 			AddRuntimeProperty(result.properties, PropertyType::Float, "collisionCorrectionSmoothAlpha", "Col Smooth", PhysicsOffset(&PhysicsModifierDesc::collisionCorrectionSmoothAlpha), 0.005f, 0.f, 1.f);
 			AddRuntimeProperty(result.properties, PropertyType::Float, "collisionNormalSmoothAlpha", "Normal Smooth", PhysicsOffset(&PhysicsModifierDesc::collisionNormalSmoothAlpha), 0.005f, 0.f, 1.f);
 			AddRuntimeProperty(result.properties, PropertyType::Int, "collisionProjectionIterations", "Col Iter", PhysicsOffset(&PhysicsModifierDesc::collisionProjectionIterations), 1.f, 0.f, 32.f);
+			AddRuntimeProperty(result.properties, PropertyType::Bool, "useHardCollisionProjection", "Hard Col", PhysicsOffset(&PhysicsModifierDesc::useHardCollisionProjection));
+			AddRuntimeProperty(result.properties, PropertyType::Int, "hardCollisionProjectionIterations", "Hard Iter", PhysicsOffset(&PhysicsModifierDesc::hardCollisionProjectionIterations), 1.f, 0.f, 16.f);
+			AddRuntimeProperty(result.properties, PropertyType::Float, "hardCollisionLengthAlpha", "Hard Len", PhysicsOffset(&PhysicsModifierDesc::hardCollisionLengthAlpha), 0.005f, 0.f, 1.f);
 
 			AddRuntimeProperty(result.properties, PropertyType::Vec3, "windDirection", "Wind Dir", PhysicsOffset(&PhysicsModifierDesc::windDirection), 0.01f);
 			AddRuntimeProperty(result.properties, PropertyType::Float, "windScale", "Wind", PhysicsOffset(&PhysicsModifierDesc::windScale), 0.001f, 0.f, 100.f);

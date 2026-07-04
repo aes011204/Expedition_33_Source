@@ -61,6 +61,9 @@ public:
         const Vec3& position);
 
     static fs::path Resolve_PrefabPath(const string& prefabName);
+    static bool Load_PrefabJson(const fs::path& prefabPath, json& outRoot);
+    static void Cache_PrefabJson(const fs::path& prefabPath, const json& root);
+    static void Clear_PrefabJsonCache();
 
 private:
     static void Apply_Overrides(const Shared<GameObject>& gameObject, const json& overrides);

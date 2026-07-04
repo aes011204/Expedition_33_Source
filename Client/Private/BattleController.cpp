@@ -57,6 +57,7 @@
 #include "PostProcessPipeline.h"
 #include "TransformCom.h"
 #include "GradientSkill.h"
+#include "Monster_Part.h"
 #include "PictosBattleSystem.h"
 #include "Unlock_Manager.h"
 
@@ -74,10 +75,26 @@ namespace
     constexpr char kNpcSumoDialogueKey[] = "NPC_Sumo";
     constexpr char kNpcSumoAfterPotatoBagDialogueKey[] = "NPC_Sumo_AfterPotatoBag";
 
+    const Vec3 kBishopPostBattleWorldPosition = Vec3(122.10f, 21.61f, -2.56f);
+    const Vec3 kBishopPostBattleWorldRotation = Vec3(0.f, 80.3f, 0.f);
+
     constexpr float kSkillPresentationDissolveDuration = 0.12f;
+    constexpr float kSkillPresentationHideConfirmDuration = 0.04f;
+    constexpr float kSkillPresentationRevealGraceDuration = 0.10f;
     constexpr char kSkillPresentationDissolveNoise[] = "T_Perlin_Noise_M";
     constexpr float kSkillPresentationOcclusionDepthMargin = 0.25f;
     constexpr float kSkillPresentationOcclusionCapsuleRadius = 0.58f;
+
+    bool Has_BishopBattleSpawnDesc(const vector<BattleMonsterSpawnDesc>& battleMonsterSpawnDescs)
+    {
+        for (const BattleMonsterSpawnDesc& spawnDesc : battleMonsterSpawnDescs)
+        {
+            if (spawnDesc.prefabName == Constants::Prefab::MB_Bishop)
+                return true;
+        }
+
+        return false;
+    }
 }
 
 BattleController::BattleController()
@@ -433,6 +450,9 @@ void BattleController::OnEnterBattleField(
 
     if (completeImmediately)
     {
+        if (Has_BishopBattleSpawnDesc(battleMonsterSpawnDescs))
+            CLIENT->Warp_PartyToFormation(kBishopPostBattleWorldPosition, kBishopPostBattleWorldRotation);
+
         if (!GAME->Is_ActiveCameraType(ObjectType::BattleTurnCamera))
             CLIENT->Request_TargetCameraMode(TargetCameraMode::BATTLE_ENTER); // 월드/시네마틱 즉시 진입은 기존 전투 진입 카메라 요청을 유지한다.
 
@@ -767,24 +787,6 @@ void BattleController::EndTurn()
         : max(actor.statCom->Get_Speed(), 1.f);
 
     _buffSystem->ProcessTurnEnd(_currentTurnActor);
-
-    string gradientSkillKey{};
-    if (actor.statCom->Is_Player() &&
-        actor.statCom->Try_GetSkillKeyBySlot(GradientSkill::SlotIndex, gradientSkillKey))
-    {
-        for (const BattleChar& hero : _heroes)
-        {
-            if (hero.statCom == nullptr)
-                continue;
-
-            if (hero.statCom->Get_AliveStatus() == EAliveStatus::Dead)
-                continue;
-
-            string heroGradientSkillKey{};
-            if (hero.statCom->Try_GetSkillKeyBySlot(GradientSkill::SlotIndex, heroGradientSkillKey))
-                hero.statCom->Add_GradientGauge(GradientSkill::GaugeGainPerTurn);
-        }
-    }
 
     OnTurnEnded.Broadcast(_currentTurnActor); // 턴 종료 신호
 
@@ -1626,8 +1628,20 @@ void BattleController::Refresh_SkillPresentationHeroVisibility(float timeDelta)
 
         if (keepHidden)
         {
+            iter->clearElapsedSec = 0.f;
             iter->hiddenElapsedSec += timeDelta;
-            if (!iter->visibilityForcedOff && iter->hiddenElapsedSec >= kSkillPresentationDissolveDuration)
+
+            if (iter->wasVisible &&
+                !iter->dissolveStarted &&
+                iter->hiddenElapsedSec >= kSkillPresentationHideConfirmDuration)
+            {
+                Begin_SkillPresentationVanish(iter->actor);
+                iter->dissolveStarted = true;
+            }
+
+            if (iter->dissolveStarted &&
+                !iter->visibilityForcedOff &&
+                iter->hiddenElapsedSec >= kSkillPresentationHideConfirmDuration + kSkillPresentationDissolveDuration)
             {
                 if (iter->actor != nullptr)
                     iter->actor->Set_Visible(false);
@@ -1645,7 +1659,14 @@ void BattleController::Refresh_SkillPresentationHeroVisibility(float timeDelta)
             continue;
         }
 
-        if (iter->actor != nullptr && iter->wasVisible)
+        iter->clearElapsedSec += timeDelta;
+        if (iter->clearElapsedSec < kSkillPresentationRevealGraceDuration)
+        {
+            ++iter;
+            continue;
+        }
+
+        if (iter->dissolveStarted && iter->actor != nullptr && iter->wasVisible)
         {
             iter->actor->Set_Visible(true);
             for (const SkillPresentationHiddenHero::PartVisibility& partVisibility : iter->partVisibilities)
@@ -1701,9 +1722,6 @@ void BattleController::Refresh_SkillPresentationHeroVisibility(float timeDelta)
         }
 
         _skillPresentationHiddenHeroes.push_back(hiddenHero);
-
-        if (hiddenHero.wasVisible)
-            Begin_SkillPresentationVanish(hero.actor);
     }
 }
 
@@ -2140,6 +2158,22 @@ void BattleController::Execute_Skill()
         }
     }
 
+    if (actor.statCom->Is_Player() && apCost > 0)
+    {
+        for (const BattleChar& hero : _heroes)
+        {
+            if (hero.statCom == nullptr)
+                continue;
+
+            if (hero.statCom->Get_AliveStatus() == EAliveStatus::Dead)
+                continue;
+
+            string heroGradientSkillKey{};
+            if (hero.statCom->Try_GetSkillKeyBySlot(GradientSkill::SlotIndex, heroGradientSkillKey))
+                hero.statCom->Add_GradientGauge(apCost);
+        }
+    }
+
     action.InitActionDirection();
 
     _isActionExecuting = true;
@@ -2571,13 +2605,19 @@ void BattleController::Begin_FreeAimShot(const BattleAction& shotAction)
     // Free Aim은 히트스캔 즉발데미지
     if (_freeAimShotAction.GetInitTarget().actor != nullptr && _freeAimShotAction.GetInitTarget().statCom != nullptr)
     {
-        constexpr float freeAimDamage = 20.f; // 우선 테스트용 데미지
-
         const BattleChar& attacker = _freeAimShotAction.Get_CurChar();
         const BattleChar& target = _freeAimShotAction.GetInitTarget();
-        const bool hadShieldBeforeShot = target.statCom->Get_CurrentShield() > 0;
+        constexpr float freeAimDamageMultiplier = 1.f;
+        const float freeAimDamage =
+            DamageSystem::CalculatePlayerAttackDamage(attacker, freeAimDamageMultiplier);
 
-        DamageSystem::ApplyDamage(freeAimDamage, attacker, target, AttackType::FreeAimLight);
+        const bool hadShieldBeforeShot = target.statCom->Get_CurrentShield() > 0;
+        const Vec3* freeAimHitWorldPos =
+            _hasFreeAimHitTarget && _freeAimHitTarget.target.actor == target.actor
+            ? &_freeAimHitTarget.hitWorldPos
+            : nullptr;
+
+        DamageSystem::ApplyDamage(freeAimDamage, attacker, target, AttackType::FreeAimLight, freeAimHitWorldPos);
 
         // 약점 파츠를 맞췄을 때만 추가딜
         if (!hadShieldBeforeShot && _hasFreeAimHitTarget && _freeAimHitTarget.target.actor == target.actor)
@@ -2724,6 +2764,28 @@ void BattleController::Spawn_BattleChar(bool IsHero, string prefabName, Vec3 pos
 
         _enemies.push_back(battleChar);
 
+        const float battlePlaneYawRad = XMConvertToRadians(_pendingBattlePlaneYaw);
+        const Vec3 battleRight(cosf(battlePlaneYawRad), 0.f, -sinf(battlePlaneYawRad));
+
+        stable_sort(_enemies.begin(), _enemies.end(),
+            [&battleRight](const BattleChar& lhs, const BattleChar& rhs)
+            {
+                const bool lhsValid = lhs.actor != nullptr && lhs.actor->Get_Transform() != nullptr;
+                const bool rhsValid = rhs.actor != nullptr && rhs.actor->Get_Transform() != nullptr;
+
+                if (lhsValid != rhsValid)
+                    return lhsValid;
+
+                if (!lhsValid)
+                    return false;
+
+                const Vec3 lhsPos = lhs.actor->Get_Transform()->Get_Position();
+                const Vec3 rhsPos = rhs.actor->Get_Transform()->Get_Position();
+                const float lhsLocalX = lhsPos.x * battleRight.x + lhsPos.z * battleRight.z;
+                const float rhsLocalX = rhsPos.x * battleRight.x + rhsPos.z * battleRight.z;
+
+                return lhsLocalX < rhsLocalX;
+            });
 
         Push_TurnEntry(battleChar, _battleTime + 100.f / max(battleChar.statCom->Get_Speed(), 1.f));
 
@@ -2839,6 +2901,10 @@ void BattleController::Confirm_Victory()
 
     if (hasFollowupBattle)
     {
+        if (BattleFollowupManager* followManager = CLIENT->Get_BattleFollowupManager())
+        {
+            followManager->Apply_SimonPhase2WorldVisualChange();
+        }
         if (Shared<ClientScreenFxManager> screenFxManager = CLIENT->Get_ScreenFxManager())
             screenFxManager->Request_NextBattleTransitionBlackSource();
 
@@ -3594,8 +3660,9 @@ bool BattleController::Try_ApplyFreeAimWeakPointBonus(const BattleFreeAimHitTarg
 
     Play_BattleHitStop(0.07f, 0.14f); // 약간 슬로우
 
-    // 일단은 고정 추가 데미지
-    float freeAimWeakPointDamage = 11.f;
+    constexpr float freeAimWeakPointDamageMultiplier = 0.55f;
+    float freeAimWeakPointDamage =
+        DamageSystem::CalculatePlayerAttackDamage(attacker, freeAimWeakPointDamageMultiplier);
 
     // 튜토리얼은 즉사
     if (_activeBattleFieldID == BattleEncounterIds::LancelierTutorial &&
@@ -3609,7 +3676,8 @@ bool BattleController::Try_ApplyFreeAimWeakPointBonus(const BattleFreeAimHitTarg
         freeAimWeakPointDamage,
         attacker,
         hitTarget.target,
-        AttackType::FreeAimWeak);
+        AttackType::FreeAimWeak,
+        &hitTarget.hitWorldPos);
 
     return true;
 }

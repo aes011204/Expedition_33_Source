@@ -18,7 +18,7 @@ IMPLEMENT_REFLECTION(NPC_Tall)
 NPC_Tall::NPC_Tall(const ComPtr<Device>& device, const ComPtr<Context>& context) : NPC_Base(device, context)
 {
     _worldMoveSpeedScale = 0.1f;
-    _defaultAnimationKey = "Idle";
+    _defaultAnimationKey = "Gestral_Tall";
 }
 
 NPC_Tall::NPC_Tall(const NPC_Tall& prototype) : NPC_Base(prototype)

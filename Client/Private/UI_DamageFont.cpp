@@ -45,10 +45,18 @@ HRESULT UI_DamageFont::Initialize(uint32 levelIndex)
     return S_OK;
 }
 
-void UI_DamageFont::Play_DamageFont(const BattleChar& target, float damage, uint32 stackIndex, bool isCritical, AttackType attackType)
+void UI_DamageFont::Play_DamageFont(
+    const BattleChar& target,
+    float damage,
+    uint32 stackIndex,
+    bool isCritical,
+    AttackType attackType,
+    const Vec3* overrideWorldAnchor)
 {
     Apply_DamageFontTuning();
     _activeAttackType = attackType;
+    _hasOverrideWorldAnchor = overrideWorldAnchor != nullptr;
+    _overrideWorldAnchor = overrideWorldAnchor != nullptr ? *overrideWorldAnchor : Vec3::Zero;
 
     auto bCriticalCheck = isCritical ? DamageFontStyle::Critical : DamageFontStyle::Normal;
     Set_ActiveStyle(bCriticalCheck);
@@ -95,6 +103,8 @@ void UI_DamageFont::Close()
 
     Set_ActiveStyle(DamageFontStyle::Normal); // 닫힌 뒤에 Normal로 세팅해주기
     _activeAttackType = AttackType::Invalid;
+    _hasOverrideWorldAnchor = false;
+    _overrideWorldAnchor = Vec3::Zero;
 }
 
 HRESULT UI_DamageFont::Load_UI(uint32 levelIndex)
@@ -184,6 +194,17 @@ void UI_DamageFont::Set_DamageText(int32 damageValue)
 
     if (_damageTextBg)
         _damageTextBg->Set_Text(text);
+}
+
+bool UI_DamageFont::Try_GetFeedbackWorldPosition(const BattleChar& target, Vec3& outWorldPos) const
+{
+    if (!_hasOverrideWorldAnchor)
+        return UI_BattleFloatingTextBase::Try_GetFeedbackWorldPosition(target, outWorldPos);
+
+    outWorldPos = _overrideWorldAnchor;
+    outWorldPos += _worldAnchorOffset;
+    outWorldPos.y += _worldAnchorRandomY;
+    return true;
 }
 
 Vec2 UI_DamageFont::Resolve_ScreenBaseOffset(const Vec3& worldPos) const

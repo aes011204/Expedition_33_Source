@@ -21,6 +21,7 @@ public:
 
 public:
     void    Set_SequenceFileId(const wstring& sequenceFileId);
+    const wstring& Get_SequenceFileId() const { return _sequenceFileId; }
     void    Set_StartBattleOnComplete(bool enabled, const string& targetId = "Boss");
 
 private:

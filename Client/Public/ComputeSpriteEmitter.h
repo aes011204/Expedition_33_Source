@@ -79,6 +79,7 @@ private: //## Static Values
     static constexpr int kOpacitySourceAlpha{ 0 };
     static constexpr int kOpacitySourceRed{ 1 };
     static constexpr int kOpacitySourceLuminance{ 2 };
+    static constexpr int kOpacitySourceOne{ 3 };
     static constexpr float kInfluenceOutlinePixelWidthScale{ 2.f };
     inline static bool _isInfluenceOutlineDebugEnabled{ false };
 

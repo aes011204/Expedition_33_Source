@@ -17,6 +17,8 @@ float Effect_SelectScalarSource(float4 texel, int source)
         selected = texel.r;
     else if (source == 2)
         selected = dot(texel.rgb, float3(0.299f, 0.587f, 0.114f));
+    else if (source == 3)
+        selected = 1.f;
 
     return selected;
 }

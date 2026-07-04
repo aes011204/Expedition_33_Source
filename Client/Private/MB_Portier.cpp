@@ -58,20 +58,6 @@ void MB_Portier::Update(float timeDelta)
     //}
 }
 
-bool MB_Portier::Try_GetDamageFeedbackSocketWorldPosition(Vec3& outWorldPos) const
-{
-    if (_body == nullptr)
-        return false;
-
-    const Matrix* socketMatrix = _body->Get_SocketBoneMatrixPtr("Status");
-    if (socketMatrix == nullptr)
-        return false;
-
-    const Matrix socketWorldMatrix = *socketMatrix * _body->Get_CombinedWorldMatrix();
-    outWorldPos = Vec3(socketWorldMatrix._41, socketWorldMatrix._42, socketWorldMatrix._43);
-    return true;
-}
-
 HRESULT MB_Portier::Ready_PartObjects()
 {
     Mon_Portier_Body::BODY_DESC bodyDesc{};
