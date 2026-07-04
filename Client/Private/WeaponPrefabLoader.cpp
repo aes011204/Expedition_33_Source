@@ -1,5 +1,6 @@
 ﻿#include "WeaponPrefabLoader.h"
 #include "GameInstance.h"
+#include "Spawn_Prefab.h"
 
 fs::path WeaponPrefabLoader::Resolve_WeaponPrefabPath(const string& weaponPrefabName)
 {
@@ -19,7 +20,10 @@ bool WeaponPrefabLoader::Load(const string& weaponPrefabName, LoadedWeaponPrefab
     if (!fs::exists(prefabPath))
         return false;
 
-    json rootJson = GAME->Load_JsonFile(prefabPath);
+    json rootJson{};
+    if (!Spawn_Prefab::Load_PrefabJson(prefabPath, rootJson))
+        return false;
+
     if (!rootJson.is_object())
         return false;
 

@@ -136,8 +136,8 @@ HRESULT Level_Stage01::Ready_Lights()
 
 HRESULT Level_Stage01::Ready_Layer_Player(const wstring& strLayerTag)
 {
-    Vec3 startPos = Vec3(60.93f, 3.63f, -0.93f);
-    Vec3 startRot = Vec3(0.f, 90.f, 0.f);
+    Vec3 startPos = Vec3(78.57f, 2.46f, -1.5f);
+    Vec3 startRot = Vec3(0.f, 85.8f, 0.f);
 
     CHECK_FAILED(CLIENT->Initialize_Hero(ETOI(LevelType::Stage01), strLayerTag, startPos), E_FAIL);
 

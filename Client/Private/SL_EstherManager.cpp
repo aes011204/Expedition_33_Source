@@ -2,26 +2,35 @@
 #include "Body_Player.h"
 #include "ClientInstance.h"
 #include "ModelCom.h"
+#include "MonsterStatCom.h"
 #include "Player_BattleBase.h"
 #include "SL_Base.h"
 #include "SL_DamageSystem.h"
+#include "SL_Dualliste.h"
 #include "SL_Maelle.h"
 #include "SoulLikeController.h"
 #include "Spawn_Prefab.h"
 #include "TransformCom.h"
+#include "MovementCom.h"
 
 namespace
 {
-    constexpr float kEstherBaseDamage = 100.f;
+    constexpr float kEstherMaxHpDamageRatio = 0.1f;
     constexpr float kEstherGaugeMax = 100.f;
-    constexpr float kEstherParryGaugeGain = 20.f;
+
+    constexpr float kEstherParryGaugeGain = 10.f;
+    constexpr float kEstherGaugeFillEaseSpeed = 8.f;
+    constexpr float kEstherTargetAnimSlowScale = 0.08f;
+    constexpr uint32 kGustaveAttackCount = 8;
+    constexpr uint32 kLuneAttackCount = 1;
 
     constexpr char kGustaveSkill[] = "UnleashedCharge";
     constexpr char kLuneSkill[] = "Immolation";
 
-    constexpr char kGustaveAnim[] = "Gustave_Noah_Skill_Overcharge_VeryStrong";
-    //constexpr char kGustaveAnim[] = "Gustave_Verso_Skill_Flawless_Spiral";
-    constexpr char kLuneAnim[] = "Lune_Unstable_Fire";
+    //constexpr char kGustaveAnim[] = "Gustave_Noah_Skill_Overcharge_VeryStrong";
+    constexpr char kGustaveAnim[] = "SL_Gustave_Verso_Skill_Flawless_Spiral"; // 천사의 눈
+    //constexpr char kLuneAnim[] = "Lune_Unstable_Fire";
+    constexpr char kLuneAnim[] = "SL_Lune_Fountain"; // 하늘파괴
 }
 
 HRESULT SL_EstherManager::Initialize(const Shared<SoulLikeController>& controller)
@@ -31,12 +40,29 @@ HRESULT SL_EstherManager::Initialize(const Shared<SoulLikeController>& controlle
     _controller = controller;
     _activeEsther.reset();
     _estherGauge = 0.f;
+    _displayEstherGauge = 0.f;
 
     return S_OK;
 }
 
 void SL_EstherManager::Update(float timeDelta)
 {
+    const float targetGauge = _estherGauge;
+    if (_displayEstherGauge > targetGauge || timeDelta <= 0.f)
+    {
+        _displayEstherGauge = targetGauge;
+    }
+    else if (_displayEstherGauge < targetGauge)
+    {
+        const float rawAlpha = clamp(timeDelta * kEstherGaugeFillEaseSpeed, 0.f, 1.f);
+        const float inverseAlpha = 1.f - rawAlpha;
+        const float easedAlpha = 1.f - (inverseAlpha * inverseAlpha * inverseAlpha);
+        _displayEstherGauge = std::lerp(_displayEstherGauge, targetGauge, easedAlpha);
+
+        if (abs(_displayEstherGauge - targetGauge) <= 0.01f)
+            _displayEstherGauge = targetGauge;
+    }
+
     Update_ActiveEsther(timeDelta);
 }
 
@@ -45,6 +71,7 @@ void SL_EstherManager::Reset()
     Finish_ActiveEsther();
     _activeEsther.reset();
     _estherGauge = 0.f;
+    _displayEstherGauge = 0.f;
 }
 
 bool SL_EstherManager::Request_Esther(SL_EstherType estherType)
@@ -59,6 +86,7 @@ bool SL_EstherManager::Request_Esther(SL_EstherType estherType)
         return false;
 
     _estherGauge = 0.f;
+    _displayEstherGauge = 0.f;
     return true;
 }
 
@@ -72,10 +100,18 @@ bool SL_EstherManager::Notify_Attack(GameObject* notifyOwner)
 
     EstherRuntime& runtime = *_activeEsther;
 
-    if (!runtime.attackApplied)
+    const uint32 expectedAttackCount = runtime.expectedAttackCount > 0 ? runtime.expectedAttackCount : 1;
+    if (runtime.appliedAttackCount >= expectedAttackCount)
+        return true;
+
+    const float damageRatio = kEstherMaxHpDamageRatio / static_cast<float>(expectedAttackCount);
+    const bool isFinalAttack = runtime.appliedAttackCount + 1 >= expectedAttackCount;
+    if (Apply_EstherDamage(runtime, damageRatio, isFinalAttack))
     {
-        Apply_EstherDamage(runtime);
-        runtime.attackApplied = true;
+        ++runtime.appliedAttackCount;
+
+        if (runtime.appliedAttackCount >= expectedAttackCount)
+            Restore_TargetSlow(runtime);
     }
 
     return true;
@@ -88,7 +124,7 @@ void SL_EstherManager::Add_GaugeFromParry()
 
 float SL_EstherManager::Get_GaugeRatio() const
 {
-    return clamp(_estherGauge / max(kEstherGaugeMax, 1.f), 0.f, 1.f);
+    return clamp(_displayEstherGauge / max(kEstherGaugeMax, 1.f), 0.f, 1.f);
 }
 
 bool SL_EstherManager::Is_GaugeFull() const
@@ -102,6 +138,12 @@ bool SL_EstherManager::Begin_Esther(SL_EstherType estherType)
     if (!target || target->Is_Dead())
         return false;
 
+    const Shared<TransformCom> targetTransform = target->Get_Transform();
+    if (targetTransform == nullptr)
+        return false;
+
+    const Vec3 targetAnchorWorldPosition = targetTransform->Get_WorldPosition();
+
     auto actor = Spawn_EstherActor(estherType, target);
     CHECK_NULL(actor, false);
 
@@ -110,20 +152,21 @@ bool SL_EstherManager::Begin_Esther(SL_EstherType estherType)
     runtime.actor = actor;
     runtime.target = target;
     runtime.levelIndex = GAME->Current_LevelIndex();
+    runtime.targetAnchorWorldPosition = targetAnchorWorldPosition;
 
     switch (estherType)
     {
     case SL_EstherType::GustaveOvercharge:
         runtime.skillKey = kGustaveSkill;
         runtime.animationName = kGustaveAnim;
-        runtime.fallbackDamageMultiplier = 2.f;
-        runtime.animationSpeed = 2.f;
+        runtime.animationSpeed = 1.f;
+        runtime.expectedAttackCount = kGustaveAttackCount;
         break;
     case SL_EstherType::LuneImmolation:
         runtime.skillKey = kLuneSkill;
         runtime.animationName = kLuneAnim;
-        runtime.fallbackDamageMultiplier = 1.2f;
-        runtime.animationSpeed = 2.f;
+        runtime.animationSpeed = 1.f;
+        runtime.expectedAttackCount = kLuneAttackCount;
         break;
     }
 
@@ -132,6 +175,8 @@ bool SL_EstherManager::Begin_Esther(SL_EstherType estherType)
         GAME->Remove_GameObject(runtime.levelIndex, actor);
         return false;
     }
+
+    Apply_TargetSlow(runtime);
 
     _activeEsther = runtime;
 
@@ -148,12 +193,64 @@ void SL_EstherManager::Update_ActiveEsther(float timeDelta)
     auto actor = runtime.actor.lock();
     if (!actor)
     {
+        Restore_TargetSlow(runtime);
         _activeEsther.reset();
         return;
     }
 
     Body_Player* body = dynamic_cast<Body_Player*>(actor->Get_PartObject(L"Part_Body"));
     Shared<ModelCom> model = body ? body->Get_Model() : nullptr;
+
+    if (model != nullptr && runtime.type == SL_EstherType::LuneImmolation)
+    {
+        const float currentTimeSec = model->Get_CurrentAnimationTimeSec();
+        const float previousTimeSec = runtime.previousAnimationTimeSec;
+
+        auto playAnchorEffect = [&](float triggerTimeSec, bool& played, const wchar_t* effectName, const Vec3& worldOffset, const Vec3& scale)
+        {
+            if (played)
+                return;
+
+            if (triggerTimeSec < previousTimeSec || triggerTimeSec > currentTimeSec)
+                return;
+
+            PlayEffectDesc effectDesc{};
+            effectDesc.effectName = effectName;
+            effectDesc.layerTag = L"Layer_Effect";
+            effectDesc.worldPosition = runtime.targetAnchorWorldPosition + worldOffset;
+            effectDesc.scale = scale;
+
+            CLIENT->Play_Effect(effectDesc);
+            played = true;
+        };
+
+        playAnchorEffect(
+            0.8333333134651184f,
+            runtime.luneChargeEffectPlayed,
+            L"Lune_SkyBreak_Charge_v2",
+            Vec3(0.f, 5.800000190734863f, 0.f),
+            Vec3(1.f, 1.f, 1.f));
+        playAnchorEffect(
+            1.5666667222976685f,
+            runtime.luneMeteorEffectPlayed,
+            L"Lune_SkyBreak_Meteor",
+            Vec3(0.f, 5.800000190734863f, 0.f),
+            Vec3(1.2000000476837158f, 1.2000000476837158f, 1.2000000476837158f));
+        playAnchorEffect(
+            4.849999904632568f,
+            runtime.luneBeamEffectPlayed,
+            L"Lune_SkyBreak_Beam",
+            Vec3::Zero,
+            Vec3(1.f, 1.f, 1.f));
+        playAnchorEffect(
+            5.866666793823242f,
+            runtime.luneFinalExplosionEffectPlayed,
+            L"Lune_SkyBreak_FinalExplosion",
+            Vec3::Zero,
+            Vec3(1.100000023841858f, 1.100000023841858f, 1.100000023841858f));
+
+        runtime.previousAnimationTimeSec = currentTimeSec;
+    }
 
     if (model != nullptr && !model->Is_AnimationFinished())
         return;
@@ -166,6 +263,8 @@ void SL_EstherManager::Finish_ActiveEsther()
 {
     if (!_activeEsther.has_value())
         return;
+
+    Restore_TargetSlow(*_activeEsther);
 
     if (Shared<Player_BattleBase> actor = _activeEsther->actor.lock())
         GAME->Remove_GameObject(_activeEsther->levelIndex, actor);
@@ -249,28 +348,73 @@ bool SL_EstherManager::Is_NotifyOwnerActiveEsther(GameObject* notifyOwner) const
     return false;
 }
 
-void SL_EstherManager::Apply_EstherDamage(const EstherRuntime& runtime)
+bool SL_EstherManager::Apply_EstherDamage(const EstherRuntime& runtime, float damageRatio, bool applyBreak)
 {
     Shared<SL_Base> target = runtime.target.lock();
     if (target == nullptr || target->Is_Dead())
-        return;
+        return false;
 
-    const Skill_Data* skillData = CLIENT->Get_Skill(runtime.skillKey);
-    const float multiplier = skillData ? skillData->powerMultiplier : runtime.fallbackDamageMultiplier;
+    Shared<CombatStatCom> targetStat = target->Get_Stat();
+    if (targetStat == nullptr)
+        return false;
+
+    const float maxHp = max(targetStat->Get_StatInfo().maxHp, 0.f);
+    const float fixedDamage = maxHp * max(0.f, damageRatio);
 
     SL_DamageInfo damageInfo{};
     if (!SL_DamageSystem::Apply_FixedDamage(
         runtime.actor.lock(),
         target,
-        target->Get_Stat(),
-        kEstherBaseDamage * multiplier,
+        targetStat,
+        fixedDamage,
         AttackType::SingleSkill,
         damageInfo))
     {
-        return;
+        return false;
+    }
+
+    if (applyBreak)
+    {
+        if (Shared<MonsterStatCom> monsterStat = dynamic_pointer_cast<MonsterStatCom>(targetStat))
+            monsterStat->Set_Break(monsterStat->Get_MaxBreak());
     }
 
     target->Apply_Damage(damageInfo);
+    return true;
+}
+
+void SL_EstherManager::Apply_TargetSlow(EstherRuntime& runtime)
+{
+    const Shared<SL_Dualliste> dualliste = dynamic_pointer_cast<SL_Dualliste>(runtime.target.lock());
+    if (dualliste == nullptr || dualliste->Is_Dead())
+        return;
+
+    dualliste->Set_ActionLocked(true);
+    dualliste->Set_EstherTimeScale(kEstherTargetAnimSlowScale);
+
+    if (const Shared<MovementCom> movement = dualliste->Get_MovementCom())
+    {
+        movement->Clear_FollowMoveCommand();
+        movement->Apply_Input({});
+        movement->Stop_AllMovement();
+    }
+
+    runtime.targetSlowApplied = true;
+}
+
+void SL_EstherManager::Restore_TargetSlow(EstherRuntime& runtime)
+{
+    if (!runtime.targetSlowApplied)
+        return;
+
+    const Shared<SL_Dualliste> dualliste = dynamic_pointer_cast<SL_Dualliste>(runtime.target.lock());
+    if (dualliste != nullptr)
+    {
+        dualliste->Set_ActionLocked(false);
+        dualliste->Set_EstherTimeScale(1.f);
+    }
+
+    runtime.targetSlowApplied = false;
 }
 
 Vec3 SL_EstherManager::Resolve_SpawnPosition(const Shared<SL_Maelle>& player, const Shared<SL_Base>& target) const

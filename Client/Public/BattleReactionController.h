@@ -178,6 +178,7 @@ public:
 
 private:
     void ResetJumpCounterSequence();
+    void RestoreJumpCounterTimeScale();
     void ClearConsumedInput();
     bool Is_ConsumeKeyPending(uint32 consumeKey) const;
     bool CanReceiveInput(const BattleChar& target, BattleReactionType reactionType) const;
@@ -243,6 +244,8 @@ private:
     uint32 _jumpCounterStepIndex = UINT32_MAX;
     BattleChar _jumpCounterTarget = {};
     bool _jumpCounterStarted = false;
+    bool _isJumpCounterTimeScaleActive = false;
+    float _jumpCounterTimeScaleRestoreScale = 1.f;
 
     // 카운터
     bool _isCounterTimeSectionActive = false;

@@ -97,6 +97,7 @@ private:
     bool _debugHasDrawInstanceCounts = false;
     ComPtr<Buffer> _potatoBagArenaInstanceVB;
     uint32 _potatoBagArenaInstanceCount = 0;
+    uint32 _potatoBagArenaInstanceBufferRevision = 0;
     bool _potatoBagArenaInstanceBufferReady = false;
     vector<PhysXStaticActorHandle> _physxStaticHandles;
     BoundingBox _groupBounds = {};

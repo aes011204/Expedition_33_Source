@@ -1119,13 +1119,6 @@ void Editor_Manager::Render_ReloadDataButton()
 void Editor_Manager::Notify_ReloadDataResult(const char* dataName, HRESULT hr, const char* failureMessage) const
 {
     Notification_Manager* notification = EDITOR->Get_Notification();
-    if (notification == nullptr)
-    {
-        if (FAILED(hr))
-            MSG_BOX(failureMessage);
-
-        return;
-    }
 
     if (FAILED(hr))
     {

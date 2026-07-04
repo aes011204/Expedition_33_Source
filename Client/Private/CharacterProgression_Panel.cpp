@@ -355,6 +355,7 @@ void CharacterProgression_Panel::Switch_ContentTab(ContentTab nextTab)
     if (_activeContentTab == nextTab)
         return;
 
+    const ContentTab previousTab = _activeContentTab;
     _lastAction = Action::None;
 
     Close_ActiveContentPanel();
@@ -362,7 +363,15 @@ void CharacterProgression_Panel::Switch_ContentTab(ContentTab nextTab)
 
     Show_CharacterProgressionPreview(_selectedHeroId, _activeContentTab);
     Update_PreviewHeroVisibility();
-    Play_SelectedHeroPreviewAnimationForTab(_activeContentTab);
+    if (_activeContentTab == ContentTab::Overview && previousTab == ContentTab::Wardrobe)
+    {
+        const HeroId heroId = (_selectedHeroId == HeroId::END) ? Get_DefaultSelectedHeroId() : _selectedHeroId;
+        CLIENT->Play_PreviewAnimation(heroId, PreviewAnimState::Overview_Idle, PreviewAnimState::Overview_Idle);
+    }
+    else
+    {
+        Play_SelectedHeroPreviewAnimationForTab(_activeContentTab);
+    }
 
     if (_activeContentTab == ContentTab::Overview)
     {

@@ -1,7 +1,10 @@
 ﻿#include "pch.h"
 #include "Mon_Simon_Weapon.h"
+#include "Asset_Manager.h"
 #include "EffectCom.h"
 #include "GameInstance.h"
+#include "Material.h"
+#include "MaterialBuilder.h"
 #include "Material_Types.h"
 #include "ModelCom.h"
 #include "ShaderCom.h"
@@ -10,7 +13,7 @@ namespace
 {
     constexpr uint32 kSimonWeaponEchoPassIndex = 15;
     constexpr const char* kSimonBladeMaterialName = "MI_Simon_Blade_Retake";
-    const Vec4 kSimonBladeGhostColor = Vec4(0.70f, 1.0f, 0.92f, 1.f);
+    const Vec4 kSimonBladeGhostColor = Vec4(0.70f, 1.0f, 0.92f, 0.38f);
     constexpr float kSimonWeaponEchoScale = 0.95f;
 
     class SimonWeaponEchoTrailSampleProvider final : public IEffectTrailSampleProvider
@@ -153,10 +156,14 @@ void Mon_Simon_Weapon::Late_Update(float timeDelta)
 
 HRESULT Mon_Simon_Weapon::Render()
 {
-    if (GAME->Get_CurrentRenderGroup() == RenderGroup::Blend)
+    const HRESULT result = Monster_Part::Render();
+    if (FAILED(result))
+        return result;
+
+    if (GAME->Get_CurrentRenderGroup() == RenderGroup::NonBlend)
         return Render_WeaponEchoPlayback();
 
-    return Monster_Part::Render();
+    return result;
 }
 
 HRESULT Mon_Simon_Weapon::Render_Shadow()
@@ -328,7 +335,9 @@ void Mon_Simon_Weapon::Begin_WeaponEchoPlayback(
     uint32 echoCount,
     ModelCom* sourceModel,
     const string& sourceAnimationName,
-    float sourceTimeSec)
+    float sourceTimeSec,
+    const WeaponEchoMaterialOverrideDesc* materialOverrides,
+    uint32 materialOverrideCount)
 {
     Stop_WeaponEchoTrail();
 
@@ -347,6 +356,9 @@ void Mon_Simon_Weapon::Begin_WeaponEchoPlayback(
         lane.delaySec = max(0.f, delaySec) * static_cast<float>(laneIndex + 1);
         lane.playbackSec = _weaponEchoLastKnownSourceTimeSec;
         lane.endElapsedSec = 0.f;
+
+        if (materialOverrides != nullptr && laneIndex < materialOverrideCount)
+            lane.materialOverride = materialOverrides[laneIndex];
     }
 
     if (_weaponEchoPendingTrailValid)
@@ -438,8 +450,6 @@ void Mon_Simon_Weapon::Queue_WeaponEchoRender()
         if (!owner->Is_Visible())
             return;
     }
-
-    GAME->Add_RenderGroup(RenderGroup::Blend, GetSharedPtr<GameObject>());
 }
 
 void Mon_Simon_Weapon::Update_WeaponEchoPlayback(float timeDelta)
@@ -507,6 +517,8 @@ void Mon_Simon_Weapon::Reset_WeaponEchoLane(WeaponEchoLane& lane)
     lane.trailHandle = {};
     lane.trailOffset = {};
     lane.trailStarted = false;
+    lane.materialOverride = {};
+    lane.materialOverrideCache.clear();
 }
 
 void Mon_Simon_Weapon::Push_WeaponEchoSample(WeaponEchoLane& lane, float elapsedSec)
@@ -764,6 +776,41 @@ void Mon_Simon_Weapon::Stop_WeaponEchoTrail(WeaponEchoLane& lane)
     lane.trailStarted = false;
 }
 
+Shared<Material> Mon_Simon_Weapon::Resolve_WeaponEchoRenderMaterial(
+    WeaponEchoLane& lane,
+    uint32 materialIndex,
+    const Shared<Material>& sourceMaterial)
+{
+    if (sourceMaterial == nullptr)
+        return nullptr;
+
+    if (!lane.materialOverride.enabled || lane.materialOverride.materialBundleKey.empty())
+        return sourceMaterial;
+
+    const auto it = lane.materialOverrideCache.find(materialIndex);
+    if (it != lane.materialOverrideCache.end())
+        return it->second != nullptr ? it->second : sourceMaterial;
+
+    Shared<Material> renderMaterial = sourceMaterial->Clone();
+    if (renderMaterial == nullptr)
+    {
+        lane.materialOverrideCache.emplace(materialIndex, nullptr);
+        return sourceMaterial;
+    }
+
+    Asset_Manager* assetManager = GAME->Get_AssetManager();
+    MaterialBuilder* materialBuilder = assetManager != nullptr ? assetManager->Get_MaterialBuilder() : nullptr;
+    if (materialBuilder == nullptr ||
+        !materialBuilder->Try_ApplyBundleMaterialToMaterial(lane.materialOverride.materialBundleKey, materialIndex, *renderMaterial))
+    {
+        lane.materialOverrideCache.emplace(materialIndex, nullptr);
+        return sourceMaterial;
+    }
+
+    lane.materialOverrideCache.emplace(materialIndex, renderMaterial);
+    return renderMaterial;
+}
+
 HRESULT Mon_Simon_Weapon::Render_WeaponEchoPlayback()
 {
     if (!Has_WeaponEchoPlayback())
@@ -777,7 +824,7 @@ HRESULT Mon_Simon_Weapon::Render_WeaponEchoPlayback()
 
     const uint32 numMeshes = static_cast<uint32>(_model->Get_NumMeshes());
 
-    for (const WeaponEchoLane& lane : _weaponEchoLanes)
+    for (WeaponEchoLane& lane : _weaponEchoLanes)
     {
         if (!Has_WeaponEchoPlayback(lane))
             continue;
@@ -814,7 +861,13 @@ HRESULT Mon_Simon_Weapon::Render_WeaponEchoPlayback()
             if (material == nullptr)
                 continue;
 
-            const uint32 isBladeMaterial = material->Get_MaterialName() == kSimonBladeMaterialName ? 1u : 0u;
+            const Shared<Material> renderMaterial =
+                Resolve_WeaponEchoRenderMaterial(lane, materialIndex, material);
+            if (renderMaterial == nullptr)
+                continue;
+
+            const uint32 isBladeMaterial = renderMaterial->Get_MaterialName() == kSimonBladeMaterialName ? 1u : 0u;
+            const uint32 useMaterialOverride = renderMaterial.get() != material.get() ? 1u : 0u;
 
             if (FAILED(_shader->Bind_RawValue("g_WeaponGhostColor", &ghostColor, sizeof(Vec4))))
                 return E_FAIL;
@@ -822,10 +875,13 @@ HRESULT Mon_Simon_Weapon::Render_WeaponEchoPlayback()
             if (FAILED(_shader->Bind_RawValue("g_WeaponGhostBladeMaterial", &isBladeMaterial, sizeof(uint32))))
                 return E_FAIL;
 
-            if (FAILED(_shader->Bind_MaterialTextures(*material)))
+            if (FAILED(_shader->Bind_RawValue("g_WeaponGhostUseMaterialOverride", &useMaterialOverride, sizeof(uint32))))
+                return E_FAIL;
+
+            if (FAILED(_shader->Bind_MaterialTextures(*renderMaterial)))
                 continue;
 
-            if (FAILED(_shader->Bind_CBufferData(material->Get_CB())))
+            if (FAILED(_shader->Bind_CBufferData(renderMaterial->Get_CB())))
                 return E_FAIL;
 
             if (FAILED(_shader->Begin(kSimonWeaponEchoPassIndex)))

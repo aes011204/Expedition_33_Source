@@ -27,13 +27,63 @@
 #include "SL_Skill.h"
 #include "SL_EstherManager.h"
 
+#include <chrono>
+
 namespace
 {
     constexpr float kDuallisteBGMFadeOutDuration = 1.f;
+    constexpr float kDuallisteCinematicMonsterBackOffset = 2.f;
     constexpr wchar_t kHealTintEffect[] = L"Effects\\Assets\\Item\\HealTint_G.effect.json";
+    constexpr char kPlayerJumpCameraPresetKey[] = "PlayerJump";
 
     constexpr char kNpcGolgraDialogueKey[] = "NPC_Golgra";
     constexpr char kNpcGolgraAfterDuallisteDialogueKey[] = "NPC_Golgra_AfterDualliste";
+
+    long long ElapsedMs(chrono::steady_clock::time_point startedAt)
+    {
+        return chrono::duration_cast<chrono::milliseconds>(
+            chrono::steady_clock::now() - startedAt).count();
+    }
+
+    Vec3 MakePlanarForwardFromRotationDegree(const Vec3& rotationDegree)
+    {
+        const Vec3 rotationRad = Vec3(
+            XMConvertToRadians(rotationDegree.x),
+            XMConvertToRadians(rotationDegree.y),
+            XMConvertToRadians(rotationDegree.z));
+        const Matrix rotationMatrix = Matrix::CreateFromYawPitchRoll(
+            rotationRad.y,
+            rotationRad.x,
+            rotationRad.z);
+
+        Vec3 forward = Vec3::TransformNormal(Vec3::Look, rotationMatrix);
+        forward.y = 0.f;
+
+        if (forward.LengthSquared() <= 0.0001f)
+            forward = Vec3::Look;
+        else
+            forward.Normalize();
+
+        return forward;
+    }
+
+    Vec3 MakePlanarForwardToMonster(const Vec3& playerPosition, const Vec3& playerRotation, const Vec3& monsterPosition)
+    {
+        Vec3 forward = monsterPosition - playerPosition;
+        forward.y = 0.f;
+
+        if (forward.LengthSquared() <= 0.0001f)
+            return MakePlanarForwardFromRotationDegree(playerRotation);
+
+        forward.Normalize();
+        return forward;
+    }
+
+    Vec3 ApplyDuallisteCinematicMonsterBackOffset(const Vec3& playerPosition, const Vec3& playerRotation, const Vec3& monsterPosition)
+    {
+        const Vec3 forward = MakePlanarForwardToMonster(playerPosition, playerRotation, monsterPosition);
+        return monsterPosition + forward * kDuallisteCinematicMonsterBackOffset;
+    }
 }
 
 IMPLEMENT_REFLECTION(SoulLikeController)
@@ -153,16 +203,23 @@ void SoulLikeController::Update(float timeDelta)
 
 bool SoulLikeController::Begin_Battle()
 {
+    const auto totalStartedAt = chrono::steady_clock::now();
+
     if (Is_BattleActive())
         return false;
 
+    const auto cancelStartedAt = chrono::steady_clock::now();
     if (Shared<BattleController> battleController = CLIENT->Get_BattleController())
         battleController->Cancel_BattleEnterPending();
+    const long long cancelMs = ElapsedMs(cancelStartedAt);
 
     GAME->Stop_WorldTimeSlow();
     GAME->Set_WorldTimeScale(1.f);
 
+    const auto removeStartedAt = chrono::steady_clock::now();
     Remove_SpawnedBattleActors();
+    const long long removeMs = ElapsedMs(removeStartedAt);
+
     _jumpCounterAttacker.reset();
     _jumpCounterThreatOpen = false;
     _jumpCounterJumpSucceeded = false;
@@ -176,19 +233,42 @@ bool SoulLikeController::Begin_Battle()
     _healingPotionCount = kMaxHealingPotionCount;
     _state = BattleState::EnterFx;
 
-    GAME->Begin_SoulLikeIBLOverride();
+    const auto gateStartedAt = chrono::steady_clock::now();
+    Apply_SoulLikeArenaMapRenderGateBasis();
+    const long long gateMs = ElapsedMs(gateStartedAt);
 
+    const auto iblStartedAt = chrono::steady_clock::now();
+    GAME->Begin_SoulLikeIBLOverride();
+    const long long iblMs = ElapsedMs(iblStartedAt);
+
+    const auto bgmStartedAt = chrono::steady_clock::now();
     if (Is_DuallisteBattle())
         Start_DuallistePhase1BGM();
+    const long long bgmMs = ElapsedMs(bgmStartedAt);
 
     if (_estherManager)
         _estherManager->Reset();
 
+    long long screenFxMs = 0;
     if (auto screenFxManager = CLIENT->Get_ScreenFxManager())
     {
+        const auto screenFxStartedAt = chrono::steady_clock::now();
         screenFxManager->Play_BattleInCounterFx();
         screenFxManager->Transition_To_BattleField();
+        screenFxMs = ElapsedMs(screenFxStartedAt);
     }
+
+    LOG_INFO(
+        "[SoulLikeEnterPerf] Begin_Battle dualliste={}, cancel={}ms, remove={}ms, gate={}ms, ibl={}ms, bgm={}ms, screenFx={}ms, enterDelay={}, total={}ms",
+        Is_DuallisteBattle(),
+        cancelMs,
+        removeMs,
+        gateMs,
+        iblMs,
+        bgmMs,
+        screenFxMs,
+        _enterFxTimer,
+        ElapsedMs(totalStartedAt));
 
     return true;
 }
@@ -223,6 +303,7 @@ void SoulLikeController::End_Battle()
     GAME->Set_GameplayInputMode(GameplayInputMode::Normal);
     GAME->Lock_Mouse();
     Clear_BattleSpawnPoseOverride();
+    CLIENT->Clear_SoulLikeArenaMapRenderGateBasis();
     Remove_SpawnedBattleActors();
     Restore_PreSoulLikeBGM();
     GAME->End_SoulLikeIBLOverride();
@@ -321,7 +402,7 @@ void SoulLikeController::End_BattleShotCamera()
     Request_SoulLikeCamera();
 }
 
-void SoulLikeController::Apply_SkillCameraPreset(const string& skillKey)
+void SoulLikeController::Apply_SkillCameraPreset(const string& skillKey, float clipStartTimeSec)
 {
     if (_state != BattleState::Playing)
         return;
@@ -333,13 +414,55 @@ void SoulLikeController::Apply_SkillCameraPreset(const string& skillKey)
         return;
 
     if (Shared<SoulLikeCamera> soulLikeCamera = _soulLikeCamera.lock())
-        soulLikeCamera->Apply_SkillPreset(skillKey);
+        soulLikeCamera->Apply_SkillPreset(skillKey, clipStartTimeSec);
+}
+
+void SoulLikeController::Sync_SkillCameraClipTime(float animationTimeSec)
+{
+    if (_state != BattleState::Playing)
+        return;
+
+    if (Shared<SoulLikeCamera> soulLikeCamera = _soulLikeCamera.lock())
+        soulLikeCamera->Set_ActiveClipExternalTime(animationTimeSec);
 }
 
 void SoulLikeController::Restore_SkillCameraPreset()
 {
     if (Shared<SoulLikeCamera> soulLikeCamera = _soulLikeCamera.lock())
         soulLikeCamera->Restore_BasePreset();
+}
+
+void SoulLikeController::Apply_PlayerJumpCameraClip(float clipStartTimeSec)
+{
+    if (_state != BattleState::Playing)
+        return;
+
+    if (!Ensure_SoulLikeCamera())
+        return;
+
+    if (Shared<SoulLikeCamera> soulLikeCamera = _soulLikeCamera.lock())
+    {
+        if (soulLikeCamera->Apply_ClipOverride(kPlayerJumpCameraPresetKey, clipStartTimeSec, true))
+            soulLikeCamera->Begin_TargetYLock();
+    }
+}
+
+void SoulLikeController::Sync_PlayerJumpCameraClipTime(float animationTimeSec)
+{
+    if (_state != BattleState::Playing)
+        return;
+
+    if (Shared<SoulLikeCamera> soulLikeCamera = _soulLikeCamera.lock())
+        soulLikeCamera->Set_ActiveClipExternalTime(animationTimeSec);
+}
+
+void SoulLikeController::Restore_PlayerJumpCameraClip()
+{
+    if (Shared<SoulLikeCamera> soulLikeCamera = _soulLikeCamera.lock())
+    {
+        soulLikeCamera->Restore_PresetOverride(kPlayerJumpCameraPresetKey);
+        soulLikeCamera->End_TargetYLock();
+    }
 }
 
 void SoulLikeController::Begin_MonsterAttackCameraPreset(const Shared<SL_Base>& attacker, const string& presetKey)
@@ -578,7 +701,7 @@ void SoulLikeController::Apply_JumpCounterDamage()
     {
         PlayEffectDesc effectDesc{};
         effectDesc.effectName = L"Double_Distotion.effect.json";
-        effectDesc.worldPosition = damageInfo.target->Get_Transform()->Get_WorldPosition() + Vec3(0.f, 1.f, 0.f);
+        effectDesc.worldPosition = damageInfo.target->Get_Transform()->Get_WorldPosition() + Vec3(0.f, 1.5f, 0.f);
         effectDesc.scale = Vec3(1.f, 1.f, 1.f);
         CLIENT->Play_Effect(effectDesc);
     }
@@ -819,10 +942,14 @@ Shared<Character> SoulLikeController::Resolve_PlayerCameraOpponent(const Shared<
 
 bool SoulLikeController::Spawn_Player()
 {
+    const auto totalStartedAt = chrono::steady_clock::now();
+
     if (_playerPrefab.empty())
         return false;
 
+    const auto weaponStartedAt = chrono::steady_clock::now();
     CLIENT->Ensure_DefaultEquippedWeapon(HeroId::Maelle);
+    const long long weaponMs = ElapsedMs(weaponStartedAt);
 
     const Shared<Player_WorldBase> worldMaelle = CLIENT->Find_Hero(HeroId::Maelle);
     const Shared<PlayerStatCom> worldStat = worldMaelle
@@ -841,12 +968,14 @@ bool SoulLikeController::Spawn_Player()
         ? _overridePlayerSpawnRotation
         : _playerSpawnRotation;
 
+    const auto spawnStartedAt = chrono::steady_clock::now();
     Shared<GameObject> playerObject = Spawn_Prefab::Prefab(_playerPrefab)
         .AtLevel(levelIndex)
         .InLayer(TEXT("Layer_Player"))
         .Position(playerSpawnPosition)
         .Rotation(playerSpawnRotation)
         .Spawn();
+    const long long spawnMs = ElapsedMs(spawnStartedAt);
 
     Shared<SL_Maelle> player = dynamic_pointer_cast<SL_Maelle>(playerObject);
     if (player == nullptr)
@@ -854,10 +983,13 @@ bool SoulLikeController::Spawn_Player()
 
     CHECK_NULL(worldStat, false);
 
+    const auto statStartedAt = chrono::steady_clock::now();
     // 스탯 세팅
     if (FAILED(player->Apply_WorldStatSnapshot(worldStat->Create_BattleSyncSnapshot())))
         return false;
+    const long long statMs = ElapsedMs(statStartedAt);
 
+    const auto skillStartedAt = chrono::steady_clock::now();
     vector<string> soulLikeSkillKeys = worldStat->Get_SkillKeys();
     if (soulLikeSkillKeys.empty() && worldSkillTreeCom != nullptr)
         soulLikeSkillKeys = worldSkillTreeCom->Get_UnlockedSkillIds();
@@ -873,27 +1005,45 @@ bool SoulLikeController::Spawn_Player()
     soulLikeSkillKeys.resize(4);
 
     player->Apply_WorldSkillKeys(soulLikeSkillKeys);
+    const long long skillMs = ElapsedMs(skillStartedAt);
 
     if (const Shared<PlayerStatCom> playerStat = dynamic_pointer_cast<PlayerStatCom>(player->Get_Stat()))
         player->Reset_CombatHp(playerStat->Get_PlayerRuntimeStat().CurMaxHp);
 
     _player = player;
 
+    const auto monsterStartedAt = chrono::steady_clock::now();
     if (!Spawn_Monster(player))
     {
         Remove_SpawnedBattleActors();
         return false;
     }
+    const long long monsterMs = ElapsedMs(monsterStartedAt);
 
     _playerSpawned = true;
 
+    const auto cameraStartedAt = chrono::steady_clock::now();
     Request_SoulLikeCamera(true);
+    const long long cameraMs = ElapsedMs(cameraStartedAt);
+
+    LOG_INFO(
+        "[SoulLikeEnterPerf] Spawn_Player prefab={}, weapon={}ms, spawn={}ms, stat={}ms, skill={}ms, monster={}ms, camera={}ms, total={}ms",
+        _playerPrefab,
+        weaponMs,
+        spawnMs,
+        statMs,
+        skillMs,
+        monsterMs,
+        cameraMs,
+        ElapsedMs(totalStartedAt));
 
     return true;
 }
 
 bool SoulLikeController::Spawn_Monster(const Shared<SL_Maelle>& player)
 {
+    const auto totalStartedAt = chrono::steady_clock::now();
+
     if (_monsterPrefab.empty())
     {
         Clear_BattleSpawnPoseOverride();
@@ -923,13 +1073,22 @@ bool SoulLikeController::Spawn_Monster(const Shared<SL_Maelle>& player)
         opponentRotation = player->Get_Transform()->Get_WorldRotationEuler();
         opponentRotation.y += 180.f;
     }
+    else if (Is_DuallisteBattle())
+    {
+        opponentPosition = ApplyDuallisteCinematicMonsterBackOffset(
+            player->Get_Transform()->Get_WorldPosition(),
+            player->Get_Transform()->Get_WorldRotationEuler(),
+            opponentPosition);
+    }
 
+    const auto spawnStartedAt = chrono::steady_clock::now();
     Shared<GameObject> monsterObject = Spawn_Prefab::Prefab(_monsterPrefab)
         .AtLevel(GAME->Current_LevelIndex())
         .InLayer(TEXT("Layer_Monster"))
         .Position(opponentPosition)
         .Rotation(opponentRotation)
         .Spawn();
+    const long long spawnMs = ElapsedMs(spawnStartedAt);
 
     Shared<SL_Base> opponent = dynamic_pointer_cast<SL_Base>(monsterObject);
     if (opponent == nullptr)
@@ -949,6 +1108,12 @@ bool SoulLikeController::Spawn_Monster(const Shared<SL_Maelle>& player)
     }
 
     Clear_BattleSpawnPoseOverride();
+
+    LOG_INFO(
+        "[SoulLikeEnterPerf] Spawn_Monster prefab={}, spawn={}ms, total={}ms",
+        _monsterPrefab,
+        spawnMs,
+        ElapsedMs(totalStartedAt));
 
     return true;
 }
@@ -971,6 +1136,52 @@ void SoulLikeController::Remove_SpawnedBattleActors()
     Remove_SoulLikeRuntimeCameras();
 }
 
+void SoulLikeController::Apply_SoulLikeArenaMapRenderGateBasis()
+{
+    if (!Is_DuallisteBattle())
+    {
+        CLIENT->Clear_SoulLikeArenaMapRenderGateBasis();
+        return;
+    }
+
+    const Vec3 playerPosition = _hasBattleSpawnPoseOverride
+        ? _overridePlayerSpawnPosition
+        : _playerSpawnPosition;
+    const Vec3 playerRotation = _hasBattleSpawnPoseOverride
+        ? _overridePlayerSpawnRotation
+        : _playerSpawnRotation;
+
+    Vec3 opponentPosition = _overrideMonsterSpawnPosition;
+
+    if (!_hasBattleSpawnPoseOverride)
+    {
+        const Vec3 forward = MakePlanarForwardFromRotationDegree(playerRotation);
+
+        opponentPosition = playerPosition + forward * max(0.f, _monsterSpawnDistance);
+        opponentPosition.y = playerPosition.y;
+    }
+    else
+    {
+        opponentPosition = ApplyDuallisteCinematicMonsterBackOffset(
+            playerPosition,
+            playerRotation,
+            opponentPosition);
+    }
+
+    Vec3 forward = opponentPosition - playerPosition;
+    forward.y = 0.f;
+
+    if (forward.LengthSquared() <= 0.0001f)
+        forward = Vec3::Look;
+    else
+        forward.Normalize();
+
+    const Vec3 right = Vec3(-forward.z, 0.f, forward.x);
+    const Vec3 origin = (playerPosition + opponentPosition) * 0.5f;
+
+    ClientInstance::Set_SoulLikeArenaMapRenderGateBasis(origin, right, forward);
+}
+
 void SoulLikeController::Update_EnterFx(float timeDelta)
 {
     _enterFxTimer -= timeDelta;
@@ -978,14 +1189,23 @@ void SoulLikeController::Update_EnterFx(float timeDelta)
     if (_enterFxTimer > 0.f)
         return;
 
+    const auto spawnStartedAt = chrono::steady_clock::now();
     if (!_playerSpawned && !Spawn_Player())
     {
+        CLIENT->Clear_SoulLikeArenaMapRenderGateBasis();
         Restore_PreSoulLikeBGM();
         _state = BattleState::Finished;
+        LOG_INFO(
+            "[SoulLikeEnterPerf] Update_EnterFx spawn failed elapsed={}ms",
+            ElapsedMs(spawnStartedAt));
         return;
     }
+    const long long spawnMs = ElapsedMs(spawnStartedAt);
 
     _state = BattleState::Playing;
+    LOG_INFO(
+        "[SoulLikeEnterPerf] Update_EnterFx enter playing spawn={}ms",
+        spawnMs);
 }
 
 void SoulLikeController::Update_MonsterActionDelay(float timeDelta)
@@ -1166,6 +1386,7 @@ void SoulLikeController::Sync_PlayerResultToWorld()
 void SoulLikeController::Handle_EditorStopRuntime()
 {
     Remove_SpawnedBattleActors();
+    CLIENT->Clear_SoulLikeArenaMapRenderGateBasis();
     Restore_PreSoulLikeBGM();
     GAME->End_SoulLikeIBLOverride();
 

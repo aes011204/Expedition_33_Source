@@ -444,10 +444,15 @@ void Simon_Debuff::Execute(const Skill_Data& skill, const BattleAction& action, 
         if (target.statCom == nullptr)
             continue;
 
-        if (target.statCom->Get_AliveStatus() != EAliveStatus::Dead)
+        if (target.statCom->Get_AliveStatus() != EAliveStatus::Alive)
             continue;
 
-        target.statCom->Set_ReviveBlocked(true);
+        auto& runtimeStat = target.statCom->Get_RuntimeStat();
+        const float maxHp = max(target.statCom->Get_StatInfo().maxHp, 1.f);
+        const float targetHp = maxHp * 0.5f;
+
+        if (runtimeStat.CurHp > targetHp)
+            runtimeStat.CurHp = targetHp;
     }
 
     CurIndex++;

@@ -102,6 +102,7 @@ public:
     void Finish_PhaseChange();
     void End_PhaseChangeTransition();
     void Set_ActionLocked(bool isActionLock);
+    void Set_EstherTimeScale(float timeScale);
 protected:
     HRESULT Ready_Components();
     HRESULT Ready_PartObjects();
@@ -141,6 +142,7 @@ private:
     bool _restorePhysXCCTAfterCinematic = false;
     float _stunElapsed = 0.f;
     float _breakRecoverPerSec = 4.5f;
+    float _estherTimeScale = 1.f;
 
     float kCanAttackDistance = 3.0f;
     float kPhase2HpThreshold = 0.5f;

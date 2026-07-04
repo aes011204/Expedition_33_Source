@@ -316,7 +316,6 @@ void PoseFollowChainModifier::Initialize_Chains(ModelCom* model)
 		const int32 rootBoneIndex = model->Get_BoneIndex(groupDesc.rootBoneName);
 		if (rootBoneIndex == -1)
 		{
-			LOG_WARN("[PoseFollowChainModifier] Missing root bone: {}", groupDesc.rootBoneName);
 			continue;
 		}
 
