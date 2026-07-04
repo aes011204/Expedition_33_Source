@@ -6,7 +6,7 @@
 #include "TargetCamera.h"
 #include "SoulLikeController.h"
 #include "SkyBoxFlow.h"
-#include "Trigger_FallTornadoZone.h"
+#include "Trigger_TeleportZone.h"
 #include "SimonCriticalGlowController.h"
 #include "MovementCom.h"
 #include "Player_WorldBase.h"
@@ -65,18 +65,18 @@ void Level_Stage01::BeginPlay()
 
     //
 
-    GameObject::GAMEOBJECT_DESC fallTornadoDesc{};
-    fallTornadoDesc.position = Vec3(220.62f, -82.56f, -0.98f);
-    fallTornadoDesc.scale = Vec3(8.f, 1.f, 8.f);
+    GameObject::GAMEOBJECT_DESC teleportZoneDesc{};
+    teleportZoneDesc.position = Vec3(216.88f, -12.38f, -2.66f);
+    teleportZoneDesc.scale = Vec3(8.f, 2.f, 8.f);
 
     Shared<GameObject> fallTornadoZone = nullptr;
     GAME->Add_GameObject(
         ETOI(LevelType::Stage01),
-        TEXT("GameObject_Trigger_FallTornadoZone_Stage01"),
+        TEXT("GameObject_Trigger_TeleportZone_Stage01"),
         ETOI(LevelType::Stage01),
         TEXT("Layer_ETC"),
         fallTornadoZone,
-        &fallTornadoDesc);
+        &teleportZoneDesc);
 
     CLIENT->Capture_InitialWorldSnapshot();
     CLIENT->Queue_LevelAnnounce(LevelType::Stage01);

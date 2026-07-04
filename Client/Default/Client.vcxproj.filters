@@ -1454,7 +1454,7 @@
     <ClCompile Include="..\Private\Trigger_WorldAction.cpp">
       <Filter>02. GameObject\Map\MapTrigger</Filter>
     </ClCompile>
-    <ClCompile Include="..\Private\Trigger_FallTornadoZone.cpp">
+    <ClCompile Include="..\Private\Trigger_TeleportZone.cpp">
       <Filter>02. GameObject\Map\MapTrigger\Tornado</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\SimonCriticalGlowController.cpp">
@@ -1608,7 +1608,7 @@
     <ClInclude Include="..\Public\Trigger_WorldAction.h">
       <Filter>02. GameObject\Map\MapTrigger</Filter>
     </ClInclude>
-    <ClInclude Include="..\Public\Trigger_FallTornadoZone.h">
+    <ClInclude Include="..\Public\Trigger_TeleportZone.h">
       <Filter>02. GameObject\Map\MapTrigger\Tornado</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\SimonCriticalGlowController.h">

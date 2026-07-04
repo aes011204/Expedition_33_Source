@@ -72,6 +72,7 @@ public:
         float jumpVelocity = 40.f;
 
         float gravity = -20.f;
+        float maxFallSpeed = 100.f;
 
         MoveBackend backend = MoveBackend::Sweep;
         SweepDesc sweep{};

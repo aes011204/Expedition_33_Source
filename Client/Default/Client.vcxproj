@@ -255,7 +255,7 @@
     <ClInclude Include="..\public\ChangeWeapon_Panel.h" />
     <ClInclude Include="..\Public\SimonCriticalGlowController.h" />
     <ClInclude Include="..\Public\SL_UseItem.h" />
-    <ClInclude Include="..\Public\Trigger_FallTornadoZone.h" />
+    <ClInclude Include="..\Public\Trigger_TeleportZone.h" />
     <ClInclude Include="..\Public\UpgradeWeapon_Panel.h" />
     <ClInclude Include="..\Public\Merchant_Panel.h" />
     <ClInclude Include="..\public\BT_FinishDecision.h" />
@@ -816,7 +816,7 @@
     <ClCompile Include="..\Private\SL_StateMachineCom.cpp" />
     <ClCompile Include="..\Private\Trigger_BGMZone.cpp" />
     <ClCompile Include="..\private\Trigger_Cinematic.cpp" />
-    <ClCompile Include="..\Private\Trigger_FallTornadoZone.cpp" />
+    <ClCompile Include="..\Private\Trigger_TeleportZone.cpp" />
     <ClCompile Include="..\Private\Trigger_Interaction.cpp" />
     <ClCompile Include="..\Private\UI_AbilityPentagon.cpp" />
     <ClCompile Include="..\Private\ComputeGeneratedBeamEmitter.cpp" />
