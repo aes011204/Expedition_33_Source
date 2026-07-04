@@ -246,13 +246,6 @@ private:
     void Apply_RuntimeDriftProfile(EvaluatedPose& pose, const BattleCameraDriftProfile& profile, float elapsed, float weight) const;
     void Apply_ClipShake(EvaluatedPose& pose, const BattleCameraClipSample& clipSample, float clipShakeTime) const;
     void Apply_RuntimeShake(EvaluatedPose& pose, float timeDelta);
-    void Debug_PrintClipShakeSample(float animationTimeSec, float sampleTime, float shakeSampleTime, const BattleCameraClipSample& clipSample) const;
-    void Debug_PrintPlayerAttackFramingSample(
-        const BattleShotRequest& request,
-        const BattleCameraPreset& preset,
-        const BattleCameraPreset& framingPreset,
-        const BattleCameraClipSample& clipSample,
-        const BattleCameraClipSample& framingClipSample) const;
     void Update_JumpCounterPoseOffset(float timeDelta);
 
 private:
