@@ -55,6 +55,7 @@ public: //## Types::Public
         Vec3 scale = Vec3::One;
         float playbackSpeed = 1.f;
         EffectTransformInheritance transformInheritance{};
+        bool localOffsetZTowardCamera = false;
 
         bool followTarget = false;          // AN은 false, ANS/attach 는 true로 사용
         bool requiresManualRelease = false; // owner가 살아 있는 동안 붙어 있어야 하는 effect는 자동 완료 release를 막는다.
@@ -264,6 +265,7 @@ private: //## Types::AttachedEffect
         Vec3 localRotation{ Vec3::Zero };
         Vec3 scale{ Vec3::One };
         EffectTransformInheritance transformInheritance{};
+        bool localOffsetZTowardCamera = false;
 
         bool followTarget = false;                                // true면 Update에서 owner/socket 위치를 계속 따라간다.
         AttachedEffectRole role{ AttachedEffectRole::Normal };
@@ -331,6 +333,7 @@ private: //## Helper::AttachedEffects
         const Vec3& localRotation,
         const Vec3& scale,
         const EffectTransformInheritance& transformInheritance,
+        bool localOffsetZTowardCamera,
         Vec3& outWorldPosition,
         Quat& outWorldRotation,
         Vec3& outWorldScale) const;

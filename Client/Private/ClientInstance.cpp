@@ -956,6 +956,21 @@ const vector<HeroPartyEntry>& ClientInstance::Get_HeroEntries() const
     return _heroManager->Get_HeroEntries();
 }
 
+void ClientInstance::Restore_CurrentHeroesHpToMax()
+{
+    if (_heroManager == nullptr)
+        return;
+
+    for (const HeroPartyEntry& entry : _heroManager->Get_HeroEntries())
+    {
+        if (entry.hero == nullptr)
+            continue;
+
+        if (Shared<PlayerStatCom> stat = entry.hero->Get_Component<PlayerStatCom>())
+            stat->Restore_HpToMax();
+    }
+}
+
 Shared<Player_WorldBase> ClientInstance::Get_Hero(HeroPartySlot slot) const
 {
     return _heroManager->Get_Hero(slot);
@@ -1563,6 +1578,8 @@ bool ClientInstance::Request_DialogueBattlePotatoBag()
     // 감자자루 전투 진입 시, 특정 해금 진행
     RuntimeRuleStateService::Apply_ToCurrentRuntime(
         RuntimeRuleStateService::Build_PotatoBagStartUnlocks(), false);
+
+    Restore_CurrentHeroesHpToMax();
 
     BattleMonsterSpawnDesc spawnDesc{};
     spawnDesc.prefabName = Constants::Prefab::MB_PotatoBag;

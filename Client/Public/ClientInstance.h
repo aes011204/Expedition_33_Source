@@ -161,6 +161,7 @@ public: /* For.Hero Manager */
 
     // 플레이어 전부 가져오기
     const vector<HeroPartyEntry>& Get_HeroEntries() const;
+    void Restore_CurrentHeroesHpToMax();
 
     // 특정 슬롯 반환
     Shared<Player_WorldBase>  Get_Hero(HeroPartySlot slot) const;

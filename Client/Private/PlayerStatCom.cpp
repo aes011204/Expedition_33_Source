@@ -451,6 +451,13 @@ void PlayerStatCom::Set_RuntimeProgress(uint32 level, uint32 exp, uint32 statPoi
     Update_StatInfo();
 }
 
+void PlayerStatCom::Restore_HpToMax()
+{
+    Update_StatInfo();
+    _PRuntimeStat.CurHp = _PRuntimeStat.CurMaxHp;
+    Set_AliveStatus(EAliveStatus::Alive);
+}
+
 PlayerStatCom::BattleSyncSnapshot PlayerStatCom::Create_BattleSyncSnapshot() const
 {
     BattleSyncSnapshot snapshot{};

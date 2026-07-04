@@ -824,6 +824,7 @@ void GameplayUI_World::Handle_ArenaCharacterSelectAction(UI_ArenaCharacterSelect
         Close_AllMenus(true);
 
         RuntimeRuleStateService::Apply_ToCurrentRuntime(RuntimeRuleStateService::Build_DuallistStartUnlocks(), false);
+        CLIENT->Restore_CurrentHeroesHpToMax();
 
         const wstring sequencePath =
             wstring(Constants::Cinematic::RuntimeJson_Dir) +

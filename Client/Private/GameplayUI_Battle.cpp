@@ -70,6 +70,7 @@ namespace
     constexpr wchar_t kMarkWorldEffectName[] = L"Effects\\Assets\\Player\\Attack_Mark_X.effect.json";
     constexpr wchar_t kMarkWorldEffectPartTag[] = L"Part_Body";
     constexpr char kMarkWorldEffectSocketName[] = "spine_01";
+    const Vec3 kMarkWorldEffectLocalOffset = Vec3(0.f, 0.2f, 0.9f);
 
     void Append_RuntimePanelEntry(
         vector<RuntimeUIEntry>& outEntries,
@@ -1383,15 +1384,22 @@ void GameplayUI_Battle::Play_MarkEffect(const BattleChar& target)
     if (effectCom == nullptr)
         return;
 
-    if (SUCCEEDED(effectCom->Play_AttachedPartEffect(
-        GAME->Current_LevelIndex(),
-        kMarkWorldEffectName,
-        kMarkWorldEffectPartTag,
-        kMarkWorldEffectSocketName,
-        L"Layer_Effect",
-        Vec3::Zero,
-        Vec3::Zero,
-        Vec3::One)))
+    EffectCom::EffectPlayDesc effectDesc{};
+    effectDesc.levelIndex = GAME->Current_LevelIndex();
+    effectDesc.effectName = kMarkWorldEffectName;
+    effectDesc.target = EffectCom::EffectPlayTarget::PartSocket;
+    effectDesc.partTag = kMarkWorldEffectPartTag;
+    effectDesc.socketName = kMarkWorldEffectSocketName;
+    effectDesc.layerTag = L"Layer_Effect";
+    effectDesc.localOffset = kMarkWorldEffectLocalOffset;
+    effectDesc.scale = Vec3(0.675f, 0.675f, 0.675f);
+    effectDesc.localOffsetZTowardCamera = true;
+    effectDesc.followTarget = true;
+    effectDesc.transformInheritance.inheritPosition = true;
+    effectDesc.transformInheritance.inheritRotation = false;
+    effectDesc.transformInheritance.inheritScale = false;
+
+    if (SUCCEEDED(effectCom->Play_Effect(effectDesc)))
     {
         _markEffectTarget = target;
         _hasMarkEffectTarget = true;
