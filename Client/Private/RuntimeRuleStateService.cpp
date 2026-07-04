@@ -22,6 +22,8 @@ namespace
 	{
 		const char* characterId = "";
 		const char* weaponId = "";
+		uint32 enhanceLevel = 0;
+		bool forceEnhanceLevel = false;
 	};
 
 	struct FinalSkillSetupDesc
@@ -149,20 +151,23 @@ namespace
 		return root;
 	}
 
-	void Add_WeaponInventoryEntry(json& ownedWeapons, const char* characterId, const char* weaponId)
+	void Add_WeaponInventoryEntry(json& ownedWeapons, const WeaponUnlockDesc& weaponDesc)
 	{
-		if (characterId == nullptr || weaponId == nullptr)
+		if (weaponDesc.characterId == nullptr || weaponDesc.weaponId == nullptr)
 			return;
 
-		const GameDataTable::WeaponDesc* weapon = CLIENT->Get_WeaponDesc(characterId, weaponId);
+		const GameDataTable::WeaponDesc* weapon = CLIENT->Get_WeaponDesc(weaponDesc.characterId, weaponDesc.weaponId);
 		if (weapon == nullptr)
 			return;
+
+		const uint32 enhanceLevel = weaponDesc.enhanceLevel > 0 ? weaponDesc.enhanceLevel : weapon->level;
 
 		json entry = json::object();
 		entry["character_id"] = weapon->characterId;
 		entry["weapon_id"] = weapon->weaponId;
-		entry["enhance_level"] = weapon->level;
+		entry["enhance_level"] = enhanceLevel;
 		entry["enhance_exp"] = 0;
+		entry["force_enhance_level"] = weaponDesc.forceEnhanceLevel;
 		ownedWeapons.emplace_back(std::move(entry));
 	}
 
@@ -173,7 +178,7 @@ namespace
 
 		for (const WeaponUnlockDesc& weapon : weapons)
 		{
-			Add_WeaponInventoryEntry(root["owned_weapons"], weapon.characterId, weapon.weaponId);
+			Add_WeaponInventoryEntry(root["owned_weapons"], weapon);
 		}
 
 		return root;
@@ -302,12 +307,16 @@ namespace
 			entry.weaponId = weapon.value("weapon_id", string{});
 			entry.enhanceLevel = weapon.value("enhance_level", 1u);
 			entry.enhanceExp = weapon.value("enhance_exp", 0u);
+			const bool forceEnhanceLevel = weapon.value("force_enhance_level", false);
 
 			if (entry.characterId.empty() || entry.weaponId.empty())
 				continue;
 
 			const bool wasUnlocked = inventory->Is_WeaponUnlocked(entry.characterId, entry.weaponId);
 			entries.emplace_back(std::move(entry));
+
+			if (wasUnlocked && forceEnhanceLevel)
+				inventory->Set_WeaponEnhanceLevel(entries.back().characterId, entries.back().weaponId, entries.back().enhanceLevel);
 
 			if (queuePresentation && !wasUnlocked && unlockManager != nullptr)
 				unlockManager->Queue_GetWeaponPresentation(entries.back().characterId, entries.back().weaponId);
@@ -437,6 +446,8 @@ RuntimeRuleStateIO::RuleState RuntimeRuleStateService::Build_GameplayStartUnlock
 
 	ruleState.inventoryJson = Build_SelectedWeaponInventoryJson({
 		{ "Gustave", "Lanceram" },
+		{ "Lune", "Colim" },
+		{ "Maelle", "Medalum" },
 		});
 	ruleState.inventoryJson["chroma"] = 8109036007402;
 	ruleState.inventoryJson["unlocked_pictos"] = json::array();
@@ -542,10 +553,12 @@ RuntimeRuleStateIO::RuleState RuntimeRuleStateService::Build_PotatoBagStartUnloc
 {
     RuntimeRuleStateIO::RuleState ruleState{};
 
+	constexpr uint32 kBossStartWeaponLevel = 10;
+
 	ruleState.inventoryJson = Build_SelectedWeaponInventoryJson({
-		{ "Gustave", "Tireso" },
-		{ "Lune", "Snowim" },
-		{ "Maelle", "Plenum" },
+		{ "Gustave", "Tireso", kBossStartWeaponLevel, true },
+		{ "Lune", "Snowim", kBossStartWeaponLevel, true },
+		{ "Maelle", "Plenum", kBossStartWeaponLevel, true },
 		});
 
 	// 픽토스 해금
@@ -562,13 +575,14 @@ RuntimeRuleStateIO::RuleState RuntimeRuleStateService::Build_PotatoBagStartUnloc
 		HeroId heroId;
 		const char* characterId;
 		const char* weaponId;
+		uint32 enhanceLevel;
 		vector<const char*> skillKeys;
 		const char* pictosIds[3];
 	} heroes[] =
 	{
-		{ HeroId::Gustave, "Gustave", "Tireso", { "LumiereAssault", "UnleashedCharge", "MarkingShot", "Shatter", "PerfectBreak", "AngelsEye" }, { "EnergisingTurn", "WarmingUp", "AugmentedAttack" } },
-		{ HeroId::Lune, "Lune", "Snowim", { "Immolation", "IceGust", "Thunderfall", "TerraQuake", "CripplingTsunami", "SkyBreak" }, { "EnergisingTurn", "Roulette", "AugmentedAim" } },
-		{ HeroId::Maelle, "Maelle", "Plenum", { "Spark", "Percee", "FleureFury", "SwordBallet", "Pyrolyse", "Stendhal" }, { "EnergisingTurn", "WarmingUp", "AugmentedAttack" } },
+		{ HeroId::Gustave, "Gustave", "Tireso", kBossStartWeaponLevel, { "LumiereAssault", "UnleashedCharge", "MarkingShot", "Shatter", "PerfectBreak", "AngelsEye" }, { "EnergisingTurn", "WarmingUp", "AugmentedAttack" } },
+		{ HeroId::Lune, "Lune", "Snowim", kBossStartWeaponLevel, { "Immolation", "IceGust", "Thunderfall", "TerraQuake", "CripplingTsunami", "SkyBreak" }, { "EnergisingTurn", "Roulette", "AugmentedAim" } },
+		{ HeroId::Maelle, "Maelle", "Plenum", kBossStartWeaponLevel, { "Spark", "Percee", "FleureFury", "SwordBallet", "Pyrolyse", "Stendhal" }, { "EnergisingTurn", "WarmingUp", "AugmentedAttack" } },
 	};
 
 	for (const auto& hero : heroes)
@@ -581,8 +595,10 @@ RuntimeRuleStateIO::RuleState RuntimeRuleStateService::Build_PotatoBagStartUnloc
 		if (weaponDesc != nullptr)
 		{
 			heroState.statJson["equipped_weapon_id"] = weaponDesc->weaponId;
+			const GameDataTable::WeaponUpgradeDesc* upgradeDesc =
+				CLIENT->Get_WeaponUpgradeDesc(hero.characterId, weaponDesc->weaponId, hero.enhanceLevel);
 			heroState.statJson["equipped_weapon_power"] =
-				CLIENT->Resolve_WeaponPower(hero.characterId, weaponDesc->weaponId);
+				upgradeDesc != nullptr ? upgradeDesc->power : weaponDesc->power;
 		}
 
 		// 장착 픽토스 세팅

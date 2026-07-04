@@ -95,6 +95,10 @@ namespace Client::Constants::UI
     inline constexpr wchar_t UI_Mark_Path[] = L"UI/UI_Json/BattleSystem/StatusEffect/UI_Mark.json";
     inline constexpr wchar_t UI_Shield_Path[] = L"UI/UI_Json/BattleSystem/StatusEffect/UI_Shield.json";
     inline constexpr wchar_t UI_Destroy_Shield_Path[] = L"UI/UI_Json/BattleSystem/StatusEffect/UI_Destroy_Shield.json";
+    inline constexpr wchar_t UI_BurnIcon_Path[] = L"UI/UI_Json/BattleSystem/StatusEffect/UI_Burn_Icon.json";
+    inline constexpr wchar_t UI_Burn_Path[] = L"UI/UI_Json/BattleSystem/StatusEffect/UI_Burn.json";
+    inline constexpr wchar_t UI_SlowIcon_Path[] = L"UI/UI_Json/BattleSystem/StatusEffect/UI_Slow_Icon.json";
+    inline constexpr wchar_t UI_Slow_Path[] = L"UI/UI_Json/BattleSystem/StatusEffect/UI_Slow.json";
 
     // Tutorial
     inline constexpr wchar_t UI_Tutorial_BattleSystem_Path[] = L"UI/UI_Json/BattleSystem/Tutorial/UI_Tutorial_BattleSystem.json";
@@ -605,7 +609,11 @@ namespace Client::Constants::SoundCue
     constexpr const wchar_t* UI_Battle_QTE_Miss = L"UI_Battle_QTE_Miss";
     constexpr const wchar_t* UI_Battle_QTE_SuccessPerfect = L"UI_Battle_QTE_SuccessPerfect";
     constexpr const wchar_t* UI_Battle_QTE_SuccessRegular = L"UI_Battle_QTE_SuccessRegular";
-
+    constexpr const wchar_t* SFX_Dodge_Success = L"SFX_Dodge_Success";
+    constexpr const wchar_t* SFX_UI_Dodge_Success = L"SFX_UI_Dodge_Success";
+    constexpr const wchar_t* SFX_FreeAimStart = L"SFX_FreeAimStart";
+    constexpr const wchar_t* SFX_FreeAimStop = L"SFX_FreeAimStop";
+    constexpr const wchar_t* SFX_FreeAimHit = L"SFX_FreeAimHit";
     constexpr const wchar_t* UI_SkillTree_Navigate = L"UI_SkillTree_Navigate";
     constexpr const wchar_t* UI_SkillTree_Learn = L"UI_SkillTree_Learn";
     constexpr const wchar_t* UI_SkillTree_Blocked = L"UI_SkillTree_Blocked";

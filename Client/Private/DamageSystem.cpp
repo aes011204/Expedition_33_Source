@@ -3,7 +3,7 @@
 #include "GameInstance.h"
 #include "Battle_Enum.h"
 #include "CombatStatCom.h"
-
+#include "BattleMechanismCom.h"
 #include "BattleController.h"
 #include "ClientInstance.h"
 #include "PictosBattleSystem.h"
@@ -59,15 +59,23 @@ void DamageSystem::ApplyDamage(float damage, const BattleChar& target, AttackTyp
     ApplyDamage(damage, emptyAttacker, target, attackType);
 }
 
-void DamageSystem::ApplyDamage(
+DamageAppliedInfo DamageSystem::ApplyDamage(
     float damage,
     const BattleChar& attacker,
     const BattleChar& target,
     AttackType attackType,
-    const Vec3* feedbackWorldPos)
+    const Vec3* feedbackWorldPos,
+    float criticalDamageMultiplier)
 {
+    DamageAppliedInfo info{};
+    info.attacker = attacker;
+    info.target = target;
+    info.attackType = attackType;
+    info.hasFeedbackWorldPos = feedbackWorldPos != nullptr;
+    info.feedbackWorldPos = feedbackWorldPos != nullptr ? *feedbackWorldPos : Vec3::Zero;
+
     if (damage <= 0.f || target.statCom == nullptr)
-        return;
+        return info;
 
     damage = Consume_NextAttackQTEDamage(damage, attacker, attackType);
 
@@ -77,23 +85,17 @@ void DamageSystem::ApplyDamage(
         const uint32 prevShield = target.statCom->Get_CurrentShield();
         target.statCom->Remove_Shield(1);
 
-        DamageAppliedInfo info{};
-        info.attacker = attacker;
-        info.target = target;
         info.damage = 0.f;
-        info.attackType = attackType;
         info.isShieldBlocked = true;
         info.prevShield = prevShield;
         info.currentShield = target.statCom->Get_CurrentShield();
-        info.hasFeedbackWorldPos = feedbackWorldPos != nullptr;
-        info.feedbackWorldPos = feedbackWorldPos != nullptr ? *feedbackWorldPos : Vec3::Zero;
 
         OnDamageApplied.Broadcast(info);
-        return; // 쉴드가 데미지를 막은 경우
+        return info; // 쉴드가 데미지를 막은 경우
     }
 
     if (target.statCom->Get_AliveStatus() == EAliveStatus::Dead)
-        return;
+        return info;
 
     if (const auto battleController = CLIENT->Get_BattleController())
     {
@@ -103,13 +105,23 @@ void DamageSystem::ApplyDamage(
         }
     }
 
+    if (attacker.mechanismCom != nullptr)
+    {
+        damage *= attacker.mechanismCom->Get_MaelleOutgoingDamageMultiplier();
+    }
+
+    if (target.mechanismCom != nullptr)
+    {
+        damage *= target.mechanismCom->Get_MaelleIncomingDamageMultiplier();
+    }
+
     if (damage <= 0.f)
-        return;
+        return info;
 
     OnDamageCalculating.Broadcast(attacker, target, damage, attackType);
 
     if (damage <= 0.f)
-        return;
+        return info;
 
     bool isCritical = false;
     if (attacker.statCom != nullptr &&
@@ -124,13 +136,13 @@ void DamageSystem::ApplyDamage(
     }
 
     if (isCritical)
-        damage *= 1.5f;
+        damage *= criticalDamageMultiplier;
 
     if (target.actor)
         target.actor->Adjust_IncomingBattleDamage(attacker, damage, attackType);
 
     if (damage <= 0.f)
-        return; // 감소된 피해 다시 확인
+        return info; // 감소된 피해 다시 확인
 
     auto& runtimeStat = target.statCom->Get_RuntimeStat();
     runtimeStat.CurHp -= damage;
@@ -141,16 +153,11 @@ void DamageSystem::ApplyDamage(
         runtimeStat.CurAliveState = EAliveStatus::Dead;
     }
 
-    DamageAppliedInfo info{};
-    info.attacker = attacker;
-    info.target = target;
     info.damage = damage;
-    info.attackType = attackType;
     info.isCritical = isCritical;
-    info.hasFeedbackWorldPos = feedbackWorldPos != nullptr;
-    info.feedbackWorldPos = feedbackWorldPos != nullptr ? *feedbackWorldPos : Vec3::Zero;
 
     OnDamageApplied.Broadcast(info);
+    return info;
 }
 
 void DamageSystem::ApplyDamage(float damage, const BattleChar& attacker, const vector<BattleChar>& target,

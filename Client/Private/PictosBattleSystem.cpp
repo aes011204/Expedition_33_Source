@@ -31,7 +31,7 @@ uint32 PictosBattleSystem::Resolve_TurnStartApBonus(const BattleChar& actor) con
     if (actor.statCom == nullptr || !actor.statCom->Is_Player())
         return 0;
 
-    return Has_EquippedPictosId(actor.statCom, kPictosEnergisingTurn) ? 1u : 0u;
+    return Has_EquippedPictosId(actor.statCom, kPictosEnergisingTurn) ? 2u : 0u;
 }
 
 void PictosBattleSystem::ProcessTurnStart(const BattleChar& actor)

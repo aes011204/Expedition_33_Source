@@ -3,6 +3,7 @@
 #include "ModelCom.h"
 #include "ChainModifierPreset.h"
 #include "ChainModifier.h"
+#include "OffsetAnimationModifier.h"
 #include "PoseFollowChainModifier.h"
 
 NS_BEGIN(Client)
@@ -37,6 +38,25 @@ HRESULT Mon_Simon_Body::Initialize(void* arg)
 
 HRESULT Mon_Simon_Body::Ready_Modifier()
 {
+    OffsetAnimationModifier::OffsetModifierDesc oneShotOffsetDesc{};
+    oneShotOffsetDesc.modifierTag = DefaultOneShotOffsetModifierTag;
+    oneShotOffsetDesc.baseModelCom = _model.get();
+    oneShotOffsetDesc.animName = "Simon_Hit";
+    oneShotOffsetDesc.blendMode = AnimationModifier::ModifierBlendMode::ModifyAddictive;
+    oneShotOffsetDesc.blendInTime = 0.02f;
+    oneShotOffsetDesc.blendOutTime = 0.08f;
+    oneShotOffsetDesc.timeRatio_Center = 0.f;
+    oneShotOffsetDesc.offsetBoneRanges = {
+        { "spine_02", "clavicle_l" },
+        { "spine_02", "clavicle_r" }
+    };
+
+    if (auto modifier = OffsetAnimationModifier::Create(&oneShotOffsetDesc))
+    {
+        modifier->Set_Active(false);
+        _model->Add_AnimModifier(modifier);
+    }
+
     ChainModifier::ChainModifierDesc armbandDesc{};
     ChainModifierPreset::BuildArmbandDesc(
         armbandDesc,
@@ -66,6 +86,46 @@ HRESULT Mon_Simon_Body::Ready_Modifier()
     }
 
     return S_OK;
+}
+
+bool Mon_Simon_Body::Play_OffsetModifierOnce(
+    const wstring& modifierTag,
+    float strengthAlpha,
+    float durationSec,
+    float startRatio,
+    float playRate)
+{
+    if (_model == nullptr)
+        return false;
+
+    auto modifier = dynamic_cast<OffsetAnimationModifier*>(
+        _model->Find_AnimModifierByTag(modifierTag));
+
+    if (modifier == nullptr)
+        return false;
+
+    OffsetAnimationModifier::OneShotPlaybackDesc desc{};
+    desc.strengthAlpha = strengthAlpha;
+    desc.durationSec = durationSec;
+    desc.startRatio = startRatio;
+    desc.playRate = playRate;
+    modifier->Play_Once(desc);
+
+    return true;
+}
+
+bool Mon_Simon_Body::Play_DefaultOffsetOnce(
+    float strengthAlpha,
+    float durationSec,
+    float startRatio,
+    float playRate)
+{
+    return Play_OffsetModifierOnce(
+        DefaultOneShotOffsetModifierTag,
+        strengthAlpha,
+        durationSec,
+        startRatio,
+        playRate);
 }
 
 void Mon_Simon_Body::Priority_Update(float timeDelta)

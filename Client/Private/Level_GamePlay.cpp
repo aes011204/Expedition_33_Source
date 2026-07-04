@@ -31,7 +31,7 @@ namespace
     constexpr Vec3 kPortierBattleRotation = Vec3(0.f, 0.f, 0.f);
 
     // 보스 전투 시작 위치
-    constexpr Vec3 kBossBattlePosition = Vec3(123.46f, 21.82f, -9.67f);
+    constexpr Vec3 kBossBattlePosition = Vec3(138.35f, 21.8f, -9.67f);
     constexpr Vec3 kBossBattleRotation = Vec3(0.f, 0.f, 0.f);
 
     VolumetricLightShaftZoneCB Build_GamePlayLightShaftZones()
@@ -246,19 +246,29 @@ HRESULT Level_GamePlay::Ready_Lights()
 
 HRESULT Level_GamePlay::Ready_Layer_Puzzle(const wstring& strLayerTag)
 {
-    for (size_t i = 0; i < 3; i++)
+    // Eyes
     {
-        //Shared<GameObject> object;
-        //CHECK_FAILED(GAME->Add_GameObject(ETOI(LevelType::Static), L"GameObject_EyeTarget", ETOI(LevelType::GamePlay), L"Layer_EyeTarget", object), E_FAIL);
-        //if(object != nullptr && object->Get_Transform() != nullptr)
-        //    object->Get_Transform()->Set_WorldPosition(Vec3(-109.f + 10.f * static_cast<float>(i), 21.f, -133.5f));
+        const Vec3 kEyePos1 = Vec3(-11.87f, 21.69f, -51.99f);
+        const Vec3 kEyePos2 = Vec3(-0.02f, 34.96f, -16.36f);
+        const Vec3 kEyePos3 = Vec3(4.69f, 24.92f, -17.56f);
 
-        auto eyeTarget = Spawn_Prefab::Prefab(Constants::Prefab::Eye_Target /* L"Eye_Target" */)
+        auto eyeTarget1 = Spawn_Prefab::Prefab(Constants::Prefab::Eye_Target)
             .AtLevel(ETOI(LevelType::GamePlay))
             .InLayer(L"Layer_EyeTarget")
-            .Position(Vec3(-109.f + 10.f * static_cast<float>(i), 21.f, -133.5f))
+            .Position(kEyePos1)
             .Spawn();
 
+        auto eyeTarget2 = Spawn_Prefab::Prefab(Constants::Prefab::Eye_Target)
+            .AtLevel(ETOI(LevelType::GamePlay))
+            .InLayer(L"Layer_EyeTarget")
+            .Position(kEyePos2)
+            .Spawn();
+
+        auto eyeTarget3 = Spawn_Prefab::Prefab(Constants::Prefab::Eye_Target)
+            .AtLevel(ETOI(LevelType::GamePlay))
+            .InLayer(L"Layer_EyeTarget")
+            .Position(kEyePos3)
+            .Spawn();
     }
 
     //퍼즐 컨트롤러

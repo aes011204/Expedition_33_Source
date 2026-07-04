@@ -48,18 +48,6 @@ namespace Client::PlayerWorldTuning
             state == PlayerState::GrappleAction;
     }
 
-    const char* Get_ParkourActionName(Player_ParkourAction::ParkourActionType actionType)
-    {
-        switch (actionType)
-        {
-        case Player_ParkourAction::ParkourActionType::HighMantle:
-            return "High";
-        case Player_ParkourAction::ParkourActionType::LowMantle:
-        default:
-            return "Low";
-        }
-    }
-
     bool Try_EnterParkourFromJumpIntent(
         const Shared<PlayerStateMachineCom>& stateMachineCom,
         Player_ParkourAction::ParkourActionType actionType)
@@ -67,24 +55,15 @@ namespace Client::PlayerWorldTuning
         if (stateMachineCom == nullptr)
             return false;
 
-        LOG_WARN("[Parkour] Try {} from JumpIntent", Get_ParkourActionName(actionType));
-
         const Shared<Player_ParkourAction> parkourAction =
             dynamic_pointer_cast<Player_ParkourAction>(stateMachineCom->Get_State(PlayerState::Parkour));
         if (parkourAction == nullptr)
-        {
-            LOG_WARN("[Parkour] Reject {} from JumpIntent: missing parkour state", Get_ParkourActionName(actionType));
             return false;
-        }
 
         if (!parkourAction->Try_PrepareAction(actionType))
-        {
-            LOG_WARN("[Parkour] {} rejected from JumpIntent", Get_ParkourActionName(actionType));
             return false;
-        }
 
         const bool changed = stateMachineCom->Change_State(PlayerState::Parkour);
-        LOG_WARN("[Parkour] {} {} from JumpIntent", Get_ParkourActionName(actionType), changed ? "accepted" : "change failed");
         if (!changed)
             parkourAction->Clear_PreparedAction();
 
@@ -328,6 +307,9 @@ void Player_WorldBase::Set_CinematicDriven(bool cinematicDriven)
         _movementCom->Stop_VerticalMovement();
         _movementCom->Sync_RuntimePositionToTransform();
     }
+
+    if (!cinematicDriven && _playerStateMachineCom)
+        _playerStateMachineCom->Reenter_CurrentState();
 }
 
 void Player_WorldBase::Set_PartyVisibilityAllowed(bool allowed)

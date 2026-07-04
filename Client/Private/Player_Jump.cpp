@@ -226,7 +226,7 @@ void Player_Jump::Update(float timeDelta)
 
 void Player_Jump::LateUpdate(float timeDelta)
 {
-    Draw_ParkourDebugRays();
+    //Draw_ParkourDebugRays();
 
 	uint32 animIndex = _bodyPlayer->Get_AnimationStateIndex();
 	bool isFinished = _bodyPlayer->Is_AnimationFinished();

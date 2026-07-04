@@ -377,6 +377,7 @@ private:
 
     // 현재 턴을 진행중인 적이 죽으면.
     bool _requestEndTurnOnCurrentActorDeath = false;
+    bool _lastCompletedTurnWasPlayer = true;
 
 public:
     struct Compare

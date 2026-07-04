@@ -1574,6 +1574,8 @@ void BattleCameraPreview_View::Render_PreviewActorSelector()
                 Apply_DefaultEnemyFormation();
                 _previewObjectsDirty = true;
                 _animationListDirty = true;
+                if (_previewContext.mode == BattleCameraMode::ENEMYATTACK && _editingEnemyAttackPrefabDrift)
+                    Load_BattleDriftForMode(_previewContext.mode);
                 _previewDirty = true;
             }
 
@@ -2040,9 +2042,12 @@ void BattleCameraPreview_View::Render_BattlePresetEditor()
     }
 
     const bool useBossEnemyAttackDrift = editorMode == BattleCameraMode::ENEMYATTACK && _editingEnemyAttackBossDrift;
+    const string enemyAttackDriftPrefabName =
+        editorMode == BattleCameraMode::ENEMYATTACK && _editingEnemyAttackPrefabDrift ? Get_SelectedEnemyPrefabName() : "";
     if (!_hasLoadedBattleDrift ||
         _loadedBattleDriftMode != editorMode ||
-        _loadedBattleDriftBossVariant != useBossEnemyAttackDrift)
+        _loadedBattleDriftBossVariant != useBossEnemyAttackDrift ||
+        _loadedBattleDriftPrefabName != enemyAttackDriftPrefabName)
         Load_BattleDriftForMode(editorMode);
 
     ImGui::Spacing();
@@ -2090,7 +2095,7 @@ void BattleCameraPreview_View::Render_BattlePresetEditor()
         if (Shared<Client::BattleTurnCamera> battleTurnCamera = Get_BattleTurnCamera())
         {
             battleTurnCamera->Set_Preset(editorMode, _editingBattlePreset);
-            battleTurnCamera->Set_DriftProfile(editorMode, _editingBattleDrift, useBossEnemyAttackDrift);
+            battleTurnCamera->Set_DriftProfile(editorMode, _editingBattleDrift, useBossEnemyAttackDrift, enemyAttackDriftPrefabName);
             battleTurnCamera->Set_Clip(editorMode, _editingBattleClip, selectedClipId);
         }
 
@@ -2162,11 +2167,22 @@ void BattleCameraPreview_View::Render_BattlePresetEditor()
         ImGui::SameLine();
         ImGui::TextDisabled(_editingEnemyAttackBossDrift ? "Saving to BattleDrift_ENEMYATTACK_Boss.json" : "Saving to BattleDrift_ENEMYATTACK.json");
 
-        if (bossVariantChanged)
+        bool prefabVariantChanged = false;
+        if (ImGui::Checkbox("Selected Enemy Prefab Drift", &_editingEnemyAttackPrefabDrift))
+            prefabVariantChanged = true;
+
+        if (_editingEnemyAttackPrefabDrift)
+            ImGui::TextDisabled("Saving to BattleDrift_ENEMYATTACK_%s.json", Get_SelectedEnemyPrefabName().c_str());
+
+        if (bossVariantChanged || prefabVariantChanged)
         {
             Load_BattleDriftForMode(editorMode);
             if (Shared<Client::BattleTurnCamera> battleTurnCamera = Get_BattleTurnCamera())
-                battleTurnCamera->Set_DriftProfile(editorMode, _editingBattleDrift, _editingEnemyAttackBossDrift);
+                battleTurnCamera->Set_DriftProfile(
+                    editorMode,
+                    _editingBattleDrift,
+                    _editingEnemyAttackBossDrift,
+                    _editingEnemyAttackPrefabDrift ? Get_SelectedEnemyPrefabName() : "");
             _previewDirty = true;
         }
     }
@@ -2175,7 +2191,7 @@ void BattleCameraPreview_View::Render_BattlePresetEditor()
     {
         Load_BattleDriftForMode(editorMode);
         if (Shared<Client::BattleTurnCamera> battleTurnCamera = Get_BattleTurnCamera())
-            battleTurnCamera->Set_DriftProfile(editorMode, _editingBattleDrift, useBossEnemyAttackDrift);
+            battleTurnCamera->Set_DriftProfile(editorMode, _editingBattleDrift, useBossEnemyAttackDrift, enemyAttackDriftPrefabName);
         _battleDriftDirty = false;
         _previewDirty = true;
     }
@@ -2183,9 +2199,13 @@ void BattleCameraPreview_View::Render_BattlePresetEditor()
     ImGui::SameLine();
     if (ImGui::Button("Save Drift"))
     {
-        Client::CameraPresetIO::SaveBattleDriftToFile(editorMode, _editingBattleDrift, useBossEnemyAttackDrift);
+        Client::CameraPresetIO::SaveBattleDriftToFile(
+            editorMode,
+            _editingBattleDrift,
+            useBossEnemyAttackDrift,
+            enemyAttackDriftPrefabName);
         if (Shared<Client::BattleTurnCamera> battleTurnCamera = Get_BattleTurnCamera())
-            battleTurnCamera->Set_DriftProfile(editorMode, _editingBattleDrift, useBossEnemyAttackDrift);
+            battleTurnCamera->Set_DriftProfile(editorMode, _editingBattleDrift, useBossEnemyAttackDrift, enemyAttackDriftPrefabName);
         _battleDriftDirty = false;
     }
 
@@ -2206,7 +2226,7 @@ void BattleCameraPreview_View::Render_BattlePresetEditor()
         if (Shared<Client::BattleTurnCamera> battleTurnCamera = Get_BattleTurnCamera())
         {
             battleTurnCamera->Set_Preset(editorMode, _editingBattlePreset);
-            battleTurnCamera->Set_DriftProfile(editorMode, _editingBattleDrift, useBossEnemyAttackDrift);
+            battleTurnCamera->Set_DriftProfile(editorMode, _editingBattleDrift, useBossEnemyAttackDrift, enemyAttackDriftPrefabName);
         }
 
         _battlePresetDirty = true;
@@ -3818,9 +3838,12 @@ void BattleCameraPreview_View::Load_BattleDriftForMode(BattleCameraMode mode)
 {
     _editingBattleDrift = BattleCameraDriftProfile{};
     const bool useBossEnemyAttackDrift = mode == BattleCameraMode::ENEMYATTACK && _editingEnemyAttackBossDrift;
-    Client::CameraPresetIO::LoadBattleDriftFromFile(mode, _editingBattleDrift, useBossEnemyAttackDrift);
+    const string enemyAttackDriftPrefabName =
+        mode == BattleCameraMode::ENEMYATTACK && _editingEnemyAttackPrefabDrift ? Get_SelectedEnemyPrefabName() : "";
+    Client::CameraPresetIO::LoadBattleDriftFromFile(mode, _editingBattleDrift, useBossEnemyAttackDrift, enemyAttackDriftPrefabName);
     _loadedBattleDriftMode = mode;
     _loadedBattleDriftBossVariant = useBossEnemyAttackDrift;
+    _loadedBattleDriftPrefabName = enemyAttackDriftPrefabName;
     _hasLoadedBattleDrift = true;
     _battleDriftDirty = false;
 }
@@ -3935,7 +3958,11 @@ bool BattleCameraPreview_View::Apply_AuthoringFileSelection(const fs::path& file
     if (Shared<Client::BattleTurnCamera> battleTurnCamera = Get_BattleTurnCamera())
     {
         battleTurnCamera->Set_Preset(_previewContext.mode, _editingBattlePreset);
-        battleTurnCamera->Set_DriftProfile(_previewContext.mode, _editingBattleDrift, _previewContext.mode == BattleCameraMode::ENEMYATTACK && _editingEnemyAttackBossDrift);
+        battleTurnCamera->Set_DriftProfile(
+            _previewContext.mode,
+            _editingBattleDrift,
+            _previewContext.mode == BattleCameraMode::ENEMYATTACK && _editingEnemyAttackBossDrift,
+            _previewContext.mode == BattleCameraMode::ENEMYATTACK && _editingEnemyAttackPrefabDrift ? Get_SelectedEnemyPrefabName() : "");
         battleTurnCamera->Set_Clip(_previewContext.mode, _editingBattleClip, Get_CurrentBattleClipAuthoringOverrideId());
     }
 

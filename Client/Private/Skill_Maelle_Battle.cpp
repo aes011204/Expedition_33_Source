@@ -79,8 +79,30 @@ void Skill_Maelle_Percee::Execute(const Skill_Data& skill, const BattleAction& a
 
     const BattleChar& target = curTargets.front();
 
-    const float damage = DamageSystem::CalculatePlayerAttackDamage(attacker, skill.powerMultiplier);
+    auto battle = CLIENT->Get_BattleController();
+    CHECK_NULL(battle);
+
+    const bool wasVirtuoseStance =
+        attacker.mechanismCom != nullptr &&
+        attacker.mechanismCom->Get_MaelleStance() == BattleMechanismCom::MaelleStance::Virtuose;
+
+    const bool hadMark = battle->Has_Buff(target, Buffs::Mark);
+
+    float damage = DamageSystem::CalculatePlayerAttackDamage(attacker, skill.powerMultiplier);
+
+    if (hadMark)
+    {
+        constexpr float kMarkedPerceeDamageMultiplier = 1.5f;
+        damage *= kMarkedPerceeDamageMultiplier;
+    }
+
     DamageSystem::ApplyDamage(damage, attacker, target, attackType);
+
+    if (wasVirtuoseStance && attacker.statCom != nullptr)
+    {
+        constexpr uint32 kVirtuosePerceeApGain = 2;
+        attacker.statCom->Add_AP(kVirtuosePerceeApGain);
+    }
 
     if (target.actor != nullptr)
     {
@@ -92,7 +114,7 @@ void Skill_Maelle_Percee::Execute(const Skill_Data& skill, const BattleAction& a
     }
 
     if (attacker.mechanismCom != nullptr)
-        attacker.mechanismCom->Set_MaelleStance(BattleMechanismCom::MaelleStance::Defensive);
+        attacker.mechanismCom->Set_MaelleStance(BattleMechanismCom::MaelleStance::Offensive);
 }
 
 Shared<Skill_Maelle_Percee> Skill_Maelle_Percee::Create()
@@ -113,7 +135,7 @@ void Skill_Maelle_FireRise::Execute(const Skill_Data& skill, const BattleAction&
 
     const float damage = DamageSystem::CalculatePlayerAttackDamage(attacker, skill.powerMultiplier);
     DamageSystem::ApplyDamage(damage, attacker, target, attackType);
-    
+
     if (attacker.mechanismCom != nullptr)
         attacker.mechanismCom->Set_MaelleStance(BattleMechanismCom::MaelleStance::Virtuose);
 }
@@ -134,15 +156,14 @@ void Skill_Maelle_FleureFury::Execute(const Skill_Data& skill, const BattleActio
 
     const BattleChar& target = curTargets.front();
 
-    const float damage = DamageSystem::CalculatePlayerAttackDamage(attacker, skill.powerMultiplier);
+    const float damage = (DamageSystem::CalculatePlayerAttackDamage(attacker, skill.powerMultiplier)) / 3.f;
     DamageSystem::ApplyDamage(damage, attacker, target, attackType);
 
     auto battle = CLIENT->Get_BattleController();
     CHECK_NULL(battle);
 
     battle->Try_ApplySkillBuff(skill, target);
-    
-    // 임시로 명인태세
+
     if (attacker.mechanismCom != nullptr)
         attacker.mechanismCom->Set_MaelleStance(BattleMechanismCom::MaelleStance::Virtuose);
 }
@@ -163,17 +184,29 @@ void Skill_Maelle_Spark::Execute(const Skill_Data& skill, const BattleAction& ac
 
     const BattleChar& target = curTargets.front();
 
+    // 공격태세면 연소 2스택 추가
+    const bool wasOffensiveStance =
+        attacker.mechanismCom != nullptr &&
+        attacker.mechanismCom->Get_MaelleStance() == BattleMechanismCom::MaelleStance::Offensive;
+
     const float damage = DamageSystem::CalculatePlayerAttackDamage(attacker, skill.powerMultiplier);
     DamageSystem::ApplyDamage(damage, attacker, target, attackType);
-    
-    // 임시로 명인태세
-    if (attacker.mechanismCom != nullptr)
-        attacker.mechanismCom->Set_MaelleStance(BattleMechanismCom::MaelleStance::Virtuose);
 
     auto battle = CLIENT->Get_BattleController();
     CHECK_NULL(battle);
 
-    battle->Try_ApplySkillBuff(skill, target);
+    constexpr uint32 kSparkBurnStack = 3;
+    constexpr uint32 kOffensiveBonusBurnStack = 2;
+
+    battle->Apply_Buff(target, Buffs::Burn, kSparkBurnStack, skill.buffDurationTurn);
+
+    if (wasOffensiveStance)
+    {
+        battle->Apply_Buff(target, Buffs::Burn, kOffensiveBonusBurnStack, skill.buffDurationTurn);
+    }
+
+    if (attacker.mechanismCom != nullptr)
+        attacker.mechanismCom->Set_MaelleStance(BattleMechanismCom::MaelleStance::Defensive);
 }
 
 Shared<Skill_Maelle_Spark> Skill_Maelle_Spark::Create()
@@ -194,7 +227,7 @@ void Skill_Maelle_Stendhal::Execute(const Skill_Data& skill, const BattleAction&
 
     const float damage = DamageSystem::CalculatePlayerAttackDamage(attacker, skill.powerMultiplier);
     DamageSystem::ApplyDamage(damage, attacker, target, attackType);
-    
+
     // 임시로 명인태세
     if (attacker.mechanismCom != nullptr)
         attacker.mechanismCom->Set_MaelleStance(BattleMechanismCom::MaelleStance::Virtuose);
@@ -216,12 +249,13 @@ void Skill_Maelle_SwordBallet::Execute(const Skill_Data& skill, const BattleActi
 
     const BattleChar& target = curTargets.front();
 
-    const float damage = DamageSystem::CalculatePlayerAttackDamage(attacker, skill.powerMultiplier);
-    DamageSystem::ApplyDamage(damage, attacker, target, attackType);
+    const float damage = DamageSystem::CalculatePlayerAttackDamage(attacker, skill.powerMultiplier) / 4.f;
 
-    // 임시로 명인태세
+    const DamageAppliedInfo damageInfo =
+        DamageSystem::ApplyDamage(damage, attacker, target, attackType, nullptr, 2.f);
+
     if (attacker.mechanismCom != nullptr)
-        attacker.mechanismCom->Set_MaelleStance(BattleMechanismCom::MaelleStance::Virtuose);
+        attacker.mechanismCom->Set_MaelleStance(BattleMechanismCom::MaelleStance::Offensive);
 }
 
 Shared<Skill_Maelle_SwordBallet> Skill_Maelle_SwordBallet::Create()
@@ -240,17 +274,28 @@ void Skill_Maelle_Pyrolyse::Execute(const Skill_Data& skill, const BattleAction&
 
     const BattleChar& target = curTargets.front();
 
+    const bool wasOffensiveStance =
+        attacker.mechanismCom != nullptr &&
+        attacker.mechanismCom->Get_MaelleStance() == BattleMechanismCom::MaelleStance::Offensive;
+
     const float damage = DamageSystem::CalculatePlayerAttackDamage(attacker, skill.powerMultiplier);
     DamageSystem::ApplyDamage(damage, attacker, target, attackType);
-    
-    // 임시로 명인태세
-    if (attacker.mechanismCom != nullptr)
-        attacker.mechanismCom->Set_MaelleStance(BattleMechanismCom::MaelleStance::Virtuose);
 
     auto battle = CLIENT->Get_BattleController();
     CHECK_NULL(battle);
 
-    battle->Try_ApplySkillBuff(skill, target);
+    constexpr uint32 kPyrolyseBurnStack = 5;
+    constexpr uint32 kOffensiveBonusBurnStack = 2;
+
+    battle->Apply_Buff(target, Buffs::Burn, kPyrolyseBurnStack, skill.buffDurationTurn);
+
+    if (wasOffensiveStance)
+    {
+        battle->Apply_Buff(target, Buffs::Burn, kOffensiveBonusBurnStack, skill.buffDurationTurn);
+    }
+
+    if (attacker.mechanismCom != nullptr)
+        attacker.mechanismCom->Set_MaelleStance(BattleMechanismCom::MaelleStance::Virtuose);
 }
 
 Shared<Skill_Maelle_Pyrolyse> Skill_Maelle_Pyrolyse::Create()

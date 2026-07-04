@@ -3,6 +3,7 @@
 #include "ClientInstance.h"
 #include "BattleController.h"
 #include "BattleEffectPrewarmCollector.h"
+#include "BattleTargetingVoicePreset.h"
 #include "BT_Node_Bootstrap.h"
 #include "ComputeSpriteEmitter.h"
 #include "EffectCom.h"
@@ -315,6 +316,16 @@ HRESULT ClientInstance::Initialize_Client(const ComPtr<Device>& device, const Co
 
     _battleController = BattleController::Create();
     CHECK_NULL(_battleController, E_FAIL);
+
+    _battleTargetingVoicePreset = BattleTargetingVoicePreset::Create();
+    CHECK_NULL(_battleTargetingVoicePreset, E_FAIL);
+
+    _battleTargetingVoiceTurnStartedHandle =
+        _battleController->OnTurnStarted.Add(
+            [this](const BattleChar& actor, BattleTurnState state)
+            {
+                Handle_BattleTargetingVoiceTurnStarted(actor, state);
+            });
 
     _previewShotTable = PreviewShotTable::Create();
     CHECK_NULL(_previewShotTable, E_FAIL);
@@ -945,6 +956,21 @@ const vector<HeroPartyEntry>& ClientInstance::Get_HeroEntries() const
     return _heroManager->Get_HeroEntries();
 }
 
+void ClientInstance::Restore_CurrentHeroesHpToMax()
+{
+    if (_heroManager == nullptr)
+        return;
+
+    for (const HeroPartyEntry& entry : _heroManager->Get_HeroEntries())
+    {
+        if (entry.hero == nullptr)
+            continue;
+
+        if (Shared<PlayerStatCom> stat = entry.hero->Get_Component<PlayerStatCom>())
+            stat->Restore_HpToMax();
+    }
+}
+
 Shared<Player_WorldBase> ClientInstance::Get_Hero(HeroPartySlot slot) const
 {
     return _heroManager->Get_Hero(slot);
@@ -1553,6 +1579,8 @@ bool ClientInstance::Request_DialogueBattlePotatoBag()
     RuntimeRuleStateService::Apply_ToCurrentRuntime(
         RuntimeRuleStateService::Build_PotatoBagStartUnlocks(), false);
 
+    Restore_CurrentHeroesHpToMax();
+
     BattleMonsterSpawnDesc spawnDesc{};
     spawnDesc.prefabName = Constants::Prefab::MB_PotatoBag;
 
@@ -1592,6 +1620,33 @@ bool ClientInstance::Is_PotatoBagBattleActive() const
     // 감자자루랑 전투중일 때에만 NPC가 보이게 처리하ㅣㄱ
     return _battleController &&
         _battleController->Is_BattleFieldActiveOrEntering(Constants::Value::potatoBagEncounterId);
+}
+
+bool ClientInstance::Play_BattleMonsterTargetingVoice(
+    const ActionRequest& request,
+    const vector<BattleChar>& targetedHeroes)
+{
+    if (_battleTargetingVoicePreset == nullptr || _battleController == nullptr)
+        return false;
+
+    const Skill_Data* selectedSkill = Get_Skill(request.skillKey);
+    return _battleTargetingVoicePreset->Play(
+        request,
+        targetedHeroes,
+        _battleController->Get_BattleHeroes(),
+        selectedSkill);
+}
+
+void ClientInstance::Handle_BattleTargetingVoiceTurnStarted(
+    const BattleChar& actor,
+    BattleTurnState state)
+{
+    UNREFERENCED_PARAMETER(state);
+
+    if (_battleTargetingVoicePreset == nullptr)
+        return;
+
+    _battleTargetingVoicePreset->Reset_ForTurn(actor);
 }
 
 void ClientInstance::Request_GamePlay()
@@ -2476,6 +2531,12 @@ void ClientInstance::Release_Client()
             }
         };
 
+    if (_battleController != nullptr && _battleTargetingVoiceTurnStartedHandle.IsValid())
+    {
+        _battleController->OnTurnStarted.Remove(_battleTargetingVoiceTurnStartedHandle);
+        _battleTargetingVoiceTurnStartedHandle.Reset();
+    }
+
     ReleaseManager(_gameDataTable);
     ReleaseManager(_previewShotTable);
     ReleaseManager(_previewManager);
@@ -2487,6 +2548,7 @@ void ClientInstance::Release_Client()
     ReleaseManager(_heroManager);
     ReleaseManager(_playerInventory);
     ReleaseManager(_costumeManager);
+    ReleaseManager(_battleTargetingVoicePreset);
     ReleaseManager(_battleController);
     ReleaseManager(_gamePlayUI);
     ReleaseManager(_screenFxManager);

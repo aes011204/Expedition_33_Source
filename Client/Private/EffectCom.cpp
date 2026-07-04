@@ -1,6 +1,7 @@
 ﻿#include "EffectCom.h"
 
 #include "ClientInstance.h"
+#include "Camera.h"
 #include "ContainerObject.h"
 #include "EffectAssetRuntimeLoader.h"
 #include "EffectInstance.h"
@@ -23,6 +24,35 @@
 
 namespace Internal
 {
+Vec3 Resolve_CameraDirectionFromAnchor(const Vec3& anchorPosition, const Vec3& fallback)
+{
+    if (GAME != nullptr)
+    {
+        const ObjectType cameraTypes[] = {
+            ObjectType::BattleTurnCamera,
+            ObjectType::TargetCamera,
+            ObjectType::CinematicCamera,
+            ObjectType::FreeCamera,
+        };
+
+        for (const ObjectType cameraType : cameraTypes)
+        {
+            const Shared<Camera> camera = GAME->Get_CameraByType(cameraType);
+            if (camera == nullptr || camera->Get_Transform() == nullptr)
+                continue;
+
+            Vec3 direction = camera->Get_Transform()->Get_WorldPosition() - anchorPosition;
+            if (direction.LengthSquared() <= 0.000001f)
+                continue;
+
+            direction.Normalize();
+            return direction;
+        }
+    }
+
+    return fallback;
+}
+
 float Resolve_TrailDrainDuration(const Shared<const EffectDefinition>& definition)
 {
     constexpr float fallbackDuration = 0.25f;
@@ -483,6 +513,7 @@ void EffectCom::Set_InspectorEffectLocalOffset(const Vec3& localOffset)
             attached.localRotation,
             attached.scale,
             attached.transformInheritance,
+            attached.localOffsetZTowardCamera,
             targetWorldPosition,
             targetWorldRotation,
             targetWorldScale
@@ -556,6 +587,7 @@ HRESULT EffectCom::Play_Effect(const EffectPlayDesc& desc, EffectInstancePool::A
         desc.localRotation,
         desc.scale,
         desc.transformInheritance,
+        desc.localOffsetZTowardCamera,
         spawnWorldPosition,
         spawnWorldRotation,
         spawnWorldScale
@@ -624,6 +656,7 @@ HRESULT EffectCom::Play_Effect(const EffectPlayDesc& desc, EffectInstancePool::A
     attached.localRotation = desc.localRotation;
     attached.scale = desc.scale;
     attached.transformInheritance = desc.transformInheritance;
+    attached.localOffsetZTowardCamera = desc.localOffsetZTowardCamera;
     attached.followTarget = desc.followTarget;
     attached.role = AttachedEffectRole::Normal;
     attached.trailSampleProvider = desc.trailSampleProvider.lock();
@@ -695,6 +728,7 @@ bool EffectCom::Try_ResolveEffectWorldTransform(
     const Vec3& localRotation,
     const Vec3& scale,
     const EffectTransformInheritance& transformInheritance,
+    bool localOffsetZTowardCamera,
     Vec3& outWorldPosition,
     Quat& outWorldRotation,
     Vec3& outWorldScale) const
@@ -775,6 +809,21 @@ bool EffectCom::Try_ResolveEffectWorldTransform(
     }
 
     Matrix finalWorldMatrix = localMatrix * basisWorldMatrix;
+    if (localOffsetZTowardCamera)
+    {
+        const Vec3 fallbackDirection = basisLook;
+        const Vec3 cameraDirection = Internal::Resolve_CameraDirectionFromAnchor(baseTranslation, fallbackDirection);
+        const Vec3 origin = transformInheritance.inheritPosition ? baseTranslation : Vec3::Zero;
+        const Vec3 customTranslation =
+            origin +
+            basisRight * localOffset.x +
+            basisUp * localOffset.y +
+            cameraDirection * localOffset.z;
+
+        finalWorldMatrix._41 = customTranslation.x;
+        finalWorldMatrix._42 = customTranslation.y;
+        finalWorldMatrix._43 = customTranslation.z;
+    }
 
     Vec3 decomposedScale = Vec3::One;
     Quat decomposedRotation = Quat::Identity;
@@ -1424,6 +1473,7 @@ void EffectCom::Update_AttachedEffects(float timeDelta)
             attached.localRotation,
             attached.scale,
             attached.transformInheritance,
+            attached.localOffsetZTowardCamera,
             targetWorldPosition,
             targetWorldRotation,
             targetWorldScale
