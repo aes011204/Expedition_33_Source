@@ -3937,6 +3937,7 @@ void BattleController::Continue_StartTurnAfterStatusEffects()
         GAME->Get_EventBus().Publish(event);
 
         OnTurnStarted.Broadcast(_currentTurnActor, BattleTurnState::ChooseAction);
+        CLIENT->Play_BattleTurnStartVoice();
         return;
     }
 

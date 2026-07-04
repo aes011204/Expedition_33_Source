@@ -48,6 +48,7 @@ class Unlock_Manager;
 class BattleFollowupManager;
 class SimonCriticalGlowController;
 class BattleTargetingVoicePreset;
+class BattleTurnStartVoicePreset;
 
 DECLARE_DELEGATE(FOnFreeAimShotHit);
 
@@ -226,6 +227,7 @@ public: /* For.Battle_Controller */
     bool Play_BattleMonsterTargetingVoice(
         const ActionRequest& request,
         const vector<BattleChar>& targetedHeroes);
+    bool Play_BattleTurnStartVoice();
 
 public: /*For.Camera Director*/
     void Request_GamePlay();
@@ -433,6 +435,7 @@ private:
 
     Shared<BattleController>    _battleController;
     Unique<BattleTargetingVoicePreset> _battleTargetingVoicePreset;
+    Unique<BattleTurnStartVoicePreset> _battleTurnStartVoicePreset;
     FDelegateHandle             _battleTargetingVoiceTurnStartedHandle{};
     Shared<PlayerInventory>     _playerInventory;
 
