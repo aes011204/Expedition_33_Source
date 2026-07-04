@@ -446,6 +446,12 @@ BattleReactionController::BattleReactionInputResult BattleReactionController::Su
         if (success && context.isEcho)
             Mark_EchoReactionInputConsumed(context);
 
+        if (success)
+        {
+            GAME->Play_SoundCue(Constants::SoundCue::SFX_Dodge_Success);
+            GAME->Play_SoundCue(Constants::SoundCue::SFX_UI_Dodge_Success);
+        }
+
         for (const BattleChar& target : inputTargets)
         {
             PlayReactionAnimation(

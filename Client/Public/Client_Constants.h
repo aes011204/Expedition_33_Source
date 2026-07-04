@@ -605,7 +605,11 @@ namespace Client::Constants::SoundCue
     constexpr const wchar_t* UI_Battle_QTE_Miss = L"UI_Battle_QTE_Miss";
     constexpr const wchar_t* UI_Battle_QTE_SuccessPerfect = L"UI_Battle_QTE_SuccessPerfect";
     constexpr const wchar_t* UI_Battle_QTE_SuccessRegular = L"UI_Battle_QTE_SuccessRegular";
-
+    constexpr const wchar_t* SFX_Dodge_Success = L"SFX_Dodge_Success";
+    constexpr const wchar_t* SFX_UI_Dodge_Success = L"SFX_UI_Dodge_Success";
+    constexpr const wchar_t* SFX_FreeAimStart = L"SFX_FreeAimStart";
+    constexpr const wchar_t* SFX_FreeAimStop = L"SFX_FreeAimStop";
+    constexpr const wchar_t* SFX_FreeAimHit = L"SFX_FreeAimHit";
     constexpr const wchar_t* UI_SkillTree_Navigate = L"UI_SkillTree_Navigate";
     constexpr const wchar_t* UI_SkillTree_Learn = L"UI_SkillTree_Learn";
     constexpr const wchar_t* UI_SkillTree_Blocked = L"UI_SkillTree_Blocked";

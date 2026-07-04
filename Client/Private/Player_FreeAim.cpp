@@ -11,6 +11,7 @@
 #include "Player_WorldBase.h"
 #include "TargetCamera.h"
 #include "ClientInstance.h"
+#include "Client_Constants.h"
 #include "EyeTarget.h"
 
 namespace
@@ -130,6 +131,8 @@ bool Player_FreeAim::EnterInvoke()
         }
     }
 
+    GAME->Play_SoundCue(Constants::SoundCue::SFX_FreeAimStart);
+
     return true;
 }
 
@@ -172,6 +175,7 @@ void Player_FreeAim::Update(float timeDelta)
         {
             Cache_PendingFreeAimShot();
 
+            GAME->Play_SoundCue(Constants::SoundCue::SFX_FreeAimHit);
             _bodyPlayer->Set_AnimationByState(ETOI(plAnim::Pl_FreeAim_Shoot), 0.25f, false);
             _bodyPlayer->Set_AnimationSpeed(2.f);
         }
@@ -208,6 +212,8 @@ void Player_FreeAim::LateUpdate(float timeDelta)
 
 void Player_FreeAim::ExitInvoke()
 {
+    GAME->Play_SoundCue(Constants::SoundCue::SFX_FreeAimStop);
+
     _hasHitObject = false;
     _hitObject.reset();
     Clear_PendingFreeAimShot();

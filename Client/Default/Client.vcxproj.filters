@@ -475,6 +475,9 @@
     <ClCompile Include="..\Private\BattleResultRecoder.cpp">
       <Filter>05. BattleSystem</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\BattleTargetingVoicePreset.cpp">
+      <Filter>05. BattleSystem</Filter>
+    </ClCompile>
     <ClCompile Include="..\Private\BattleSpawnRegistry.cpp">
       <Filter>BattleState</Filter>
     </ClCompile>
@@ -1932,6 +1935,9 @@
       <Filter>BattleState</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\BattleResultRecoder.h">
+      <Filter>05. BattleSystem</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\BattleTargetingVoicePreset.h">
       <Filter>05. BattleSystem</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\BattleSpawnRegistry.h">

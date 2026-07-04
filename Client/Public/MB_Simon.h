@@ -34,6 +34,17 @@ public:
     void Set_PlayEffect(bool playEffect);
 
     void PlaySimonEffect();
+    bool Play_BodyOffsetModifierOnce(
+        const wstring& modifierTag,
+        float strengthAlpha,
+        float durationSec,
+        float startRatio = 0.f,
+        float playRate = 1.f);
+    bool Play_DefaultBodyOffsetOnce(
+        float strengthAlpha,
+        float durationSec,
+        float startRatio = 0.f,
+        float playRate = 1.f);
 protected:
     HRESULT Ready_PartObjects();
     bool    Should_ApplySerializedPart(const wstring& partTag, const json& partObjectJson) const override;

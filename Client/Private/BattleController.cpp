@@ -18,6 +18,7 @@
 #include "Create_Class.h"
 #include "ItemTargeting.h"
 #include "MB_Lancelier.h"
+#include "MB_Simon.h"
 #include "Player_WorldBase.h"
 #include "Player_BattleBase.h"
 #include "SkillTargeting.h"
@@ -394,6 +395,8 @@ void BattleController::Run_EnemyTurn()
     }
 
     Play_EnemyTargetedStart(targetedHeroes);
+
+    CLIENT->Play_BattleMonsterTargetingVoice(Get_TurnActionRequest(), targetedHeroes);
 
     ExecuteActionRequest(Get_TurnActionRequest());
 
@@ -2891,6 +2894,11 @@ void BattleController::Handle_DamageApplied(const DamageAppliedInfo& info)
                         targetTransform->Set_RotationEuler(rot);
                     }
                 }
+            }
+
+            if (const Shared<MB_Simon> simon = dynamic_pointer_cast<MB_Simon>(info.target.actor))
+            {
+                simon->Play_DefaultBodyOffsetOnce(1.f, -1.f);
             }
 
             HitAction(info.target, info.attackType, info.isCritical);
