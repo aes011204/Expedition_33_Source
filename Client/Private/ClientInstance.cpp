@@ -39,13 +39,12 @@
 #include "BattleEncounterProfile.h"
 #include "CameraPresetIO.h"
 #include "Unlock_Manager.h"
-#include "DialogueDB.h"
 #include "DialogueManager.h"
 #include "DialogueCamera.h"
 #include "BattleFollowupManager.h"
-#include "Client_Constants.h"
 #include "Monster_WorldBase.h"
 #include "NPC_Base.h"
+#include "SimonCriticalGlowController.h"
 #include "ContainerObject.h"
 #include "ModelCom.h"
 
@@ -395,6 +394,9 @@ HRESULT ClientInstance::Initialize_Client(const ComPtr<Device>& device, const Co
 
     _battleFollowupManager = BattleFollowupManager::Create();
     CHECK_NULL(_battleFollowupManager, E_FAIL);
+
+    _simonCriticalGlowController = SimonCriticalGlowController::Create();
+    CHECK_NULL(_simonCriticalGlowController, E_FAIL);
 
     _isInitialized = true;
 

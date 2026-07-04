@@ -43,6 +43,7 @@ class CostumeManager;
 class SoulLikeController;
 class Unlock_Manager;
 class BattleFollowupManager;
+class SimonCriticalGlowController;
 
 DECLARE_DELEGATE(FOnFreeAimShotHit);
 
@@ -374,6 +375,8 @@ public:
 public: /* Battle Followup Manager */
      BattleFollowupManager* Get_BattleFollowupManager() const { return _battleFollowupManager.get(); }
 
+public: // Simon Critical Glow Controller
+    SimonCriticalGlowController* Get_SimonCriticalGlowController() const { return _simonCriticalGlowController.get(); }
 
 private:
 	HRESULT Ready_ResourceLoader();
@@ -456,6 +459,8 @@ private:
     };
 
     ReplayCameraSnapshot _replayCameraSnapshot{};
+
+    Unique<SimonCriticalGlowController> _simonCriticalGlowController;
 
 public:
 	void Free() override;
