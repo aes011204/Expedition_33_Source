@@ -2418,6 +2418,22 @@ void BattleController::Play_EnemyTargetedStart(const vector<BattleChar>& targets
     if (_enemyTurnTargetedActors.empty())
         return;
 
+    _battleSpawnRotationReturns.erase(
+        remove_if(
+            _battleSpawnRotationReturns.begin(),
+            _battleSpawnRotationReturns.end(),
+            [this](const BattleSpawnRotationReturn& runtime)
+            {
+                for (const BattleChar& target : _enemyTurnTargetedActors)
+                {
+                    if (runtime.target.actor == target.actor)
+                        return true; // 이전 턴의 원위치 회전 복귀가 Targeted_Start 회전을 덮지 않게 한다.
+                }
+
+                return false;
+            }),
+        _battleSpawnRotationReturns.end());
+
     const BattleChar& attacker = Get_TurnActionRequest().actor;
     if (attacker.actor != nullptr)
     {

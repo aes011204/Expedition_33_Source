@@ -14,6 +14,14 @@ namespace
         int32 luck = 0;
     };
 
+    struct WeaponMilestoneStatBonus
+    {
+        int32 hp = 0;
+        int32 attack = 0;
+        int32 defense = 0;
+        int32 criticalRate = 0;
+    };
+
     int32 Resolve_WeaponGradeBonusValue(const string& grade)
     {
         if (grade == "S")
@@ -70,6 +78,85 @@ namespace
         bonus.luck = Resolve_WeaponGradeBonusValue(upgradeDesc->luckGrade);
         return bonus;
     }
+
+    WeaponMilestoneStatBonus Resolve_EquippedWeaponMilestoneStatBonus(
+        const PlayerStatCom::PlayerCombatStatDesc& playerDesc,
+        const Shared<GameObject>& owner)
+    {
+        WeaponMilestoneStatBonus bonus{};
+        if (playerDesc.equippedWeaponId.empty())
+            return bonus;
+
+        const string characterId = Resolve_PlayerCharacterIdFromOwner(owner);
+        if (characterId.empty())
+            return bonus;
+
+        const uint32 enhanceLevel = CLIENT->Resolve_WeaponEnhanceLevel(characterId, playerDesc.equippedWeaponId);
+        const string& weaponId = playerDesc.equippedWeaponId;
+
+        if (characterId == "Gustave")
+        {
+            if (weaponId == "Lanceram" || weaponId == "Tireso")
+            {
+                if (enhanceLevel >= 1)
+                    bonus.criticalRate += 15;
+
+                if (enhanceLevel >= 5)
+                    bonus.attack += 158;
+            }
+            else if (weaponId == "Baguette")
+            {
+                if (enhanceLevel >= 1)
+                    bonus.criticalRate += 15;
+
+                if (enhanceLevel >= 5)
+                    bonus.defense += 158;
+            }
+        }
+        else if (characterId == "Lune")
+        {
+            if (weaponId == "Baguette")
+            {
+                if (enhanceLevel >= 5)
+                    bonus.criticalRate += 15;
+            }
+            else if (weaponId == "Colim" || weaponId == "Snowim")
+            {
+                if (enhanceLevel >= 5)
+                    bonus.hp += 158;
+            }
+        }
+        else if (characterId == "Maelle")
+        {
+            if (weaponId == "Medalum")
+            {
+                if (enhanceLevel >= 1)
+                    bonus.hp += 158;
+
+                if (enhanceLevel >= 5)
+                    bonus.defense += 158;
+            }
+            else if (weaponId == "Baguette")
+            {
+                if (enhanceLevel >= 1)
+                    bonus.criticalRate += 15;
+
+                if (enhanceLevel >= 5)
+                    bonus.hp += 158;
+            }
+            else if (weaponId == "Plenum")
+            {
+                if (enhanceLevel >= 1)
+                    bonus.attack += 158;
+
+                if (enhanceLevel >= 5)
+                    bonus.defense += 158;
+            }
+        }
+
+        return bonus;
+    }
+
 }
 
 IMPLEMENT_REFLECTION(PlayerStatCom)
@@ -535,6 +622,7 @@ array<int32*, static_cast<size_t>(StatType::END)> PlayerStatCom::Get_StatValues(
 void PlayerStatCom::Recalculate_Stats()
 {
     const WeaponGradeStatBonus weaponBonus = Resolve_EquippedWeaponGradeBonus(_playerDesc, Get_Owner());
+    const WeaponMilestoneStatBonus milestoneBonus = Resolve_EquippedWeaponMilestoneStatBonus(_playerDesc, Get_Owner());
 
     _PRuntimeStat.CurVitality = _playerDesc.vitality + weaponBonus.vitality;
     _PRuntimeStat.CurMight = _playerDesc.might + weaponBonus.might;
@@ -570,11 +658,11 @@ void PlayerStatCom::Recalculate_Stats()
         resultCritical += pictosDesc->critical;
     }
 
-    _playerDesc.maxHp = preview.maxHp + static_cast<float>(resultHp);
-    _playerDesc.physicalAttack = preview.physicalAttack + weaponAttack;
-    _playerDesc.physicalDefense = preview.physicalDefense;
+    _playerDesc.maxHp = preview.maxHp + static_cast<float>(resultHp + milestoneBonus.hp);
+    _playerDesc.physicalAttack = preview.physicalAttack + weaponAttack + static_cast<float>(milestoneBonus.attack);
+    _playerDesc.physicalDefense = preview.physicalDefense + static_cast<float>(milestoneBonus.defense);
     _playerDesc.speed = preview.speed + static_cast<float>(resultSpeed);
-    _playerDesc.criticalRate = preview.criticalRate + static_cast<float>(resultCritical);
+    _playerDesc.criticalRate = preview.criticalRate + static_cast<float>(resultCritical + milestoneBonus.criticalRate);
 
     _PRuntimeStat.CurHp = min(_PRuntimeStat.CurHp, _playerDesc.maxHp);
 }
