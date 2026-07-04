@@ -187,7 +187,8 @@ void Player_WorldBase::Priority_Update(float timeDelta)
             jumpState->Set_InitialFallTime(0.f);
         }
 
-        if (PlayerWorldTuning::Try_EnterParkourFromJumpIntent(_playerStateMachineCom))
+        if (!Is_ParkourBlockedByCurrentLevel() &&
+            PlayerWorldTuning::Try_EnterParkourFromJumpIntent(_playerStateMachineCom))
         {
             _playerStateMachineCom->Update_CurrentState(0.f);
         }
@@ -343,6 +344,11 @@ void Player_WorldBase::Update_StatusPreview(float timeDelta)
 
     ContainerObject::Update(timeDelta);
     ContainerObject::Late_Update(timeDelta);
+}
+
+bool Player_WorldBase::Is_ParkourBlockedByCurrentLevel() const
+{
+    return GAME->Current_LevelIndex() == ETOI(LevelType::Stage01);
 }
 
 void Player_WorldBase::Update_GameMenuFacialPreview(float timeDelta, bool enabled)
@@ -708,7 +714,8 @@ HRESULT Player_WorldBase::Activate_CostumeVariant(const CostumePreset& preset)
     if (_playerStateMachineCom)
     {
         _playerStateMachineCom->Refresh_BodyPlayerForStates();
-        _playerStateMachineCom->Reenter_CurrentState();
+        if (!GAME->Is_GameplayPaused())
+            _playerStateMachineCom->Reenter_CurrentState();
     }
 
     return S_OK;

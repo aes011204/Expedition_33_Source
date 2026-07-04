@@ -249,7 +249,7 @@ HRESULT Level_GestralVillage::Ready_Lights()
         if (FAILED(GAME->Set_ShadowCascadeLevel(CascadeLevel::Normal)))
             return E_FAIL;
 
-        GAME->Set_DynamicShadowCascadeTemporalUpdateIntervals(1u, 2u, 4u, 12u);
+        GAME->Set_DynamicShadowCascadeTemporalUpdateIntervals(1u, 1u, 2u, 12u);
     }
 
     return S_OK;

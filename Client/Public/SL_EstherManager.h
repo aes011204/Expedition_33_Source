@@ -27,10 +27,17 @@ private:
         uint32 levelIndex = 0;
         string skillKey{};
         string animationName{};
+        Vec3 targetAnchorWorldPosition = Vec3::Zero;
 
-        float fallbackDamageMultiplier = 1.f;
         float animationSpeed = 1.f;
-        bool  attackApplied = false;
+        float previousAnimationTimeSec = 0.f;
+        uint32 expectedAttackCount = 1;
+        uint32 appliedAttackCount = 0;
+        bool  luneChargeEffectPlayed = false;
+        bool  luneMeteorEffectPlayed = false;
+        bool  luneBeamEffectPlayed = false;
+        bool  luneFinalExplosionEffectPlayed = false;
+        bool  targetSlowApplied = false;
     };
 
 public:
@@ -54,7 +61,9 @@ private:
 
     bool Play_EstherAnimation(const Shared<Player_BattleBase>& actor, const string& animationName, float animationSpeed);
     bool Is_NotifyOwnerActiveEsther(GameObject* notifyOwner) const;
-    void Apply_EstherDamage(const EstherRuntime& runtime);
+    bool Apply_EstherDamage(const EstherRuntime& runtime, float damageRatio, bool applyBreak);
+    void Apply_TargetSlow(EstherRuntime& runtime);
+    void Restore_TargetSlow(EstherRuntime& runtime);
 
     Vec3 Resolve_SpawnPosition(const Shared<SL_Maelle>& player, const Shared<SL_Base>& target) const;
     Vec3 Resolve_SpawnRotation(const Vec3& spawnPosition, const Shared<SL_Base>& target) const;
@@ -63,6 +72,7 @@ private:
     Weak<SoulLikeController> _controller{};
     optional<EstherRuntime> _activeEsther{};
     float _estherGauge = 0.f;
+    float _displayEstherGauge = 0.f;
 
 public:
     static Shared<SL_EstherManager> Create(const Shared<SoulLikeController>& owner);

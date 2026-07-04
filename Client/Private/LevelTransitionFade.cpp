@@ -5,6 +5,15 @@
 #include "Level_Loading.h"
 #include "UI_ScreenFade.h"
 
+namespace
+{
+    float Smooth_FadeRatio(float ratio)
+    {
+        const float t = clamp(ratio, 0.f, 1.f);
+        return t * t * (3.f - 2.f * t);
+    }
+}
+
 LevelTransitionFade::~LevelTransitionFade() = default;
 
 HRESULT LevelTransitionFade::Initialize(const ComPtr<Device>& Device, const ComPtr<Context>& Context)
@@ -20,10 +29,12 @@ HRESULT LevelTransitionFade::Initialize(const ComPtr<Device>& Device, const ComP
 
 void LevelTransitionFade::Update(float TimeDelta)
 {
-    if (_screenFade)
-        _screenFade->Update(TimeDelta);
+    UNREFERENCED_PARAMETER(TimeDelta);
 
-    Update_Fade(TimeDelta);
+    if (_screenFade)
+        _screenFade->Update(GAME->Get_UnscaledTimeDelta());
+
+    Update_Fade(GAME->Get_UnscaledTimeDelta());
 }
 
 bool LevelTransitionFade::Request_LevelTransition(LevelType TargetLevel)
@@ -81,12 +92,18 @@ void LevelTransitionFade::Update_Fade(float TimeDelta)
     if (_phase == Phase::Idle || _screenFade == nullptr)
         return;
 
+    if (_phase == Phase::CoveredBeforeLoading || _phase == Phase::CoveredBeforeLoadedLevel)
+    {
+        Complete_CurrentPhase();
+        return;
+    }
+
     if (_duration <= 0.f)
         return;
 
     _elapsed += TimeDelta;
     const float ratio = clamp(_elapsed / _duration, 0.f, 1.f);
-    const float alpha = std::lerp(_startAlpha, _targetAlpha, ratio);
+    const float alpha = std::lerp(_startAlpha, _targetAlpha, Smooth_FadeRatio(ratio));
     _screenFade->Set_FadeAlpha(alpha);
 
     if (ratio >= 1.f)
@@ -101,6 +118,12 @@ void LevelTransitionFade::Complete_CurrentPhase()
         if (_screenFade)
             _screenFade->Set_FadeAlpha(1.f);
 
+        _phase = Phase::CoveredBeforeLoading;
+        _elapsed = 0.f;
+        _duration = 0.f;
+        return;
+
+    case Phase::CoveredBeforeLoading:
         if (Change_ToLoadingLevel())
         {
             Begin_Fade(Phase::FadeInLoading, 0.f, _fadeInDuration);
@@ -119,6 +142,12 @@ void LevelTransitionFade::Complete_CurrentPhase()
         if (_screenFade)
             _screenFade->Set_FadeAlpha(1.f);
 
+        _phase = Phase::CoveredBeforeLoadedLevel;
+        _elapsed = 0.f;
+        _duration = 0.f;
+        return;
+
+    case Phase::CoveredBeforeLoadedLevel:
         if (Change_ToLoadedLevel())
         {
             Begin_Fade(Phase::FadeInLoadedLevel, 0.f, _fadeInDuration);

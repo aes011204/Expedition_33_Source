@@ -30,6 +30,14 @@ REGISTER_GLOBAL_ENUM(SoulLikeAnim, "SL_MaelleAnim")
 
 namespace
 {
+    constexpr char kGestralSoulLikeFixedWeaponId[] = "Plenum";
+    constexpr char kGestralSoulLikeFixedCostumeId[] = "Baguette";
+
+    bool Should_UseGestralSoulLikeFixedLoadout()
+    {
+        return GAME->Current_LevelIndex() == ETOI(LevelType::GestralVillage);
+    }
+
     Shared<GameObject> Resolve_SLHitSourceObject(const Shared<GameObject>& source)
     {
         Shared<GameObject> resolved = source;
@@ -431,6 +439,15 @@ HRESULT SL_Maelle::Apply_WorldStatSnapshot(const PlayerStatCom::BattleSyncSnapsh
 {
     CHECK_NULL(_combatStatCom, E_FAIL);
 
+    if (Should_UseGestralSoulLikeFixedLoadout())
+    {
+        PlayerStatCom::BattleSyncSnapshot fixedSnapshot = snapshot;
+        fixedSnapshot.desc.equippedWeaponId = kGestralSoulLikeFixedWeaponId;
+        fixedSnapshot.desc.equippedWeaponPower = CLIENT->Resolve_WeaponPower("Maelle", kGestralSoulLikeFixedWeaponId);
+        _combatStatCom->Apply_BattleSyncSnapshot(fixedSnapshot);
+        return S_OK;
+    }
+
     _combatStatCom->Apply_BattleSyncSnapshot(snapshot);
     CHECK_FAILED(Rebuild_WeaponPartFromCurrentStat(), E_FAIL);
 
@@ -551,9 +568,11 @@ HRESULT SL_Maelle::Ready_WeaponPart(Body_Player* body)
 {
     CHECK_NULL(body, E_FAIL);
 
-    const string equippedWeaponId = _combatStatCom
-        ? _combatStatCom->Get_PlayerRuntimeStat().CurEquippedWeaponId
-        : "";
+    string equippedWeaponId{};
+    if (Should_UseGestralSoulLikeFixedLoadout())
+        equippedWeaponId = kGestralSoulLikeFixedWeaponId;
+    else if (_combatStatCom)
+        equippedWeaponId = _combatStatCom->Get_PlayerRuntimeStat().CurEquippedWeaponId;
 
     const GameDataTable::WeaponDesc* weapon = equippedWeaponId.empty()
         ? nullptr
@@ -606,6 +625,13 @@ const CostumePreset* SL_Maelle::Get_CurrentSoulLikeCostume() const
     CostumeManager* costumeManager = CLIENT->Get_CostumeManager();
     if (costumeManager == nullptr)
         return nullptr;
+
+    if (Should_UseGestralSoulLikeFixedLoadout())
+    {
+        const CostumePreset* fixedCostume = costumeManager->Get_Costume(HeroId::Maelle, kGestralSoulLikeFixedCostumeId);
+        if (fixedCostume != nullptr)
+            return fixedCostume;
+    }
 
     return costumeManager->Get_CurrentCostume(HeroId::Maelle);
 }

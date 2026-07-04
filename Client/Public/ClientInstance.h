@@ -98,7 +98,10 @@ public:
     static void Set_DebugDisableMapStaticMeshShadow(bool disabled);
     static void Set_PotatoBagArenaMapRenderGateBasis(const Vec3& origin, const Vec3& right, const Vec3& forward);
     static void Clear_PotatoBagArenaMapRenderGateBasis();
+    static void Set_SoulLikeArenaMapRenderGateBasis(const Vec3& origin, const Vec3& right, const Vec3& forward);
+    static void Clear_SoulLikeArenaMapRenderGateBasis();
     static bool Is_PotatoBagArenaMapRenderGateActive();
+    static uint32 Get_PotatoBagArenaMapRenderGateRevision();
     static bool Should_RenderMapObjectInPotatoBagArena(const BoundingBox& worldBounds);
     static bool Should_RenderMapInstanceInPotatoBagArena(const BoundingSphere& worldSphere);
     static void Update_PotatoBagArenaMapInstancedShadowOverride();

@@ -16,6 +16,7 @@ namespace
     constexpr float kCCTGroundDetachFallSpeed = -3.5f;
     constexpr float kCCTGroundStickSpeed = 6.f;
     constexpr float kInputBlockedStopDamping = 14.f;
+    constexpr float kHorizontalMoveSpeedDamping = 18.f;
     constexpr float kStillGroundJitterSpeedSq = 0.01f;
     constexpr float kStillGroundXZDeadZone = 0.02f;
     constexpr float kStillGroundYDeadZone = 0.06f;
@@ -519,8 +520,34 @@ void MovementCom::Update_HorizontalVelocity(float timeDelta)
             (_input.isWalkDown ? _moveDesc.walkSpeed : _moveDesc.runSpeed);
     }
 
-    _velocity.x = desiredDir.x * moveSpeed;
-    _velocity.z = desiredDir.z * moveSpeed;
+    const Vec3 targetHorizontalVelocity(desiredDir.x * moveSpeed, 0.f, desiredDir.z * moveSpeed);
+    Vec3 currentHorizontalVelocity(_velocity.x, 0.f, _velocity.z);
+
+    const bool shouldSmoothDeceleration =
+        timeDelta > 0.f &&
+        currentHorizontalVelocity.LengthSquared() > kStillGroundJitterSpeedSq &&
+        targetHorizontalVelocity.LengthSquared() > kStillGroundJitterSpeedSq &&
+        targetHorizontalVelocity.LengthSquared() < currentHorizontalVelocity.LengthSquared() &&
+        currentHorizontalVelocity.Dot(targetHorizontalVelocity) > 0.f;
+
+    if (shouldSmoothDeceleration)
+    {
+        currentHorizontalVelocity = Engine::Math::Lerp_Damp(
+            currentHorizontalVelocity,
+            targetHorizontalVelocity,
+            kHorizontalMoveSpeedDamping,
+            timeDelta);
+    }
+    else
+    {
+        currentHorizontalVelocity = targetHorizontalVelocity;
+    }
+
+    if ((currentHorizontalVelocity - targetHorizontalVelocity).LengthSquared() <= kStillGroundJitterSpeedSq)
+        currentHorizontalVelocity = targetHorizontalVelocity;
+
+    _velocity.x = currentHorizontalVelocity.x;
+    _velocity.z = currentHorizontalVelocity.z;
 }
 
 void MovementCom::Update_VerticalVelocity(float timeDelta)
