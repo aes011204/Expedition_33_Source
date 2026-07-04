@@ -65,20 +65,6 @@ void MB_Mime::Update(float timeDelta)
         _body->Play_Animation(timeDelta);
 }
 
-bool MB_Mime::Try_GetDamageFeedbackSocketWorldPosition(Vec3& outWorldPos) const
-{
-    if (_body == nullptr)
-        return false;
-
-    const Matrix* socketMatrix = _body->Get_SocketBoneMatrixPtr("Aim_Target");
-    if (socketMatrix == nullptr)
-        return false;
-
-    const Matrix socketWorldMatrix = *socketMatrix * _body->Get_CombinedWorldMatrix();
-    outWorldPos = Vec3(socketWorldMatrix._41, socketWorldMatrix._42, socketWorldMatrix._43);
-    return true;
-}
-
 void MB_Mime::Adjust_IncomingBattleDamage(const BattleChar& attacker, float& damage, AttackType attackType) const
 {
     UNREFERENCED_PARAMETER(attacker);
@@ -109,6 +95,9 @@ bool MB_Mime::Try_ApplyBattleBreakOnDamage(const DamageAppliedInfo& info, bool c
         return false;
 
     if (_combatStat->Get_AliveStatus() == EAliveStatus::Dead)
+        return false;
+
+    if (_hasTriggeredBreak)
         return false;
 
     if (_combatStat->IsBreak())

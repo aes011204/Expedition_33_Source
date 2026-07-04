@@ -71,6 +71,47 @@ void Monster_BattleBase::Late_Update(float timeDelta)
     Character_BattleBase::Late_Update(timeDelta);
 }
 
+bool Monster_BattleBase::Try_GetDamageFeedbackSocketWorldPosition(Vec3& outWorldPos) const
+{
+    if (const Shared<Mon_WeakPoint> weakPoint = Get_BattleWeakPoint())
+    {
+        const Matrix weakWorldMatrix = weakPoint->Get_GizmoWorldMatrix();
+        outWorldPos = Vec3(weakWorldMatrix._41, weakWorldMatrix._42, weakWorldMatrix._43);
+        return true;
+    }
+
+    auto* body = dynamic_cast<Monster_Part*>(Get_PartObject(L"Part_Body"));
+    if (body == nullptr)
+        return false;
+
+    static constexpr const char* kFeedbackSocketCandidates[] =
+    {
+        "DamageFeedback",
+        "Aim_Target",
+        "Status",
+        "HealthBar",
+        "headSocket",
+        "Volester_Head_Jewel",
+        "neck_02",
+        "Eyes_Position",
+        "upperarm_l",
+        "spine_01",
+    };
+
+    for (const char* socketName : kFeedbackSocketCandidates)
+    {
+        const Matrix* socketMatrix = body->Get_SocketBoneMatrixPtr(socketName);
+        if (socketMatrix == nullptr)
+            continue;
+
+        const Matrix socketWorldMatrix = *socketMatrix * body->Get_CombinedWorldMatrix();
+        outWorldPos = Vec3(socketWorldMatrix._41, socketWorldMatrix._42, socketWorldMatrix._43);
+        return true;
+    }
+
+    return false;
+}
+
 json Monster_BattleBase::To_Json() const
 {
     json root = Character_BattleBase::To_Json();

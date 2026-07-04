@@ -29,8 +29,10 @@ private:
     {
         Idle,
         FadeOutToLoading,
+        CoveredBeforeLoading,
         FadeInLoading,
         FadeOutToLoadedLevel,
+        CoveredBeforeLoadedLevel,
         FadeInLoadedLevel,
     };
 

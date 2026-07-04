@@ -43,6 +43,7 @@ public:
         MonsterAttack,
         Parry,
         PlayerHit,
+        PlayerJump,
         JumpCounter,
     };
 

@@ -71,6 +71,9 @@ public:
 
     FDelegateHandle Add_CompletedCallback(const FOnCinematicCompleted::FunctionType& callback);;
     void Clear_CompletedCallbacks(); // 시퀀스 교체/수동 중단 전에 오래된 완료 콜백을 제거
+    void Queue_PrewarmSequence(const wstring& filePath, uint32 targetLevelIndex);
+    void Flush_PrewarmQueue(uint32 createBudget = UINT32_MAX);
+    void Clear_PrewarmQueue();
 
 private:
     bool Resolve_CameraTrackSelection(
@@ -149,6 +152,42 @@ private:
     void Cleanup_Context(bool forceRemoveAllSpawned = false);
     void Set_GameplayUIHiddenForCinematic(bool hidden) const;
 
+public:
+    struct PrewarmSequenceResult
+    {
+        wstring filePath{};
+        bool succeeded = false;
+        CINEMATIC_SEQUENCE sequence{};
+        vector<string> spawnPrefabNames{};
+    };
+
+    struct PrewarmModelDependency
+    {
+        string modelGuid{};
+        wstring modelPath{};
+        wstring prototypeTag{};
+        ModelType modelType = ModelType::NonAnim;
+        Matrix preLocalTransform = Matrix::Identity;
+    };
+
+    struct PrewarmPrefabResult
+    {
+        fs::path prefabPath{};
+        bool succeeded = false;
+        json root{};
+        vector<string> referencedPrefabNames{};
+        vector<PrewarmModelDependency> modelDependencies{};
+    };
+
+private:
+    void Drain_CompletedPrewarmSequences();
+    void Drain_CompletedPrewarmPrefabs();
+    void Queue_PrewarmPrefabName(const string& prefabName);
+    void Queue_PrewarmPrefabPath(const fs::path& prefabPath);
+    void Queue_PrewarmModelDependency(const PrewarmModelDependency& dependency);
+    size_t Process_PrewarmModelDependencies(uint32 createBudget);
+    Shared<GameObject> Find_ReusableActorByPrefabName(uint32 levelIndex, const string& prefabName) const;
+
 private:
     CINEMATIC_SEQUENCE _sequence{};
     Shared<Cinematic_Player> _player = nullptr;
@@ -164,6 +203,21 @@ private:
     bool _applyActorTransformTrack = true;
     bool _hasWorldTimeScaleOverride = false;
     float _restoreWorldTimeScale = 1.f;
+    wstring _activeSequencePath{};
+
+    std::unordered_map<wstring, CINEMATIC_SEQUENCE> _prewarmedSequences{};
+    std::unordered_set<wstring> _queuedPrewarmSequencePaths{};
+    deque<PrewarmSequenceResult> _completedPrewarmSequences{};
+    std::unordered_set<wstring> _queuedPrewarmPrefabPaths{};
+    std::unordered_set<wstring> _prewarmedPrefabPaths{};
+    deque<PrewarmPrefabResult> _completedPrewarmPrefabs{};
+    vector<PrewarmModelDependency> _pendingPrewarmModelDependencies{};
+    std::unordered_set<wstring> _queuedPrewarmModelPrototypeTags{};
+    mutable mutex _prewarmMutex{};
+    atomic<uint32> _activePrewarmSequenceJobs = 0;
+    atomic<uint32> _activePrewarmPrefabJobs = 0;
+    size_t _prewarmedPrefabCount = 0;
+    size_t _prewarmedModelCount = 0;
 
     FOnCinematicCompleted _onNaturalCompleted;
 

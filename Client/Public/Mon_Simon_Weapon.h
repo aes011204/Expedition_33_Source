@@ -3,6 +3,7 @@
 #include "Client_Defines.h"
 #include "EffectCom.h"
 #include "Monster_Part.h"
+#include "ModelCom.h"
 #include "TrailAnchor_Asset.h"
 #include "Weapon.h"
 
@@ -16,6 +17,12 @@ public:
     struct  WEAPON_DESC : Monster_Part::MONSTER_PART_DESC
     {
         const  Matrix* socketMatrix = nullptr;
+    };
+
+    struct WeaponEchoMaterialOverrideDesc
+    {
+        bool enabled = false;
+        string materialBundleKey{};
     };
 
 public:
@@ -41,10 +48,16 @@ public:
 
     void Begin_WeaponEchoPlayback(
         float delaySec,
-        uint32 echoCount = 1);
+        uint32 echoCount = 1,
+        ModelCom* sourceModel = nullptr,
+        const string& sourceAnimationName = {},
+        float sourceTimeSec = 0.f,
+        const WeaponEchoMaterialOverrideDesc* materialOverrides = nullptr,
+        uint32 materialOverrideCount = 0);
 
     void Record_WeaponEchoSample(float elapsedSec);
     void End_WeaponEchoPlayback();
+    void Update_WeaponEchoSource(ModelCom* sourceModel, const string& sourceAnimationName, float sourceTimeSec);
     bool Has_WeaponEchoPlayback() const;
     void Queue_WeaponEchoRender();
     const wstring& Get_TrailEffectName() const { return _trailEffectName; }
@@ -89,12 +102,19 @@ private:
         EffectInstancePool::AttachedHandle trailHandle{};
         EffectCom::TrailOffsetRuntimeDesc trailOffset{};
         bool trailStarted = false;
+
+        WeaponEchoMaterialOverrideDesc materialOverride{};
+        unordered_map<uint32, Shared<Material>> materialOverrideCache{};
     };
 
     void Reset_WeaponEchoLane(WeaponEchoLane& lane);
     void Push_WeaponEchoSample(WeaponEchoLane& lane, float elapsedSec);
     bool Has_WeaponEchoPlayback(const WeaponEchoLane& lane) const;
     bool Try_SampleWeaponEchoMatrix(const WeaponEchoLane& lane, float elapsedSec, Matrix& outWorldMatrix) const;
+    Shared<Material> Resolve_WeaponEchoRenderMaterial(
+        WeaponEchoLane& lane,
+        uint32 materialIndex,
+        const Shared<Material>& sourceMaterial);
     void Start_WeaponEchoTrail(
         WeaponEchoLane& lane,
         uint32 laneIndex,
@@ -117,6 +137,10 @@ private:
     wstring _weaponEchoPendingTrailLayerTag{};
     EffectCom::TrailOffsetRuntimeDesc _weaponEchoPendingTrailOffset{};
     float _weaponEchoPendingTrailAgeSec = 0.f;
+    ModelCom* _weaponEchoSourceModel = nullptr;
+    string _weaponEchoSourceAnimationName{};
+    float _weaponEchoLastKnownSourceTimeSec = 0.f;
+    bool _weaponEchoHasSourceTime = false;
 
     wstring _trailEffectName = L"";
     vector<WeaponSourceHistoryAnchorDesc> _sourceHistoryAnchors{};

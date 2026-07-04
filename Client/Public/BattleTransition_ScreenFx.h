@@ -29,6 +29,9 @@ public:
     void Evaluate_At(float normalizedTime) override;
     HRESULT Bind_FxConstantBuffer(ShaderCom* shader) override;
     HRESULT Bind_ShaderResources(const Shared<ShaderCom>& shader) override;
+    static const wchar_t* Get_RoseFlareEffectName();
+    static const wchar_t* Get_RoseFlareLayerTag();
+    static uint32 Get_RoseFlareLayerLevelIndex();
 
 private:
     void RoseFlare();

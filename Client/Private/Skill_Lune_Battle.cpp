@@ -53,6 +53,8 @@ namespace Internal
         request.targetCount = max(1u, targetCount);
         outRequests.push_back(request);
     }
+
+    constexpr float kSkyBreakDamageBonusPerStain = 0.2f;
 }
 
 /* 제물 */
@@ -65,16 +67,33 @@ void Skill_Lune_Immolation::Execute(const Skill_Data& skill, const BattleAction&
     const BattleChar& attacker = action.Get_CurChar();
     const BattleChar& target = curTargets.front();
 
-    if (attacker.mechanismCom)
-        attacker.mechanismCom->Add_LuneStains({ ElementalType::Fire });
-
-    const float damage = DamageSystem::CalculatePlayerAttackDamage(attacker, skill.powerMultiplier);
-    DamageSystem::ApplyDamage(damage, attacker, target, attackType);
-
     auto battle = CLIENT->Get_BattleController();
     CHECK_NULL(battle);
 
-    battle->Try_ApplySkillBuff(skill, target);
+    if (attacker.mechanismCom)
+        attacker.mechanismCom->Add_LuneStains({ ElementalType::Fire });
+
+    // 징표가 있는지
+    const bool hadMark = battle->Has_Buff(target, Buffs::Mark);
+
+    float damage = DamageSystem::CalculatePlayerAttackDamage(attacker, skill.powerMultiplier);
+
+    // 얼음 얼룩이 있으면 데미지 증가
+    if (attacker.mechanismCom &&
+        attacker.mechanismCom->Consume_LuneStain(ElementalType::Ice))
+    {
+        damage *= 1.3f;
+    }
+
+    DamageSystem::ApplyDamage(damage, attacker, target, attackType);
+
+    constexpr uint32 kBaseBurnStack = 3;        // 기본 3스택
+    constexpr uint32 kMarkedBonusBurnStack = 2; // 징표 있으면 2스택 추가
+
+    battle->Apply_Buff(target, Buffs::Burn, skill.buffDurationTurn);
+
+    if (hadMark)
+        battle->Apply_Buff(target, Buffs::Burn, kMarkedBonusBurnStack, skill.buffDurationTurn);
 
     if (target.actor != nullptr)
     {
@@ -112,12 +131,21 @@ void Skill_Lune_IceGust::Execute(const Skill_Data& skill, const BattleAction& ac
     if (attacker.mechanismCom)
         attacker.mechanismCom->Add_LuneStains({ ElementalType::Ice, ElementalType::Light });
 
-    const float damage = DamageSystem::CalculatePlayerAttackDamage(attacker, skill.powerMultiplier);
+    float damage = DamageSystem::CalculatePlayerAttackDamage(attacker, skill.powerMultiplier);
+
+    // 대지 얼룩이 있으면 데미지 증가
+    if (attacker.mechanismCom &&
+        attacker.mechanismCom->Consume_LuneStain(ElementalType::Earth))
+    {
+        damage *= 1.3f;
+    }
+
     DamageSystem::ApplyDamage(damage, attacker, target, attackType);
 
     auto battle = CLIENT->Get_BattleController();
     CHECK_NULL(battle);
 
+    // 슬로우
     battle->Try_ApplySkillBuff(skill, target);
 }
 
@@ -141,7 +169,14 @@ void Skill_Lune_Thunderfall::Execute(const Skill_Data& skill, const BattleAction
 
     const int32 hitCount = skill.AttackCount > 0 ? skill.AttackCount : 6;
     const float totalDamage = DamageSystem::CalculatePlayerAttackDamage(attacker, skill.powerMultiplier);
-    const float hitDamage = totalDamage / static_cast<float>(hitCount);
+    float hitDamage = totalDamage / static_cast<float>(hitCount);
+
+    // 화염 얼룩이 있으면 데미지 증가
+    if (attacker.mechanismCom &&
+        attacker.mechanismCom->Consume_LuneStain(ElementalType::Fire))
+    {
+        hitDamage *= 1.3f;
+    }
 
     BattleHitSequenceRunner::HitEffectDesc effectDesc{};
     effectDesc.effectName = L"Lune_ThunderFall_Attack";
@@ -189,8 +224,32 @@ void Skill_Lune_TerraQuake::Execute(const Skill_Data& skill, const BattleAction&
     effectDesc.effectName = L"Lune_TerraQuake_Attack";
     effectDesc.scale = { 1.3f, 1.4f, 1.3f };
 
-    const float damage = DamageSystem::CalculatePlayerAttackDamage(attacker, skill.powerMultiplier);
-    DamageSystem::ApplyDamage(damage, attacker, curTargets, attackType);
+    if (attacker.mechanismCom)
+        attacker.mechanismCom->Add_LuneStains({ ElementalType::Earth, ElementalType::Light });
+
+    float damage = DamageSystem::CalculatePlayerAttackDamage(attacker, skill.powerMultiplier);
+
+    uint32 lightningCount = 0;
+
+    if (attacker.mechanismCom)
+    {
+        for (uint32 i = 0; i < attacker.mechanismCom->Get_LuneStainCount(); ++i)
+        {
+            if (attacker.mechanismCom->Get_LuneStain(i) == ElementalType::Lightning)
+                ++lightningCount;
+        }
+    }
+
+    // 번개 2스택일 때에만 데미지 증폭
+    if (attacker.mechanismCom && lightningCount >= 2)
+    {
+        attacker.mechanismCom->Consume_LuneStain(ElementalType::Lightning);
+        attacker.mechanismCom->Consume_LuneStain(ElementalType::Lightning);
+    
+        damage *= 1.3f;
+    }
+
+    DamageSystem::ApplyDamage(damage, attacker, curTargets, attackType, true);
 
     for (auto& target : curTargets)
     {
@@ -222,8 +281,11 @@ void Skill_Lune_CripplingTsunami::Execute(const Skill_Data& skill, const BattleA
     if (curTargets.empty())
         return;
 
+    if (attacker.mechanismCom)
+        attacker.mechanismCom->Add_LuneStains({ ElementalType::Ice, ElementalType::Light });
+
     const float damage = DamageSystem::CalculatePlayerAttackDamage(attacker, skill.powerMultiplier);
-    DamageSystem::ApplyDamage(damage, attacker, curTargets, attackType);
+    DamageSystem::ApplyDamage(damage, attacker, curTargets, attackType, true);
 
     auto battle = CLIENT->Get_BattleController();
     CHECK_NULL(battle);
@@ -251,8 +313,38 @@ void Skill_Lune_SkyBreak::Execute(const Skill_Data& skill, const BattleAction& a
     if (attacker.mechanismCom)
         attacker.mechanismCom->Add_LuneStains({ ElementalType::Ice, ElementalType::Light });
 
-    const float damage = DamageSystem::CalculatePlayerAttackDamage(attacker, skill.powerMultiplier);
-    DamageSystem::ApplyDamage(damage, attacker, curTargets, attackType);
+    float damage = DamageSystem::CalculatePlayerAttackDamage(attacker, skill.powerMultiplier);
+
+    bool hasFire = false;
+    bool hasEarth = false;
+    bool hasLightning = false;
+
+    if (attacker.mechanismCom)
+    {
+        for (uint32 i = 0; i < attacker.mechanismCom->Get_LuneStainCount(); ++i)
+        {
+            const ElementalType stain = attacker.mechanismCom->Get_LuneStain(i);
+
+            if (stain == ElementalType::Fire)
+                hasFire = true;
+            else if (stain == ElementalType::Earth)
+                hasEarth = true;
+            else if (stain == ElementalType::Lightning)
+                hasLightning = true;
+        }
+    }
+
+    // 불, 대지, 번개 있을 때에만 소모하면서 데미지 증가
+    if (attacker.mechanismCom && hasFire && hasEarth && hasLightning)
+    {
+        attacker.mechanismCom->Consume_LuneStain(ElementalType::Fire);
+        attacker.mechanismCom->Consume_LuneStain(ElementalType::Earth);
+        attacker.mechanismCom->Consume_LuneStain(ElementalType::Lightning);
+
+        damage *= 1.3f;
+    }
+
+    DamageSystem::ApplyDamage(damage, attacker, curTargets, attackType, true);
 }
 
 Shared<Skill_Lune_SkyBreak> Skill_Lune_SkyBreak::Create()

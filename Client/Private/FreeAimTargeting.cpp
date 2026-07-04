@@ -117,7 +117,6 @@ void FreeAimTargeting::Update(float timeDelta)
         event.cameraMode = BattleCameraMode::PLAYERFOCUS;
         event.presetId = magic_enum::enum_name(owner->Get_TurnActionRequest().actor.heroId);
         event.subject = owner->Get_TurnActionRequest().actor.actor;
-        LOG_INFO("[BattleCamTrace] Publish PLAYERFOCUS from FreeAimTargeting::Update RBUTTON");
         GAME->Get_EventBus().Publish(event);
 
         battleFSM->Change_State(BattleTurnState::ChooseAction);
@@ -248,6 +247,7 @@ bool FreeAimTargeting::Try_FindHitEnemy(BattleFreeAimHitTarget& outHitTarget) co
                 {
                     outResolvedHitTarget.target = enemy;
                     outResolvedHitTarget.hitPart = FreeAimHitPart::Body;
+                    outResolvedHitTarget.hitWorldPos = hit.position;
                     return true;
                 }
 
@@ -266,11 +266,13 @@ bool FreeAimTargeting::Try_FindHitEnemy(BattleFreeAimHitTarget& outHitTarget) co
                 {
                     outResolvedHitTarget.target = enemy;
                     outResolvedHitTarget.hitPart = FreeAimHitPart::Body;
+                    outResolvedHitTarget.hitWorldPos = hit.position;
                     return true;
                 }
 
                 outResolvedHitTarget.target = enemy;
                 outResolvedHitTarget.hitPart = FreeAimHitPart::WeakPoint;
+                outResolvedHitTarget.hitWorldPos = hit.position;
                 return true;
             }
 

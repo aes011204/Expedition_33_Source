@@ -3,6 +3,162 @@
 #include "GameObject.h"
 #include "ClientInstance.h"
 
+namespace
+{
+    struct WeaponGradeStatBonus
+    {
+        int32 vitality = 0;
+        int32 might = 0;
+        int32 agility = 0;
+        int32 defense = 0;
+        int32 luck = 0;
+    };
+
+    struct WeaponMilestoneStatBonus
+    {
+        int32 hp = 0;
+        int32 attack = 0;
+        int32 defense = 0;
+        int32 criticalRate = 0;
+    };
+
+    int32 Resolve_WeaponGradeBonusValue(const string& grade)
+    {
+        if (grade == "S")
+            return 20;
+
+        if (grade == "A")
+            return 10;
+
+        if (grade == "B")
+            return 5;
+
+        return 0;
+    }
+
+    string Resolve_PlayerCharacterIdFromOwner(const Shared<GameObject>& owner)
+    {
+        if (owner == nullptr)
+            return "";
+
+        const wstring& ownerName = owner->Get_Name();
+        if (ownerName.find(L"Gustave") != wstring::npos)
+            return "Gustave";
+
+        if (ownerName.find(L"Lune") != wstring::npos)
+            return "Lune";
+
+        if (ownerName.find(L"Maelle") != wstring::npos)
+            return "Maelle";
+
+        return "";
+    }
+
+    WeaponGradeStatBonus Resolve_EquippedWeaponGradeBonus(
+        const PlayerStatCom::PlayerCombatStatDesc& playerDesc,
+        const Shared<GameObject>& owner)
+    {
+        WeaponGradeStatBonus bonus{};
+        if (playerDesc.equippedWeaponId.empty())
+            return bonus;
+
+        const string characterId = Resolve_PlayerCharacterIdFromOwner(owner);
+        if (characterId.empty())
+            return bonus;
+
+        const uint32 enhanceLevel = CLIENT->Resolve_WeaponEnhanceLevel(characterId, playerDesc.equippedWeaponId);
+        const auto upgradeDesc = CLIENT->Get_WeaponUpgradeDesc(characterId, playerDesc.equippedWeaponId, enhanceLevel);
+        if (upgradeDesc == nullptr)
+            return bonus;
+
+        bonus.vitality = Resolve_WeaponGradeBonusValue(upgradeDesc->vitalityGrade);
+        bonus.might = Resolve_WeaponGradeBonusValue(upgradeDesc->mightGrade);
+        bonus.agility = Resolve_WeaponGradeBonusValue(upgradeDesc->agilityGrade);
+        bonus.defense = Resolve_WeaponGradeBonusValue(upgradeDesc->defenseGrade);
+        bonus.luck = Resolve_WeaponGradeBonusValue(upgradeDesc->luckGrade);
+        return bonus;
+    }
+
+    WeaponMilestoneStatBonus Resolve_EquippedWeaponMilestoneStatBonus(
+        const PlayerStatCom::PlayerCombatStatDesc& playerDesc,
+        const Shared<GameObject>& owner)
+    {
+        WeaponMilestoneStatBonus bonus{};
+        if (playerDesc.equippedWeaponId.empty())
+            return bonus;
+
+        const string characterId = Resolve_PlayerCharacterIdFromOwner(owner);
+        if (characterId.empty())
+            return bonus;
+
+        const uint32 enhanceLevel = CLIENT->Resolve_WeaponEnhanceLevel(characterId, playerDesc.equippedWeaponId);
+        const string& weaponId = playerDesc.equippedWeaponId;
+
+        if (characterId == "Gustave")
+        {
+            if (weaponId == "Lanceram" || weaponId == "Tireso")
+            {
+                if (enhanceLevel >= 1)
+                    bonus.criticalRate += 15;
+
+                if (enhanceLevel >= 5)
+                    bonus.attack += 158;
+            }
+            else if (weaponId == "Baguette")
+            {
+                if (enhanceLevel >= 1)
+                    bonus.criticalRate += 15;
+
+                if (enhanceLevel >= 5)
+                    bonus.defense += 158;
+            }
+        }
+        else if (characterId == "Lune")
+        {
+            if (weaponId == "Baguette")
+            {
+                if (enhanceLevel >= 5)
+                    bonus.criticalRate += 15;
+            }
+            else if (weaponId == "Colim" || weaponId == "Snowim")
+            {
+                if (enhanceLevel >= 5)
+                    bonus.hp += 158;
+            }
+        }
+        else if (characterId == "Maelle")
+        {
+            if (weaponId == "Medalum")
+            {
+                if (enhanceLevel >= 1)
+                    bonus.hp += 158;
+
+                if (enhanceLevel >= 5)
+                    bonus.defense += 158;
+            }
+            else if (weaponId == "Baguette")
+            {
+                if (enhanceLevel >= 1)
+                    bonus.criticalRate += 15;
+
+                if (enhanceLevel >= 5)
+                    bonus.hp += 158;
+            }
+            else if (weaponId == "Plenum")
+            {
+                if (enhanceLevel >= 1)
+                    bonus.attack += 158;
+
+                if (enhanceLevel >= 5)
+                    bonus.defense += 158;
+            }
+        }
+
+        return bonus;
+    }
+
+}
+
 IMPLEMENT_REFLECTION(PlayerStatCom)
 {
     auto& info = GetStaticReflectionInfo();
@@ -231,11 +387,14 @@ void PlayerStatCom::Set_BattleStartAp()
 
 void PlayerStatCom::Set_EquippedWeapon(const string& weaponId, uint32 power)
 {
+    const float hpRate = (_playerDesc.maxHp > 0.f) ? (_PRuntimeStat.CurHp / _playerDesc.maxHp) : 1.f;
+
     _playerDesc.equippedWeaponId = weaponId;
     _playerDesc.equippedWeaponPower = power;
 
-    // 무기 Power가 physicalAttack에 들어가므로 즉시 재계산
+    // 무기 Power와 등급 보너스가 파생 스탯에 들어가므로 즉시 재계산
     Recalculate_Stats();
+    _PRuntimeStat.CurHp = _playerDesc.maxHp * hpRate;
     Update_StatInfo();
 }
 
@@ -292,6 +451,13 @@ void PlayerStatCom::Set_RuntimeProgress(uint32 level, uint32 exp, uint32 statPoi
     Update_StatInfo();
 }
 
+void PlayerStatCom::Restore_HpToMax()
+{
+    Update_StatInfo();
+    _PRuntimeStat.CurHp = _PRuntimeStat.CurMaxHp;
+    Set_AliveStatus(EAliveStatus::Alive);
+}
+
 PlayerStatCom::BattleSyncSnapshot PlayerStatCom::Create_BattleSyncSnapshot() const
 {
     BattleSyncSnapshot snapshot{};
@@ -302,11 +468,11 @@ PlayerStatCom::BattleSyncSnapshot PlayerStatCom::Create_BattleSyncSnapshot() con
     snapshot.curSkillPoint = _PRuntimeStat.CurSkillPoint;
     snapshot.curRespecCount = _PRuntimeStat.CurRespecCount;
 
-    snapshot.curVitality = _PRuntimeStat.CurVitality;
-    snapshot.curMight = _PRuntimeStat.CurMight;
-    snapshot.curAgility = _PRuntimeStat.CurAgility;
-    snapshot.curDefense = _PRuntimeStat.CurDefense;
-    snapshot.curLuck = _PRuntimeStat.CurLuck;
+    snapshot.curVitality = _playerDesc.vitality;
+    snapshot.curMight = _playerDesc.might;
+    snapshot.curAgility = _playerDesc.agility;
+    snapshot.curDefense = _playerDesc.defense;
+    snapshot.curLuck = _playerDesc.luck;
 
     snapshot.curHp = _PRuntimeStat.CurHp;
     snapshot.curAp = _PRuntimeStat.CurAp;
@@ -446,22 +612,31 @@ int32* PlayerStatCom::Find_StatValue(StatType type)
 {
     switch (type)
     {
-    case StatType::Vitality: return &_PRuntimeStat.CurVitality;
-    case StatType::Might:    return &_PRuntimeStat.CurMight;
-    case StatType::Agility:  return &_PRuntimeStat.CurAgility;
-    case StatType::Defense:  return &_PRuntimeStat.CurDefense;
-    case StatType::Luck:     return &_PRuntimeStat.CurLuck;
+    case StatType::Vitality: return &_playerDesc.vitality;
+    case StatType::Might:    return &_playerDesc.might;
+    case StatType::Agility:  return &_playerDesc.agility;
+    case StatType::Defense:  return &_playerDesc.defense;
+    case StatType::Luck:     return &_playerDesc.luck;
     default:                 return nullptr;
     }
 }
 
 array<int32*, static_cast<size_t>(StatType::END)> PlayerStatCom::Get_StatValues()
 {
-    return { &_PRuntimeStat.CurVitality, &_PRuntimeStat.CurMight, &_PRuntimeStat.CurAgility, &_PRuntimeStat.CurDefense, &_PRuntimeStat.CurLuck };
+    return { &_playerDesc.vitality, &_playerDesc.might, &_playerDesc.agility, &_playerDesc.defense, &_playerDesc.luck };
 }
 
 void PlayerStatCom::Recalculate_Stats()
 {
+    const WeaponGradeStatBonus weaponBonus = Resolve_EquippedWeaponGradeBonus(_playerDesc, Get_Owner());
+    const WeaponMilestoneStatBonus milestoneBonus = Resolve_EquippedWeaponMilestoneStatBonus(_playerDesc, Get_Owner());
+
+    _PRuntimeStat.CurVitality = _playerDesc.vitality + weaponBonus.vitality;
+    _PRuntimeStat.CurMight = _playerDesc.might + weaponBonus.might;
+    _PRuntimeStat.CurAgility = _playerDesc.agility + weaponBonus.agility;
+    _PRuntimeStat.CurDefense = _playerDesc.defense + weaponBonus.defense;
+    _PRuntimeStat.CurLuck = _playerDesc.luck + weaponBonus.luck;
+
     const PreviewStat preview = Calculate_PreviewStat(
         _PRuntimeStat.CurVitality,
         _PRuntimeStat.CurMight,
@@ -490,11 +665,11 @@ void PlayerStatCom::Recalculate_Stats()
         resultCritical += pictosDesc->critical;
     }
 
-    _playerDesc.maxHp = preview.maxHp + static_cast<float>(resultHp);
-    _playerDesc.physicalAttack = preview.physicalAttack + weaponAttack;
-    _playerDesc.physicalDefense = preview.physicalDefense;
+    _playerDesc.maxHp = preview.maxHp + static_cast<float>(resultHp + milestoneBonus.hp);
+    _playerDesc.physicalAttack = preview.physicalAttack + weaponAttack + static_cast<float>(milestoneBonus.attack);
+    _playerDesc.physicalDefense = preview.physicalDefense + static_cast<float>(milestoneBonus.defense);
     _playerDesc.speed = preview.speed + static_cast<float>(resultSpeed);
-    _playerDesc.criticalRate = preview.criticalRate + static_cast<float>(resultCritical);
+    _playerDesc.criticalRate = preview.criticalRate + static_cast<float>(resultCritical + milestoneBonus.criticalRate);
 
     _PRuntimeStat.CurHp = min(_PRuntimeStat.CurHp, _playerDesc.maxHp);
 }

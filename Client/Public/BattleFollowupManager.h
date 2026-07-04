@@ -29,6 +29,8 @@ public:
     bool Has_PendingFollowup() const { return _hasPendingFollowup; }
     void Clear_PendingFollowup();
 
+    void Apply_SimonPhase2WorldVisualChange();
+
 private:
     bool Should_StartSimonPhase2(
         const vector<string>& defeatedEnemyKeys,

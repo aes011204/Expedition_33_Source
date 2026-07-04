@@ -73,6 +73,7 @@ void SL_Dualliste::BeginPlay()
     _currentPhase = 1;
     _phaseChangeTriggered = false;
     _phaseChangeFinished = false;
+    _estherTimeScale = 1.f;
     Set_ActionLocked(false);
 
     if (_aiCtrl)
@@ -126,44 +127,48 @@ void SL_Dualliste::Update(float timeDelta)
     if (CLIENT->Is_BattleActive())
         return;
 
+    const float scaledTimeDelta = timeDelta * _estherTimeScale;
+
     if (_cloneSkillManager)
-        _cloneSkillManager->Update(timeDelta);
+        _cloneSkillManager->Update(scaledTimeDelta);
 
     if (_isCloneVisualOnly)
     {
-        _body->Play_Animation(timeDelta);
+        _body->Play_Animation(scaledTimeDelta);
 
         if (_effectCom)
-            _effectCom->Update(timeDelta);
+            _effectCom->Update(scaledTimeDelta);
 
-        SL_Base::Update(timeDelta);
+        SL_Base::Update(scaledTimeDelta);
         return;
     }
 
     if (_isCinematicDriven)
     {
         if (_effectCom)
-            _effectCom->Update(timeDelta);
+            _effectCom->Update(scaledTimeDelta);
 
-        SL_Base::Update(timeDelta);
+        SL_Base::Update(scaledTimeDelta);
         return;
     }
 
-    Update_StunSystem(timeDelta);
+    Update_StunSystem(scaledTimeDelta);
 
     Try_EnterPhaseChange();
 
     Update_BlackBoard();
 
-    const bool isPhaseChanging =
-        _stateMachineCom &&
-        _stateMachineCom->Get_CurrentMonStateType() == SL_MonState::PhaseChange;
+    const SL_MonState currentMonState = _stateMachineCom
+        ? _stateMachineCom->Get_CurrentMonStateType()
+        : SL_MonState::End;
+    const bool isPhaseChanging = currentMonState == SL_MonState::PhaseChange;
+    const bool isHitReacting = currentMonState == SL_MonState::Hit;
 
-    if (_aiCtrl && _isIntroDone && !isPhaseChanging)
-        _aiCtrl->Update(timeDelta);
+    if (_aiCtrl && _isIntroDone && !isPhaseChanging && !isHitReacting)
+        _aiCtrl->Update(scaledTimeDelta);
 
     if (_stateMachineCom && CLIENT->Get_ScreenFxManager()->Is_BattleInCounterFxFinished())
-        _stateMachineCom->Update_CurrentState(timeDelta);
+        _stateMachineCom->Update_CurrentState(scaledTimeDelta);
 
     if (_movementCom)
     {
@@ -172,7 +177,13 @@ void SL_Dualliste::Update(float timeDelta)
         _movementCom->Set_RunSpeed(moveSpeed);
         _movementCom->Set_SprintSpeed(moveSpeed);
 
-        if (_isIntroDone && _aiCtrl && _aiCtrl->Has_MoveIntent() && !Is_Dead())
+        if (isHitReacting)
+        {
+            _movementCom->Clear_FollowMoveCommand();
+            _movementCom->Apply_Input({});
+            _movementCom->Update_Movement(scaledTimeDelta);
+        }
+        else if (_isIntroDone && _aiCtrl && _aiCtrl->Has_MoveIntent() && !Is_Dead())
         {
             MovementCom::FollowMoveCommand command{};
             command.enabled = true;
@@ -181,24 +192,24 @@ void SL_Dualliste::Update(float timeDelta)
 
             _movementCom->Set_FollowMoveCommand(command);
             _movementCom->Apply_Input({});
-            _movementCom->Update_Movement(timeDelta);
+            _movementCom->Update_Movement(scaledTimeDelta);
         }
         else
         {
             _movementCom->Clear_FollowMoveCommand();
             _movementCom->Apply_Input({});
             _movementCom->Stop_HorizontalMovement();
-            _movementCom->Update_Movement(timeDelta);
+            _movementCom->Update_Movement(scaledTimeDelta);
         }
     }
 
     if (_body)
-        _body->Play_Animation(timeDelta);
+        _body->Play_Animation(scaledTimeDelta);
 
     if (_effectCom)
-        _effectCom->Update(timeDelta);
+        _effectCom->Update(scaledTimeDelta);
 
-    SL_Base::Update(timeDelta);
+    SL_Base::Update(scaledTimeDelta);
 }
 
 void SL_Dualliste::Late_Update(float timeDelta)
@@ -474,6 +485,14 @@ void SL_Dualliste::Apply_Damage(const SL_DamageInfo& damageInfo)
     if (_combatStat->IsBreak())
         return;
 
+    if (damageInfo.attackType == AttackType::Counter)
+    {
+        if (_stateMachineCom->Change_State(SL_MonState::Hit))
+            Set_ActionLocked(true);
+
+        return;
+    }
+
     _combatStat->Add_Break(Calculate_BreakDamage(damageInfo.attackType));
 
     if (_combatStat->Get_CurBreak() >= _combatStat->Get_MaxBreak())
@@ -503,8 +522,6 @@ void SL_Dualliste::Apply_Damage(const SL_DamageInfo& damageInfo)
     }
 
     GAME->Play_SoundCue(Constants::SoundCue::Duallist_Pain);
-
-    _stateMachineCom->Change_State(SL_MonState::Hit);
 }
 
 void SL_Dualliste::Update_BlackBoard()
@@ -780,6 +797,11 @@ void SL_Dualliste::Set_ActionLocked(bool isActionLock)
         return;
 
     bb->Set_Value<bool>("IsActionLocked", isActionLock);
+}
+
+void SL_Dualliste::Set_EstherTimeScale(float timeScale)
+{
+    _estherTimeScale = clamp(timeScale, 0.f, 1.f);
 }
 
 bool SL_Dualliste::Try_EnterPhaseChange()

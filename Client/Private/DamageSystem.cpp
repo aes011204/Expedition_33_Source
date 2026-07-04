@@ -3,7 +3,7 @@
 #include "GameInstance.h"
 #include "Battle_Enum.h"
 #include "CombatStatCom.h"
-
+#include "BattleMechanismCom.h"
 #include "BattleController.h"
 #include "ClientInstance.h"
 #include "PictosBattleSystem.h"
@@ -59,11 +59,23 @@ void DamageSystem::ApplyDamage(float damage, const BattleChar& target, AttackTyp
     ApplyDamage(damage, emptyAttacker, target, attackType);
 }
 
-void DamageSystem::ApplyDamage(float damage, const BattleChar& attacker, const BattleChar& target,
-    AttackType attackType)
+DamageAppliedInfo DamageSystem::ApplyDamage(
+    float damage,
+    const BattleChar& attacker,
+    const BattleChar& target,
+    AttackType attackType,
+    const Vec3* feedbackWorldPos,
+    float criticalDamageMultiplier)
 {
+    DamageAppliedInfo info{};
+    info.attacker = attacker;
+    info.target = target;
+    info.attackType = attackType;
+    info.hasFeedbackWorldPos = feedbackWorldPos != nullptr;
+    info.feedbackWorldPos = feedbackWorldPos != nullptr ? *feedbackWorldPos : Vec3::Zero;
+
     if (damage <= 0.f || target.statCom == nullptr)
-        return;
+        return info;
 
     damage = Consume_NextAttackQTEDamage(damage, attacker, attackType);
 
@@ -73,21 +85,17 @@ void DamageSystem::ApplyDamage(float damage, const BattleChar& attacker, const B
         const uint32 prevShield = target.statCom->Get_CurrentShield();
         target.statCom->Remove_Shield(1);
 
-        DamageAppliedInfo info{};
-        info.attacker = attacker;
-        info.target = target;
         info.damage = 0.f;
-        info.attackType = attackType;
         info.isShieldBlocked = true;
         info.prevShield = prevShield;
         info.currentShield = target.statCom->Get_CurrentShield();
 
         OnDamageApplied.Broadcast(info);
-        return; // 쉴드가 데미지를 막은 경우
+        return info; // 쉴드가 데미지를 막은 경우
     }
 
     if (target.statCom->Get_AliveStatus() == EAliveStatus::Dead)
-        return;
+        return info;
 
     if (const auto battleController = CLIENT->Get_BattleController())
     {
@@ -97,13 +105,23 @@ void DamageSystem::ApplyDamage(float damage, const BattleChar& attacker, const B
         }
     }
 
+    if (attacker.mechanismCom != nullptr)
+    {
+        damage *= attacker.mechanismCom->Get_MaelleOutgoingDamageMultiplier();
+    }
+
+    if (target.mechanismCom != nullptr)
+    {
+        damage *= target.mechanismCom->Get_MaelleIncomingDamageMultiplier();
+    }
+
     if (damage <= 0.f)
-        return;
+        return info;
 
     OnDamageCalculating.Broadcast(attacker, target, damage, attackType);
 
     if (damage <= 0.f)
-        return;
+        return info;
 
     bool isCritical = false;
     if (attacker.statCom != nullptr &&
@@ -118,13 +136,13 @@ void DamageSystem::ApplyDamage(float damage, const BattleChar& attacker, const B
     }
 
     if (isCritical)
-        damage *= 1.5f;
+        damage *= criticalDamageMultiplier;
 
     if (target.actor)
         target.actor->Adjust_IncomingBattleDamage(attacker, damage, attackType);
 
     if (damage <= 0.f)
-        return; // 감소된 피해 다시 확인
+        return info; // 감소된 피해 다시 확인
 
     auto& runtimeStat = target.statCom->Get_RuntimeStat();
     runtimeStat.CurHp -= damage;
@@ -135,18 +153,15 @@ void DamageSystem::ApplyDamage(float damage, const BattleChar& attacker, const B
         runtimeStat.CurAliveState = EAliveStatus::Dead;
     }
 
-    DamageAppliedInfo info{};
-    info.attacker = attacker;
-    info.target = target;
     info.damage = damage;
-    info.attackType = attackType;
     info.isCritical = isCritical;
 
     OnDamageApplied.Broadcast(info);
+    return info;
 }
 
 void DamageSystem::ApplyDamage(float damage, const BattleChar& attacker, const vector<BattleChar>& target,
-    AttackType attackType)
+    AttackType attackType, bool useTargetFeedbackWorldPos)
 {
     if (target.empty())
         return;
@@ -155,7 +170,15 @@ void DamageSystem::ApplyDamage(float damage, const BattleChar& attacker, const v
 
     for (const auto& character : target)
     {
-        ApplyDamage(damage, attacker, character, attackType);
+        Vec3 feedbackWorldPos{};
+        const Vec3* feedbackWorldPosPtr = nullptr;
+        if (useTargetFeedbackWorldPos && character.actor != nullptr &&
+            character.actor->Try_GetDamageFeedbackWorldPosition(feedbackWorldPos))
+        {
+            feedbackWorldPosPtr = &feedbackWorldPos;
+        }
+
+        ApplyDamage(damage, attacker, character, attackType, feedbackWorldPosPtr);
     }
 }
 
@@ -173,13 +196,21 @@ float DamageSystem::CalculatePlayerAttackDamage(const BattleChar& attacker, floa
     return baseDamage * variance;
 }
 
-void DamageSystem::ApplyDamage(float damage, const vector<BattleChar>& target, AttackType attackType)
+void DamageSystem::ApplyDamage(float damage, const vector<BattleChar>& target, AttackType attackType, bool useTargetFeedbackWorldPos)
 {
     BattleChar emptyAttacker{};
 
     for (const auto& character : target)
     {
-        ApplyDamage(damage, emptyAttacker, character, attackType);
+        Vec3 feedbackWorldPos{};
+        const Vec3* feedbackWorldPosPtr = nullptr;
+        if (useTargetFeedbackWorldPos && character.actor != nullptr &&
+            character.actor->Try_GetDamageFeedbackWorldPosition(feedbackWorldPos))
+        {
+            feedbackWorldPosPtr = &feedbackWorldPos;
+        }
+
+        ApplyDamage(damage, emptyAttacker, character, attackType, feedbackWorldPosPtr);
     }
 }
 

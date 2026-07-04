@@ -34,7 +34,7 @@ public:
 private:
     Shared<GameObject> Resolve_MoveTarget(GameObject* notifyOwner) const;
     Vec3 Resolve_GoalPosition(const Shared<GameObject>& moveTarget, const Shared<GameObject>& target) const;
-    void Apply_Position(const AnimNotifyContext& context, const Shared<GameObject>& target, const Vec3& desiredWorldPos) const;
+    void Apply_Position(const AnimNotifyContext& context, const Shared<GameObject>& target, const Vec3& desiredWorldPos);
 
 private:
     MoveMode _moveMode = MoveMode::TargetForwardOffset;
@@ -42,6 +42,7 @@ private:
     float _distance = 2.f;
     Vec3 _startPos = Vec3::Zero;
     Vec3 _goalPos = Vec3::Zero;
+    bool _goalClampedByPlayer = false;
 };
 
 NS_END

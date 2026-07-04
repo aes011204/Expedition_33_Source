@@ -1163,6 +1163,7 @@ void Renderer::Render_Glow()
 void Renderer::Render_UIEffect()
 {
     GAME->Bind_BackBuffer();
+    GAME->Bind_UINoDepthStencilState();
     _currentGroup = RenderGroup::UIEffect;
 
     if (auto activeCamera = GAME->Get_ActiveCamera())
@@ -2365,16 +2366,12 @@ bool Renderer::Should_UpdateDynamicShadowCascade(uint32 cascadeIndex) const
     if (_shadowFrameIndex <= 1ull)
         return true;
 
-    // 0~1 Cascade는 매 프레임 업데이트. 가장 가까운 영역이자 가장 눈에 띄는 영역
-    if (cascadeIndex < 2u)
+    const uint32 intervalIndex = min(cascadeIndex, 3u);
+    const uint32 updateInterval = max(1u, _dynamicShadowCascadeUpdateIntervals[intervalIndex]);
+    if (updateInterval <= 1u)
         return true;
 
-    // 2 Cascade는 2프레임마다 업데이트
-    if (cascadeIndex == 2u)
-        return (_shadowFrameIndex % 2ull) == 0ull;
-    
-    // 4 Cascade는 4프레임마다 업데이트
-    return (_shadowFrameIndex % 4ull) == 0ull;
+    return (_shadowFrameIndex % updateInterval) == 0ull;
 }
 
 bool Renderer::Should_RenderDynamicShadowObject(const Shared<GameObject>& gameObject, uint32 cascadeIndex) const

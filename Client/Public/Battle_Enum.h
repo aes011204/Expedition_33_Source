@@ -293,6 +293,8 @@ namespace Client
         bool isShieldBlocked = false;
         uint32 prevShield = 0;
         uint32 currentShield = 0;
+        bool hasFeedbackWorldPos = false;
+        Vec3 feedbackWorldPos = Vec3::Zero;
     };
 
     enum class AITargetStyle
@@ -545,6 +547,7 @@ namespace Client
     {
         BattleChar target{};
         FreeAimHitPart hitPart = FreeAimHitPart::None;
+        Vec3 hitWorldPos = Vec3::Zero;
 
         bool Is_Valid() const
         {

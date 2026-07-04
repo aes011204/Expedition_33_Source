@@ -4,6 +4,7 @@
 #include "DamageSystem.h"
 #include "ClientInstance.h"
 #include "BattleController.h"
+#include "BattleTurnCamera.h"
 #include "BattleSpawnRegistry.h"
 #include "GameInstance.h"
 #include "ModelCom.h"
@@ -168,6 +169,12 @@ bool BattleReactionController::TryInput(BattleReactionType type, uint32 consumeK
     if (type == BattleReactionType::Jump)
     {
         LOG_INFO("Jump Time Scale");
+        if (!_isJumpCounterTimeScaleActive)
+        {
+            _jumpCounterTimeScaleRestoreScale = GAME->Get_WorldTimeScaleRestoreBase();
+            _isJumpCounterTimeScaleActive = true;
+        }
+
         GAME->Set_WorldTimeScale(0.15f);
     }
 
@@ -226,8 +233,20 @@ bool BattleReactionController::Is_ConsumeKeyPending(uint32 consumeKey) const
     return false;
 }
 
+void BattleReactionController::RestoreJumpCounterTimeScale()
+{
+    if (!_isJumpCounterTimeScaleActive)
+        return;
+
+    GAME->Set_WorldTimeScale(_jumpCounterTimeScaleRestoreScale);
+    _isJumpCounterTimeScaleActive = false;
+    _jumpCounterTimeScaleRestoreScale = 1.f;
+}
+
 void BattleReactionController::ResetJumpCounterSequence()
 {
+    RestoreJumpCounterTimeScale();
+
     const size_t index = ReactionIndex(BattleReactionType::JumpCounter);
     const bool wasOpen = _reactionWindowOpenCounts[index] > 0;
 
@@ -243,6 +262,12 @@ void BattleReactionController::ResetJumpCounterSequence()
     _jumpCounterStepIndex = UINT32_MAX;
     _jumpCounterTarget = {};
     _jumpCounterStarted = false;
+
+    if (const auto battle = CLIENT->Get_BattleController())
+    {
+        if (const auto camera = battle->Get_BattleTurnCamera())
+            camera->Set_JumpCounterPoseOffsetActive(false);
+    }
 }
 
 void BattleReactionController::NotifyJumpCounterWindowBegin(float worldTimeScale)
@@ -252,6 +277,12 @@ void BattleReactionController::NotifyJumpCounterWindowBegin(float worldTimeScale
 
     _jumpCounterState = JumpCounterState::CounterWindowOpen;
     OpenWindow(BattleReactionType::JumpCounter);
+    if (!_isJumpCounterTimeScaleActive)
+    {
+        _jumpCounterTimeScaleRestoreScale = GAME->Get_WorldTimeScaleRestoreBase();
+        _isJumpCounterTimeScaleActive = true;
+    }
+
     GAME->Set_WorldTimeScale(clamp(worldTimeScale, 0.01f, 1.f));
 }
 
@@ -261,7 +292,6 @@ void BattleReactionController::NotifyJumpCounterWindowEnd()
 
     if (_jumpCounterState == JumpCounterState::CounterWindowOpen)
     {
-        GAME->Set_WorldTimeScale(1.f);
         ResetJumpCounterSequence();
     }
 }
@@ -271,7 +301,7 @@ bool BattleReactionController::TryStartQueuedJumpCounter(ModelCom* sourceModel)
     if (_jumpCounterState != JumpCounterState::CounterSucceeded || _jumpCounterStarted)
         return false;
 
-    GAME->Set_WorldTimeScale(1.f);
+    RestoreJumpCounterTimeScale();
 
     StartCounter(sourceModel);
 
@@ -416,6 +446,12 @@ BattleReactionController::BattleReactionInputResult BattleReactionController::Su
         if (success && context.isEcho)
             Mark_EchoReactionInputConsumed(context);
 
+        if (success)
+        {
+            GAME->Play_SoundCue(Constants::SoundCue::SFX_Dodge_Success);
+            GAME->Play_SoundCue(Constants::SoundCue::SFX_UI_Dodge_Success);
+        }
+
         for (const BattleChar& target : inputTargets)
         {
             PlayReactionAnimation(
@@ -446,6 +482,7 @@ BattleReactionController::BattleReactionInputResult BattleReactionController::Su
             _isCounterPending = false;
             _isCounterDamageApplied = false;
             _animPhase = ReactionAnimPhase::None;
+            ResetJumpCounterSequence();
 
             if (allowCounterOnSuccess)
                 _pendingParryCounterTarget = context.counterTarget;
@@ -537,7 +574,7 @@ BattleReactionController::BattleReactionInputResult BattleReactionController::Su
         _isCounterPending = true;
         _isCounterDamageApplied = false;
         _jumpCounterStarted = false;
-        GAME->Set_WorldTimeScale(1.f);
+        RestoreJumpCounterTimeScale();
         CloseWindow(BattleReactionType::JumpCounter);
         LOG_INFO("JUMPCOUNTER success step={}", context.stepIndex);
     }
@@ -751,12 +788,6 @@ void BattleReactionController::StartCounterReturn()
 
         target.ModelCom->Set_RootMotionEnabled(true);
         target.ModelCom->Set_FrameSpeed(1.f);
-
-        LOG_INFO(
-            "[BattleCamTrace] StartCounterReturn prefab={} anim=Return targetAlive={} phaseBefore={}",
-            target.actor ? target.actor->Get_SourcePrefabName().c_str() : "",
-            target.statCom && target.statCom->Get_AliveStatus() == EAliveStatus::Alive,
-            static_cast<int>(_animPhase));
 
         if (!target.ModelCom->Set_AnimationByState(ETOI(BattleAnimType::Return), 0.15f, false))
         {
@@ -1113,7 +1144,19 @@ void BattleReactionController::StartCounter(ModelCom* sourceModel)
     _isCounterDamageApplied = false;
     _animPhase = ReactionAnimPhase::Counter;
     if (counterAnimType == BattleAnimType::JumpCounter)
+    {
         _jumpCounterState = JumpCounterState::Started;
+        if (const auto battle = CLIENT->Get_BattleController())
+        {
+            if (const auto camera = battle->Get_BattleTurnCamera())
+                camera->Set_JumpCounterPoseOffsetActive(true);
+        }
+    }
+    else if (const auto battle = CLIENT->Get_BattleController())
+    {
+        if (const auto camera = battle->Get_BattleTurnCamera())
+            camera->Set_JumpCounterPoseOffsetActive(false);
+    }
 
     OnCounterStarted.Broadcast(_reactionAnimTargets);
 }

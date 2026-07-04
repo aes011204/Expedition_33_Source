@@ -4,6 +4,10 @@
 #include "ClientInstance.h"
 #include "RuntimeRuleStateService.h"
 #include "TargetCamera.h"
+#include "SoulLikeController.h"
+#include "SkyBoxFlow.h"
+#include "Trigger_TeleportZone.h"
+#include "SimonCriticalGlowController.h"
 #include "MovementCom.h"
 #include "Player_WorldBase.h"
 
@@ -29,9 +33,11 @@ HRESULT Level_Stage01::Initialize()
     CHECK_FAILED(Ready_Layer_Player(TEXT("Layer_Player")), E_FAIL);
     CHECK_FAILED(Ready_Layer_Camera(TEXT("Layer_Camera")), E_FAIL);
     CHECK_FAILED(Ready_Layer_UI(TEXT("Layer_UI")), E_FAIL);
+    CHECK_FAILED(Ready_Layer_BackGround(TEXT("Layer_BackGround")), E_FAIL);
 
     RuntimeRuleStateService::Apply_ToCurrentRuntime(
         RuntimeRuleStateService::Build_SimonStartUnlocks(), false);
+    CLIENT->Restore_CurrentHeroesHpToMax();
 
     //GAME->Play_BGM(Constants::SoundBGM::SpringBGM, 1.f, true, 0.f);
 
@@ -55,12 +61,34 @@ void Level_Stage01::BeginPlay()
 
     CLIENT->Play_Effect(ParticlDesc);
 
+    ParticlDesc.worldPosition = Vec3(200.29f, -4023.47f, 106.4f);
+    CLIENT->Play_Effect(ParticlDesc);
+
+    //
+
+    GameObject::GAMEOBJECT_DESC teleportZoneDesc{};
+    teleportZoneDesc.position = Vec3(216.88f, -12.38f, -2.66f);
+    teleportZoneDesc.scale = Vec3(8.f, 2.f, 8.f);
+
+    Shared<GameObject> fallTornadoZone = nullptr;
+    GAME->Add_GameObject(
+        ETOI(LevelType::Stage01),
+        TEXT("GameObject_Trigger_TeleportZone_Stage01"),
+        ETOI(LevelType::Stage01),
+        TEXT("Layer_ETC"),
+        fallTornadoZone,
+        &teleportZoneDesc);
+
     CLIENT->Capture_InitialWorldSnapshot();
     CLIENT->Queue_LevelAnnounce(LevelType::Stage01);
 }
 
 void Level_Stage01::Update(float fTimeDelta)
 {
+    if (SimonCriticalGlowController* glowController = CLIENT->Get_SimonCriticalGlowController())
+    {
+        glowController->Update(fTimeDelta);
+    }
     // 시몽 앞으로 순간이동
     if (GAME->KeyDown(KEY_TYPE::KEY_9))
     {
@@ -84,6 +112,7 @@ HRESULT Level_Stage01::Render()
 
 HRESULT Level_Stage01::Ready_Lights()
 {
+    GAME->Reset_DynamicShadowCascadeTemporalUpdateIntervals();
     GAME->Clear_Lights();
 
     LIGHT_DESC LightDesc{};
@@ -108,7 +137,8 @@ HRESULT Level_Stage01::Ready_Lights()
 
 HRESULT Level_Stage01::Ready_Layer_Player(const wstring& strLayerTag)
 {
-    Vec3 startPos = Vec3(60.93f, 3.63f, -0.93f);
+    Vec3 startPos = Vec3(78.57f, 2.46f, -1.5f);
+    Vec3 startRot = Vec3(0.f, 85.8f, 0.f);
 
     CHECK_FAILED(CLIENT->Initialize_Hero(ETOI(LevelType::Stage01), strLayerTag, startPos), E_FAIL);
 
@@ -166,6 +196,33 @@ HRESULT Level_Stage01::Ready_Layer_Camera(const wstring& strLayerTag)
 HRESULT Level_Stage01::Ready_Layer_UI(const wstring& strLayerTag)
 {
     CHECK_FAILED(CLIENT->Initialize_GameplayUI(ETOI(LevelType::Stage01)), E_FAIL);
+
+    return S_OK;
+}
+
+HRESULT Level_Stage01::Ready_Layer_BackGround(const wstring& strLayerTag)
+{
+    SkyBoxFlow::SKYBOXFLOW_DESC skyBoxDesc{};
+    skyBoxDesc.modelTag = TEXT("Model_SM_Skybox_Mesh");
+    skyBoxDesc.shaderTag = TEXT("Shader_SkyBoxFlow");
+    skyBoxDesc.skyTextureTag = TEXT("Texture_SkyBox_Simon");
+    skyBoxDesc.flowTextureTag = TEXT("Texture_SkyBox_Flow03");
+
+    skyBoxDesc.tint = Vec4(1.604023f, 0.887117f, 0.631814f, 1.f);
+    skyBoxDesc.brightness = 500.f;
+    skyBoxDesc.contrast = 1.524392f;
+    skyBoxDesc.noiseStrength = 0.25f;
+    skyBoxDesc.speed = 0.001f;
+    skyBoxDesc.scale = 1.f;
+
+    CHECK_FAILED(
+        GAME->Add_GameObject(
+            ETOI(LevelType::Stage01),
+            TEXT("GameObject_SkyBoxFlow_Stage01"),
+            ETOI(LevelType::Stage01),
+            strLayerTag,
+            &skyBoxDesc),
+        E_FAIL);
 
     return S_OK;
 }

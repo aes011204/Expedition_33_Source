@@ -56,8 +56,6 @@ void MB_Volester::Update(float timeDelta)
     }
 }
 
-
-
 HRESULT MB_Volester::Ready_PartObjects()
 {
     Mon_Volester_Body::BODY_DESC bodyDesc{};

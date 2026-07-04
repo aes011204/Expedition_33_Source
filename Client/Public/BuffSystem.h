@@ -59,9 +59,9 @@ public:
     FOnBuffConsumed OnBuffConsumed;
 
 private:
-    static constexpr float MARK_BONUS_DAMAGE = 20.f;      // 징표있는 놈 떄릴 때 추가 데미지
-    static constexpr float BURN_MAX_HP_RATE = 0.03f;      // 화상 데미지
-    static constexpr float SLOW_SPEED_MULTIPLIER = 0.8f;  // 감속
+    static constexpr float MARK_DAMAGE_MULTIPLIER = 1.3f;  // 징표있는 놈 때릴 때 데미지 배율
+    static constexpr float BURN_MAX_HP_RATE = 0.0025f;     // 화상 데미지
+    static constexpr float SLOW_SPEED_MULTIPLIER = 0.8f;   // 감속
 
     FDelegateHandle _damageCalculatingHandle{};
 

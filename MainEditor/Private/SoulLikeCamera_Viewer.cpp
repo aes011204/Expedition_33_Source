@@ -59,6 +59,8 @@ namespace
             return "패링";
         case SoulLikeCamera_Viewer::CameraProfileType::PlayerHit:
             return "플레이어 피격";
+        case SoulLikeCamera_Viewer::CameraProfileType::PlayerJump:
+            return "Player Jump";
         case SoulLikeCamera_Viewer::CameraProfileType::JumpCounter:
             return "점프 카운터";
         default:
@@ -80,6 +82,7 @@ namespace
             SoulLikeCamera_Viewer::CameraProfileType::MonsterAttack,
             SoulLikeCamera_Viewer::CameraProfileType::Parry,
             SoulLikeCamera_Viewer::CameraProfileType::PlayerHit,
+            SoulLikeCamera_Viewer::CameraProfileType::PlayerJump,
             SoulLikeCamera_Viewer::CameraProfileType::JumpCounter,
         };
 
@@ -811,6 +814,7 @@ void SoulLikeCamera_Viewer::Render_LeftPanel()
     if (_profileType == CameraProfileType::PlayerSkill ||
         _profileType == CameraProfileType::Parry ||
         _profileType == CameraProfileType::PlayerHit ||
+        _profileType == CameraProfileType::PlayerJump ||
         _profileType == CameraProfileType::JumpCounter)
     {
         const char* currentAnimation = (_selectedPlayerAnimationIndex >= 0 && _selectedPlayerAnimationIndex < static_cast<int>(_playerAnimationNames.size()))
@@ -1615,6 +1619,8 @@ string SoulLikeCamera_Viewer::Build_CurrentPresetKey() const
         return "Parry";
     case CameraProfileType::PlayerHit:
         return "PlayerHit";
+    case CameraProfileType::PlayerJump:
+        return "PlayerJump";
     case CameraProfileType::JumpCounter:
         return "JumpCounter";
     default:
@@ -1736,6 +1742,12 @@ void SoulLikeCamera_Viewer::Apply_BrowserPresetContext(const string& presetKey)
     if (presetKey == "PlayerHit")
     {
         _profileType = CameraProfileType::PlayerHit;
+        return;
+    }
+
+    if (presetKey == "PlayerJump")
+    {
+        _profileType = CameraProfileType::PlayerJump;
         return;
     }
 
