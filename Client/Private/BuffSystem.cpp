@@ -89,10 +89,11 @@ bool BuffSystem::Try_ConsumeMarkOnDamage(const BattleChar& attacker, const Battl
     if (mark == nullptr)
         return false;
 
-    inOutDamage += MARK_BONUS_DAMAGE;
+    const float bonusDamage = inOutDamage * (MARK_DAMAGE_MULTIPLIER - 1.f);
+    inOutDamage *= MARK_DAMAGE_MULTIPLIER;
     Remove_Buff(target, Buffs::Mark);
 
-    OnBuffConsumed.Broadcast(target, Buffs::Mark, MARK_BONUS_DAMAGE);
+    OnBuffConsumed.Broadcast(target, Buffs::Mark, bonusDamage);
     return true;
 }
 

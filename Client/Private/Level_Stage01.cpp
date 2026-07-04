@@ -37,6 +37,7 @@ HRESULT Level_Stage01::Initialize()
 
     RuntimeRuleStateService::Apply_ToCurrentRuntime(
         RuntimeRuleStateService::Build_SimonStartUnlocks(), false);
+    CLIENT->Restore_CurrentHeroesHpToMax();
 
     //GAME->Play_BGM(Constants::SoundBGM::SpringBGM, 1.f, true, 0.f);
 
