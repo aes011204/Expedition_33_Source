@@ -42,6 +42,7 @@ namespace
 
     constexpr wchar_t kFlameEffectName[] = L"Effects/Assets/Map/FX_Brazier_Fire.effect.json";
     constexpr wchar_t kLeafEffectName[] = L"Effects/Assets/Map/FX_FallingLeaf.effect.json";
+    constexpr wchar_t kFireEffectName[] = L"Effects/Assets/Map/FX_FallingFire.effect.json";
 
     constexpr Vec3 kCasinoLightPositions[] = {
         Vec3(118.12f, -3.23f, 19.45f),
@@ -155,6 +156,14 @@ void Level_GestralVillage::BeginPlay()
     leafDesc.scale = Vec3(1.f, 1.f, 1.f);
 
     CLIENT->Play_Effect(leafDesc);
+
+    // falling fire
+    PlayEffectDesc fireDesc{};
+    fireDesc.effectName = kFireEffectName;
+    fireDesc.worldPosition = Vec3(141.24f, -3.81f, -2.36f);
+    fireDesc.scale = Vec3(1.f, 1.f, 1.f);
+
+    CLIENT->Play_Effect(fireDesc);
 }
 
 void Level_GestralVillage::Update(float fTimeDelta)
@@ -165,7 +174,7 @@ void Level_GestralVillage::Update(float fTimeDelta)
         auto active = CLIENT->Get_ActiveHero();
         CHECK_NULL(active);
 
-        active->Get_Transform()->Set_WorldPosition(Vec3(6.33f, -6.73, 2.7f));
+        active->Get_Transform()->Set_WorldPosition(Vec3(6.33f, -6.73f, 2.7f));
 
         if (auto movement = active->Get_Component<MovementCom>())
             movement->Sync_RuntimePositionToTransform();
