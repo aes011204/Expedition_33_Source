@@ -702,9 +702,30 @@ void PhysicsModifier::Initialize_Chains(ModelCom* model)
 
 		if (chain.nodes.size() > 1)
 		{
-			for (size_t i = 0; i < chain.nodes.size(); ++i)
+			if (_desc.useHierarchicalDepthRatio)
 			{
-				chain.nodes[i].depthRatio = static_cast<float>(i) / static_cast<float>(chain.nodes.size() - 1);
+				vector<uint32> nodeDepths(chain.nodes.size(), 0u);
+				uint32 maxNodeDepth = 0u;
+				for (size_t i = 0; i < chain.nodes.size(); ++i)
+				{
+					const int32 parentNodeIndex = chain.nodes[i].parentNodeIndex;
+					if (parentNodeIndex >= 0 && static_cast<size_t>(parentNodeIndex) < nodeDepths.size())
+						nodeDepths[i] = nodeDepths[static_cast<size_t>(parentNodeIndex)] + 1u;
+					maxNodeDepth = std::max(maxNodeDepth, nodeDepths[i]);
+				}
+				for (size_t i = 0; i < chain.nodes.size(); ++i)
+				{
+					chain.nodes[i].depthRatio = maxNodeDepth > 0u
+						? static_cast<float>(nodeDepths[i]) / static_cast<float>(maxNodeDepth)
+						: 0.f;
+				}
+			}
+			else
+			{
+				for (size_t i = 0; i < chain.nodes.size(); ++i)
+				{
+					chain.nodes[i].depthRatio = static_cast<float>(i) / static_cast<float>(chain.nodes.size() - 1);
+				}
 			}
 			_chains.push_back(std::move(chain));
 		}
@@ -2748,6 +2769,7 @@ const ClassReflectionInfo* PhysicsModifier::Get_RuntimeReflectionInfo() const
 			AddRuntimeProperty(result.properties, PropertyType::Float, "windWaveFrequency", "Wind Freq", PhysicsOffset(&PhysicsModifierDesc::windWaveFrequency), 0.01f, 0.f, 20.f);
 			AddRuntimeProperty(result.properties, PropertyType::Float, "windWaveDepthPhase", "Wind Phase", PhysicsOffset(&PhysicsModifierDesc::windWaveDepthPhase), 0.01f, -10.f, 10.f);
 			AddRuntimeProperty(result.properties, PropertyType::Float, "gravityScale", "Gravity", PhysicsOffset(&PhysicsModifierDesc::gravityScale), 0.01f, 0.f, 10.f);
+			AddRuntimeProperty(result.properties, PropertyType::Bool, "useHierarchicalDepthRatio", "Tree Depth", PhysicsOffset(&PhysicsModifierDesc::useHierarchicalDepthRatio));
 			AddRuntimeProperty(result.properties, PropertyType::Float, "teleportDistance", "Reset Dist", PhysicsOffset(&PhysicsModifierDesc::teleportDistance), 0.05f, 0.f, 1000.f);
 			AddRuntimeProperty(result.properties, PropertyType::Int, "solverIterations", "Solver Iter", PhysicsOffset(&PhysicsModifierDesc::solverIterations), 1.f, 1.f, 64.f);
 
