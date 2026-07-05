@@ -37,7 +37,7 @@ class EyeTarget : public GameObject
     private:
         HRESULT         Ready_EyeTargetCollider();
         HRESULT         Ready_EyeTargetEffectSetting();
-        void            Apply_EyeTargetEffectSettings();
+        void            Apply_EyeTargetEffectSettings(bool preserveInspectorTransform = false);
         void            Play_EyeTargetEffect();
 
     public:

@@ -71,6 +71,9 @@ void Trigger_Cinematic::OnBeginOverlap(Shared<ColliderCom> self, Shared<Collider
         self->Set_IsActive(false);
         self->Clear_Overlap();
 
+        if (_onTriggered)
+            _onTriggered();
+
 		const wstring sequencePath = Constants::Cinematic::RuntimeJson_Dir + _sequenceFileId;
         const bool isBishopCinematic =
             _sequenceFileId == Constants::Cinematic::BishopCinematicFileId;
@@ -113,7 +116,8 @@ void Trigger_Cinematic::OnBeginOverlap(Shared<ColliderCom> self, Shared<Collider
                 });
         }
 
-        CLIENT->Play_Sequence(sequencePath, 0);
+        if (!CLIENT->Request_CinematicSequenceTransition(sequencePath, 0))
+            CLIENT->Play_Sequence(sequencePath, 0);
     }
 }
 
@@ -139,6 +143,11 @@ void Trigger_Cinematic::Set_StartBattleOnComplete(bool enabled, const string& ta
 {
     _startBattleOnComplete = enabled;
     _battleTargetId = targetId;
+}
+
+void Trigger_Cinematic::Set_OnTriggered(function<void()> callback)
+{
+    _onTriggered = callback;
 }
 
 Shared<Trigger_Cinematic> Trigger_Cinematic::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)

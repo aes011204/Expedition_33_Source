@@ -202,16 +202,18 @@ void SL_StateMachineCom::Notify_BasicAttackComboWindow(bool enabled)
     basicAttack->Set_ComboWindowEnabled(enabled);
 }
 
-void SL_StateMachineCom::Set_CanActionCancel(bool enabled, bool canJump, bool canDodge)
+void SL_StateMachineCom::Set_CanActionCancel(bool enabled, bool canJump, bool canDodge, bool canParry)
 {
     _canActionJump = enabled && canJump;
     _canActionDodge = enabled && canDodge;
+    _canActionParry = enabled && canParry;
 }
 
 void SL_StateMachineCom::Clear_CanActionCancel()
 {
     _canActionJump = false;
     _canActionDodge = false;
+    _canActionParry = false;
 }
 
 Shared<SL_Maelle> SL_StateMachineCom::Get_OwnerMaelle() const

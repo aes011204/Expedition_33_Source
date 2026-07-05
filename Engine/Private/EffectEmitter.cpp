@@ -111,6 +111,10 @@ void EffectEmitter::Set_MaterialRevealOverride(float, float)
 {
 }
 
+void EffectEmitter::Set_MaterialTintOverride(const Vec4&, float)
+{
+}
+
 bool EffectEmitter::Try_Get_BlendSortWorldPosition(Vec3& outWorldPosition) const
 {
     if (_transformCom == nullptr)

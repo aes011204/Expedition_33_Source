@@ -41,18 +41,18 @@ namespace
 
         Matrix lightShaftWorld =
             Matrix::CreateFromYawPitchRoll(
-                DirectX::XMConvertToRadians(-0.f),
                 DirectX::XMConvertToRadians(1.661f),
-                DirectX::XMConvertToRadians(0.000f)) *
-            Matrix::CreateTranslation(Vec3(-2.374f, 22.45f, -20.969f));
+                DirectX::XMConvertToRadians(-5.5f),
+                DirectX::XMConvertToRadians(0.0f)) *
+            Matrix::CreateTranslation(Vec3(-0.956f, 22.472f, -21.720f));
 
         VolumetricLightShaftZoneEntry& zone = lightShaftZoneCB.zones[0];
         zone.worldToLocal = lightShaftWorld.Invert();
-        zone.halfExtents = Vec3(13.200f, 5.2007f, 9.9f);
+        zone.halfExtents = Vec3(10.000f, 5.201f, 9.400f);
         zone.density = 1.f;
         zone.lightColor = Vec4(1.f, 242.f / 255.f, 204.f / 255.f, 1.f);
         zone.edgeFade = 1.f;
-        zone.intensity = 0.440f;
+        zone.intensity = 0.3f;
 
         return lightShaftZoneCB;
     }
@@ -76,6 +76,7 @@ HRESULT Level_GamePlay::Initialize()
 
     RuntimeRuleStateService::Apply_ToCurrentRuntime(
         RuntimeRuleStateService::Build_GameplayStartUnlocks(), false);
+    CLIENT->Restore_CurrentHeroesHpToMax();
 
     //if (FAILED(Ready_Layer_Effect(TEXT("Layer_Effect"))))
     //    return E_FAIL;
@@ -124,6 +125,7 @@ void Level_GamePlay::BeginPlay()
 
     GAME->Set_VolumetricLightShaftZoneCullingDistance(40.f);
     GAME->Set_VolumetricLightShaftZones(Build_GamePlayLightShaftZones());
+    Apply_GamePlayRenderParams();
 
     CLIENT->Capture_InitialWorldSnapshot();
     CLIENT->Queue_LevelAnnounce(LevelType::GamePlay);
@@ -305,6 +307,7 @@ HRESULT Level_GamePlay::Ready_Layer_Trigger(const wstring& strLayerTag)
         {
             trigger->Set_SequenceFileId(Constants::Cinematic::BishopCinematicFileId);
             trigger->Set_StartBattleOnComplete(true, "Boss");
+            trigger->Set_OnTriggered([this]() { Apply_BishopCinematicLightDirection(); });
         }
 
     }
@@ -364,9 +367,10 @@ HRESULT Level_GamePlay::Ready_Layer_AmbientVisibility(const wstring& strLayerTag
     MapAmbientVisibility::MAP_AMBIENT_VISIBILITY_DESC bridgeDesc{};
     bridgeDesc.name = L"AV_Cylinder_Test";
     bridgeDesc.modelPath = L"../../../Client/Bin/Resources/Map/SmallLevel_MF_Zone_01/Cube_Nanite.model";
-    bridgeDesc.position = Vec3(0.8f, 22.42f, -19.4f);
+    bridgeDesc.position = Vec3(-0.17f, 21.52f, -19.4f);
     bridgeDesc.rotation = Quat::Identity;
     bridgeDesc.scale = Vec3(170.f, 80.f, 200.f);
+    bridgeDesc.ambientVisibilityAmount = 0.f;
     bridgeDesc.visible = true;
     bridgeDesc.cullEnabled = true;
 
@@ -411,6 +415,7 @@ void Level_GamePlay::Respawn_CinematicTrigger()
     {
         trigger->Set_SequenceFileId(Constants::Cinematic::BishopCinematicFileId);
         trigger->Set_StartBattleOnComplete(true, "Boss");
+        trigger->Set_OnTriggered([this]() { Apply_BishopCinematicLightDirection(); });
     }
 
     Shared<GameObject> tutorialSpawned = Spawn_Prefab::Prefab(Constants::Prefab::Trigger_Cinematic)
@@ -426,6 +431,113 @@ void Level_GamePlay::Respawn_CinematicTrigger()
         tutorialTrigger->Set_StartBattleOnComplete(true, "Lancelier");
     }
 
+}
+
+void Level_GamePlay::Apply_BishopCinematicLightDirection()
+{
+    const LIGHT_DESC* currentLightDesc = GAME->Get_PrimaryShadowLightDesc();
+    if (currentLightDesc == nullptr || currentLightDesc->type != LightType::Directional)
+        return;
+
+    Vec3 lightDirection(-2.240f, -2.970f, -1.000f);
+    if (lightDirection.LengthSquared() <= 0.0001f)
+        return;
+
+    lightDirection.Normalize();
+
+    LIGHT_DESC lightDesc = *currentLightDesc;
+    lightDesc.direction = Vec4(lightDirection.x, lightDirection.y, lightDirection.z, 0.f);
+
+    if (FAILED(GAME->Update_PrimaryShadowLightDesc(lightDesc)))
+        LOG_WARN("[Level_GamePlay] Failed to apply Bishop cinematic light direction.");
+}
+
+void Level_GamePlay::Apply_GamePlayRenderParams()
+{
+    Shared<LightingPipeline> lightingPipeline = GAME->Get_LightingPipeline();
+    Shared<PostProcessPipeline> postProcessPipeline = GAME->Get_PostProcessPipeline();
+    if (_hasSavedGamePlayRenderParams)
+        return;
+
+    GAME->Get_LightDescs(_savedLightDescs);
+    if (lightingPipeline != nullptr)
+    {
+        _savedSSAOCB = lightingPipeline->Get_Params();
+        _savedDeferredLightingCB = lightingPipeline->Get_DeferredLightingParams();
+    }
+    if (postProcessPipeline != nullptr)
+        _savedPostProcessFeatures = postProcessPipeline->Get_PostProcessFeatures();
+
+    _hasSavedGamePlayRenderParams = true;
+
+    Vec3 lightDirection(-7.300f, -5.030f, -1.000f);
+    if (lightDirection.LengthSquared() > 0.0001f)
+    {
+        lightDirection.Normalize();
+
+        vector<LIGHT_DESC> lightDescs = _savedLightDescs;
+        for (LIGHT_DESC& lightDesc : lightDescs)
+        {
+            if (lightDesc.type != LightType::Directional)
+                continue;
+
+            lightDesc.direction = Vec4(lightDirection.x, lightDirection.y, lightDirection.z, 0.f);
+            break;
+        }
+        if (!lightDescs.empty())
+            GAME->Set_Lights(lightDescs);
+    }
+
+    if (lightingPipeline != nullptr)
+    {
+        SSAOCB ssao = _savedSSAOCB;
+        ssao.SSAOEnabled = 1u;
+        ssao.SSAORadius = 0.100f;
+        ssao.SSAOBias = 0.0420f;
+        ssao.SSAOIntensity = 1.000f;
+        ssao.SSAOPower = 1.200f;
+        ssao.SSAODepthRange = 1.000f;
+        ssao.SSAOSampleCount = 16u;
+        lightingPipeline->Set_Params(ssao);
+
+        DeferredLightingCB lighting = _savedDeferredLightingCB;
+        lighting.stylizedLightContrastEnabled = 1u;
+        lighting.stylizedLightContrastStrength = 0.11f;
+        lighting.stylizedLightThreshold = 0.28f;
+        lighting.stylizedLightSoftness = 0.283f;
+        lighting.stylizedLitBoost = 4.00f;
+        lighting.stylizedUnlitAmbientScale = 0.00f;
+        lighting.stylizedDeepUnlitThreshold = 0.00f;
+        lighting.stylizedDeepUnlitSoftness = 0.001f;
+        lighting.stylizedDeepUnlitAmbientScale = 0.00f;
+        lightingPipeline->Set_DeferredLightingParams(lighting);
+    }
+}
+
+void Level_GamePlay::Restore_GamePlayRenderParams()
+{
+    if (!_hasSavedGamePlayRenderParams)
+        return;
+
+    Shared<LightingPipeline> lightingPipeline = GAME->Get_LightingPipeline();
+    if (lightingPipeline != nullptr)
+    {
+        lightingPipeline->Set_Params(_savedSSAOCB);
+        lightingPipeline->Set_DeferredLightingParams(_savedDeferredLightingCB);
+    }
+
+    Shared<PostProcessPipeline> postProcessPipeline = GAME->Get_PostProcessPipeline();
+    if (postProcessPipeline != nullptr)
+        postProcessPipeline->Set_PostProcessFeatures(_savedPostProcessFeatures);
+
+    if (!_savedLightDescs.empty())
+        GAME->Set_Lights(_savedLightDescs);
+
+    _savedDeferredLightingCB = DeferredLightingCB{};
+    _savedSSAOCB = SSAOCB{};
+    _savedPostProcessFeatures = PostProcessFeature::None;
+    _savedLightDescs.clear();
+    _hasSavedGamePlayRenderParams = false;
 }
 
 HRESULT Level_GamePlay::Ready_Layer_UI(const wstring& strLayerTag)
@@ -570,6 +682,8 @@ Shared<Level_GamePlay> Level_GamePlay::Create(const ComPtr<Device>& device, cons
 
 void Level_GamePlay::Free()
 {
+    Restore_GamePlayRenderParams();
+
     GAME->Set_VolumetricLightShaftZones(VolumetricLightShaftZoneCB{});
     Free_MapStreaming();
 

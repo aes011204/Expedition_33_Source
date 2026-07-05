@@ -740,7 +740,16 @@ void Sound_Manager::Load_SoundCues()
             }
         }
 
-        _soundCues.emplace(Normalize_SoundKey(cue.cueId), std::move(cue));
+        const wstring cueKey = Normalize_SoundKey(cue.cueId);
+        auto iter = _soundCues.find(cueKey);
+        if (iter != _soundCues.end())
+        {
+            LOG_WARN("Duplicate sound cue id. Using last row: {}", cueIdText);
+            iter->second = std::move(cue);
+            continue;
+        }
+
+        _soundCues.emplace(cueKey, std::move(cue));
     }
 
     LOG_INFO("Sound cues loaded: {}", static_cast<int32>(_soundCues.size()));

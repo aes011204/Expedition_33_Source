@@ -17,8 +17,7 @@ public:
         None,
         Rest,
         UpgradeStat,
-        UpgradeSkill,
-        UpgradeWeapon
+        UpgradeSkill
     };
 
 public:
@@ -57,11 +56,10 @@ private:
     float           _closeElapsed = 0.f;
     float           _outroDuration = 1.f;
 
-    // 버튼4개
+    // 버튼3개
     Shared<UI_Button> _restButton{};
     Shared<UI_Button> _upgradeStatButton{};
     Shared<UI_Button> _upgradeSkillButton{};
-    Shared<UI_Button> _upgradeWeaponButton{};
 
 public:
     static Unique<SavePoint_Panel> Create(uint32 levelIndex);

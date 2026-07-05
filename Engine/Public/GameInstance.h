@@ -131,6 +131,7 @@ public:
 public:
     void Set_GameplayPaused(bool paused) { _isGameplayPaused = paused; }
     bool Is_GameplayPaused() const { return _isGameplayPaused; }
+    bool Is_EditorRuntimeDebugEnabled() const { return _enableEditorRuntimeDebug; }
 
     // 월드 시간 조절
     void Set_WorldTimeScale(float timeScale);
@@ -340,6 +341,20 @@ public: /* For.Light_Manager */
     void Get_LightDescs(vector<LIGHT_DESC>& outLightDescs) const;
     HRESULT Set_Lights(const vector<LIGHT_DESC>& lightDescs);
     HRESULT Bind_PrimaryShadowLightCB(Shared<ShaderCom> shader) const;
+    const LIGHT_DESC* Get_PointLightDesc(uint32 pointIndex) const;
+    uint32 Get_PointLightCount() const;
+    HRESULT Add_PointLight(
+        const Vec3& position,
+        float range,
+        const Vec4& diffuse,
+        const Vec4& ambient,
+        const Vec4& specular,
+        float attenuationPower = 1.f);
+    HRESULT Update_PointLightDesc(uint32 pointIndex, const LIGHT_DESC& lightDesc);
+    HRESULT Set_PointLightPosition(uint32 pointIndex, const Vec3& position);
+    HRESULT Set_PointLightRange(uint32 pointIndex, float range);
+    HRESULT Set_PointLightAlpha(uint32 pointIndex, float alpha);
+    HRESULT Set_PointLightAttenuationPower(uint32 pointIndex, float attenuationPower);
 
 public: /* For.Font_Manager */
     HRESULT Add_Font(const wstring& fontTag, const wchar_t* fontFilePath);
@@ -715,6 +730,7 @@ private:
     Unique<Culling_Manager> _cullingManager{};
     Unique<ThreadPool> _threadPool{};
     Unique<Event_Bus> _eventBus{};
+    bool _enableEditorRuntimeDebug = false;
 
 #ifdef _DEBUG
     Unique<Print_Manager> _printManager{};

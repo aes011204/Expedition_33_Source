@@ -357,6 +357,9 @@
     <ClCompile Include="..\Private\ANS_Trail.cpp">
       <Filter>95. AnimNotify\01. NotifyStates</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\ANS_WeakColor.cpp">
+      <Filter>95. AnimNotify\01. NotifyStates</Filter>
+    </ClCompile>
     <ClCompile Include="..\Private\ANS_Visible_Parts.cpp">
       <Filter>95. AnimNotify\01. NotifyStates</Filter>
     </ClCompile>
@@ -1283,6 +1286,9 @@
     <ClCompile Include="..\Private\LevelChange_Portal.cpp" />
     <ClCompile Include="..\Private\GradientSkill.cpp" />
     <ClCompile Include="..\Private\AL_SL_State.cpp" />
+    <ClCompile Include="..\Private\ANS_BattleTargetTrack.cpp">
+      <Filter>95. AnimNotify\01. NotifyStates</Filter>
+    </ClCompile>
     <ClCompile Include="..\Private\SL_Jump.cpp" />
     <ClCompile Include="..\private\ANS_Jump.cpp" />
     <ClCompile Include="..\private\ANS_JumpCounter.cpp" />
@@ -1296,6 +1302,12 @@
     <ClCompile Include="..\Private\Mon_Dualliste_Sword_L.cpp" />
     <ClCompile Include="..\Private\Mon_Dualliste_Sword_R.cpp" />
     <ClCompile Include="..\Private\MW_Dualliste.cpp" />
+    <ClCompile Include="..\private\Trigger_Cinematic.cpp">
+      <Filter>02. GameObject\Map</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\Trigger_WorldDialogue.cpp">
+      <Filter>02. GameObject\Map</Filter>
+    </ClCompile>
     <ClCompile Include="..\Private\SL_Parry.cpp" />
     <ClCompile Include="..\Private\ANS_ParryWindow.cpp" />
     <ClCompile Include="..\Private\SL_JumpCounter.cpp" />
@@ -1431,6 +1443,9 @@
     <ClCompile Include="..\private\UI_Dialogue.cpp">
       <Filter>02. GameObject\UI</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\UI_EventDialoguePlayer.cpp">
+      <Filter>02. GameObject\UI</Filter>
+    </ClCompile>
     <ClCompile Include="..\Private\UI_GradientSkillPreviewTest.cpp">
       <Filter>02. GameObject\UI</Filter>
     </ClCompile>
@@ -1490,6 +1505,9 @@
     <ClInclude Include="..\Public\LevelChange_Portal.h" />
     <ClInclude Include="..\Public\GradientSkill.h" />
     <ClInclude Include="..\Public\AL_SL_State.h" />
+    <ClInclude Include="..\Public\ANS_BattleTargetTrack.h">
+      <Filter>95. AnimNotify\01. NotifyStates</Filter>
+    </ClInclude>
     <ClInclude Include="..\Public\SL_Jump.h" />
     <ClInclude Include="..\public\ANS_Jump.h" />
     <ClInclude Include="..\public\ANS_JumpCounter.h" />
@@ -1502,6 +1520,12 @@
     <ClInclude Include="..\Public\Mon_Dualliste_Sword_L.h" />
     <ClInclude Include="..\Public\Mon_Dualliste_Sword_R.h" />
     <ClInclude Include="..\Public\MW_Dualliste.h" />
+    <ClInclude Include="..\public\Trigger_Cinematic.h">
+      <Filter>02. GameObject\Map</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Trigger_WorldDialogue.h">
+      <Filter>02. GameObject\Map</Filter>
+    </ClInclude>
     <ClInclude Include="..\Public\SL_Parry.h" />
     <ClInclude Include="..\Public\ANS_ParryWindow.h" />
     <ClInclude Include="..\Public\AN_SL_JumpCounterDamage.h">
@@ -1583,6 +1607,9 @@
       <Filter>02. GameObject\UI\ScreenFx</Filter>
     </ClInclude>
     <ClInclude Include="..\public\UI_Dialogue.h">
+      <Filter>02. GameObject\UI</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\UI_EventDialoguePlayer.h">
       <Filter>02. GameObject\UI</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\UI_GradientSkillPreviewTest.h">
@@ -1820,6 +1847,9 @@
       <Filter>95. AnimNotify\01. NotifyStates</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\ANS_Trail.h">
+      <Filter>95. AnimNotify\01. NotifyStates</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\ANS_WeakColor.h">
       <Filter>95. AnimNotify\01. NotifyStates</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\ANS_Visible_Parts.h">

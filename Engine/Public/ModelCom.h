@@ -104,6 +104,7 @@ public: /* Animation Speed Control (Per-Animation) */
 
     bool Is_AnimationFinished() const { return _isFinished; }
     bool Is_AnimationBlending() const { return _isBlending; }
+    bool Is_AnimationLooping() const { return _isAnimLoop; }
     void Set_Animation(uint32 animIndex, bool isLoop = false, float startFrame = 0.f);
     void Set_Animation(uint32 animIndex, float blendDuration, bool isLoop = false, float startFrame = 0.f);
     void Set_Animation(const string& animName, bool isLoop = false, float startFrame = 0.f);

@@ -14,6 +14,7 @@
 #include "NPC_Base.h"
 #include "Player_WorldBase.h"
 #include "MovementCom.h"
+#include "Trigger_WorldDialogue.h"
 
 namespace
 {
@@ -27,15 +28,15 @@ namespace
                 DirectX::XMConvertToRadians(20.959f),
                 DirectX::XMConvertToRadians(-0.000f),
                 DirectX::XMConvertToRadians(-0.000f)) *
-            Matrix::CreateTranslation(Vec3(11.399f, 10.280f, 92.334f));
+            Matrix::CreateTranslation(Vec3(11.483f, 9.280f, 89.513f));
 
         VolumetricLightShaftZoneEntry& zone = lightShaftZoneCB.zones[0];
         zone.worldToLocal = lightShaftWorld.Invert();
-        zone.halfExtents = Vec3(12.410f, 12.600f, 6.600f);
+        zone.halfExtents = Vec3(12.510f, 12.100f, 13.500f);
         zone.density = 1.f;
         zone.lightColor = Vec4(1.f, 242.f / 255.f, 204.f / 255.f, 1.f);
         zone.edgeFade = 1.f;
-        zone.intensity = 0.410f;
+        zone.intensity = 0.3014f;
 
         return lightShaftZoneCB;
     }
@@ -73,6 +74,25 @@ namespace
         Vec3(-7.65f, 8.82f, 96.49f),
         Vec3(-6.46f, 8.9f, 101.09f)
     };
+
+    bool Has_WorldDialogueTrigger(uint32 levelIndex)
+    {
+        bool found = false;
+
+        GAME->Visit_LevelObjects(
+            levelIndex,
+            [&found](const wstring& layerTag, const Shared<GameObject>& gameObject)
+            {
+                UNREFERENCED_PARAMETER(layerTag);
+
+                if (found || gameObject == nullptr)
+                    return;
+
+                found = gameObject->Get_SourcePrefabName() == Constants::Prefab::Trigger_WorldDialogue;
+            });
+
+        return found;
+    }
 }
 
 Level_GestralVillage::Level_GestralVillage(const ComPtr<Device>& device, const ComPtr<Context>& context)
@@ -89,6 +109,7 @@ HRESULT Level_GestralVillage::Initialize()
         return E_FAIL;
 
     UnlockRules_GestralVillage();
+    CLIENT->Restore_CurrentHeroesHpToMax();
 
     if (FAILED(Ready_Layer_UI(TEXT("Layer_UI"))))
         return E_FAIL;
@@ -124,6 +145,7 @@ void Level_GestralVillage::BeginPlay()
 
     GAME->Set_VolumetricLightShaftZoneCullingDistance(30.f);
     GAME->Set_VolumetricLightShaftZones(Build_GestralVillageLightShaftZones());
+    Apply_GestralVillageRenderParams();
     Play_MapBGM();
 
     _editorPlayRuntimeHandle =
@@ -154,6 +176,10 @@ void Level_GestralVillage::BeginPlay()
     leafDesc.effectName = kLeafEffectName;
     leafDesc.worldPosition = Vec3(2.38f, -0.05f, 143.15f);
     leafDesc.scale = Vec3(1.f, 1.f, 1.f);
+
+    CLIENT->Play_Effect(leafDesc);
+
+    leafDesc.worldPosition = Vec3(-52.84f, -2.82f, 39.3f);
 
     CLIENT->Play_Effect(leafDesc);
 
@@ -200,7 +226,7 @@ HRESULT Level_GestralVillage::Ready_Lights()
     LIGHT_DESC LightDesc{};
 
     LightDesc.type = LightType::Directional;
-    LightDesc.direction = Vec4(-0.8f, -0.53f, -0.05f, 0.f);
+    LightDesc.direction = Vec4(-0.822035f, -0.559684f, 0.104941f, 0.f);
     LightDesc.diffuse = Vec4(1.f, 1.f, 1.f, 1.f);
     LightDesc.ambient = Vec4(0.4f, 0.4f, 0.4f, 1.f);
     LightDesc.specular = Vec4(1.f, 1.f, 1.f, 1.f);
@@ -258,7 +284,7 @@ HRESULT Level_GestralVillage::Ready_Lights()
         if (FAILED(GAME->Set_ShadowCascadeLevel(CascadeLevel::Normal)))
             return E_FAIL;
 
-        GAME->Set_DynamicShadowCascadeTemporalUpdateIntervals(1u, 1u, 2u, 12u);
+        GAME->Set_DynamicShadowCascadeTemporalUpdateIntervals(1u, 1u, 4u, 12u);
     }
 
     return S_OK;
@@ -379,7 +405,7 @@ HRESULT Level_GestralVillage::Ready_Layer_NPC(const wstring& strLayerTag)
     const Shared<GameObject> golgra = Spawn_Prefab::Prefab("NPC_Golgra")
         .AtLevel(ETOI(LevelType::GestralVillage))
         .InLayer(strLayerTag)
-        .Position(Vec3(2.41f, 3.50f, 88.82f))
+        .Position(Vec3(2.41f, 3.62f, 88.82f))
         .Rotation(Vec3(0.f, 0.f, 0.f))
         .Spawn();
 
@@ -415,8 +441,8 @@ HRESULT Level_GestralVillage::Ready_Layer_NPC(const wstring& strLayerTag)
     const Shared<GameObject> dance = Spawn_Prefab::Prefab("NPC_Dance")
         .AtLevel(ETOI(LevelType::GestralVillage))
         .InLayer(strLayerTag)
-        .Position(Vec3(-62.24f, -1.59f, 38.08f))
-        .Rotation(Vec3(0.f, 111.6f, 0.f))
+        .Position(Vec3(33.02f, -7.06f, 3.f))
+        .Rotation(Vec3(0.f, -77.5f, 0.f))
         .Scale(Vec3(1.f, 1.f, 1.f))
         .Spawn();
 
@@ -455,12 +481,40 @@ HRESULT Level_GestralVillage::Ready_Layer_ETC(const wstring& strLayerTag)
     CHECK_NULL(bgmZone, E_FAIL);
 
     {
+        const uint32 levelIndex = ETOI(LevelType::GestralVillage);
+        if (!Has_WorldDialogueTrigger(levelIndex))
+        {
+            const Shared<GameObject> dialogueObject = Spawn_Prefab::Prefab(Constants::Prefab::Trigger_WorldDialogue)
+                .AtLevel(levelIndex)
+                .InLayer(strLayerTag)
+                .Position(Vec3(-16.3f, 1.05f, 131.6f))
+                .Rotation(Vec3(0.f, 0.f, 0.f))
+                .Scale(Vec3(1.f, 1.f, 1.f))
+                .Spawn();
+
+            CHECK_NULL(dialogueObject, E_FAIL);
+            if (const Shared<Trigger_WorldDialogue> dialogueTrigger =
+                dynamic_pointer_cast<Trigger_WorldDialogue>(dialogueObject))
+            {
+                dialogueTrigger->Set_UIRequest(
+                    Constants::UI::UI_WorldDialogue_GestralVillage,
+                    L"Panel_WorldDialogue_GestralVillage",
+                    Constants::UI_Anim::UI_WorldDialogue_GestralVillageAnim_Path,
+                    10.f);
+            }
+
+            dialogueObject->Set_RuntimeAuthoringLoaded(true);
+        }
+    }
+
+    {
         MapAmbientVisibility::MAP_AMBIENT_VISIBILITY_DESC symbolDesc{};
         symbolDesc.name = L"AV_Cylinder_Symbol";
         symbolDesc.modelPath = L"../../../Client/Bin/Resources/Map/Level_Main_GestralVillage_V2/Cylinder.model";
-        symbolDesc.position = Vec3(3.41f, 17.03f, 92.3f);
+        symbolDesc.position = Vec3(3.41f, 17.03f, 93.69f);
         symbolDesc.rotation = Quat::Identity;
-        symbolDesc.scale = Vec3(18000.f, 19500.f, 18000.f);
+        symbolDesc.scale = Vec3(19000.f, 19500.f, 19700.f);
+        symbolDesc.ambientVisibilityAmount = 0.170f;
         symbolDesc.visible = true;
         symbolDesc.cullEnabled = true;
 
@@ -632,6 +686,63 @@ void Level_GestralVillage::Play_MapBGM()
     GAME->Play_BGM(Constants::SoundBGM::GestralVillageMarket, 0.7f, true, 0.f);
 }
 
+void Level_GestralVillage::Apply_GestralVillageRenderParams()
+{
+    Shared<LightingPipeline> lightingPipeline = GAME->Get_LightingPipeline();
+    if (_hasSavedGestralVillageRenderParams)
+        return;
+
+    if (lightingPipeline != nullptr)
+    {
+        _savedSSAOCB = lightingPipeline->Get_Params();
+        _savedDeferredLightingCB = lightingPipeline->Get_DeferredLightingParams();
+    }
+
+    _hasSavedGestralVillageRenderParams = true;
+
+    if (lightingPipeline != nullptr)
+    {
+        SSAOCB ssao = _savedSSAOCB;
+        ssao.SSAOEnabled = 1u;
+        ssao.SSAORadius = 0.100f;
+        ssao.SSAOBias = 0.0750f;
+        ssao.SSAOIntensity = 1.000f;
+        ssao.SSAOPower = 1.500f;
+        ssao.SSAODepthRange = 1.000f;
+        ssao.SSAOSampleCount = 16u;
+        lightingPipeline->Set_Params(ssao);
+
+        DeferredLightingCB lighting = _savedDeferredLightingCB;
+        lighting.stylizedLightContrastEnabled = 1u;
+        lighting.stylizedLightContrastStrength = 0.22f;
+        lighting.stylizedLightThreshold = 2.00f;
+        lighting.stylizedLightSoftness = 0.500f;
+        lighting.stylizedLitBoost = 1.20f;
+        lighting.stylizedUnlitAmbientScale = 0.35f;
+        lighting.stylizedDeepUnlitThreshold = 0.20f;
+        lighting.stylizedDeepUnlitSoftness = 0.500f;
+        lighting.stylizedDeepUnlitAmbientScale = 0.00f;
+        lightingPipeline->Set_DeferredLightingParams(lighting);
+    }
+}
+
+void Level_GestralVillage::Restore_GestralVillageRenderParams()
+{
+    if (!_hasSavedGestralVillageRenderParams)
+        return;
+
+    Shared<LightingPipeline> lightingPipeline = GAME->Get_LightingPipeline();
+    if (lightingPipeline != nullptr)
+    {
+        lightingPipeline->Set_Params(_savedSSAOCB);
+        lightingPipeline->Set_DeferredLightingParams(_savedDeferredLightingCB);
+    }
+
+    _savedDeferredLightingCB = DeferredLightingCB{};
+    _savedSSAOCB = SSAOCB{};
+    _hasSavedGestralVillageRenderParams = false;
+}
+
 Shared<Level_GestralVillage> Level_GestralVillage::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)
 {
     auto pInstance = make_shared<Level_GestralVillage>(device, context);
@@ -647,6 +758,8 @@ Shared<Level_GestralVillage> Level_GestralVillage::Create(const ComPtr<Device>& 
 void Level_GestralVillage::Free()
 {
     ClientInstance::Clear_PotatoBagArenaMapRenderGateBasis();
+
+    Restore_GestralVillageRenderParams();
 
     GAME->Set_VolumetricLightShaftZones(VolumetricLightShaftZoneCB{});
 

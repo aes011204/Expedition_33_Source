@@ -193,7 +193,7 @@ void SL_Maelle::OnBeginOverlap(Shared<ColliderCom> self, Shared<ColliderCom> oth
         _combatStatCom,
         target,
         target->Get_Stat(),
-        1.f,
+        _activeAttackDamageMultiplier,
         AttackType::BaseAttack,
         damageInfo))
     {
@@ -562,6 +562,22 @@ SL_SkillCooldownView SL_Maelle::Get_SkillCooldownView(uint32 slotIndex) const
     view.durationSec = cooldown.durationSec;
 
     return view;
+}
+
+void SL_Maelle::Set_AttackDamageMultiplier(const string& colliderTag, float multiplier)
+{
+    if (colliderTag != "Com_SL_PlayerAttack")
+        return;
+
+    _activeAttackDamageMultiplier = max(0.f, multiplier);
+}
+
+void SL_Maelle::Clear_AttackDamageMultiplier(const string& colliderTag)
+{
+    if (colliderTag != "Com_SL_PlayerAttack")
+        return;
+
+    _activeAttackDamageMultiplier = 1.f;
 }
 
 HRESULT SL_Maelle::Ready_WeaponPart(Body_Player* body)

@@ -13,6 +13,7 @@
 #include "EffectAssetRuntimeLoader.h"
 #include "EffectInstance.h"
 #include "EnvironmentView.h"
+#include "Inspector.h"
 #include "LightingPipeline.h"
 #include "MovementCom.h"
 #include "Spawn_Prefab.h"
@@ -278,7 +279,11 @@ void Scene_View::Pre_Render()
     {
         ENGINE_PROFILE_SCOPE_DETAIL("SceneView::DebugVolumes");
         if (Is_Visible())
+        {
             EnvironmentView::DrawDebugVolumes();
+            if (Shared<Inspector> inspector = dynamic_pointer_cast<Inspector>(EDITOR->Get_Window(L"Inspector")))
+                inspector->Draw_SelectedPointLightDebug();
+        }
     }
 }
 

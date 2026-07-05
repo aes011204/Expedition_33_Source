@@ -3,6 +3,7 @@
 #include "Delegate.h"
 #include "Level_WindowTitleFps.h"
 #include "Level.h"
+#include "LightingPipeline.h"
 
 NS_BEGIN(Client)
 
@@ -38,10 +39,15 @@ private:
     void    UnlockRules_GestralVillage();
 
     void    Play_MapBGM();
+    void    Apply_GestralVillageRenderParams();
+    void    Restore_GestralVillageRenderParams();
 
 private:
     WindowTitleFpsState _windowTitleFps = {};
     FDelegateHandle _editorPlayRuntimeHandle{};
+    DeferredLightingCB _savedDeferredLightingCB{};
+    SSAOCB _savedSSAOCB{};
+    bool _hasSavedGestralVillageRenderParams = false;
 
 private:
     Shared<BattleStartSpawner> _bssPotatoBag;

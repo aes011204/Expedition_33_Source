@@ -54,7 +54,7 @@ namespace Internal
         outRequests.push_back(request);
     }
 
-    constexpr float kSkyBreakDamageBonusPerStain = 0.2f;
+    constexpr float kSkyBreakDamageMultiplierPerStain = 1.3f;
 }
 
 /* 제물 */
@@ -287,6 +287,9 @@ void Skill_Lune_CripplingTsunami::Execute(const Skill_Data& skill, const BattleA
     const float damage = DamageSystem::CalculatePlayerAttackDamage(attacker, skill.powerMultiplier);
     DamageSystem::ApplyDamage(damage, attacker, curTargets, attackType, true);
 
+    if (action.GetCurStepIndex() + 1 < action.GetSteps().size())
+        return;
+
     auto battle = CLIENT->Get_BattleController();
     CHECK_NULL(battle);
 
@@ -315,33 +318,25 @@ void Skill_Lune_SkyBreak::Execute(const Skill_Data& skill, const BattleAction& a
 
     float damage = DamageSystem::CalculatePlayerAttackDamage(attacker, skill.powerMultiplier);
 
-    bool hasFire = false;
-    bool hasEarth = false;
-    bool hasLightning = false;
-
     if (attacker.mechanismCom)
     {
+        array<ElementalType, BattleMechanismCom::kLuneMaxStains> stainsToConsume{};
+        uint32 stainCountToConsume = 0;
+
         for (uint32 i = 0; i < attacker.mechanismCom->Get_LuneStainCount(); ++i)
         {
             const ElementalType stain = attacker.mechanismCom->Get_LuneStain(i);
 
-            if (stain == ElementalType::Fire)
-                hasFire = true;
-            else if (stain == ElementalType::Earth)
-                hasEarth = true;
-            else if (stain == ElementalType::Lightning)
-                hasLightning = true;
+            if (attacker.mechanismCom->Is_LuneStainElement(stain))
+                stainsToConsume[stainCountToConsume++] = stain;
         }
-    }
 
-    // 불, 대지, 번개 있을 때에만 소모하면서 데미지 증가
-    if (attacker.mechanismCom && hasFire && hasEarth && hasLightning)
-    {
-        attacker.mechanismCom->Consume_LuneStain(ElementalType::Fire);
-        attacker.mechanismCom->Consume_LuneStain(ElementalType::Earth);
-        attacker.mechanismCom->Consume_LuneStain(ElementalType::Lightning);
-
-        damage *= 1.3f;
+        // 보유한 모든 루네 얼룩을 소모하고, 실제로 소모된 얼룩마다 피해를 1.3배로 누적
+        for (uint32 i = 0; i < stainCountToConsume; ++i)
+        {
+            if (attacker.mechanismCom->Consume_LuneStain(stainsToConsume[i]))
+                damage *= Internal::kSkyBreakDamageMultiplierPerStain;
+        }
     }
 
     DamageSystem::ApplyDamage(damage, attacker, curTargets, attackType, true);

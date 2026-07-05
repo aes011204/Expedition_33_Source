@@ -16,6 +16,7 @@ using ENGINE_DESC = struct tagEngineDesc
     unsigned int viewportHeight;
     DXGI_SWAP_EFFECT swapEffect = DXGI_SWAP_EFFECT_DISCARD;
     std::string projectName;
+    bool enableEditorRuntimeDebug = false;
 };
 
 using KEYFRAME = struct tagKeyFrame
@@ -34,6 +35,7 @@ using LIGHT_DESC = struct tagLightDesc
     Vec4 direction;
     Vec4 position;
     float range;
+    float pointAttenuationPower = 1.f;
 
     Vec4 diffuse;
     Vec4 ambient;

@@ -324,6 +324,23 @@ void EffectInstance::Set_MaterialRevealOverride(float alphaMultiplier, float alp
     }
 }
 
+void EffectInstance::Set_MaterialTintOverride(const vector<uint32>& emitterIds, const Vec4& targetTint, float strength)
+{
+    const float clampedStrength = clamp(strength, 0.f, 1.f);
+
+    for (const Shared<EffectEmitter>& emitter : _emitters)
+    {
+        if (emitter == nullptr)
+            continue;
+
+        if (!emitterIds.empty() &&
+            ranges::find(emitterIds, emitter->Get_EmitterId()) == emitterIds.end())
+            continue;
+
+        emitter->Set_MaterialTintOverride(targetTint, clampedStrength);
+    }
+}
+
 void EffectInstance::Bind_TrailSampleProvider(
     const Weak<IEffectTrailSampleProvider>& provider,
     const EffectHistorySourceGroupKey& sourceGroupKey)
