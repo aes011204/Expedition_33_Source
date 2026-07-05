@@ -2237,6 +2237,7 @@ void BattleController::Execute_Item()
         return;
     }
 
+    CLIENT->Play_BattleItemUseVoice(Get_TurnActionRequest());
     CLIENT->Consume_Item(itemData.itemType);
     Clear_TargetPreview();
 }

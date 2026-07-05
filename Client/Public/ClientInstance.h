@@ -49,8 +49,7 @@ class SoulLikeController;
 class Unlock_Manager;
 class BattleFollowupManager;
 class SimonCriticalGlowController;
-class BattleTargetingVoicePreset;
-class BattleTurnStartVoicePreset;
+class BattleSoundPreset;
 
 DECLARE_DELEGATE(FOnFreeAimShotHit);
 
@@ -237,6 +236,9 @@ public: /* For.Battle_Controller */
         const ActionRequest& request,
         const vector<BattleChar>& targetedHeroes);
     bool Play_BattleTurnStartVoice();
+    bool Play_BattleItemUseVoice(const ActionRequest& request);
+    bool Play_ChromaPickupItemSound();
+    bool Play_PictosPickupItemSound();
 
 public: /*For.Camera Director*/
     void Request_GamePlay();
@@ -400,7 +402,7 @@ public: // Simon Critical Glow Controller
 private:
 	HRESULT Ready_ResourceLoader();
     HRESULT Ready_GameDataTables();
-    void Handle_BattleTargetingVoiceTurnStarted(const BattleChar& actor, BattleTurnState state);
+    void Handle_BattleSoundTurnStarted(const BattleChar& actor, BattleTurnState state);
     void Capture_ReplayWorldSnapshotIfNeeded();
     void Restore_ReplayWorldObjectsFromSnapshot();
     void Capture_ReplayCameraSnapshot();
@@ -443,9 +445,8 @@ private:
     Shared<ClientScreenFxManager>       _screenFxManager;
 
     Shared<BattleController>    _battleController;
-    Unique<BattleTargetingVoicePreset> _battleTargetingVoicePreset;
-    Unique<BattleTurnStartVoicePreset> _battleTurnStartVoicePreset;
-    FDelegateHandle             _battleTargetingVoiceTurnStartedHandle{};
+    Unique<BattleSoundPreset>   _battleSoundPreset;
+    FDelegateHandle             _battleSoundTurnStartedHandle{};
     Shared<PlayerInventory>     _playerInventory;
 
     Unique<CostumeManager>      _costumeManager;

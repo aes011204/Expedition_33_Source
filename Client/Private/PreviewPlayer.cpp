@@ -22,6 +22,8 @@
 
 namespace
 {
+constexpr wchar_t kGameMenuFacialModifierTag[] = L"PreviewPlayer_GameMenuFacial";
+
 bool Read_Vec3Property(const json& customProperties, const char* key, Vec3& outValue)
 {
     if (!customProperties.contains(key))
@@ -235,14 +237,25 @@ void PreviewPlayer::Update_GameMenuFacialPreview(float timeDelta, bool enabled)
 
     Head_Player* head = dynamic_cast<Head_Player*>(Get_PartObject(TEXT("Part_Head")));
     if (head == nullptr)
+    {
+        if (!enabled && _gameMenuFacialModifier != nullptr)
+            _gameMenuFacialModifier->Set_Active(false);
         return;
+    }
 
     const Shared<ModelCom> headModel = head->Get_Model();
     if (headModel == nullptr)
+    {
+        if (!enabled && _gameMenuFacialModifier != nullptr)
+            _gameMenuFacialModifier->Set_Active(false);
         return;
+    }
 
     if (!enabled)
     {
+        if (auto* currentModifier = headModel->Find_AnimModifierByTag(kGameMenuFacialModifierTag))
+            currentModifier->Set_Active(false);
+
         if (_gameMenuFacialEnabled && _gameMenuFacialModifier != nullptr)
             _gameMenuFacialModifier->Set_Active(false);
 
@@ -267,10 +280,11 @@ void PreviewPlayer::Update_GameMenuFacialPreview(float timeDelta, bool enabled)
         _gameMenuFacialClip = clip;
     }
 
-    if (_gameMenuFacialModifier == nullptr)
+    auto* currentModifier = headModel->Find_AnimModifierByTag(kGameMenuFacialModifierTag);
+    if (currentModifier == nullptr)
     {
         FacialAnimationModifier::FacialModifierDesc modifierDesc{};
-        modifierDesc.modifierTag = L"PreviewPlayer_GameMenuFacial";
+        modifierDesc.modifierTag = kGameMenuFacialModifierTag;
         modifierDesc.clip = _gameMenuFacialClip;
         modifierDesc.loop = true;
         modifierDesc.suppressMouthArea = true;
@@ -280,10 +294,14 @@ void PreviewPlayer::Update_GameMenuFacialPreview(float timeDelta, bool enabled)
             return;
 
         headModel->Add_AnimModifier(_gameMenuFacialModifier);
+        currentModifier = _gameMenuFacialModifier.get();
     }
 
+    if (_gameMenuFacialModifier != nullptr && _gameMenuFacialModifier.get() != currentModifier)
+        _gameMenuFacialModifier->Set_Active(false);
+
     _gameMenuFacialEnabled = true;
-    _gameMenuFacialModifier->Set_Active(true);
+    currentModifier->Set_Active(true);
 }
 
 HRESULT PreviewPlayer::Sync_FromRuntimeData()
@@ -1269,7 +1287,17 @@ const wchar_t* PreviewPlayer::Get_DefaultMustacheModelTag() const
 
 const wchar_t* PreviewPlayer::Get_GameMenuFacialClipPath() const
 {
-    return L"Animations/Facial/Metahuman_Common/MicroMovements/A_MH_RandomMovement_GameMenu_Lune.facialclipbin";
+    switch (_heroId)
+    {
+    case HeroId::Gustave:
+        return L"Animations/Facial/Metahuman_Common/MicroMovements/A_MH_RandomMovement_GameMenu_Gustave.facialclipbin";
+    case HeroId::Lune:
+        return L"Animations/Facial/Metahuman_Common/MicroMovements/A_MH_RandomMovement_GameMenu_Lune.facialclipbin";
+    case HeroId::Maelle:
+        return L"Animations/Facial/Metahuman_Common/MicroMovements/A_MH_RandomMovement_GameMenu_Maelle.facialclipbin";
+    default:
+        return nullptr;
+    }
 }
 
 Shared<PreviewPlayer> PreviewPlayer::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)
