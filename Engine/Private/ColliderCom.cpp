@@ -8,6 +8,29 @@
 #include "Bounding_Sphere.h"
 #include "PhysX_Filter.h"
 
+namespace
+{
+    constexpr float kPhysXSyncMatrixEpsilon = 0.0001f;
+
+    bool NearlyEqual(float lhs, float rhs)
+    {
+        const float diff = lhs - rhs;
+        return diff <= kPhysXSyncMatrixEpsilon && diff >= -kPhysXSyncMatrixEpsilon;
+    }
+
+    bool NearlyEqual(const Matrix& lhs, const Matrix& rhs)
+    {
+        return NearlyEqual(lhs._11, rhs._11) && NearlyEqual(lhs._12, rhs._12) &&
+            NearlyEqual(lhs._13, rhs._13) && NearlyEqual(lhs._14, rhs._14) &&
+            NearlyEqual(lhs._21, rhs._21) && NearlyEqual(lhs._22, rhs._22) &&
+            NearlyEqual(lhs._23, rhs._23) && NearlyEqual(lhs._24, rhs._24) &&
+            NearlyEqual(lhs._31, rhs._31) && NearlyEqual(lhs._32, rhs._32) &&
+            NearlyEqual(lhs._33, rhs._33) && NearlyEqual(lhs._34, rhs._34) &&
+            NearlyEqual(lhs._41, rhs._41) && NearlyEqual(lhs._42, rhs._42) &&
+            NearlyEqual(lhs._43, rhs._43) && NearlyEqual(lhs._44, rhs._44);
+    }
+}
+
 ColliderCom::ColliderCom(const ComPtr<Device>& device, const ComPtr<Context>& context)
     : Component(device, context)
 {
@@ -332,6 +355,7 @@ void ColliderCom::Set_ShapeDesc(const ColliderShapeDesc& shapeDesc)
 {
     _shapeDesc = shapeDesc;
     _shapeDesc.shape = _shape;
+    Invalidate_PhysXSyncCache();
 
     switch (_shape)
     {
@@ -445,6 +469,7 @@ void ColliderCom::Release_PhysX()
     Release_PX(_pxActor);
 
     _physxRegistered = false;
+    Invalidate_PhysXSyncCache();
 }
 
 HRESULT ColliderCom::Build_PhysXActor(PxPhysics* physics)
@@ -515,6 +540,9 @@ void ColliderCom::Sync_ToPhysX(const Matrix& worldMatrix)
     if (_pxActor == nullptr)
         return;
 
+    if (Is_PhysXSyncCacheValid(worldMatrix))
+        return;
+
     Update_PhysXGeometry(worldMatrix);
 
     const PxTransform pxTransform = Build_PXTransform(worldMatrix);
@@ -530,6 +558,8 @@ void ColliderCom::Sync_ToPhysX(const Matrix& worldMatrix)
     {
         _pxActor->setGlobalPose(pxTransform);
     }
+
+    Store_PhysXSyncCache(worldMatrix);
 }
 
 void ColliderCom::Sync_InitialPose_ToPhysX(const Matrix& worldMatrix)
@@ -541,6 +571,23 @@ void ColliderCom::Sync_InitialPose_ToPhysX(const Matrix& worldMatrix)
 
     const PxTransform pxTransform = Build_PXTransform(worldMatrix);
     _pxActor->setGlobalPose(pxTransform);
+    Store_PhysXSyncCache(worldMatrix);
+}
+
+bool ColliderCom::Is_PhysXSyncCacheValid(const Matrix& worldMatrix) const
+{
+    return _hasPhysXSyncCache && NearlyEqual(_lastPhysXSyncWorldMatrix, worldMatrix);
+}
+
+void ColliderCom::Store_PhysXSyncCache(const Matrix& worldMatrix)
+{
+    _lastPhysXSyncWorldMatrix = worldMatrix;
+    _hasPhysXSyncCache = true;
+}
+
+void ColliderCom::Invalidate_PhysXSyncCache()
+{
+    _hasPhysXSyncCache = false;
 }
 
 PxTransform ColliderCom::Build_PXTransform(const Matrix& worldMatrix) const

@@ -132,12 +132,10 @@ HRESULT SavePoint_Panel::Bind_UI()
     _restButton = UI_Utils::Find_TypedUI<UI_Button>(_uiByName, L"Button_SavePoint_Rest");
     _upgradeStatButton = UI_Utils::Find_TypedUI<UI_Button>(_uiByName, L"Button_SavePoint_Upgrade_Stat");
     _upgradeSkillButton = UI_Utils::Find_TypedUI<UI_Button>(_uiByName, L"Button_SavePoint_Upgrade_Skill");
-    _upgradeWeaponButton = UI_Utils::Find_TypedUI<UI_Button>(_uiByName, L"Button_SavePoint_Upgrade_Weapon");
 
     CHECK_NULL(_restButton, E_FAIL);
     CHECK_NULL(_upgradeStatButton, E_FAIL);
     CHECK_NULL(_upgradeSkillButton, E_FAIL);
-    CHECK_NULL(_upgradeWeaponButton, E_FAIL);
 
     return S_OK;
 }
@@ -215,13 +213,6 @@ void SavePoint_Panel::Handle_ButtonInput()
         LOG_DEBUG("SavePoint_Panel: UpgradeSkill clicked");
         return;
     }
-
-    if (_upgradeWeaponButton && _upgradeWeaponButton->Was_Clicked())
-    {
-        _lastAction = SavePointAction::UpgradeWeapon;
-        LOG_DEBUG("SavePoint_Panel: UpgradeWeapon clicked");
-        return;
-    }
 }
 
 Unique<SavePoint_Panel> SavePoint_Panel::Create(uint32 levelIndex)
@@ -246,7 +237,6 @@ void SavePoint_Panel::Free()
     _restButton.reset();
     _upgradeStatButton.reset();
     _upgradeSkillButton.reset();
-    _upgradeWeaponButton.reset();
     _root.reset();
     _uiByName.clear();
 

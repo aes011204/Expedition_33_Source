@@ -26,6 +26,8 @@ private:
 	bool                    _hasRenderedFirstFrame = false;
 	uint32                  _postFirstRenderFrameCount = 0;
     bool                    _requestedNextLevelTransition = false;
+    Shared<Level>           _preparedNextLevel = nullptr;
+    bool                    _hasRenderedPreparedNextLevel = false;
 
 private:
     HRESULT Ready_LoadingUIRenderResources();

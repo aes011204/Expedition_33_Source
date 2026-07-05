@@ -570,7 +570,8 @@ EBattleEndResult BattleController::OnExitBattleField(EBattleEndResult result)
                 defeatedEnemyKeys,
                 _activeBattleFieldID,
                 rewardLevelIndex,
-                rewardOriginPtr);
+                rewardOriginPtr,
+                true);
         }
 
         if (BattleFollowupManager* followupManager = CLIENT->Get_BattleFollowupManager())
@@ -2833,6 +2834,12 @@ void BattleController::Confirm_Victory()
             _battleSpawnRegistry->Clear_SourceWorldObject(); // 후속 전투가 같은 MW source를 다시 넘겨받는다.
         else
             _battleSpawnRegistry->Destroy_SourceWorldObject();
+    }
+
+    if (!hasFollowupBattle)
+    {
+        if (Unlock_Manager* unlockManager = CLIENT->Get_UnlockManager())
+            unlockManager->Flush_PendingWorldSpawnRewards();
     }
 
     _heroes.clear();

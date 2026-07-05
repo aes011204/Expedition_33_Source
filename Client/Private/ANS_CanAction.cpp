@@ -14,6 +14,7 @@ IMPLEMENT_REFLECTION(ANS_CanAction)
 
     PROPERTY_BOOL("Can Jump", _canJump);
     PROPERTY_BOOL("Can Dodge", _canDodge);
+    PROPERTY_BOOL("Can Parry", _canParry);
 
     return true;
 }
@@ -45,7 +46,7 @@ void ANS_CanAction::Set_CanAction(const AnimNotifyContext& context, bool enabled
         if (Shared<SL_Maelle> maelle = dynamic_pointer_cast<SL_Maelle>(current))
         {
             if (Shared<SL_StateMachineCom> stateMachine = maelle->Get_Component<SL_StateMachineCom>())
-                stateMachine->Set_CanActionCancel(enabled, _canJump, _canDodge);
+                stateMachine->Set_CanActionCancel(enabled, _canJump, _canDodge, _canParry);
 
             return;
         }

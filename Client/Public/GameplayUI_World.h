@@ -22,6 +22,8 @@ class UI_GetPictos;
 class UI_GetChroma;
 class UI_LevelAnnounce;
 class UI_Interaction;
+class UI_EventDialoguePlayer;
+class UI_DailyLog;
 
 class ChangeSkill_Panel;
 class ChangeWeapon_Panel;
@@ -54,8 +56,11 @@ public:
     bool    Request_ArenaCharacterSelect();
     bool    Request_MerchantShop();
     bool    Request_WeaponUpgrade();
+    bool    Request_Journal(JournalOpenAnimation openAnimation = JournalOpenAnimation::JournalUI);
     void    Queue_GetChromaPresentation(uint32 chromaAmount);
     void    Queue_LevelAnnounce(LevelType levelType);
+    bool    Open_EventDialogueUI(const EventDialogueUIRequest& request);
+    void    Close_EventDialogueUI();
 
 private:
     void    Handle_SavePointAction(SavePoint_Panel::SavePointAction action);
@@ -119,6 +124,8 @@ private:
     Unique<UI_GetChroma>                _getChromaPanel;
     Unique<UI_LevelAnnounce>            _levelAnnouncePanel;
     Unique<UI_Replay>                   _replayPanel;
+    Unique<UI_EventDialoguePlayer>      _eventDialoguePlayer;
+    Unique<UI_DailyLog>                 _dailyLogPanel;
 
     Unique<UI_ArenaCharacterSelect>     _arenaCharacterSelectPanel;
     Unique<UI_GradientSkillPreviewTest> _gradientSkillPreviewTestPanel;
@@ -130,6 +137,7 @@ private:
 
     vector<GameplayMenu>                _menuStack{};
     GamePlayMenuFade                    _menuFade{};
+    JournalOpenAnimation                _pendingJournalOpenAnimation = JournalOpenAnimation::JournalUI;
     vector<string>                      _pendingGetPictosIds{};
     vector<uint32>                      _pendingGetChromaAmounts{};
     LevelType                           _pendingLevelAnnounce = LevelType::END;

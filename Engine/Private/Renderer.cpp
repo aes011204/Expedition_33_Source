@@ -274,7 +274,6 @@ void Renderer::Draw()
         const_cast<ScreenFx_Manager*>(screenFxManager)->Clear_CaptureRequested();
     }
 
-
 #ifdef _DEBUG
     Render_Debug();
 

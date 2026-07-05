@@ -6031,7 +6031,8 @@ void Animation_View::Update_PreviewPlayEffectNotifies(float previousTimeSec, flo
     {
         if (entry.notifyState == nullptr)
             continue;
-        if (entry.notifyState->Get_TypeName() != "ANS_PlayEffect")
+        const string typeName = entry.notifyState->Get_TypeName();
+        if (typeName != "ANS_PlayEffect" && typeName != "ANS_WeakColor")
             continue;
         if (currentTimeSec < entry.startSec)
             continue;

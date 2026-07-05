@@ -134,12 +134,37 @@ void PanelInspector::Render()
     SetOpen(open);
 }
 
+void PanelInspector::DrawCameraDistance(Shared<EditorObject>& obj)
+{
+    if (_camera == nullptr || obj == nullptr)
+        return;
+
+    Vec3 meshPosition = obj->_position;
+    if (obj->_type == EObjectType::InstancedMesh)
+    {
+        const int32 instanceIndex = obj->_selectedInstanceIdx;
+        if (instanceIndex < 0 || instanceIndex >= static_cast<int32>(obj->_instancedTransforms.size()))
+            return;
+
+        meshPosition = obj->_instancedTransforms[instanceIndex]._position;
+    }
+    else if (obj->_type != EObjectType::StaticMesh)
+    {
+        return;
+    }
+
+    const float distance = Vec3::Distance(_camera->GetPosition(), meshPosition);
+    ImGui::Text("Camera Distance: %.2f", distance);
+}
+
 void PanelInspector::DrawTransform(Shared<EditorObject>& obj)
 {
     if (!ImGui::CollapsingHeader("Transform", ImGuiTreeNodeFlags_DefaultOpen))
     {
         return;
     }
+
+    DrawCameraDistance(obj);
 
     if (obj->_type == EObjectType::InstancedMesh)
     {

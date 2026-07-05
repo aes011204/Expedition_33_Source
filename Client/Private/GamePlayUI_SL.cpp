@@ -3,6 +3,7 @@
 #include "Client_Constants.h"
 #include "ClientInstance.h"
 #include "PlayerStatCom.h"
+#include "Player_WorldBase.h"
 #include "SL_Base.h"
 #include "SL_Maelle.h"
 #include "SoulLikeController.h"
@@ -28,6 +29,21 @@ namespace
             return L"마엘";
         default:
             return {};
+        }
+    }
+
+    PlayerCharacterType Resolve_SLVictoryPlayerType(HeroId heroId)
+    {
+        switch (heroId)
+        {
+        case HeroId::Gustave:
+            return PlayerCharacterType::Gustave;
+        case HeroId::Lune:
+            return PlayerCharacterType::Lune;
+        case HeroId::Maelle:
+            return PlayerCharacterType::Maelle;
+        default:
+            return PlayerCharacterType::None;
         }
     }
 }
@@ -274,65 +290,72 @@ vector<UI_BattleVictory::VictoryPlayerStatDesc> GamePlayUI_SL::Build_VictoryPlay
     vector<UI_BattleVictory::VictoryPlayerStatDesc> victoryStats{};
 
     const Shared<SoulLikeController> controller = CLIENT->Get_SoulLikeController();
-    const Shared<SL_Maelle> player = controller ? controller->Get_Player() : nullptr;
-    const Shared<PlayerStatCom> playerStat = player
-        ? dynamic_pointer_cast<PlayerStatCom>(player->Get_Stat())
-        : nullptr;
-
-    if (playerStat == nullptr)
-        return victoryStats;
-
-    const PlayerStatCom::PRuntimeCombatStat& runtimeStat =
-        playerStat->Get_PlayerRuntimeStat();
     const uint32 rewardExp = controller ? controller->Get_LastVictoryRewardExp() : 0;
 
-    UI_BattleVictory::VictoryPlayerStatDesc stat{};
-    stat.playerType = playerStat->Get_PlayerType();
-    stat.visualSlotIndex = 1u;
-    stat.portraitGuid = playerStat->Get_StatInfo().portraitGuid;
-    stat.displayName = Resolve_SLVictoryPlayerName(stat.playerType);
-    stat.level = runtimeStat.CurLevel;
-    stat.curExp = runtimeStat.CurExp;
-    stat.maxExp = runtimeStat.CurMaxExp > 0 ? runtimeStat.CurMaxExp : max(1u, runtimeStat.nextExp);
-    stat.prevLevel = stat.level;
-    stat.prevExp = stat.curExp;
-    stat.prevMaxExp = stat.maxExp;
-    stat.equippedPictosIds = playerStat->Get_EquippedPictosIds(); // SoulLike 결과창도 현재 장착 Pictos만 center slot에 표시한다.
-
-    if (rewardExp > 0)
+    for (const HeroPartyEntry& entry : CLIENT->Get_HeroEntries())
     {
-        uint32 rewindLevel = stat.level;
-        uint32 rewindExp = stat.curExp;
-        uint32 remainingReward = rewardExp;
+        const Shared<PlayerStatCom> playerStat = entry.hero
+            ? entry.hero->Get_Component<PlayerStatCom>()
+            : nullptr;
 
-        while (remainingReward > 0)
+        if (playerStat == nullptr)
+            continue;
+
+        UI_BattleVictory::VictoryPlayerStatDesc stat{};
+        stat.playerType = Resolve_SLVictoryPlayerType(entry.heroId);
+        stat.visualSlotIndex = UINT_MAX;
+        stat.portraitGuid = playerStat->Get_StatInfo().portraitGuid;
+        stat.displayName = Resolve_SLVictoryPlayerName(stat.playerType);
+
+        if (stat.playerType == PlayerCharacterType::None)
+            continue;
+
+        const PlayerStatCom::PRuntimeCombatStat& runtimeStat =
+            playerStat->Get_PlayerRuntimeStat();
+
+        stat.level = runtimeStat.CurLevel;
+        stat.curExp = runtimeStat.CurExp;
+        stat.maxExp = runtimeStat.CurMaxExp > 0 ? runtimeStat.CurMaxExp : max(1u, runtimeStat.nextExp);
+        stat.prevLevel = stat.level;
+        stat.prevExp = stat.curExp;
+        stat.prevMaxExp = stat.maxExp;
+        stat.equippedPictosIds = playerStat->Get_EquippedPictosIds();
+
+        if (rewardExp > 0)
         {
-            if (remainingReward <= rewindExp)
+            uint32 rewindLevel = stat.level;
+            uint32 rewindExp = stat.curExp;
+            uint32 remainingReward = rewardExp;
+
+            while (remainingReward > 0)
             {
-                rewindExp -= remainingReward;
-                remainingReward = 0;
-                break;
+                if (remainingReward <= rewindExp)
+                {
+                    rewindExp -= remainingReward;
+                    remainingReward = 0;
+                    break;
+                }
+
+                remainingReward -= rewindExp;
+
+                if (rewindLevel <= 1)
+                {
+                    rewindExp = 0;
+                    remainingReward = 0;
+                    break;
+                }
+
+                --rewindLevel;
+                rewindExp = CLIENT->Get_NextExp(rewindLevel);
             }
 
-            remainingReward -= rewindExp;
-
-            if (rewindLevel <= 1)
-            {
-                rewindExp = 0;
-                remainingReward = 0;
-                break;
-            }
-
-            --rewindLevel;
-            rewindExp = CLIENT->Get_NextExp(rewindLevel);
+            stat.prevLevel = rewindLevel;
+            stat.prevExp = rewindExp;
+            stat.prevMaxExp = CLIENT->Get_NextExp(rewindLevel);
         }
 
-        stat.prevLevel = rewindLevel;
-        stat.prevExp = rewindExp;
-        stat.prevMaxExp = CLIENT->Get_NextExp(rewindLevel);
+        victoryStats.push_back(stat);
     }
-
-    victoryStats.push_back(stat);
 
     return victoryStats;
 }
@@ -345,7 +368,11 @@ UI_BattleVictory::VictorySummaryDesc GamePlayUI_SL::Build_VictorySummary() const
     const Shared<SL_Base> monster = controller ? controller->Get_Monster() : nullptr;
     const Shared<CombatStatCom> monsterStat = monster ? monster->Get_Stat() : nullptr;
 
-    summary.rewardExp = controller ? controller->Get_LastVictoryRewardExp() : 0;
+    if (controller != nullptr)
+    {
+        summary.rewardExp = controller->Get_LastVictoryRewardExp();
+        summary.rewardPictosIds = controller->Get_LastVictoryRewardPictosIds();
+    }
 
     if (monsterStat != nullptr)
     {

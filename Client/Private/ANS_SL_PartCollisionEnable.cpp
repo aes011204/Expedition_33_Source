@@ -1,4 +1,4 @@
-#include "ANS_SL_PartCollisionEnable.h"
+﻿#include "ANS_SL_PartCollisionEnable.h"
 
 #include "ColliderCom.h"
 #include "ContainerObject.h"
@@ -6,6 +6,7 @@
 #include "PartObject.h"
 #include "SL_Base.h"
 #include "SL_Dualliste.h"
+#include "SL_Maelle.h"
 
 IMPLEMENT_REFLECTION(ANS_SL_PartCollisionEnable)
 {
@@ -21,6 +22,7 @@ IMPLEMENT_REFLECTION(ANS_SL_PartCollisionEnable)
     PROPERTY_WSTRING("Hit Effect", _hitEffectName);
     PROPERTY_VEC3("Hit Effect Local Offset", _hitEffectLocalOffset);
     PROPERTY_VEC3("Hit Effect Scale", _hitEffectScale);
+    PROPERTY_FLOAT("데미지 배율", _damageMultiplier);
 
     return true;
 }
@@ -112,11 +114,17 @@ void ANS_SL_PartCollisionEnable::Set_ColliderActive(const AnimNotifyContext& con
         {
             slOwner->Set_AttackHitAnimOverride(_colliderTag, _hitAnimOverride);
             slOwner->Set_AttackHitEffect(_colliderTag, _hitEffectName, _hitEffectLocalOffset, _hitEffectScale);
+
+            if (const Shared<SL_Maelle> maelle = dynamic_pointer_cast<SL_Maelle>(slOwner))
+                maelle->Set_AttackDamageMultiplier(_colliderTag, _damageMultiplier);
         }
         else
         {
             slOwner->Clear_AttackHitAnimOverride(_colliderTag);
             slOwner->Clear_AttackHitEffect(_colliderTag);
+
+            if (const Shared<SL_Maelle> maelle = dynamic_pointer_cast<SL_Maelle>(slOwner))
+                maelle->Clear_AttackDamageMultiplier(_colliderTag);
         }
     }
 
