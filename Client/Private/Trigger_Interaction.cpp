@@ -63,11 +63,18 @@ void Trigger_Interaction::Update(float timeDelta)
 
     if (_ownerNPC == nullptr)
     {
+        if (_activeHeroOverlapRegistered)
+        {
+            _activeHeroOverlapRegistered = false;
+            CLIENT->RemoveDialogueInteractionOverlap();
+        }
+
         CLIENT->Clear_InteractionPrompt(this);
         return;
     }
 
     Sync_ToOwnerTransform();
+    const bool hasActiveHeroOverlap = Refresh_ActiveHeroOverlapRegistration();
 
     if (CLIENT->Is_WorldControlSuspended())
     {
@@ -87,7 +94,7 @@ void Trigger_Interaction::Update(float timeDelta)
         return;
     }
 
-    if (!Has_PlayerOverlap())
+    if (!hasActiveHeroOverlap)
     {
         CLIENT->Clear_InteractionPrompt(this);
         return;
@@ -129,11 +136,9 @@ void Trigger_Interaction::OnBeginOverlap(Shared<ColliderCom> self, Shared<Collid
     if (dynamic_pointer_cast<Player_WorldBase>(otherOwner) == nullptr)
         return;
 
-    const bool hadPlayerOverlap = Has_PlayerOverlap();
     _playerOverlapColliders.insert(other.get());
 
-    if (!hadPlayerOverlap && Has_PlayerOverlap())
-        CLIENT->AddDialogueInteractionOverlap();
+    Refresh_ActiveHeroOverlapRegistration();
 }
 
 void Trigger_Interaction::OnEndOverlap(Shared<ColliderCom> self, Shared<ColliderCom> other)
@@ -150,14 +155,10 @@ void Trigger_Interaction::OnEndOverlap(Shared<ColliderCom> self, Shared<Collider
     if (other == nullptr)
         return;
 
-    const bool hadPlayerOverlap = Has_PlayerOverlap();
     _playerOverlapColliders.erase(other.get());
 
-    if (hadPlayerOverlap && !Has_PlayerOverlap())
-    {
-        CLIENT->RemoveDialogueInteractionOverlap();
+    if (!Refresh_ActiveHeroOverlapRegistration())
         CLIENT->Clear_InteractionPrompt(this);
-    }
 }
 
 void Trigger_Interaction::Sync_ToOwnerTransform()
@@ -209,6 +210,35 @@ HRESULT Trigger_Interaction::Ready_Components()
     return S_OK;
 }
 
+bool Trigger_Interaction::Has_ActiveHeroOverlap() const
+{
+    for (ColliderCom* collider : _playerOverlapColliders)
+    {
+        if (collider == nullptr)
+            continue;
+
+        if (CLIENT->Is_ActiveHero(collider->Get_Owner()))
+            return true;
+    }
+
+    return false;
+}
+
+bool Trigger_Interaction::Refresh_ActiveHeroOverlapRegistration()
+{
+    const bool hasActiveHeroOverlap = Has_ActiveHeroOverlap();
+    if (_activeHeroOverlapRegistered == hasActiveHeroOverlap)
+        return hasActiveHeroOverlap;
+
+    _activeHeroOverlapRegistered = hasActiveHeroOverlap;
+    if (_activeHeroOverlapRegistered)
+        CLIENT->AddDialogueInteractionOverlap();
+    else
+        CLIENT->RemoveDialogueInteractionOverlap();
+
+    return hasActiveHeroOverlap;
+}
+
 Shared<Trigger_Interaction> Trigger_Interaction::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)
 {
     auto instance = make_shared<Trigger_Interaction>(device, context);
@@ -236,12 +266,13 @@ Shared<GameObject> Trigger_Interaction::Clone(void* arg)
 
 void Trigger_Interaction::Free()
 {
-    if (Has_PlayerOverlap())
+    if (_activeHeroOverlapRegistered)
     {
-        _playerOverlapColliders.clear();
+        _activeHeroOverlapRegistered = false;
         CLIENT->RemoveDialogueInteractionOverlap();
     }
 
+    _playerOverlapColliders.clear();
     CLIENT->Clear_InteractionPrompt(this);
 
     GameObject::Free();

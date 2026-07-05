@@ -53,15 +53,6 @@ void SL_Mon_PhaseChangeState::Play_CurrentPhase()
         const bool ownerWasVisible = owner->Is_Visible();
         const bool playerWasVisible = player ? player->Is_Visible() : false;
 
-        owner->Set_CinematicDriven(true);
-        owner->Set_Visible(false); // 컷신용 SL_Dualliste와 실제 전투 SL_Dualliste가 겹쳐 보이지 않게 숨긴다.
-
-        if (player)
-        {
-            player->Set_CinematicDriven(true);
-            player->Set_Visible(false); // 2페 전환 컷신은 플레이어 target을 쓰지 않으므로 화면 노출만 막는다.
-        }
-
         Weak<SL_Dualliste> weakOwner = owner;
         Weak<SL_Maelle> weakPlayer = player;
         const auto completePhaseChange =
@@ -107,11 +98,35 @@ void SL_Mon_PhaseChangeState::Play_CurrentPhase()
         CLIENT->Clear_CinematicCompletedCallbacks();
         CLIENT->Add_CinematicCompletedCallback(completePhaseChange);
 
-        if (!CLIENT->Play_Sequence(sequencePath, 0))
-        {
-            CLIENT->Clear_CinematicCompletedCallbacks();
-            completePhaseChange();
-        }
+        const auto startPhaseChangeSequence =
+            [weakOwner, weakPlayer, sequencePath, completePhaseChange]()
+            {
+                const Shared<SL_Dualliste> owner = weakOwner.lock();
+                if (owner == nullptr)
+                {
+                    CLIENT->Clear_CinematicCompletedCallbacks();
+                    completePhaseChange();
+                    return;
+                }
+
+                owner->Set_CinematicDriven(true);
+                owner->Set_Visible(false); // 컷신용 SL_Dualliste와 실제 전투 SL_Dualliste가 겹쳐 보이지 않게 숨긴다.
+
+                if (const Shared<SL_Maelle> player = weakPlayer.lock())
+                {
+                    player->Set_CinematicDriven(true);
+                    player->Set_Visible(false); // 2페 전환 컷신은 플레이어 target을 쓰지 않으므로 화면 노출만 막는다.
+                }
+
+                if (!CLIENT->Play_Sequence(sequencePath, 0))
+                {
+                    CLIENT->Clear_CinematicCompletedCallbacks();
+                    completePhaseChange();
+                }
+            };
+
+        if (!CLIENT->Request_ScreenFadeTransition(startPhaseChangeSequence))
+            startPhaseChangeSequence();
 
         _phase = Phase::End;
         break;

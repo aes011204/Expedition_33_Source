@@ -14,6 +14,7 @@ IMPLEMENT_REFLECTION(Item_Pictos)
     info.category = "Item";
 
     PROPERTY_ENUM("픽토스 타입", _pictosType, Item_Pictos::PictosPickupType);
+    PROPERTY_WSTRING("획득 이펙트", _pickupEffectName);
 
     return true;
 }

@@ -133,7 +133,7 @@ HRESULT Level_GestralVillage::Initialize()
         L"../../../Client/Bin/Resources/Textures/Shader/IBL/perfilter_sunset.dds")))
         return E_FAIL;
 
-    GAME->Set_FogZoneCullingDistance(15.f);
+    GAME->Set_FogZoneCullingDistance(45.f);
 
 
     return S_OK;
@@ -284,7 +284,7 @@ HRESULT Level_GestralVillage::Ready_Lights()
         if (FAILED(GAME->Set_ShadowCascadeLevel(CascadeLevel::Normal)))
             return E_FAIL;
 
-        GAME->Set_DynamicShadowCascadeTemporalUpdateIntervals(1u, 1u, 2u, 12u);
+        GAME->Set_DynamicShadowCascadeTemporalUpdateIntervals(1u, 1u, 4u, 12u);
     }
 
     return S_OK;

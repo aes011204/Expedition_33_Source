@@ -1,13 +1,20 @@
 ﻿#include "VictoriaFlag.h"
 #include "GameInstance.h"
+#include "Bounding_Sphere.h"
+#include "ClientInstance.h"
+#include "ColliderCom.h"
+#include "GameplayUI.h"
 #include "Material.h"
 #include "ModelCom.h"
+#include "Player_WorldBase.h"
 #include "ShaderCom.h"
 #include "Texture.h"
 
 namespace
 {
     constexpr uint32 VICTORIA_FLAG_POST_ALPHA_FILL_PASS = 20u;
+    const Vec3 kInteractionColliderCenter = Vec3(0.f, 80.f, -45.f);
+    constexpr float kInteractionColliderRadius = 180.f;
 }
 
 IMPLEMENT_REFLECTION(VictoriaFlag)
@@ -79,6 +86,32 @@ void VictoriaFlag::Priority_Update(float timeDelta)
 void VictoriaFlag::Update(float timeDelta)
 {
     _flagElapsed += max(timeDelta, 0.f);
+
+    if (!Has_ActiveHeroOverlap())
+    {
+        CLIENT->Clear_InteractionPrompt(this);
+        return;
+    }
+
+    if (CLIENT->Is_WorldControlSuspended() ||
+        CLIENT->IsDialogueActive() ||
+        CLIENT->IsDialogueInteractLocked() ||
+        GAME->Is_WorldGameplayInputBlocked())
+    {
+        CLIENT->Clear_InteractionPrompt(this);
+        return;
+    }
+
+    CLIENT->Request_InteractionPrompt(this, InteractionPromptType::Cross);
+
+    if (!GAME->KeyDown(KEY_TYPE::E))
+        return;
+
+    if (const Shared<GameplayUI> gameplayUI = CLIENT->Get_GameplayUI())
+    {
+        if (gameplayUI->Open_SavePoint())
+            CLIENT->Clear_InteractionPrompt(this);
+    }
 }
 
 void VictoriaFlag::Late_Update(float timeDelta)
@@ -89,6 +122,12 @@ void VictoriaFlag::Late_Update(float timeDelta)
 
     if (Casts_DynamicShadow())
         GAME->Add_RenderGroup(RenderGroup::Shadow, GetSharedPtr<GameObject>());
+
+    if (_interactionColliderCom != nullptr && _interactionColliderCom->Get_IsActive())
+    {
+        _interactionColliderCom->Update_Collider(_transformCom->Get_WorldMatrix());
+        GAME->Add_Collider(_interactionColliderCom);
+    }
 }
 
 HRESULT VictoriaFlag::Render()
@@ -169,6 +208,14 @@ HRESULT VictoriaFlag::Ready_Components(const VICTORIAFLAG_DESC& desc)
     CHECK_FAILED(Add_Component(ETOI(LevelType::Static), desc.numberTextureTag, _numberTexture), E_FAIL);
     CHECK_FAILED(Add_Component(ETOI(LevelType::Static), desc.numberAtlasTextureTag, _numberAtlasTexture), E_FAIL);
 
+    Bounding_Sphere::FBoundingSphereDesc sphereDesc{};
+    sphereDesc.center = kInteractionColliderCenter;
+    sphereDesc.radius = kInteractionColliderRadius;
+
+    CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Com_Collider_Sphere"), _interactionColliderCom, &sphereDesc), E_FAIL);
+    _interactionColliderCom->Set_CollisionPreset(Collision_Preset::Trigger);
+    _interactionColliderCom->Set_IsActive(true);
+
     return S_OK;
 }
 
@@ -210,6 +257,68 @@ Matrix VictoriaFlag::Build_LocalMatrix(const Vec3& position, const Vec3& rotatio
         Matrix::CreateTranslation(position);
 }
 
+void VictoriaFlag::OnBeginOverlap(Shared<ColliderCom> self, Shared<ColliderCom> other)
+{
+    GameObject::OnBeginOverlap(self, other);
+
+    if (_interactionColliderCom == nullptr || self.get() != _interactionColliderCom.get())
+        return;
+
+    const Shared<GameObject> otherOwner = other ? other->Get_Owner() : nullptr;
+    if (dynamic_pointer_cast<Player_WorldBase>(otherOwner) == nullptr)
+        return;
+
+    if (other != nullptr)
+        _playerOverlapColliders.insert(other.get());
+}
+
+void VictoriaFlag::OnStayOverlap(Shared<ColliderCom> self, Shared<ColliderCom> other)
+{
+    GameObject::OnStayOverlap(self, other);
+
+    if (_interactionColliderCom == nullptr || self.get() != _interactionColliderCom.get())
+        return;
+
+    const Shared<GameObject> otherOwner = other ? other->Get_Owner() : nullptr;
+    if (dynamic_pointer_cast<Player_WorldBase>(otherOwner) == nullptr)
+        return;
+
+    if (other != nullptr)
+        _playerOverlapColliders.insert(other.get());
+}
+
+void VictoriaFlag::OnEndOverlap(Shared<ColliderCom> self, Shared<ColliderCom> other)
+{
+    GameObject::OnEndOverlap(self, other);
+
+    if (_interactionColliderCom == nullptr || self.get() != _interactionColliderCom.get())
+        return;
+
+    const Shared<GameObject> otherOwner = other ? other->Get_Owner() : nullptr;
+    if (dynamic_pointer_cast<Player_WorldBase>(otherOwner) == nullptr)
+        return;
+
+    if (other != nullptr)
+        _playerOverlapColliders.erase(other.get());
+
+    if (!Has_ActiveHeroOverlap())
+        CLIENT->Clear_InteractionPrompt(this);
+}
+
+bool VictoriaFlag::Has_ActiveHeroOverlap() const
+{
+    for (ColliderCom* collider : _playerOverlapColliders)
+    {
+        if (collider == nullptr)
+            continue;
+
+        if (CLIENT->Is_ActiveHero(collider->Get_Owner()))
+            return true;
+    }
+
+    return false;
+}
+
 Shared<VictoriaFlag> VictoriaFlag::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)
 {
     auto instance = make_shared<VictoriaFlag>(device, context);
@@ -232,5 +341,8 @@ Shared<GameObject> VictoriaFlag::Clone(void* arg)
 
 void VictoriaFlag::Free()
 {
+    _playerOverlapColliders.clear();
+    CLIENT->Clear_InteractionPrompt(this);
+
     GameObject::Free();
 }
