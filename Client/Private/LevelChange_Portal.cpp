@@ -69,6 +69,39 @@ void LevelChange_Portal::Update(float timeDelta)
 
     if (_effectCom)
         _effectCom->Update(timeDelta);
+
+    if (_transitionRequested || !Has_ActiveHeroOverlap())
+    {
+        CLIENT->Clear_InteractionPrompt(this);
+        return;
+    }
+
+    if (CLIENT->Is_WorldControlSuspended() ||
+        CLIENT->IsDialogueActive() ||
+        CLIENT->IsDialogueInteractLocked() ||
+        GAME->Is_WorldGameplayInputBlocked())
+    {
+        CLIENT->Clear_InteractionPrompt(this);
+        return;
+    }
+
+    CLIENT->Request_InteractionPrompt(this, InteractionPromptType::Cross);
+
+    if (!GAME->KeyDown(KEY_TYPE::E))
+        return;
+
+    _transitionRequested = true;
+    CLIENT->Clear_InteractionPrompt(this);
+
+    if (_targetLevel == LevelType::GameEntry)
+        GAME->Stop_SoundChannel(SoundChannel::BGM, 0.f);
+
+    if (!CLIENT->Request_LevelTransition(_targetLevel))
+    {
+        LOG_INFO("LevelChange_Portal: level transition request failed. target={}",
+            magic_enum::enum_name(_targetLevel));
+        _transitionRequested = false;
+    }
 }
 
 void LevelChange_Portal::Late_Update(float timeDelta)
@@ -86,27 +119,48 @@ void LevelChange_Portal::OnBeginOverlap(Shared<ColliderCom> self, Shared<Collide
 {
     GameObject::OnBeginOverlap(self, other);
 
-    if (_transitionRequested)
-        return;
-
-    if (self.get() != _colliderCom.get())
+    if (_colliderCom == nullptr || self.get() != _colliderCom.get())
         return;
 
     const Shared<GameObject> otherOwner = other ? other->Get_Owner() : nullptr;
     if (dynamic_pointer_cast<Player_WorldBase>(otherOwner) == nullptr)
         return;
 
-    _transitionRequested = true;
+    if (other != nullptr)
+        _playerOverlapColliders.insert(other.get());
+}
 
-    if (_targetLevel == LevelType::GameEntry)
-        GAME->Stop_SoundChannel(SoundChannel::BGM, 0.f);
+void LevelChange_Portal::OnStayOverlap(Shared<ColliderCom> self, Shared<ColliderCom> other)
+{
+    GameObject::OnStayOverlap(self, other);
 
-    if (!CLIENT->Request_LevelTransition(_targetLevel))
-    {
-        LOG_INFO("LevelChange_Portal: level transition request failed. target={}",
-            magic_enum::enum_name(_targetLevel));
-        _transitionRequested = false;
-    }
+    if (_colliderCom == nullptr || self.get() != _colliderCom.get())
+        return;
+
+    const Shared<GameObject> otherOwner = other ? other->Get_Owner() : nullptr;
+    if (dynamic_pointer_cast<Player_WorldBase>(otherOwner) == nullptr)
+        return;
+
+    if (other != nullptr)
+        _playerOverlapColliders.insert(other.get());
+}
+
+void LevelChange_Portal::OnEndOverlap(Shared<ColliderCom> self, Shared<ColliderCom> other)
+{
+    GameObject::OnEndOverlap(self, other);
+
+    if (_colliderCom == nullptr || self.get() != _colliderCom.get())
+        return;
+
+    const Shared<GameObject> otherOwner = other ? other->Get_Owner() : nullptr;
+    if (dynamic_pointer_cast<Player_WorldBase>(otherOwner) == nullptr)
+        return;
+
+    if (other != nullptr)
+        _playerOverlapColliders.erase(other.get());
+
+    if (!Has_ActiveHeroOverlap())
+        CLIENT->Clear_InteractionPrompt(this);
 }
 
 HRESULT LevelChange_Portal::Ready_Components()
@@ -144,6 +198,20 @@ void LevelChange_Portal::Play_PortalEffect()
     _effectCom->Play_Effect(desc);
 }
 
+bool LevelChange_Portal::Has_ActiveHeroOverlap() const
+{
+    for (ColliderCom* collider : _playerOverlapColliders)
+    {
+        if (collider == nullptr)
+            continue;
+
+        if (CLIENT->Is_ActiveHero(collider->Get_Owner()))
+            return true;
+    }
+
+    return false;
+}
+
 Shared<LevelChange_Portal> LevelChange_Portal::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)
 {
     auto instance = make_shared<LevelChange_Portal>(device, context);
@@ -172,5 +240,8 @@ Shared<GameObject> LevelChange_Portal::Clone(void* arg)
 
 void LevelChange_Portal::Free()
 {
+    _playerOverlapColliders.clear();
+    CLIENT->Clear_InteractionPrompt(this);
+
     GameObject::Free();
 }

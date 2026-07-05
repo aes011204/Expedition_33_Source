@@ -36,6 +36,8 @@ HRESULT Level_Loading::Initialize(LevelType eNextLevelID)
     _hasRenderedFirstFrame = false;
     _postFirstRenderFrameCount = 0;
     _requestedNextLevelTransition = false;
+    _preparedNextLevel.reset();
+    _hasRenderedPreparedNextLevel = false;
 
     if (FAILED(Ready_LoadingUIRenderResources()))
         return E_FAIL;
@@ -94,6 +96,31 @@ void Level_Loading::Update(float fTimeDelta)
         if (_requestedNextLevelTransition)
             return;
 
+        if (_preparedNextLevel != nullptr)
+        {
+            if (!_hasRenderedPreparedNextLevel)
+                return;
+
+            if (CLIENT->Is_FadeTransitionPlaying())
+                return;
+
+            Shared<Level> preparedNextLevel = _preparedNextLevel;
+            _requestedNextLevelTransition = true;
+
+            if (!CLIENT->Request_LoadedLevelTransition(_nextLevel, preparedNextLevel))
+            {
+                if (FAILED(GAME->Change_Level(ETOI(_nextLevel), preparedNextLevel)))
+                {
+                    MSG_BOX("Failed to Changed : NextLevel");
+                    _requestedNextLevelTransition = false;
+                    return;
+                }
+            }
+
+            _preparedNextLevel.reset();
+            return;
+        }
+
         if (CLIENT->Is_FadeTransitionPlaying())
             return;
 
@@ -136,18 +163,8 @@ void Level_Loading::Update(float fTimeDelta)
         Queue_BattleEffectPrewarmForNextLevel();
         CLIENT->Flush_EffectPrewarmQueue();
 
-        _requestedNextLevelTransition = true;
-
-        if (!CLIENT->Request_LoadedLevelTransition(_nextLevel, pNextLevel))
-        {
-            if (FAILED(GAME->Change_Level(ETOI(_nextLevel), pNextLevel)))
-            {
-                MSG_BOX("Failed to Changed : NextLevel");
-                _requestedNextLevelTransition = false;
-                return;
-            }
-        }
-
+        _preparedNextLevel = pNextLevel;
+        _hasRenderedPreparedNextLevel = false;
         return;
     }
 }
@@ -156,6 +173,9 @@ HRESULT Level_Loading::Render()
 {
     if (!_hasRenderedFirstFrame)
         _hasRenderedFirstFrame = true;
+
+    if (_preparedNextLevel != nullptr)
+        _hasRenderedPreparedNextLevel = true;
 
 #ifdef _DEBUG
     _loader->Print_LoadingText();
@@ -267,5 +287,6 @@ void Level_Loading::Free()
         }
     }
 
+    _preparedNextLevel.reset();
     __super::Free();
 }

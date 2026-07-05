@@ -1158,6 +1158,30 @@ bool ClientInstance::Request_ScreenFadeTransition(const function<void()>& Covere
     return _screenFadeTransition->Request_Transition(CoveredAction);
 }
 
+bool ClientInstance::Request_CinematicSequenceTransition(
+    const wstring& filePath,
+    int trackIndex,
+    const function<void()>& FailedAction)
+{
+    if (_levelTransitionFade && _levelTransitionFade->Is_Playing())
+        return false;
+
+    const auto playSequence =
+        [this, filePath, trackIndex, FailedAction]()
+        {
+            if (!Play_Sequence(filePath, trackIndex) && FailedAction)
+                FailedAction();
+        };
+
+    if (_screenFadeTransition == nullptr)
+    {
+        playSequence();
+        return true;
+    }
+
+    return _screenFadeTransition->Request_Transition(playSequence);
+}
+
 bool ClientInstance::Request_LevelTransition(LevelType TargetLevel)
 {
     if (_screenFadeTransition && _screenFadeTransition->Is_Playing())

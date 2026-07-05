@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "AnimNotifyState.h"
 #include "SL_Types.h"
@@ -38,6 +38,8 @@ private:
     wstring _hitEffectName{};
     Vec3 _hitEffectLocalOffset = Vec3::Zero;
     Vec3 _hitEffectScale = Vec3::One;
+
+    float _damageMultiplier = 1.f;
 };
 
 NS_END

@@ -87,6 +87,9 @@ public:
     PxGeometryHolder            Build_QueryGeometry(const Matrix& worldMatrix) const;
 
 private:
+    bool                        Is_PhysXSyncCacheValid(const Matrix& worldMatrix) const;
+    void                        Store_PhysXSyncCache(const Matrix& worldMatrix);
+    void                        Invalidate_PhysXSyncCache();
     // DirectX Matirx 를 PhysX PxTransform으로 변환한다.
     PxTransform                 Build_PXTransform(const Matrix& worldMatrix) const;
     // DirectXCollision debug shape와 PhysX query shape의 local offset을 맞춘다.
@@ -125,6 +128,9 @@ private:
     bool _physxRegistered = false;
     // overlap-only collider인지?
     bool _isTrigger = false;
+    // 마지막으로 PhysX에 반영한 world matrix. 같은 값이면 geometry/pose 재전송을 건너뛴다.
+    Matrix _lastPhysXSyncWorldMatrix = Matrix::Identity;
+    bool _hasPhysXSyncCache = false;
 
 
 public:

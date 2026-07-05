@@ -1,6 +1,7 @@
 ﻿#include "SL_EstherManager.h"
 #include "Body_Player.h"
 #include "ClientInstance.h"
+#include "EffectCom.h"
 #include "ModelCom.h"
 #include "MonsterStatCom.h"
 #include "Player_BattleBase.h"
@@ -31,6 +32,26 @@ namespace
     constexpr char kGustaveAnim[] = "SL_Gustave_Verso_Skill_Flawless_Spiral"; // 천사의 눈
     //constexpr char kLuneAnim[] = "Lune_Unstable_Fire";
     constexpr char kLuneAnim[] = "SL_Lune_Fountain"; // 하늘파괴
+
+    struct TargetEffectDesc
+    {
+        wstring effectName{};
+        Vec3 localOffset{ Vec3::Zero };
+        Vec3 localRotation{ Vec3::Zero };
+        Vec3 scale{ Vec3::One };
+    };
+
+    const TargetEffectDesc kGustaveAngelsEyeSlashEffects[] =
+    {
+        { L"Gustave_AngelsEye_Slash", Vec3(-0.5f, 0.7f, -0.8f), Vec3(0.f, 0.f, -30.f), Vec3::One },
+        { L"Gustave_AngelsEye_Slash", Vec3(0.5f, 0.7f, -1.2f), Vec3(0.f, 0.f, 50.f), Vec3::One },
+        { L"Gustave_AngelsEye_Slash", Vec3(-0.4f, 0.7f, -1.f), Vec3(0.f, 0.f, -20.f), Vec3::One },
+        { L"Gustave_AngelsEye_Slash", Vec3(0.3f, 0.7f, -0.6f), Vec3(0.f, 0.f, -7.f), Vec3::One },
+        { L"Gustave_AngelsEye_Slash", Vec3(0.f, 0.7f, -0.6f), Vec3(0.f, 0.f, -75.f), Vec3::One },
+        { L"Gustave_AngelsEye_Slash", Vec3(0.f, 0.7f, -0.9f), Vec3(0.f, 0.f, 20.f), Vec3::One },
+        { L"Gustave_AngelsEye_Slash", Vec3(-1.f, 0.7f, -0.7f), Vec3(0.f, 0.f, 90.f), Vec3::One },
+        { L"Gustave_AngelsEye_Slash", Vec3(0.9f, 0.7f, -0.8f), Vec3(0.f, 0.f, -90.f), Vec3::One },
+    };
 }
 
 HRESULT SL_EstherManager::Initialize(const Shared<SoulLikeController>& controller)
@@ -108,6 +129,30 @@ bool SL_EstherManager::Notify_Attack(GameObject* notifyOwner)
     const bool isFinalAttack = runtime.appliedAttackCount + 1 >= expectedAttackCount;
     if (Apply_EstherDamage(runtime, damageRatio, isFinalAttack))
     {
+        if (runtime.type == SL_EstherType::GustaveOvercharge)
+        {
+            Shared<SL_Base> target = runtime.target.lock();
+            Shared<EffectCom> effectCom = target ? target->Get_Component<EffectCom>() : nullptr;
+
+            if (effectCom != nullptr)
+            {
+                const uint32 slashEffectCount = static_cast<uint32>(size(kGustaveAngelsEyeSlashEffects));
+                const uint32 slashEffectIndex = min(runtime.appliedAttackCount, slashEffectCount - 1);
+                const TargetEffectDesc& slashEffect = kGustaveAngelsEyeSlashEffects[slashEffectIndex];
+
+                EffectCom::EffectPlayDesc effectDesc{};
+                effectDesc.levelIndex = runtime.levelIndex;
+                effectDesc.effectName = slashEffect.effectName;
+                effectDesc.target = EffectCom::EffectPlayTarget::OwnerRoot;
+                effectDesc.localOffset = slashEffect.localOffset;
+                effectDesc.localRotation = slashEffect.localRotation;
+                effectDesc.scale = slashEffect.scale;
+                effectDesc.followTarget = false;
+
+                effectCom->Play_Effect(effectDesc);
+            }
+        }
+
         ++runtime.appliedAttackCount;
 
         if (runtime.appliedAttackCount >= expectedAttackCount)
@@ -301,7 +346,7 @@ Shared<Player_BattleBase> SL_EstherManager::Spawn_EstherActor(SL_EstherType esth
         break;
     }
 
-    const Vec3 spawnPosition = Resolve_SpawnPosition(player, target);
+    const Vec3 spawnPosition = Resolve_SpawnPosition(estherType, player, target);
     const Vec3 spawnRotation = Resolve_SpawnRotation(spawnPosition, target);
 
     Shared<GameObject> object = Spawn_Prefab::Prefab(prefabName)
@@ -423,24 +468,44 @@ void SL_EstherManager::Restore_TargetSlow(EstherRuntime& runtime)
     runtime.targetSlowApplied = false;
 }
 
-Vec3 SL_EstherManager::Resolve_SpawnPosition(const Shared<SL_Maelle>& player, const Shared<SL_Base>& target) const
+Vec3 SL_EstherManager::Resolve_SpawnPosition(SL_EstherType estherType, const Shared<SL_Maelle>& player,
+    const Shared<SL_Base>& target) const
 {
     const Shared<TransformCom> playerTr = player->Get_Transform();
     const Shared<TransformCom> targetTr = target->Get_Transform();
 
     if (!playerTr || !targetTr)
-        return Vec3::Zero;;
+        return Vec3::Zero;
 
     const Vec3 targetPos = targetTr->Get_WorldPosition();
-    Vec3 fromTargetToPlayer = playerTr->Get_WorldPosition() - targetPos;
 
+    Vec3 fromTargetToPlayer = playerTr->Get_WorldPosition() - targetPos;
     fromTargetToPlayer.y = 0.f;
+
     if (fromTargetToPlayer.LengthSquared() <= 0.0001f)
         fromTargetToPlayer = Vec3::Look;
     else
         fromTargetToPlayer.Normalize();
 
-    // 일단 임시 위치. 나중에 좌, 우 적당히 줄듯 스킬 연출에 따라서
+    if (estherType == SL_EstherType::LuneImmolation)
+    {
+        Vec3 right = Vec3::Up.Cross(fromTargetToPlayer);
+        if (right.LengthSquared() <= 0.0001f)
+            right = Vec3::Right;
+        else
+            right.Normalize();
+
+        constexpr float kLuneForwardOffset = 3.0f;
+        constexpr float kLuneRightOffset = -2.0f;
+        constexpr float kLuneHeightOffset = 0.f;
+
+        return targetPos
+            + fromTargetToPlayer * kLuneForwardOffset
+            + right * kLuneRightOffset
+            + Vec3(0.f, kLuneHeightOffset, 0.f);
+    }
+
+    // 구스타브는 기존 위치 유지
     return targetPos + fromTargetToPlayer * 1.8f;
 }
 
