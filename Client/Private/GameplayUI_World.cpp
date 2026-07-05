@@ -675,10 +675,6 @@ void GameplayUI_World::Handle_SavePointAction(SavePoint_Panel::SavePointAction a
         Push_Menu(GameplayMenu::SkillTree);         // SavePoint 위에 SkillTree push
         break;
 
-    case SavePoint_Panel::SavePointAction::UpgradeWeapon:
-        Open_CharacterProgressionFlow(CharacterProgression_Panel::ContentTab::Weapon);
-        break;
-
     case SavePoint_Panel::SavePointAction::None:
     default:
         break;
