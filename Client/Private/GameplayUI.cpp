@@ -220,6 +220,11 @@ bool GameplayUI::Open_ArenaCharacterSelect()
     return _worldUI && _worldUI->Request_ArenaCharacterSelect();
 }
 
+bool GameplayUI::Open_SavePoint()
+{
+    return _worldUI && _worldUI->Request_SavePoint();
+}
+
 bool GameplayUI::Open_Journal(JournalOpenAnimation openAnimation)
 {
     return _worldUI && _worldUI->Request_Journal(openAnimation);

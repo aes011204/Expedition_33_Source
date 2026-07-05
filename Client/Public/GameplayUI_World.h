@@ -56,6 +56,7 @@ public:
     bool    Request_ArenaCharacterSelect();
     bool    Request_MerchantShop();
     bool    Request_WeaponUpgrade();
+    bool    Request_SavePoint();
     bool    Request_Journal(JournalOpenAnimation openAnimation = JournalOpenAnimation::JournalUI);
     void    Queue_GetChromaPresentation(uint32 chromaAmount);
     void    Queue_LevelAnnounce(LevelType levelType);
@@ -64,7 +65,6 @@ public:
 
 private:
     void    Handle_SavePointAction(SavePoint_Panel::SavePointAction action);
-    void    Handle_SavePointInput();
     void    Handle_TabInput();
     void    Handle_ExpeditionStat();
     void    Handle_BackInput();            // Esc로 현재 메뉴 닫고 이전 메뉴 복귀
