@@ -358,11 +358,9 @@ float3 SampleIntegratedFroxelLighting(float2 uv)
 
     const float densityMask = smoothstep(0.03f, 0.35f, saturate(froxelLighting.a));
     const float nearFade = smoothstep(g_FroxelNear, g_FroxelNear + froxelRange * 0.15f, viewZ);
-    const float farFade = 1.f - smoothstep(g_FroxelFar * 0.7f, g_FroxelFar, viewZ);
-    const float depthFade = nearFade * max(farFade, 0.2f);
     const float3 compressedLighting = 1.f - exp(-max(froxelLighting.rgb, 0.f) * 0.12f);
 
-    return compressedLighting * densityMask * depthFade * g_FroxelCompositeIntensity;
+    return compressedLighting * densityMask * nearFade * g_FroxelCompositeIntensity;
 }
 
 PS_OUT_COLOR PS_FroxelCompositeHDR(PS_IN In)

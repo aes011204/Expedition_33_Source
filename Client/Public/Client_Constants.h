@@ -429,6 +429,8 @@ namespace Client::Constants::Map
     inline constexpr wchar_t MF_Zone_Stair_1_HMap[] = L"../../../Client/Bin/Resources/Map/SaveJson/MF_Zone_Stair_1.hmap";
     inline constexpr wchar_t MF_Zone_Stair_2_HMap[] = L"../../../Client/Bin/Resources/Map/SaveJson/MF_Zone_Stair_2.hmap";
     inline constexpr wchar_t MF_Zone_Stair_3_HMap[] = L"../../../Client/Bin/Resources/Map/SaveJson/MF_Zone_Stair_3.hmap";
+    inline constexpr wchar_t MF_Zone_Left_HMap[] = L"../../../Client/Bin/Resources/Map/SaveJson/MF_Zone_Boss_Left.hmap";
+    inline constexpr wchar_t MF_Zone_Right_HMap[] = L"../../../Client/Bin/Resources/Map/SaveJson/MF_Zone_Boss_Right.hmap";
 
     inline constexpr wchar_t WaterPath[] = L"../../../Client/Bin/Resources/Map/Water/";
 

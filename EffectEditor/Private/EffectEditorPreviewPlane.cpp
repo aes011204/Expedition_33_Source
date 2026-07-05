@@ -150,8 +150,12 @@ HRESULT EffectEditorPreviewPlane::Bind_ShaderResources()
     CHECK_FAILED(_texture->Bind_ShaderResourceView(_shader.get(), "g_Texture", 0), E_FAIL);
     CHECK_FAILED(_shader->Bind_SRV("g_NoiseTexture", nullptr), E_FAIL);
     CHECK_FAILED(_shader->Bind_SRV("g_MaskTexture", nullptr), E_FAIL);
+    CHECK_FAILED(_shader->Bind_SRV("g_ModelNormalTexture", nullptr), E_FAIL);
+    CHECK_FAILED(_shader->Bind_SRV("g_ModelEmissiveTexture", nullptr), E_FAIL);
+    CHECK_FAILED(_shader->Bind_SRV("g_ModelOrmTexture", nullptr), E_FAIL);
 
     const Vec4 tint{ 1.f, 1.f, 1.f, 1.f };
+    const Vec4 modelMaterialFlags{ 0.f, 0.f, 0.f, 0.f };
     const Vec4 effectMeshParams{ 1.f, 1.f, 0.f, 0.f };
     const Vec4 effectMeshAlphaParams{ 0.f, 0.f, 0.f, 1.f };
     const Vec4 effectMeshMainUVParams{ kMainUVScale.x, kMainUVScale.y, 0.f, 0.f };
@@ -204,6 +208,7 @@ HRESULT EffectEditorPreviewPlane::Bind_ShaderResources()
     CHECK_FAILED(_shader->Bind_RawValue("g_EffectMeshAdditiveFlags", &effectMeshAdditiveFlags, sizeof(effectMeshAdditiveFlags)), E_FAIL);
     CHECK_FAILED(_shader->Bind_RawValue("g_EffectMeshCoreEmissiveParams", &effectMeshCoreEmissiveParams, sizeof(effectMeshCoreEmissiveParams)), E_FAIL);
     CHECK_FAILED(_shader->Bind_RawValue("g_EffectMeshCoreEmissiveColor", &effectMeshCoreEmissiveColor, sizeof(effectMeshCoreEmissiveColor)), E_FAIL);
+    CHECK_FAILED(_shader->Bind_RawValue("g_EffectMeshModelMaterialFlags", &modelMaterialFlags, sizeof(modelMaterialFlags)), E_FAIL);
     CHECK_FAILED(_shader->Bind_RawValue("g_OpacitySource", &opacitySource, sizeof(opacitySource)), E_FAIL);
 
     return S_OK;

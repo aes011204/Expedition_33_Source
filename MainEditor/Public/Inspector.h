@@ -32,6 +32,9 @@ public:
 public:
     void Set_PrimaryShadowLightTarget(bool enabled);
     bool Is_PrimaryShadowLightTarget() const { return _isPrimaryShadowLightTarget; }
+    void Set_PointLightTarget(int32 pointIndex);
+    bool Is_PointLightTarget(int32 pointIndex) const { return _pointLightTargetIndex == pointIndex; }
+    void Draw_SelectedPointLightDebug() const;
 
 public:
     static bool Draw_ComponentOverride(const Shared<Component>& component);
@@ -56,6 +59,7 @@ private:
 
 private:
     void Draw_PrimaryShadowLightInspector();
+    void Draw_PointLightInspector();
 
     static void Draw_UIInspector(
         const Shared<Engine::UI_Base>& ui,
@@ -99,6 +103,7 @@ private:
     static vector<FGameObjectClassPickerEntry> _gameObjectClassPickerEntries;
     static char _spawnActorClassSearchBuffer[256];
     bool _isPrimaryShadowLightTarget = false;
+    int32 _pointLightTargetIndex = -1;
 public:
     static Shared<Inspector> Create();
 };

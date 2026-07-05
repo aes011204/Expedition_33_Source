@@ -766,6 +766,7 @@ void SceneContext::SaveToFile(const string& filePath)
                 e["LightType"] = (obj->_lightType == LightType::Directional) ? "Directional" : "Point";
                 e["Direction"] = { obj->_lightDirection.x, obj->_lightDirection.y, obj->_lightDirection.z, obj->_lightDirection.w };
                 e["Range"] = obj->_lightRange;
+                e["AttenuationPower"] = obj->_lightAttenuationPower;
                 e["Diffuse"] = { obj->_lightDiffuse.x,  obj->_lightDiffuse.y,  obj->_lightDiffuse.z,  obj->_lightDiffuse.w };
                 e["Ambient"] = { obj->_lightAmbient.x,  obj->_lightAmbient.y,  obj->_lightAmbient.z,  obj->_lightAmbient.w };
                 e["Specular"] = { obj->_lightSpecular.x, obj->_lightSpecular.y, obj->_lightSpecular.z, obj->_lightSpecular.w };
@@ -1098,6 +1099,7 @@ void SceneContext::LoadFromFile(const string& filePath, bool bMerge)
             string lt = e.value("LightType", "Directional");
             obj->_lightType = (lt == "Point") ? LightType::Point : LightType::Directional;
             obj->_lightRange = e.value("Range", 10.f);
+            obj->_lightAttenuationPower = e.value("AttenuationPower", 1.f);
             if (e.contains("Direction"))
             {
                 auto& d = e["Direction"];
@@ -1354,6 +1356,7 @@ Shared<EditorObject> SceneContext::SpawnFromPrefab(const string& prefabPath, con
         }
 
         obj->_lightRange = j.value("Range", 10.f);
+        obj->_lightAttenuationPower = j.value("AttenuationPower", 1.f);
         if (j.contains("Diffuse"))
         {
             auto& d = j["Diffuse"];
@@ -2136,6 +2139,7 @@ void SceneContext::Export_MapInstance(const string& mapName)
             e["Type"] = "Light";
             e["LightType"] = (obj->_lightType == LightType::Directional) ? "Directional" : "Point";
             e["Range"] = obj->_lightRange;
+            e["AttenuationPower"] = obj->_lightAttenuationPower;
             e["Diffuse"] = { obj->_lightDiffuse.x, obj->_lightDiffuse.y, obj->_lightDiffuse.z, obj->_lightDiffuse.w };
             e["Ambient"] = { obj->_lightAmbient.x, obj->_lightAmbient.y, obj->_lightAmbient.z, obj->_lightAmbient.w };
             e["Specular"] = { obj->_lightSpecular.x, obj->_lightSpecular.y, obj->_lightSpecular.z, obj->_lightSpecular.w };
@@ -2546,6 +2550,7 @@ void SceneContext::Import_MapInstance(const string& mapName)
             string lt = e.value("LightType", "Point");
             obj->_lightType = (lt == "Directional") ? LightType::Directional : LightType::Point;
             obj->_lightRange = e.value("Range", 10.f);
+            obj->_lightAttenuationPower = e.value("AttenuationPower", 1.f);
             if (e.contains("Direction"))
             {
                 auto& d = e["Direction"];

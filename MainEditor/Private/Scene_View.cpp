@@ -12,6 +12,7 @@
 #include "EffectAssetRuntimeLoader.h"
 #include "EffectInstance.h"
 #include "EnvironmentView.h"
+#include "Inspector.h"
 #include "LightingPipeline.h"
 #include "MovementCom.h"
 #include "Spawn_Prefab.h"
@@ -262,6 +263,8 @@ void Scene_View::Pre_Render()
     Tick_DragPreview(ImGui::GetIO().DeltaTime);
     Tick_SelectedLoopingEffect(ImGui::GetIO().DeltaTime);
     EnvironmentView::DrawDebugVolumes();
+    if (Shared<Inspector> inspector = dynamic_pointer_cast<Inspector>(EDITOR->Get_Window(L"Inspector")))
+        inspector->Draw_SelectedPointLightDebug();
 }
 
 void Scene_View::Render()

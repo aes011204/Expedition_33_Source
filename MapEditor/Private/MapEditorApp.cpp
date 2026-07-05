@@ -728,10 +728,25 @@ void MapEditorApp::SyncSceneLights()
         desc.direction = obj->_lightDirection;
         desc.position = Vec4(obj->_position.x, obj->_position.y, obj->_position.z, 1.f);
         desc.range = obj->_lightRange;
+        desc.pointAttenuationPower = obj->_lightAttenuationPower;
         desc.diffuse = obj->_lightDiffuse;
         desc.ambient = obj->_lightAmbient;
         desc.specular = obj->_lightSpecular;
-        GAME->Add_Light(desc);
+
+        if (desc.type == LightType::Point)
+        {
+            GAME->Add_PointLight(
+                obj->_position,
+                obj->_lightRange,
+                obj->_lightDiffuse,
+                obj->_lightAmbient,
+                obj->_lightSpecular,
+                obj->_lightAttenuationPower);
+        }
+        else
+        {
+            GAME->Add_Light(desc);
+        }
 
         if (!hasPrimaryDirectional && desc.type == LightType::Directional)
         {
