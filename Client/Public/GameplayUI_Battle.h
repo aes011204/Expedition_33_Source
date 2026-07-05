@@ -84,6 +84,7 @@ private:
     void    Handle_ActionStarted(const BattleAction& action);
     void    Handle_DamageApplied(const DamageAppliedInfo& info);
     void    Handle_HealApplied(const BattleChar& target, float healAmount);
+    void    Handle_ReactionInputSubmitted(BattleReactionType reactionType);
     void    Handle_ReactionSucceeded(BattleReactionType reactionType, const vector<BattleChar>& target);
     void    Handle_ReactionWindowOpened(BattleReactionType reactionType);
     void    Handle_ReactionWindowClosed(BattleReactionType reactionType);
@@ -280,6 +281,7 @@ private:
     FDelegateHandle          _damageAppliedHandle{};
     FDelegateHandle          _healAppliedHandle{};
     FDelegateHandle          _battleApChangedHandle{};
+    FDelegateHandle          _reactionInputSubmittedHandle{};
     FDelegateHandle          _reactionSucceededHandle{};
     FDelegateHandle          _reactionWindowOpenedHandle{};
     FDelegateHandle          _reactionWindowClosedHandle{};

@@ -220,6 +220,8 @@ namespace Client::Constants::UI
     inline constexpr wchar_t UI_WorldDialogue[] = L"UI/UI_Json/CommonSystem/UI_WorldDialogue.json";
     inline constexpr wchar_t UI_WorldDialogue_GestralVillage[] =
         L"UI/UI_Json/CommonSystem/UI_WorldDialogue_GestralVillage.json";
+    inline constexpr wchar_t UI_WorldDialogue_GestralVillage_Second[] =
+        L"UI/UI_Json/CommonSystem/UI_WorldDialogue_GestralVillage_Second.json";
     inline constexpr wchar_t UI_WorldDialogue_Simon[] =
         L"UI/UI_Json/CommonSystem/UI_WorldDialogue_Simon.json";
 #pragma endregion
@@ -257,6 +259,8 @@ namespace Client::Constants::UI_Anim
     inline constexpr wchar_t UI_InteractionOutroAnim_Path[] = L"UI/UI_Animations/Common/Interaction_Outro";
     inline constexpr wchar_t UI_WorldDialogue_GestralVillageAnim_Path[] =
         L"UI/UI_Animations/Common/WorldDialogue_GestralVillage";
+    inline constexpr wchar_t UI_WorldDialogue_GestralVillageSecondAnim_Path[] =
+        L"UI/UI_Animations/Common/WorldDialogue_GestralVillage_Second";
     inline constexpr wchar_t UI_WorldDialogue_SimonAnim_Path[] =
         L"UI/UI_Animations/Common/WorldDialogue_Simon";
     inline constexpr wchar_t UI_JournalUIIntroAnim_Path[] =
@@ -297,6 +301,10 @@ namespace Client::Constants::UI_Anim
     inline constexpr wchar_t UI_BattleMechanismIntroAnim_Path[] = L"UI/UI_Animations/BattleSystem/BattleSystem_Mechanism_Intro";
 
     inline constexpr wchar_t UI_BattleSystemIntroAnim_Path[] = L"UI/UI_Animations/BattleSystem/BattleSystem_Intro";
+
+    inline constexpr wchar_t UI_BattleDefenseUseDodgeAnim_Path[] = L"UI/UI_Animations/BattleSystem/Use_Dodge";
+    inline constexpr wchar_t UI_BattleDefenseUseParryAnim_Path[] = L"UI/UI_Animations/BattleSystem/Use_Parry";
+    inline constexpr wchar_t UI_BattleDefenseUseJumpAnim_Path[] = L"UI/UI_Animations/BattleSystem/Use_Jump";
 
     inline constexpr wchar_t UI_BattleVictoryIntroAnim_Path[] = L"UI/UI_Animations/BattleSystem/BattleVictory";
     inline constexpr wchar_t UI_BattleVictoryOutroAnim_Path[] = L"UI/UI_Animations/BattleSystem/BattleVictory_Outro";

@@ -446,6 +446,9 @@ void GameplayUI_Battle::Bind_BattleDelegates()
 
     BattleReactionController& reactionController = _battleController->Get_ReactionController();
 
+    _reactionInputSubmittedHandle =
+        reactionController.OnReactionInputSubmitted.Add(this, &GameplayUI_Battle::Handle_ReactionInputSubmitted);
+
     _reactionSucceededHandle =
         reactionController.OnReactionSucceeded.Add(this, &GameplayUI_Battle::Handle_ReactionSucceeded);
 
@@ -534,6 +537,9 @@ void GameplayUI_Battle::Unbind_BattleDelegates()
 
     BattleReactionController& reactionController = _battleController->Get_ReactionController();
 
+    if (_reactionInputSubmittedHandle.IsValid())
+        reactionController.OnReactionInputSubmitted.Remove(_reactionInputSubmittedHandle);
+
     if (_reactionSucceededHandle.IsValid())
         reactionController.OnReactionSucceeded.Remove(_reactionSucceededHandle);
 
@@ -594,6 +600,7 @@ void GameplayUI_Battle::Unbind_BattleDelegates()
     _damageAppliedHandle.Reset();
     _healAppliedHandle.Reset();
     _battleApChangedHandle.Reset();
+    _reactionInputSubmittedHandle.Reset();
     _reactionSucceededHandle.Reset();
     _reactionWindowOpenedHandle.Reset();
     _reactionWindowClosedHandle.Reset();
@@ -1144,6 +1151,15 @@ void GameplayUI_Battle::Handle_HealApplied(const BattleChar& target, float healA
 
     stackIndex = min(stackIndex, kHealFontPoolSize - 1);
     selectedSlot->Play_HealFont(target, healAmount, stackIndex);
+}
+
+void GameplayUI_Battle::Handle_ReactionInputSubmitted(BattleReactionType reactionType)
+{
+    if (!_isBattleUiActive || _battleDefense == nullptr)
+        return;
+
+    _battleDefense->Open();
+    _battleDefense->Play_UseAnimation(reactionType);
 }
 
 void GameplayUI_Battle::Handle_ReactionSucceeded(BattleReactionType reactionType, const vector<BattleChar>& target)
