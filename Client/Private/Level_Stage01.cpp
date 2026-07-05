@@ -13,7 +13,7 @@
 
 namespace
 {
-    constexpr wchar_t kEffectName[] = L"Effects/Assets/Map/FX_TornadoPaint_EX.effect.json";
+    constexpr wchar_t kEffectName[] = L"Effects/Assets/Map/FX_TornadoPaint_V2.effect.json";
 
     constexpr wchar_t kParticelEffectName[] = L"Effects/Assets/Map/FX_FallingLight.effect.json";
 
@@ -37,6 +37,13 @@ HRESULT Level_Stage01::Initialize()
 
     RuntimeRuleStateService::Apply_ToCurrentRuntime(
         RuntimeRuleStateService::Build_SimonStartUnlocks(), false);
+
+    // 안개, 빛 설정
+    GAME->Set_RenderEnvironment(true);
+    if (FAILED(GAME->Change_IBL(
+        L"../../../Client/Bin/Resources/Textures/Shader/IBL/irradiance_eye.dds",
+        L"../../../Client/Bin/Resources/Textures/Shader/IBL/perfilter_eye.dds")))
+        return E_FAIL;
 
     //GAME->Play_BGM(Constants::SoundBGM::SpringBGM, 1.f, true, 0.f);
 

@@ -27,15 +27,15 @@ namespace
                 DirectX::XMConvertToRadians(20.959f),
                 DirectX::XMConvertToRadians(-0.000f),
                 DirectX::XMConvertToRadians(-0.000f)) *
-            Matrix::CreateTranslation(Vec3(11.399f, 10.280f, 92.334f));
+            Matrix::CreateTranslation(Vec3(11.483f, 9.280f, 89.513f));
 
         VolumetricLightShaftZoneEntry& zone = lightShaftZoneCB.zones[0];
         zone.worldToLocal = lightShaftWorld.Invert();
-        zone.halfExtents = Vec3(12.410f, 12.600f, 6.600f);
+        zone.halfExtents = Vec3(12.510f, 12.100f, 13.500f);
         zone.density = 1.f;
         zone.lightColor = Vec4(1.f, 242.f / 255.f, 204.f / 255.f, 1.f);
         zone.edgeFade = 1.f;
-        zone.intensity = 0.410f;
+        zone.intensity = 0.3014f;
 
         return lightShaftZoneCB;
     }
@@ -123,6 +123,7 @@ void Level_GestralVillage::BeginPlay()
 
     GAME->Set_VolumetricLightShaftZoneCullingDistance(30.f);
     GAME->Set_VolumetricLightShaftZones(Build_GestralVillageLightShaftZones());
+    Apply_GestralVillageRenderParams();
     Play_MapBGM();
 
     _editorPlayRuntimeHandle =
@@ -191,7 +192,7 @@ HRESULT Level_GestralVillage::Ready_Lights()
     LIGHT_DESC LightDesc{};
 
     LightDesc.type = LightType::Directional;
-    LightDesc.direction = Vec4(-0.8f, -0.53f, -0.05f, 0.f);
+    LightDesc.direction = Vec4(-0.822035f, -0.559684f, 0.104941f, 0.f);
     LightDesc.diffuse = Vec4(1.f, 1.f, 1.f, 1.f);
     LightDesc.ambient = Vec4(0.4f, 0.4f, 0.4f, 1.f);
     LightDesc.specular = Vec4(1.f, 1.f, 1.f, 1.f);
@@ -449,9 +450,10 @@ HRESULT Level_GestralVillage::Ready_Layer_ETC(const wstring& strLayerTag)
         MapAmbientVisibility::MAP_AMBIENT_VISIBILITY_DESC symbolDesc{};
         symbolDesc.name = L"AV_Cylinder_Symbol";
         symbolDesc.modelPath = L"../../../Client/Bin/Resources/Map/Level_Main_GestralVillage_V2/Cylinder.model";
-        symbolDesc.position = Vec3(3.41f, 17.03f, 92.3f);
+        symbolDesc.position = Vec3(3.41f, 17.03f, 93.69f);
         symbolDesc.rotation = Quat::Identity;
-        symbolDesc.scale = Vec3(18000.f, 19500.f, 18000.f);
+        symbolDesc.scale = Vec3(19000.f, 19500.f, 19700.f);
+        symbolDesc.ambientVisibilityAmount = 0.170f;
         symbolDesc.visible = true;
         symbolDesc.cullEnabled = true;
 
@@ -623,6 +625,63 @@ void Level_GestralVillage::Play_MapBGM()
     GAME->Play_BGM(Constants::SoundBGM::GestralVillageMarket, 0.7f, true, 0.f);
 }
 
+void Level_GestralVillage::Apply_GestralVillageRenderParams()
+{
+    Shared<LightingPipeline> lightingPipeline = GAME->Get_LightingPipeline();
+    if (_hasSavedGestralVillageRenderParams)
+        return;
+
+    if (lightingPipeline != nullptr)
+    {
+        _savedSSAOCB = lightingPipeline->Get_Params();
+        _savedDeferredLightingCB = lightingPipeline->Get_DeferredLightingParams();
+    }
+
+    _hasSavedGestralVillageRenderParams = true;
+
+    if (lightingPipeline != nullptr)
+    {
+        SSAOCB ssao = _savedSSAOCB;
+        ssao.SSAOEnabled = 1u;
+        ssao.SSAORadius = 0.100f;
+        ssao.SSAOBias = 0.0750f;
+        ssao.SSAOIntensity = 1.000f;
+        ssao.SSAOPower = 1.500f;
+        ssao.SSAODepthRange = 1.000f;
+        ssao.SSAOSampleCount = 16u;
+        lightingPipeline->Set_Params(ssao);
+
+        DeferredLightingCB lighting = _savedDeferredLightingCB;
+        lighting.stylizedLightContrastEnabled = 1u;
+        lighting.stylizedLightContrastStrength = 0.22f;
+        lighting.stylizedLightThreshold = 2.00f;
+        lighting.stylizedLightSoftness = 0.500f;
+        lighting.stylizedLitBoost = 1.20f;
+        lighting.stylizedUnlitAmbientScale = 0.35f;
+        lighting.stylizedDeepUnlitThreshold = 0.20f;
+        lighting.stylizedDeepUnlitSoftness = 0.500f;
+        lighting.stylizedDeepUnlitAmbientScale = 0.00f;
+        lightingPipeline->Set_DeferredLightingParams(lighting);
+    }
+}
+
+void Level_GestralVillage::Restore_GestralVillageRenderParams()
+{
+    if (!_hasSavedGestralVillageRenderParams)
+        return;
+
+    Shared<LightingPipeline> lightingPipeline = GAME->Get_LightingPipeline();
+    if (lightingPipeline != nullptr)
+    {
+        lightingPipeline->Set_Params(_savedSSAOCB);
+        lightingPipeline->Set_DeferredLightingParams(_savedDeferredLightingCB);
+    }
+
+    _savedDeferredLightingCB = DeferredLightingCB{};
+    _savedSSAOCB = SSAOCB{};
+    _hasSavedGestralVillageRenderParams = false;
+}
+
 Shared<Level_GestralVillage> Level_GestralVillage::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)
 {
     auto pInstance = make_shared<Level_GestralVillage>(device, context);
@@ -638,6 +697,8 @@ Shared<Level_GestralVillage> Level_GestralVillage::Create(const ComPtr<Device>& 
 void Level_GestralVillage::Free()
 {
     ClientInstance::Clear_PotatoBagArenaMapRenderGateBasis();
+
+    Restore_GestralVillageRenderParams();
 
     GAME->Set_VolumetricLightShaftZones(VolumetricLightShaftZoneCB{});
 
