@@ -1120,6 +1120,25 @@ void ClientInstance::Queue_LevelAnnounce(LevelType levelType)
         _gamePlayUI->Queue_LevelAnnounce(levelType);
 }
 
+bool ClientInstance::Open_Journal(JournalOpenAnimation openAnimation)
+{
+    return _gamePlayUI && _gamePlayUI->Open_Journal(openAnimation);
+}
+
+bool ClientInstance::Open_EventDialogueUI(const EventDialogueUIRequest& request)
+{
+    if (_gamePlayUI == nullptr)
+        return false;
+
+    return _gamePlayUI->Open_EventDialogueUI(request);
+}
+
+void ClientInstance::Close_EventDialogueUI()
+{
+    if (_gamePlayUI)
+        _gamePlayUI->Close_EventDialogueUI();
+}
+
 bool ClientInstance::Request_ScreenFadeTransition(const function<void()>& CoveredAction)
 {
     if (_levelTransitionFade && _levelTransitionFade->Is_Playing())
@@ -1133,6 +1152,30 @@ bool ClientInstance::Request_ScreenFadeTransition(const function<void()>& Covere
     }
 
     return _screenFadeTransition->Request_Transition(CoveredAction);
+}
+
+bool ClientInstance::Request_CinematicSequenceTransition(
+    const wstring& filePath,
+    int trackIndex,
+    const function<void()>& FailedAction)
+{
+    if (_levelTransitionFade && _levelTransitionFade->Is_Playing())
+        return false;
+
+    const auto playSequence =
+        [this, filePath, trackIndex, FailedAction]()
+        {
+            if (!Play_Sequence(filePath, trackIndex) && FailedAction)
+                FailedAction();
+        };
+
+    if (_screenFadeTransition == nullptr)
+    {
+        playSequence();
+        return true;
+    }
+
+    return _screenFadeTransition->Request_Transition(playSequence);
 }
 
 bool ClientInstance::Request_LevelTransition(LevelType TargetLevel)
@@ -1617,7 +1660,7 @@ bool ClientInstance::Is_BattleEntering() const
 
 bool ClientInstance::Is_PotatoBagBattleActive() const
 {
-    // 감자자루랑 전투중일 때에만 NPC가 보이게 처리하ㅣㄱ
+    // 감자자루랑 전투중일 때에만 NPC가 보이게 처리하기
     return _battleController &&
         _battleController->Is_BattleFieldActiveOrEntering(Constants::Value::potatoBagEncounterId);
 }

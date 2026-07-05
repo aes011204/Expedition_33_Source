@@ -589,6 +589,7 @@ void Prefab_View::Save()
     {
         file << root.dump(4);
         file.close();
+        Client::Spawn_Prefab::Cache_PrefabJson(_prefabPath, root);
     }
 
     if (saved)
@@ -1464,6 +1465,7 @@ uint32 Prefab_View::Save_PlayerBattleWeaponTransforms() const
 
         weaponFile << weaponRoot.dump(4);
         weaponFile.close();
+        Client::Spawn_Prefab::Cache_PrefabJson(weaponPrefabPath, weaponRoot);
         ++savedCount;
     }
 

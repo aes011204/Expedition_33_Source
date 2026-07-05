@@ -1,10 +1,15 @@
 ﻿#include "UI_ArenaCharacterSelect.h"
 
 #include "Client_Constants.h"
+#include "ClientInstance.h"
 #include "GameInstance.h"
+#include "PlayerStatCom.h"
+#include "Player_WorldBase.h"
 #include "UI_Base.h"
 #include "UI_Button.h"
+#include "UI_Image.h"
 #include "UI_RuntimeLoader.h"
+#include "UI_Text.h"
 #include "UI_Utils.h"
 
 using namespace  UI_Utils;
@@ -28,6 +33,7 @@ void UI_ArenaCharacterSelect::Update(float timeDelta)
     if (!_isOpen)
         return;
 
+    Refresh_PlayerStats();
     Handle_ButtonInput();
 }
 
@@ -41,6 +47,7 @@ void UI_ArenaCharacterSelect::Open()
 
     _lastAction = Action::None;
     Reset_ButtonInputLatch();
+    Refresh_PlayerStats();
 
     UI_RuntimePanelBase::Open();
 
@@ -119,7 +126,88 @@ HRESULT UI_ArenaCharacterSelect::Bind_UI()
     CHECK_NULL(_maelleButton, E_FAIL);
     CHECK_NULL(_backButton, E_FAIL);
 
+    Bind_PlayerStatSlot(L"Gustave", 0);
+    Bind_PlayerStatSlot(L"Lune", 1);
+    Bind_PlayerStatSlot(L"Maelle", 2);
+
+    for (uint32 i = 0; i < kPlayerStatSlotCount; ++i)
+    {
+        CHECK_NULL(_playerStatSlots[i].levelText, E_FAIL);
+        CHECK_NULL(_playerStatSlots[i].currentHpText, E_FAIL);
+        CHECK_NULL(_playerStatSlots[i].maxHpText, E_FAIL);
+        CHECK_NULL(_playerStatSlots[i].hpGauge, E_FAIL);
+
+        _playerStatSlots[i].hpGauge->Set_UseFillRatio(true);
+        _playerStatSlots[i].hpGauge->Set_FillOrigin(UI_Image::FillOrigin::LeftToRight);
+    }
+
     return S_OK;
+}
+
+void UI_ArenaCharacterSelect::Refresh_PlayerStats()
+{
+    Set_PlayerStatSlot(HeroId::Gustave, 0);
+    Set_PlayerStatSlot(HeroId::Lune, 1);
+    Set_PlayerStatSlot(HeroId::Maelle, 2);
+}
+
+void UI_ArenaCharacterSelect::Bind_PlayerStatSlot(const wstring& uiName, uint32 slotIndex)
+{
+    if (slotIndex >= kPlayerStatSlotCount)
+        return;
+
+    PlayerStatSlot& slot = _playerStatSlots[slotIndex];
+
+    slot.levelText = UI_Utils::Find_TypedUI<UI_Text>(
+        _uiByName, L"Text_Arena_Character_Select_" + uiName + L"_Level_Value", "ArenaCharacterSelect");
+    slot.currentHpText = UI_Utils::Find_TypedUI<UI_Text>(
+        _uiByName, L"Text_Arena_Character_Select_" + uiName + L"_Current_HP", "ArenaCharacterSelect");
+    slot.maxHpText = UI_Utils::Find_TypedUI<UI_Text>(
+        _uiByName, L"Text_Arena_Character_Select_" + uiName + L"_Max_HP", "ArenaCharacterSelect");
+    slot.hpGauge = UI_Utils::Find_TypedUI<UI_Image>(
+        _uiByName, L"Image_Arena_Character_Select_" + uiName + L"_HP_Gauge", "ArenaCharacterSelect");
+}
+
+void UI_ArenaCharacterSelect::Set_PlayerStatSlot(HeroId heroId, uint32 slotIndex)
+{
+    if (slotIndex >= kPlayerStatSlotCount)
+        return;
+
+    const Shared<Player_WorldBase> player = CLIENT->Find_Hero(heroId);
+    const Shared<PlayerStatCom> playerStat = player ? player->Get_Component<PlayerStatCom>() : nullptr;
+
+    if (playerStat == nullptr)
+    {
+        Apply_PlayerStatSlot(slotIndex, 0, 0.f, 0.f);
+        return;
+    }
+
+    const PlayerStatCom::PRuntimeCombatStat& statInfo = playerStat->Get_PlayerRuntimeStat();
+    Apply_PlayerStatSlot(slotIndex, statInfo.CurLevel, statInfo.CurHp, statInfo.CurMaxHp);
+}
+
+void UI_ArenaCharacterSelect::Apply_PlayerStatSlot(uint32 slotIndex, uint32 level, float curHp, float maxHp)
+{
+    if (slotIndex >= kPlayerStatSlotCount)
+        return;
+
+    PlayerStatSlot& slot = _playerStatSlots[slotIndex];
+
+    const float displayMaxHp = max(maxHp, 0.f);
+    const float gaugeMaxHp = max(displayMaxHp, 1.f);
+    const float displayCurHp = displayMaxHp > 0.f ? clamp(curHp, 0.f, displayMaxHp) : 0.f;
+
+    if (slot.levelText)
+        slot.levelText->Set_Text(to_wstring(level));
+
+    if (slot.currentHpText)
+        slot.currentHpText->Set_Text(to_wstring(static_cast<int32>(displayCurHp)));
+
+    if (slot.maxHpText)
+        slot.maxHpText->Set_Text(to_wstring(static_cast<int32>(displayMaxHp)));
+
+    if (slot.hpGauge)
+        slot.hpGauge->Set_FillRatio(displayCurHp / gaugeMaxHp);
 }
 
 void UI_ArenaCharacterSelect::Handle_ButtonInput()
@@ -184,6 +272,13 @@ void UI_ArenaCharacterSelect::Free()
     _luneButton.reset();
     _maelleButton.reset();
     _backButton.reset();
+    for (PlayerStatSlot& slot : _playerStatSlots)
+    {
+        slot.levelText.reset();
+        slot.currentHpText.reset();
+        slot.maxHpText.reset();
+        slot.hpGauge.reset();
+    }
     _root.reset();
     _uiByName.clear();
 

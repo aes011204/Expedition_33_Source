@@ -33,7 +33,6 @@ private:
 
 private:
     Shared<UI_Base> _lockOnImage{};
-    Shared<UI_Base> _lockOnOutline{};
 
 public:
     static Unique<UI_SL_LockOn> Create(uint32 levelIndex);

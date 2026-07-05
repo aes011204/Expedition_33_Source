@@ -11,10 +11,84 @@ NS_BEGIN(EffectEditor)
 namespace Internal
 {
     constexpr auto kSourcePrefabName{ "PB_Gustave" };
+    constexpr auto kDefaultHairModelTag{ "Model_GustaveHair" };
 
     bool Is_RestorableVisualPart(const wstring& partTag)
     {
         return partTag == L"Part_Body" || partTag == L"Part_Head" || partTag == L"Part_Hair";
+    }
+
+    const json* Find_ModelComponentJson(const json& objectNode)
+    {
+        const auto componentsIter = objectNode.find("components");
+        if (componentsIter == objectNode.end() || !componentsIter->is_array())
+            return nullptr;
+
+        for (const json& componentNode : *componentsIter)
+        {
+            if (!componentNode.is_object())
+                continue;
+
+            const string modelType = componentNode.value("model_type", string{});
+            if (!modelType.empty())
+                return &componentNode;
+        }
+
+        return nullptr;
+    }
+
+    bool Uses_DefaultHairModel(const json& objectNode)
+    {
+        const json* modelNode = Find_ModelComponentJson(objectNode);
+        if (modelNode == nullptr)
+            return false;
+
+        return modelNode->value("prototype_tag", string{}) == kDefaultHairModelTag;
+    }
+
+    const json* Find_PartObjectJson(const json& prefabRoot, string_view partTag)
+    {
+        const auto partsIter = prefabRoot.find("parts");
+        if (partsIter == prefabRoot.end() || !partsIter->is_array())
+            return nullptr;
+
+        for (const json& partNode : *partsIter)
+        {
+            if (!partNode.is_object())
+                continue;
+
+            if (partNode.value("part_tag", string{}) != partTag)
+                continue;
+
+            const auto objectIter = partNode.find("object");
+            if (objectIter != partNode.end() && objectIter->is_object())
+                return &(*objectIter);
+        }
+
+        return nullptr;
+    }
+
+    bool Load_DefaultHairObjectJson(json& outObject)
+    {
+        const filesystem::path prefabPath =
+            filesystem::path(GAME->Get_AssetRoot()) / L"Data" / L"json" / L"Prefabs" / L"Player" / L"PW_Gustave.prefab.json";
+        const json prefabRoot = GAME->Load_JsonFile(prefabPath);
+        if (!prefabRoot.is_object())
+        {
+            LOG_WARN("[TrailPreview] failed to load default hair fixture prefab. path={}", prefabPath.string());
+            return false;
+        }
+
+        const json* objectNode = Find_PartObjectJson(prefabRoot, "Part_Hair");
+        if (objectNode == nullptr || !Uses_DefaultHairModel(*objectNode))
+        {
+            LOG_WARN("[TrailPreview] default hair fixture prefab has no '{}' Part_Hair payload.", kDefaultHairModelTag);
+            return false;
+        }
+
+        outObject = *objectNode;
+        outObject["source_prefab"] = kSourcePrefabName;
+        return true;
     }
 }
 
@@ -151,7 +225,17 @@ HRESULT TrailPreviewPlayerObject::Restore_VisualPartFromPrefab(const json& partN
         return E_FAIL;
     }
 
-    partObject->From_Json(*objectIter);
+    const json* restoreObject = &(*objectIter);
+    json fallbackObject{};
+    if (partTag == L"Part_Hair" && !Internal::Uses_DefaultHairModel(*restoreObject))
+    {
+        if (!Internal::Load_DefaultHairObjectJson(fallbackObject))
+            return E_FAIL;
+
+        restoreObject = &fallbackObject;
+    }
+
+    partObject->From_Json(*restoreObject);
     return S_OK;
 }
 

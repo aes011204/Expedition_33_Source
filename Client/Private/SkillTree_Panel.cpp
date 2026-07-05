@@ -539,7 +539,7 @@ HRESULT SkillTree_Panel::Ensure_AbilityPentagonUI(SkillTreeViewState& view)
     desc.color = view.abilityPentagonAnchor
         ? view.abilityPentagonAnchor->Get_Color()
         : Vec4(216.f / 255.f, 196.f / 255.f, 165.f / 255.f, 1.f);
-    desc.maxStatValue = 99.f;
+    desc.maxStatValue = 150.f;
     desc.baseInnerRatio = 0.18f;
 
     Shared<UI_Base> createdBase{};

@@ -33,6 +33,7 @@ public:
     HRESULT Reset_ForEffectReplay() override;
     // item spawn reveal처럼 effect material alpha/erosion만 런타임에서 덮어쓴다.
     void Set_MaterialRevealOverride(float alphaMultiplier, float alphaErosion) override;
+    void Set_MaterialTintOverride(const Vec4& targetTint, float strength) override;
     // sprite playback이 마지막 loop를 끝냈는지 반환한다.
     bool Is_EffectFinished() const override;
     // follower ribbon이 따라갈 대표 particle 위치를 제공한다.
@@ -105,6 +106,8 @@ private: //## Data::Desc
     // code-driven reveal multiplier. Pool 재사용 시 기본값으로 복구한다.
     float _materialRevealAlphaMultiplier = 1.f;
     float _materialRevealAlphaErosion = 0.f;
+    Vec4 _materialTintOverrideTarget{ 1.f, 1.f, 1.f, 1.f };
+    float _materialTintOverrideStrength = 0.f;
     // compute payload에 마지막으로 반영한 effect root world scale이다.
     Vec3 _runtimeDescWorldScale{ Vec3::One };
     // 최초 sync 때는 scale 값이 같아도 payload를 한 번 갱신한다.

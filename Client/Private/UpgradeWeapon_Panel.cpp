@@ -1,4 +1,4 @@
-#include "UpgradeWeapon_Panel.h"
+﻿#include "UpgradeWeapon_Panel.h"
 
 #include "Client_Constants.h"
 #include "ClientInstance.h"
@@ -456,7 +456,7 @@ bool UpgradeWeapon_Panel::Try_UpgradeSelectedWeapon()
     if (!inventory->Spend_Material(kChromaCatalystMaterialId, nextUpgrade->requiredChromaCatalyst))
     {
         if (fragment.upgradeButtonText)
-            fragment.upgradeButtonText->Set_Text(L"Need Catalyst");
+            fragment.upgradeButtonText->Set_Text(L"재료 부족");
         return false;
     }
 
@@ -624,11 +624,11 @@ void UpgradeWeapon_Panel::Refresh_Required(
     if (fragment.upgradeButtonText)
     {
         if (!hasNextUpgrade)
-            fragment.upgradeButtonText->Set_Text(L"MAX");
+            fragment.upgradeButtonText->Set_Text(L"최대 강화");
         else if (!hasEnoughCatalyst)
-            fragment.upgradeButtonText->Set_Text(L"Need Catalyst");
+            fragment.upgradeButtonText->Set_Text(L"재료 부족");
         else
-            fragment.upgradeButtonText->Set_Text(L"Upgrade");
+            fragment.upgradeButtonText->Set_Text(L"무기 업그레이드");
     }
 }
 

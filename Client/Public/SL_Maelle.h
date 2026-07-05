@@ -88,6 +88,9 @@ public:
     void    Clear_SkillCooldowns();
     SL_SkillCooldownView Get_SkillCooldownView(uint32 slotIndex) const;
 
+    void    Set_AttackDamageMultiplier(const string& colliderTag, float multiplier);
+    void    Clear_AttackDamageMultiplier(const string& colliderTag);
+
 private:
     HRESULT Ready_Components();
     HRESULT Ready_PartObjects();
@@ -136,6 +139,8 @@ private: /* 피격 밀림 */
 
     // 쿨타임
     array<SL_SkillCooldownRuntime, 4> _skillCooldowns{};
+
+    float   _activeAttackDamageMultiplier = 1.f;
 
 public:
     static Shared<SL_Maelle> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);

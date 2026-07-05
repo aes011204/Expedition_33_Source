@@ -220,6 +220,16 @@ bool GameplayUI::Open_ArenaCharacterSelect()
     return _worldUI && _worldUI->Request_ArenaCharacterSelect();
 }
 
+bool GameplayUI::Open_SavePoint()
+{
+    return _worldUI && _worldUI->Request_SavePoint();
+}
+
+bool GameplayUI::Open_Journal(JournalOpenAnimation openAnimation)
+{
+    return _worldUI && _worldUI->Request_Journal(openAnimation);
+}
+
 void GameplayUI::Queue_GetChromaPresentation(uint32 chromaAmount)
 {
     if (_worldUI)
@@ -230,6 +240,20 @@ void GameplayUI::Queue_LevelAnnounce(LevelType levelType)
 {
     if (_worldUI)
         _worldUI->Queue_LevelAnnounce(levelType);
+}
+
+bool GameplayUI::Open_EventDialogueUI(const EventDialogueUIRequest& request)
+{
+    if (_worldUI == nullptr)
+        return false;
+
+    return _worldUI->Open_EventDialogueUI(request);
+}
+
+void GameplayUI::Close_EventDialogueUI()
+{
+    if (_worldUI)
+        _worldUI->Close_EventDialogueUI();
 }
 
 void GameplayUI::Set_CinematicUIHidden(bool hidden)
@@ -267,7 +291,7 @@ void GameplayUI::Close_RuntimeUIForCinematic()
                 {
                     if (UI_RuntimePanelBase* panel = dynamic_cast<UI_RuntimePanelBase*>(entry.editorTarget))
                     {
-                        panel->Close(); // 패널 Close를 타야 LockOn outline처럼 루트 밖 보조 UI까지 같이 닫힌다.
+                        panel->Close(); // 패널 Close를 타야 루트 밖 보조 UI까지 같이 닫힌다.
                         continue;
                     }
                 }

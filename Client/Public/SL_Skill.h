@@ -22,6 +22,7 @@ public:
 
     bool Request_Dodge(const SL_MoveRequest& request) override;
     bool Request_Jump() override;
+    bool Request_Parry() override;
 
 private:
     SoulLikeAnim Resolve_SkillAnim(uint32 slotIndex) const;

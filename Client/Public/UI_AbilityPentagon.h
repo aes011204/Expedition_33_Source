@@ -18,7 +18,7 @@ public:
         Vec4    color{ 196.f / 255.f, 165.f / 255.f, 1.f, 1.f };
         uint32  shaderPrototypeLevelIndex = 0;
         wstring shaderPrototypeTag = L"Shader_UI";
-        float   maxStatValue = 99.f;
+        float   maxStatValue = 150.f;
         float   baseInnerRatio = 0.18f;
     };
 
@@ -50,7 +50,7 @@ private:
     Vec4 _color{ 1.f, 1.f, 1.f, 1.f };
     uint32 _shaderPrototypeLevelIndex = 0;
     wstring _shaderPrototypeTag = L"Shader_UI";
-    float _maxStatValue = 99.f;
+    float _maxStatValue = 150.f;
     float _baseInnerRatio = 0.18f;
 
     array<float, 5> _normalizedRatios{};

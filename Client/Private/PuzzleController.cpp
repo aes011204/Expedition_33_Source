@@ -64,7 +64,8 @@ void PuzzleController::BeginPlay()
                     _isBridgeMoving = true;
                 }
 
-                CLIENT->Play_Sequence(Constants::Cinematic::BridgeCinematic, 0);
+                if (!CLIENT->Request_CinematicSequenceTransition(Constants::Cinematic::BridgeCinematic, 0))
+                    CLIENT->Play_Sequence(Constants::Cinematic::BridgeCinematic, 0);
             }
         });
     }

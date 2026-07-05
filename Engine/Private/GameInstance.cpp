@@ -374,6 +374,7 @@ HRESULT GameInstance::Initialize_Engine(const ENGINE_DESC& engineDesc, ComPtr<De
 
     _viewportWidth = engineDesc.viewportWidth;
     _viewportHeight = engineDesc.viewportHeight;
+    _enableEditorRuntimeDebug = engineDesc.enableEditorRuntimeDebug;
 
     _logManager = Log_Manager::Create(engineDesc.projectName);
     CHECK_NULL(_logManager, E_FAIL);
@@ -750,6 +751,7 @@ HRESULT GameInstance::Draw()
 
 #if defined(_DEBUG) || defined(_EDITOR)
     // Collision Manager
+    if (_enableEditorRuntimeDebug)
     {
         _collisionManager->Render_Debug();
     }
@@ -757,6 +759,7 @@ HRESULT GameInstance::Draw()
 
 #if defined(_DEBUG) || defined(_EDITOR)
     // Debug Manager
+    if (_enableEditorRuntimeDebug)
     {
 #ifdef _DEBUG
         Draw_ShadowCascadeWorldDebug();
@@ -1556,6 +1559,22 @@ bool GameInstance::Try_GetRenderViewHotspotSnapshot(RenderViewHotspotSnapshot& o
         return false;
 
     return _renderer->Try_GetRenderViewHotspotSnapshot(outSnapshot);
+}
+
+void GameInstance::Set_RenderViewHotspotCaptureEnabled(bool enabled)
+{
+    if (_renderer == nullptr)
+        return;
+
+    _renderer->Set_RenderViewHotspotCaptureEnabled(enabled);
+}
+
+bool GameInstance::Is_RenderViewHotspotCaptureEnabled() const
+{
+    if (_renderer == nullptr)
+        return false;
+
+    return _renderer->Is_RenderViewHotspotCaptureEnabled();
 }
 
 const Shared<PostProcessPipeline> GameInstance::Get_PostProcessPipeline() const
@@ -3065,26 +3084,41 @@ void GameInstance::Visit_BTNodeTypes(const function<void(const TypeRegistry::BTN
 
 void GameInstance::Draw_DebugBox(const DebugBoxDesc& desc)
 {
+    if (!_enableEditorRuntimeDebug)
+        return;
+
     return _debugManager->Draw_Box(desc);
 }
 
 void GameInstance::Draw_DebugSphere(const DebugSphereDesc& desc)
 {
+    if (!_enableEditorRuntimeDebug)
+        return;
+
     return _debugManager->Draw_Sphere(desc);
 }
 
 void GameInstance::Draw_DebugCapsule(const DebugCapsuleDesc& desc)
 {
+    if (!_enableEditorRuntimeDebug)
+        return;
+
     return _debugManager->Draw_Capsule(desc);
 }
 
 void GameInstance::Draw_DebugLine(const DebugLineDesc& desc)
 {
+    if (!_enableEditorRuntimeDebug)
+        return;
+
     return _debugManager->Draw_Line(desc);
 }
 
 void GameInstance::Draw_DebugTraceLine(const DebugTraceLineDesc& desc)
 {
+    if (!_enableEditorRuntimeDebug)
+        return;
+
     return _debugManager->Draw_TraceLine(desc);
 }
 
@@ -3095,12 +3129,12 @@ void GameInstance::Clear_DebugDraws()
 
 void GameInstance::Set_DebugRenderEnabled(bool enabled)
 {
-    return _debugManager->Set_Enabled(enabled);
+    return _debugManager->Set_Enabled(_enableEditorRuntimeDebug && enabled);
 }
 
 bool GameInstance::Is_DebugRenderEnabled() const
 {
-    return _debugManager->Is_Enabled();
+    return _enableEditorRuntimeDebug && _debugManager->Is_Enabled();
 }
 
 #ifdef _DEBUG
@@ -3189,11 +3223,17 @@ void GameInstance::Draw_ShadowCascadeWorldDebug()
 
 HRESULT GameInstance::Render_DebugDepth()
 {
+    if (!_enableEditorRuntimeDebug)
+        return S_OK;
+
     return _debugManager->Render_Depth();
 }
 
 HRESULT GameInstance::Render_DebugOverlay()
 {
+    if (!_enableEditorRuntimeDebug)
+        return S_OK;
+
     return _debugManager->Render_Overlay();
 }
 

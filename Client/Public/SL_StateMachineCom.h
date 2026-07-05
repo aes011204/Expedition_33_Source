@@ -40,9 +40,10 @@ public:
     void Notify_BasicAttackComboWindow(bool enabled);
 
 public:
-    void Set_CanActionCancel(bool enabled, bool canJump, bool canDodge);
+    void Set_CanActionCancel(bool enabled, bool canJump, bool canDodge, bool canParry);
     bool Can_CancelToJump() const { return _canActionJump; }
     bool Can_CancelToDodge() const { return _canActionDodge; }
+    bool Can_CancelToParry() const { return _canActionParry; }
     void Clear_CanActionCancel();
 
 private:
@@ -51,6 +52,7 @@ private:
 private:
     bool _canActionJump = false;
     bool _canActionDodge = false;
+    bool _canActionParry = false;
 
 private:
     static Shared<SL_StateMachineCom> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);

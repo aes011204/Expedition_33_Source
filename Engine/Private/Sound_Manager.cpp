@@ -652,6 +652,7 @@ void Sound_Manager::Set_ListenerAttributes(const Vec3& position, const Vec3& for
 void Sound_Manager::Load_SoundCues()
 {
     _soundCues.clear();
+    unordered_set<wstring> missingCueSoundWarningKeys;
 
     const fs::path tablePath = Get_SoundCueTablePath();
     if (!fs::exists(tablePath))
@@ -730,12 +731,25 @@ void Sound_Manager::Load_SoundCues()
         {
             if (!Has_Sound(soundFile))
             {
-                LOG_WARN("Sound cue references missing sound. cue='{}', sound='{}'",
-                    cueIdText, String::ToString(soundFile));
+                const wstring warningKey = cue.cueId + L"\n" + Normalize_SoundKey(soundFile);
+                if (missingCueSoundWarningKeys.emplace(warningKey).second)
+                {
+                    LOG_WARN("Sound cue references missing sound. cue='{}', sound='{}'",
+                        cueIdText, String::ToString(soundFile));
+                }
             }
         }
 
-        _soundCues.emplace(Normalize_SoundKey(cue.cueId), std::move(cue));
+        const wstring cueKey = Normalize_SoundKey(cue.cueId);
+        auto iter = _soundCues.find(cueKey);
+        if (iter != _soundCues.end())
+        {
+            LOG_WARN("Duplicate sound cue id. Using last row: {}", cueIdText);
+            iter->second = std::move(cue);
+            continue;
+        }
+
+        _soundCues.emplace(cueKey, std::move(cue));
     }
 
     LOG_INFO("Sound cues loaded: {}", static_cast<int32>(_soundCues.size()));
@@ -1125,7 +1139,8 @@ FMOD_SOUND* Sound_Manager::Find_SoundByLooseKey(const wstring& key) const
 
     if (matchCount > 1)
     {
-        LOG_WARN("Sound key is ambiguous: {}", String::ToString(key));
+        if (_ambiguousSoundWarningKeys.emplace(key).second)
+            LOG_WARN("Sound key is ambiguous: {}", String::ToString(key));
         return nullptr;
     }
 
@@ -1142,7 +1157,8 @@ FMOD_SOUND* Sound_Manager::Find_Sound(const wstring& soundFile) const
     if (FMOD_SOUND* sound = Find_SoundByLooseKey(key))
         return sound;
 
-    LOG_WARN("Sound not found: {}", String::ToString(soundFile));
+    if (_missingSoundWarningKeys.emplace(key).second)
+        LOG_WARN("Sound not found: {}", String::ToString(soundFile));
     return nullptr;
 }
 
@@ -1376,6 +1392,9 @@ Unique<Sound_Manager> Sound_Manager::Create(const wstring& soundRootPath, int32 
 void Sound_Manager::Free()
 {
     Base::Free();
+
+    _ambiguousSoundWarningKeys.clear();
+    _missingSoundWarningKeys.clear();
 
     Shutdown_FMOD();
 }

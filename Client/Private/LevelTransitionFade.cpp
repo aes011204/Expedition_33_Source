@@ -7,10 +7,17 @@
 
 namespace
 {
+    constexpr float kMaxFadeTimeDelta = 1.f / 30.f;
+
     float Smooth_FadeRatio(float ratio)
     {
         const float t = clamp(ratio, 0.f, 1.f);
         return t * t * (3.f - 2.f * t);
+    }
+
+    float Clamp_FadeTimeDelta(float timeDelta)
+    {
+        return clamp(timeDelta, 0.f, kMaxFadeTimeDelta);
     }
 }
 
@@ -31,10 +38,12 @@ void LevelTransitionFade::Update(float TimeDelta)
 {
     UNREFERENCED_PARAMETER(TimeDelta);
 
-    if (_screenFade)
-        _screenFade->Update(GAME->Get_UnscaledTimeDelta());
+    const float fadeTimeDelta = Clamp_FadeTimeDelta(GAME->Get_UnscaledTimeDelta());
 
-    Update_Fade(GAME->Get_UnscaledTimeDelta());
+    if (_screenFade)
+        _screenFade->Update(fadeTimeDelta);
+
+    Update_Fade(fadeTimeDelta);
 }
 
 bool LevelTransitionFade::Request_LevelTransition(LevelType TargetLevel)

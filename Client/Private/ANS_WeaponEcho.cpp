@@ -357,6 +357,26 @@ uint32 ANS_WeaponEcho::Resolve_EchoCount(const AnimNotifyContext& context) const
     if (autoEchoCount == 0)
         return 0u;
 
+    if (context.owner != nullptr)
+    {
+        Shared<GameObject> current = context.owner->GetSharedPtr<GameObject>();
+        while (current)
+        {
+            Monster_BattleBase* battleMonster = dynamic_cast<Monster_BattleBase*>(current.get());
+            if (battleMonster != nullptr)
+            {
+                const string& sourcePrefabName = battleMonster->Get_SourcePrefabName();
+                if (sourcePrefabName == Constants::Prefab::MB_Simon ||
+                    sourcePrefabName == Constants::Prefab::MB_Simon_V2)
+                    return autoEchoCount;
+
+                break;
+            }
+
+            current = current->Get_Owner();
+        }
+    }
+
     if (_echoCountOverride > 0)
         return std::clamp(static_cast<uint32>(_echoCountOverride), 1u, 2u);
 
