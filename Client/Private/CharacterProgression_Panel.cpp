@@ -1175,6 +1175,7 @@ HRESULT CharacterProgression_Panel::Ensure_AbilityPentagonUI()
     if (UI_Transform* transform = _abilityPentagonFrame->Get_Transform())
     {
         desc.transformDesc.position = transform->Get_Position();
+        desc.transformDesc.position.y += 7.5f; // 프레임 중심보다 살짝 위로 뜨는 채움 도형만 조금 아래로 보정한다.
         desc.transformDesc.size = transform->Get_Size();
         desc.transformDesc.scale = transform->Get_Scale();
         desc.transformDesc.pivot = transform->Get_Pivot();

@@ -46,6 +46,8 @@ class UI_QTE;
 class UI_BattleTutorial;
 class UI_BattleGradientGauge;
 class UI_MarkEffect;
+class UI_Burn;
+class UI_Slow;
 
 class Monster_BattleBase;
 
@@ -94,6 +96,9 @@ private:
     void    Handle_BuffConsumed(const BattleChar& target, Buffs buffId, float bonusDamage);
     void    Play_MarkEffect(const BattleChar& target);
     void    Clear_MarkEffect();
+    void    Play_BurnApplied(const BattleChar& target);
+    void    Play_SlowApplied(const BattleChar& target);
+    UI_DamageFont* Find_PlayingDamageFontForTarget(const BattleChar& target) const;
 
     // 카운터 성공 알림
     void    Handle_CounterAnnounceRequested(const vector<BattleChar>& counterActors);
@@ -119,6 +124,8 @@ private:
     void    Update_ChoiceTarget(float timeDelta);
     void    Update_TurnOrder(float timeDelta);
     void    Update_DamageFonts(float timeDelta);
+    void    Update_Burns(float timeDelta);
+    void    Update_Slows(float timeDelta);
     void    Update_DestroyShields(float timeDelta);
     void    Update_HealFonts(float timeDelta);
     void    Update_AddAPs(float timeDelta);
@@ -239,6 +246,12 @@ private:
     Character_BattleBase* _lastDamageFontTargetActor = nullptr;
     uint32 _damageFontTargetStackIndex = 0;
 
+    static constexpr uint32 kBurnPoolSize = 8;
+    array<Unique<UI_Burn>, kBurnPoolSize> _burns{};
+
+    static constexpr uint32 kSlowPoolSize = 8;
+    array<Unique<UI_Slow>, kSlowPoolSize> _slows{};
+
     static constexpr uint32 kDestroyShieldPoolSize = 4;
     array<Unique<UI_DestroyShield>, kDestroyShieldPoolSize> _destroyShields{};
     Character_BattleBase* _lastDestroyShieldTargetActor = nullptr;
@@ -279,6 +292,8 @@ private:
     FDelegateHandle          _buffAppliedHandle{};
     FDelegateHandle          _buffConsumedHandle{};
     Unique<UI_MarkEffect>    _markEffect{};
+    BattleChar               _markEffectTarget{};
+    bool                     _hasMarkEffectTarget = false;
 
     FDelegateHandle          _counterAnnounceRequestedHandle{};
     FDelegateHandle          _battleWeakPointConsumedHandle{};

@@ -18,6 +18,9 @@ NS_END
 NS_BEGIN(Client)
 
 struct DialogueRequest;
+struct ActionRequest;
+struct BattleChar;
+enum class BattleTurnState;
 
     class DialogueCamera;
 class DialogueManager;
@@ -44,6 +47,8 @@ class SoulLikeController;
 class Unlock_Manager;
 class BattleFollowupManager;
 class SimonCriticalGlowController;
+class BattleTargetingVoicePreset;
+class BattleTurnStartVoicePreset;
 
 DECLARE_DELEGATE(FOnFreeAimShotHit);
 
@@ -157,6 +162,7 @@ public: /* For.Hero Manager */
 
     // 플레이어 전부 가져오기
     const vector<HeroPartyEntry>& Get_HeroEntries() const;
+    void Restore_CurrentHeroesHpToMax();
 
     // 특정 슬롯 반환
     Shared<Player_WorldBase>  Get_Hero(HeroPartySlot slot) const;
@@ -218,6 +224,10 @@ public: /* For.Battle_Controller */
     bool Is_BattleEntering() const;
 
     bool Is_PotatoBagBattleActive() const;
+    bool Play_BattleMonsterTargetingVoice(
+        const ActionRequest& request,
+        const vector<BattleChar>& targetedHeroes);
+    bool Play_BattleTurnStartVoice();
 
 public: /*For.Camera Director*/
     void Request_GamePlay();
@@ -381,6 +391,7 @@ public: // Simon Critical Glow Controller
 private:
 	HRESULT Ready_ResourceLoader();
     HRESULT Ready_GameDataTables();
+    void Handle_BattleTargetingVoiceTurnStarted(const BattleChar& actor, BattleTurnState state);
     void Capture_ReplayWorldSnapshotIfNeeded();
     void Restore_ReplayWorldObjectsFromSnapshot();
     void Capture_ReplayCameraSnapshot();
@@ -423,6 +434,9 @@ private:
     Shared<ClientScreenFxManager>       _screenFxManager;
 
     Shared<BattleController>    _battleController;
+    Unique<BattleTargetingVoicePreset> _battleTargetingVoicePreset;
+    Unique<BattleTurnStartVoicePreset> _battleTurnStartVoicePreset;
+    FDelegateHandle             _battleTargetingVoiceTurnStartedHandle{};
     Shared<PlayerInventory>     _playerInventory;
 
     Unique<CostumeManager>      _costumeManager;

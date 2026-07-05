@@ -38,6 +38,15 @@ public:
  
 
 public:
+    struct OneShotPlaybackDesc
+    {
+        float strengthAlpha{ 1.f };
+        float startRatio{ 0.f };
+        float durationSec{ -1.f };
+        float playRate{ 1.f };
+    };
+
+public:
     OffsetAnimationModifier() = default;
     ~OffsetAnimationModifier() override = default;
 
@@ -45,10 +54,12 @@ public:
     HRESULT Initialize(AnimationModifierDesc* desc) override;
     void Evaluate_Modifier(ModelCom* model, float timeDelta) override;
     void Set_AimPitch(float pitch) { _targetPitch = pitch; }
+    void Play_Once(const OneShotPlaybackDesc& desc = {});
 
 private:
     bool BlendAlpha(ModelCom* model, float timeDelta);
     void UpdateWeightOffset(ModelCom* model, float timeDelta);
+    void Reset_OneShotState();
 
 private:
     OffsetModifierDesc   _desc{};
@@ -58,6 +69,11 @@ private:
     int32                _animIndex{ -1 };
     float                _blendAlpha{ 0.f };
     float                _trackPosition{ 0.f };
+    bool                 _oneShotMode{ false };
+    bool                 _oneShotPlaying{ false };
+    float                _oneShotElapsedSec{ 0.f };
+    float                _oneShotDurationSec{ -1.f };
+    float                _oneShotPlayRate{ 1.f };
 
 public:
     static Shared<OffsetAnimationModifier> Create(OffsetModifierDesc* modifierDesc);

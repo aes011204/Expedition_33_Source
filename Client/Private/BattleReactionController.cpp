@@ -446,6 +446,12 @@ BattleReactionController::BattleReactionInputResult BattleReactionController::Su
         if (success && context.isEcho)
             Mark_EchoReactionInputConsumed(context);
 
+        if (success)
+        {
+            GAME->Play_SoundCue(Constants::SoundCue::SFX_Dodge_Success);
+            GAME->Play_SoundCue(Constants::SoundCue::SFX_UI_Dodge_Success);
+        }
+
         for (const BattleChar& target : inputTargets)
         {
             PlayReactionAnimation(
@@ -504,7 +510,7 @@ BattleReactionController::BattleReactionInputResult BattleReactionController::Su
                     target,
                     L"Effects\\Assets\\Player\\Player_Counter.effect.json",
                     Vec3(0.f, 0.9f, 0.f),
-                    Vec3(0.08f, 0.08f, 0.08f)); // 얼마나 줄여야하는겨;
+                    Vec3(0.12f, 0.12f, 0.12f)); // 얼마나 줄여야하는겨;
             }
 
             if (success &&

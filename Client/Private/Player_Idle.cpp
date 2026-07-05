@@ -35,7 +35,7 @@ bool Player_Idle::EnterInvoke()
     {
     case PlayerState::Move:
         _bodyPlayer->Set_AnimationSpeed(1.5f);
-        if (animIndex == ETOI(plAnim::Pl_Sprint))
+        if (animIndex == ETOI(plAnim::Pl_Sprint) || animIndex == ETOI(plAnim::Pl_PreSprint))
             hasFailedStateAnimation = _bodyPlayer->Set_AnimationByState(ETOI(plAnim::Pl_EndSprint), 0.25f, false);
         else if (animIndex == ETOI(plAnim::Pl_Run))
             hasFailedStateAnimation = _bodyPlayer->Set_AnimationByState(ETOI(plAnim::Pl_EndRun), 0.25f, false);
