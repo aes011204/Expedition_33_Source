@@ -334,7 +334,6 @@ void GameplayUI_World::Update_Input()
         return;
 
     Handle_ArenaCharacterSelectInput();
-    Handle_SavePointInput();
     Handle_TabInput();
     Handle_BackInput();
     Handle_ExpeditionStat();
@@ -571,6 +570,34 @@ bool GameplayUI_World::Request_WeaponUpgrade()
     return true;
 }
 
+bool GameplayUI_World::Request_SavePoint()
+{
+    if (_savePointPanel == nullptr)
+        return false;
+
+    const Shared<Player_WorldBase> activeHero = CLIENT->Get_ActiveHero();
+    if (activeHero != nullptr &&
+        (activeHero->Is_WorldInteracting() || activeHero->Get_WorldInteractionCandidate() != nullptr))
+    {
+        return false;
+    }
+
+    if (_expeditionStatPanel && _expeditionStatPanel->Is_Open())
+        return false;
+
+    if (Get_CurrentMenu() != GameplayMenu::None)
+        return false;
+
+    if (CLIENT->Is_WorldControlSuspended() || CLIENT->Is_BattleEntering())
+        return false;
+
+    if (GAME->Is_WorldGameplayInputBlocked())
+        return false;
+
+    Push_Menu(GameplayMenu::SavePoint);
+    return true;
+}
+
 bool GameplayUI_World::Request_Journal(JournalOpenAnimation openAnimation)
 {
     if (_dailyLogPanel == nullptr)
@@ -704,30 +731,6 @@ void GameplayUI_World::Handle_SavePointAction(SavePoint_Panel::SavePointAction a
     default:
         break;
     }
-}
-
-void GameplayUI_World::Handle_SavePointInput()
-{
-    if (!GAME->KeyDown(KEY_TYPE::G))
-        return;
-
-    if (_savePointPanel == nullptr)
-        return;
-
-    const Shared<Player_WorldBase> activeHero = CLIENT->Get_ActiveHero();
-    if (activeHero != nullptr &&
-        (activeHero->Is_WorldInteracting() || activeHero->Get_WorldInteractionCandidate() != nullptr))
-    {
-        return;
-    }
-
-    if (_expeditionStatPanel && _expeditionStatPanel->Is_Open())
-        return;
-
-    if (Get_CurrentMenu() != GameplayMenu::None)
-        return; // 다른 월드 메뉴가 열려 있으면 SavePoint 중복 진입을 막는다.
-
-    Push_Menu(GameplayMenu::SavePoint);
 }
 
 void GameplayUI_World::Handle_ArenaCharacterSelectInput()
