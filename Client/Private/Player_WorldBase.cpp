@@ -77,6 +77,43 @@ namespace Client::PlayerWorldTuning
 
         return Try_EnterParkourFromJumpIntent(stateMachineCom, Player_ParkourAction::ParkourActionType::HighMantle);
     }
+
+    struct BodyAnimationSnapshot
+    {
+        bool valid = false;
+        uint32 stateIndex = UINT32_MAX;
+        float timeSec = 0.f;
+        float frameSpeed = 1.f;
+        bool isLoop = false;
+    };
+
+    BodyAnimationSnapshot Capture_BodyAnimationSnapshot(const Body_Player* body)
+    {
+        BodyAnimationSnapshot snapshot{};
+        if (body == nullptr)
+            return snapshot;
+
+        const Shared<ModelCom> model = body->Get_Model();
+        if (model == nullptr)
+            return snapshot;
+
+        snapshot.valid = true;
+        snapshot.stateIndex = body->Get_AnimationStateIndex();
+        snapshot.timeSec = model->Get_CurrentAnimationTimeSec();
+        snapshot.frameSpeed = body->Get_AnimationSpeed();
+        snapshot.isLoop = model->Is_AnimationLooping();
+
+        return snapshot;
+    }
+
+    void Restore_BodyAnimationSnapshot(Body_Player* body, const BodyAnimationSnapshot& snapshot)
+    {
+        if (body == nullptr || !snapshot.valid || snapshot.stateIndex == UINT32_MAX)
+            return;
+
+        if (body->Set_AnimationByStateTimeSec(snapshot.stateIndex, 0.f, snapshot.isLoop, snapshot.timeSec))
+            body->Set_AnimationSpeed(snapshot.frameSpeed);
+    }
 }
 
 Player_WorldBase::Player_WorldBase(const ComPtr<Device>& device, const ComPtr<Context>& context)
@@ -660,6 +697,9 @@ HRESULT Player_WorldBase::Activate_CostumeVariant(const CostumePreset& preset)
     if (iter == _costumeVariantsByPreset.end())
         return E_FAIL;
 
+    const PlayerWorldTuning::BodyAnimationSnapshot animationSnapshot =
+        PlayerWorldTuning::Capture_BodyAnimationSnapshot(dynamic_cast<Body_Player*>(Get_PartObject(TEXT("Part_Body"))));
+
     for (auto& [cachedPresetId, parts] : _costumeVariantsByPreset)
     {
         const bool isTarget = (cachedPresetId == preset.presetId);
@@ -691,6 +731,8 @@ HRESULT Player_WorldBase::Activate_CostumeVariant(const CostumePreset& preset)
     {
         if (Shared<ModelCom> model = body->Get_Model())
             model->Refresh_AnimStateMappingFromOwnerContext();
+
+        PlayerWorldTuning::Restore_BodyAnimationSnapshot(body, animationSnapshot);
     }
 
     if (_playerStateMachineCom)

@@ -110,7 +110,7 @@ void EyeTarget::From_Json(const json& data)
     if(_colliderCom)
         _colliderCom->Set_CollisionPreset(Collision_Preset::Monster_WeakPoint);
 
-    Apply_EyeTargetEffectSettings();
+    Apply_EyeTargetEffectSettings(true);
 }
 
 bool EyeTarget::Try_Consume_EyeTargetHit()
@@ -180,7 +180,7 @@ HRESULT EyeTarget::Ready_EyeTargetEffectSetting()
     return S_OK;
 }
 
-void EyeTarget::Apply_EyeTargetEffectSettings()
+void EyeTarget::Apply_EyeTargetEffectSettings(bool preserveInspectorTransform)
 {
     if(_effectCom == nullptr)
         return;
@@ -192,10 +192,13 @@ void EyeTarget::Apply_EyeTargetEffectSettings()
     settings.target = EffectCom::EffectPlayTarget::OwnerRoot;
     settings.partTag.clear();
     settings.layerTag = L"Layer_Effect";
-    settings.localOffset = Vec3::Zero;
-    settings.localRotation = Vec3::Zero;
+    if(!preserveInspectorTransform)
+    {
+        settings.localOffset = Vec3::Zero;
+        settings.localRotation = Vec3::Zero;
+        settings.scale = Vec3(_effectScale);
+    }
     settings.followTarget = true;
-    settings.scale = Vec3(_effectScale);
     settings.requiresManualRelease = true;
 
     _effectCom->Set_InspectorEffectSettings(settings);
@@ -217,8 +220,10 @@ void EyeTarget::Play_EyeTargetEffect()
         desc.effectName = kDefaultEffectName;
     desc.target = EffectCom::EffectPlayTarget::OwnerRoot;
     desc.layerTag = L"Layer_Effect";
+    desc.localOffset = settings.localOffset;
+    desc.localRotation = settings.localRotation;
     desc.followTarget = true;
-    desc.scale = Vec3(_effectScale);
+    desc.scale = settings.scale;
     desc.requiresManualRelease = true;
 
     _effectCom->Play_Effect(desc);

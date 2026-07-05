@@ -109,6 +109,7 @@ HRESULT Level_GestralVillage::Initialize()
         return E_FAIL;
 
     UnlockRules_GestralVillage();
+    CLIENT->Restore_CurrentHeroesHpToMax();
 
     if (FAILED(Ready_Layer_UI(TEXT("Layer_UI"))))
         return E_FAIL;
@@ -404,7 +405,7 @@ HRESULT Level_GestralVillage::Ready_Layer_NPC(const wstring& strLayerTag)
     const Shared<GameObject> golgra = Spawn_Prefab::Prefab("NPC_Golgra")
         .AtLevel(ETOI(LevelType::GestralVillage))
         .InLayer(strLayerTag)
-        .Position(Vec3(2.41f, 3.50f, 88.82f))
+        .Position(Vec3(2.41f, 3.62f, 88.82f))
         .Rotation(Vec3(0.f, 0.f, 0.f))
         .Spawn();
 
@@ -440,8 +441,8 @@ HRESULT Level_GestralVillage::Ready_Layer_NPC(const wstring& strLayerTag)
     const Shared<GameObject> dance = Spawn_Prefab::Prefab("NPC_Dance")
         .AtLevel(ETOI(LevelType::GestralVillage))
         .InLayer(strLayerTag)
-        .Position(Vec3(-62.24f, -1.59f, 38.08f))
-        .Rotation(Vec3(0.f, 111.6f, 0.f))
+        .Position(Vec3(33.02f, -7.06f, 3.f))
+        .Rotation(Vec3(0.f, -77.5f, 0.f))
         .Scale(Vec3(1.f, 1.f, 1.f))
         .Spawn();
 

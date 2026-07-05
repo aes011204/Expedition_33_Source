@@ -176,6 +176,7 @@ HRESULT MB_PotatoBag::Ready_PartObjects()
     weakDesc.parentMatrix = &_body->Get_CombinedWorldMatrix();
     weakDesc.allowMissingModel = true;
     weakDesc.socketName = "upperarm_l";
+    weakDesc.weakPointEffectName = L"Effects\\Assets\\Monster\\Monster_Weak_Yellow.effect.json";
     weakDesc.socketMatrix = _body->Get_SocketBoneMatrixPtr("upperarm_l");
 
     CHECK_FAILED(Add_PartObject(ETOI(LevelType::Static), TEXT("GameObject_MonsterWeak"), TEXT("Part_Weak"), &weakDesc), E_FAIL);

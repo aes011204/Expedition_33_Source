@@ -60,6 +60,14 @@ public:
         vector<UnlockReward> rewards{};
     };
 
+    struct PendingWorldSpawnReward
+    {
+        UnlockReward reward{};
+        uint32 rewardLevelIndex = UINT32_MAX;
+        bool hasRewardOrigin = false;
+        Vec3 rewardOrigin = Vec3::Zero;
+    };
+
 public:
     HRESULT Initialize();
 
@@ -68,7 +76,10 @@ public:
         const vector<string>& enemyKeys,
         uint32 battleFieldId,
         uint32 rewardLevelIndex = UINT32_MAX,
-        const Vec3* rewardOrigin = nullptr);
+        const Vec3* rewardOrigin = nullptr,
+        bool deferWorldSpawnRewards = false);
+
+    void Flush_PendingWorldSpawnRewards();
 
     bool Is_HeroUnlocked(HeroId heroId) const;
     bool Is_Completed(const string& ruleId) const;
@@ -90,10 +101,16 @@ public:
 
 private:
     void Register_DefaultRules();
-    void Try_CompleteRule(const UnlockRule& rule, uint32 rewardLevelIndex, const Vec3* rewardOrigin, vector<string>* outPresentedPictosIds = nullptr);
+    void Try_CompleteRule(
+        const UnlockRule& rule,
+        uint32 rewardLevelIndex,
+        const Vec3* rewardOrigin,
+        bool deferWorldSpawnRewards,
+        vector<string>* outPresentedPictosIds = nullptr);
 
     void Reset_DefaultHeroUnlocks();
     void Queue_GetClothesPresentation(const string& presetId);
+    void Queue_PendingWorldSpawnReward(const UnlockReward& reward, uint32 rewardLevelIndex, const Vec3* rewardOrigin);
 
     void Apply_Reward(
         const UnlockReward& reward,
@@ -112,6 +129,7 @@ private:
     vector<string> _pendingGetClothesPresetIds{};
     vector<string> _pendingGetWeaponPresentationIds{};
     vector<string> _pendingGetPictosPresentationIds{};
+    vector<PendingWorldSpawnReward> _pendingWorldSpawnRewards{};
 
 public:
     static Unique<Unlock_Manager> Create();

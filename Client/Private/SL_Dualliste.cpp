@@ -1086,6 +1086,11 @@ Shared<GameObject> SL_Dualliste::Clone(void* arg)
 
 void SL_Dualliste::Free()
 {
-    _cloneSkillManager.reset();
-    SL_Base::Free();
+	if (_cloneSkillManager)
+	{
+		_cloneSkillManager->Free();
+		_cloneSkillManager.reset();
+	}
+
+	SL_Base::Free();
 }

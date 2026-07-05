@@ -174,6 +174,7 @@ public:
     {
         fs::path prefabPath{};
         bool succeeded = false;
+        fs::file_time_type lastWriteTime{};
         json root{};
         vector<string> referencedPrefabNames{};
         vector<PrewarmModelDependency> modelDependencies{};

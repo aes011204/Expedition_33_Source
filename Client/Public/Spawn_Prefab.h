@@ -63,6 +63,10 @@ public:
     static fs::path Resolve_PrefabPath(const string& prefabName);
     static bool Load_PrefabJson(const fs::path& prefabPath, json& outRoot);
     static void Cache_PrefabJson(const fs::path& prefabPath, const json& root);
+    static bool Cache_PrefabJsonIfUnmodified(
+        const fs::path& prefabPath,
+        const json& root,
+        const fs::file_time_type& expectedLastWriteTime);
     static void Clear_PrefabJsonCache();
 
 private:
