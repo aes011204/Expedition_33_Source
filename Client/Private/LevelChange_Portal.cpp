@@ -8,7 +8,7 @@
 
 namespace
 {
-    constexpr wchar_t kPortalEffectName[] = L"Effects\\Assets\\Monster\\FX_Portal.effect.json";
+    constexpr wchar_t kPortalEffectName[] = L"Effects\\Assets\\Monster\\FX_Portal_Gestral.effect.json";
 }
 
 IMPLEMENT_REFLECTION(LevelChange_Portal)
@@ -190,7 +190,7 @@ void LevelChange_Portal::Play_PortalEffect()
     desc.effectName = kPortalEffectName;
     desc.target = EffectCom::EffectPlayTarget::OwnerRoot;
     desc.layerTag = L"Layer_Effect";
-    desc.localOffset = Vec3(0.f, 1.f, 0.f);
+    desc.localOffset = Vec3(0.f, 1.5f, 0.f);
     desc.followTarget = true;
     desc.scale = Vec3(_effectScale);
     desc.requiresManualRelease = true;
