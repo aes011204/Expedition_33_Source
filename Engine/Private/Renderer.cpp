@@ -246,34 +246,8 @@ void Renderer::Draw()
 #ifdef _DEBUG
     DumpCurrentOMState(L"Render_PostProcess:After");
     postProcessMs = chrono::duration<double, milli>(chrono::steady_clock::now() - postProcesBegin).count();
-    const auto uiBegin = chrono::steady_clock::now();
-    DumpCurrentOMState(L"Render_ScreenFX:Before");
-#endif
-
-    const ScreenFx_Manager* screenFxManager = GAME->Get_ScreenFxManager();
-    const bool hasScreenFxSource = _ppPipeline && _ppPipeline->Has_PostProcessFeature(PostProcessFeature::HDR);
-    const bool useScreenFx = screenFxManager && screenFxManager->Is_ScreenFXActivated() && screenFxManager->Has_ActiveEffects() && _screenFxShader && hasScreenFxSource;
-    if (useScreenFx)
-    {
-        GAME->Bind_BackBuffer();
-        Change_ViewportDesc(_screenSize.width, _screenSize.height);
-        Render_ScreenFx();
-    }
-
-#ifdef _DEBUG
-    DumpCurrentOMState(L"Render_ScreenFX:After");
-    uiMs = chrono::duration<double, milli>(chrono::steady_clock::now() - uiBegin).count();
     const auto debugBegin = chrono::steady_clock::now();
 #endif
-
-    if (screenFxManager && screenFxManager->Is_CaptureRequested())
-    {
-        GAME->Bind_BackBuffer();
-        GAME->Copy_CurrentRTV_To(RT::ScreenCapture);
-
-        const_cast<ScreenFx_Manager*>(screenFxManager)->Clear_CaptureRequested();
-    }
-
 
 #ifdef _DEBUG
     Render_Debug();
@@ -1220,6 +1194,24 @@ void Renderer::Render_Letterbox()
 
 void Renderer::PostDraw()
 {
+    const ScreenFx_Manager* screenFxManager = GAME->Get_ScreenFxManager();
+    const bool hasScreenFxSource = _ppPipeline && _ppPipeline->Has_PostProcessFeature(PostProcessFeature::HDR);
+    const bool useScreenFx = screenFxManager && screenFxManager->Is_ScreenFXActivated() && screenFxManager->Has_ActiveEffects() && _screenFxShader && hasScreenFxSource;
+    if (useScreenFx)
+    {
+        GAME->Bind_BackBuffer();
+        Change_ViewportDesc(_screenSize.width, _screenSize.height);
+        Render_ScreenFx();
+    }
+
+    if (screenFxManager && screenFxManager->Is_CaptureRequested())
+    {
+        GAME->Bind_BackBuffer();
+        GAME->Copy_CurrentRTV_To(RT::ScreenCapture);
+
+        const_cast<ScreenFx_Manager*>(screenFxManager)->Clear_CaptureRequested();
+    }
+
     Render_UIEffect();
     Render_Letterbox();
 }

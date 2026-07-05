@@ -89,6 +89,16 @@ bool SL_Skill::Request_Jump()
     return _stateCom->Change_State(SL_PlayerState::Jump);
 }
 
+bool SL_Skill::Request_Parry()
+{
+    if (_stateCom == nullptr || !_stateCom->Can_CancelToParry())
+        return false;
+
+    _stateCom->Clear_CanActionCancel();
+
+    return _stateCom->Change_State(SL_PlayerState::Parry);
+}
+
 SoulLikeAnim SL_Skill::Resolve_SkillAnim(uint32 slotIndex) const
 {
     switch (slotIndex)

@@ -856,6 +856,22 @@ void GameplayUI_World::Handle_ArenaCharacterSelectAction(UI_ArenaCharacterSelect
             Constants::Cinematic::Dualliste_Intro;
 
         Weak<SoulLikeController> weakController = controller;
+        const auto beginBattleFallback =
+            [weakController]()
+            {
+                const Shared<SoulLikeController> controller = weakController.lock();
+                if (controller == nullptr)
+                    return;
+
+                if (!controller->Begin_Battle())
+                    LOG_WARN("ArenaCharacterSelect: Maelle selected, but SoulLike battle did not start.");
+            };
+        const auto handleSequenceStartFailed =
+            [beginBattleFallback]()
+            {
+                CLIENT->Clear_CinematicCompletedCallbacks();
+                beginBattleFallback();
+            };
 
         CLIENT->Clear_CinematicCompletedCallbacks();
         CLIENT->Add_CinematicCompletedCallback(
@@ -886,12 +902,10 @@ void GameplayUI_World::Handle_ArenaCharacterSelectAction(UI_ArenaCharacterSelect
 
         controller->Start_DuallistePhase1BGM();
 
-        if (!CLIENT->Play_Sequence(sequencePath, 0))
+        if (!CLIENT->Request_CinematicSequenceTransition(sequencePath, 0, handleSequenceStartFailed) &&
+            !CLIENT->Play_Sequence(sequencePath, 0))
         {
-            CLIENT->Clear_CinematicCompletedCallbacks();
-
-            if (!controller->Begin_Battle())
-                LOG_WARN("ArenaCharacterSelect: Maelle selected, but SoulLike battle did not start.");
+            handleSequenceStartFailed();
         }
 
         break;
