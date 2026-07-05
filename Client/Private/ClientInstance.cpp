@@ -2424,12 +2424,12 @@ void ClientInstance::Sync_PreviewHeroRuntimeData(HeroId heroId)
     _previewManager->Sync_PreviewHeroRuntimeData(heroId);
 }
 
-void ClientInstance::Play_PreviewAnimation(HeroId heroId, PreviewAnimState introAnim, PreviewAnimState idleAnim)
+void ClientInstance::Play_PreviewAnimation(HeroId heroId, PreviewAnimState introAnim, PreviewAnimState idleAnim, float blendDuration)
 {
     if (_previewManager == nullptr)
         return;
 
-    _previewManager->Play_PreviewAnimation(heroId, introAnim, idleAnim);
+    _previewManager->Play_PreviewAnimation(heroId, introAnim, idleAnim, blendDuration);
 }
 
 void ClientInstance::Set_SoulLikeController(const Shared<SoulLikeController>& controller)

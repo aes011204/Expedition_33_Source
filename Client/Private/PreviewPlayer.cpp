@@ -208,7 +208,7 @@ HRESULT PreviewPlayer::Render_PreviewParts()
     return S_OK;
 }
 
-void PreviewPlayer::Play_PreviewAnimation(PreviewAnimState introAnim, PreviewAnimState idleAnim)
+void PreviewPlayer::Play_PreviewAnimation(PreviewAnimState introAnim, PreviewAnimState idleAnim, float blendDuration)
 {
     _currentPreviewIntroAnim = introAnim;
     _currentPreviewIdleAnim = idleAnim;
@@ -217,14 +217,14 @@ void PreviewPlayer::Play_PreviewAnimation(PreviewAnimState introAnim, PreviewAni
     if (body == nullptr)
         return;
 
-    if (body->Set_AnimationByState(ETOI(introAnim), 0.25f, false))
+    if (body->Set_AnimationByState(ETOI(introAnim), blendDuration, false))
     {
         _pendingPreviewIdleAnim = idleAnim;
         _isPlayingPreviewIntro = true;
         return;
     }
 
-    body->Set_AnimationByState(ETOI(idleAnim), 0.25f, true);
+    body->Set_AnimationByState(ETOI(idleAnim), blendDuration, true);
     _isPlayingPreviewIntro = false;
     _pendingPreviewIdleAnim = idleAnim;
 }

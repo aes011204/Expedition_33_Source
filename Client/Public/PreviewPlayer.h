@@ -72,7 +72,7 @@ public:
     void    Update_Preview(float timeDelta, bool facialEnabled);
     HRESULT Render_PreviewParts();
 
-    void    Play_PreviewAnimation(PreviewAnimState introAnim, PreviewAnimState idleAnim);
+    void    Play_PreviewAnimation(PreviewAnimState introAnim, PreviewAnimState idleAnim, float blendDuration = 0.25f);
     void    Update_GameMenuFacialPreview(float timeDelta, bool enabled);
 
     HRESULT Sync_FromRuntimeData();

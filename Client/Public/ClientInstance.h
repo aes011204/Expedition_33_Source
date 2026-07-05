@@ -356,7 +356,7 @@ public: /* Costume Manager */
     CostumeManager* Get_CostumeManager() const { return _costumeManager.get(); }
 
     void    Sync_PreviewHeroRuntimeData(HeroId heroId);
-    void    Play_PreviewAnimation(HeroId heroId, PreviewAnimState introAnim, PreviewAnimState idleAnim);
+    void    Play_PreviewAnimation(HeroId heroId, PreviewAnimState introAnim, PreviewAnimState idleAnim, float blendDuration = 0.25f);
 
 public: /* SoulLike */
     void Set_SoulLikeController(const Shared<SoulLikeController>& controller);
