@@ -415,8 +415,8 @@ HRESULT Level_GestralVillage::Ready_Layer_NPC(const wstring& strLayerTag)
     const Shared<GameObject> dance = Spawn_Prefab::Prefab("NPC_Dance")
         .AtLevel(ETOI(LevelType::GestralVillage))
         .InLayer(strLayerTag)
-        .Position(Vec3(-62.24f, -1.59f, 38.08f))
-        .Rotation(Vec3(0.f, 111.6f, 0.f))
+        .Position(Vec3(33.02f, -6.26f, 3.f))
+        .Rotation(Vec3(0.f, -77.5f, 0.f))
         .Scale(Vec3(1.f, 1.f, 1.f))
         .Spawn();
 
