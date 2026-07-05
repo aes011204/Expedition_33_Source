@@ -17,6 +17,12 @@ enum class RuntimeUIEntryKind
     WorldPlacement,
 };
 
+enum class JournalOpenAnimation
+{
+    JournalUI,
+    JournalMap,
+};
+
 struct RuntimeWorldUIPlacementTuning
 {
     struct NamedOffset
@@ -73,6 +79,7 @@ enum class GameplayMenu
     ChangeSkill,            // 스킬 변경
     Wardrobe,               // 옷장
     ArenaCharacterSelect,
+    Journal,
     Replay,
 
     END
@@ -87,6 +94,14 @@ struct RuntimeUIEntry
     bool positionDrivenByCode = false;
     RuntimeUIEntryKind kind = RuntimeUIEntryKind::UI;
     IRuntimeWorldUI_EditorTarget* worldPlacementTarget = nullptr;
+};
+
+struct EventDialogueUIRequest
+{
+    wstring uiJsonPath{};
+    wstring rootUIName{};
+    wstring animationPath{};
+    float autoCloseDelaySec = 0.f;
 };
 
 NS_END

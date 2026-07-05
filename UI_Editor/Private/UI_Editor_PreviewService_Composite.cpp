@@ -545,7 +545,8 @@ namespace UIEditor
 
     bool UI_Editor_PreviewService::Can_CreateCompositePreviewThisFrame() const
     {
-        constexpr int32 kMaxCompositePreviewCreateCountPerFrame = 3;
+        // Button effect prefabs use three MaterialVfx layers, and multiple instances can be visible at once.
+        constexpr int32 kMaxCompositePreviewCreateCountPerFrame = 16;
         return _compositePreviewCreateCountThisFrame < kMaxCompositePreviewCreateCountPerFrame;
     }
 

@@ -31,17 +31,11 @@ void UI_SL_LockOn::Update(float timeDelta)
 void UI_SL_LockOn::Open()
 {
     UI_RuntimePanelBase::Open();
-
-    if (_lockOnOutline)
-        _lockOnOutline->Open();
 }
 
 void UI_SL_LockOn::Close()
 {
     UI_RuntimePanelBase::Close();
-
-    if (_lockOnOutline)
-        _lockOnOutline->Close();
 }
 
 void UI_SL_LockOn::Update_Target(const Shared<SL_Maelle>& player)
@@ -59,9 +53,6 @@ void UI_SL_LockOn::Update_Target(const Shared<SL_Maelle>& player)
 
     if (_lockOnImage && _lockOnImage->Get_Transform())
         _lockOnImage->Get_Transform()->Set_Position(screenPos);
-
-    if (_lockOnOutline && _lockOnOutline->Get_Transform())
-        _lockOnOutline->Get_Transform()->Set_Position(screenPos);
 }
 
 void UI_SL_LockOn::Clear_Target()
@@ -85,10 +76,8 @@ HRESULT UI_SL_LockOn::Load_UI(uint32 levelIndex)
 HRESULT UI_SL_LockOn::Bind_UI()
 {
     _lockOnImage = Find_UI(_uiByName, L"Image_LockOn");
-    _lockOnOutline = Find_UI(_uiByName, L"Image_LockOn_OutLIne");
 
     CHECK_NULL(_lockOnImage, E_FAIL);
-    CHECK_NULL(_lockOnOutline, E_FAIL);
 
     _root = _lockOnImage;
 
@@ -138,7 +127,6 @@ void UI_SL_LockOn::Free()
     _uiByName.clear();
 
     _lockOnImage.reset();
-    _lockOnOutline.reset();
 
     Base::Free();
 }
