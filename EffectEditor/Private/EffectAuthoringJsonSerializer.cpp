@@ -626,14 +626,7 @@ namespace Internal
     bool Is_DefaultHistoryBudget(const HistoryBudgetData& data)
     {
         const HistoryBudgetData defaults{};
-        return data.preset == defaults.preset &&
-               data.preserveLength == defaults.preserveLength &&
-               data.sharedSourceHistory == defaults.sharedSourceHistory &&
-               Nearly_Equal(data.trailDensityScale, defaults.trailDensityScale) &&
-               Nearly_Equal(data.spriteStampDensityScale, defaults.spriteStampDensityScale) &&
-               Nearly_Equal(data.ribbonDensityScale, defaults.ribbonDensityScale) &&
-               Nearly_Equal(data.distortionDensityScale, defaults.distortionDensityScale) &&
-               data.updateRate == defaults.updateRate;
+        return data.preset == defaults.preset && data.sourceGroups.empty();
     }
 
     bool Is_DefaultEmitterHistoryBudget(const EmitterHistoryBudgetData& data)
@@ -648,13 +641,6 @@ namespace Internal
     {
         json root = json::object();
         root["preset"] = To_EnumToken(data.preset);
-        root["preserveLength"] = data.preserveLength;
-        root["sharedSourceHistory"] = data.sharedSourceHistory;
-        root["trailDensityScale"] = data.trailDensityScale;
-        root["spriteStampDensityScale"] = data.spriteStampDensityScale;
-        root["ribbonDensityScale"] = data.ribbonDensityScale;
-        root["distortionDensityScale"] = data.distortionDensityScale;
-        root["updateRate"] = To_EnumToken(data.updateRate);
         return root;
     }
 
@@ -667,6 +653,7 @@ namespace Internal
             Try_ReadEnumToken(*presetIter, outData.preset);
         Read_BoolField(root, "preserveLength", outData.preserveLength);
         Read_BoolField(root, "sharedSourceHistory", outData.sharedSourceHistory);
+        outData.sharedSourceHistory = true;
         Read_NumberField(root, "trailDensityScale", outData.trailDensityScale);
         Read_NumberField(root, "spriteStampDensityScale", outData.spriteStampDensityScale);
         Read_NumberField(root, "ribbonDensityScale", outData.ribbonDensityScale);
@@ -678,6 +665,53 @@ namespace Internal
         outData.spriteStampDensityScale = max(0.f, outData.spriteStampDensityScale);
         outData.ribbonDensityScale = max(0.f, outData.ribbonDensityScale);
         outData.distortionDensityScale = max(0.f, outData.distortionDensityScale);
+    }
+
+    json To_Json(const HistorySourceGroupBudgetData& data)
+    {
+        json root = json::object();
+        root["kind"] = To_EnumToken(data.kind);
+        root["stableId"] = data.stableId;
+        root["confirmed"] = data.confirmed;
+        root["sourceSampleCount"] = data.sourceSampleCount;
+        root["sampleLifetime"] = data.sampleLifetime;
+        root["sampleSpacing"] = data.sampleSpacing;
+        root["sampleInterval"] = data.sampleInterval;
+        root["curveSubdivision"] = data.curveSubdivision;
+        root["smoothTangent"] = data.smoothTangent;
+        root["stampSpacing"] = data.stampSpacing;
+        root["stampInterval"] = data.stampInterval;
+        root["maxStampCount"] = data.maxStampCount;
+        return root;
+    }
+
+    void From_Json(const json& root, HistorySourceGroupBudgetData& outData)
+    {
+        if (!root.is_object())
+            return;
+
+        if (const auto kindIter = root.find("kind"); kindIter != root.end())
+            Try_ReadEnumToken(*kindIter, outData.kind);
+        outData.stableId = root.value("stableId", outData.stableId);
+        Read_BoolField(root, "confirmed", outData.confirmed);
+        Read_NumberField(root, "sourceSampleCount", outData.sourceSampleCount);
+        Read_NumberField(root, "sampleLifetime", outData.sampleLifetime);
+        Read_NumberField(root, "sampleSpacing", outData.sampleSpacing);
+        Read_NumberField(root, "sampleInterval", outData.sampleInterval);
+        Read_NumberField(root, "curveSubdivision", outData.curveSubdivision);
+        Read_BoolField(root, "smoothTangent", outData.smoothTangent);
+        Read_NumberField(root, "stampSpacing", outData.stampSpacing);
+        Read_NumberField(root, "stampInterval", outData.stampInterval);
+        Read_NumberField(root, "maxStampCount", outData.maxStampCount);
+
+        outData.sourceSampleCount = max(0u, outData.sourceSampleCount);
+        outData.sampleLifetime = max(0.f, outData.sampleLifetime);
+        outData.sampleSpacing = max(0.f, outData.sampleSpacing);
+        outData.sampleInterval = max(0.f, outData.sampleInterval);
+        outData.curveSubdivision = max(0u, outData.curveSubdivision);
+        outData.stampSpacing = max(0.f, outData.stampSpacing);
+        outData.stampInterval = max(0.f, outData.stampInterval);
+        outData.maxStampCount = max(0u, outData.maxStampCount);
     }
 
     json To_Json(const EmitterHistoryBudgetData& data)
@@ -3328,6 +3362,12 @@ json EffectAuthoringJsonSerializer::To_Json(const EffectAuthoringDocument& docum
     root["particleSystem"] = Internal::To_Json(document.particleSystemData);
     if (!Internal::Is_DefaultHistoryBudget(document.historyBudget))
         root["historyBudget"] = Internal::To_Json(document.historyBudget);
+    if (!document.historyBudget.sourceGroups.empty())
+    {
+        root["historySourceGroups"] = json::array();
+        for (const HistorySourceGroupBudgetData& group : document.historyBudget.sourceGroups)
+            root["historySourceGroups"].push_back(Internal::To_Json(group));
+    }
     root["emitters"] = json::array();
 
     for (const AuthoringEmitter& emitter : document.emitters)
@@ -3351,6 +3391,18 @@ bool EffectAuthoringJsonSerializer::From_Json(const json& root, EffectAuthoringD
     const auto historyBudgetIter = root.find("historyBudget");
     if (historyBudgetIter != root.end())
         Internal::From_Json(*historyBudgetIter, document.historyBudget);
+
+    const auto historySourceGroupsIter = root.find("historySourceGroups");
+    if (historySourceGroupsIter != root.end() && historySourceGroupsIter->is_array())
+    {
+        for (const json& groupNode : *historySourceGroupsIter)
+        {
+            HistorySourceGroupBudgetData group{};
+            Internal::From_Json(groupNode, group);
+            if (group.kind != EffectHistorySourceGroupKind::None && !group.stableId.empty())
+                document.historyBudget.sourceGroups.push_back(group);
+        }
+    }
 
     const auto emittersIter = root.find("emitters");
     if (emittersIter == root.end() || !emittersIter->is_array())

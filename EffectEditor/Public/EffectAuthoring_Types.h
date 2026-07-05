@@ -1,6 +1,7 @@
 ﻿#pragma once
 #include <variant>
 #include "EffectMaterialAuthoring_Types.h"
+#include "EffectRuntime_Types.h"
 #include "Particle_Types.h"
 
 NS_BEGIN(EffectEditor)
@@ -95,16 +96,35 @@ enum class HistoryBudgetUpdateRate : uint8
     Every2Frames,
 };
 
+struct HistorySourceGroupBudgetData
+{
+    EffectHistorySourceGroupKind kind{ EffectHistorySourceGroupKind::None };
+    string stableId{};
+    bool confirmed{};
+
+    uint32 sourceSampleCount{};
+    float sampleLifetime{};
+    float sampleSpacing{};
+    float sampleInterval{};
+    uint32 curveSubdivision{};
+    bool smoothTangent{ true };
+
+    float stampSpacing{};
+    float stampInterval{};
+    uint32 maxStampCount{};
+};
+
 struct HistoryBudgetData
 {
     HistoryBudgetPreset preset{ HistoryBudgetPreset::Full };
     bool preserveLength{ true };
-    bool sharedSourceHistory{ false };
+    bool sharedSourceHistory{ true };
     float trailDensityScale{ 1.f };
     float spriteStampDensityScale{ 1.f };
     float ribbonDensityScale{ 1.f };
     float distortionDensityScale{ 1.f };
     HistoryBudgetUpdateRate updateRate{ HistoryBudgetUpdateRate::EveryFrame };
+    vector<HistorySourceGroupBudgetData> sourceGroups{};
 };
 
 struct EmitterHistoryBudgetData

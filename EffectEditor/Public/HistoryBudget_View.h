@@ -20,7 +20,6 @@ public:
 
 private:
     Shared<Emitter_View> Get_EmitterView() const;
-    void Draw_GlobalBudget(Emitter_View& emitterView);
     void Draw_SourceGroupSummary(Emitter_View& emitterView);
 
 private:

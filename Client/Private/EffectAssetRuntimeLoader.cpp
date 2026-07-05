@@ -21,14 +21,47 @@ namespace
 
         const json& data = *budgetIter;
         Read_Enum(data, "preset", budget.preset);
-        budget.preserveLength = Read_Bool(data, "preserveLength", budget.preserveLength);
-        budget.sharedSourceHistory = Read_Bool(data, "sharedSourceHistory", budget.sharedSourceHistory);
+        budget.preserveLength = true;
+        budget.sharedSourceHistory = true;
         budget.trailDensityScale = max(0.f, Read_Float(data, "trailDensityScale", budget.trailDensityScale));
         budget.spriteStampDensityScale = max(0.f, Read_Float(data, "spriteStampDensityScale", budget.spriteStampDensityScale));
         budget.ribbonDensityScale = max(0.f, Read_Float(data, "ribbonDensityScale", budget.ribbonDensityScale));
         budget.distortionDensityScale = max(0.f, Read_Float(data, "distortionDensityScale", budget.distortionDensityScale));
         Read_Enum(data, "updateRate", budget.updateRate);
         return budget;
+    }
+
+    vector<EffectHistorySourceGroupBudgetDesc> Read_HistorySourceGroups(const json& root)
+    {
+        vector<EffectHistorySourceGroupBudgetDesc> groups{};
+        const auto groupsIter = root.find("historySourceGroups");
+        if (groupsIter == root.end() || !groupsIter->is_array())
+            return groups;
+
+        for (const json& node : *groupsIter)
+        {
+            if (!node.is_object())
+                continue;
+
+            EffectHistorySourceGroupBudgetDesc group{};
+            Read_Enum(node, "kind", group.kind);
+            group.stableId = Read_String(node, "stableId", group.stableId);
+            group.confirmed = Read_Bool(node, "confirmed", group.confirmed);
+            group.sourceSampleCount = Read_UInt(node, "sourceSampleCount", group.sourceSampleCount);
+            group.sampleLifetime = max(0.f, Read_Float(node, "sampleLifetime", group.sampleLifetime));
+            group.sampleSpacing = max(0.f, Read_Float(node, "sampleSpacing", group.sampleSpacing));
+            group.sampleInterval = max(0.f, Read_Float(node, "sampleInterval", group.sampleInterval));
+            group.curveSubdivision = Read_UInt(node, "curveSubdivision", group.curveSubdivision);
+            group.smoothTangent = Read_Bool(node, "smoothTangent", group.smoothTangent);
+            group.stampSpacing = max(0.f, Read_Float(node, "stampSpacing", group.stampSpacing));
+            group.stampInterval = max(0.f, Read_Float(node, "stampInterval", group.stampInterval));
+            group.maxStampCount = Read_UInt(node, "maxStampCount", group.maxStampCount);
+
+            if (group.kind != EffectHistorySourceGroupKind::None && !group.stableId.empty())
+                groups.push_back(group);
+        }
+
+        return groups;
     }
 
     uint32 Estimate_SourceHistorySpriteTrailSourceSamples(const ComputeSourceHistorySpriteTrailEmitterDesc& desc)
@@ -192,6 +225,92 @@ namespace
             );
         }
     }
+
+    const char* Resolve_TrailSourceGroupId()
+    {
+        return "TrailProvider";
+    }
+
+    string Resolve_SourcePointSourceGroupId(EffectSourceHistoryRibbonSourceMode sourceMode, uint32 sourceEmitterId)
+    {
+        if (sourceMode == EffectSourceHistoryRibbonSourceMode::ParticleEmitter)
+            return format("ParticleEmitter:{}", sourceEmitterId);
+
+        return "SelfRoot";
+    }
+
+    void Apply_SourceGroupBudget(EffectDefinition& definition, EffectEmitterDefinition& emitter)
+    {
+        if (auto* trailDesc = get_if<ComputeTrailEmitterDesc>(&emitter.concreteDesc))
+        {
+            const EffectHistorySourceGroupBudgetDesc* group = Find_EffectHistorySourceGroupBudget(
+                definition.historySourceGroups,
+                EffectHistorySourceGroupKind::TrailPairHistory,
+                Resolve_TrailSourceGroupId()
+            );
+            if (group == nullptr)
+                return;
+
+            if (group->sourceSampleCount > 0u)
+                trailDesc->historyCount = max(2u, group->sourceSampleCount);
+            if (group->sampleSpacing > 0.f)
+                trailDesc->sampleSpacing = max(0.001f, group->sampleSpacing);
+            if (group->curveSubdivision > 0u)
+                trailDesc->curveSubdivision = group->curveSubdivision;
+            trailDesc->smoothTangent = group->smoothTangent;
+            return;
+        }
+
+        if (auto* ribbonDesc = get_if<ComputeRibbonEmitterDesc>(&emitter.concreteDesc))
+        {
+            const string sourceGroupId = Resolve_SourcePointSourceGroupId(ribbonDesc->sourceMode, ribbonDesc->sourceEmitterId);
+            const EffectHistorySourceGroupBudgetDesc* group = Find_EffectHistorySourceGroupBudget(
+                definition.historySourceGroups,
+                EffectHistorySourceGroupKind::SourcePointHistory,
+                sourceGroupId
+            );
+            if (group == nullptr)
+                return;
+
+            if (group->sourceSampleCount > 0u)
+                ribbonDesc->maxSampleCount = max(2u, group->sourceSampleCount);
+            if (group->sampleLifetime > 0.f)
+                ribbonDesc->sampleLifetime = max(0.0001f, group->sampleLifetime);
+            if (group->sampleSpacing > 0.f)
+                ribbonDesc->sampleSpacing = max(0.001f, group->sampleSpacing);
+            ribbonDesc->sampleInterval = max(0.f, group->sampleInterval);
+            if (group->curveSubdivision > 0u)
+                ribbonDesc->curveSubdivision = group->curveSubdivision;
+            ribbonDesc->smoothTangent = group->smoothTangent;
+            return;
+        }
+
+        if (auto* spriteTrailDesc = get_if<ComputeSourceHistorySpriteTrailEmitterDesc>(&emitter.concreteDesc))
+        {
+            const string sourceGroupId = Resolve_SourcePointSourceGroupId(spriteTrailDesc->sourceMode, spriteTrailDesc->sourceEmitterId);
+            const EffectHistorySourceGroupBudgetDesc* group = Find_EffectHistorySourceGroupBudget(
+                definition.historySourceGroups,
+                EffectHistorySourceGroupKind::SourcePointHistory,
+                sourceGroupId
+            );
+            if (group == nullptr)
+                return;
+
+            if (group->sampleLifetime > 0.f)
+                spriteTrailDesc->sampleLifetime = max(0.0001f, group->sampleLifetime);
+            if (group->sampleSpacing > 0.f)
+                spriteTrailDesc->sampleSpacing = max(0.001f, group->sampleSpacing);
+            if (group->curveSubdivision > 0u)
+                spriteTrailDesc->curveSubdivision = group->curveSubdivision;
+            spriteTrailDesc->smoothTangent = group->smoothTangent;
+            if (group->stampSpacing > 0.f)
+                spriteTrailDesc->stampSpacing = max(0.001f, group->stampSpacing);
+            if (group->stampInterval > 0.f)
+                spriteTrailDesc->stampInterval = max(0.001f, group->stampInterval);
+            if (group->maxStampCount > 0u)
+                spriteTrailDesc->maxStampCount = max(1u, group->maxStampCount);
+        }
+    }
 }
 
 Shared<const EffectDefinition> EffectAssetRuntimeLoader::Load_Definition(const wstring& effectAssetPath)
@@ -218,6 +337,7 @@ Shared<const EffectDefinition> EffectAssetRuntimeLoader::Load_Definition(const w
     if (definition->name.empty())
         definition->name = String::ToString(fs::path(effectAssetPath).stem().wstring());
     definition->historyBudget = Read_HistoryBudget(root);
+    definition->historySourceGroups = Read_HistorySourceGroups(root);
 
     for (const json& emitter : *emittersIter)
     {
@@ -269,6 +389,7 @@ Shared<const EffectDefinition> EffectAssetRuntimeLoader::Load_Definition(const w
             continue;
         }
 
+        Apply_SourceGroupBudget(*definition, emitterDefinition);
         Apply_SafeHistoryBudgetDensityCap(*definition, emitterDefinition);
         Refresh_HistoryBudgetEffective(emitterDefinition);
         definition->emitters.push_back(emitterDefinition);

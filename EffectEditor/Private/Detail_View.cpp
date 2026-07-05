@@ -1868,46 +1868,6 @@ void Detail_View::Render_TypeDataDetail(
                     defaultData.autoLifeFade,
                     "trail sample age 기준 alpha fade를 적용할지 결정합니다. 꺼도 세그먼트 수명이 지나면 sample은 제거됩니다."
                 );
-                _detailPropertyContext.End_PropertyTable();
-            }
-        }
-
-        if (ImGui::CollapsingHeader("고급 히스토리/곡선 품질"))
-        {
-            if (_detailPropertyContext.Begin_PropertyTable("TrailTypeDataCurveQuality"))
-            {
-                changed |= _detailPropertyContext.Draw_UintProperty(
-                    "히스토리 수",
-                    data->historyCount,
-                    defaultData.historyCount,
-                    "저장할 trail sample 개수입니다. 많을수록 긴 궤적을 유지할 수 있습니다."
-                );
-                changed |= Internal::Draw_TrailCurveQualityProperty(_detailPropertyContext, *data, defaultData);
-                changed |= Internal::Apply_TrailCurvePreset(*data);
-
-                const bool presetLocked = data->curveQuality != TrailCurveQuality::Custom;
-                if (presetLocked)
-                    ImGui::BeginDisabled();
-
-                changed |= _detailPropertyContext.Draw_FloatProperty(
-                    "샘플 간격",
-                    data->sampleSpacing,
-                    defaultData.sampleSpacing,
-                    0.005f,
-                    "이동 거리 기준으로 중간 trail sample을 삽입하는 간격입니다. 낮을수록 곡선이 촘촘해집니다."
-                );
-                changed |= _detailPropertyContext.Draw_UintProperty(
-                    "곡선 분할",
-                    data->curveSubdivision,
-                    defaultData.curveSubdivision,
-                    "한 frame 안에서 보강할 수 있는 최대 중간 sample 수입니다."
-                );
-                changed |= _detailPropertyContext.Draw_BoolProperty(
-                    "탄젠트 스무딩",
-                    data->smoothTangent,
-                    defaultData.smoothTangent,
-                    "앞뒤 sample을 함께 보아 base/tip 위치를 완만하게 평균 보정합니다."
-                );
                 changed |= _detailPropertyContext.Draw_FloatProperty(
                     "폭 가장자리 페이드",
                     data->sideFade,
@@ -1915,12 +1875,45 @@ void Detail_View::Render_TypeDataDetail(
                     0.005f,
                     "trail 폭 방향 양끝 alpha를 줄이는 강도입니다. 높일수록 두꺼운 벽 느낌이 줄어듭니다."
                 );
-
-                if (presetLocked)
-                    ImGui::EndDisabled();
-
                 _detailPropertyContext.End_PropertyTable();
             }
+        }
+
+        if (ImGui::CollapsingHeader("히스토리 진단"))
+        {
+            ImGui::TextDisabled("비용성 history 기준값은 History Budget View에서 source group 단위로 확정합니다.");
+            ImGui::BeginDisabled();
+            if (_detailPropertyContext.Begin_PropertyTable("TrailTypeDataCurveQuality"))
+            {
+                _detailPropertyContext.Draw_UintProperty(
+                    "히스토리 수",
+                    data->historyCount,
+                    defaultData.historyCount,
+                    "저장할 trail sample 개수입니다. 많을수록 긴 궤적을 유지할 수 있습니다."
+                );
+                Internal::Draw_TrailCurveQualityProperty(_detailPropertyContext, *data, defaultData);
+                _detailPropertyContext.Draw_FloatProperty(
+                    "샘플 간격",
+                    data->sampleSpacing,
+                    defaultData.sampleSpacing,
+                    0.005f,
+                    "이동 거리 기준으로 중간 trail sample을 삽입하는 간격입니다. 낮을수록 곡선이 촘촘해집니다."
+                );
+                _detailPropertyContext.Draw_UintProperty(
+                    "곡선 분할",
+                    data->curveSubdivision,
+                    defaultData.curveSubdivision,
+                    "한 frame 안에서 보강할 수 있는 최대 중간 sample 수입니다."
+                );
+                _detailPropertyContext.Draw_BoolProperty(
+                    "탄젠트 스무딩",
+                    data->smoothTangent,
+                    defaultData.smoothTangent,
+                    "앞뒤 sample을 함께 보아 base/tip 위치를 완만하게 평균 보정합니다."
+                );
+                _detailPropertyContext.End_PropertyTable();
+            }
+            ImGui::EndDisabled();
         }
         break;
     }
@@ -2051,65 +2044,53 @@ void Detail_View::Render_TypeDataDetail(
 
         if (ImGui::CollapsingHeader("고급"))
         {
-            if (ImGui::TreeNodeEx("곡선 품질", ImGuiTreeNodeFlags_DefaultOpen))
+            if (ImGui::TreeNodeEx("히스토리 진단", ImGuiTreeNodeFlags_DefaultOpen))
             {
+                ImGui::TextDisabled("비용성 history 기준값은 History Budget View에서 source group 단위로 확정합니다.");
+                ImGui::BeginDisabled();
                 if (_detailPropertyContext.Begin_PropertyTable("RibbonTypeDataCurveQuality"))
                 {
-                    changed |= Internal::Draw_RibbonCurveQualityProperty(_detailPropertyContext, *data, defaultData);
-                    changed |= Internal::Apply_RibbonCurvePreset(*data);
-
-                    const bool presetLocked = data->curveQuality != RibbonCurveQuality::Custom;
-                    if (presetLocked)
-                        ImGui::BeginDisabled();
-
-                    changed |= _detailPropertyContext.Draw_FloatProperty(
+                    Internal::Draw_RibbonCurveQualityProperty(_detailPropertyContext, *data, defaultData);
+                    _detailPropertyContext.Draw_UintProperty(
+                        "히스토리 수",
+                        data->maxSampleCount,
+                        defaultData.maxSampleCount,
+                        "lane 하나가 보관할 최소 source history sample 수입니다. 필요하면 내부에서 더 크게 보정됩니다."
+                    );
+                    _detailPropertyContext.Draw_FloatProperty(
                         "샘플 간격",
                         data->sampleSpacing,
                         defaultData.sampleSpacing,
                         0.005f,
                         "source가 이 거리 이상 움직였을 때 새 history sample을 추가하고 곡선 sample 간격으로도 사용합니다."
                     );
-                    changed |= _detailPropertyContext.Draw_UintProperty(
-                        "곡선 분할",
-                        data->curveSubdivision,
-                        defaultData.curveSubdivision,
-                        "source history segment 하나에서 보강할 수 있는 최대 곡선 render sample 수입니다."
-                    );
-                    changed |= _detailPropertyContext.Draw_BoolProperty(
-                        "탄젠트 스무딩",
-                        data->smoothTangent,
-                        defaultData.smoothTangent,
-                        "Custom 품질에서만 명시적으로 켭니다. 앞뒤 source sample을 함께 보아 path 위치를 완만하게 평균 보정합니다."
-                    );
-
-                    if (presetLocked)
-                        ImGui::EndDisabled();
-
-                    data->sampleSpacing = max(0.001f, data->sampleSpacing);
-                    _detailPropertyContext.End_PropertyTable();
-                }
-                ImGui::TreePop();
-            }
-
-            if (_detailPropertyContext.Begin_PropertyTable("RibbonTypeDataAdvanced"))
-            {
-                if (data->curveQuality == RibbonCurveQuality::Custom)
-                {
-                    changed |= _detailPropertyContext.Draw_UintProperty(
-                        "히스토리 수",
-                        data->maxSampleCount,
-                        defaultData.maxSampleCount,
-                        "lane 하나가 보관할 최소 source history sample 수입니다. 필요하면 내부에서 더 크게 보정됩니다."
-                    );
-                    changed |= _detailPropertyContext.Draw_FloatProperty(
+                    _detailPropertyContext.Draw_FloatProperty(
                         "샘플 보강 간격",
                         data->sampleInterval,
                         defaultData.sampleInterval,
                         0.005f,
                         "0보다 크면 정지/저속에서도 시간 기준 sample을 보강합니다. projectile tail에서는 보통 0으로 둡니다."
                     );
+                    _detailPropertyContext.Draw_UintProperty(
+                        "곡선 분할",
+                        data->curveSubdivision,
+                        defaultData.curveSubdivision,
+                        "source history segment 하나에서 보강할 수 있는 최대 곡선 render sample 수입니다."
+                    );
+                    _detailPropertyContext.Draw_BoolProperty(
+                        "탄젠트 스무딩",
+                        data->smoothTangent,
+                        defaultData.smoothTangent,
+                        "Custom 품질에서만 명시적으로 켭니다. 앞뒤 source sample을 함께 보아 path 위치를 완만하게 평균 보정합니다."
+                    );
+                    _detailPropertyContext.End_PropertyTable();
                 }
+                ImGui::EndDisabled();
+                ImGui::TreePop();
+            }
 
+            if (_detailPropertyContext.Begin_PropertyTable("RibbonTypeDataAdvanced"))
+            {
                 changed |= _detailPropertyContext.Draw_FloatProperty(
                     "길이 제한",
                     data->maxLength,
@@ -2209,20 +2190,9 @@ void Detail_View::Render_TypeDataDetail(
 
                 _detailPropertyContext.End_PropertyTable();
             }
-        }
 
-        if (ImGui::CollapsingHeader("History Advanced"))
-        {
-            Internal::Draw_HistoryBudgetLink(emitterView, emitter);
-            if (_detailPropertyContext.Begin_PropertyTable("SourceHistorySpriteTrailHistory"))
+            if (_detailPropertyContext.Begin_PropertyTable("SourceHistorySpriteTrailVisualLength"))
             {
-                changed |= _detailPropertyContext.Draw_FloatProperty(
-                    "샘플 수명",
-                    data->sampleLifetime,
-                    defaultData.sampleLifetime,
-                    0.01f,
-                    "source history sample을 보관하는 시간입니다. stamp lifetime과 구분됩니다."
-                );
                 changed |= _detailPropertyContext.Draw_FloatProperty(
                     "길이 제한",
                     data->maxLength,
@@ -2230,80 +2200,92 @@ void Detail_View::Render_TypeDataDetail(
                     0.01f,
                     "head 기준 stamp 생성 후보 path의 최대 길이입니다. 0 이하면 제한하지 않습니다."
                 );
-                data->sampleLifetime = max(0.0001f, data->sampleLifetime);
                 data->maxLength = max(0.f, data->maxLength);
                 _detailPropertyContext.End_PropertyTable();
             }
         }
 
-        if (ImGui::CollapsingHeader("고급 곡선 품질"))
+        if (ImGui::CollapsingHeader("히스토리 진단"))
         {
+            Internal::Draw_HistoryBudgetLink(emitterView, emitter);
+            ImGui::TextDisabled("비용성 history 기준값은 History Budget View에서 source group 단위로 확정합니다.");
+            ImGui::BeginDisabled();
+            if (_detailPropertyContext.Begin_PropertyTable("SourceHistorySpriteTrailHistory"))
+            {
+                _detailPropertyContext.Draw_FloatProperty(
+                    "샘플 수명",
+                    data->sampleLifetime,
+                    defaultData.sampleLifetime,
+                    0.01f,
+                    "source history sample을 보관하는 시간입니다. stamp lifetime과 구분됩니다."
+                );
+                _detailPropertyContext.End_PropertyTable();
+            }
+            ImGui::EndDisabled();
+        }
+
+        if (ImGui::CollapsingHeader("곡선 진단"))
+        {
+            ImGui::TextDisabled("곡선 품질 기준값은 History Budget View에서 source group 단위로 확정합니다.");
+            ImGui::BeginDisabled();
             if (_detailPropertyContext.Begin_PropertyTable("SourceHistorySpriteTrailCurveQuality"))
             {
-                changed |= Internal::Draw_SourceHistorySpriteTrailCurveQualityProperty(_detailPropertyContext, *data, defaultData);
-                changed |= Internal::Apply_SourceHistorySpriteTrailCurvePreset(*data);
-
-                const bool presetLocked = data->curveQuality != RibbonCurveQuality::Custom;
-                if (presetLocked)
-                    ImGui::BeginDisabled();
-
-                changed |= _detailPropertyContext.Draw_FloatProperty(
+                Internal::Draw_SourceHistorySpriteTrailCurveQualityProperty(_detailPropertyContext, *data, defaultData);
+                _detailPropertyContext.Draw_FloatProperty(
                     "샘플 간격",
                     data->sampleSpacing,
                     defaultData.sampleSpacing,
                     0.005f,
                     "source가 이 거리 이상 움직였을 때 새 history sample을 추가하고 곡선 path sample 간격으로도 사용합니다."
                 );
-                changed |= _detailPropertyContext.Draw_UintProperty(
+                _detailPropertyContext.Draw_UintProperty(
                     "곡선 분할",
                     data->curveSubdivision,
                     defaultData.curveSubdivision,
                     "source history segment 하나에서 보강할 수 있는 최대 곡선 sample 수입니다."
                 );
-                changed |= _detailPropertyContext.Draw_BoolProperty(
+                _detailPropertyContext.Draw_BoolProperty(
                     "탄젠트 스무딩",
                     data->smoothTangent,
                     defaultData.smoothTangent,
                     "앞뒤 source sample을 함께 보아 stamp 위치와 path tangent를 완만하게 보정합니다."
                 );
-
-                if (presetLocked)
-                    ImGui::EndDisabled();
-
-                data->sampleSpacing = max(0.001f, data->sampleSpacing);
                 _detailPropertyContext.End_PropertyTable();
             }
+            ImGui::EndDisabled();
         }
 
         if (ImGui::CollapsingHeader("Stamp", ImGuiTreeNodeFlags_DefaultOpen))
         {
             if (_detailPropertyContext.Begin_PropertyTable("SourceHistorySpriteTrailStamp"))
             {
-                changed |= Internal::Draw_SourceHistorySpriteTrailStampSpawnModeProperty(
+                ImGui::BeginDisabled();
+                Internal::Draw_SourceHistorySpriteTrailStampSpawnModeProperty(
                     _detailPropertyContext,
                     data->stampSpawnMode,
                     defaultData.stampSpawnMode
                 );
-                changed |= _detailPropertyContext.Draw_FloatProperty(
+                _detailPropertyContext.Draw_FloatProperty(
                     "스탬프 간격",
                     data->stampSpacing,
                     defaultData.stampSpacing,
                     0.005f,
                     "Distance 모드에서 path 위 stamp 사이 거리입니다."
                 );
-                changed |= _detailPropertyContext.Draw_FloatProperty(
+                _detailPropertyContext.Draw_FloatProperty(
                     "스탬프 시간 간격",
                     data->stampInterval,
                     defaultData.stampInterval,
                     0.005f,
                     "Time 모드에서 stamp를 찍는 시간 간격입니다."
                 );
-                changed |= _detailPropertyContext.Draw_UintProperty(
+                _detailPropertyContext.Draw_UintProperty(
                     "최대 스탬프 수",
                     data->maxStampCount,
                     defaultData.maxStampCount,
                     "lane 하나가 보관할 stamp 상한입니다."
                 );
+                ImGui::EndDisabled();
                 changed |= _detailPropertyContext.Draw_FloatProperty(
                     "지터",
                     data->spawnJitter,

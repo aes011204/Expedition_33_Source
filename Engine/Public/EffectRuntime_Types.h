@@ -70,7 +70,7 @@ struct EffectHistoryBudgetRuntimeDesc
 {
     EffectHistoryBudgetPreset preset{ EffectHistoryBudgetPreset::Full };
     bool preserveLength{ true };
-    bool sharedSourceHistory{ false };
+    bool sharedSourceHistory{ true };
     float trailDensityScale{ 1.f };
     float spriteStampDensityScale{ 1.f };
     float ribbonDensityScale{ 1.f };
@@ -121,6 +121,39 @@ struct EffectHistorySourceGroupStats
     uint32 cacheHitCount{};
     uint32 savedRequestCount{};
 };
+
+// Effect root가 소유하는 source history group 단위 budget이다.
+struct EffectHistorySourceGroupBudgetDesc
+{
+    EffectHistorySourceGroupKind kind{ EffectHistorySourceGroupKind::None };
+    string stableId{};
+    bool confirmed{};
+
+    uint32 sourceSampleCount{};
+    float sampleLifetime{};
+    float sampleSpacing{};
+    float sampleInterval{};
+    uint32 curveSubdivision{};
+    bool smoothTangent{ true };
+
+    float stampSpacing{};
+    float stampInterval{};
+    uint32 maxStampCount{};
+};
+
+inline const EffectHistorySourceGroupBudgetDesc* Find_EffectHistorySourceGroupBudget(
+    const vector<EffectHistorySourceGroupBudgetDesc>& budgets,
+    EffectHistorySourceGroupKind kind,
+    const string& stableId)
+{
+    for (const EffectHistorySourceGroupBudgetDesc& budget : budgets)
+    {
+        if (budget.kind == kind && budget.stableId == stableId)
+            return &budget;
+    }
+
+    return nullptr;
+}
 
 inline float Resolve_EffectHistoryBudgetPresetScale(EffectHistoryBudgetPreset preset)
 {
@@ -1146,6 +1179,7 @@ struct EffectDefinition
 {
     string name{};                              // effect asset/display 이름이다.
     EffectHistoryBudgetRuntimeDesc historyBudget{}; // effect 단위 history budget preset이다. Full 기본값은 기존 동작 보존이다.
+    vector<EffectHistorySourceGroupBudgetDesc> historySourceGroups{}; // effect 단위 source history group budget 정본이다.
     vector<EffectEmitterDefinition> emitters{}; // effect를 구성하는 emitter definition 목록이다.
 };
 
