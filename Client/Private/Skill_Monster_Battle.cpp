@@ -455,7 +455,33 @@ void Simon_Debuff::Execute(const Skill_Data& skill, const BattleAction& action, 
             runtimeStat.CurHp = targetHp;
     }
 
+    Play_GuardedHitEffect(action);
+
     CurIndex++;
+}
+
+void Simon_Debuff::Play_GuardedHitEffect(const BattleAction& action)
+{
+    const auto& curTargets = action.GetCurStepTarget();
+    if (curTargets.empty() || curTargets.front().actor == nullptr)
+        return;
+
+    BattleHitSequenceRunner::HitEffectDesc effectDesc{};
+    effectDesc.effectName = L"Simon_Debuff_Attack";
+    effectDesc.localOffset = Vec3(0.f, 0.f, 0.f);
+    effectDesc.scale = Vec3(2.f, 2.f, 2.f);
+
+    Internal::Play_TargetHitEffect(curTargets.front(), effectDesc);
+}
+
+void Simon_Debuff::Collect_PrewarmEffects(const Skill_Data& skill, const BattleEffectPrewarmContext& context, vector<EffectPrewarmRequest>& outRequests) const
+{
+    UNREFERENCED_PARAMETER(context);
+
+    EffectPrewarmRequest request{};
+    request.effectName = L"Simon_Debuff_Attack";
+    request.targetCount = max(1u, static_cast<uint32>(skill.targetingType.size()));
+    outRequests.push_back(request);
 }
 
 Shared<Simon_Debuff> Simon_Debuff::Create()
