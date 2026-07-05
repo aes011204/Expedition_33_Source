@@ -33,7 +33,9 @@ public: //## Types::Public
         float playbackSpeed{ 1.f };                                                                    // acquire된 EffectInstance의 emitter 시간 진행 배율이다.
         [[deprecated("Use worldRotation quaternion instead.")]] Vec3 worldRotationEuler{ Vec3::Zero }; // 이전 Euler 입력 호환용 필드다. pool 준비 경로에서는 소비하지 않는다.
         Weak<IEffectTrailSampleProvider> trailSampleProvider{};                                        // trail emitter가 base/tip sample을 얻는 provider다. pool이 만들지 않고 attachment owner가 넘긴다.
+        EffectHistorySourceGroupKey trailSampleGroupKey{};                                             // shared history 사용 시 trail provider를 구분하는 source group key다.
         Weak<IEffectSourcePointSampleProvider> sourcePointSampleProvider{};                            // source history emitter가 단일 source sample을 얻는 provider다.
+        EffectHistorySourceGroupKey sourcePointGroupKey{};                                             // shared history 사용 시 source point provider를 구분하는 source group key다.
         bool autoReleaseOnFinished{ true };                                                            // true면 Release_Finished()가 완료된 instance를 자동 반환할 수 있다.
     };
 

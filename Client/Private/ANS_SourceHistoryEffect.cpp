@@ -23,7 +23,8 @@ void ANS_SourceHistoryEffect::On_Begin(const AnimNotifyContext& context)
     if (context.owner == nullptr)
         return;
 
-    const Shared<EffectCom> effectCom = EffectCom::Find_FromNotifyOwner(context.owner);
+    const Shared<EffectCom> effectCom =
+        EffectCom::Find_FromNotifyOwner(context.owner, EffectCom::EffectPlayTarget::PartRoot);
     if (effectCom == nullptr)
         return;
 
@@ -47,7 +48,8 @@ void ANS_SourceHistoryEffect::On_End(const AnimNotifyContext& context)
     if (context.owner == nullptr)
         return;
 
-    const Shared<EffectCom> effectCom = EffectCom::Find_FromNotifyOwner(context.owner);
+    const Shared<EffectCom> effectCom =
+        EffectCom::Find_FromNotifyOwner(context.owner, EffectCom::EffectPlayTarget::PartRoot);
     if (effectCom == nullptr)
         return;
 

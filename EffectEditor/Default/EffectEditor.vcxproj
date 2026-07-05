@@ -205,6 +205,7 @@ if exist "$(ProjectDir)..\..\EngineSDK\lib\$(Configuration)\fmod.dll" xcopy /y /
     <ClCompile Include="..\Private\EffectPreviewOrbitCamera.cpp" />
     <ClCompile Include="..\Private\EffectEditorPreviewDefinitionBuilder.cpp" />
     <ClCompile Include="..\Private\EffectEditorPreviewRuntime.cpp" />
+    <ClCompile Include="..\Private\HistoryBudget_View.cpp" />
     <ClCompile Include="..\Private\Level_EffectEditor.cpp" />
     <ClCompile Include="..\Private\MeshDataPreview_View.cpp" />
     <ClCompile Include="..\Private\SimpleMath.cpp" />
@@ -281,6 +282,7 @@ if exist "$(ProjectDir)..\..\EngineSDK\lib\$(Configuration)\fmod.dll" xcopy /y /
     <ClInclude Include="..\Public\Scene_View.h" />
     <ClInclude Include="..\Public\Game_View.h" />
     <ClInclude Include="..\Public\Hierarchy_View.h" />
+    <ClInclude Include="..\Public\HistoryBudget_View.h" />
     <ClInclude Include="..\Public\Content_Browser.h" />
     <ClInclude Include="..\Public\Detail_View.h" />
     <ClInclude Include="..\Public\ModuleDetail_Drawers.h" />

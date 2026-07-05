@@ -19,7 +19,7 @@ public:
         const Weak<TrailPreviewController>& trailPreviewController);
     void Update(float timeDelta);
 
-    HRESULT Restart_FromAuthoring(const vector<AuthoringEmitter>& emitters);
+    HRESULT Restart_FromAuthoring(const vector<AuthoringEmitter>& emitters, const HistoryBudgetData& historyBudget);
     HRESULT Reset_Runtime();
     bool Is_Finished() const;
     void Apply_PreviewEmitterTransformOverrides(const vector<AuthoringEmitter>& emitters);

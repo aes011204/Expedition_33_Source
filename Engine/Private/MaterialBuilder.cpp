@@ -167,6 +167,7 @@ void MaterialBuilder::Initialize(const fs::path& materialsRoot)
         return;
 
     _root = absRoot;
+    unordered_set<string> duplicateBundleWarningKeys;
 
     for (const fs::directory_entry& entry : fs::recursive_directory_iterator(_root, ec))
     {
@@ -194,10 +195,13 @@ void MaterialBuilder::Initialize(const fs::path& materialsRoot)
         const auto it = _keyToBundlePath.find(key);
         if (it != _keyToBundlePath.end())
         {
-            LOG_WARN("[MaterialBuilder] Duplicate bundle key='{}' path='{}' existing='{}'",
-                key,
-                String::ToString(absPath.wstring()),
-                String::ToString(it->second.wstring()));
+            if (duplicateBundleWarningKeys.emplace(key).second)
+            {
+                LOG_WARN("[MaterialBuilder] Duplicate bundle key='{}' path='{}' existing='{}'",
+                    key,
+                    String::ToString(absPath.wstring()),
+                    String::ToString(it->second.wstring()));
+            }
             continue;
         }
 
