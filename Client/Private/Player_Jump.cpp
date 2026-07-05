@@ -15,7 +15,7 @@ Player_Jump::Player_Jump(const Shared<Player_WorldBase>& owner)
 namespace
 {
     constexpr float kHighParkourProbeInterval = 0.f;
-    constexpr float kLandHeavyFallTimeThreshold = 0.75f;
+	constexpr float kLandHeavyFallTimeThreshold = 1.f;
     constexpr float kLandHeavyRootMotionScale = 0.5f;
 
     bool Try_EnterParkourAction(

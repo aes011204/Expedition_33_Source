@@ -41,6 +41,8 @@ void Item_Chroma::Apply_PickupReward()
 
     if (const Shared<GameplayUI> gameplayUI = CLIENT->Get_GameplayUI())
         gameplayUI->Queue_GetChromaPresentation(_amount);
+
+    CLIENT->Play_ChromaPickupItemSound();
 }
 
 Shared<Item_Chroma> Item_Chroma::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)
