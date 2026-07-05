@@ -68,7 +68,7 @@ cbuffer cbEffectMeshMaterial : register(b2)
     float4 g_EffectMaterialCoreColorRgbModulationKeyLeaveTangentsBBlock1[8];
     float4 g_EffectMaterialCoreColorRgbModulationKeyModes[8];
     float4 g_EffectMaterialCoreColorRgbModulationKeyModesBlock1[8];
-    float4 g_EffectMeshModelMaterialFlags = { 0.f, 0.f, 0.f, 0.f };      // x: BaseColor, y: Normal, z: Emissive
+    float4 g_EffectMeshModelMaterialFlags = { 0.f, 0.f, 0.f, 0.f };      // x: BaseColor, y: Normal, z: Emissive, w: ORM
     int g_OpacitySource = 0;
     float g_EffectMeshMaterialTime = 0.f;
     float2 g_EffectMeshPadding;
@@ -81,6 +81,7 @@ Texture2D g_NoiseTexture : register(t1);
 Texture2D g_MaskTexture : register(t2);
 Texture2D g_ModelNormalTexture : register(t3);
 Texture2D g_ModelEmissiveTexture : register(t4);
+Texture2D g_ModelOrmTexture : register(t5);
 
 float Resolve_EffectMeshAxisUV(float rawValue, float transformedValue, float policy)
 {
@@ -170,14 +171,34 @@ float3 Resolve_EffectMeshModelNormal(float2 uv, float2 policy, float3 normal, fl
     );
 }
 
-float3 Apply_EffectMeshModelNormalLighting(float3 color, float3 normal)
+float Resolve_EffectMeshModelRoughness(float2 uv, float2 policy)
 {
-    if (g_EffectMeshModelMaterialFlags.y <= 0.5f)
+    if (g_EffectMeshModelMaterialFlags.w <= 0.5f)
+        return 0.65f;
+
+    return saturate(g_ModelOrmTexture.Sample(LinearClampSampler, Apply_EffectMeshAxisAddress(uv, policy)).g);
+}
+
+float3 Apply_EffectMeshModelMaterialLighting(float3 color, float3 normal, float2 uv, float2 policy)
+{
+    if (g_EffectMeshModelMaterialFlags.y <= 0.5f && g_EffectMeshModelMaterialFlags.w <= 0.5f)
         return color;
 
     const float3 lightDirection = normalize(float3(0.35f, 0.65f, -0.6f));
-    const float lighting = 0.55f + 0.65f * saturate(dot(normalize(normal), lightDirection));
-    return color * lighting;
+    const float3 resolvedNormal = normalize(normal);
+    const float lighting =
+        g_EffectMeshModelMaterialFlags.y > 0.5f
+        ? 0.55f + 0.65f * saturate(dot(resolvedNormal, lightDirection))
+        : 1.f;
+
+    const float roughness = Resolve_EffectMeshModelRoughness(uv, policy);
+    const float visualRoughness = saturate(roughness * 0.75f);
+    const float3 viewDirection = normalize(float3(0.f, 0.f, -1.f));
+    const float3 halfDirection = normalize(lightDirection + viewDirection);
+    const float specularPower = lerp(64.f, 8.f, visualRoughness);
+    const float specularStrength = g_EffectMeshModelMaterialFlags.w > 0.5f ? (1.f - visualRoughness) * 0.35f : 0.f;
+    const float specular = pow(saturate(dot(resolvedNormal, halfDirection)), specularPower) * specularStrength;
+    return color * lighting + float3(specular, specular, specular);
 }
 
 float3 Resolve_EffectMeshModelEmissive(float2 uv, float2 policy, float3 modulationColor)
@@ -292,7 +313,7 @@ EffectMaterialSurface Resolve_EffectMeshSurface(VS_OUT In)
     surfaceInput.opacitySource = g_OpacitySource;
     EffectMaterialSurface surface = EffectMeshCommon_ResolveSurface(surfaceInput);
     const float3 modelNormal = Resolve_EffectMeshModelNormal(mainUV, mainUVPolicy, In.vNormal, In.vTangent, In.vBinormal);
-    surface.color = Apply_EffectMeshModelNormalLighting(surface.color, modelNormal);
+    surface.color = Apply_EffectMeshModelMaterialLighting(surface.color, modelNormal, mainUV, mainUVPolicy);
     surface.color += Resolve_EffectMeshModelEmissive(mainUV, mainUVPolicy, In.vInstanceColor.rgb * g_Tint.rgb);
     return surface;
 }
@@ -379,7 +400,7 @@ PS_OUT PS_ADDITIVE(VS_OUT In)
     additiveInput.opacitySource = g_OpacitySource;
     float3 additiveColor = EffectMeshCommon_ResolveAdditiveContribution(additiveInput);
     const float3 modelNormal = Resolve_EffectMeshModelNormal(mainUV, mainUVPolicy, In.vNormal, In.vTangent, In.vBinormal);
-    additiveColor = Apply_EffectMeshModelNormalLighting(additiveColor, modelNormal);
+    additiveColor = Apply_EffectMeshModelMaterialLighting(additiveColor, modelNormal, mainUV, mainUVPolicy);
     additiveColor += Resolve_EffectMeshModelEmissive(mainUV, mainUVPolicy, In.vInstanceColor.rgb * g_Tint.rgb) * max(resolvedIntensity, 0.f);
     Out.color = float4(additiveColor, 1.f);
     return Out;

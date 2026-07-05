@@ -33,6 +33,20 @@ public:
     using Monster_Part::Play_Animation;
     using Monster_Part::Set_Animation;
 
+    static constexpr const wchar_t* DefaultOneShotOffsetModifierTag = L"Simon_Body_OneShotOffset";
+
+    bool Play_OffsetModifierOnce(
+        const wstring& modifierTag,
+        float strengthAlpha,
+        float durationSec,
+        float startRatio = 0.f,
+        float playRate = 1.f);
+    bool Play_DefaultOffsetOnce(
+        float strengthAlpha,
+        float durationSec,
+        float startRatio = 0.f,
+        float playRate = 1.f);
+
 private:
     HRESULT Ready_Modifier();
 

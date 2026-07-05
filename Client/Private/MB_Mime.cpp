@@ -97,6 +97,9 @@ bool MB_Mime::Try_ApplyBattleBreakOnDamage(const DamageAppliedInfo& info, bool c
     if (_combatStat->Get_AliveStatus() == EAliveStatus::Dead)
         return false;
 
+    if (_hasTriggeredBreak)
+        return false;
+
     if (_combatStat->IsBreak())
         return false;
 

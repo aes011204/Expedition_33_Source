@@ -35,6 +35,7 @@ IMPLEMENT_REFLECTION(MovementCom)
 
     PROPERTY_FLOAT("Jump Velocity", _moveDesc.jumpVelocity, 0.f, 100.f, 0.1f);
     PROPERTY_FLOAT("Gravity", _moveDesc.gravity, -100.f, 0.f, 0.1f);
+    PROPERTY_FLOAT("Max Fall Speed", _moveDesc.maxFallSpeed, 0.f, 500.f, 1.f);
 
     PROPERTY_VEC3("Velocity", _velocity, 10.f);
 
@@ -556,6 +557,7 @@ void MovementCom::Update_VerticalVelocity(float timeDelta)
         return;
 
     _velocity.y += _moveDesc.gravity * timeDelta;
+    _velocity.y = max(_velocity.y, -_moveDesc.maxFallSpeed);
 }
 
 void MovementCom::Apply_Velocity(float timeDelta)

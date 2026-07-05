@@ -49,13 +49,13 @@ void BattleActionExecutor::OnActionEndNotify(BattleAction& action)
         return;
     }
 
-    //if (phase.movementPolicy == BattleMovementPolicy::MoveToTarget ||
-    //    phase.movementPolicy == BattleMovementPolicy::ReturnToOrigin)
-    //{
-    //    action.SnapActorToPhaseGoal();
-    //    action.ResetPhasePrevRootRatio();
-    //    action.SetPhaseReachedGoal(true);
-    //}
+    if (phase.movementPolicy == BattleMovementPolicy::MoveToTarget ||
+        phase.movementPolicy == BattleMovementPolicy::ReturnToOrigin)
+    {
+        action.SnapActorToPhaseGoal();
+        action.ResetPhasePrevRootRatio();
+        action.SetPhaseReachedGoal(true);
+    }
 
     Complete_CurPhase(action);
     //action.phaseReachedGoal = true;
@@ -98,6 +98,13 @@ void BattleActionExecutor::Begin_ActionPhase(BattleAction& action)
         return;
 
     const BattleActionPhase& phase = phases[action.GetCurAnimIndex()];
+
+    if (phase.movementPolicy == BattleMovementPolicy::MoveToTarget ||
+        phase.movementPolicy == BattleMovementPolicy::ReturnToOrigin ||
+        phase.movementPolicy == BattleMovementPolicy::RootMotionToTarget)
+    {
+        action.Get_CurChar().ModelCom->Set_RootMotionEnabled(true);
+    }
 
     //phase에 현재 단계 데이터 저장
     action.BeginPhase(
@@ -550,38 +557,52 @@ void BattleActionExecutor::Update_RatioMoveTo(BattleAction& action, const Shared
     Vec3 toGoal = action.GetPhaseGoalPos() - currentPos;
     toGoal.y = 0.f;
     const float remain = toGoal.Length();
+    const float forwardRemain = toGoal.Dot(path);
 
     if (remain <= 0.05f)
     {
+        transform->Set_Position(action.GetPhaseGoalPos());
         applyInterpolatedRotation(1.f, true);
+        action.ResetPhasePrevRootRatio();
+        action.SetPhaseReachedGoal(true);
+        return;
+    }
+
+    if (forwardRemain <= 0.f)
+    {
+        transform->Set_Position(action.GetPhaseGoalPos());
+        applyInterpolatedRotation(1.f, true);
+        action.ResetPhasePrevRootRatio();
+        action.SetPhaseReachedGoal(true);
         return;
     }
 
     const float currentRatio = action.Get_CurChar().ModelCom->Get_RootMotionTranslationRatio();
     float deltaRatio = currentRatio - action.GetPhasePrevRootRatio();
 
-
-
-    //if (deltaRatio < 0.f)
-    //    deltaRatio = 0.f;
+    if (deltaRatio < 0.f)
+        deltaRatio = 0.f;
 
     action.SetPhasePrevRootRatio(currentRatio);
 
-
     const float moveAmount = totalDistance * deltaRatio;
- /*   if (moveAmount <= 0.f)
-        return;*/
+    if (moveAmount <= 0.f)
+        return;
 
-    const float clampedMove = min(moveAmount, remain);
-    const float moveRatio = clamp(1.f - (remain - clampedMove) / totalDistance, 0.f, 1.f);
+    if (moveAmount >= forwardRemain)
+    {
+        transform->Set_Position(action.GetPhaseGoalPos());
+        applyInterpolatedRotation(1.f, true);
+        action.ResetPhasePrevRootRatio();
+        action.SetPhaseReachedGoal(true);
+        return;
+    }
 
-    const auto& rm = action.Get_CurChar().ModelCom->Get_RootTransformVelocity();
-    Vec3 right = transform->Get_WorldRight();
-    right.y = 0.f;
-    right.Normalize();
-    transform->Set_Position(currentPos + path * clampedMove + right * (rm.position.x * 0.01f));
+    const float clampedMove = moveAmount;
+    const float moveRatio = clamp(1.f - (forwardRemain - clampedMove) / totalDistance, 0.f, 1.f);
+
+    transform->Set_Position(currentPos + path * clampedMove);
     applyInterpolatedRotation(moveRatio, false);
-   // transform->Set_Position(currentPos + path * clampedMove);
 
 }
 

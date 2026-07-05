@@ -196,6 +196,36 @@ void MB_Simon::Set_PlayEffect(bool playEffect)
         StopSimonEffect();
 }
 
+bool MB_Simon::Play_BodyOffsetModifierOnce(
+    const wstring& modifierTag,
+    float strengthAlpha,
+    float durationSec,
+    float startRatio,
+    float playRate)
+{
+    return _body != nullptr &&
+        _body->Play_OffsetModifierOnce(
+            modifierTag,
+            strengthAlpha,
+            durationSec,
+            startRatio,
+            playRate);
+}
+
+bool MB_Simon::Play_DefaultBodyOffsetOnce(
+    float strengthAlpha,
+    float durationSec,
+    float startRatio,
+    float playRate)
+{
+    return _body != nullptr &&
+        _body->Play_DefaultOffsetOnce(
+            strengthAlpha,
+            durationSec,
+            startRatio,
+            playRate);
+}
+
 void MB_Simon::Apply_WeaponScaleMultiplier()
 {
     if (!_weapon)

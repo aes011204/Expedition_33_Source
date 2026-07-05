@@ -109,6 +109,7 @@ void Trigger_Cinematic::OnBeginOverlap(Shared<ColliderCom> self, Shared<Collider
                     {
                         RuntimeRuleStateService::Apply_ToCurrentRuntime(
                             RuntimeRuleStateService::Build_BishopStartUnlocks(), false);
+                        CLIENT->Restore_CurrentHeroesHpToMax();
                     }
 
                     worldMonster->Begin_BattleFromCinematic(false); // 시네마틱 종료 진입은 월드액션 선공이 아니며, 내부에서 즉시 전투로 들어간다.

@@ -158,6 +158,9 @@ void ANS_Move::On_End(const AnimNotifyContext& context)
     if (context.isPreview || context.isCinematic)
         return;
 
+    if (!_isCounter && context.model != nullptr)
+        context.model->Set_RootMotionEnabled(true);
+
     if (_moveTarget == nullptr)
         return;
 

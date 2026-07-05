@@ -475,6 +475,12 @@
     <ClCompile Include="..\Private\BattleResultRecoder.cpp">
       <Filter>05. BattleSystem</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\BattleTargetingVoicePreset.cpp">
+      <Filter>05. BattleSystem</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\BattleTurnStartVoicePreset.cpp">
+      <Filter>05. BattleSystem</Filter>
+    </ClCompile>
     <ClCompile Include="..\Private\BattleSpawnRegistry.cpp">
       <Filter>BattleState</Filter>
     </ClCompile>
@@ -1101,6 +1107,12 @@
     <ClCompile Include="..\Private\UI_BattleAnnounce.cpp">
       <Filter>02. GameObject\UI</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\UI_Burn.cpp">
+      <Filter>02. GameObject\UI</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\UI_Slow.cpp">
+      <Filter>02. GameObject\UI</Filter>
+    </ClCompile>
     <ClCompile Include="..\Private\UI_LevelAnnounce.cpp">
       <Filter>02. GameObject\UI</Filter>
     </ClCompile>
@@ -1457,7 +1469,7 @@
     <ClCompile Include="..\Private\Trigger_WorldAction.cpp">
       <Filter>02. GameObject\Map\MapTrigger</Filter>
     </ClCompile>
-    <ClCompile Include="..\Private\Trigger_FallTornadoZone.cpp">
+    <ClCompile Include="..\Private\Trigger_TeleportZone.cpp">
       <Filter>02. GameObject\Map\MapTrigger\Tornado</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\SimonCriticalGlowController.cpp">
@@ -1611,7 +1623,7 @@
     <ClInclude Include="..\Public\Trigger_WorldAction.h">
       <Filter>02. GameObject\Map\MapTrigger</Filter>
     </ClInclude>
-    <ClInclude Include="..\Public\Trigger_FallTornadoZone.h">
+    <ClInclude Include="..\Public\Trigger_TeleportZone.h">
       <Filter>02. GameObject\Map\MapTrigger\Tornado</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\SimonCriticalGlowController.h">
@@ -1932,6 +1944,12 @@
       <Filter>BattleState</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\BattleResultRecoder.h">
+      <Filter>05. BattleSystem</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\BattleTargetingVoicePreset.h">
+      <Filter>05. BattleSystem</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\BattleTurnStartVoicePreset.h">
       <Filter>05. BattleSystem</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\BattleSpawnRegistry.h">
@@ -2662,6 +2680,12 @@
       <Filter>02. GameObject\UI</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\UI_DamageFont.h">
+      <Filter>02. GameObject\UI</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\UI_Burn.h">
+      <Filter>02. GameObject\UI</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\UI_Slow.h">
       <Filter>02. GameObject\UI</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\UI_EscapeSkipTurnBack.h">

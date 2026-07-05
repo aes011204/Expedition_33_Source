@@ -37,6 +37,8 @@ public:
         bool isCritical,
         AttackType attackType,
         const Vec3* overrideWorldAnchor = nullptr);
+    void Play_BurnDamageIcon();
+    void Play_SlowDamageIcon();
 
 private:
     HRESULT Load_UI(uint32 levelIndex);
@@ -44,6 +46,11 @@ private:
 
     void Set_ActiveStyle(DamageFontStyle style);
     void Set_DamageText(int32 damageValue);
+    bool Should_ShowBurnDamageIcon() const;
+    void Play_StatusDamageIcon(const Shared<UI_Base>& icon);
+    void Close_StatusDamageIcons();
+    void Sync_StatusDamageIconPosition();
+    Vec2 Resolve_StatusDamageIconLocalPosition(const Shared<UI_Base>& icon) const;
     bool Apply_DamageFontTuning();
     bool Try_GetFeedbackWorldPosition(const BattleChar& target, Vec3& outWorldPos) const override;
     Vec2 Resolve_ScreenBaseOffset(const Vec3& worldPos) const override;
@@ -59,6 +66,9 @@ private:
 
     Shared<UI_Text> _damageText{};
     Shared<UI_Text> _damageTextBg{};
+    Shared<UI_Base> _burnDamageIcon{};
+    Shared<UI_Base> _slowDamageIcon{};
+    Shared<UI_Base> _activeStatusDamageIcon{};
 
     DamageFontStyle _activeStyle = DamageFontStyle::Normal;
     AttackType _activeAttackType = AttackType::Invalid;
@@ -80,6 +90,7 @@ private:
     float _damageScreenOffsetCloseDistance = 5.f;
     float _damageScreenOffsetFarDistance = 14.f;
     Vec2 _damageScreenClampPadding = Vec2(120.f, 130.f);
+    float _statusDamageIconGap = 0.f;
 
     float _damageWorldAnchorRandomMinY = -0.12f;
     float _damageWorldAnchorRandomMaxY = 0.18f;

@@ -15,7 +15,8 @@ NS_END
 NS_BEGIN(Client)
 
 class PreviewCamera;
-    class SkillTreeCom;
+class SkillTreeCom;
+class UI_AbilityPentagon;
 class SkillTree_Panel final : public Base
 {
 public:
@@ -54,6 +55,7 @@ public:
         umap<wstring, Shared<UI_Base>> tooltipsByName;
         umap<wstring, Shared<UI_Base>> tooltips;
               
+        Shared<UI_Text>                characterNameText{};
         Shared<UI_Text>                levelText{};
 
         Shared<UI_Text>                vitalityText{};
@@ -75,6 +77,11 @@ public:
         Shared<UI_Text>                speedText{};
         Shared<UI_Text>                defenseValueText{};
         Shared<UI_Text>                criticalRateText{};
+
+        Shared<UI_Base>                abilityPanelRoot{};
+        Shared<UI_Image>               abilityPentagonFrame{};
+        Shared<UI_Image>               abilityPentagonAnchor{};
+        Shared<UI_AbilityPentagon>     abilityPentagonFill{};
 
     };
 
@@ -103,6 +110,7 @@ private:
     HRESULT         Bind_SkillNode_UI(const wstring& playerName, SkillTreeViewState& outView);
     HRESULT         Bind_LockNode_UI(const wstring& playerName,SkillTreeViewState& outView);
     HRESULT         Bind_Status_UI();
+    HRESULT         Ensure_AbilityPentagonUI(SkillTreeViewState& view);
     void            Set_SkillPoint();
     void            Update_UI();
 
@@ -111,8 +119,6 @@ private:
 
     static void     Set_IntText(const Shared<UI_Text>& text, int32 value);
     static void     Set_UIntText(const Shared<UI_Text>& text, uint32 value);
-    static void     Set_PercentText(const Shared<UI_Text>& text, float value);
-    static void     Set_HpText(const Shared<UI_Text>& text, float hp);
 
 private:
     void    Change_ToSelectedViewState();

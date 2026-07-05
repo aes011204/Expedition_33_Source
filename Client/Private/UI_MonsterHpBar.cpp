@@ -7,8 +7,10 @@
 #include "Character_BattleBase.h"
 #include "Monster_BattleBase.h"
 #include "PlayableParts.h"
+#include "Buff.h"
 #include "CombatStatCom.h"
 #include "MonsterStatCom.h"
+#include "UI_Text.h"
 
 using namespace UI_Utils;
 
@@ -62,10 +64,14 @@ void UI_MonsterHpBar::Update(float timeDelta)
     Set_Hp(target.statCom->Get_CurHp(), target.statCom->Get_StatInfo().maxHp);
     Update_DelayHpGauge(timeDelta, _hpRatio);
     Apply_BreakGauge(target);
+    Apply_BurnStatus(target);
+    Apply_SlowStatus(target);
     Update_FreeAimScale(timeDelta);
 
     if (_root && _root->Get_Transform())
         _root->Get_Transform()->Set_Position(screenPos);
+
+    Sync_StatusIndicatorPositions();
 }
 
 void UI_MonsterHpBar::Open()
@@ -88,6 +94,18 @@ void UI_MonsterHpBar::Close()
 
     if (_breakGauge)
         _breakGauge->Set_FillRatio(0.f);
+
+    if (_burnPanel)
+    {
+        _burnPanel->Set_AlphaMultiplier(0.f);
+        _burnPanel->Close();
+    }
+
+    if (_slowIcon)
+    {
+        _slowIcon->Set_AlphaMultiplier(0.f);
+        _slowIcon->Close();
+    }
 
     _freeAimEmphasis = false;
     _freeAimScale = kFreeAimMinScale;
@@ -231,6 +249,18 @@ HRESULT UI_MonsterHpBar::Bind_UI()
     Shared<UI_Base> breakGaugeBase = Find_UI(_uiByName, L"Image_Monster_Break_Gauge");
     CHECK_NULL(breakGaugeBase, E_FAIL);
 
+    _burnPanel = Find_UI(_uiByName, L"Panel_Monster_HP_Bar_Burn");
+    CHECK_NULL(_burnPanel, E_FAIL);
+
+    _slowIcon = Find_UI(_uiByName, L"Image_Monster_HP_Bar_Slow");
+    CHECK_NULL(_slowIcon, E_FAIL);
+
+    _burnStackText = Find_TypedUI<UI_Text>(_uiByName, L"Text_Monster_HP_Bar_Burn");
+    CHECK_NULL(_burnStackText, E_FAIL);
+
+    _burnStackBgText = Find_TypedUI<UI_Text>(_uiByName, L"Text_Monster_HP_Bar_Burn_BG");
+    CHECK_NULL(_burnStackBgText, E_FAIL);
+
     _hpGauge = dynamic_pointer_cast<UI_Image>(hpGaugeBase);
     CHECK_NULL(_hpGauge, E_FAIL);
 
@@ -249,6 +279,16 @@ HRESULT UI_MonsterHpBar::Bind_UI()
     _breakGauge->Set_UseFillRatio(true);
     _breakGauge->Set_FillOrigin(UI_Image::FillOrigin::LeftToRight);
     _breakGauge->Set_FillRatio(0.f);
+
+    const Vec2 rootTopLeft = _root->Get_ResolvedLocalTopLeft();
+    _burnStatusRootOffset = _burnPanel->Get_ResolvedLocalPosition() - rootTopLeft;
+    _slowStatusRootOffset = _slowIcon->Get_ResolvedLocalPosition() - rootTopLeft;
+
+    _burnPanel->Set_AlphaMultiplier(0.f);
+    _burnPanel->Close();
+
+    _slowIcon->Set_AlphaMultiplier(0.f);
+    _slowIcon->Close();
 
     return S_OK;
 }
@@ -292,6 +332,83 @@ void UI_MonsterHpBar::Apply_BreakGauge(const BattleChar& target)
         clamp(monsterStat->Get_CurBreak() / monsterStat->Get_MaxBreak(), 0.f, 1.f);
 
     _breakGauge->Set_FillRatio(ratio); // SL HUD와 반대로, 누적된 파괴량만큼 왼쪽에서 오른쪽으로 채운다.
+}
+
+void UI_MonsterHpBar::Apply_BurnStatus(const BattleChar& target)
+{
+    if (_burnPanel == nullptr || _burnStackText == nullptr || _burnStackBgText == nullptr)
+        return;
+
+    const uint32 burnStack = Resolve_BuffStack(target, Buffs::Burn);
+    if (burnStack == 0)
+    {
+        _burnPanel->Set_AlphaMultiplier(0.f);
+        _burnPanel->Close();
+        return;
+    }
+
+    const wstring stackText = to_wstring(burnStack);
+    if (_burnStackText->Get_Text() != stackText)
+        _burnStackText->Set_Text(stackText);
+
+    if (_burnStackBgText->Get_Text() != stackText)
+        _burnStackBgText->Set_Text(stackText);
+
+    if (!_burnPanel->Is_Open())
+        _burnPanel->Open();
+
+    _burnPanel->Set_AlphaMultiplier(1.f);
+}
+
+void UI_MonsterHpBar::Apply_SlowStatus(const BattleChar& target)
+{
+    if (_slowIcon == nullptr)
+        return;
+
+    if (Resolve_BuffStack(target, Buffs::Slow) == 0)
+    {
+        _slowIcon->Set_AlphaMultiplier(0.f);
+        _slowIcon->Close();
+        return;
+    }
+
+    if (!_slowIcon->Is_Open())
+        _slowIcon->Open();
+
+    _slowIcon->Set_AlphaMultiplier(1.f);
+}
+
+void UI_MonsterHpBar::Sync_StatusIndicatorPositions()
+{
+    if (_root == nullptr)
+        return;
+
+    const Vec2 rootTopLeft = _root->Get_ResolvedLocalTopLeft();
+    const auto syncPosition = [&rootTopLeft](const Shared<UI_Base>& ui, const Vec2& offset)
+        {
+            if (ui == nullptr || !ui->Is_Open())
+                return;
+
+            if (UI_Transform* transform = ui->Get_Transform())
+                transform->Set_Position(rootTopLeft + offset);
+        };
+
+    syncPosition(_burnPanel, _burnStatusRootOffset);
+    syncPosition(_slowIcon, _slowStatusRootOffset);
+}
+
+uint32 UI_MonsterHpBar::Resolve_BuffStack(const BattleChar& target, Buffs buffId) const
+{
+    if (target.statCom == nullptr)
+        return 0;
+
+    for (const auto& buff : target.statCom->Get_Buff())
+    {
+        if (buff != nullptr && buff->Get_BuffId() == buffId)
+            return buff->Get_Stack();
+    }
+
+    return 0;
 }
 
 void UI_MonsterHpBar::Sync_DelayedHpGauge(float ratio)

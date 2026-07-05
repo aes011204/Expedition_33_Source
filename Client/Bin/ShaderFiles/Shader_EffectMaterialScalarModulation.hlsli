@@ -267,9 +267,7 @@ float3 EffectMaterialCoreColor_EvaluateCurve(uint modulatorIndex, float phase, f
     float3 result = fallbackColor;
     const float4 meta = g_EffectMaterialCoreColorRgbModulationMeta[modulatorIndex];
     if (meta.w >= 0.5f)
-    {
         result = particleLifeUniformColor;
-    }
     else
     {
         result.x = EffectMaterialCoreColor_EvaluateComponent(
