@@ -232,13 +232,28 @@ Profile_View::~Profile_View()
 void Profile_View::Render()
 {
     if (!Is_Open())
+    {
+        if (_restoreRenderViewHotspotCaptureAfterLog)
+        {
+            GAME->Set_RenderViewHotspotCaptureEnabled(false);
+            _restoreRenderViewHotspotCaptureAfterLog = false;
+            _pendingViewHotspotVisibleCountLogFrames = 0;
+        }
         return;
+    }
 
     if (_pendingViewHotspotVisibleCountLogFrames > 0)
     {
         --_pendingViewHotspotVisibleCountLogFrames;
         if (_pendingViewHotspotVisibleCountLogFrames == 0)
+        {
             Log_ViewHotspot();
+            if (_restoreRenderViewHotspotCaptureAfterLog)
+            {
+                GAME->Set_RenderViewHotspotCaptureEnabled(false);
+                _restoreRenderViewHotspotCaptureAfterLog = false;
+            }
+        }
     }
 
     bool isOpen = Is_Open();
@@ -506,6 +521,11 @@ void Profile_View::Draw_Toolbar()
     ImGui::SameLine();
     if (ImGui::Button("Log View Hotspot"))
     {
+        const bool wasHotspotCaptureEnabled = GAME->Is_RenderViewHotspotCaptureEnabled();
+        if (!wasHotspotCaptureEnabled)
+            GAME->Set_RenderViewHotspotCaptureEnabled(true);
+
+        _restoreRenderViewHotspotCaptureAfterLog = _restoreRenderViewHotspotCaptureAfterLog || !wasHotspotCaptureEnabled;
         Client::ClientInstance::Request_DebugMapInstancedVisibleCountReadback();
         _pendingViewHotspotVisibleCountLogFrames = 2;
     }
@@ -518,6 +538,17 @@ void Profile_View::Draw_Toolbar()
 
     ImGui::SameLine();
     ImGui::Checkbox("Auto Hitch Log", &_autoHitchLog);
+
+    ImGui::SameLine();
+    ImGui::SetNextItemWidth(90.f);
+    if (ImGui::InputInt("Hitch Logs", &_autoHitchLogLimit))
+    {
+        _autoHitchLogLimit = max(0, min(_autoHitchLogLimit, 1000));
+        _autoHitchLogRemaining = min(_autoHitchLogRemaining, _autoHitchLogLimit);
+    }
+
+    ImGui::SameLine();
+    ImGui::Text("Hitch Left: %d", _autoHitchLogRemaining);
 
     ImGui::SameLine();
     ImGui::SetNextItemWidth(90.f);
@@ -1201,10 +1232,11 @@ void Profile_View::Log_AutoHitch(double frameMs)
 
     const spdlog::source_loc sourceLoc{ __FILE__, __LINE__, SPDLOG_FUNCTION };
     Log_Profile_Snapshot_Line(sourceLoc, fmt::format(
-        "AutoHitch frame_ms={:.2f} threshold_ms={:.2f} remaining={}",
+        "AutoHitch frame_ms={:.2f} threshold_ms={:.2f} remaining={} limit={}",
         frameMs,
         _autoHitchThresholdMs,
-        _autoHitchLogRemaining));
+        _autoHitchLogRemaining,
+        _autoHitchLogLimit));
     Log_Snapshot();
     Log_ViewHotspot();
 }
@@ -1476,7 +1508,7 @@ void Profile_View::Reset_Stats()
     _hasResourceMemorySample = false;
     _peakWorkingSetMb = 0;
     _peakPrivateBytesMb = 0;
-    _autoHitchLogRemaining = 8;
+    _autoHitchLogRemaining = _autoHitchLogLimit;
     _lastAutoHitchLogTime = {};
 }
 
