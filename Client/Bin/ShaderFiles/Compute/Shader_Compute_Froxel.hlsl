@@ -142,13 +142,24 @@ void InjectFroxelBuffer(uint3 dispatchThreadID : SV_DispatchThreadID)
     const float3 froxelPositionWS   // world space 위치
         = ComputeFroxelWorldPosition(dispatchThreadID, froxelPositionVS, uv, viewDepth);
 
-    // scene depth를 읽어, Froxel이 물체 뒤에 있는지 판단한다.
+    // scene depth 뒤의 froxel을 칼같이 자르면 view-aligned slice가 판처럼 보인다.
+    // 그래서 물체 뒤쪽으로 들어갈수록 부드럽게 감쇠시킨다.
     const float4 depthSample = g_FroxelDepthTexture.SampleLevel(PointClampSampler, uv, 0.f);
     const float sceneViewDepth = depthSample.y * g_FroxelCameraFar;
-    if (sceneViewDepth > 0.f && viewDepth > sceneViewDepth + g_FroxelDepthBias)
+    float depthFade = 1.f;
+    if (sceneViewDepth > 0.f)
     {
-        g_FroxelVolumeUAV[dispatchThreadID] = 0.f;
-        return;
+        const float depthSoftness = max(g_FroxelDepthBias * 32.f, 1.5f);
+        depthFade = 1.f - smoothstep(
+            sceneViewDepth + g_FroxelDepthBias,
+            sceneViewDepth + g_FroxelDepthBias + depthSoftness,
+            viewDepth);
+
+        if (depthFade <= 0.001f)
+        {
+            g_FroxelVolumeUAV[dispatchThreadID] = 0.f;
+            return;
+        }
     }
 
     float3 accumulatedScattering = 0.f;
@@ -192,7 +203,7 @@ void InjectFroxelBuffer(uint3 dispatchThreadID : SV_DispatchThreadID)
     }
 
     // Injection 결과 저장
-    g_FroxelVolumeUAV[dispatchThreadID] = float4(accumulatedScattering, saturate(accumulatedExtinction));
+    g_FroxelVolumeUAV[dispatchThreadID] = float4(accumulatedScattering * depthFade, saturate(accumulatedExtinction * depthFade));
 }
 
 float4 LoadFroxelSourceClamped(int3 coord)

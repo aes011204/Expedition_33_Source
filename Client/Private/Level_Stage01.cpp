@@ -13,7 +13,7 @@
 
 namespace
 {
-    constexpr wchar_t kEffectName[] = L"Effects/Assets/Map/FX_TornadoPaint_EX.effect.json";
+    constexpr wchar_t kEffectName[] = L"Effects/Assets/Map/FX_TornadoPaint_V2.effect.json";
 
     constexpr wchar_t kParticelEffectName[] = L"Effects/Assets/Map/FX_FallingLight.effect.json";
 
@@ -38,6 +38,13 @@ HRESULT Level_Stage01::Initialize()
     RuntimeRuleStateService::Apply_ToCurrentRuntime(
         RuntimeRuleStateService::Build_SimonStartUnlocks(), false);
     CLIENT->Restore_CurrentHeroesHpToMax();
+
+    // 안개, 빛 설정
+    GAME->Set_RenderEnvironment(true);
+    if (FAILED(GAME->Change_IBL(
+        L"../../../Client/Bin/Resources/Textures/Shader/IBL/irradiance_eye.dds",
+        L"../../../Client/Bin/Resources/Textures/Shader/IBL/perfilter_eye.dds")))
+        return E_FAIL;
 
     //GAME->Play_BGM(Constants::SoundBGM::SpringBGM, 1.f, true, 0.f);
 
@@ -81,6 +88,9 @@ void Level_Stage01::BeginPlay()
 
     CLIENT->Capture_InitialWorldSnapshot();
     CLIENT->Queue_LevelAnnounce(LevelType::Stage01);
+
+    Apply_Stage01RenderParams();
+
 }
 
 void Level_Stage01::Update(float fTimeDelta)
@@ -117,7 +127,7 @@ HRESULT Level_Stage01::Ready_Lights()
 
     LIGHT_DESC LightDesc{};
     LightDesc.type = LightType::Directional;
-    LightDesc.direction = XMFLOAT4(1.f, -1.f, 1.f, 0.f);
+    LightDesc.direction = XMFLOAT4(-0.560f, -0.750f, 0.620f, 0.f);
     LightDesc.diffuse = XMFLOAT4(1.f, 1.f, 1.0f, 1.f);
     LightDesc.ambient = XMFLOAT4(0.3f, 0.3f, 0.3f, 1.f);
     LightDesc.specular = XMFLOAT4(1.f, 1.f, 1.f, 1.f);
@@ -239,8 +249,103 @@ Shared<Level_Stage01> Level_Stage01::Create(const ComPtr<Device>& device, const 
     return pInstance;
 }
 
+void Level_Stage01::Apply_Stage01RenderParams()
+{
+    Shared<LightingPipeline> lightingPipeline = GAME->Get_LightingPipeline();
+    Shared<PostProcessPipeline> postProcessPipeline = GAME->Get_PostProcessPipeline();
+    if (_hasSavedStage01RenderParams)
+        return;
+
+    GAME->Get_LightDescs(_savedLightDescs);
+    if (lightingPipeline != nullptr)
+    {
+        _savedSSAOCB = lightingPipeline->Get_Params();
+        _savedDeferredLightingCB = lightingPipeline->Get_DeferredLightingParams();
+    }
+    if (postProcessPipeline != nullptr)
+        _savedPostProcessFeatures = postProcessPipeline->Get_PostProcessFeatures();
+
+    _hasSavedStage01RenderParams = true;
+
+    vector<LIGHT_DESC> lightDescs = _savedLightDescs;
+    for (LIGHT_DESC& lightDesc : lightDescs)
+    {
+        if (lightDesc.type != LightType::Directional)
+            continue;
+
+        lightDesc.direction = Vec4(-0.560f, -0.750f, 0.620f, 0.f);
+        break;
+    }
+    if (!lightDescs.empty())
+        GAME->Set_Lights(lightDescs);
+
+    if (lightingPipeline != nullptr)
+    {
+        SSAOCB ssao = _savedSSAOCB;
+        ssao.SSAOEnabled = 1u;
+        ssao.SSAORadius = 0.100f;
+        ssao.SSAOBias = 0.0600f;
+        ssao.SSAOIntensity = 1.700f;
+        ssao.SSAOPower = 1.500f;
+        ssao.SSAODepthRange = 1.000f;
+        ssao.SSAOSampleCount = 16u;
+        lightingPipeline->Set_Params(ssao);
+
+        DeferredLightingCB lighting = _savedDeferredLightingCB;
+        lighting.stylizedLightContrastEnabled = 1u;
+        lighting.stylizedLightContrastStrength = 0.51f;
+        lighting.stylizedLightThreshold = 0.16f;
+        lighting.stylizedLightSoftness = 0.500f;
+        lighting.stylizedLitBoost = 1.13f;
+        lighting.stylizedUnlitAmbientScale = 0.00f;
+        lighting.stylizedDeepUnlitThreshold = 0.52f;
+        lighting.stylizedDeepUnlitSoftness = 0.500f;
+        lighting.stylizedDeepUnlitAmbientScale = 0.29f;
+        lightingPipeline->Set_DeferredLightingParams(lighting);
+    }
+
+    if (postProcessPipeline != nullptr)
+    {
+        postProcessPipeline->Set_PostProcessFeatures(
+            PostProcessFeature::HDR |
+            PostProcessFeature::ToneMapping |
+            PostProcessFeature::Exposure |
+            PostProcessFeature::Bloom |
+            PostProcessFeature::Gamma |
+            PostProcessFeature::LightShaft);
+    }
+}
+
+void Level_Stage01::Restore_Stage01RenderParams()
+{
+    if (!_hasSavedStage01RenderParams)
+        return;
+
+    Shared<LightingPipeline> lightingPipeline = GAME->Get_LightingPipeline();
+    if (lightingPipeline != nullptr)
+    {
+        lightingPipeline->Set_Params(_savedSSAOCB);
+        lightingPipeline->Set_DeferredLightingParams(_savedDeferredLightingCB);
+    }
+
+    Shared<PostProcessPipeline> postProcessPipeline = GAME->Get_PostProcessPipeline();
+    if (postProcessPipeline != nullptr)
+        postProcessPipeline->Set_PostProcessFeatures(_savedPostProcessFeatures);
+
+    if (!_savedLightDescs.empty())
+        GAME->Set_Lights(_savedLightDescs);
+
+    _savedDeferredLightingCB = DeferredLightingCB{};
+    _savedSSAOCB = SSAOCB{};
+    _savedPostProcessFeatures = PostProcessFeature::None;
+    _savedLightDescs.clear();
+    _hasSavedStage01RenderParams = false;
+}
+
 void Level_Stage01::Free()
 {
+    Restore_Stage01RenderParams();
+
     CLIENT->Clear_GameplayUI();
 
     __super::Free();

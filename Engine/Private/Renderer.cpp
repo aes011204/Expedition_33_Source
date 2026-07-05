@@ -671,6 +671,10 @@ void Renderer::Render_CombinedHDR()
         L"Render_CombinedHDR:FAIL Bind_RT_ShaderResource(g_SpecularTexture)");
 
     COMBINEDHDR_RETURN_LOG_IF_FAILED(
+        GAME->Bind_RT_ShaderResource(_deferredShader, "g_LightMaskTexture", RT::LightMask),
+        L"Render_CombinedHDR:FAIL Bind_RT_ShaderResource(g_LightMaskTexture)");
+
+    COMBINEDHDR_RETURN_LOG_IF_FAILED(
         GAME->Bind_RT_ShaderResource(_deferredShader, "g_DepthTexture", RT::Depth),
         L"Render_CombinedHDR:FAIL Bind_RT_ShaderResource(g_DepthTexture)");
 
@@ -1785,6 +1789,7 @@ HRESULT Renderer::Render_PointLightGlow()
         lightCB.ambient = desc.ambient;
         lightCB.specular = desc.specular;
         lightCB.range = desc.range;
+        lightCB.pointAttenuationPower = desc.pointAttenuationPower;
 
         ENDMRT_RETURN_FAIL_LOG_IF_FAILED(
             _deferredShader->Bind_CBufferData(lightCB),
