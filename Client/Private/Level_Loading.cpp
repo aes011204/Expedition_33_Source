@@ -10,6 +10,7 @@
 #include "Monster_WorldBase.h"
 #include "UI_RuntimeLoader.h"
 #include "BattleEncounterProfile.h"
+#include "FreeCamera.h"
 
 #include "Level_MainTitle.h"
 #include "Level_GameEntry.h"
@@ -44,6 +45,7 @@ HRESULT Level_Loading::Initialize(LevelType eNextLevelID)
 
     if (FAILED(Ready_Layer_UI(TEXT("Layer_UI"))))
         return E_FAIL;
+
 
     _loader = Loader::Create(_device.Get(), _context.Get(), eNextLevelID);
 

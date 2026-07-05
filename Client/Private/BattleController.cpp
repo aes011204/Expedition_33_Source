@@ -2928,6 +2928,17 @@ void BattleController::Handle_DamageApplied(const DamageAppliedInfo& info)
             if (const Shared<MB_Simon> simon = dynamic_pointer_cast<MB_Simon>(info.target.actor))
             {
                 simon->Play_DefaultBodyOffsetOnce(1.f, -1.f);
+
+                if (const Shared<TransformCom> targetTransform = simon->Get_Transform())
+                {
+                    const Vec3 soundPosition = targetTransform->Get_WorldPosition();
+                    GAME->Play_SoundCue(
+                        Constants::SoundCue::Duallist_Pain,
+                        &soundPosition,
+                        0.75f,
+                        1.f,
+                        0.f);
+                }
             }
 
             HitAction(info.target, info.attackType, info.isCritical);
@@ -3926,6 +3937,7 @@ void BattleController::Continue_StartTurnAfterStatusEffects()
         GAME->Get_EventBus().Publish(event);
 
         OnTurnStarted.Broadcast(_currentTurnActor, BattleTurnState::ChooseAction);
+        CLIENT->Play_BattleTurnStartVoice();
         return;
     }
 

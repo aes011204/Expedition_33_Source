@@ -4,6 +4,7 @@
 #include "BattleController.h"
 #include "BattleEffectPrewarmCollector.h"
 #include "BattleTargetingVoicePreset.h"
+#include "BattleTurnStartVoicePreset.h"
 #include "BT_Node_Bootstrap.h"
 #include "ComputeSpriteEmitter.h"
 #include "EffectCom.h"
@@ -319,6 +320,9 @@ HRESULT ClientInstance::Initialize_Client(const ComPtr<Device>& device, const Co
 
     _battleTargetingVoicePreset = BattleTargetingVoicePreset::Create();
     CHECK_NULL(_battleTargetingVoicePreset, E_FAIL);
+
+    _battleTurnStartVoicePreset = BattleTurnStartVoicePreset::Create();
+    CHECK_NULL(_battleTurnStartVoicePreset, E_FAIL);
 
     _battleTargetingVoiceTurnStartedHandle =
         _battleController->OnTurnStarted.Add(
@@ -1637,16 +1641,25 @@ bool ClientInstance::Play_BattleMonsterTargetingVoice(
         selectedSkill);
 }
 
+bool ClientInstance::Play_BattleTurnStartVoice()
+{
+    if (_battleTurnStartVoicePreset == nullptr || _battleController == nullptr)
+        return false;
+
+    return _battleTurnStartVoicePreset->Play(_battleController->Get_TurnActionRequest().actor);
+}
+
 void ClientInstance::Handle_BattleTargetingVoiceTurnStarted(
     const BattleChar& actor,
     BattleTurnState state)
 {
     UNREFERENCED_PARAMETER(state);
 
-    if (_battleTargetingVoicePreset == nullptr)
-        return;
+    if (_battleTargetingVoicePreset != nullptr)
+        _battleTargetingVoicePreset->Reset_ForTurn(actor);
 
-    _battleTargetingVoicePreset->Reset_ForTurn(actor);
+    if (_battleTurnStartVoicePreset != nullptr)
+        _battleTurnStartVoicePreset->Reset_ForTurn(actor);
 }
 
 void ClientInstance::Request_GamePlay()
@@ -2549,6 +2562,7 @@ void ClientInstance::Release_Client()
     ReleaseManager(_playerInventory);
     ReleaseManager(_costumeManager);
     ReleaseManager(_battleTargetingVoicePreset);
+    ReleaseManager(_battleTurnStartVoicePreset);
     ReleaseManager(_battleController);
     ReleaseManager(_gamePlayUI);
     ReleaseManager(_screenFxManager);

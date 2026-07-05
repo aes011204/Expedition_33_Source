@@ -19,6 +19,7 @@ cbuffer cbEffectMeshDistortion : register(b2)
     float g_FlowUVTilingMode = 0.f;
     float g_FlowUVRotation = 0.f;
     float g_EffectMeshDistortionPadding = 0.f;
+
 #include "Shader_EffectMaterialModulationPayloadGlobals.hlsli"
 };
 

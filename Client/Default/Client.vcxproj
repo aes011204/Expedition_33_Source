@@ -233,6 +233,7 @@
     <ClInclude Include="..\Public\BattleSpawnRegistry.h" />
     <ClInclude Include="..\Public\BattleStartSpawner.h" />
     <ClInclude Include="..\Public\BattleTargetingVoicePreset.h" />
+    <ClInclude Include="..\Public\BattleTurnStartVoicePreset.h" />
     <ClInclude Include="..\Public\BattleTransition_ScreenFx.h" />
     <ClInclude Include="..\Public\BattleTurnCameraPoseUtils.h" />
     <ClInclude Include="..\Public\BattleTutorialController.h" />
@@ -257,7 +258,7 @@
     <ClInclude Include="..\public\ChangeWeapon_Panel.h" />
     <ClInclude Include="..\Public\SimonCriticalGlowController.h" />
     <ClInclude Include="..\Public\SL_UseItem.h" />
-    <ClInclude Include="..\Public\Trigger_FallTornadoZone.h" />
+    <ClInclude Include="..\Public\Trigger_TeleportZone.h" />
     <ClInclude Include="..\Public\UpgradeWeapon_Panel.h" />
     <ClInclude Include="..\Public\Merchant_Panel.h" />
     <ClInclude Include="..\public\BT_FinishDecision.h" />
@@ -738,6 +739,7 @@
     <ClCompile Include="..\Private\BattleSpawnRegistry.cpp" />
     <ClCompile Include="..\Private\BattleStartSpawner.cpp" />
     <ClCompile Include="..\Private\BattleTargetingVoicePreset.cpp" />
+    <ClCompile Include="..\Private\BattleTurnStartVoicePreset.cpp" />
     <ClCompile Include="..\Private\BattleTransition_ScreenFx.cpp" />
     <ClCompile Include="..\Private\BattleTurnCamera.cpp" />
     <ClCompile Include="..\Private\BattleTutorialController.cpp" />
@@ -822,7 +824,7 @@
     <ClCompile Include="..\Private\SL_StateMachineCom.cpp" />
     <ClCompile Include="..\Private\Trigger_BGMZone.cpp" />
     <ClCompile Include="..\private\Trigger_Cinematic.cpp" />
-    <ClCompile Include="..\Private\Trigger_FallTornadoZone.cpp" />
+    <ClCompile Include="..\Private\Trigger_TeleportZone.cpp" />
     <ClCompile Include="..\Private\Trigger_Interaction.cpp" />
     <ClCompile Include="..\Private\UI_AbilityPentagon.cpp" />
     <ClCompile Include="..\Private\ComputeGeneratedBeamEmitter.cpp" />
