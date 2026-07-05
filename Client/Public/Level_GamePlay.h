@@ -4,6 +4,8 @@
 #include "Level_WindowTitleFps.h"
 #include "StreamingLevel.h"
 #include "MapLoader.h"
+#include "LightingPipeline.h"
+#include "PostProcessPipeline.h"
 
 NS_BEGIN(Engine)
 class GameObject;
@@ -42,9 +44,17 @@ private:
     void Disable_LandscapeLOD();
 
     void    Respawn_CinematicTrigger();
+    void    Apply_BishopCinematicLightDirection();
+    void    Apply_GamePlayRenderParams();
+    void    Restore_GamePlayRenderParams();
 
 private:
     WindowTitleFpsState _windowTitleFps = {};
+    DeferredLightingCB _savedDeferredLightingCB{};
+    SSAOCB _savedSSAOCB{};
+    PostProcessFeature _savedPostProcessFeatures = PostProcessFeature::None;
+    vector<LIGHT_DESC> _savedLightDescs{};
+    bool _hasSavedGamePlayRenderParams = false;
 
 public:
 	static Shared<Level_GamePlay> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);

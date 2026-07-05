@@ -3,6 +3,7 @@
 #include "GameObject.h"
 
 NS_BEGIN(Engine)
+class ColliderCom;
 class ModelCom;
 class ShaderCom;
 class Texture;
@@ -40,12 +41,16 @@ public:
     void    Late_Update(float timeDelta) override;
     HRESULT Render() override;
     HRESULT Render_Shadow() override;
+    void    OnBeginOverlap(Shared<ColliderCom> self, Shared<ColliderCom> other) override;
+    void    OnStayOverlap(Shared<ColliderCom> self, Shared<ColliderCom> other) override;
+    void    OnEndOverlap(Shared<ColliderCom> self, Shared<ColliderCom> other) override;
 
 private:
     HRESULT Ready_Components(const VICTORIAFLAG_DESC& desc);
     HRESULT Bind_FlagShaderResources();
     HRESULT Bind_PostShaderResources();
     Matrix  Build_LocalMatrix(const Vec3& position, const Vec3& rotationDegree, const Vec3& scale) const;
+    bool    Has_ActiveHeroOverlap() const;
 
 private:
     Shared<ModelCom> _clothModel = nullptr;
@@ -54,6 +59,7 @@ private:
     Shared<ShaderCom> _postShader = nullptr;
     Shared<Texture> _numberTexture = nullptr;
     Shared<Texture> _numberAtlasTexture = nullptr;
+    Shared<ColliderCom> _interactionColliderCom = nullptr;
 
     Vec3 _clothLocalPosition = Vec3(0.f, 51.586124f, 226.74954f);
     Vec3 _clothLocalRotation = Vec3::Zero;
@@ -73,6 +79,7 @@ private:
     Vec2 _numberCenter = Vec2(0.47f, 0.49f);
     float _numberScale = 1.3f;
     float _numberSpacing = 0.13f;
+    uset<ColliderCom*> _playerOverlapColliders{};
 
 public:
     static Shared<VictoriaFlag> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);

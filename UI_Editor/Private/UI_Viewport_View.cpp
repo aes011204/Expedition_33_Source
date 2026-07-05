@@ -224,6 +224,7 @@ namespace UIEditor
             const float objectRounding = renderObject.type == UI_ObjectType::Button ? 4.f : 0.f;
             ID3D11ShaderResourceView* previewSRV = nullptr;
             bool requiresCompositePreview = false;
+            bool allowTextureFallbackPreview = false;
             bool drewUIVfxPreview = false;
             bool usesMaterialVfxPreview = false;
 
@@ -232,6 +233,7 @@ namespace UIEditor
                 if (renderObject.imageRenderMode == UI_ImageRenderMode::MaterialVfx)
                 {
                     requiresCompositePreview = true;
+                    allowTextureFallbackPreview = true;
                     MaterialVfxPreviewDesc previewDesc = {};
                     previewDesc.textureGuid = renderObject.textureGuid;
                     previewDesc.texturePath = renderObject.texturePath;
@@ -245,6 +247,7 @@ namespace UIEditor
                 else if (renderObject.imageRenderMode == UI_ImageRenderMode::ButtonSheen)
                 {
                     requiresCompositePreview = true;
+                    allowTextureFallbackPreview = true;
                     ButtonSheenPreviewDesc previewDesc = {};
                     previewDesc.textureGuid = renderObject.textureGuid;
                     previewDesc.texturePath = renderObject.texturePath;
@@ -256,6 +259,7 @@ namespace UIEditor
                 else if (renderObject.imageRenderMode == UI_ImageRenderMode::PatternOverlay)
                 {
                     requiresCompositePreview = true;
+                    allowTextureFallbackPreview = true;
                     PatternOverlayPreviewDesc previewDesc = {};
                     previewDesc.textureGuid = renderObject.textureGuid;
                     previewDesc.texturePath = renderObject.texturePath;
@@ -273,6 +277,7 @@ namespace UIEditor
                 else if (renderObject.useFillRatio)
                 {
                     requiresCompositePreview = true;
+                    allowTextureFallbackPreview = true;
                     previewSRV = _editorManager.Get_FillRatioPreviewSRV(
                         renderObject.textureGuid,
                         renderObject.texturePath,
@@ -290,7 +295,7 @@ namespace UIEditor
                         renderObject.maskTextureMode);
                 }
 
-                if (nullptr == previewSRV && !requiresCompositePreview)
+                if (nullptr == previewSRV && (!requiresCompositePreview || allowTextureFallbackPreview))
                     previewSRV = _editorManager.Get_TexturePreviewSRV(renderObject.textureGuid, renderObject.texturePath);
             }
 

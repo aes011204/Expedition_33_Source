@@ -91,7 +91,9 @@ void Renderer::Add_RenderGroup(RenderGroup renderGroup, const Shared<GameObject>
         return;
 
     _renderGroups[ETOI(renderGroup)].push_back(gameObject);
-    Capture_RenderViewHotspotCandidate(renderGroup, gameObject);
+
+    if (_renderViewHotspotCaptureEnabled)
+        Capture_RenderViewHotspotCandidate(renderGroup, gameObject);
 }
 
 void Renderer::Draw()
@@ -101,7 +103,7 @@ void Renderer::Draw()
     // ======================================================================================================
 
     _screenSize = { GAME->Get_ViewportWidth(), GAME->Get_ViewportHeight() };
-    if (_renderOnlyPreviewMode)
+    if (_renderOnlyPreviewMode || !_renderViewHotspotCaptureEnabled)
         _hotspotPendingSnapshot = {};
     else
         Publish_RenderViewHotspotSnapshot();
@@ -273,7 +275,6 @@ void Renderer::Draw()
 
         const_cast<ScreenFx_Manager*>(screenFxManager)->Clear_CaptureRequested();
     }
-
 
 #ifdef _DEBUG
     Render_Debug();
@@ -669,6 +670,10 @@ void Renderer::Render_CombinedHDR()
     COMBINEDHDR_RETURN_LOG_IF_FAILED(
         GAME->Bind_RT_ShaderResource(_deferredShader, "g_SpecularTexture", RT::Specular),
         L"Render_CombinedHDR:FAIL Bind_RT_ShaderResource(g_SpecularTexture)");
+
+    COMBINEDHDR_RETURN_LOG_IF_FAILED(
+        GAME->Bind_RT_ShaderResource(_deferredShader, "g_LightMaskTexture", RT::LightMask),
+        L"Render_CombinedHDR:FAIL Bind_RT_ShaderResource(g_LightMaskTexture)");
 
     COMBINEDHDR_RETURN_LOG_IF_FAILED(
         GAME->Bind_RT_ShaderResource(_deferredShader, "g_DepthTexture", RT::Depth),
@@ -1785,6 +1790,7 @@ HRESULT Renderer::Render_PointLightGlow()
         lightCB.ambient = desc.ambient;
         lightCB.specular = desc.specular;
         lightCB.range = desc.range;
+        lightCB.pointAttenuationPower = desc.pointAttenuationPower;
 
         ENDMRT_RETURN_FAIL_LOG_IF_FAILED(
             _deferredShader->Bind_CBufferData(lightCB),
@@ -2503,8 +2509,24 @@ uint32 Renderer::Get_RenderCall() const
 
 bool Renderer::Try_GetRenderViewHotspotSnapshot(RenderViewHotspotSnapshot& outSnapshot) const
 {
+    if (!_renderViewHotspotCaptureEnabled)
+        return false;
+
     outSnapshot = _hotspotLastSnapshot;
     return outSnapshot.hasCamera || outSnapshot.totalSubmissions > 0;
+}
+
+void Renderer::Set_RenderViewHotspotCaptureEnabled(bool enabled)
+{
+    if (_renderViewHotspotCaptureEnabled == enabled)
+        return;
+
+    _renderViewHotspotCaptureEnabled = enabled;
+    if (!enabled)
+    {
+        _hotspotPendingSnapshot = {};
+        _hotspotLastSnapshot = {};
+    }
 }
 
 void Renderer::Reset_RenderCall()

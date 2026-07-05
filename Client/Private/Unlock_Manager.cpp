@@ -151,6 +151,7 @@ HRESULT Unlock_Manager::Initialize()
     _pendingGetClothesPresetIds.clear();
     _pendingGetWeaponPresentationIds.clear();
     _pendingGetPictosPresentationIds.clear();
+    _pendingWorldSpawnRewards.clear();
 
     Register_DefaultRules();
 
@@ -245,7 +246,8 @@ vector<string> Unlock_Manager::Handle_BattleVictory(
     const vector<string>& enemyKeys,
     uint32 battleFieldId,
     uint32 rewardLevelIndex,
-    const Vec3* rewardOrigin)
+    const Vec3* rewardOrigin,
+    bool deferWorldSpawnRewards)
 {
     vector<string> presentedPictosIds{};
 
@@ -267,10 +269,22 @@ vector<string> Unlock_Manager::Handle_BattleVictory(
         if (find(enemyKeys.begin(), enemyKeys.end(), rule.triggerKey) == enemyKeys.end())
             continue;
 
-        Try_CompleteRule(rule, rewardLevelIndex, rewardOrigin, &presentedPictosIds);
+        Try_CompleteRule(rule, rewardLevelIndex, rewardOrigin, deferWorldSpawnRewards, &presentedPictosIds);
     }
 
     return presentedPictosIds;
+}
+
+void Unlock_Manager::Flush_PendingWorldSpawnRewards()
+{
+    vector<PendingWorldSpawnReward> pendingRewards = std::move(_pendingWorldSpawnRewards);
+    _pendingWorldSpawnRewards.clear();
+
+    for (const PendingWorldSpawnReward& pendingReward : pendingRewards)
+    {
+        const Vec3* rewardOrigin = pendingReward.hasRewardOrigin ? &pendingReward.rewardOrigin : nullptr;
+        Apply_Reward(pendingReward.reward, pendingReward.rewardLevelIndex, rewardOrigin, false);
+    }
 }
 
 bool Unlock_Manager::Is_HeroUnlocked(HeroId heroId) const
@@ -278,7 +292,12 @@ bool Unlock_Manager::Is_HeroUnlocked(HeroId heroId) const
     return _unlockedHeroIds.find(heroId) != _unlockedHeroIds.end();
 }
 
-void Unlock_Manager::Try_CompleteRule(const UnlockRule& rule, uint32 rewardLevelIndex, const Vec3* rewardOrigin, vector<string>* outPresentedPictosIds)
+void Unlock_Manager::Try_CompleteRule(
+    const UnlockRule& rule,
+    uint32 rewardLevelIndex,
+    const Vec3* rewardOrigin,
+    bool deferWorldSpawnRewards,
+    vector<string>* outPresentedPictosIds)
 {
     if (_completedRuleIds.contains(rule.ruleId))
         return;
@@ -291,6 +310,12 @@ void Unlock_Manager::Try_CompleteRule(const UnlockRule& rule, uint32 rewardLevel
     // 룰 완료 순간 즉시 보상 적용
     for (const UnlockReward& reward : rule.rewards)
     {
+        if (deferWorldSpawnRewards && reward.type == RewardType::SpawnWorldObject)
+        {
+            Queue_PendingWorldSpawnReward(reward, rewardLevelIndex, rewardOrigin);
+            continue;
+        }
+
         Apply_Reward(reward, rewardLevelIndex, rewardOrigin, true);
     }
 
@@ -337,6 +362,24 @@ void Unlock_Manager::Queue_GetWeaponPresentation(const string& characterId, cons
     }
 
     _pendingGetWeaponPresentationIds.emplace_back(presentationId);
+}
+
+void Unlock_Manager::Queue_PendingWorldSpawnReward(
+    const UnlockReward& reward,
+    uint32 rewardLevelIndex,
+    const Vec3* rewardOrigin)
+{
+    PendingWorldSpawnReward pendingReward{};
+    pendingReward.reward = reward;
+    pendingReward.rewardLevelIndex = rewardLevelIndex;
+
+    if (rewardOrigin != nullptr)
+    {
+        pendingReward.hasRewardOrigin = true;
+        pendingReward.rewardOrigin = *rewardOrigin;
+    }
+
+    _pendingWorldSpawnRewards.emplace_back(std::move(pendingReward));
 }
 
 void Unlock_Manager::Apply_Reward(
@@ -545,6 +588,7 @@ bool Unlock_Manager::Apply_SaveJson(const json& data, bool replayWorldRewards, b
     _pendingGetClothesPresetIds.clear();
     _pendingGetWeaponPresentationIds.clear();
     _pendingGetPictosPresentationIds.clear();
+    _pendingWorldSpawnRewards.clear();
 
     if (!data.is_object())
         return true;
@@ -683,6 +727,7 @@ void Unlock_Manager::Free()
     _pendingGetClothesPresetIds.clear();
     _pendingGetWeaponPresentationIds.clear();
     _pendingGetPictosPresentationIds.clear();
+    _pendingWorldSpawnRewards.clear();
 
     Base::Free();
 }

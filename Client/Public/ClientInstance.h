@@ -4,6 +4,7 @@
 #include "CameraPresetTypes.h"
 #include "Cinematic_Types.h"
 #include "GameDataTable.h"
+#include "GameplayUI_Types.h"
 #include "Delegate.h"
 #include "PreviewShotTable.h"
 #include "RuntimeCheckpointIO.h"
@@ -18,6 +19,7 @@ NS_END
 NS_BEGIN(Client)
 
 struct DialogueRequest;
+struct EventDialogueUIRequest;
 struct ActionRequest;
 struct BattleChar;
 enum class BattleTurnState;
@@ -193,9 +195,16 @@ public: /* For.Gameplay UI */
     void    Stop_BattleEnterTransition();
     bool    Is_BattleEnterTransitionPlaying() const;
     void    Queue_LevelAnnounce(LevelType levelType);
+    bool    Open_Journal(JournalOpenAnimation openAnimation = JournalOpenAnimation::JournalUI);
+    bool    Open_EventDialogueUI(const EventDialogueUIRequest& request);
+    void    Close_EventDialogueUI();
 
 public: /* For.Fade Transition */
     bool Request_ScreenFadeTransition(const function<void()>& CoveredAction);
+    bool Request_CinematicSequenceTransition(
+        const wstring& filePath,
+        int trackIndex,
+        const function<void()>& FailedAction = nullptr);
     bool Request_LevelTransition(LevelType TargetLevel);
     bool Request_LoadedLevelTransition(LevelType TargetLevel, Shared<Level> TargetLevelInstance);
     bool Request_CurrentLevelReplay();

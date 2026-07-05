@@ -134,12 +134,37 @@ void PanelInspector::Render()
     SetOpen(open);
 }
 
+void PanelInspector::DrawCameraDistance(Shared<EditorObject>& obj)
+{
+    if (_camera == nullptr || obj == nullptr)
+        return;
+
+    Vec3 meshPosition = obj->_position;
+    if (obj->_type == EObjectType::InstancedMesh)
+    {
+        const int32 instanceIndex = obj->_selectedInstanceIdx;
+        if (instanceIndex < 0 || instanceIndex >= static_cast<int32>(obj->_instancedTransforms.size()))
+            return;
+
+        meshPosition = obj->_instancedTransforms[instanceIndex]._position;
+    }
+    else if (obj->_type != EObjectType::StaticMesh)
+    {
+        return;
+    }
+
+    const float distance = Vec3::Distance(_camera->GetPosition(), meshPosition);
+    ImGui::Text("Camera Distance: %.2f", distance);
+}
+
 void PanelInspector::DrawTransform(Shared<EditorObject>& obj)
 {
     if (!ImGui::CollapsingHeader("Transform", ImGuiTreeNodeFlags_DefaultOpen))
     {
         return;
     }
+
+    DrawCameraDistance(obj);
 
     if (obj->_type == EObjectType::InstancedMesh)
     {
@@ -587,6 +612,16 @@ void PanelInspector::DrawTypeParams(Shared<EditorObject>& obj)
                 _ctx->_lightDirty = true;
             }
 
+            if (obj->_lightType == LightType::Point)
+            {
+                float alpha = obj->_lightDiffuse.w;
+                if (ImGui::DragFloat("Alpha", &alpha, 0.01f, 0.f, 1.f, "%.2f"))
+                {
+                    obj->_lightDiffuse.w = alpha;
+                    _ctx->_lightDirty = true;
+                }
+            }
+
             if (ImGui::ColorEdit4("Ambient", ambient))
             {
                 obj->_lightAmbient = Vec4{ ambient[0],  ambient[1],  ambient[2],  ambient[3] };
@@ -611,6 +646,11 @@ void PanelInspector::DrawTypeParams(Shared<EditorObject>& obj)
             else
             {
                 if (ImGui::DragFloat("Range", &obj->_lightRange, 0.1f, 0.1f, 1000.f))
+                {
+                    _ctx->_lightDirty = true;
+                }
+
+                if (ImGui::DragFloat("Attenuation Power", &obj->_lightAttenuationPower, 0.01f, 0.001f, 8.f, "%.3f"))
                 {
                     _ctx->_lightDirty = true;
                 }

@@ -77,7 +77,8 @@ cbuffer LightBuffer
     float4 g_LightSpecular;
 
     float g_LightRange;
-    float3 g_LightPadding0;
+    float g_PointLightAttenuationPower;
+    float2 g_LightPadding0;
 };
 
 cbuffer MaterialBuffer
@@ -150,7 +151,18 @@ cbuffer DeferredLightingBuffer
     uint g_IBLEnabled;
 
     uint g_SpecAAEnabled;
-    uint3 g_IBLPadding0;
+    uint g_StylizedLightContrastEnabled;
+    float g_StylizedLightContrastStrength;
+    float g_StylizedLightThreshold;
+
+    float g_StylizedLightSoftness;
+    float g_StylizedLitBoost;
+    float g_StylizedUnlitAmbientScale;
+    float g_StylizedDeepUnlitThreshold;
+
+    float g_StylizedDeepUnlitSoftness;
+    float g_StylizedDeepUnlitAmbientScale;
+    float2 g_DeferredLightingPadding0;
 };
 
 cbuffer PostProcessBuffer
@@ -320,7 +332,7 @@ struct FogOBBZoneEntry
 cbuffer FogZoneBuffer
 {
     FogZoneEntry g_FogAABBZones[16];
-    FogOBBZoneEntry g_FogOBBZones[2];
+    FogOBBZoneEntry g_FogOBBZones[16];
     int g_FogAABBCount;
     int g_FogOBBCount;
     float g_GroundFogMaxDistance;

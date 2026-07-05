@@ -141,6 +141,7 @@ public: //## Behavior::AttachedEffects
     void Set_InspectorEffectSettings(const InspectorEffectSettings& settings);
     void Set_InspectorEffectLocalOffset(const Vec3& localOffset);
     void Set_AttachedEffectMaterialReveal(float alphaMultiplier, float alphaErosion);
+    void Set_AttachedEffectMaterialTintOverride(const vector<uint32>& emitterIds, const Vec4& targetTint, float strength);
     HRESULT Play_InspectorEffect();
 
 public: //## Behavior::PlayEffect

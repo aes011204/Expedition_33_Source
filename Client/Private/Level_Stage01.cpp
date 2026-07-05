@@ -1,8 +1,11 @@
 ﻿#include "Level_Stage01.h"
 #include "GameInstance.h"
+#include "Client_Constants.h"
+#include "GameObject.h"
 #include "MapLoader.h"
 #include "ClientInstance.h"
 #include "RuntimeRuleStateService.h"
+#include "Spawn_Prefab.h"
 #include "TargetCamera.h"
 #include "SoulLikeController.h"
 #include "SkyBoxFlow.h"
@@ -10,15 +13,35 @@
 #include "SimonCriticalGlowController.h"
 #include "MovementCom.h"
 #include "Player_WorldBase.h"
+#include "Trigger_WorldDialogue.h"
 
 namespace
 {
-    constexpr wchar_t kEffectName[] = L"Effects/Assets/Map/FX_TornadoPaint_EX.effect.json";
+    constexpr wchar_t kEffectName[] = L"Effects/Assets/Map/FX_TornadoPaint_V2.effect.json";
 
     constexpr wchar_t kParticelEffectName[] = L"Effects/Assets/Map/FX_FallingLight.effect.json";
 
     constexpr Vec3 kTeleportPos = Vec3(197.57f, -4023.57f, 50.95f);
     constexpr Vec3 kTeleportRot = Vec3(0.f, 27.6f, 0.f);
+
+    bool Has_WorldDialogueTrigger(uint32 levelIndex)
+    {
+        bool found = false;
+
+        GAME->Visit_LevelObjects(
+            levelIndex,
+            [&found](const wstring& layerTag, const Shared<GameObject>& gameObject)
+            {
+                UNREFERENCED_PARAMETER(layerTag);
+
+                if (found || gameObject == nullptr)
+                    return;
+
+                found = gameObject->Get_SourcePrefabName() == Constants::Prefab::Trigger_WorldDialogue;
+            });
+
+        return found;
+    }
 
 }
 
@@ -33,11 +56,19 @@ HRESULT Level_Stage01::Initialize()
     CHECK_FAILED(Ready_Layer_Player(TEXT("Layer_Player")), E_FAIL);
     CHECK_FAILED(Ready_Layer_Camera(TEXT("Layer_Camera")), E_FAIL);
     CHECK_FAILED(Ready_Layer_UI(TEXT("Layer_UI")), E_FAIL);
+    CHECK_FAILED(Ready_Layer_ETC(TEXT("Layer_ETC")), E_FAIL);
     CHECK_FAILED(Ready_Layer_BackGround(TEXT("Layer_BackGround")), E_FAIL);
 
     RuntimeRuleStateService::Apply_ToCurrentRuntime(
         RuntimeRuleStateService::Build_SimonStartUnlocks(), false);
     CLIENT->Restore_CurrentHeroesHpToMax();
+
+    // 안개, 빛 설정
+    GAME->Set_RenderEnvironment(true);
+    if (FAILED(GAME->Change_IBL(
+        L"../../../Client/Bin/Resources/Textures/Shader/IBL/irradiance_eye.dds",
+        L"../../../Client/Bin/Resources/Textures/Shader/IBL/perfilter_eye.dds")))
+        return E_FAIL;
 
     //GAME->Play_BGM(Constants::SoundBGM::SpringBGM, 1.f, true, 0.f);
 
@@ -81,6 +112,9 @@ void Level_Stage01::BeginPlay()
 
     CLIENT->Capture_InitialWorldSnapshot();
     CLIENT->Queue_LevelAnnounce(LevelType::Stage01);
+
+    Apply_Stage01RenderParams();
+
 }
 
 void Level_Stage01::Update(float fTimeDelta)
@@ -117,7 +151,7 @@ HRESULT Level_Stage01::Ready_Lights()
 
     LIGHT_DESC LightDesc{};
     LightDesc.type = LightType::Directional;
-    LightDesc.direction = XMFLOAT4(1.f, -1.f, 1.f, 0.f);
+    LightDesc.direction = XMFLOAT4(-0.560f, -0.750f, 0.620f, 0.f);
     LightDesc.diffuse = XMFLOAT4(1.f, 1.f, 1.0f, 1.f);
     LightDesc.ambient = XMFLOAT4(0.3f, 0.3f, 0.3f, 1.f);
     LightDesc.specular = XMFLOAT4(1.f, 1.f, 1.f, 1.f);
@@ -200,6 +234,36 @@ HRESULT Level_Stage01::Ready_Layer_UI(const wstring& strLayerTag)
     return S_OK;
 }
 
+HRESULT Level_Stage01::Ready_Layer_ETC(const wstring& strLayerTag)
+{
+    const uint32 levelIndex = ETOI(LevelType::Stage01);
+    if (Has_WorldDialogueTrigger(levelIndex))
+        return S_OK;
+
+    const Shared<GameObject> dialogueObject = Spawn_Prefab::Prefab(Constants::Prefab::Trigger_WorldDialogue)
+        .AtLevel(levelIndex)
+        .InLayer(strLayerTag)
+        .Position(Vec3(116.2f, 2.8f, -2.7f))
+        .Rotation(Vec3(0.f, 0.f, 0.f))
+        .Scale(Vec3(1.f, 1.f, 3.f))
+        .Spawn();
+
+    CHECK_NULL(dialogueObject, E_FAIL);
+    if (const Shared<Trigger_WorldDialogue> dialogueTrigger =
+        dynamic_pointer_cast<Trigger_WorldDialogue>(dialogueObject))
+    {
+        dialogueTrigger->Set_UIRequest(
+            Constants::UI::UI_WorldDialogue_Simon,
+            L"Panel_WorldDialogue_Simon",
+            Constants::UI_Anim::UI_WorldDialogue_SimonAnim_Path,
+            10.f);
+    }
+
+    dialogueObject->Set_RuntimeAuthoringLoaded(true);
+
+    return S_OK;
+}
+
 HRESULT Level_Stage01::Ready_Layer_BackGround(const wstring& strLayerTag)
 {
     SkyBoxFlow::SKYBOXFLOW_DESC skyBoxDesc{};
@@ -239,8 +303,103 @@ Shared<Level_Stage01> Level_Stage01::Create(const ComPtr<Device>& device, const 
     return pInstance;
 }
 
+void Level_Stage01::Apply_Stage01RenderParams()
+{
+    Shared<LightingPipeline> lightingPipeline = GAME->Get_LightingPipeline();
+    Shared<PostProcessPipeline> postProcessPipeline = GAME->Get_PostProcessPipeline();
+    if (_hasSavedStage01RenderParams)
+        return;
+
+    GAME->Get_LightDescs(_savedLightDescs);
+    if (lightingPipeline != nullptr)
+    {
+        _savedSSAOCB = lightingPipeline->Get_Params();
+        _savedDeferredLightingCB = lightingPipeline->Get_DeferredLightingParams();
+    }
+    if (postProcessPipeline != nullptr)
+        _savedPostProcessFeatures = postProcessPipeline->Get_PostProcessFeatures();
+
+    _hasSavedStage01RenderParams = true;
+
+    vector<LIGHT_DESC> lightDescs = _savedLightDescs;
+    for (LIGHT_DESC& lightDesc : lightDescs)
+    {
+        if (lightDesc.type != LightType::Directional)
+            continue;
+
+        lightDesc.direction = Vec4(-0.560f, -0.750f, 0.620f, 0.f);
+        break;
+    }
+    if (!lightDescs.empty())
+        GAME->Set_Lights(lightDescs);
+
+    if (lightingPipeline != nullptr)
+    {
+        SSAOCB ssao = _savedSSAOCB;
+        ssao.SSAOEnabled = 1u;
+        ssao.SSAORadius = 0.100f;
+        ssao.SSAOBias = 0.0600f;
+        ssao.SSAOIntensity = 1.700f;
+        ssao.SSAOPower = 1.500f;
+        ssao.SSAODepthRange = 1.000f;
+        ssao.SSAOSampleCount = 16u;
+        lightingPipeline->Set_Params(ssao);
+
+        DeferredLightingCB lighting = _savedDeferredLightingCB;
+        lighting.stylizedLightContrastEnabled = 1u;
+        lighting.stylizedLightContrastStrength = 0.51f;
+        lighting.stylizedLightThreshold = 0.16f;
+        lighting.stylizedLightSoftness = 0.500f;
+        lighting.stylizedLitBoost = 1.13f;
+        lighting.stylizedUnlitAmbientScale = 0.00f;
+        lighting.stylizedDeepUnlitThreshold = 0.52f;
+        lighting.stylizedDeepUnlitSoftness = 0.500f;
+        lighting.stylizedDeepUnlitAmbientScale = 0.29f;
+        lightingPipeline->Set_DeferredLightingParams(lighting);
+    }
+
+    if (postProcessPipeline != nullptr)
+    {
+        postProcessPipeline->Set_PostProcessFeatures(
+            PostProcessFeature::HDR |
+            PostProcessFeature::ToneMapping |
+            PostProcessFeature::Exposure |
+            PostProcessFeature::Bloom |
+            PostProcessFeature::Gamma |
+            PostProcessFeature::LightShaft);
+    }
+}
+
+void Level_Stage01::Restore_Stage01RenderParams()
+{
+    if (!_hasSavedStage01RenderParams)
+        return;
+
+    Shared<LightingPipeline> lightingPipeline = GAME->Get_LightingPipeline();
+    if (lightingPipeline != nullptr)
+    {
+        lightingPipeline->Set_Params(_savedSSAOCB);
+        lightingPipeline->Set_DeferredLightingParams(_savedDeferredLightingCB);
+    }
+
+    Shared<PostProcessPipeline> postProcessPipeline = GAME->Get_PostProcessPipeline();
+    if (postProcessPipeline != nullptr)
+        postProcessPipeline->Set_PostProcessFeatures(_savedPostProcessFeatures);
+
+    if (!_savedLightDescs.empty())
+        GAME->Set_Lights(_savedLightDescs);
+
+    _savedDeferredLightingCB = DeferredLightingCB{};
+    _savedSSAOCB = SSAOCB{};
+    _savedPostProcessFeatures = PostProcessFeature::None;
+    _savedLightDescs.clear();
+    _hasSavedStage01RenderParams = false;
+}
+
 void Level_Stage01::Free()
 {
+    Restore_Stage01RenderParams();
+
     CLIENT->Clear_GameplayUI();
 
     __super::Free();

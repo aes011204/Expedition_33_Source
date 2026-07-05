@@ -14,6 +14,18 @@ struct TargetEffectDesc
     Vec3 scale{ Vec3::One };
 };
 
+const TargetEffectDesc kAngelsEyeSlashEffects[] =
+{
+    { L"Gustave_AngelsEye_Slash", Vec3(-0.5f, 0.7f, -0.8f), Vec3(0.f, 0.f, -30.f), Vec3::One },
+    { L"Gustave_AngelsEye_Slash", Vec3(0.5f, 0.7f, -1.2f), Vec3(0.f, 0.f, 50.f), Vec3::One },
+    { L"Gustave_AngelsEye_Slash", Vec3(-0.4f, 0.7f, -1.f), Vec3(0.f, 0.f, -20.f), Vec3::One },
+    { L"Gustave_AngelsEye_Slash", Vec3(0.3f, 0.7f, -0.6f), Vec3(0.f, 0.f, -7.f), Vec3::One },
+    { L"Gustave_AngelsEye_Slash", Vec3(0.f, 0.7f, -0.6f), Vec3(0.f, 0.f, -75.f), Vec3::One },
+    { L"Gustave_AngelsEye_Slash", Vec3(0.f, 0.7f, -0.9f), Vec3(0.f, 0.f, 20.f), Vec3::One },
+    { L"Gustave_AngelsEye_Slash", Vec3(-1.f, 0.7f, -0.7f), Vec3(0.f, 0.f, 90.f), Vec3::One },
+    { L"Gustave_AngelsEye_Slash", Vec3(0.9f, 0.7f, -0.8f), Vec3(0.f, 0.f, -90.f), Vec3::One },
+};
+
 void Play_TargetEffect(
     const BattleChar& target,
     const wstring& effectName,
@@ -182,7 +194,7 @@ void Skill_Gustave_AnglesEye::Collect_PrewarmEffects(const Skill_Data&, const Ba
 {
     EffectPrewarmRequest request{};
     request.effectName = L"Gustave_AngelsEye_Slash";
-    request.targetCount = 7;
+    request.targetCount = static_cast<uint32>(size(Internal::kAngelsEyeSlashEffects));
     outRequests.push_back(request);
 }
 
@@ -200,21 +212,9 @@ void Skill_Gustave_AnglesEye::Execute(const Skill_Data& skill, const BattleActio
     const float damage = (DamageSystem::CalculatePlayerAttackDamage(attacker, skill.powerMultiplier)) / 8.f;
     DamageSystem::ApplyDamage(damage, attacker, target, attackType);
 
-    // 7연격 스폰 로컬 위치 및 회전 세팅
-    const Internal::TargetEffectDesc slashEffects[] =
-    {
-        { L"Gustave_AngelsEye_Slash", Vec3(-0.5f, 0.7f, -0.8f), Vec3(0.f, 0.f, -30.f), Vec3::One },
-        { L"Gustave_AngelsEye_Slash", Vec3(0.5f, 0.7f, -1.2f), Vec3(0.f, 0.f, 50.f), Vec3::One },
-        { L"Gustave_AngelsEye_Slash", Vec3(-0.4f, 0.7f, -1.f), Vec3(0.f, 0.f, -20.f), Vec3::One },
-        { L"Gustave_AngelsEye_Slash", Vec3(0.3f, 0.7f, -0.6f), Vec3(0.f, 0.f, -7.f), Vec3::One },
-        { L"Gustave_AngelsEye_Slash", Vec3(0.f, 0.7f, -0.6f), Vec3(0.f, 0.f, -75.f), Vec3::One },
-        { L"Gustave_AngelsEye_Slash", Vec3(0.f, 0.7f, -0.9f), Vec3(0.f, 0.f, 20.f), Vec3::One },
-        { L"Gustave_AngelsEye_Slash", Vec3(-1.f, 0.7f, -0.7f), Vec3(0.f, 0.f, 90.f), Vec3::One },
-    };
-
-    const uint32 slashEffectCount = static_cast<uint32>(size(slashEffects));
+    const uint32 slashEffectCount = static_cast<uint32>(size(Internal::kAngelsEyeSlashEffects));
     const uint32 slashEffectIndex = min(action.GetCurStepIndex(), slashEffectCount - 1);
-    const Internal::TargetEffectDesc& slashEffect = slashEffects[slashEffectIndex];
+    const Internal::TargetEffectDesc& slashEffect = Internal::kAngelsEyeSlashEffects[slashEffectIndex];
 
     Internal::Play_TargetEffect(
         target,

@@ -86,7 +86,7 @@ void MapWater::Update(float timeDelta)
 
 void MapWater::Late_Update(float timeDelta)
 {
-    GAME->Add_RenderGroup(RenderGroup::NonBlend, GetSharedPtr<GameObject>());
+    GAME->Add_RenderGroup(RenderGroup::Blend, GetSharedPtr<GameObject>());
 }
 
 HRESULT MapWater::Render()

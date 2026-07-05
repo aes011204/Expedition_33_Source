@@ -9,9 +9,11 @@
 #include "RenderTarget.h"
 #include "Transform_Inspector.h"
 #include "Client_Defines.h"
+#include "Debug_Profile.h"
 #include "EffectAssetRuntimeLoader.h"
 #include "EffectInstance.h"
 #include "EnvironmentView.h"
+#include "Inspector.h"
 #include "LightingPipeline.h"
 #include "MovementCom.h"
 #include "Spawn_Prefab.h"
@@ -259,9 +261,30 @@ void Scene_View::Pre_Render()
     if (!Is_Open())
         return;
 
-    Tick_DragPreview(ImGui::GetIO().DeltaTime);
-    Tick_SelectedLoopingEffect(ImGui::GetIO().DeltaTime);
-    EnvironmentView::DrawDebugVolumes();
+    const float timeDelta = ImGui::GetIO().DeltaTime;
+
+    {
+        ENGINE_PROFILE_SCOPE_DETAIL("SceneView::DragPreview");
+        if (Is_Visible())
+            Tick_DragPreview(timeDelta);
+        else
+            Clear_DragPreviewObject();
+    }
+
+    {
+        ENGINE_PROFILE_SCOPE_DETAIL("SceneView::SelectedLoopingEffect");
+        Tick_SelectedLoopingEffect(timeDelta);
+    }
+
+    {
+        ENGINE_PROFILE_SCOPE_DETAIL("SceneView::DebugVolumes");
+        if (Is_Visible())
+        {
+            EnvironmentView::DrawDebugVolumes();
+            if (Shared<Inspector> inspector = dynamic_pointer_cast<Inspector>(EDITOR->Get_Window(L"Inspector")))
+                inspector->Draw_SelectedPointLightDebug();
+        }
+    }
 }
 
 void Scene_View::Render()
@@ -275,8 +298,13 @@ void Scene_View::Render()
     if (EDITOR->Consume_WindowFocusRequest(EDITOR_VIEWPORT_TARGET::Scene))
         ImGui::SetNextWindowFocus();
 
+    _isFocused = false;
+    _isHovered = false;
+    _isVisible = false;
+
     if (ImGui::Begin(windowName.c_str(), &isOpen, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse))
     {
+        _isVisible = true;
         _isFocused = ImGui::IsWindowFocused(ImGuiFocusedFlags_ChildWindows);
         _isHovered = ImGui::IsWindowHovered(ImGuiHoveredFlags_ChildWindows);
 

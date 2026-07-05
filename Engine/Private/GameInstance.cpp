@@ -374,6 +374,7 @@ HRESULT GameInstance::Initialize_Engine(const ENGINE_DESC& engineDesc, ComPtr<De
 
     _viewportWidth = engineDesc.viewportWidth;
     _viewportHeight = engineDesc.viewportHeight;
+    _enableEditorRuntimeDebug = engineDesc.enableEditorRuntimeDebug;
 
     _logManager = Log_Manager::Create(engineDesc.projectName);
     CHECK_NULL(_logManager, E_FAIL);
@@ -750,6 +751,7 @@ HRESULT GameInstance::Draw()
 
 #if defined(_DEBUG) || defined(_EDITOR)
     // Collision Manager
+    if (_enableEditorRuntimeDebug)
     {
         _collisionManager->Render_Debug();
     }
@@ -757,6 +759,7 @@ HRESULT GameInstance::Draw()
 
 #if defined(_DEBUG) || defined(_EDITOR)
     // Debug Manager
+    if (_enableEditorRuntimeDebug)
     {
 #ifdef _DEBUG
         Draw_ShadowCascadeWorldDebug();
@@ -1558,14 +1561,30 @@ bool GameInstance::Try_GetRenderViewHotspotSnapshot(RenderViewHotspotSnapshot& o
     return _renderer->Try_GetRenderViewHotspotSnapshot(outSnapshot);
 }
 
+void GameInstance::Set_RenderViewHotspotCaptureEnabled(bool enabled)
+{
+    if (_renderer == nullptr)
+        return;
+
+    _renderer->Set_RenderViewHotspotCaptureEnabled(enabled);
+}
+
+bool GameInstance::Is_RenderViewHotspotCaptureEnabled() const
+{
+    if (_renderer == nullptr)
+        return false;
+
+    return _renderer->Is_RenderViewHotspotCaptureEnabled();
+}
+
 const Shared<PostProcessPipeline> GameInstance::Get_PostProcessPipeline() const
 {
-    return _renderer->Get_PostProcessPipeline();
+    return _renderer ? _renderer->Get_PostProcessPipeline() : nullptr;
 }
 
 Shared<PostProcessPipeline> GameInstance::Get_PostProcessPipeline()
 {
-    return _renderer->Get_PostProcessPipeline();
+    return _renderer ? _renderer->Get_PostProcessPipeline() : nullptr;
 }
 
 HRESULT GameInstance::Begin_DOFOverrideScope(const string& ownerTag)
@@ -1605,7 +1624,7 @@ const Shared<LightingPipeline> GameInstance::Get_LightingPipeline() const
 
 Shared<LightingPipeline> GameInstance::Get_LightingPipeline()
 {
-    return _renderer->Get_LightingPipeline();
+    return _renderer ? _renderer->Get_LightingPipeline() : nullptr;
 }
 
 HRESULT GameInstance::Reload_RendererShaders()
@@ -1986,12 +2005,58 @@ void GameInstance::Get_LightDescs(vector<LIGHT_DESC>& outLightDescs) const
 
 HRESULT GameInstance::Set_Lights(const vector<LIGHT_DESC>& lightDescs)
 {
-    return _lightManager->Set_Lights(lightDescs);
+    return _lightManager ? _lightManager->Set_Lights(lightDescs) : S_OK;
 }
 
 HRESULT GameInstance::Bind_PrimaryShadowLightCB(Shared<ShaderCom> shader) const
 {
     return _lightManager->Bind_PrimaryShadowLightCB(shader);
+}
+
+const LIGHT_DESC* GameInstance::Get_PointLightDesc(uint32 pointIndex) const
+{
+    return _lightManager->Get_PointLightDesc(pointIndex);
+}
+
+uint32 GameInstance::Get_PointLightCount() const
+{
+    return _lightManager->Get_PointLightCount();
+}
+
+HRESULT GameInstance::Add_PointLight(
+    const Vec3& position,
+    float range,
+    const Vec4& diffuse,
+    const Vec4& ambient,
+    const Vec4& specular,
+    float attenuationPower)
+{
+    return _lightManager->Add_PointLight(position, range, diffuse, ambient, specular, attenuationPower);
+}
+
+HRESULT GameInstance::Update_PointLightDesc(uint32 pointIndex, const LIGHT_DESC& lightDesc)
+{
+    return _lightManager->Update_PointLightDesc(pointIndex, lightDesc);
+}
+
+HRESULT GameInstance::Set_PointLightPosition(uint32 pointIndex, const Vec3& position)
+{
+    return _lightManager->Set_PointLightPosition(pointIndex, position);
+}
+
+HRESULT GameInstance::Set_PointLightRange(uint32 pointIndex, float range)
+{
+    return _lightManager->Set_PointLightRange(pointIndex, range);
+}
+
+HRESULT GameInstance::Set_PointLightAlpha(uint32 pointIndex, float alpha)
+{
+    return _lightManager->Set_PointLightAlpha(pointIndex, alpha);
+}
+
+HRESULT GameInstance::Set_PointLightAttenuationPower(uint32 pointIndex, float attenuationPower)
+{
+    return _lightManager->Set_PointLightAttenuationPower(pointIndex, attenuationPower);
 }
 
 HRESULT GameInstance::Add_Font(const wstring& fontTag, const wchar_t* fontFilePath)
@@ -3019,26 +3084,41 @@ void GameInstance::Visit_BTNodeTypes(const function<void(const TypeRegistry::BTN
 
 void GameInstance::Draw_DebugBox(const DebugBoxDesc& desc)
 {
+    if (!_enableEditorRuntimeDebug)
+        return;
+
     return _debugManager->Draw_Box(desc);
 }
 
 void GameInstance::Draw_DebugSphere(const DebugSphereDesc& desc)
 {
+    if (!_enableEditorRuntimeDebug)
+        return;
+
     return _debugManager->Draw_Sphere(desc);
 }
 
 void GameInstance::Draw_DebugCapsule(const DebugCapsuleDesc& desc)
 {
+    if (!_enableEditorRuntimeDebug)
+        return;
+
     return _debugManager->Draw_Capsule(desc);
 }
 
 void GameInstance::Draw_DebugLine(const DebugLineDesc& desc)
 {
+    if (!_enableEditorRuntimeDebug)
+        return;
+
     return _debugManager->Draw_Line(desc);
 }
 
 void GameInstance::Draw_DebugTraceLine(const DebugTraceLineDesc& desc)
 {
+    if (!_enableEditorRuntimeDebug)
+        return;
+
     return _debugManager->Draw_TraceLine(desc);
 }
 
@@ -3049,12 +3129,12 @@ void GameInstance::Clear_DebugDraws()
 
 void GameInstance::Set_DebugRenderEnabled(bool enabled)
 {
-    return _debugManager->Set_Enabled(enabled);
+    return _debugManager->Set_Enabled(_enableEditorRuntimeDebug && enabled);
 }
 
 bool GameInstance::Is_DebugRenderEnabled() const
 {
-    return _debugManager->Is_Enabled();
+    return _enableEditorRuntimeDebug && _debugManager->Is_Enabled();
 }
 
 #ifdef _DEBUG
@@ -3143,11 +3223,17 @@ void GameInstance::Draw_ShadowCascadeWorldDebug()
 
 HRESULT GameInstance::Render_DebugDepth()
 {
+    if (!_enableEditorRuntimeDebug)
+        return S_OK;
+
     return _debugManager->Render_Depth();
 }
 
 HRESULT GameInstance::Render_DebugOverlay()
 {
+    if (!_enableEditorRuntimeDebug)
+        return S_OK;
+
     return _debugManager->Render_Overlay();
 }
 

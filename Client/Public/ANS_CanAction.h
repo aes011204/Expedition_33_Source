@@ -24,6 +24,7 @@ private:
 private:
     bool _canJump = true;   // 이 구간에서 JumpCounter 점프 캔슬 허용
     bool _canDodge = true;  // 이 구간에서 Dodge 캔슬 허용
+    bool _canParry = true; // 이 구간에서 Parry 캔슬 허용
 };
 
 NS_END

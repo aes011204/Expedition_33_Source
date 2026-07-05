@@ -42,6 +42,7 @@ HRESULT MainEditorApp::Initialize()
     engineDesc.viewportHeight = viewportHeight;
     engineDesc.swapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
     engineDesc.projectName = "MainEditor";
+    engineDesc.enableEditorRuntimeDebug = true;
 
     if (FAILED(GAME->Initialize_Engine(engineDesc, _device, _context)))
         return E_FAIL;

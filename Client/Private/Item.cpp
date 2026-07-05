@@ -9,7 +9,6 @@
 namespace
 {
     constexpr wchar_t kItemCrystalEffectName[] = L"Effects\\Assets\\Item\\Crystal.effect.json";
-    constexpr wchar_t kItemEatEffectName[] = L"Effects\\Assets\\Item\\EatItem.effect.json";
     constexpr float kItemVisualBaseOffsetY = 0.7f;
     constexpr float kItemHoverFrequency = 1.8f;
     constexpr float kItemHoverAmplitude = 0.06f;
@@ -25,6 +24,7 @@ Item::Item(const Item& prototype)
     , _itemId(prototype._itemId)
     , _displayName(prototype._displayName)
     , _amount(prototype._amount)
+    , _pickupEffectName(prototype._pickupEffectName)
 {
 }
 
@@ -296,12 +296,14 @@ void Item::Try_Pickup()
     const string& logName = _displayName.empty() ? _itemId : _displayName;
     LOG_INFO("[ItemPickup] type={} id={} name={} amount={}", Get_ItemTypeName(), _itemId, logName, _amount);
 
-    // 아이템 획득 이팩트
-    PlayEffectDesc eatEffectDesc{};
-    eatEffectDesc.effectName = kItemEatEffectName;
-    eatEffectDesc.spawnBasisTarget = GetSharedPtr<GameObject>();
-    eatEffectDesc.localOffset = Vec3(0.f, 0.7f, 0.f);
-    CLIENT->Play_Effect(eatEffectDesc);
+    if (!_pickupEffectName.empty())
+    {
+        PlayEffectDesc eatEffectDesc{};
+        eatEffectDesc.effectName = _pickupEffectName;
+        eatEffectDesc.spawnBasisTarget = GetSharedPtr<GameObject>();
+        eatEffectDesc.localOffset = Vec3(0.f, 0.7f, 0.f);
+        CLIENT->Play_Effect(eatEffectDesc);
+    }
 
     if (_effectCom)
         _effectCom->Stop_AllAttachedEffects();

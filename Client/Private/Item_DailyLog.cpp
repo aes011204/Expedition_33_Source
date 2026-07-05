@@ -1,5 +1,26 @@
 ﻿#include "Item_DailyLog.h"
 
+#include "ClientInstance.h"
+
+#include "GameInstance.h"
+
+namespace
+{
+    JournalOpenAnimation Resolve_JournalOpenAnimation(LevelType levelType)
+    {
+        switch (levelType)
+        {
+        case LevelType::Stage01:
+        case LevelType::GestralVillage:
+            return JournalOpenAnimation::JournalMap;
+
+        case LevelType::GamePlay:
+        default:
+            return JournalOpenAnimation::JournalUI;
+        }
+    }
+}
+
 IMPLEMENT_REFLECTION(Item_DailyLog)
 {
     auto& info = GetStaticReflectionInfo();
@@ -7,6 +28,8 @@ IMPLEMENT_REFLECTION(Item_DailyLog)
 
     info.displayName = "Item_DailyLog";
     info.category = "Item";
+
+    PROPERTY_WSTRING("획득 이펙트", _pickupEffectName);
 
     return true;
 }
@@ -45,6 +68,11 @@ Shared<GameObject> Item_DailyLog::Clone(void* arg)
     }
 
     return clone;
+}
+
+void Item_DailyLog::Apply_PickupReward()
+{
+    CLIENT->Open_Journal(Resolve_JournalOpenAnimation(static_cast<LevelType>(GAME->Current_LevelIndex())));
 }
 
 void Item_DailyLog::Free()

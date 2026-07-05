@@ -422,8 +422,11 @@ PxController* PhysX_Manager::Create_CapsuleController(const CharacterControllerD
 
 void PhysX_Manager::Release_Controller(PxController* controller)
 {
-	if (controller != nullptr)
-        controller->release();
+    if (controller == nullptr)
+        return;
+
+    controller->setUserData(nullptr);
+    controller->release();
 }
 
 void PhysX_Manager::onTrigger(PxTriggerPair* pairs, PxU32 count)

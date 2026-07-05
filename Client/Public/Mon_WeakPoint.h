@@ -22,6 +22,7 @@ public:
     {
         const Matrix* socketMatrix = nullptr;
         string socketName{};
+        wstring weakPointEffectName{};
     };
 
 public:
@@ -60,7 +61,7 @@ private:
 private:
     const Matrix* Resolve_SocketMatrix();
     HRESULT       Ready_WeakPointCollider();
-    void          Ready_DefaultWeakPointEffectSettings();
+    void          Ready_DefaultWeakPointEffectSettings(bool preserveInspectorTransform = false);
     void          Play_WeakPointEffect();
 
 public:
@@ -75,6 +76,7 @@ private:
 
     Shared<ColliderCom> _colliderCom = {};
     bool _isBattleWeakPointEnabled = true;
+    wstring _weakPointEffectName{};
     float _weakPointEffectScale = kDefaultWeakPointEffectScale;
 
 public:

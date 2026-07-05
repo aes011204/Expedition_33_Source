@@ -57,6 +57,7 @@ public: //## Behavior::ProviderBinding
 public: //## Behavior::MaterialRuntime
     // attached effect 등장 연출에서 material alpha/erosion만 일시적으로 덮어쓴다.
     virtual void Set_MaterialRevealOverride(float alphaMultiplier, float alphaErosion);
+    virtual void Set_MaterialTintOverride(const Vec4& targetTint, float strength);
 
 public: //## Behavior::Sort
     // Blend 정렬 시 emitter를 대표할 월드 위치를 반환한다.

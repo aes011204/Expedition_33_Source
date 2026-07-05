@@ -14,6 +14,20 @@ namespace EffectAssetRuntimeLoad::Emitters
     constexpr float kRibbonAutoHistoryFrameStep{ 0.016f };
     constexpr uint32 kRibbonAutoHistoryMargin{ 8 };
 
+    EffectEmitterHistoryBudgetRuntimeDesc Read_HistoryBudgetUsage(const json& emitter)
+    {
+        EffectEmitterHistoryBudgetRuntimeDesc usage{};
+        const auto budgetIter = emitter.find("historyBudget");
+        if (budgetIter == emitter.end() || !budgetIter->is_object())
+            return usage;
+
+        const json& budget = *budgetIter;
+        Read_Enum(budget, "priority", usage.priority);
+        Read_Enum(budget, "densityBias", usage.densityBias);
+        usage.lengthScale = max(0.f, Read_Float(budget, "lengthScale", usage.lengthScale));
+        return usage;
+    }
+
     const json* Find_ModuleData(const json& emitter, const string& moduleType)
     {
         const auto modulesIter = emitter.find("modules");
@@ -952,6 +966,7 @@ namespace EffectAssetRuntimeLoad::Emitters
         outDefinition.kind = EffectEmitterKind::Trail;
         outDefinition.enabled = true;
         Read_Enum(emitter, "renderLayerOverride", outDefinition.renderLayerOverride);
+        outDefinition.historyBudget = Read_HistoryBudgetUsage(emitter);
 
         ComputeTrailEmitterDesc desc{};
         desc.renderLayerOverride = outDefinition.renderLayerOverride;
@@ -1078,6 +1093,7 @@ namespace EffectAssetRuntimeLoad::Emitters
         outDefinition.kind = EffectEmitterKind::Ribbon;
         outDefinition.enabled = true;
         Read_Enum(emitter, "renderLayerOverride", outDefinition.renderLayerOverride);
+        outDefinition.historyBudget = Read_HistoryBudgetUsage(emitter);
 
         ComputeRibbonEmitterDesc desc{};
         desc.renderLayerOverride = outDefinition.renderLayerOverride;
@@ -1274,6 +1290,7 @@ namespace EffectAssetRuntimeLoad::Emitters
         outDefinition.kind = EffectEmitterKind::SourceHistorySpriteTrail;
         outDefinition.enabled = true;
         Read_Enum(emitter, "renderLayerOverride", outDefinition.renderLayerOverride);
+        outDefinition.historyBudget = Read_HistoryBudgetUsage(emitter);
 
         ComputeSourceHistorySpriteTrailEmitterDesc desc{};
         desc.renderLayerOverride = outDefinition.renderLayerOverride;
