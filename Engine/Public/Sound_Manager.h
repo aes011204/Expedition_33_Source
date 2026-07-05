@@ -181,6 +181,8 @@ private:
     // 사운드 큐
     umap<wstring, SoundCueDesc> _soundCues;
 
+    mutable unordered_set<wstring> _ambiguousSoundWarningKeys;
+    mutable unordered_set<wstring> _missingSoundWarningKeys;
 
 public:
     static Unique<Sound_Manager> Create(const wstring& soundRootPath, int32 maxChannels = 128);

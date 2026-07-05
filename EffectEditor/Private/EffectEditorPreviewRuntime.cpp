@@ -234,17 +234,17 @@ void EffectEditorPreviewRuntime::Update(float timeDelta)
     Update_PreviewTrailStrokes(timeDelta);
 }
 
-HRESULT EffectEditorPreviewRuntime::Restart_FromAuthoring(const vector<AuthoringEmitter>& emitters)
+HRESULT EffectEditorPreviewRuntime::Restart_FromAuthoring(const vector<AuthoringEmitter>& emitters, const HistoryBudgetData& historyBudget)
 {
     Clear_PreviewTrailStrokes();
 
     const bool splitTrailPreview =
         EDITOR->Get_TrailPreviewGateMode() == TrailPreviewGateMode::Window;
     const Shared<const EffectDefinition> previewDefinition =
-        PreviewDefinition::Build_EffectDefinition(emitters, !splitTrailPreview);
+        PreviewDefinition::Build_EffectDefinition(emitters, historyBudget, !splitTrailPreview);
     CHECK_NULL(previewDefinition, E_FAIL);
     const Shared<const EffectDefinition> previewTrailDefinition =
-        splitTrailPreview ? PreviewDefinition::Build_TrailEffectDefinition(emitters) : nullptr;
+        splitTrailPreview ? PreviewDefinition::Build_TrailEffectDefinition(emitters, historyBudget) : nullptr;
 
     const EffectInstancePool* effectPool = CLIENT ? CLIENT->Get_EffectInstancePool() : nullptr;
     CHECK_NULL(effectPool, E_FAIL);
@@ -364,11 +364,19 @@ HRESULT EffectEditorPreviewRuntime::Restart_FromDefinition(const Shared<const Ef
     acquireDesc.layerLevelIndex = ETOI(LevelType::Static);
     acquireDesc.layerTag = _layerTag;
     acquireDesc.trailSampleProvider = _trailPreviewSampleProvider;
+    acquireDesc.trailSampleGroupKey = EffectHistorySourceGroupKey{
+        EffectHistorySourceGroupKind::TrailPairHistory,
+        "EffectEditorPreview|TrailPair"
+    };
     acquireDesc.sourcePointSampleProvider = Internal::Resolve_PreviewSourcePointProvider(
         previewDefinition,
         _sourceHistoryPreviewSampleProvider,
         _sourceHistorySpriteTrailPreviewSampleProvider
     );
+    acquireDesc.sourcePointGroupKey = EffectHistorySourceGroupKey{
+        EffectHistorySourceGroupKind::SourcePointHistory,
+        "EffectEditorPreview|SourcePoint"
+    };
     acquireDesc.autoReleaseOnFinished = false;
 
     if (nullptr != _previewPoolHandle.effectObject)
@@ -475,6 +483,10 @@ HRESULT EffectEditorPreviewRuntime::Start_PreviewTrailStroke()
     acquireDesc.layerLevelIndex = ETOI(LevelType::Static);
     acquireDesc.layerTag = _layerTag;
     acquireDesc.trailSampleProvider = runtime.sampleProvider;
+    acquireDesc.trailSampleGroupKey = EffectHistorySourceGroupKey{
+        EffectHistorySourceGroupKind::TrailPairHistory,
+        "EffectEditorPreview|TrailStroke"
+    };
     acquireDesc.autoReleaseOnFinished = false;
 
     EffectTrailSample initialSample{};
