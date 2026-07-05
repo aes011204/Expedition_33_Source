@@ -37,6 +37,8 @@
 #include "BattleTurnCameraPoseUtils.h"
 #include "EditorInstance.h"
 
+#include <array>
+
 namespace
 {
 const Vec3 kPreviewSkyCloudLocalOffset = Vec3(28.f, 34.f, 82.f);
@@ -1764,6 +1766,22 @@ bool Prefab_View::Draw_MonsterBattlePrefabList(const Shared<GameObject>& selecte
 
     constexpr float BattlePrefabLabelWidth = 110.f;
 
+    array<Vec3, Client::kBattlePlayerSpawnOffsetCount>& playerOffsets =
+        monster->Get_BattlePlayerSpawnOffsets_ForEdit();
+    for (size_t playerIndex = 0; playerIndex < playerOffsets.size(); ++playerIndex)
+    {
+        Vec3 playerOffset = playerOffsets[playerIndex];
+        ImGui::Text("Player %zu Offset", playerIndex);
+        ImGui::SameLine(BattlePrefabLabelWidth);
+        ImGui::SetNextItemWidth(max(80.f, ImGui::GetContentRegionAvail().x));
+        string inputId = "##BattlePlayerOffset" + to_string(playerIndex);
+        if (ImGui::DragFloat3(inputId.c_str(), &playerOffset.x, 0.05f))
+        {
+            playerOffsets[playerIndex] = playerOffset;
+            changed = true;
+        }
+    }
+
     int32 removeIndex = -1;
     for (int32 i = 0; i < static_cast<int32>(spawnDescs.size()); ++i)
     {
@@ -2829,6 +2847,15 @@ void Prefab_View::Draw_MonsterBattleSpawnPreview() const
         Vec3::Up * battleStartOffset.y +
         forward * battleStartOffset.z;
 
+    const Vec3 playerLocalPos[Client::kBattlePlayerSpawnOffsetCount] =
+    {
+        { -2.5f, 0.f, 0.f },
+        {  0.f, 0.1f, 0.f },
+        {  2.5f, 0.1f, 0.f },
+    };
+    const array<Vec3, Client::kBattlePlayerSpawnOffsetCount>& playerOffsets =
+        monster->Get_BattlePlayerSpawnOffsets();
+
     constexpr float markerHalfSize = 0.3f;
     constexpr float markerHeight = 0.2f;
 
@@ -2846,6 +2873,27 @@ void Prefab_View::Draw_MonsterBattleSpawnPreview() const
     constexpr float lookTargetMarkerHalfSize = 0.18f;
 
     _previewGridBatch->Begin();
+
+    for (size_t i = 0; i < Client::kBattlePlayerSpawnOffsetCount; ++i)
+    {
+        const Vec3 playerOffset = playerOffsets[i];
+        const Vec3 markerPos =
+            previewOrigin +
+            right * (playerLocalPos[i].x + playerOffset.x) +
+            Vec3::Up * (playerLocalPos[i].y + playerOffset.y) +
+            forward * (playerLocalPos[i].z + playerOffset.z);
+        const XMVECTOR color = XMVectorSet(0.9f, 0.95f, 1.f, 1.f);
+
+        _previewGridBatch->DrawLine(
+            DirectX::VertexPositionColor(markerPos + Vec3(-markerHalfSize, markerHeight, 0.f), color),
+            DirectX::VertexPositionColor(markerPos + Vec3(markerHalfSize, markerHeight, 0.f), color));
+        _previewGridBatch->DrawLine(
+            DirectX::VertexPositionColor(markerPos + Vec3(0.f, markerHeight, -markerHalfSize), color),
+            DirectX::VertexPositionColor(markerPos + Vec3(0.f, markerHeight, markerHalfSize), color));
+        _previewGridBatch->DrawLine(
+            DirectX::VertexPositionColor(markerPos, color),
+            DirectX::VertexPositionColor(markerPos + Vec3(0.f, 0.65f, 0.f), color));
+    }
 
     for (size_t i = 0; i < spawnDescs.size(); ++i)
     {

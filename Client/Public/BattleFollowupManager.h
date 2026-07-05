@@ -30,6 +30,7 @@ public:
     void Clear_PendingFollowup();
 
     void Apply_SimonPhase2WorldVisualChange();
+    void Restore_SimonPhase2WorldVisualChange();
 
 private:
     bool Should_StartSimonPhase2(
@@ -43,6 +44,7 @@ private:
 
 private:
     bool _hasPendingFollowup = false;
+    bool _simonPhase2WorldVisualApplied = false;
     BattleFollowupDesc _pendingFollowup{};
 
 public:
