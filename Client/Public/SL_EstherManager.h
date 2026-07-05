@@ -67,7 +67,7 @@ private:
     void Apply_TargetSlow(EstherRuntime& runtime);
     void Restore_TargetSlow(EstherRuntime& runtime);
 
-    Vec3 Resolve_SpawnPosition(const Shared<SL_Maelle>& player, const Shared<SL_Base>& target) const;
+    Vec3 Resolve_SpawnPosition(SL_EstherType estherType, const Shared<SL_Maelle>& player, const Shared<SL_Base>& target) const;
     Vec3 Resolve_SpawnRotation(const Vec3& spawnPosition, const Shared<SL_Base>& target) const;
 
 private:
