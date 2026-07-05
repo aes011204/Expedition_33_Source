@@ -15,6 +15,7 @@ public:
 
 protected:
     const char* Get_ItemTypeName() const override { return "DailyLog"; }
+    void Apply_PickupReward() override;
 
 public:
     static Shared<Item_DailyLog> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);
