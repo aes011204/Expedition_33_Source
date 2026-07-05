@@ -1,5 +1,6 @@
 ﻿#include "MaterialBuilder.h"
 #include "GameInstance.h"
+#include "Material.h"
 #include "ModelCom.h"
 
 MaterialBuilder::MaterialBuilder()
@@ -626,6 +627,57 @@ bool MaterialBuilder::Try_GetBaseCBForMaterial(std::string_view bundleKey, uint3
         return false;
 
     outCB = itInst->second.cb;
+    return true;
+}
+
+bool MaterialBuilder::Try_ApplyBundleMaterialToMaterial(std::string_view bundleKey, uint32 materialIndex, Material& material) const
+{
+    if (bundleKey.empty())
+        return false;
+
+    const BundleAsset* bundle = const_cast<MaterialBuilder*>(this)->GetOrLoadBundle(bundleKey);
+    if (bundle == nullptr)
+        return false;
+
+    const auto itName = bundle->materialIndexToAssetName.find(materialIndex);
+    if (itName == bundle->materialIndexToAssetName.end())
+        return false;
+
+    const auto itInst = bundle->instancesByAssetName.find(itName->second);
+    if (itInst == bundle->instancesByAssetName.end())
+        return false;
+
+    const BaseInstanceData& base = itInst->second;
+    material.Set_RenderState(base.renderState);
+    material.Set_CB(base.cb);
+    material.Set_ForcedPassIndex(base.forcePassIndex);
+
+    if (base.baseColorOverride)
+        (void)material.Override_TextureSlot(MaterialTextureSlot::BaseColor, 0, base.baseColorPath);
+    if (base.normalOverride)
+        (void)material.Override_TextureSlot(MaterialTextureSlot::Normal, 0, base.normalPath);
+    if (base.ormOverride)
+        (void)material.Override_TextureSlot(MaterialTextureSlot::ORM, 0, base.ormPath);
+    if (base.orm2Override)
+        (void)material.Override_TextureSlot(MaterialTextureSlot::ORM2, 0, base.orm2Path);
+    if (base.orm3Override)
+        (void)material.Override_TextureSlot(MaterialTextureSlot::ORM3, 0, base.orm3Path);
+    if (base.emissiveOverride)
+        (void)material.Override_TextureSlot(MaterialTextureSlot::Emissive, 0, base.emissivePath);
+    if (base.hairDepthOverride)
+        (void)material.Override_TextureSlot(MaterialTextureSlot::HairDepth, 0, base.hairDepthPath);
+    if (base.hairIDOverride)
+        (void)material.Override_TextureSlot(MaterialTextureSlot::HairID, 0, base.hairIDPath);
+    if (base.irisHeightOverride)
+        (void)material.Override_TextureSlot(MaterialTextureSlot::IrisHeight, 0, base.irisHeightPath);
+    if (base.irisMaskOverride)
+        (void)material.Override_TextureSlot(MaterialTextureSlot::IrisMask, 0, base.irisMaskPath);
+
+    if (base.opacityMaskOverride)
+        (void)material.Override_TextureSlot(MaterialTextureSlot::OpacityMask, 0, base.opacityMaskPath);
+    else
+        (void)material.Override_TextureSlot(MaterialTextureSlot::OpacityMask, 0, L"");
+
     return true;
 }
 

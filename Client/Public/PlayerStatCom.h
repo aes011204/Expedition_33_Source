@@ -123,6 +123,7 @@ public:
     void    Add_Exp(uint32 value);
 
     void    Set_BattleStartAp();
+    void    Restore_HpToMax();
 
     const wstring& Get_BattleAnnounceSubjectName() const override
     {

@@ -136,7 +136,30 @@ namespace
     void LoadSplitJsonObjects(const fs::path& dir, vector<json>& outArray, vector<string>& preloadModelPaths, function<bool(const json&)> filter = nullptr)
     {
         fs::path binPath = dir.parent_path() / (dir.filename().string() + ".bin");
-        if (fs::exists(binPath))
+        bool preferBin = fs::exists(binPath);
+        if (preferBin && fs::exists(dir))
+        {
+            try
+            {
+                const auto binWriteTime = fs::last_write_time(binPath);
+                for (const fs::directory_entry& entry : fs::directory_iterator(dir))
+                {
+                    if (!entry.is_regular_file() || entry.path().extension() != ".json")
+                        continue;
+
+                    if (fs::last_write_time(entry.path()) > binWriteTime)
+                    {
+                        preferBin = false;
+                        break;
+                    }
+                }
+            }
+            catch (...)
+            {
+            }
+        }
+
+        if (preferBin)
         {
             ifstream ifs(binPath, ios::binary);
             if (ifs.is_open())

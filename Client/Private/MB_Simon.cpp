@@ -4,8 +4,42 @@
 #include "Mon_Simon_Hair.h"
 #include "Mon_Simon_Weapon.h"
 #include "GameInstance.h"
+#include "Material.h"
+#include "ModelCom.h"
 #include "MonsterStatCom.h"
 #include "WeaponPrefabLoader.h"
+
+namespace
+{
+    constexpr const char* kSimonHairMaterialName = "MI_Hair_Simon";
+    constexpr Vec4 kSimonPhase2HairTint{ 0.8f, 0.8f, 0.8f, 1.f };
+
+    bool Is_SimonPhase2PrefabJson(const json& data)
+    {
+        return data.value("prefab_name", string{}) == Constants::Prefab::MB_Simon_V2;
+    }
+
+    void Apply_SimonPhase2HairTint(const Shared<Mon_Simon_Hair>& hair)
+    {
+        if (hair == nullptr)
+            return;
+
+        const Shared<ModelCom> hairModel = hair->Get_Model();
+        if (hairModel == nullptr)
+            return;
+
+        for (uint32 materialIndex = 0; materialIndex < static_cast<uint32>(hairModel->Get_NumMaterials()); ++materialIndex)
+        {
+            const Shared<Material> material = hairModel->Get_Material(materialIndex);
+            if (material == nullptr || material->Get_MaterialName() != kSimonHairMaterialName)
+                continue;
+
+            MaterialCB cb = material->Get_CB();
+            cb.baseColorTint = kSimonPhase2HairTint;
+            material->Set_CB(cb);
+        }
+    }
+}
 
 IMPLEMENT_REFLECTION(MB_Simon)
 {
@@ -15,6 +49,7 @@ IMPLEMENT_REFLECTION(MB_Simon)
     info.displayName = "MB_Simon";
     info.category = "Monster";
     PROPERTY_FLOAT("Battle Ground Offset Y", _battleGroundOffsetY, -5.f, 5.f, 0.01f);
+    PROPERTY_BOOL("Play Effect", _playEffect);
     PROPERTY_FLOAT("Weapon Scale Multiplier", _weaponScaleMultiplier, 0.1f, 3.f, 0.01f);
 
 
@@ -73,6 +108,11 @@ void MB_Simon::Update(float timeDelta)
     {
         _body->Play_Animation(timeDelta);
     }
+
+    if (_playEffect)
+        PlaySimonEffect();
+    else
+        StopSimonEffect();
 
     Monster_BattleBase::Update(timeDelta);
 }
@@ -138,6 +178,52 @@ void MB_Simon::From_Json(const json& data)
     Monster_BattleBase::From_Json(data);
 
     Apply_WeaponScaleMultiplier();
+
+    if (Is_SimonPhase2PrefabJson(data))
+        Apply_SimonPhase2HairTint(_hair);
+}
+
+void MB_Simon::Set_PlayEffect(bool playEffect)
+{
+    if (_playEffect == playEffect)
+        return;
+
+    _playEffect = playEffect;
+
+    if (_playEffect)
+        PlaySimonEffect();
+    else
+        StopSimonEffect();
+}
+
+bool MB_Simon::Play_BodyOffsetModifierOnce(
+    const wstring& modifierTag,
+    float strengthAlpha,
+    float durationSec,
+    float startRatio,
+    float playRate)
+{
+    return _body != nullptr &&
+        _body->Play_OffsetModifierOnce(
+            modifierTag,
+            strengthAlpha,
+            durationSec,
+            startRatio,
+            playRate);
+}
+
+bool MB_Simon::Play_DefaultBodyOffsetOnce(
+    float strengthAlpha,
+    float durationSec,
+    float startRatio,
+    float playRate)
+{
+    return _body != nullptr &&
+        _body->Play_DefaultOffsetOnce(
+            strengthAlpha,
+            durationSec,
+            startRatio,
+            playRate);
 }
 
 void MB_Simon::Apply_WeaponScaleMultiplier()
@@ -155,7 +241,94 @@ void MB_Simon::Apply_WeaponScaleMultiplier()
         _weaponBaseScale.y * multiplier,
         _weaponBaseScale.z * multiplier));
 }
+void MB_Simon::PlaySimonEffect()
+{
+    if (_playEffect == false || _effectCom == nullptr || _simonEffectPlaying)
+        return;
+    
+    _activeEffectHandle1 = {};
+    _activeEffectHandle2 = {};
+    _activeEffectHandle3 = {};
 
+    EffectCom::EffectPlayDesc desc{};
+    desc.levelIndex = GAME->Current_LevelIndex();
+    desc.effectName = L"Simon_Berserker_Elec_Weapon";
+    desc.target = EffectCom::EffectPlayTarget::PartSocket;
+    desc.partTag = L"Part_Body";
+    desc.socketName = "FX_Trail_L_01";
+    desc.layerTag = L"Layer_Effect";
+    desc.localOffset = Vec3{ 0.f,0.f,0.f };
+    desc.localRotation = Vec3{ 0.f,0.f,-47.f };
+    desc.scale = Vec3{ 1.f,1.f,1.f };
+    desc.playbackSpeed = 1;
+    desc.transformInheritance.inheritPosition = true;
+    desc.transformInheritance.inheritRotation = true;
+    desc.transformInheritance.inheritScale = false;
+    desc.followTarget = true; // ANS는 EffectCom::_attachedEffects에서 계속 follow한다.
+
+    EffectInstancePool::AttachedHandle _activeEffectHandle1 = {};
+    _effectCom->Play_Effect(desc, &_activeEffectHandle1);
+
+
+    desc.levelIndex = GAME->Current_LevelIndex();
+    desc.effectName = L"Simon_Berserker_Elec";
+    desc.target = EffectCom::EffectPlayTarget::PartSocket;
+    desc.partTag = L"Part_Body";
+    desc.socketName = "spine_01";
+    desc.layerTag = L"Layer_Effect";
+    desc.localOffset = Vec3{ 0.f,0.f,0.f };
+    desc.localRotation = Vec3{ 0.f,0.f,0.f };
+    desc.scale = Vec3{ 2.f,1.f,1.f };
+    desc.playbackSpeed = 1;
+    desc.transformInheritance.inheritPosition = true;
+    desc.transformInheritance.inheritRotation = true;
+    desc.transformInheritance.inheritScale = false;
+    desc.followTarget = true; // ANS는 EffectCom::_attachedEffects에서 계속 follow한다.
+
+
+    EffectInstancePool::AttachedHandle _activeEffectHandle2 = {};
+    _effectCom->Play_Effect(desc, &_activeEffectHandle2);
+
+
+    desc.levelIndex = GAME->Current_LevelIndex();
+    desc.effectName = L"Simon_Berserker_Elec_Weapon";
+    desc.target = EffectCom::EffectPlayTarget::PartRoot;
+    desc.partTag = L"Part_Weapon";
+    desc.socketName = "";
+    desc.layerTag = L"Layer_Effect";
+    desc.localOffset = Vec3{ 0.f,0.f,-0.2f };
+    desc.localRotation = Vec3{ 90.f,0.f,0.f };
+    desc.scale = Vec3{ 1.f,1.5f,1.f };
+    desc.playbackSpeed = 1;
+    desc.transformInheritance.inheritPosition = true;
+    desc.transformInheritance.inheritRotation = true;
+    desc.transformInheritance.inheritScale = false;
+    desc.followTarget = true; // ANS는 EffectCom::_attachedEffects에서 계속 follow한다.
+
+    _effectCom->Play_Effect(desc, &_activeEffectHandle3);
+
+    _simonEffectPlaying =
+        _activeEffectHandle1.effectObject != nullptr ||
+        _activeEffectHandle2.effectObject != nullptr ||
+        _activeEffectHandle3.effectObject != nullptr;
+
+}
+
+void MB_Simon::StopSimonEffect()
+{
+    if (_effectCom == nullptr)
+        return;
+
+    _effectCom->Stop_Effect(_activeEffectHandle1);
+    _effectCom->Stop_Effect(_activeEffectHandle2);
+    _effectCom->Stop_Effect(_activeEffectHandle3);
+
+    _activeEffectHandle1 = {};
+    _activeEffectHandle2 = {};
+    _activeEffectHandle3 = {};
+    _simonEffectPlaying = false;
+
+}
 Shared<MB_Simon> MB_Simon::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)
 {
     auto instance = make_shared<MB_Simon>(device, context);

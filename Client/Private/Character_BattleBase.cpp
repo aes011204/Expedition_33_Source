@@ -72,9 +72,12 @@ bool Character_BattleBase::Try_ApplyBattleBreakOnDamage(const DamageAppliedInfo&
     if (monsterStat->IsBreak() || monsterStat->Get_MaxBreak() <= 0.f)
         return false;
 
+    const bool wasBreakGaugeFullBeforeDamage =
+        monsterStat->Get_CurBreak() >= monsterStat->Get_MaxBreak();
+
     monsterStat->Add_Break(info.damage);
 
-    if (monsterStat->Get_CurBreak() < monsterStat->Get_MaxBreak())
+    if (!wasBreakGaugeFullBeforeDamage)
         return false;
 
     if (!canTriggerBreak)

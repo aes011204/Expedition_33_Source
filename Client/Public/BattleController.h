@@ -377,6 +377,7 @@ private:
 
     // 현재 턴을 진행중인 적이 죽으면.
     bool _requestEndTurnOnCurrentActorDeath = false;
+    bool _lastCompletedTurnWasPlayer = true;
 
 public:
     struct Compare
@@ -475,7 +476,9 @@ private:
 
         Shared<GameObject> actor{};
         bool wasVisible = false; // 연출 전 visibility를 저장해 원래 숨겨진 대상은 복구 때 새로 켜지 않게 한다.
-        float hiddenElapsedSec = 0.f;
+        float hiddenElapsedSec = 0.f; // 가림 판정이 연속으로 유지된 시간. 짧은 튐에는 디졸브를 시작하지 않는다.
+        float clearElapsedSec = 0.f; // 안 가림 판정이 연속으로 유지된 시간. 경계선 떨림 복구를 늦춘다.
+        bool dissolveStarted = false;
         bool visibilityForcedOff = false;
         vector<PartVisibility> partVisibilities{};
     };

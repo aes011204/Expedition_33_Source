@@ -39,6 +39,7 @@ public:
 	HRESULT Initialize(const char* modelPath, const ModelMaterialData& materialData, const vector<ModelTextureSlot>& slots, uint32 maxTextureTypeSize);
 	HRESULT Bind_Material(class ShaderCom* shader, const char* constantName, MaterialTextureSlot slot, uint32 textureIndex = 0);
 	HRESULT Override_TextureSlot(MaterialTextureSlot slot, uint32 slotIndex, const wstring& texturePath);
+    Shared<Material> Clone() const;
 
     void    Update_MaterialState();
     const string& Get_MaterialName() const { return _materialName; }

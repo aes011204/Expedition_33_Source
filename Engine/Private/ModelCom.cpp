@@ -1355,10 +1355,14 @@ bool ModelCom::Play_Animation(float timeDelta)
 
 HRESULT ModelCom::Bind_Material(ShaderCom* shader, const char* constantName, uint32 meshIndex, MaterialTextureSlot slot, uint32 textureIndex)
 {
-    if (_materials.empty() || meshIndex >= _materials.size())
+    if (meshIndex >= _meshes.size() || _meshes[meshIndex] == nullptr)
         return E_FAIL;
 
-    return _materials[_meshes[meshIndex]->Get_MaterialIndex()]->Bind_Material(shader, constantName, slot, textureIndex);
+    const uint32 materialIndex = _meshes[meshIndex]->Get_MaterialIndex();
+    if (materialIndex >= _materials.size() || _materials[materialIndex] == nullptr)
+        return E_FAIL;
+
+    return _materials[materialIndex]->Bind_Material(shader, constantName, slot, textureIndex);
 }
 
 HRESULT ModelCom::Bind_BoneMatrices(ShaderCom* shader, const char* constantName, uint32 meshIndex)
@@ -2252,7 +2256,9 @@ bool ModelCom::Should_UseSameAnimationBlend(uint32 animIndex, float blendDuratio
     if (animIndex >= _animations.size())
         return false;
 
-    return _currentAnimIndex == animIndex;
+    // Reuse the source-pose snapshot path for explicit blends so notify/modifier poses
+    // do not snap back to raw animation samples.
+    return true;
 }
 
 void ModelCom::Begin_SameAnimationBlendIfNeeded(uint32 animIndex, float blendDuration)
@@ -2365,7 +2371,7 @@ bool ModelCom::Step_SampleAnimationPose(const AnimPipelineContext& context)
             }
 
             Apply_SameAnimationBlendPose(ratio, context.rootIndex);
-
+            
             _blendElapsedTime += context.adjustedTimeDelta;
             if (_blendElapsedTime >= _blendDuration)
             {
@@ -2497,7 +2503,8 @@ void ModelCom::Step_FinalizeAnimationFrame(const AnimPipelineContext& context)
         {
             if (const AnimNotifyData* animationData = Find_CurrentNotifyAnimation())
             {
-                Update_AnimNotifies(*animationData, notifyContext, _isAnimNotifyExecutionEnabled);
+                const bool executeEventNotifies = _isAnimNotifyExecutionEnabled && !_isBlending;
+                Update_AnimNotifies(*animationData, notifyContext, executeEventNotifies);
                 Update_AnimNotifyStates(*animationData, notifyContext, _isAnimNotifyExecutionEnabled);
             }
         }

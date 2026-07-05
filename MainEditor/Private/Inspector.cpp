@@ -710,10 +710,20 @@ void Inspector::Render()
         Shared<GameObject> selectedObject = EDITOR->Selected_Object();
         if (_isPrimaryShadowLightTarget && selectedObject != nullptr)
             _isPrimaryShadowLightTarget = false;
+        if (_pointLightTargetIndex >= 0 && selectedObject != nullptr)
+            _pointLightTargetIndex = -1;
 
         if (_isPrimaryShadowLightTarget)
         {
             Draw_PrimaryShadowLightInspector();
+            Set_Open(isOpen);
+            ImGui::End();
+            return;
+        }
+
+        if (_pointLightTargetIndex >= 0)
+        {
+            Draw_PointLightInspector();
             Set_Open(isOpen);
             ImGui::End();
             return;
@@ -757,6 +767,7 @@ void Inspector::Render()
 void Inspector::Set_PrimaryShadowLightTarget(bool enabled)
 {
     _isPrimaryShadowLightTarget = enabled;
+    _pointLightTargetIndex = -1;
 
     if (enabled)
     {
@@ -764,6 +775,46 @@ void Inspector::Set_PrimaryShadowLightTarget(bool enabled)
         EDITOR->Clear_SelectedUI();
         EDITOR->Clear_SelectedRuntimeWorldUI();
     }
+}
+
+void Inspector::Set_PointLightTarget(int32 pointIndex)
+{
+    _isPrimaryShadowLightTarget = false;
+    _pointLightTargetIndex = pointIndex;
+
+    if (pointIndex >= 0)
+    {
+        EDITOR->Clear_SelectedObject();
+        EDITOR->Clear_SelectedUI();
+        EDITOR->Clear_SelectedRuntimeWorldUI();
+    }
+}
+
+void Inspector::Draw_SelectedPointLightDebug() const
+{
+    if (_pointLightTargetIndex < 0)
+        return;
+
+    const LIGHT_DESC* lightDesc = GAME->Get_PointLightDesc(static_cast<uint32>(_pointLightTargetIndex));
+    if (lightDesc == nullptr)
+        return;
+
+    const Vec3 center(lightDesc->position.x, lightDesc->position.y, lightDesc->position.z);
+    const Color lightColor(lightDesc->diffuse.x, lightDesc->diffuse.y, lightDesc->diffuse.z, 1.f);
+
+    DebugSphereDesc rangeSphere{};
+    rangeSphere.center = center;
+    rangeSphere.radius = max(lightDesc->range, 0.01f);
+    rangeSphere.style.color = lightColor;
+    rangeSphere.style.depthEnabled = false;
+    GAME->Draw_DebugSphere(rangeSphere);
+
+    DebugSphereDesc centerSphere{};
+    centerSphere.center = center;
+    centerSphere.radius = max(0.08f, lightDesc->range * 0.03f);
+    centerSphere.style.color = Color(1.f, 1.f, 0.f, 1.f);
+    centerSphere.style.depthEnabled = false;
+    GAME->Draw_DebugSphere(centerSphere);
 }
 
 void Inspector::Draw_UIInspector(
@@ -1112,6 +1163,85 @@ void Inspector::Draw_ShadowDebugRTToggleRow(const wchar_t* targetTag, const char
 }
 #endif
 
+void Inspector::Draw_PointLightInspector()
+{
+    if (_pointLightTargetIndex < 0)
+        return;
+
+    const uint32 pointIndex = static_cast<uint32>(_pointLightTargetIndex);
+    const LIGHT_DESC* sourceLight = GAME->Get_PointLightDesc(pointIndex);
+
+    ImGui::Text("Name: Point Light [%u]", pointIndex);
+    ImGui::Separator();
+
+    if (sourceLight == nullptr)
+    {
+        ImGui::TextDisabled("선택한 Point Light가 없음");
+        return;
+    }
+
+    LIGHT_DESC lightDesc = *sourceLight;
+    bool lightChanged = false;
+
+    if (ImGui::CollapsingHeader("Point Light", ImGuiTreeNodeFlags_DefaultOpen))
+    {
+        ImGui::AlignTextToFramePadding();
+        ImGui::TextDisabled("Type");
+        ImGui::SameLine(InspectorLabelWidth);
+        ImGui::TextUnformatted("Point");
+
+        Vec3 position(lightDesc.position.x, lightDesc.position.y, lightDesc.position.z);
+        ImGui::AlignTextToFramePadding();
+        ImGui::TextDisabled("Position");
+        ImGui::SameLine(InspectorLabelWidth);
+        ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+        if (ImGui::DragFloat3("##PointLightPosition", &position.x, 0.05f))
+        {
+            lightDesc.position = Vec4(position.x, position.y, position.z, 1.f);
+            lightChanged = true;
+        }
+
+        ImGui::AlignTextToFramePadding();
+        ImGui::TextDisabled("Range");
+        ImGui::SameLine(InspectorLabelWidth);
+        ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+        lightChanged |= ImGui::DragFloat("##PointLightRange", &lightDesc.range, 0.05f, 0.f, 100000.f, "%.3f");
+
+        ImGui::AlignTextToFramePadding();
+        ImGui::TextDisabled("Diffuse RGB");
+        ImGui::SameLine(InspectorLabelWidth);
+        ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+        lightChanged |= ImGui::ColorEdit3("##PointLightDiffuseRgb", &lightDesc.diffuse.x, ImGuiColorEditFlags_Float);
+
+        ImGui::AlignTextToFramePadding();
+        ImGui::TextDisabled("Alpha");
+        ImGui::SameLine(InspectorLabelWidth);
+        ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+        lightChanged |= ImGui::DragFloat("##PointLightAlpha", &lightDesc.diffuse.w, 0.01f, 0.f, 1.f, "%.2f");
+
+        ImGui::AlignTextToFramePadding();
+        ImGui::TextDisabled("Attenuation");
+        ImGui::SameLine(InspectorLabelWidth);
+        ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+        lightChanged |= ImGui::DragFloat("##PointLightAttenuation", &lightDesc.pointAttenuationPower, 0.01f, 0.001f, 8.f, "%.3f");
+
+        ImGui::AlignTextToFramePadding();
+        ImGui::TextDisabled("Ambient");
+        ImGui::SameLine(InspectorLabelWidth);
+        ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+        lightChanged |= ImGui::ColorEdit3("##PointLightAmbient", &lightDesc.ambient.x, ImGuiColorEditFlags_Float);
+
+        ImGui::AlignTextToFramePadding();
+        ImGui::TextDisabled("Specular");
+        ImGui::SameLine(InspectorLabelWidth);
+        ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+        lightChanged |= ImGui::ColorEdit3("##PointLightSpecular", &lightDesc.specular.x, ImGuiColorEditFlags_Float);
+    }
+
+    if (lightChanged)
+        GAME->Update_PointLightDesc(pointIndex, lightDesc);
+}
+
 void Inspector::Draw_PrimaryShadowLightInspector()
 {
     const LIGHT_DESC* sourceLight = GAME->Get_PrimaryShadowLightDesc();
@@ -1416,12 +1546,25 @@ void Inspector::Draw_Components(const Shared<GameObject>& target)
     {
         ImGui::PushID("InspectorObjectFlags");
 
-        bool visible = target->Is_Visible();
+        Shared<Client::MapStaticMesh> mapStaticMesh = dynamic_pointer_cast<Client::MapStaticMesh>(target);
+        Shared<Client::MapInstancedMesh> mapInstancedMesh = dynamic_pointer_cast<Client::MapInstancedMesh>(target);
+
+        bool visible = mapStaticMesh != nullptr ? mapStaticMesh->Is_MapVisible()
+            : mapInstancedMesh != nullptr ? mapInstancedMesh->Is_MapVisible()
+            : target->Is_Visible();
+
         ImGui::AlignTextToFramePadding();
         ImGui::TextDisabled("Visible");
         ImGui::SameLine(InspectorLabelWidth);
         if (ImGui::Checkbox("##Visible", &visible))
-            target->Set_Visible(visible);
+        {
+            if (mapStaticMesh != nullptr)
+                mapStaticMesh->Set_MapVisible(visible);
+            else if (mapInstancedMesh != nullptr)
+                mapInstancedMesh->Set_MapVisible(visible);
+            else
+                target->Set_Visible(visible);
+        }
 
         ImGui::PopID();
         ImGui::Spacing();

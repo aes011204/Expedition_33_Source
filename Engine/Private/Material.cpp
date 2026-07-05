@@ -454,6 +454,24 @@ void Material::Refresh_PassIndex()
     _passIndex = ShaderPassFinder::Find_PassIndex(_shaderType, _renderState);
 }
 
+Shared<Material> Material::Clone() const
+{
+    auto cloned = make_shared<Material>(_device, _context);
+
+    cloned->_materialName = _materialName;
+    cloned->_maxTextureTypeSize = _maxTextureTypeSize;
+    cloned->_materials = _materials;
+    cloned->_templateId = _templateId;
+    cloned->_renderState = _renderState;
+    cloned->_cb = _cb;
+    cloned->_shaderType = _shaderType;
+    cloned->_passIndex = _passIndex;
+    cloned->_passDirty = _passDirty;
+    cloned->_forcedPassIndex = _forcedPassIndex;
+
+    return cloned;
+}
+
 Shared<Material> Material::Create(const ComPtr<Device>& device, const ComPtr<Context>& context, const char* modelPath, const ModelMaterialData& materialData, const vector<ModelTextureSlot>& slots, uint32 maxTextureTypeSize)
 {
     auto instance = make_shared<Material>(device, context);

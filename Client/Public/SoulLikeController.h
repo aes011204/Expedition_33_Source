@@ -81,8 +81,12 @@ public:
     uint32 Get_LastVictoryRewardExp() const { return _lastVictoryRewardExp; }
 
     void End_BattleShotCamera();
-    void Apply_SkillCameraPreset(const string& skillKey);
+    void Apply_SkillCameraPreset(const string& skillKey, float clipStartTimeSec = 0.f);
+    void Sync_SkillCameraClipTime(float animationTimeSec);
     void Restore_SkillCameraPreset();
+    void Apply_PlayerJumpCameraClip(float clipStartTimeSec = 0.f);
+    void Sync_PlayerJumpCameraClipTime(float animationTimeSec);
+    void Restore_PlayerJumpCameraClip();
     void Begin_MonsterAttackCameraPreset(const Shared<SL_Base>& attacker, const string& presetKey);
     void End_MonsterAttackCameraPreset(const Shared<SL_Base>& attacker);
 
@@ -125,6 +129,7 @@ private:
     bool Spawn_Player();
     bool Spawn_Monster(const Shared<SL_Maelle>& player);
     void Remove_SpawnedBattleActors();
+    void Apply_SoulLikeArenaMapRenderGateBasis();
     void Update_EnterFx(float timeDelta);
     void Update_MonsterActionDelay(float timeDelta);
     void Update_VictorySlow();

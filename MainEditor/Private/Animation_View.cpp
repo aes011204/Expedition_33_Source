@@ -3727,7 +3727,7 @@ void Animation_View::Draw_ModifierRuntimePanel(const Shared<ModelCom>& playbackM
         ImGui::PopID();
     }
 
-    auto drawSimonHairRuntime = [&](Client::Mon_Simon_Hair* simonHair, const char* label)
+    auto drawSimonHairPhysics = [&](Client::Mon_Simon_Hair* simonHair, const char* label)
     {
         if (simonHair == nullptr)
             return;
@@ -3760,7 +3760,7 @@ void Animation_View::Draw_ModifierRuntimePanel(const Shared<ModelCom>& playbackM
                 simonHair->RuntimeResetPose();
 
             ImGui::SameLine();
-            if (ImGui::Button("Rebuild Runtime"))
+            if (ImGui::Button("Rebuild Physics"))
                 simonHair->RuntimeRebuild();
 
             ImGui::Spacing();
@@ -3775,16 +3775,16 @@ void Animation_View::Draw_ModifierRuntimePanel(const Shared<ModelCom>& playbackM
     };
 
     const Shared<GameObject> previewRootObject = Get_PreviewRenderObject();
-    drawSimonHairRuntime(dynamic_cast<Client::Mon_Simon_Hair*>(previewRootObject.get()), "Simon Hair Runtime");
+    drawSimonHairPhysics(dynamic_cast<Client::Mon_Simon_Hair*>(previewRootObject.get()), "Simon Hair Physics");
     if (const Shared<ContainerObject> previewContainer = dynamic_pointer_cast<ContainerObject>(previewRootObject))
     {
-        drawSimonHairRuntime(
+        drawSimonHairPhysics(
             dynamic_cast<Client::Mon_Simon_Hair*>(previewContainer->Get_PartObject(L"Part_Hair")),
-            "Part_Hair  [Simon Hair Runtime]");
+            "Part_Hair  [Simon Hair Physics]");
     }
 
     if (!hasEditableModifier)
-        ImGui::TextDisabled("No ChainModifier, PoseFollowChainModifier, PhysicsModifier, or Simon Hair runtime.");
+        ImGui::TextDisabled("No ChainModifier, PoseFollowChainModifier, PhysicsModifier, or Simon Hair physics.");
 }
 
 void Animation_View::Update_ModifierPreviewMotionTest(float timeDelta)
@@ -5438,7 +5438,7 @@ void Animation_View::Draw_ModifierCollisionDebug() const
             if (simonHair == nullptr)
                 return;
 
-            vector<Client::SimonHairRuntime::RuntimeDebugCapsule> simonCapsules{};
+            vector<PhysicsModifier::RuntimeDebugCapsule> simonCapsules{};
             simonHair->Build_RuntimeDebugCapsules(simonCapsules);
             for (const auto& capsule : simonCapsules)
             {
@@ -5449,7 +5449,7 @@ void Animation_View::Draw_ModifierCollisionDebug() const
                     capsule.collisionRadius });
             }
 
-            vector<Client::SimonHairRuntime::RuntimeDebugSphere> simonSpheres{};
+            vector<PhysicsModifier::RuntimeDebugSphere> simonSpheres{};
             simonHair->Build_RuntimeDebugSpheres(simonSpheres);
             for (const auto& sphere : simonSpheres)
             {
@@ -5459,7 +5459,7 @@ void Animation_View::Draw_ModifierCollisionDebug() const
                     sphere.hasContact });
             }
 
-            vector<Client::SimonHairRuntime::RuntimeDebugSegment> simonSegments{};
+            vector<PhysicsModifier::RuntimeDebugSegment> simonSegments{};
             simonHair->Build_RuntimeDebugSegments(simonSegments);
             for (const auto& segment : simonSegments)
             {
@@ -5469,7 +5469,7 @@ void Animation_View::Draw_ModifierCollisionDebug() const
                     segment.hasContact,
                     segment.hasPush,
                     false,
-                    static_cast<int32>(segment.type) });
+                    -1 });
             }
         };
 
@@ -5599,15 +5599,11 @@ void Animation_View::Draw_ModifierCollisionDebug() const
     for (const auto& segment : segments)
     {
         const XMVECTORF32 color =
-            segment.type == static_cast<int32>(Client::SimonHairRuntime::RuntimeDebugSegmentType::BoneChain)
-            ? DirectX::Colors::White
-            : (segment.type == static_cast<int32>(Client::SimonHairRuntime::RuntimeDebugSegmentType::ActorChain)
-                ? (segment.hasContact
-                    ? DirectX::Colors::Red
-                    : (segment.hasPush ? DirectX::Colors::Orange : DirectX::Colors::Cyan))
-                : (segment.hasContact
-                    ? DirectX::Colors::Red
-                    : (segment.hasPush ? DirectX::Colors::Orange : (segment.isSolvedSegment ? DirectX::Colors::Magenta : DirectX::Colors::Gray))));
+            segment.hasContact
+            ? DirectX::Colors::Red
+            : (segment.hasPush
+                ? DirectX::Colors::Orange
+                : (segment.isSolvedSegment ? DirectX::Colors::Magenta : DirectX::Colors::Cyan));
         drawLine(
             segment.startPoint,
             segment.endPoint,

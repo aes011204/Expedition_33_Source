@@ -6,6 +6,7 @@
 NS_BEGIN(Engine)
 class UI_Base;
 class UI_Image;
+class UI_Text;
 NS_END
 
 NS_BEGIN(Client)
@@ -42,6 +43,10 @@ private:
     void    Apply_HpGauge(float ratio);
     void    Apply_DelayedHpGauge(float ratio);
     void    Apply_BreakGauge(const BattleChar& target);
+    void    Apply_BurnStatus(const BattleChar& target);
+    void    Apply_SlowStatus(const BattleChar& target);
+    void    Sync_StatusIndicatorPositions();
+    uint32  Resolve_BuffStack(const BattleChar& target, Buffs buffId) const;
 
     void    Sync_DelayedHpGauge(float ratio);
     void    Update_DelayHpGauge(float timeDelta, float targetRatio);
@@ -66,6 +71,12 @@ private:
     Shared<UI_Image> _hpGauge{};
     Shared<UI_Image> _hpGaugeBG{};
     Shared<UI_Image> _breakGauge{};
+    Shared<UI_Base>  _burnPanel{};
+    Shared<UI_Base>  _slowIcon{};
+    Shared<UI_Text>  _burnStackText{};
+    Shared<UI_Text>  _burnStackBgText{};
+    Vec2             _burnStatusRootOffset = Vec2(0.f, 0.f);
+    Vec2             _slowStatusRootOffset = Vec2(0.f, 0.f);
 
     Vec3        _targetWorldPos = Vec3::Zero;
     bool        _hasTargetWorldPos = false;

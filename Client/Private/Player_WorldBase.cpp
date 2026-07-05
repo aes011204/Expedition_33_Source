@@ -20,6 +20,7 @@
 #include "FacialClip.h"
 #include "ModelCom.h"
 #include "Player_GameMenu.h"
+#include "Player_Jump.h"
 #include "Player_ParkourAction.h"
 #include "SkillTreeCom.h"
 #include "CostumeManager.h"
@@ -47,18 +48,6 @@ namespace Client::PlayerWorldTuning
             state == PlayerState::GrappleAction;
     }
 
-    const char* Get_ParkourActionName(Player_ParkourAction::ParkourActionType actionType)
-    {
-        switch (actionType)
-        {
-        case Player_ParkourAction::ParkourActionType::HighMantle:
-            return "High";
-        case Player_ParkourAction::ParkourActionType::LowMantle:
-        default:
-            return "Low";
-        }
-    }
-
     bool Try_EnterParkourFromJumpIntent(
         const Shared<PlayerStateMachineCom>& stateMachineCom,
         Player_ParkourAction::ParkourActionType actionType)
@@ -66,24 +55,15 @@ namespace Client::PlayerWorldTuning
         if (stateMachineCom == nullptr)
             return false;
 
-        LOG_WARN("[Parkour] Try {} from JumpIntent", Get_ParkourActionName(actionType));
-
         const Shared<Player_ParkourAction> parkourAction =
             dynamic_pointer_cast<Player_ParkourAction>(stateMachineCom->Get_State(PlayerState::Parkour));
         if (parkourAction == nullptr)
-        {
-            LOG_WARN("[Parkour] Reject {} from JumpIntent: missing parkour state", Get_ParkourActionName(actionType));
             return false;
-        }
 
         if (!parkourAction->Try_PrepareAction(actionType))
-        {
-            LOG_WARN("[Parkour] {} rejected from JumpIntent", Get_ParkourActionName(actionType));
             return false;
-        }
 
         const bool changed = stateMachineCom->Change_State(PlayerState::Parkour);
-        LOG_WARN("[Parkour] {} {} from JumpIntent", Get_ParkourActionName(actionType), changed ? "accepted" : "change failed");
         if (!changed)
             parkourAction->Clear_PreparedAction();
 
@@ -131,6 +111,7 @@ void Player_WorldBase::BeginPlay()
 {
     Character_WorldBase::BeginPlay();
     _fallStateEnterAcc = 0.f;
+    _airborneFallTimeAcc = 0.f;
 
     if (auto* body = dynamic_cast<Body_Player*>(Get_PartObject(L"Part_Body")))
     {
@@ -178,8 +159,15 @@ void Player_WorldBase::Priority_Update(float timeDelta)
     if (isActiveHero && _movementCom && _movementCom->Did_InputJumpStart() && !stateOwnsTransform)
     {
         _fallStateEnterAcc = 0.f; // 실제 점프 입력은 기존처럼 즉시 Jump 상태로 보낸다.
+        _airborneFallTimeAcc = 0.f;
+        if (const Shared<Player_Jump> jumpState =
+            dynamic_pointer_cast<Player_Jump>(_playerStateMachineCom->Get_State(PlayerState::Jump)))
+        {
+            jumpState->Set_InitialFallTime(0.f);
+        }
 
-        if (PlayerWorldTuning::Try_EnterParkourFromJumpIntent(_playerStateMachineCom))
+        if (!Is_ParkourBlockedByCurrentLevel() &&
+            PlayerWorldTuning::Try_EnterParkourFromJumpIntent(_playerStateMachineCom))
         {
             _playerStateMachineCom->Update_CurrentState(0.f);
         }
@@ -198,26 +186,46 @@ void Player_WorldBase::Priority_Update(float timeDelta)
         if (_movementCom->Is_Grounded())
         {
             _fallStateEnterAcc = 0.f; // 지면을 다시 밟으면 점프 입력 없는 낙하 진입 누적은 바로 리셋한다.
+            _airborneFallTimeAcc = 0.f;
         }
-        else if (canEnterFallState &&
-            _movementCom->Get_Velocity().y < PlayerWorldTuning::kFallStateEnterSpeedY)
+        else if (canEnterFallState)
         {
-            _fallStateEnterAcc += timeDelta; // 경사 보행 중 잠깐 비는 공중 프레임은 바로 Jump로 소비하지 않고 짧게 누적 확인한다.
+            _airborneFallTimeAcc += timeDelta;
 
-            if (_fallStateEnterAcc >= PlayerWorldTuning::kFallStateEnterDelaySec)
+            if (_movementCom->Get_Velocity().y < PlayerWorldTuning::kFallStateEnterSpeedY)
+            {
+                _fallStateEnterAcc += timeDelta; // 경사 보행 중 잠깐 비는 공중 프레임은 바로 Jump로 소비하지 않고 짧게 누적 확인한다.
+
+                if (_fallStateEnterAcc >= PlayerWorldTuning::kFallStateEnterDelaySec)
+                {
+                    const Shared<Player_Jump> jumpState =
+                        dynamic_pointer_cast<Player_Jump>(_playerStateMachineCom->Get_State(PlayerState::Jump));
+                    if (jumpState != nullptr)
+                    {
+                        jumpState->Set_InitialFallTime(_airborneFallTimeAcc);
+                    }
+
+                    _fallStateEnterAcc = 0.f;
+                    _airborneFallTimeAcc = 0.f;
+                    if (!_playerStateMachineCom->Change_State(PlayerState::Jump) && jumpState != nullptr)
+                        jumpState->Set_InitialFallTime(0.f);
+                }
+            }
+            else
             {
                 _fallStateEnterAcc = 0.f;
-                _playerStateMachineCom->Change_State(PlayerState::Jump);
             }
         }
         else
         {
             _fallStateEnterAcc = 0.f; // Idle/Move 외 상태거나 하강 속도가 약하면 가짜 낙하 누적을 버린다.
+            _airborneFallTimeAcc = 0.f;
         }
     }
     else
     {
         _fallStateEnterAcc = 0.f;
+        _airborneFallTimeAcc = 0.f;
     }
 
     Handle_DebugWarpShortcuts();
@@ -299,6 +307,9 @@ void Player_WorldBase::Set_CinematicDriven(bool cinematicDriven)
         _movementCom->Stop_VerticalMovement();
         _movementCom->Sync_RuntimePositionToTransform();
     }
+
+    if (!cinematicDriven && _playerStateMachineCom)
+        _playerStateMachineCom->Reenter_CurrentState();
 }
 
 void Player_WorldBase::Set_PartyVisibilityAllowed(bool allowed)
@@ -315,6 +326,11 @@ void Player_WorldBase::Update_StatusPreview(float timeDelta)
 
     ContainerObject::Update(timeDelta);
     ContainerObject::Late_Update(timeDelta);
+}
+
+bool Player_WorldBase::Is_ParkourBlockedByCurrentLevel() const
+{
+    return GAME->Current_LevelIndex() == ETOI(LevelType::Stage01);
 }
 
 void Player_WorldBase::Update_GameMenuFacialPreview(float timeDelta, bool enabled)
@@ -680,7 +696,8 @@ HRESULT Player_WorldBase::Activate_CostumeVariant(const CostumePreset& preset)
     if (_playerStateMachineCom)
     {
         _playerStateMachineCom->Refresh_BodyPlayerForStates();
-        _playerStateMachineCom->Reenter_CurrentState();
+        if (!GAME->Is_GameplayPaused())
+            _playerStateMachineCom->Reenter_CurrentState();
     }
 
     return S_OK;

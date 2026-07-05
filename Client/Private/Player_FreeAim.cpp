@@ -11,11 +11,12 @@
 #include "Player_WorldBase.h"
 #include "TargetCamera.h"
 #include "ClientInstance.h"
+#include "Client_Constants.h"
 #include "EyeTarget.h"
 
 namespace
 {
-    constexpr float FREE_AIM_TRACE_DISTANCE = 200.f;
+    constexpr float FREE_AIM_TRACE_DISTANCE = 800.f;
     constexpr float FREE_AIM_MONSTER_SWEEP_RADIUS = 0.3f;
     constexpr float FREE_AIM_HIT_EFFECT_NORMAL_OFFSET = 0.05f;
     const wstring WORLD_FREE_AIM_HIT_EFFECT_NAME = L"World_FreeAim_Hit_EX.effect.json";
@@ -130,6 +131,8 @@ bool Player_FreeAim::EnterInvoke()
         }
     }
 
+    GAME->Play_SoundCue(Constants::SoundCue::SFX_FreeAimStart);
+
     return true;
 }
 
@@ -172,6 +175,7 @@ void Player_FreeAim::Update(float timeDelta)
         {
             Cache_PendingFreeAimShot();
 
+            GAME->Play_SoundCue(Constants::SoundCue::SFX_FreeAimHit);
             _bodyPlayer->Set_AnimationByState(ETOI(plAnim::Pl_FreeAim_Shoot), 0.25f, false);
             _bodyPlayer->Set_AnimationSpeed(2.f);
         }
@@ -208,6 +212,8 @@ void Player_FreeAim::LateUpdate(float timeDelta)
 
 void Player_FreeAim::ExitInvoke()
 {
+    GAME->Play_SoundCue(Constants::SoundCue::SFX_FreeAimStop);
+
     _hasHitObject = false;
     _hitObject.reset();
     Clear_PendingFreeAimShot();

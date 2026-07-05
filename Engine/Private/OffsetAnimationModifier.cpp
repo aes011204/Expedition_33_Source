@@ -75,6 +75,29 @@ void OffsetAnimationModifier::Evaluate_Modifier(ModelCom* model, float timeDelta
     UpdateWeightOffset(model, timeDelta);
 }
 
+void OffsetAnimationModifier::Play_Once(const OneShotPlaybackDesc& desc)
+{
+    Set_StrengthAlpha(max(0.f, desc.strengthAlpha));
+
+    _oneShotMode = true;
+    _oneShotPlaying = true;
+    _oneShotElapsedSec = 0.f;
+    _oneShotDurationSec = desc.durationSec;
+    _oneShotPlayRate = desc.playRate > 0.f ? desc.playRate : 1.f;
+    _trackPosition = 0.f;
+
+    if (_ownerModel != nullptr && _animIndex >= 0)
+    {
+        if (Animation* offsetAnim = _ownerModel->Get_Animation(static_cast<uint32>(_animIndex)))
+        {
+            const float startRatio = clamp(desc.startRatio, 0.f, 1.f);
+            _trackPosition = offsetAnim->Get_Duration() * startRatio;
+        }
+    }
+
+    Set_Active(true);
+}
+
 bool OffsetAnimationModifier::BlendAlpha(ModelCom* model, float timeDelta)
 {
     float targetAlpha = _isActive ? 1.f : 0.f;
@@ -94,7 +117,15 @@ bool OffsetAnimationModifier::BlendAlpha(ModelCom* model, float timeDelta)
             _blendAlpha = targetAlpha;
     }
 
-    if (_blendAlpha <= 0.f || nullptr == model || _animIndex < 0 || _boneChain.empty())
+    if (_blendAlpha <= 0.f)
+    {
+        if (!_isActive)
+            Reset_OneShotState();
+
+        return false;
+    }
+
+    if (nullptr == model || _animIndex < 0 || _boneChain.empty())
         return false;
 
     return true;
@@ -111,7 +142,25 @@ void OffsetAnimationModifier::UpdateWeightOffset(ModelCom* model, float timeDelt
     Animation* offsetAnim = model->Get_Animation(_animIndex);
     if (!offsetAnim) return;
 
-    if (_desc.isDynamicPlay)
+    const bool usePlaybackTime = _oneShotMode || _desc.isDynamicPlay;
+
+    if (_oneShotPlaying)
+    {
+        _oneShotElapsedSec += timeDelta;
+        _trackPosition += timeDelta * offsetAnim->Get_TickPerSecond() * _oneShotPlayRate;
+
+        const bool reachedAnimEnd = _trackPosition >= offsetAnim->Get_Duration();
+        const bool reachedDuration =
+            _oneShotDurationSec > 0.f && _oneShotElapsedSec >= _oneShotDurationSec;
+
+        if (reachedAnimEnd || reachedDuration)
+        {
+            _trackPosition = min(_trackPosition, offsetAnim->Get_Duration());
+            _oneShotPlaying = false;
+            Set_Active(false);
+        }
+    }
+    else if (!_oneShotMode && _desc.isDynamicPlay)
     {
         _trackPosition += timeDelta * offsetAnim->Get_TickPerSecond() * _desc.playRate;
         if (_trackPosition > offsetAnim->Get_Duration())
@@ -146,7 +195,7 @@ void OffsetAnimationModifier::UpdateWeightOffset(ModelCom* model, float timeDelt
         RootMotionFrame center = Get_TransformAtRatio(boneChannel, _desc.timeRatio_Center);
         RootMotionFrame target = center;
 
-        if (_desc.isDynamicPlay)
+        if (usePlaybackTime)
         {
             target = Get_TransformAtTime(boneChannel, _trackPosition);
         }
@@ -210,6 +259,19 @@ void OffsetAnimationModifier::UpdateWeightOffset(ModelCom* model, float timeDelt
                 * Matrix::CreateTranslation(finalPos));
         }
     }
+}
+
+void OffsetAnimationModifier::Reset_OneShotState()
+{
+    if (!_oneShotMode && !_oneShotPlaying)
+        return;
+
+    _oneShotMode = false;
+    _oneShotPlaying = false;
+    _oneShotElapsedSec = 0.f;
+    _oneShotDurationSec = -1.f;
+    _oneShotPlayRate = 1.f;
+    _trackPosition = 0.f;
 }
 
 Shared<OffsetAnimationModifier> OffsetAnimationModifier::Create(OffsetModifierDesc* modifierDesc)

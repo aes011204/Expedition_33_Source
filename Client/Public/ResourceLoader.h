@@ -49,6 +49,15 @@ using FLoadJob = struct tagLoadJob
     uint32 iCount = 1;
 };
 
+struct ModelPrototypePrewarmDesc
+{
+    uint32 levelIndex = ETOI(LevelType::Static);
+    wstring prototypeTag{};
+    wstring modelPath{};
+    ModelType modelType = ModelType::NonAnim;
+    Matrix preLocalTransform = Matrix::Identity;
+};
+
 class ResourceLoader final : public Base
 {
 public:
@@ -87,6 +96,7 @@ public:
     static FInputLayoutInfo Get_InputLayout(const string& strName);
 
     HRESULT Register_LoadJob(const FLoadJob& loadJob);
+    HRESULT Prewarm_ModelPrototype(const ModelPrototypePrewarmDesc& desc);
 
 public:
     static bool Can_CreatePrototypeOnWorker(const FLoadJob& loadJob);

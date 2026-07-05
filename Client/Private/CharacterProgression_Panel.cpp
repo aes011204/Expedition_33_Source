@@ -355,6 +355,7 @@ void CharacterProgression_Panel::Switch_ContentTab(ContentTab nextTab)
     if (_activeContentTab == nextTab)
         return;
 
+    const ContentTab previousTab = _activeContentTab;
     _lastAction = Action::None;
 
     Close_ActiveContentPanel();
@@ -362,7 +363,15 @@ void CharacterProgression_Panel::Switch_ContentTab(ContentTab nextTab)
 
     Show_CharacterProgressionPreview(_selectedHeroId, _activeContentTab);
     Update_PreviewHeroVisibility();
-    Play_SelectedHeroPreviewAnimationForTab(_activeContentTab);
+    if (_activeContentTab == ContentTab::Overview && previousTab == ContentTab::Wardrobe)
+    {
+        const HeroId heroId = (_selectedHeroId == HeroId::END) ? Get_DefaultSelectedHeroId() : _selectedHeroId;
+        CLIENT->Play_PreviewAnimation(heroId, PreviewAnimState::Overview_Idle, PreviewAnimState::Overview_Idle);
+    }
+    else
+    {
+        Play_SelectedHeroPreviewAnimationForTab(_activeContentTab);
+    }
 
     if (_activeContentTab == ContentTab::Overview)
     {
@@ -1166,6 +1175,7 @@ HRESULT CharacterProgression_Panel::Ensure_AbilityPentagonUI()
     if (UI_Transform* transform = _abilityPentagonFrame->Get_Transform())
     {
         desc.transformDesc.position = transform->Get_Position();
+        desc.transformDesc.position.y += 7.5f; // 프레임 중심보다 살짝 위로 뜨는 채움 도형만 조금 아래로 보정한다.
         desc.transformDesc.size = transform->Get_Size();
         desc.transformDesc.scale = transform->Get_Scale();
         desc.transformDesc.pivot = transform->Get_Pivot();

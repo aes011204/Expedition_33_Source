@@ -15,6 +15,7 @@ struct EvtBattlePresentation
     bool               useClip = false;
     bool               restartClip = false;
     bool               keepCurrentClip = false;
+    bool               skipIfParryActive = false;
     //ui에 필요한 변수들 추가
 };
 

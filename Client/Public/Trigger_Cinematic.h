@@ -1,5 +1,6 @@
 ﻿#pragma once
 #include "GameObject.h"
+#include <functional>
 
 NS_BEGIN(Client)
 
@@ -21,7 +22,9 @@ public:
 
 public:
     void    Set_SequenceFileId(const wstring& sequenceFileId);
+    const wstring& Get_SequenceFileId() const { return _sequenceFileId; }
     void    Set_StartBattleOnComplete(bool enabled, const string& targetId = "Boss");
+    void    Set_OnTriggered(function<void()> callback);
 
 private:
     HRESULT Ready_Components();
@@ -32,6 +35,7 @@ private:
 
     bool                _startBattleOnComplete = false;
     string              _battleTargetId = "Boss";
+    function<void()>    _onTriggered{};
 
 public:
     static Shared<Trigger_Cinematic> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);

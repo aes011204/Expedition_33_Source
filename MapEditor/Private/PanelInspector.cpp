@@ -587,6 +587,16 @@ void PanelInspector::DrawTypeParams(Shared<EditorObject>& obj)
                 _ctx->_lightDirty = true;
             }
 
+            if (obj->_lightType == LightType::Point)
+            {
+                float alpha = obj->_lightDiffuse.w;
+                if (ImGui::DragFloat("Alpha", &alpha, 0.01f, 0.f, 1.f, "%.2f"))
+                {
+                    obj->_lightDiffuse.w = alpha;
+                    _ctx->_lightDirty = true;
+                }
+            }
+
             if (ImGui::ColorEdit4("Ambient", ambient))
             {
                 obj->_lightAmbient = Vec4{ ambient[0],  ambient[1],  ambient[2],  ambient[3] };
@@ -611,6 +621,11 @@ void PanelInspector::DrawTypeParams(Shared<EditorObject>& obj)
             else
             {
                 if (ImGui::DragFloat("Range", &obj->_lightRange, 0.1f, 0.1f, 1000.f))
+                {
+                    _ctx->_lightDirty = true;
+                }
+
+                if (ImGui::DragFloat("Attenuation Power", &obj->_lightAttenuationPower, 0.01f, 0.001f, 8.f, "%.3f"))
                 {
                     _ctx->_lightDirty = true;
                 }

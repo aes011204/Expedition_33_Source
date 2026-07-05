@@ -611,6 +611,34 @@ HRESULT ResourceLoader::Register_LoadJob(const FLoadJob& loadJob)
     return S_OK;
 }
 
+HRESULT ResourceLoader::Prewarm_ModelPrototype(const ModelPrototypePrewarmDesc& desc)
+{
+    if (desc.prototypeTag.empty() || desc.modelPath.empty())
+        return E_FAIL;
+
+    if (GAME->Has_Prototype(desc.levelIndex, desc.prototypeTag))
+        return S_OK;
+
+    const string modelPath = String::ToString(desc.modelPath);
+    Shared<ModelCom> prototype = ModelCom::Create(
+        _device,
+        _context,
+        desc.modelType,
+        modelPath.c_str(),
+        desc.preLocalTransform);
+
+    if (prototype == nullptr)
+    {
+        LOG_WARN(
+            "[ResourceLoader] cinematic model prewarm failed. tag={}, path={}",
+            String::ToString(desc.prototypeTag),
+            modelPath);
+        return E_FAIL;
+    }
+
+    return GAME->Add_Prototype(desc.levelIndex, desc.prototypeTag, prototype);
+}
+
 bool ResourceLoader::Can_CreatePrototypeOnWorker(const FLoadJob& loadJob)
 {
     switch (loadJob.eType)

@@ -20,6 +20,9 @@ NS_BEGIN(Client)
 
 struct DialogueRequest;
 struct EventDialogueUIRequest;
+struct ActionRequest;
+struct BattleChar;
+enum class BattleTurnState;
 
     class DialogueCamera;
 class DialogueManager;
@@ -45,6 +48,9 @@ class CostumeManager;
 class SoulLikeController;
 class Unlock_Manager;
 class BattleFollowupManager;
+class SimonCriticalGlowController;
+class BattleTargetingVoicePreset;
+class BattleTurnStartVoicePreset;
 
 DECLARE_DELEGATE(FOnFreeAimShotHit);
 
@@ -99,7 +105,10 @@ public:
     static void Set_DebugDisableMapStaticMeshShadow(bool disabled);
     static void Set_PotatoBagArenaMapRenderGateBasis(const Vec3& origin, const Vec3& right, const Vec3& forward);
     static void Clear_PotatoBagArenaMapRenderGateBasis();
+    static void Set_SoulLikeArenaMapRenderGateBasis(const Vec3& origin, const Vec3& right, const Vec3& forward);
+    static void Clear_SoulLikeArenaMapRenderGateBasis();
     static bool Is_PotatoBagArenaMapRenderGateActive();
+    static uint32 Get_PotatoBagArenaMapRenderGateRevision();
     static bool Should_RenderMapObjectInPotatoBagArena(const BoundingBox& worldBounds);
     static bool Should_RenderMapInstanceInPotatoBagArena(const BoundingSphere& worldSphere);
     static void Update_PotatoBagArenaMapInstancedShadowOverride();
@@ -155,6 +164,7 @@ public: /* For.Hero Manager */
 
     // 플레이어 전부 가져오기
     const vector<HeroPartyEntry>& Get_HeroEntries() const;
+    void Restore_CurrentHeroesHpToMax();
 
     // 특정 슬롯 반환
     Shared<Player_WorldBase>  Get_Hero(HeroPartySlot slot) const;
@@ -219,6 +229,10 @@ public: /* For.Battle_Controller */
     bool Is_BattleEntering() const;
 
     bool Is_PotatoBagBattleActive() const;
+    bool Play_BattleMonsterTargetingVoice(
+        const ActionRequest& request,
+        const vector<BattleChar>& targetedHeroes);
+    bool Play_BattleTurnStartVoice();
 
 public: /*For.Camera Director*/
     void Request_GamePlay();
@@ -277,6 +291,10 @@ public: /*CinematicSequenceRunner*/
     // 시네마틱 종료됐을 떄 알림
     FDelegateHandle Add_CinematicCompletedCallback(const FOnCinematicCompleted::FunctionType& callback);
     void Clear_CinematicCompletedCallbacks();
+
+    void Queue_CinematicPrewarmForLevel(uint32 targetLevelIndex);
+    void Flush_CinematicPrewarmQueue(uint32 createBudget = UINT32_MAX);
+    void Clear_CinematicPrewarmQueue();
 
 public:
     Shared<CinematicCamera> Ensure_CinematicCamera();
@@ -372,10 +390,13 @@ public:
 public: /* Battle Followup Manager */
      BattleFollowupManager* Get_BattleFollowupManager() const { return _battleFollowupManager.get(); }
 
+public: // Simon Critical Glow Controller
+    SimonCriticalGlowController* Get_SimonCriticalGlowController() const { return _simonCriticalGlowController.get(); }
 
 private:
 	HRESULT Ready_ResourceLoader();
     HRESULT Ready_GameDataTables();
+    void Handle_BattleTargetingVoiceTurnStarted(const BattleChar& actor, BattleTurnState state);
     void Capture_ReplayWorldSnapshotIfNeeded();
     void Restore_ReplayWorldObjectsFromSnapshot();
     void Capture_ReplayCameraSnapshot();
@@ -418,6 +439,9 @@ private:
     Shared<ClientScreenFxManager>       _screenFxManager;
 
     Shared<BattleController>    _battleController;
+    Unique<BattleTargetingVoicePreset> _battleTargetingVoicePreset;
+    Unique<BattleTurnStartVoicePreset> _battleTurnStartVoicePreset;
+    FDelegateHandle             _battleTargetingVoiceTurnStartedHandle{};
     Shared<PlayerInventory>     _playerInventory;
 
     Unique<CostumeManager>      _costumeManager;
@@ -454,6 +478,8 @@ private:
     };
 
     ReplayCameraSnapshot _replayCameraSnapshot{};
+
+    Unique<SimonCriticalGlowController> _simonCriticalGlowController;
 
 public:
 	void Free() override;
