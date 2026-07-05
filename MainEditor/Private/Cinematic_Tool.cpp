@@ -188,6 +188,29 @@ bool Should_RebuildPreviewForEventEdit(
             beforePlayAnim->holdFrame != afterPlayAnim->holdFrame;
     }
 
+    if (const auto* beforePlayEffect = get_if<CinematicPlayEffectEventData>(&before.payload))
+    {
+        const auto* afterPlayEffect = get_if<CinematicPlayEffectEventData>(&after.payload);
+        if (afterPlayEffect == nullptr)
+            return true;
+
+        return beforePlayEffect->effectName != afterPlayEffect->effectName ||
+            beforePlayEffect->target != afterPlayEffect->target ||
+            beforePlayEffect->partTag != afterPlayEffect->partTag ||
+            beforePlayEffect->socketName != afterPlayEffect->socketName ||
+            beforePlayEffect->layerTag != afterPlayEffect->layerTag ||
+            beforePlayEffect->localOffset.x != afterPlayEffect->localOffset.x ||
+            beforePlayEffect->localOffset.y != afterPlayEffect->localOffset.y ||
+            beforePlayEffect->localOffset.z != afterPlayEffect->localOffset.z ||
+            beforePlayEffect->localRotation.x != afterPlayEffect->localRotation.x ||
+            beforePlayEffect->localRotation.y != afterPlayEffect->localRotation.y ||
+            beforePlayEffect->localRotation.z != afterPlayEffect->localRotation.z ||
+            beforePlayEffect->scale.x != afterPlayEffect->scale.x ||
+            beforePlayEffect->scale.y != afterPlayEffect->scale.y ||
+            beforePlayEffect->scale.z != afterPlayEffect->scale.z ||
+            beforePlayEffect->playbackSpeed != afterPlayEffect->playbackSpeed;
+    }
+
     if (const auto* beforePartVisibility = get_if<CinematicPartVisibilityEventData>(&before.payload))
     {
         const auto* afterPartVisibility = get_if<CinematicPartVisibilityEventData>(&after.payload);
@@ -252,6 +275,9 @@ const char* Get_CinematicEventTypeLabel(const CINEMATIC_EVENT& event)
 
     if (get_if<CinematicPlayAnimEventData>(&event.payload) != nullptr)
         return "PlayAnim";
+
+    if (get_if<CinematicPlayEffectEventData>(&event.payload) != nullptr)
+        return "PlayEffect";
 
     if (get_if<CinematicDespawnEventData>(&event.payload) != nullptr)
         return "Despawn";
@@ -1538,6 +1564,11 @@ void Cinematic_Tool::Render_EventTrack()
             addEvent(CinematicWorldTimeScaleEventData{}, true);
 
         ImGui::TableNextColumn();
+        if (ImGui::Button("Add PlayEffect", ImVec2(-FLT_MIN, 0.f)))
+            addEvent(CinematicPlayEffectEventData{}, true);
+
+        ImGui::TableNextRow();
+        ImGui::TableNextColumn();
         if (!canRemoveEvent)
             ImGui::BeginDisabled();
         if (ImGui::Button("Remove Selected", ImVec2(-FLT_MIN, 0.f)))
@@ -1632,6 +1663,15 @@ void Cinematic_Tool::Render_EventTrack()
         if (isPlayAnim)
             ImGui::SetItemDefaultFocus();
 
+        const bool isPlayEffect = get_if<CinematicPlayEffectEventData>(&event.payload) != nullptr;
+        if (ImGui::Selectable("PlayEffect", isPlayEffect))
+        {
+            event.payload = CinematicPlayEffectEventData{};
+            eventEdited = true;
+        }
+        if (isPlayEffect)
+            ImGui::SetItemDefaultFocus();
+
         const bool isDespawn = get_if<CinematicDespawnEventData>(&event.payload) != nullptr;
         if (ImGui::Selectable("Despawn", isDespawn))
         {
@@ -1690,6 +1730,72 @@ void Cinematic_Tool::Render_EventTrack()
         }
         if (ImGui::Checkbox("hold frame", &playAnim->holdFrame))
             eventEdited = true;
+    }
+    else if (auto* playEffect = get_if<CinematicPlayEffectEventData>(&event.payload))
+    {
+        string effectName = String::ToString(playEffect->effectName);
+        char effectBuffer[128]{};
+        strncpy_s(effectBuffer, effectName.c_str(), _TRUNCATE);
+        if (ImGui::InputText("effect name", effectBuffer, static_cast<size_t>(_countof(effectBuffer))))
+        {
+            playEffect->effectName = String::ToWString(effectBuffer);
+            eventEdited = true;
+        }
+
+        const auto beforeTarget = playEffect->target;
+        Select_PresetEnum("effect target", playEffect->target);
+        if (playEffect->target != beforeTarget)
+            eventEdited = true;
+
+        string partTag = String::ToString(playEffect->partTag);
+        char partTagBuffer[128]{};
+        strncpy_s(partTagBuffer, partTag.c_str(), _TRUNCATE);
+        if (ImGui::InputText("part tag", partTagBuffer, static_cast<size_t>(_countof(partTagBuffer))))
+        {
+            playEffect->partTag = String::ToWString(partTagBuffer);
+            eventEdited = true;
+        }
+
+        if (Draw_StringSuggestionCombo("part tag presets", partTag, Collect_PartTagSuggestions(_sequence)))
+        {
+            playEffect->partTag = String::ToWString(partTag);
+            eventEdited = true;
+        }
+
+        char socketBuffer[128]{};
+        strncpy_s(socketBuffer, playEffect->socketName.c_str(), _TRUNCATE);
+        if (ImGui::InputText("socket name", socketBuffer, static_cast<size_t>(_countof(socketBuffer))))
+        {
+            playEffect->socketName = socketBuffer;
+            eventEdited = true;
+        }
+
+        string layerTag = String::ToString(playEffect->layerTag);
+        char layerBuffer[128]{};
+        strncpy_s(layerBuffer, layerTag.c_str(), _TRUNCATE);
+        if (ImGui::InputText("layer tag", layerBuffer, static_cast<size_t>(_countof(layerBuffer))))
+        {
+            playEffect->layerTag = String::ToWString(layerBuffer);
+            eventEdited = true;
+        }
+
+        if (Draw_StringSuggestionCombo("layer presets", layerTag, Collect_LayerTagSuggestions(_sequence)))
+        {
+            playEffect->layerTag = String::ToWString(layerTag);
+            eventEdited = true;
+        }
+
+        if (ImGui::DragFloat3("local offset", &playEffect->localOffset.x, 0.1f))
+            eventEdited = true;
+        if (ImGui::DragFloat3("local rotation", &playEffect->localRotation.x, 0.1f))
+            eventEdited = true;
+        if (ImGui::DragFloat3("scale", &playEffect->scale.x, 0.01f))
+            eventEdited = true;
+        if (ImGui::DragFloat("playback speed", &playEffect->playbackSpeed, 0.01f, 0.01f, 10.f, "%.2f"))
+        {
+            playEffect->playbackSpeed = std::max(playEffect->playbackSpeed, 0.01f);
+            eventEdited = true;
+        }
     }
     else if (auto* spawn = get_if<CinematicSpawnEventData>(&event.payload))
     {
@@ -4385,7 +4491,7 @@ void Cinematic_Tool::Render_PreviewState()
             _isPreviewStoppedForEditing = false;
             EDITOR->Set_CinematicPreviewFreeCameraOverride(false);
             GAME->Set_PreviewLetterboxEnabled(false);
-            CLIENT->Stop_Sequence();
+            CLIENT->Stop_Sequence(true);
         }
     }
 
@@ -5051,7 +5157,7 @@ void Cinematic_Tool::Insert_KeyframeAtFrame(int trackIndex, int frame)
 
 void Cinematic_Tool::Clear_AllSequenceKeyframes()
 {
-    CLIENT->Stop_Sequence();
+    CLIENT->Stop_Sequence(true);
     Clear_PendingInsertRequest();
 
     for (auto& track : _sequence.cinematicTracks)
@@ -5079,7 +5185,7 @@ void Cinematic_Tool::Clear_AllSequenceKeyframes()
 
 void Cinematic_Tool::Reset_ToNewSequence()
 {
-    CLIENT->Stop_Sequence();
+    CLIENT->Stop_Sequence(true);
     Clear_PendingInsertRequest();
 
     _sequence = {};
@@ -5139,7 +5245,7 @@ void Cinematic_Tool::Load_SelectedSequenceFile()
     if (!Cinematic_SequenceIO::LoadSequenceFromFile(filePath, loadedSequence))
         return;
 
-    CLIENT->Stop_Sequence();
+    CLIENT->Stop_Sequence(true);
     Clear_PendingInsertRequest();
     _sequence = std::move(loadedSequence);
 

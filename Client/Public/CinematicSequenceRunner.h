@@ -1,6 +1,7 @@
 ﻿#pragma once
 
 #include <unordered_map>
+#include <unordered_set>
 
 #include "Base.h"
 #include "Cinematic_Types.h"
@@ -60,7 +61,7 @@ public:
         bool forceRebuildContext = false);
     bool Sync_PreviewSequence(const CINEMATIC_SEQUENCE& sequence, int trackIndex = -1);
     void Set_ActorTransformTrackPreviewSuspended(bool suspended);
-    void Stop_Sequence();
+    void Stop_Sequence(bool forceRemoveAllSpawned = false);
     void Stop_SequenceKeepContext();
     void Update(float timeDelta, bool tickBoundAnimationsManually = false);
     bool Is_CinematicPlaying() const;
@@ -121,6 +122,9 @@ private:
         CinematicPlayAnimEventData activePlayAnim{};
         int activePlayAnimEventFrame = 0;
         float pendingPlayAnimInitialAdvanceSec = -1.f;
+        bool hasPreviewPlayAnimElapsedSec = false;
+        int previewPlayAnimEventFrame = 0;
+        float previewPlayAnimElapsedSec = 0.f;
         bool hasCinematicNotifyContextOverride = false;
         bool previousCinematicNotifyContext = false;
         bool hasAnimNotifyExecutionOverride = false;
@@ -129,8 +133,14 @@ private:
         vector<HairPreviewRestoreState> previewHairRestores{};
     };
 
-    void Execute_EventsUpToFrame(int currentFrame, float currentFrameExact);
-    void Execute_Event(const CINEMATIC_EVENT& event, float currentFrameExact);
+    void Execute_EventsUpToFrame(
+        int currentFrame,
+        float currentFrameExact,
+        bool suppressTransientEffects = false);
+    void Execute_Event(
+        const CINEMATIC_EVENT& event,
+        float currentFrameExact,
+        bool suppressTransientEffects = false);
 
     bool Execute_SpawnEvent(const string& targetId, const CinematicSpawnEventData& payload);
     bool Execute_PlayAnimEvent(
@@ -138,12 +148,14 @@ private:
         float currentFrameExact,
         const string& targetId,
         const CinematicPlayAnimEventData& payload);
+    bool Execute_PlayEffectEvent(const string& targetId, const CinematicPlayEffectEventData& payload);
     bool Execute_DespawnEvent(const string& targetId, const CinematicDespawnEventData& payload);
     bool Execute_PartVisibilityEvent(const string& targetId, const CinematicPartVisibilityEventData& payload);
     bool Execute_WorldTimeScaleEvent(const CinematicWorldTimeScaleEventData& payload);
     Shared<GameObject> Find_ReusableActorByPrefabName(const string& prefabName) const;
     bool Is_ActorAlreadyBound(const Shared<GameObject>& actor) const;
     void Apply_CinematicDrivenState(const Shared<GameObject>& actor, bool cinematicDriven) const;
+    void Stop_ActorAttachedEffects(const Shared<GameObject>& actor) const;
     void Track_PreviewShadowCasterRestore(BindingRuntimeState& state, const Shared<GameObject>& object) const;
     void Apply_PreviewPlaybackOptimization(BindingRuntimeState& state) const;
     void Restore_PreviewPlaybackOptimization(const BindingRuntimeState& state) const;
@@ -166,9 +178,10 @@ private:
         float currentFrameExact,
         Vec3& outRotation) const;
 
-    void Apply_BoundActorAnimationPreview(float currentFrameExact);
+    void Apply_BoundActorAnimationPreview(float currentFrameExact, bool suppressNotifyExecution = false);
     void Set_BoundActorAnimationPaused(bool paused);
     void Update_BoundActorAnimations(float timeDelta);
+    void Update_BoundActorAttachedEffects(float timeDelta) const;
     void Cleanup_Context(bool forceRemoveAllSpawned = false);
     void Set_GameplayUIHiddenForCinematic(bool hidden) const;
 
@@ -214,6 +227,7 @@ private:
     Shared<Cinematic_Player> _player = nullptr;
     Shared<CinematicCamera> _activeCinematicCamera = nullptr;
     std::unordered_map<string, BindingRuntimeState> _bindingStates{};
+    std::unordered_set<GameObject*> _sequenceOwnedActors{};
     uint32 _sequenceLevelIndex = ETOI(LevelType::GamePlay);
     int _trackIndex = 0;
     int _nextEventIndex = 0;
