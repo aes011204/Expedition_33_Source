@@ -18,6 +18,7 @@ static const wchar_t* g_windowClassName = L"Expedition158MapEditor";
 static const wchar_t* g_windowTitle = L"Expedition 158 Map Editor";
 static bool g_runtimeInitialized = false;
 
+static bool Set_WorkingDirectoryToExecutable();
 static ATOM Register_MapEditorClass(HINSTANCE hInstance);
 static bool Create_MapEditorWindow(HINSTANCE hInstance, int nCmdShow);
 static LRESULT CALLBACK MapEditor_WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
@@ -27,6 +28,9 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE, _In_ LPWSTR,
 #ifdef _DEBUG
     _CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
 #endif
+
+    if (!Set_WorkingDirectoryToExecutable())
+        return FALSE;
 
     SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
 
@@ -104,6 +108,21 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE, _In_ LPWSTR,
     FreeConsole();
 
     return static_cast<int>(msg.wParam);
+}
+
+static bool Set_WorkingDirectoryToExecutable()
+{
+    WCHAR modulePath[MAX_PATH] = {};
+    const DWORD length = GetModuleFileNameW(nullptr, modulePath, MAX_PATH);
+    if (0 == length || MAX_PATH == length)
+        return false;
+
+    WCHAR* lastSlash = wcsrchr(modulePath, L'\\');
+    if (nullptr == lastSlash)
+        return false;
+
+    *lastSlash = L'\0';
+    return TRUE == SetCurrentDirectoryW(modulePath);
 }
 
 static ATOM Register_MapEditorClass(HINSTANCE hInstance)

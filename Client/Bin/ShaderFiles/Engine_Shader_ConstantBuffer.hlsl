@@ -332,7 +332,7 @@ struct FogOBBZoneEntry
 cbuffer FogZoneBuffer
 {
     FogZoneEntry g_FogAABBZones[16];
-    FogOBBZoneEntry g_FogOBBZones[2];
+    FogOBBZoneEntry g_FogOBBZones[16];
     int g_FogAABBCount;
     int g_FogOBBCount;
     float g_GroundFogMaxDistance;

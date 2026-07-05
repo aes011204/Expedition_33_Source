@@ -46,6 +46,7 @@ private:
     Shared<EditorObject> _boxRestoreTarget;
 
 private:
+    void DrawCameraDistance(Shared<EditorObject>& obj);
     void DrawTransform(Shared<EditorObject>& obj);
     void DrawZoneShape(Shared<EditorObject>& obj);
     void DrawMaterialOverrides(Shared<EditorObject>& obj);
