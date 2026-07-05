@@ -469,7 +469,7 @@ void Simon_Debuff::Play_GuardedHitEffect(const BattleAction& action)
     BattleHitSequenceRunner::HitEffectDesc effectDesc{};
     effectDesc.effectName = L"Simon_Debuff_Attack";
     effectDesc.localOffset = Vec3(0.f, 0.f, 0.f);
-    effectDesc.scale = Vec3(2.f, 2.f, 2.f);
+    effectDesc.scale = Vec3(1.f, 1.f, 1.f);
 
     Internal::Play_TargetHitEffect(curTargets.front(), effectDesc);
 }
