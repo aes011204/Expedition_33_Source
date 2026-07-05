@@ -7,6 +7,7 @@
 #include "ContainerObject.h"
 #include "GameInstance.h"
 #include "GameplayUI.h"
+#include "Hair_Player.h"
 #include "Helper_String.h"
 #include "ModelCom.h"
 #include "Monster_WorldBase.h"
@@ -533,6 +534,7 @@ bool CinematicSequenceRunner::Play_Sequence(
     _applyEventTrack = applyEventTrack;
     _applyActorTransformTrack = applyActorTransformTrack;
     _suppressAnimNotifyExecutionForBoundActors = false;
+    _usePreviewPlaybackOptimizations = false;
 
     Set_GameplayUIHiddenForCinematic(true);
     const bool playerAppliesCameraTrack = applyCameraTrack && !Uses_CameraShots() && trackKind == CameraTrackKind::World;
@@ -602,6 +604,7 @@ bool CinematicSequenceRunner::Play_Sequence(
     _applyEventTrack = applyEventTrack;
     _applyActorTransformTrack = applyActorTransformTrack;
     _suppressAnimNotifyExecutionForBoundActors = true;
+    _usePreviewPlaybackOptimizations = true;
 
     Set_GameplayUIHiddenForCinematic(true);
     const bool playerAppliesCameraTrack = applyCameraTrack && !Uses_CameraShots() && trackKind == CameraTrackKind::World;
@@ -631,6 +634,8 @@ void CinematicSequenceRunner::Stop_Sequence()
     _player->Stop();
     Clear_CompletedCallbacks();
     Cleanup_Context();
+    _suppressAnimNotifyExecutionForBoundActors = false;
+    _usePreviewPlaybackOptimizations = false;
     CLIENT->Restore_PreviousCamera();
 
     Set_GameplayUIHiddenForCinematic(false);
@@ -1479,6 +1484,7 @@ bool CinematicSequenceRunner::Execute_DespawnEvent(const string& targetId, const
             model->Set_AnimNotifyExecutionEnabled(iter->second.previousAnimNotifyExecutionEnabled);
     }
 
+    Restore_PreviewPlaybackOptimization(iter->second);
     Apply_CinematicDrivenState(iter->second.actor, false);
 
     if (iter->second.spawnedBySequence)
@@ -1747,7 +1753,9 @@ void CinematicSequenceRunner::Apply_BoundActorAnimationPreview(float currentFram
             continue;
 
         const float elapsedFrame = std::max(currentFrameExact - static_cast<float>(state.activePlayAnimEventFrame), 0.f);
-        const float elapsedSec = elapsedFrame / sequenceFps;
+        const float elapsedSec = state.activePlayAnim.holdFrame
+            ? 0.f
+            : (elapsedFrame / sequenceFps);
 
         if (state.activePlayAnim.blendDuration > 0.f)
             model->Set_Animation(
@@ -1813,8 +1821,14 @@ void CinematicSequenceRunner::Update_BoundActorAnimations(float timeDelta)
 
         model->Play_Animation(animationDelta);
 
-        if (PartObject* animPart = Find_TargetAnimPart(state.actor))
+        if (const auto container = dynamic_pointer_cast<ContainerObject>(state.actor))
+        {
+            container->Refresh_PartObjectTransforms();
+        }
+        else if (PartObject* animPart = Find_TargetAnimPart(state.actor))
+        {
             animPart->Update(0.f);
+        }
     }
 }
 
@@ -1846,6 +1860,7 @@ void CinematicSequenceRunner::Cleanup_Context(bool forceRemoveAllSpawned)
                 model->Set_AnimNotifyExecutionEnabled(state.previousAnimNotifyExecutionEnabled);
         }
 
+        Restore_PreviewPlaybackOptimization(state);
         Apply_CinematicDrivenState(state.actor, false);
 
         if (!state.spawnedBySequence)
@@ -1864,7 +1879,6 @@ void CinematicSequenceRunner::Cleanup_Context(bool forceRemoveAllSpawned)
     _nextEventIndex = 0;
     _cameraTrackKind = CameraTrackKind::None;
     _suspendActorTransformTrackPreview = false;
-    _suppressAnimNotifyExecutionForBoundActors = false;
     _activeSequencePath.clear();
 
     if (forceRemoveAllSpawned)
@@ -1957,6 +1971,80 @@ void CinematicSequenceRunner::Apply_CinematicDrivenState(const Shared<GameObject
     }
 }
 
+void CinematicSequenceRunner::Track_PreviewShadowCasterRestore(
+    BindingRuntimeState& state,
+    const Shared<GameObject>& object) const
+{
+    if (object == nullptr)
+        return;
+
+    const auto iter = find_if(
+        state.previewShadowCasterRestores.begin(),
+        state.previewShadowCasterRestores.end(),
+        [&](const BindingRuntimeState::ShadowCasterRestoreState& restore)
+        {
+            return restore.object == object;
+        });
+
+    if (iter != state.previewShadowCasterRestores.end())
+        return;
+
+    state.previewShadowCasterRestores.push_back({ object, object->Get_ShadowCasterType() });
+    object->Set_ShadowCasterType(ShadowCasterType::None);
+}
+
+void CinematicSequenceRunner::Apply_PreviewPlaybackOptimization(BindingRuntimeState& state) const
+{
+    if (!_usePreviewPlaybackOptimizations || state.actor == nullptr)
+        return;
+
+    Track_PreviewShadowCasterRestore(state, state.actor);
+
+    const auto container = dynamic_pointer_cast<ContainerObject>(state.actor);
+    if (container == nullptr)
+        return;
+
+    for (const auto& [partTag, partObject] : container->Get_PartObjects())
+    {
+        UNREFERENCED_PARAMETER(partTag);
+
+        Track_PreviewShadowCasterRestore(state, partObject);
+
+        const Shared<Hair_Player> hair = dynamic_pointer_cast<Hair_Player>(partObject);
+        if (hair == nullptr)
+            continue;
+
+        const auto iter = find_if(
+            state.previewHairRestores.begin(),
+            state.previewHairRestores.end(),
+            [&](const BindingRuntimeState::HairPreviewRestoreState& restore)
+            {
+                return restore.hair == hair;
+            });
+
+        if (iter != state.previewHairRestores.end())
+            continue;
+
+        state.previewHairRestores.push_back({ hair, hair->Is_CinematicPreviewSimulationSuppressed() });
+        hair->Set_CinematicPreviewSimulationSuppressed(true);
+    }
+}
+
+void CinematicSequenceRunner::Restore_PreviewPlaybackOptimization(const BindingRuntimeState& state) const
+{
+    for (const BindingRuntimeState::HairPreviewRestoreState& restore : state.previewHairRestores)
+    {
+        if (restore.hair)
+            restore.hair->Set_CinematicPreviewSimulationSuppressed(restore.previousSimulationSuppressed);
+    }
+
+    for (const BindingRuntimeState::ShadowCasterRestoreState& restore : state.previewShadowCasterRestores)
+    {
+        if (restore.object)
+            restore.object->Set_ShadowCasterType(restore.previousType);
+    }
+}
+
 void CinematicSequenceRunner::Bind_ActorToTarget(
     const string& targetId,
     const Shared<GameObject>& actor,
@@ -1983,6 +2071,7 @@ void CinematicSequenceRunner::Bind_ActorToTarget(
     }
 
     Apply_CinematicDrivenState(actor, true);
+    Apply_PreviewPlaybackOptimization(state);
     _bindingStates[targetId] = state;
 }
 

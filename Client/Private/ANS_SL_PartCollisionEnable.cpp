@@ -77,7 +77,7 @@ Shared<ColliderCom> ANS_SL_PartCollisionEnable::Resolve_Collider(const Shared<Pa
 
 void ANS_SL_PartCollisionEnable::Set_ColliderActive(const AnimNotifyContext& context, bool active) const
 {
-    if (context.isPreview)
+    if (context.isPreview || (context.isCinematic && active))
         return;
 
     const Shared<ContainerObject> ownerContainer = Resolve_OwnerContainer(context.owner);

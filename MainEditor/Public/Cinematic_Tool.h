@@ -63,6 +63,8 @@ private:
 
     void Ensure_DefaultTrack();
     void Clamp_Selection();
+    void Step_PreviewFrame(int frameDelta);
+    void Step_SelectedTrackKeyframe(int direction);
     void Sort_SelectedTrackKeyframes();
     void Sort_SelectedModifierTrackKeyframes();
     void Capture_KeyframeFromFreeCamera();
@@ -141,11 +143,14 @@ private:
     int                                  _selectedPartRotationTrackIndex = -1;
     int                                  _selectedPartRotationKeyIndex = -1;
     int                                  _currentFrame = 0;
+    int                                  _sequencerFirstFrame = 0;
+    int                                  _sequencerVisibleFrameCount = 240;
     float                                _currentFrameExact = 0.f;
     bool                                 _useExactFramePreview = false;
     bool                                 _requestOpenSelectedKeyPopup = false;
     bool                                 _requestOpenInsertKeyPopup = false;
     bool                                 _requestRemoveKeyPopup = false;
+    bool                                 _requestOpenOverwriteKeyframePopup = false;
     bool                                 _requestOpenLoadSequencePopup = false;
     bool                                 _requestOpenSaveSequenceConfirmPopup = false;
     bool                                 _requestOpenLoadSequenceConfirmPopup = false;

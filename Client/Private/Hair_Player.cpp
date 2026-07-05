@@ -48,7 +48,7 @@ HRESULT Hair_Player::Initialize(void* arg)
     if (FAILED(PlayableParts::Initialize(arg)))
     {
         LOG_ERROR("[Hair_Player] : Failed to Initialize");
-        return S_OK;
+        return E_FAIL;
     }
 
     if (const HAIR_PLAYER_DESC* desc = static_cast<const HAIR_PLAYER_DESC*>(arg))
@@ -81,6 +81,11 @@ void Hair_Player::Enable_PoseFollowModifier()
     _hairPoseFollowModifierReady = false;
 }
 
+void Hair_Player::Set_CinematicPreviewSimulationSuppressed(bool suppressed)
+{
+    _suppressCinematicPreviewSimulation = suppressed;
+}
+
 void Hair_Player::Priority_Update(float timeDelta)
 {
 }
@@ -95,6 +100,13 @@ void Hair_Player::Update(float timeDelta)
         return;
 
     Update_CombinedWorldMatrix(_transformCom->Get_WorldMatrix());
+
+    if (_suppressCinematicPreviewSimulation)
+    {
+        _physicsTickAccumulator = 0.f;
+        _wasPhysicsSkipped = true;
+        return;
+    }
 
     if (_usePoseFollowModifier)
     {

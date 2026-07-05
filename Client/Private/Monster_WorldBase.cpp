@@ -337,7 +337,11 @@ void Monster_WorldBase::Update(float timeDelta)
         }
         else if (bb && player)
         {
-            bb->Set_Value("playerPos", player->Get_Transform()->Get_Position());
+            const Shared<TransformCom> playerTransform = player->Get_Transform();
+            if (playerTransform == nullptr)
+                return;
+
+            bb->Set_Value("playerPos", playerTransform->Get_Position());
             bb->Set_Value("isStun", _isStun);
 
             _aiCtrl->Update(timeDelta); // 이번 프레임은 기존 desiredAction을 먼저 소비하고, BT 결과는 다음 프레임부터 반영한다.

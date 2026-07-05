@@ -35,7 +35,7 @@ void ANS_CanAction::On_End(const AnimNotifyContext& context)
 
 void ANS_CanAction::Set_CanAction(const AnimNotifyContext& context, bool enabled) const
 {
-    if (context.isPreview)
+    if (context.isPreview || (context.isCinematic && enabled))
         return;
 
     Shared<GameObject> current = context.owner ? context.owner->GetSharedPtr<GameObject>() : nullptr;

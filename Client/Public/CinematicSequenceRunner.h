@@ -13,6 +13,7 @@ NS_BEGIN(Client)
 
 class CinematicCamera;
 class Cinematic_Player;
+class Hair_Player;
 
 class CinematicSequenceRunner : public Base
 {
@@ -101,6 +102,18 @@ private:
 
     struct BindingRuntimeState
     {
+        struct ShadowCasterRestoreState
+        {
+            Shared<GameObject> object = nullptr;
+            ShadowCasterType previousType = ShadowCasterType::None;
+        };
+
+        struct HairPreviewRestoreState
+        {
+            Shared<Hair_Player> hair = nullptr;
+            bool previousSimulationSuppressed = false;
+        };
+
         Shared<GameObject> actor = nullptr;
         bool spawnedBySequence = false;
         CinematicCleanupPolicy cleanupPolicy = CinematicCleanupPolicy::DespawnOnStop;
@@ -112,6 +125,8 @@ private:
         bool previousCinematicNotifyContext = false;
         bool hasAnimNotifyExecutionOverride = false;
         bool previousAnimNotifyExecutionEnabled = true;
+        vector<ShadowCasterRestoreState> previewShadowCasterRestores{};
+        vector<HairPreviewRestoreState> previewHairRestores{};
     };
 
     void Execute_EventsUpToFrame(int currentFrame, float currentFrameExact);
@@ -129,6 +144,9 @@ private:
     Shared<GameObject> Find_ReusableActorByPrefabName(const string& prefabName) const;
     bool Is_ActorAlreadyBound(const Shared<GameObject>& actor) const;
     void Apply_CinematicDrivenState(const Shared<GameObject>& actor, bool cinematicDriven) const;
+    void Track_PreviewShadowCasterRestore(BindingRuntimeState& state, const Shared<GameObject>& object) const;
+    void Apply_PreviewPlaybackOptimization(BindingRuntimeState& state) const;
+    void Restore_PreviewPlaybackOptimization(const BindingRuntimeState& state) const;
     void Bind_ActorToTarget(
         const string& targetId,
         const Shared<GameObject>& actor,
@@ -204,6 +222,7 @@ private:
     bool _applyEventTrack = true;
     bool _applyActorTransformTrack = true;
     bool _suppressAnimNotifyExecutionForBoundActors = false;
+    bool _usePreviewPlaybackOptimizations = false;
     bool _hasWorldTimeScaleOverride = false;
     float _restoreWorldTimeScale = 1.f;
     wstring _activeSequencePath{};

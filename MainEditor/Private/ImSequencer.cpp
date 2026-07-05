@@ -1,4 +1,4 @@
-#include "ImSequencer.h"
+#include "../Public/ImSequencer.h"
 
 #include "imgui.h"
 #include "imgui_internal.h"
@@ -16,17 +16,22 @@ namespace
     constexpr float kItemHeight = 30.f;
     constexpr float kMinHeight = 120.f;
 
-    float Frame_ToX(int frame, int frameMin, int frameMax, float trackMinX, float trackWidth)
+    float Frame_ToX(float frame, int frameMin, int frameMax, float trackMinX, float trackWidth)
     {
         const float frameRange = static_cast<float>(std::max(1, frameMax - frameMin));
-        const float t = static_cast<float>(frame - frameMin) / frameRange;
+        const float t = (frame - static_cast<float>(frameMin)) / frameRange;
         return trackMinX + std::clamp(t, 0.f, 1.f) * trackWidth;
+    }
+
+    float X_ToFrameExact(float x, int frameMin, int frameMax, float trackMinX, float trackWidth)
+    {
+        const float t = std::clamp((x - trackMinX) / std::max(1.f, trackWidth), 0.f, 1.f);
+        return static_cast<float>(frameMin) + t * static_cast<float>(std::max(1, frameMax - frameMin));
     }
 
     int X_ToFrame(float x, int frameMin, int frameMax, float trackMinX, float trackWidth)
     {
-        const float t = std::clamp((x - trackMinX) / std::max(1.f, trackWidth), 0.f, 1.f);
-        return frameMin + static_cast<int>(std::round(t * static_cast<float>(std::max(1, frameMax - frameMin))));
+        return frameMin + static_cast<int>(std::round(X_ToFrameExact(x, frameMin, frameMax, trackMinX, trackWidth) - static_cast<float>(frameMin)));
     }
 
     int Pick_LabelStep(int frameMin, int frameMax, float trackWidth)
@@ -54,7 +59,8 @@ bool Sequencer(
     int* firstFrame,
     int sequenceOptions,
     int viewFrameMin,
-    int viewFrameMax)
+    int viewFrameMax,
+    float* currentFrameExact)
 {
     if (sequence == nullptr)
         return false;
@@ -73,6 +79,7 @@ bool Sequencer(
     const int frameMin = std::clamp<int>(requestedFrameMin, fullFrameMin, fullFrameMax - 1);
     const int frameMax = std::clamp<int>(requestedFrameMax, frameMin + 1, fullFrameMax);
     const int itemCount = sequence->GetItemCount();
+    sequence->SetVisibleFrameRange(frameMin, frameMax);
 
     if (firstFrame != nullptr)
         *firstFrame = frameMin;
@@ -110,7 +117,7 @@ bool Sequencer(
     const int labelStep = Pick_LabelStep(frameMin, frameMax, trackWidth);
     auto drawFrameLine = [&](int frame, bool major)
     {
-        const float x = Frame_ToX(frame, frameMin, frameMax, trackMinX, trackWidth);
+        const float x = Frame_ToX(static_cast<float>(frame), frameMin, frameMax, trackMinX, trackWidth);
         const ImU32 color = major ? IM_COL32(115, 118, 128, 160) : IM_COL32(88, 90, 98, 105);
         const float y0 = canvasRect.Min.y + (major ? 0.f : kHeaderHeight * 0.55f);
         drawList->AddLine(ImVec2(x, y0), ImVec2(x, canvasRect.Max.y), color);
@@ -126,9 +133,9 @@ bool Sequencer(
     {
         const std::string label = std::to_string(frame);
         const ImVec2 textSize = ImGui::CalcTextSize(label.c_str());
-        float x = Frame_ToX(frame, frameMin, frameMax, trackMinX, trackWidth) + 3.f;
+        float x = Frame_ToX(static_cast<float>(frame), frameMin, frameMax, trackMinX, trackWidth) + 3.f;
         if (alignRight)
-            x = Frame_ToX(frame, frameMin, frameMax, trackMinX, trackWidth) - textSize.x - 3.f;
+            x = Frame_ToX(static_cast<float>(frame), frameMin, frameMax, trackMinX, trackWidth) - textSize.x - 3.f;
 
         drawList->AddText(ImVec2(x, canvasRect.Min.y + 2.f), IM_COL32(190, 190, 196, 255), label.c_str());
     };
@@ -160,8 +167,8 @@ bool Sequencer(
 
         if (start != nullptr && end != nullptr)
         {
-            const float slotStartX = Frame_ToX(*start, frameMin, frameMax, trackMinX, trackWidth);
-            const float slotEndX = Frame_ToX(*end, frameMin, frameMax, trackMinX, trackWidth);
+            const float slotStartX = Frame_ToX(static_cast<float>(*start), frameMin, frameMax, trackMinX, trackWidth);
+            const float slotEndX = Frame_ToX(static_cast<float>(*end), frameMin, frameMax, trackMinX, trackWidth);
             drawList->AddRectFilled(
                 ImVec2(slotStartX, trackRect.Min.y + 3.f),
                 ImVec2(std::max(slotStartX + framePixelWidth, slotEndX), trackRect.Max.y - 3.f),
@@ -181,22 +188,53 @@ bool Sequencer(
     if (currentFrame != nullptr)
     {
         *currentFrame = std::clamp(*currentFrame, fullFrameMin, fullFrameMax);
+        if (currentFrameExact != nullptr)
+        {
+            *currentFrameExact = std::clamp(
+                *currentFrameExact,
+                static_cast<float>(fullFrameMin),
+                static_cast<float>(fullFrameMax));
+        }
 
-        if ((sequenceOptions & SEQUENCER_CHANGE_FRAME) != 0 && hovered && ImGui::IsMouseDown(ImGuiMouseButton_Left))
+        if ((sequenceOptions & SEQUENCER_CHANGE_FRAME) != 0 &&
+            hovered &&
+            ImGui::IsMouseDown(ImGuiMouseButton_Left) &&
+            !sequence->BlocksFrameScrub())
         {
             const ImVec2 mousePos = ImGui::GetIO().MousePos;
             if (mousePos.x >= trackMinX && mousePos.x <= trackMaxX)
             {
-                const int newFrame = X_ToFrame(mousePos.x, frameMin, frameMax, trackMinX, trackWidth);
-                if (newFrame != *currentFrame)
+                if (currentFrameExact != nullptr)
                 {
-                    *currentFrame = newFrame;
-                    changedFrame = true;
+                    const float newFrameExact = std::clamp(
+                        X_ToFrameExact(mousePos.x, frameMin, frameMax, trackMinX, trackWidth),
+                        static_cast<float>(fullFrameMin),
+                        static_cast<float>(fullFrameMax));
+                    const int newFrame = std::clamp(
+                        static_cast<int>(std::floor(newFrameExact)),
+                        fullFrameMin,
+                        fullFrameMax);
+                    if (std::fabs(newFrameExact - *currentFrameExact) > 0.0001f || newFrame != *currentFrame)
+                    {
+                        *currentFrameExact = newFrameExact;
+                        *currentFrame = newFrame;
+                        changedFrame = true;
+                    }
+                }
+                else
+                {
+                    const int newFrame = X_ToFrame(mousePos.x, frameMin, frameMax, trackMinX, trackWidth);
+                    if (newFrame != *currentFrame)
+                    {
+                        *currentFrame = newFrame;
+                        changedFrame = true;
+                    }
                 }
             }
         }
 
-        const float cursorX = Frame_ToX(*currentFrame, frameMin, frameMax, trackMinX, trackWidth);
+        const float cursorFrame = currentFrameExact != nullptr ? *currentFrameExact : static_cast<float>(*currentFrame);
+        const float cursorX = Frame_ToX(cursorFrame, frameMin, frameMax, trackMinX, trackWidth);
         drawList->AddRectFilled(
             ImVec2(cursorX - 3.f, canvasRect.Min.y),
             ImVec2(cursorX + 3.f, canvasRect.Min.y + kHeaderHeight + kItemHeight * static_cast<float>(itemCount)),
