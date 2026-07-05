@@ -14,6 +14,7 @@ IMPLEMENT_REFLECTION(Item_Chroma)
     info.category = "Item";
 
     PROPERTY_INT("크로마", _amount);
+    PROPERTY_WSTRING("획득 이펙트", _pickupEffectName);
 
     return true;
 }

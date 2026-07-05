@@ -29,6 +29,8 @@ IMPLEMENT_REFLECTION(Item_DailyLog)
     info.displayName = "Item_DailyLog";
     info.category = "Item";
 
+    PROPERTY_WSTRING("획득 이펙트", _pickupEffectName);
+
     return true;
 }
 

@@ -49,6 +49,7 @@ protected:
     string              _itemId{};
     string              _displayName{};
     uint32              _amount = 1;
+    wstring             _pickupEffectName = L"Effects\\Assets\\Item\\EatItem.effect.json";
 
 private:
     bool                _hasPlayerOverlap = false;
