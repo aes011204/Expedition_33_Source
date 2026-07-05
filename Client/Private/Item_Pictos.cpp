@@ -55,6 +55,8 @@ void Item_Pictos::Apply_PickupReward()
         if (Unlock_Manager* unlockManager = CLIENT->Get_UnlockManager())
             unlockManager->Queue_GetPictosPresentation(pictosId);
     }
+
+    CLIENT->Play_PictosPickupItemSound();
 }
 
 string Item_Pictos::Resolve_PictosId() const

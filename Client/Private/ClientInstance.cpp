@@ -3,8 +3,7 @@
 #include "ClientInstance.h"
 #include "BattleController.h"
 #include "BattleEffectPrewarmCollector.h"
-#include "BattleTargetingVoicePreset.h"
-#include "BattleTurnStartVoicePreset.h"
+#include "BattleSoundPreset.h"
 #include "BT_Node_Bootstrap.h"
 #include "ComputeSpriteEmitter.h"
 #include "EffectCom.h"
@@ -318,17 +317,14 @@ HRESULT ClientInstance::Initialize_Client(const ComPtr<Device>& device, const Co
     _battleController = BattleController::Create();
     CHECK_NULL(_battleController, E_FAIL);
 
-    _battleTargetingVoicePreset = BattleTargetingVoicePreset::Create();
-    CHECK_NULL(_battleTargetingVoicePreset, E_FAIL);
+    _battleSoundPreset = BattleSoundPreset::Create();
+    CHECK_NULL(_battleSoundPreset, E_FAIL);
 
-    _battleTurnStartVoicePreset = BattleTurnStartVoicePreset::Create();
-    CHECK_NULL(_battleTurnStartVoicePreset, E_FAIL);
-
-    _battleTargetingVoiceTurnStartedHandle =
+    _battleSoundTurnStartedHandle =
         _battleController->OnTurnStarted.Add(
             [this](const BattleChar& actor, BattleTurnState state)
             {
-                Handle_BattleTargetingVoiceTurnStarted(actor, state);
+                Handle_BattleSoundTurnStarted(actor, state);
             });
 
     _previewShotTable = PreviewShotTable::Create();
@@ -1630,11 +1626,11 @@ bool ClientInstance::Play_BattleMonsterTargetingVoice(
     const ActionRequest& request,
     const vector<BattleChar>& targetedHeroes)
 {
-    if (_battleTargetingVoicePreset == nullptr || _battleController == nullptr)
+    if (_battleSoundPreset == nullptr || _battleController == nullptr)
         return false;
 
     const Skill_Data* selectedSkill = Get_Skill(request.skillKey);
-    return _battleTargetingVoicePreset->Play(
+    return _battleSoundPreset->Play_MonsterTargetingVoice(
         request,
         targetedHeroes,
         _battleController->Get_BattleHeroes(),
@@ -1643,23 +1639,44 @@ bool ClientInstance::Play_BattleMonsterTargetingVoice(
 
 bool ClientInstance::Play_BattleTurnStartVoice()
 {
-    if (_battleTurnStartVoicePreset == nullptr || _battleController == nullptr)
+    if (_battleSoundPreset == nullptr || _battleController == nullptr)
         return false;
 
-    return _battleTurnStartVoicePreset->Play(_battleController->Get_TurnActionRequest().actor);
+    return _battleSoundPreset->Play_TurnStartVoice(_battleController->Get_TurnActionRequest().actor);
 }
 
-void ClientInstance::Handle_BattleTargetingVoiceTurnStarted(
+bool ClientInstance::Play_BattleItemUseVoice(const ActionRequest& request)
+{
+    if (_battleSoundPreset == nullptr)
+        return false;
+
+    return _battleSoundPreset->Play_ItemUseVoice(request);
+}
+
+bool ClientInstance::Play_ChromaPickupItemSound()
+{
+    if (_battleSoundPreset == nullptr)
+        return false;
+
+    return _battleSoundPreset->Play_ChromaPickupItemSound();
+}
+
+bool ClientInstance::Play_PictosPickupItemSound()
+{
+    if (_battleSoundPreset == nullptr)
+        return false;
+
+    return _battleSoundPreset->Play_PictosPickupItemSound();
+}
+
+void ClientInstance::Handle_BattleSoundTurnStarted(
     const BattleChar& actor,
     BattleTurnState state)
 {
     UNREFERENCED_PARAMETER(state);
 
-    if (_battleTargetingVoicePreset != nullptr)
-        _battleTargetingVoicePreset->Reset_ForTurn(actor);
-
-    if (_battleTurnStartVoicePreset != nullptr)
-        _battleTurnStartVoicePreset->Reset_ForTurn(actor);
+    if (_battleSoundPreset != nullptr)
+        _battleSoundPreset->Reset_ForTurn(actor);
 }
 
 void ClientInstance::Request_GamePlay()
@@ -2544,10 +2561,10 @@ void ClientInstance::Release_Client()
             }
         };
 
-    if (_battleController != nullptr && _battleTargetingVoiceTurnStartedHandle.IsValid())
+    if (_battleController != nullptr && _battleSoundTurnStartedHandle.IsValid())
     {
-        _battleController->OnTurnStarted.Remove(_battleTargetingVoiceTurnStartedHandle);
-        _battleTargetingVoiceTurnStartedHandle.Reset();
+        _battleController->OnTurnStarted.Remove(_battleSoundTurnStartedHandle);
+        _battleSoundTurnStartedHandle.Reset();
     }
 
     ReleaseManager(_gameDataTable);
@@ -2561,8 +2578,7 @@ void ClientInstance::Release_Client()
     ReleaseManager(_heroManager);
     ReleaseManager(_playerInventory);
     ReleaseManager(_costumeManager);
-    ReleaseManager(_battleTargetingVoicePreset);
-    ReleaseManager(_battleTurnStartVoicePreset);
+    ReleaseManager(_battleSoundPreset);
     ReleaseManager(_battleController);
     ReleaseManager(_gamePlayUI);
     ReleaseManager(_screenFxManager);

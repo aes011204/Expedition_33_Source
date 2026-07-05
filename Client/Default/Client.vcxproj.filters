@@ -466,6 +466,9 @@
     <ClCompile Include="..\Private\BattleMechanismCom.cpp">
       <Filter>BattleState</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\BattleSoundPreset.cpp">
+      <Filter>05. BattleSystem</Filter>
+    </ClCompile>
     <ClCompile Include="..\Private\BattleQTEController.cpp">
       <Filter>BattleState</Filter>
     </ClCompile>
@@ -473,12 +476,6 @@
       <Filter>BattleState</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\BattleResultRecoder.cpp">
-      <Filter>05. BattleSystem</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Private\BattleTargetingVoicePreset.cpp">
-      <Filter>05. BattleSystem</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Private\BattleTurnStartVoicePreset.cpp">
       <Filter>05. BattleSystem</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\BattleSpawnRegistry.cpp">
@@ -1934,6 +1931,9 @@
     <ClInclude Include="..\Public\BattleMechanismCom.h">
       <Filter>BattleState</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\BattleSoundPreset.h">
+      <Filter>05. BattleSystem</Filter>
+    </ClInclude>
     <ClInclude Include="..\Public\BattleMonsterSpawnDesc.h">
       <Filter>05. BattleSystem</Filter>
     </ClInclude>
@@ -1944,12 +1944,6 @@
       <Filter>BattleState</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\BattleResultRecoder.h">
-      <Filter>05. BattleSystem</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\BattleTargetingVoicePreset.h">
-      <Filter>05. BattleSystem</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\BattleTurnStartVoicePreset.h">
       <Filter>05. BattleSystem</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\BattleSpawnRegistry.h">
