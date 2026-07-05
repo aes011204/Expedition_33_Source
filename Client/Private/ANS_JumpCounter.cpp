@@ -17,7 +17,8 @@ IMPLEMENT_REFLECTION(ANS_JumpCounter)
 
 void ANS_JumpCounter::On_Begin(const AnimNotifyContext& context)
 {
-    UNREFERENCED_PARAMETER(context);
+    if (context.isPreview || context.isCinematic)
+        return;
 
     auto battle = CLIENT->Get_BattleController();
     if (battle == nullptr)
@@ -29,6 +30,9 @@ void ANS_JumpCounter::On_Begin(const AnimNotifyContext& context)
 
 void ANS_JumpCounter::On_Tick(const AnimNotifyContext& context)
 {
+    if (context.isPreview || context.isCinematic)
+        return;
+
     auto battle = CLIENT->Get_BattleController();
     if (battle == nullptr)
         return;
@@ -41,6 +45,9 @@ void ANS_JumpCounter::On_Tick(const AnimNotifyContext& context)
 
 void ANS_JumpCounter::On_End(const AnimNotifyContext& context)
 {
+    if (context.isPreview || context.isCinematic)
+        return;
+
     auto battle = CLIENT->Get_BattleController();
     if (battle == nullptr)
         return;

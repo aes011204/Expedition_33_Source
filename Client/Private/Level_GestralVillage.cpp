@@ -165,7 +165,7 @@ void Level_GestralVillage::Update(float fTimeDelta)
         auto active = CLIENT->Get_ActiveHero();
         CHECK_NULL(active);
 
-        active->Get_Transform()->Set_WorldPosition(Vec3(6.33f, -6.73, 2.7f));
+        active->Get_Transform()->Set_WorldPosition(Vec3(6.33f, -6.73f, 2.7f));
 
         if (auto movement = active->Get_Component<MovementCom>())
             movement->Sync_RuntimePositionToTransform();

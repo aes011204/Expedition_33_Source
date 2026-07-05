@@ -153,7 +153,7 @@ void MainEditorApp::Update(float timeDelta)
             CLIENT->Update_FadeTransitions(timeDelta);
 
             if (CLIENT->Is_CinematicPlaying())
-                CLIENT->Update_CinematicPreview(timeDelta);
+                CLIENT->Update_CinematicPreview(timeDelta * GAME->Get_WorldTimeScale());
 
             if (EDITOR->IsPaused())
                 CLIENT->Update_UIPreviewOnly(0.f); // F9 Pause 중에도 UI preview 캐릭터 파츠가 Scene View 렌더 그룹에 다시 올라가게 한다.

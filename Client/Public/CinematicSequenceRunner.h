@@ -110,6 +110,8 @@ private:
         float pendingPlayAnimInitialAdvanceSec = -1.f;
         bool hasCinematicNotifyContextOverride = false;
         bool previousCinematicNotifyContext = false;
+        bool hasAnimNotifyExecutionOverride = false;
+        bool previousAnimNotifyExecutionEnabled = true;
     };
 
     void Execute_EventsUpToFrame(int currentFrame, float currentFrameExact);
@@ -201,6 +203,7 @@ private:
     bool _applyCameraTrack = true;
     bool _applyEventTrack = true;
     bool _applyActorTransformTrack = true;
+    bool _suppressAnimNotifyExecutionForBoundActors = false;
     bool _hasWorldTimeScaleOverride = false;
     float _restoreWorldTimeScale = 1.f;
     wstring _activeSequencePath{};

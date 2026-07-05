@@ -532,6 +532,7 @@ bool CinematicSequenceRunner::Play_Sequence(
     _applyCameraTrack = applyCameraTrack;
     _applyEventTrack = applyEventTrack;
     _applyActorTransformTrack = applyActorTransformTrack;
+    _suppressAnimNotifyExecutionForBoundActors = false;
 
     Set_GameplayUIHiddenForCinematic(true);
     const bool playerAppliesCameraTrack = applyCameraTrack && !Uses_CameraShots() && trackKind == CameraTrackKind::World;
@@ -600,6 +601,7 @@ bool CinematicSequenceRunner::Play_Sequence(
     _applyCameraTrack = applyCameraTrack;
     _applyEventTrack = applyEventTrack;
     _applyActorTransformTrack = applyActorTransformTrack;
+    _suppressAnimNotifyExecutionForBoundActors = true;
 
     Set_GameplayUIHiddenForCinematic(true);
     const bool playerAppliesCameraTrack = applyCameraTrack && !Uses_CameraShots() && trackKind == CameraTrackKind::World;
@@ -1471,6 +1473,12 @@ bool CinematicSequenceRunner::Execute_DespawnEvent(const string& targetId, const
             model->Set_CinematicNotifyContext(iter->second.previousCinematicNotifyContext);
     }
 
+    if (iter->second.hasAnimNotifyExecutionOverride)
+    {
+        if (Shared<ModelCom> model = Find_TargetModel(iter->second.actor))
+            model->Set_AnimNotifyExecutionEnabled(iter->second.previousAnimNotifyExecutionEnabled);
+    }
+
     Apply_CinematicDrivenState(iter->second.actor, false);
 
     if (iter->second.spawnedBySequence)
@@ -1832,6 +1840,12 @@ void CinematicSequenceRunner::Cleanup_Context(bool forceRemoveAllSpawned)
                 model->Set_CinematicNotifyContext(state.previousCinematicNotifyContext);
         }
 
+        if (state.hasAnimNotifyExecutionOverride)
+        {
+            if (Shared<ModelCom> model = Find_TargetModel(state.actor))
+                model->Set_AnimNotifyExecutionEnabled(state.previousAnimNotifyExecutionEnabled);
+        }
+
         Apply_CinematicDrivenState(state.actor, false);
 
         if (!state.spawnedBySequence)
@@ -1850,6 +1864,7 @@ void CinematicSequenceRunner::Cleanup_Context(bool forceRemoveAllSpawned)
     _nextEventIndex = 0;
     _cameraTrackKind = CameraTrackKind::None;
     _suspendActorTransformTrackPreview = false;
+    _suppressAnimNotifyExecutionForBoundActors = false;
     _activeSequencePath.clear();
 
     if (forceRemoveAllSpawned)
@@ -1958,6 +1973,13 @@ void CinematicSequenceRunner::Bind_ActorToTarget(
         state.hasCinematicNotifyContextOverride = true;
         state.previousCinematicNotifyContext = model->Is_CinematicNotifyContext();
         model->Set_CinematicNotifyContext(true);
+
+        if (_suppressAnimNotifyExecutionForBoundActors)
+        {
+            state.hasAnimNotifyExecutionOverride = true;
+            state.previousAnimNotifyExecutionEnabled = model->Is_AnimNotifyExecutionEnabled();
+            model->Set_AnimNotifyExecutionEnabled(false);
+        }
     }
 
     Apply_CinematicDrivenState(actor, true);
