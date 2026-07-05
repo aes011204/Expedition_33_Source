@@ -475,12 +475,15 @@ PS_OUT PS_Opaque(PS_IN In)
     PS_OUT Out;
 
     const float4 flagBaseColor = SampleFlagBaseColorPixel(In.Texcoord);
-    const float4 baseColor = ApplyVictoriaFlagFabricColor(In.Texcoord,
+    float4 baseColor = ApplyVictoriaFlagFabricColor(In.Texcoord,
         ApplyNumberOverlay(In.Texcoord, ApplyVictoriaFlagBorder(In.Texcoord, flagBaseColor)));
     float3 worldNormal = normalize(In.Normal.xyz);
     if (!In.IsFrontFace)
         worldNormal *= -1.f;
     worldNormal = ApplyVictoriaFlagFabricNormal(In.Texcoord, worldNormal, In.Tangent, In.Binormal);
+
+    if (baseColor.a < 0.3f)
+        baseColor = float4(0.f, 0.f, 0.f, 1.f);
 
     Out.Diffuse = baseColor;
     Out.Normal = float4(EncodeNormal(worldNormal), 1.f);

@@ -337,6 +337,20 @@ public: /* For.Light_Manager */
     void Get_LightDescs(vector<LIGHT_DESC>& outLightDescs) const;
     HRESULT Set_Lights(const vector<LIGHT_DESC>& lightDescs);
     HRESULT Bind_PrimaryShadowLightCB(Shared<ShaderCom> shader) const;
+    const LIGHT_DESC* Get_PointLightDesc(uint32 pointIndex) const;
+    uint32 Get_PointLightCount() const;
+    HRESULT Add_PointLight(
+        const Vec3& position,
+        float range,
+        const Vec4& diffuse,
+        const Vec4& ambient,
+        const Vec4& specular,
+        float attenuationPower = 1.f);
+    HRESULT Update_PointLightDesc(uint32 pointIndex, const LIGHT_DESC& lightDesc);
+    HRESULT Set_PointLightPosition(uint32 pointIndex, const Vec3& position);
+    HRESULT Set_PointLightRange(uint32 pointIndex, float range);
+    HRESULT Set_PointLightAlpha(uint32 pointIndex, float alpha);
+    HRESULT Set_PointLightAttenuationPower(uint32 pointIndex, float attenuationPower);
 
 public: /* For.Font_Manager */
     HRESULT Add_Font(const wstring& fontTag, const wchar_t* fontFilePath);

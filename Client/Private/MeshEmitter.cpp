@@ -1163,10 +1163,13 @@ HRESULT MeshEmitter::Bind_ModelMaterialResourcesForMesh(uint32 meshIndex, uint32
     CHECK_NULL(_texture, E_FAIL);
 
     Vec4 modelMaterialFlags = Vec4::Zero;
+    const bool supportsModelOrm = !Is_MeshGlassFamily();
     if (!_desc.useModelMaterials || _model == nullptr)
     {
         CHECK_FAILED_THROTTLED(_shader->Bind_SRV("g_ModelNormalTexture", nullptr), 60, E_FAIL);
         CHECK_FAILED_THROTTLED(_shader->Bind_SRV("g_ModelEmissiveTexture", nullptr), 60, E_FAIL);
+        if (supportsModelOrm)
+            CHECK_FAILED_THROTTLED(_shader->Bind_SRV("g_ModelOrmTexture", nullptr), 60, E_FAIL);
         CHECK_FAILED_THROTTLED(
             _shader->Bind_RawValue("g_EffectMeshModelMaterialFlags", &modelMaterialFlags, sizeof(modelMaterialFlags)),
             60,
@@ -1200,6 +1203,14 @@ HRESULT MeshEmitter::Bind_ModelMaterialResourcesForMesh(uint32 meshIndex, uint32
         modelMaterialFlags.z = 1.f;
     else
         CHECK_FAILED_THROTTLED(_shader->Bind_SRV("g_ModelEmissiveTexture", nullptr), 60, E_FAIL);
+
+    if (supportsModelOrm)
+    {
+        if (SUCCEEDED(_model->Bind_Material(_shader.get(), "g_ModelOrmTexture", meshIndex, MaterialTextureSlot::ORM)))
+            modelMaterialFlags.w = 1.f;
+        else
+            CHECK_FAILED_THROTTLED(_shader->Bind_SRV("g_ModelOrmTexture", nullptr), 60, E_FAIL);
+    }
 
     CHECK_FAILED_THROTTLED(
         _shader->Bind_RawValue("g_EffectMeshModelMaterialFlags", &modelMaterialFlags, sizeof(modelMaterialFlags)),

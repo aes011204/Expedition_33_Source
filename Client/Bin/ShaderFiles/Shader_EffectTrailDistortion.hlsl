@@ -17,6 +17,7 @@ cbuffer cbEffectTrailDistortion : register(b2)
     float g_FlowUVTilingMode = 0.f;
     float g_FlowUVRotation = 0.f;
     float g_TrailDistortionPadding = 0.f;
+
 #include "Shader_EffectMaterialModulationPayloadGlobals.hlsli"
 };
 

@@ -50,6 +50,7 @@ private:
     uint64  _cachedObjectRevision = UINT64_MAX;
     bool    _dirtyHierarchyCache = true;
     bool    _isPrimaryShadowLightSelected = false;
+    int32   _selectedPointLightIndex = -1;
     bool    _scrollSelectionIntoView = false;
 
 public:

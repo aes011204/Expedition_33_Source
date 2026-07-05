@@ -5,6 +5,11 @@
 #include "ShaderCom.h"
 #include "Texture.h"
 
+namespace
+{
+    constexpr uint32 VICTORIA_FLAG_POST_ALPHA_FILL_PASS = 20u;
+}
+
 IMPLEMENT_REFLECTION(VictoriaFlag)
 {
     auto& info = GetStaticReflectionInfo();
@@ -116,7 +121,7 @@ HRESULT VictoriaFlag::Render()
 
         CHECK_FAILED(_postShader->Bind_MaterialTextures(*material), E_FAIL);
         CHECK_FAILED(_postShader->Bind_CBufferData(material->Get_CB()), E_FAIL);
-        CHECK_FAILED(_postShader->Begin(material->Get_PassIndex()), E_FAIL);
+        CHECK_FAILED(_postShader->Begin(VICTORIA_FLAG_POST_ALPHA_FILL_PASS), E_FAIL);
         CHECK_FAILED(_postModel->Render(i), E_FAIL);
     }
 

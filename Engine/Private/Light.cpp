@@ -64,6 +64,7 @@ HRESULT Light::Bind_LightCB(Shared<ShaderCom> shader)
     lightCB.ambient = _desc.ambient;
     lightCB.specular = _desc.specular;
     lightCB.range = _desc.range;
+    lightCB.pointAttenuationPower = _desc.pointAttenuationPower;
 
     if (FAILED(shader->Bind_CBufferData(lightCB)))
         return E_FAIL;

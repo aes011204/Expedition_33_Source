@@ -75,6 +75,7 @@ namespace RT
     inline constexpr const wchar_t* Shade = L"Target_Shade";
     inline constexpr const wchar_t* Ambient = L"Target_Ambient";
     inline constexpr const wchar_t* Specular = L"Target_Specular";
+    inline constexpr const wchar_t* LightMask = L"Target_LightMask";
 
     inline constexpr const wchar_t* LightDepth = L"Target_LightDepth";              // Dynamic Shadow
 
