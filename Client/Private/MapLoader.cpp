@@ -932,6 +932,7 @@ HRESULT MapLoader::Process_LoadSession(LoadSession& session, size_t maxMeshesPer
             const auto& pos = e["Position"];
             desc.position = Vec4(pos[0].get<float>(), pos[1].get<float>(), pos[2].get<float>(), 1.f);
             desc.range = e.value("Range", 10.f);
+            desc.pointAttenuationPower = e.value("AttenuationPower", 1.f);
 
             const auto& diff = e["Diffuse"];
             desc.diffuse = Vec4(diff[0].get<float>(), diff[1].get<float>(), diff[2].get<float>(), diff[3].get<float>());
@@ -943,7 +944,13 @@ HRESULT MapLoader::Process_LoadSession(LoadSession& session, size_t maxMeshesPer
             desc.specular = Vec4(spec[0].get<float>(), spec[1].get<float>(), spec[2].get<float>(), spec[3].get<float>());
 
             g_cachedLights.push_back(desc);
-            GAME->Add_Light(desc);
+            GAME->Add_PointLight(
+                Vec3(desc.position.x, desc.position.y, desc.position.z),
+                desc.range,
+                desc.diffuse,
+                desc.ambient,
+                desc.specular,
+                desc.pointAttenuationPower);
         }
 
         session.lightsDone = true;
@@ -1806,5 +1813,20 @@ void MapLoader::Clear_CachedLights()
 void MapLoader::Reapply_CachedLights()
 {
     for (const auto& desc : g_cachedLights)
-        GAME->Add_Light(desc);
+    {
+        if (desc.type == LightType::Point)
+        {
+            GAME->Add_PointLight(
+                Vec3(desc.position.x, desc.position.y, desc.position.z),
+                desc.range,
+                desc.diffuse,
+                desc.ambient,
+                desc.specular,
+                desc.pointAttenuationPower);
+        }
+        else
+        {
+            GAME->Add_Light(desc);
+        }
+    }
 }

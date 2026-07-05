@@ -18,6 +18,7 @@
 #include "Create_Class.h"
 #include "ItemTargeting.h"
 #include "MB_Lancelier.h"
+#include "MB_Simon.h"
 #include "Player_WorldBase.h"
 #include "Player_BattleBase.h"
 #include "SkillTargeting.h"
@@ -395,6 +396,8 @@ void BattleController::Run_EnemyTurn()
 
     Play_EnemyTargetedStart(targetedHeroes);
 
+    CLIENT->Play_BattleMonsterTargetingVoice(Get_TurnActionRequest(), targetedHeroes);
+
     ExecuteActionRequest(Get_TurnActionRequest());
 
     // EvtBattlePresentation event;
@@ -567,7 +570,8 @@ EBattleEndResult BattleController::OnExitBattleField(EBattleEndResult result)
                 defeatedEnemyKeys,
                 _activeBattleFieldID,
                 rewardLevelIndex,
-                rewardOriginPtr);
+                rewardOriginPtr,
+                true);
         }
 
         if (BattleFollowupManager* followupManager = CLIENT->Get_BattleFollowupManager())
@@ -916,6 +920,19 @@ void BattleController::Create_BattleChar(const vector<HeroId>& heroIds, const ve
                 CHECK_FAILED(battlePlayer->Rebuild_WeaponPartsFromCurrentStat());
 
             battleStat->Set_BattleStartAp();
+
+            if (battleChar.mechanismCom)
+            {
+                const string characterId = string(magic_enum::enum_name(heroId));
+                const string& weaponId = battleStat->Get_PlayerRuntimeStat().CurEquippedWeaponId;
+                const uint32 enhanceLevel = CLIENT->Resolve_WeaponEnhanceLevel(characterId, weaponId);
+
+                battleChar.mechanismCom->Apply_WeaponMilestoneBattleStart(
+                    characterId,
+                    weaponId,
+                    enhanceLevel);
+            }
+
         }
 
 
@@ -2333,6 +2350,22 @@ void BattleController::Play_EnemyTargetedStart(const vector<BattleChar>& targets
     if (_enemyTurnTargetedActors.empty())
         return;
 
+    _battleSpawnRotationReturns.erase(
+        remove_if(
+            _battleSpawnRotationReturns.begin(),
+            _battleSpawnRotationReturns.end(),
+            [this](const BattleSpawnRotationReturn& runtime)
+            {
+                for (const BattleChar& target : _enemyTurnTargetedActors)
+                {
+                    if (runtime.target.actor == target.actor)
+                        return true; // 이전 턴의 원위치 회전 복귀가 Targeted_Start 회전을 덮지 않게 한다.
+                }
+
+                return false;
+            }),
+        _battleSpawnRotationReturns.end());
+
     const BattleChar& attacker = Get_TurnActionRequest().actor;
     if (attacker.actor != nullptr)
     {
@@ -2526,7 +2559,7 @@ void BattleController::Begin_FreeAimShot(const BattleAction& shotAction)
         const BattleChar& target = _freeAimShotAction.GetInitTarget();
         constexpr float freeAimDamageMultiplier = 1.f;
         const float freeAimDamage =
-            DamageSystem::CalculatePlayerAttackDamage(attacker, freeAimDamageMultiplier);
+            DamageSystem::CalculatePlayerAttackDamage(attacker, freeAimDamageMultiplier) * 0.5f;
 
         const bool hadShieldBeforeShot = target.statCom->Get_CurrentShield() > 0;
         const Vec3* freeAimHitWorldPos =
@@ -2803,6 +2836,12 @@ void BattleController::Confirm_Victory()
             _battleSpawnRegistry->Destroy_SourceWorldObject();
     }
 
+    if (!hasFollowupBattle)
+    {
+        if (Unlock_Manager* unlockManager = CLIENT->Get_UnlockManager())
+            unlockManager->Flush_PendingWorldSpawnRewards();
+    }
+
     _heroes.clear();
     _enemies.clear();
 
@@ -2890,6 +2929,22 @@ void BattleController::Handle_DamageApplied(const DamageAppliedInfo& info)
                         rot.y = XMConvertToDegrees(atan2f(dir.x, dir.z));
                         targetTransform->Set_RotationEuler(rot);
                     }
+                }
+            }
+
+            if (const Shared<MB_Simon> simon = dynamic_pointer_cast<MB_Simon>(info.target.actor))
+            {
+                simon->Play_DefaultBodyOffsetOnce(1.f, -1.f);
+
+                if (const Shared<TransformCom> targetTransform = simon->Get_Transform())
+                {
+                    const Vec3 soundPosition = targetTransform->Get_WorldPosition();
+                    GAME->Play_SoundCue(
+                        Constants::SoundCue::Duallist_Pain,
+                        &soundPosition,
+                        0.75f,
+                        1.f,
+                        0.f);
                 }
             }
 
@@ -3889,6 +3944,7 @@ void BattleController::Continue_StartTurnAfterStatusEffects()
         GAME->Get_EventBus().Publish(event);
 
         OnTurnStarted.Broadcast(_currentTurnActor, BattleTurnState::ChooseAction);
+        CLIENT->Play_BattleTurnStartVoice();
         return;
     }
 

@@ -4,6 +4,7 @@
 #include "Battle_Enum.h"
 
 NS_BEGIN(Engine)
+class UI_Base;
 class UI_Image;
 class UI_Text;
 NS_END
@@ -40,6 +41,8 @@ private:
     void    Apply_DelayedHpGauge(float ratio);
     void    Apply_BreakGauge(const BattleChar& target);
     void    Apply_ShieldGauge(const BattleChar& target);
+    void    Apply_BurnStatus(const BattleChar& target);
+    void    Apply_SlowStatus(const BattleChar& target);
     void    Apply_ShieldIcons(uint32 currentShield);
     void    Reset_ShieldIconDefaultVisual(uint32 iconIndex);
     void    Set_ShieldIconPosition(uint32 iconIndex, uint32 visibleOrder, uint32 visibleCount);
@@ -51,6 +54,7 @@ private:
     void    Close_ShieldIcons();
     void    Update_DelayHpGauge(float timeDelta, float targetRatio);
 
+    uint32  Resolve_BuffStack(const BattleChar& target, Buffs buffId) const;
     uint32  Resolve_MaxShield(const BattleChar& target) const;
     bool    Is_ValidBossTarget(const BattleChar& target) const;
 
@@ -59,8 +63,12 @@ private:
     Shared<UI_Image>            _hpGaugeBG{};
     Shared<UI_Image>            _shieldGauge{};
     Shared<UI_Image>            _breakGauge{};
+    Shared<UI_Base>             _burnPanel{};
+    Shared<UI_Base>             _slowIcon{};
     Shared<UI_Text>             _bossNameText{};
     Shared<UI_Text>             _bossNameBgText{};
+    Shared<UI_Text>             _burnStackText{};
+    Shared<UI_Text>             _burnStackBgText{};
     array<Shared<UI_Base>, 5>   _shieldIcons{};
     array<float, 5>             _shieldIconCloseTimers{};
     array<float, 5>             _shieldIconFadeInTimers{};

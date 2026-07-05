@@ -48,18 +48,6 @@ namespace Client::PlayerWorldTuning
             state == PlayerState::GrappleAction;
     }
 
-    const char* Get_ParkourActionName(Player_ParkourAction::ParkourActionType actionType)
-    {
-        switch (actionType)
-        {
-        case Player_ParkourAction::ParkourActionType::HighMantle:
-            return "High";
-        case Player_ParkourAction::ParkourActionType::LowMantle:
-        default:
-            return "Low";
-        }
-    }
-
     bool Try_EnterParkourFromJumpIntent(
         const Shared<PlayerStateMachineCom>& stateMachineCom,
         Player_ParkourAction::ParkourActionType actionType)
@@ -67,24 +55,15 @@ namespace Client::PlayerWorldTuning
         if (stateMachineCom == nullptr)
             return false;
 
-        LOG_WARN("[Parkour] Try {} from JumpIntent", Get_ParkourActionName(actionType));
-
         const Shared<Player_ParkourAction> parkourAction =
             dynamic_pointer_cast<Player_ParkourAction>(stateMachineCom->Get_State(PlayerState::Parkour));
         if (parkourAction == nullptr)
-        {
-            LOG_WARN("[Parkour] Reject {} from JumpIntent: missing parkour state", Get_ParkourActionName(actionType));
             return false;
-        }
 
         if (!parkourAction->Try_PrepareAction(actionType))
-        {
-            LOG_WARN("[Parkour] {} rejected from JumpIntent", Get_ParkourActionName(actionType));
             return false;
-        }
 
         const bool changed = stateMachineCom->Change_State(PlayerState::Parkour);
-        LOG_WARN("[Parkour] {} {} from JumpIntent", Get_ParkourActionName(actionType), changed ? "accepted" : "change failed");
         if (!changed)
             parkourAction->Clear_PreparedAction();
 
@@ -97,6 +76,43 @@ namespace Client::PlayerWorldTuning
             return true;
 
         return Try_EnterParkourFromJumpIntent(stateMachineCom, Player_ParkourAction::ParkourActionType::HighMantle);
+    }
+
+    struct BodyAnimationSnapshot
+    {
+        bool valid = false;
+        uint32 stateIndex = UINT32_MAX;
+        float timeSec = 0.f;
+        float frameSpeed = 1.f;
+        bool isLoop = false;
+    };
+
+    BodyAnimationSnapshot Capture_BodyAnimationSnapshot(const Body_Player* body)
+    {
+        BodyAnimationSnapshot snapshot{};
+        if (body == nullptr)
+            return snapshot;
+
+        const Shared<ModelCom> model = body->Get_Model();
+        if (model == nullptr)
+            return snapshot;
+
+        snapshot.valid = true;
+        snapshot.stateIndex = body->Get_AnimationStateIndex();
+        snapshot.timeSec = model->Get_CurrentAnimationTimeSec();
+        snapshot.frameSpeed = body->Get_AnimationSpeed();
+        snapshot.isLoop = model->Is_AnimationLooping();
+
+        return snapshot;
+    }
+
+    void Restore_BodyAnimationSnapshot(Body_Player* body, const BodyAnimationSnapshot& snapshot)
+    {
+        if (body == nullptr || !snapshot.valid || snapshot.stateIndex == UINT32_MAX)
+            return;
+
+        if (body->Set_AnimationByStateTimeSec(snapshot.stateIndex, 0.f, snapshot.isLoop, snapshot.timeSec))
+            body->Set_AnimationSpeed(snapshot.frameSpeed);
     }
 }
 
@@ -328,6 +344,9 @@ void Player_WorldBase::Set_CinematicDriven(bool cinematicDriven)
         _movementCom->Stop_VerticalMovement();
         _movementCom->Sync_RuntimePositionToTransform();
     }
+
+    if (!cinematicDriven && _playerStateMachineCom)
+        _playerStateMachineCom->Reenter_CurrentState();
 }
 
 void Player_WorldBase::Set_PartyVisibilityAllowed(bool allowed)
@@ -678,6 +697,9 @@ HRESULT Player_WorldBase::Activate_CostumeVariant(const CostumePreset& preset)
     if (iter == _costumeVariantsByPreset.end())
         return E_FAIL;
 
+    const PlayerWorldTuning::BodyAnimationSnapshot animationSnapshot =
+        PlayerWorldTuning::Capture_BodyAnimationSnapshot(dynamic_cast<Body_Player*>(Get_PartObject(TEXT("Part_Body"))));
+
     for (auto& [cachedPresetId, parts] : _costumeVariantsByPreset)
     {
         const bool isTarget = (cachedPresetId == preset.presetId);
@@ -709,6 +731,8 @@ HRESULT Player_WorldBase::Activate_CostumeVariant(const CostumePreset& preset)
     {
         if (Shared<ModelCom> model = body->Get_Model())
             model->Refresh_AnimStateMappingFromOwnerContext();
+
+        PlayerWorldTuning::Restore_BodyAnimationSnapshot(body, animationSnapshot);
     }
 
     if (_playerStateMachineCom)

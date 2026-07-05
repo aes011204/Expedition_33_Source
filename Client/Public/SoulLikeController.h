@@ -79,6 +79,7 @@ public:
     Shared<SL_Maelle> Get_Player() const { return _player.lock(); }
     Shared<SL_Base> Get_Monster() const { return _monster.lock(); }
     uint32 Get_LastVictoryRewardExp() const { return _lastVictoryRewardExp; }
+    const vector<string>& Get_LastVictoryRewardPictosIds() const { return _lastVictoryRewardPictosIds; }
 
     void End_BattleShotCamera();
     void Apply_SkillCameraPreset(const string& skillKey, float clipStartTimeSec = 0.f);
@@ -137,6 +138,7 @@ private:
     void Begin_VictorySlow();
     void Begin_Victory();
     void Apply_VictoryRewardExp();
+    void Apply_VictoryUnlockRewards();
     void Sync_PlayerResultToWorld();
     void Handle_EditorStopRuntime();
     void Release_ControllerRegistration(bool removeFromWorld);
@@ -184,6 +186,7 @@ private:
     float _enterFxTimer = 0.f;
     float _victorySlowElapsed = 0.f;
     uint32 _lastVictoryRewardExp = 0;
+    vector<string> _lastVictoryRewardPictosIds{};
     wstring _preSoulLikeBGM{};
     bool _hasPreSoulLikeBGM = false;
     bool  _playerSpawned = false;

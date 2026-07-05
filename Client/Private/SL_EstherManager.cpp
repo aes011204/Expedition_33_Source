@@ -132,6 +132,12 @@ bool SL_EstherManager::Is_GaugeFull() const
     return _estherGauge >= kEstherGaugeMax;
 }
 
+void SL_EstherManager::Fill_GaugeForDebug()
+{
+    _estherGauge = kEstherGaugeMax;
+    _displayEstherGauge = kEstherGaugeMax;
+}
+
 bool SL_EstherManager::Begin_Esther(SL_EstherType estherType)
 {
     Shared<SL_Base> target = Resolve_Target();

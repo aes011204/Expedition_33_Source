@@ -66,6 +66,7 @@ struct PS_OUT_LIGHT
     vector Shade    : SV_TARGET0;   // 픽셀의 재질이 그 빛을 받아 diffuse 방향으로 반사한 결과 색
     vector Ambient  : SV_TARGET1;   // 픽셀이 빛을 받아서 카메라 방향으로 반사한 스페큘러 결과
     vector Specular : SV_TARGET2;
+    float LightMask : SV_TARGET3;
 };
 
 PS_OUT_LIGHT PS_MAIN_DIRECTIONAL(PS_IN In)
@@ -101,6 +102,7 @@ PS_OUT_LIGHT PS_MAIN_DIRECTIONAL(PS_IN In)
         Out.Shade = float4(0, 0, 0, 1);
         Out.Specular = float4(0, 0, 0, 1);
         Out.Ambient = float4(0, 0, 0, 1);
+        Out.LightMask = 0.f;
         return Out;
     }
 
@@ -131,17 +133,22 @@ PS_OUT_LIGHT PS_MAIN_DIRECTIONAL(PS_IN In)
     Out.Shade = float4(diffuseBRDF * radiance * NdotL, 1.f);
     Out.Specular = float4(specularBRDF * radiance * NdotL, 1.f);
     Out.Ambient = float4(0.f, 0.f, 0.f, 1.f);
+    Out.LightMask = NdotL;
 
     return Out;
 }
 
+// 점조명의 표면 조명 패스. 현재 픽셀이 점조명에 얼마나 밝아지는지 계산한다.
 PS_OUT_LIGHT PS_MAIN_POINT(PS_IN In)
 {
+    // MRT::LightAcc의 Shade/Specular에 additive blend로 누적된다.
     PS_OUT_LIGHT Out;
     Out.Shade = float4(0.f, 0.f, 0.f, 1.f);
     Out.Specular = float4(0.f, 0.f, 0.f, 1.f);
     Out.Ambient = float4(0.f, 0.f, 0.f, 1.f);
+    Out.LightMask = 0.f;
 
+    // range가 없으면 영향 반경이 없는 조명이므로 누적할 값 없이 종료.
     if (g_LightRange <= EPSILON)
         return Out;
 
@@ -159,7 +166,8 @@ PS_OUT_LIGHT PS_MAIN_POINT(PS_IN In)
     float roughness = ApplySpecAA(N, MaterialDesc.g);   // Specular Anti-Aliasing 적용된 roughness
     float metalness = saturate(MaterialDesc.b);
 
-    // Light
+    // Depth에서 복원한 월드 좌표 기준으로, 픽셀 -> 점조명 방향과 거리를 구한다.
+    // 이 패스는 화면 사각형을 전체에 그리므로 실제 반경 밖 픽셀은 attenuation으로 0에 가까워진다.
     float4 WorldPos = Reconstruct_WorldPos(In.Texcoord);
     float3 LightVec = g_LightPos.xyz - WorldPos.xyz;
     float Distance = length(LightVec);
@@ -169,11 +177,15 @@ PS_OUT_LIGHT PS_MAIN_POINT(PS_IN In)
     float invHLen = rsqrt(max(dot(Hraw, Hraw), EPSILON));
     float3 H = Hraw * invHLen;                                                      // V와 L의 중간 방향. 하프벡터
 
-    float att = saturate(1.f - Distance / g_LightRange);
+    // range 기준 감쇠. power가 커질수록 조명 중심부는 남고 가장자리는 더 빨리 죽는다.
+    float linearAtt = saturate(1.f - Distance / g_LightRange);
+    float att = pow(linearAtt, max(g_PointLightAttenuationPower, EPSILON));
 
     float NdotL = saturate(dot(N, L));  // 표면이 빛을 얼마나 정면으로 받는지
     if (NdotL <= 0.0f)
     {
+        // 뒷면은 표면 조명만 끄고, discard하지 않는다.
+        // LightAcc RT에는 검은 값이 더해져 다른 조명 누적 결과를 해치지 않는다.
         return Out;
     }
 
@@ -193,10 +205,22 @@ PS_OUT_LIGHT PS_MAIN_POINT(PS_IN In)
     float3 kD = (1.0f - kS) * (1.0f - metalness);
     float3 diffuseBRDF = kD * baseColor / PI;
 
-    float3 radiance = g_LightDiffuse.rgb * att;
+    // diffuse.a를 점조명 개별 alpha/intensity로 사용한다.
+    float lightAlpha = saturate(g_LightDiffuse.a);
+    if (lightAlpha <= EPSILON)
+    {
+        return Out;
+    }
 
+    // 조명 색/세기에 거리 감쇠와 개별 alpha를 곱해 이 픽셀에 도달한 광량으로 사용한다.
+    float3 radiance = g_LightDiffuse.rgb * att * lightAlpha;
+
+    // 완전히 옆면으로 꺼지는 것을 막는 아트 보정.
+    // 물리 기반 NdotL보다 더 넓게 점조명 영향이 보이게 만든다.
     NdotL = max(NdotL, 0.25f);
 
+    // CombinedHDR에서 g_ShadeTexture/g_SpecularTexture로 다시 읽혀 최종 HDR 색에 합쳐진다.
+    // Ambient는 현재 점조명에서 사용하지 않으므로 0 유지.
     Out.Shade = float4(diffuseBRDF * radiance * NdotL, 1.f);
     Out.Specular = float4(specularBRDF * radiance * NdotL, 1.f);
     Out.Ambient = float4(0.f, 0.f, 0.f, 1.f);
@@ -206,19 +230,25 @@ PS_OUT_LIGHT PS_MAIN_POINT(PS_IN In)
 
 PS_OUT_BACKBUFFER PS_POINT_GLOW_SOURCE(PS_IN In)
 {
+    // 점조명의 "보이는 광륜" 소스 패스.
+    // 표면을 밝히는 PS_MAIN_POINT와 별개로, 점조명 위치에 고정된 얕은 screen-space halo를 만들어
+    // RT::PointGlow에 glow 색을 쌓고 이후 PostProcess의 PointGlowCompositeHDR에서 HDRColor에 합성한다.
     PS_OUT_BACKBUFFER Out;
     Out.Color = float4(0.f, 0.f, 0.f, 0.f);
 
-    if (g_LightRange <= EPSILON)
+    // 반경 또는 alpha가 없으면 광륜도 만들 수 없으므로 종료.
+    float lightAlpha = saturate(g_LightDiffuse.a);
+    if (g_LightRange <= EPSILON || lightAlpha <= EPSILON)
         return Out;
 
-    static const float POINT_GLOW_INTENSITY = 6.f;
-    static const float POINT_GLOW_RADIUS_SCALE = 2.5f;
-    static const float POINT_GLOW_MIN_RADIUS_PIXELS = 96.f;
-    static const float POINT_GLOW_EDGE_POWER = 4.f;
-    static const float POINT_GLOW_CORE_POWER = 12.f;
-    static const float POINT_GLOW_CORE_WEIGHT = 0.75f;
+    // glow 전용 아트 튜닝 값.
+    // 표면 조명 밝기와는 별개라서, "공중에 보이는 빛 덩어리"만 조절하고 싶을 때는 여기 계열을 만진다.
+    static const float POINT_GLOW_INTENSITY = 1.4f;
+    static const float POINT_GLOW_RADIUS_SCALE = 0.45f;
+    static const float POINT_GLOW_MIN_RADIUS_PIXELS = 6.f;
+    static const float POINT_GLOW_EDGE_POWER = 2.2f;
 
+    // 조명 중심을 화면에 투영해 대략적인 화면 반경과 화면 밖 컬링을 계산한다.
     float4 lightViewPos = mul(float4(g_LightPos.xyz, 1.f), g_ViewMatrix);
 
     // 카메라 뒤쪽에 완전히 있는 점조명만 제거
@@ -237,6 +267,8 @@ PS_OUT_BACKBUFFER PS_POINT_GLOW_SOURCE(PS_IN In)
 
     float lightDepth = max(lightViewPos.z, 1.f);
 
+    // 월드 반경을 현재 깊이 기준의 픽셀 반경으로 환산한다.
+    // 가까운 조명은 크게, 먼 조명은 작게 보이지만 최소 픽셀 반경은 보장한다.
     float radiusPixels = (g_LightRange * POINT_GLOW_RADIUS_SCALE / lightDepth) * g_ProjMatrix._22 * g_ScreenSize.y * 0.5f;
 
     radiusPixels = clamp(
@@ -253,55 +285,41 @@ PS_OUT_BACKBUFFER PS_POINT_GLOW_SOURCE(PS_IN In)
         return Out;
     }
 
-    float4 rayClip = float4(In.Texcoord.x * 2.f - 1.f, In.Texcoord.y * -2.f + 1.f, 1.f, 1.f);
-    float4 rayView = mul(rayClip, g_DeferredProjMatrixInverse);
-    rayView.xyz /= max(rayView.w, EPSILON);
-
-    float3 rayWorld = mul(float4(rayView.xyz, 0.f), g_DeferredViewMatrixInverse).xyz;
-    float3 rayDir = normalize(rayWorld);
-
-    float3 cameraToLight = g_DeferredCamPosition.xyz - g_LightPos.xyz;
-    float b = dot(cameraToLight, rayDir);
-    float c = dot(cameraToLight, cameraToLight) - g_LightRange * g_LightRange;
-    float discriminant = b * b - c;
-    if (discriminant <= 0.f)
+    // 기존 Ray-Sphere 방식은 카메라 각도와 foreground geometry 클리핑에 따라
+    // 광륜 중심이 흔들리고 먼 거리에서 큰 구체 core가 보였다.
+    // 여기서는 조명 투영 위치를 기준으로 한 얕은 screen-space halo만 만든다.
+    float2 pixelDelta = (In.Texcoord - lightUV) * g_ScreenSize;
+    float radial = length(pixelDelta) / max(radiusPixels, EPSILON);
+    if (radial >= 1.f)
         return Out;
 
-    float sqrtDiscriminant = sqrt(discriminant);
-    float enterDistance = max(-b - sqrtDiscriminant, 0.f);
-    float exitDistance = -b + sqrtDiscriminant;
-    if (exitDistance <= enterDistance)
-        return Out;
-
+    // 실제 씬 geometry가 조명보다 앞에 있으면 halo를 줄인다.
+    // 불꽃/광원 뒤의 컵, 벽 같은 foreground에 큰 원형 glow가 덮이는 것을 막는다.
     float sceneViewDepth01 = g_DepthTexture.Sample(PointClampSampler, In.Texcoord).y;
-    float maxRayDistance = g_DeferredFar;
+    float occlusionFade = 1.f;
     if (sceneViewDepth01 > EPSILON)
     {
         float3 sceneWorldPos = Reconstruct_WorldPos(In.Texcoord).xyz;
-        maxRayDistance = length(sceneWorldPos - g_DeferredCamPosition.xyz);
+        float sceneDistance = length(sceneWorldPos - g_DeferredCamPosition.xyz);
+        float lightDistance = length(g_LightPos.xyz - g_DeferredCamPosition.xyz);
+        float depthMargin = max(g_LightRange * 0.08f, 0.05f);
+        occlusionFade = smoothstep(-depthMargin, depthMargin, sceneDistance - lightDistance);
     }
 
-    exitDistance = min(exitDistance, maxRayDistance);
-    if (exitDistance <= enterDistance)
-        return Out;
-
-    float rayLength = exitDistance - enterDistance;
-    float rayLength01 = saturate(rayLength / max(g_LightRange * 2.f, EPSILON));
-
-    float closestDistance = sqrt(max(dot(cameraToLight, cameraToLight) - b * b, 0.f));
-    float radial = saturate(closestDistance / g_LightRange);
-    float falloff = saturate(1.f - radial);
-    float glow = rayLength01 * (pow(falloff, POINT_GLOW_EDGE_POWER) + pow(falloff, POINT_GLOW_CORE_POWER) * POINT_GLOW_CORE_WEIGHT);
+    float falloff = pow(saturate(1.f - radial), POINT_GLOW_EDGE_POWER);
+    float distanceFade = saturate(radiusPixels / 64.f);
+    float glow = falloff * occlusionFade * distanceFade;
 
     if (glow <= EPSILON)
         return Out;
 
+    // 합성 패스에서 depth 비교에 쓸 조명 중심 깊이.
     float lightDepth01 = saturate(lightDepth / max(g_DeferredFar, EPSILON));
 
-    // RGB: 원형 glow 색
+    // RGB: 부드러운 halo 색
     // A: 합성 단계에서 depth compare할 light depth
     Out.Color = float4(
-        g_LightDiffuse.rgb * glow * POINT_GLOW_INTENSITY,
+        g_LightDiffuse.rgb * glow * POINT_GLOW_INTENSITY * lightAlpha,
         lightDepth01
     );
 
@@ -323,6 +341,7 @@ PS_OUT_HDR_WITH_MASK PS_CombinedHDR(PS_IN In)
     vector Emissive = g_EmissiveTexture.Sample(LinearWrapSampler, In.Texcoord);
     vector NormalDesc = g_NormalTexture.Sample(LinearWrapSampler, In.Texcoord);
     vector MaterialDesc = g_MaterialTexture.Sample(LinearWrapSampler, In.Texcoord);
+    float lightMask = g_LightMaskTexture.Sample(PointClampSampler, In.Texcoord).r;
 
     float ambientVisibility = g_AmbientVisibilityTexture.Sample(PointClampSampler, In.Texcoord).r;
 
@@ -333,6 +352,21 @@ PS_OUT_HDR_WITH_MASK PS_CombinedHDR(PS_IN In)
     // Direct BRDF는 Light pass에서 계산 완료.
     vector direct = Shade + Specular;
     vector indirect = float4(0.f, 0.f, 0.f, 0.f);
+
+    // Stylized Light Contrast 넣어야 하는지
+    float stylizedLightContrastStrength = (g_StylizedLightContrastEnabled != 0u) ? saturate(g_StylizedLightContrastStrength) : 0.f;
+    float stylizedLitMask = 1.f;
+    if (stylizedLightContrastStrength > 0.f)
+    {
+        // Light pass에서 기록한 방향성 조명의 NdotL 마스크를 사용한다.
+        // direct 색 밝기가 아니라 표면이 빛 방향을 얼마나 정면으로 받는지를 기준으로 lit/unlit을 나눈다.
+        float threshold = max(g_StylizedLightThreshold, 0.f);
+        float softness = max(g_StylizedLightSoftness, EPSILON);
+        stylizedLitMask = smoothstep(threshold, threshold + softness, saturate(lightMask)); // 0 : 빛 안 받음, 1 : 빛 받음
+
+        float litBoost = max(g_StylizedLitBoost, 0.f);
+        direct.rgb *= lerp(1.f, litBoost, stylizedLitMask * stylizedLightContrastStrength);
+    }
 
     // IBL 계산용 표면 정보
     float3 N = normalize(DecodeNormal(NormalDesc.xyz));               // 월드 노멀
@@ -360,7 +394,7 @@ PS_OUT_HDR_WITH_MASK PS_CombinedHDR(PS_IN In)
         float3 envDiffuse = g_IrradianceMap.Sample(LinearSampler, N).rgb;
         float3 diffuseIBL = envDiffuse * baseColor * kD;
 
-        // Specular IBL : prefilter map + BRDF LUT(split-sum)
+        // Specular IBL : prefilter map + BRDF LUT
         float3 R = reflect(-V, N);
         float prefilterMip = roughness * g_IBLPrefilterMaxMip;
         float3 envSpecular = g_PrefilterMap.SampleLevel(LinearSampler, R, prefilterMip).rgb;
@@ -375,6 +409,19 @@ PS_OUT_HDR_WITH_MASK PS_CombinedHDR(PS_IN In)
         float3 indirectDiffuse = diffuseIBL * finalAO * g_IBLDiffuseIntensity;
         float3 indirectSpecular = specularIBL * g_IBLSpecularIntensity;
         indirect.rgb = (indirectDiffuse + indirectSpecular) * g_IBLIntensity;
+    }
+
+    // 빛이 안 들어오는 부분을 더 어둡게 
+    if (stylizedLightContrastStrength > 0.f)
+    {
+        float unlitAmbientScale = saturate(g_StylizedUnlitAmbientScale);
+        indirect.rgb *= lerp(1.f, unlitAmbientScale, (1.f - stylizedLitMask) * stylizedLightContrastStrength);
+
+        float deepUnlitThreshold = saturate(g_StylizedDeepUnlitThreshold);
+        float deepUnlitSoftness = max(g_StylizedDeepUnlitSoftness, EPSILON);
+        float deepUnlitMask = 1.f - smoothstep(deepUnlitThreshold, deepUnlitThreshold + deepUnlitSoftness, saturate(lightMask));
+        float deepUnlitAmbientScale = saturate(g_StylizedDeepUnlitAmbientScale);
+        indirect.rgb *= lerp(1.f, deepUnlitAmbientScale, deepUnlitMask * stylizedLightContrastStrength);
     }
 
     indirect.rgb *= ambientVisibility;

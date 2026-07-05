@@ -181,6 +181,7 @@
     <ClInclude Include="..\Public\ANS_Trail.h" />
     <ClInclude Include="..\Public\ANS_Visible_Parts.h" />
     <ClInclude Include="..\Public\ANS_WeaponRotate.h" />
+    <ClInclude Include="..\Public\ANS_WeakColor.h" />
     <ClInclude Include="..\public\ANS_WorldTimeScale.h" />
     <ClInclude Include="..\public\AN_Attack.h" />
     <ClInclude Include="..\public\AN_BattleShot.h" />
@@ -232,6 +233,8 @@
     <ClInclude Include="..\Public\BattleResultRecoder.h" />
     <ClInclude Include="..\Public\BattleSpawnRegistry.h" />
     <ClInclude Include="..\Public\BattleStartSpawner.h" />
+    <ClInclude Include="..\Public\BattleTargetingVoicePreset.h" />
+    <ClInclude Include="..\Public\BattleTurnStartVoicePreset.h" />
     <ClInclude Include="..\Public\BattleTransition_ScreenFx.h" />
     <ClInclude Include="..\Public\BattleTurnCameraPoseUtils.h" />
     <ClInclude Include="..\Public\BattleTutorialController.h" />
@@ -256,7 +259,7 @@
     <ClInclude Include="..\public\ChangeWeapon_Panel.h" />
     <ClInclude Include="..\Public\SimonCriticalGlowController.h" />
     <ClInclude Include="..\Public\SL_UseItem.h" />
-    <ClInclude Include="..\Public\Trigger_FallTornadoZone.h" />
+    <ClInclude Include="..\Public\Trigger_TeleportZone.h" />
     <ClInclude Include="..\Public\UpgradeWeapon_Panel.h" />
     <ClInclude Include="..\Public\Merchant_Panel.h" />
     <ClInclude Include="..\public\BT_FinishDecision.h" />
@@ -612,6 +615,8 @@
     <ClInclude Include="..\Public\UI_ChoiceTarget.h" />
     <ClInclude Include="..\Public\UI_CrossHair.h" />
     <ClInclude Include="..\Public\UI_DamageFont.h" />
+    <ClInclude Include="..\Public\UI_Burn.h" />
+    <ClInclude Include="..\Public\UI_Slow.h" />
     <ClInclude Include="..\Public\UI_EscapeSkipTurnBack.h" />
     <ClInclude Include="..\Public\UI_MonsterHpBar.h" />
     <ClInclude Include="..\Public\UI_QTE.h" />
@@ -685,6 +690,7 @@
     <ClCompile Include="..\Private\ANS_Trail.cpp" />
     <ClCompile Include="..\Private\ANS_Visible_Parts.cpp" />
     <ClCompile Include="..\Private\ANS_WeaponRotate.cpp" />
+    <ClCompile Include="..\Private\ANS_WeakColor.cpp" />
     <ClCompile Include="..\private\ANS_WorldTimeScale.cpp" />
     <ClCompile Include="..\private\AN_Attack.cpp" />
     <ClCompile Include="..\private\AN_BattleShot.cpp" />
@@ -734,6 +740,8 @@
     <ClCompile Include="..\Private\BattleResultRecoder.cpp" />
     <ClCompile Include="..\Private\BattleSpawnRegistry.cpp" />
     <ClCompile Include="..\Private\BattleStartSpawner.cpp" />
+    <ClCompile Include="..\Private\BattleTargetingVoicePreset.cpp" />
+    <ClCompile Include="..\Private\BattleTurnStartVoicePreset.cpp" />
     <ClCompile Include="..\Private\BattleTransition_ScreenFx.cpp" />
     <ClCompile Include="..\Private\BattleTurnCamera.cpp" />
     <ClCompile Include="..\Private\BattleTutorialController.cpp" />
@@ -818,7 +826,7 @@
     <ClCompile Include="..\Private\SL_StateMachineCom.cpp" />
     <ClCompile Include="..\Private\Trigger_BGMZone.cpp" />
     <ClCompile Include="..\private\Trigger_Cinematic.cpp" />
-    <ClCompile Include="..\Private\Trigger_FallTornadoZone.cpp" />
+    <ClCompile Include="..\Private\Trigger_TeleportZone.cpp" />
     <ClCompile Include="..\Private\Trigger_Interaction.cpp" />
     <ClCompile Include="..\Private\UI_AbilityPentagon.cpp" />
     <ClCompile Include="..\Private\ComputeGeneratedBeamEmitter.cpp" />
@@ -1098,6 +1106,8 @@
     <ClCompile Include="..\Private\UI_ChoiceTarget.cpp" />
     <ClCompile Include="..\Private\UI_CrossHair.cpp" />
     <ClCompile Include="..\Private\UI_DamageFont.cpp" />
+    <ClCompile Include="..\Private\UI_Burn.cpp" />
+    <ClCompile Include="..\Private\UI_Slow.cpp" />
     <ClCompile Include="..\Private\UI_EscapeSkipTurnBack.cpp" />
     <ClCompile Include="..\Private\UI_MonsterHpBar.cpp" />
     <ClCompile Include="..\Private\UI_QTE.cpp" />

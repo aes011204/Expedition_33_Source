@@ -43,6 +43,8 @@ HRESULT Target_Manager::Ready_AllRenderTargets()
         width, height, DXGI_FORMAT_R16G16B16A16_UNORM, Color(0, 0, 0, 0), resizeWithViewport, !useDSV), E_FAIL);
     CHECK_FAILED(Add_RenderTarget(RT::Specular,
         width, height, DXGI_FORMAT_R16G16B16A16_UNORM, Color(0, 0, 0, 0), resizeWithViewport, !useDSV), E_FAIL);
+    CHECK_FAILED(Add_RenderTarget(RT::LightMask,
+        width, height, DXGI_FORMAT_R16_FLOAT, Color(0, 0, 0, 0), resizeWithViewport, !useDSV), E_FAIL);
 
     // MRT_ShadowObjects
     CHECK_FAILED(Add_RenderTarget(RT::LightDepth,
@@ -153,6 +155,7 @@ HRESULT Target_Manager::Ready_AllRenderTargets()
     CHECK_FAILED(Add_MRT(MRT::LightAcc, RT::Shade), E_FAIL);			// SV_TARGET0
     CHECK_FAILED(Add_MRT(MRT::LightAcc, RT::Ambient), E_FAIL);		// SV_TARGET1
     CHECK_FAILED(Add_MRT(MRT::LightAcc, RT::Specular), E_FAIL);		// SV_TARGET2
+    CHECK_FAILED(Add_MRT(MRT::LightAcc, RT::LightMask), E_FAIL);	// SV_TARGET3
 
     CHECK_FAILED(Add_MRT(MRT::ShadowObjects, RT::LightDepth), E_FAIL);
 

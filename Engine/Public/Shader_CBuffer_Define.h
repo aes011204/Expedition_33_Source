@@ -172,7 +172,8 @@ struct alignas(16) LightCB
     Vec4 specular;
 
     float range = 0.f;
-    float _pad0[3]{};
+    float pointAttenuationPower = 1.f;
+    float _pad0[2]{};
 };
 
 /* ------------------------------------------ */
@@ -235,7 +236,7 @@ struct alignas(16) LightShaftCB
     Vec3 shaftColor{ 1.0f, 0.96f, 0.88f };
     float intensity{ 0.65f };
 
-    uint32 sampleCount{ 54u };
+    uint32 sampleCount{ 64u };
     float rayLength{ 0.95f };
     float decay{ 0.96f };
     float sunDiscRadius{ 0.3f };
@@ -289,7 +290,18 @@ struct alignas(16) DeferredLightingCB
     uint32 iblEnabled{ 1u };
 
     uint32 specAAEnabled{ 1u };
-    uint32 _pad0[3]{};
+    uint32 stylizedLightContrastEnabled{ 0u };
+    float stylizedLightContrastStrength{ 0.f };
+    float stylizedLightThreshold{ 0.35f };
+
+    float stylizedLightSoftness{ 0.25f };
+    float stylizedLitBoost{ 1.2f };
+    float stylizedUnlitAmbientScale{ 0.2f };
+    float stylizedDeepUnlitThreshold{ 0.12f };
+
+    float stylizedDeepUnlitSoftness{ 0.18f };
+    float stylizedDeepUnlitAmbientScale{ 0.08f };
+    float _pad0[2]{};
 };
 
 /* ------------------------------------------ */

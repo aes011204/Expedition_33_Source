@@ -1175,6 +1175,7 @@ HRESULT CharacterProgression_Panel::Ensure_AbilityPentagonUI()
     if (UI_Transform* transform = _abilityPentagonFrame->Get_Transform())
     {
         desc.transformDesc.position = transform->Get_Position();
+        desc.transformDesc.position.y += 7.5f; // 프레임 중심보다 살짝 위로 뜨는 채움 도형만 조금 아래로 보정한다.
         desc.transformDesc.size = transform->Get_Size();
         desc.transformDesc.scale = transform->Get_Scale();
         desc.transformDesc.pivot = transform->Get_Pivot();
@@ -1188,7 +1189,7 @@ HRESULT CharacterProgression_Panel::Ensure_AbilityPentagonUI()
     desc.renderGroup = _abilityPentagonAnchor->Get_RenderGroup();
     desc.texturePath = ResourceLoader::Resolve_RuntimePath(L"../Bin/Resources/Textures/UI/Common/Utility/T_White.png");
     desc.color = _abilityPentagonAnchor->Get_Color();
-    desc.maxStatValue = 99.f;     // 일단은 임시로 최대 99 기준. 스탯 올라가는 양 보고 결정하기
+    desc.maxStatValue = 150.f;    // 능력치 펜타곤은 150을 최대치로 정규화한다.
     desc.baseInnerRatio = 0.18f;  // 0에서도 중심 pentagon 유지
 
     Shared<UI_Base> createdBase{};

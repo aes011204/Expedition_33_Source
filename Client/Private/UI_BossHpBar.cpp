@@ -1,5 +1,6 @@
 ﻿#include "UI_BossHpBar.h"
 
+#include "Buff.h"
 #include "Client_Constants.h"
 #include "MonsterStatCom.h"
 #include "UI_Base.h"
@@ -74,6 +75,16 @@ void UI_BossHpBar::Close()
     _delayedHpRatio = 1.f;
     if (_breakGauge)
         _breakGauge->Set_FillRatio(0.f);
+    if (_burnPanel)
+    {
+        _burnPanel->Set_AlphaMultiplier(0.f);
+        _burnPanel->Close();
+    }
+    if (_slowIcon)
+    {
+        _slowIcon->Set_AlphaMultiplier(0.f);
+        _slowIcon->Close();
+    }
     _maxShield = 0;
     _lastShieldIconCount = 0;
     _hasShieldIconState = false;
@@ -206,12 +217,20 @@ HRESULT UI_BossHpBar::Bind_UI()
     _breakGauge = Find_TypedUI<UI_Image>(_uiByName, L"Image_Boss_Break_Bar_Gauge");
     _bossNameText = Find_TypedUI<UI_Text>(_uiByName, L"Text_Boss_Name");
     _bossNameBgText = Find_TypedUI<UI_Text>(_uiByName, L"Text_Boss_Name_BG");
+    _burnPanel = Find_UI(_uiByName, L"Panel_Boss_HP_Bar_Burn");
+    _slowIcon = Find_UI(_uiByName, L"Image_Boss_HP_Bar_Slow");
+    _burnStackText = Find_TypedUI<UI_Text>(_uiByName, L"Text_Boss_HP_Bar_Burn");
+    _burnStackBgText = Find_TypedUI<UI_Text>(_uiByName, L"Text_Boss_HP_Bar_Burn_BG");
 
     CHECK_NULL(_hpGauge, E_FAIL);
     CHECK_NULL(_hpGaugeBG, E_FAIL);
     CHECK_NULL(_shieldGauge, E_FAIL);
     CHECK_NULL(_bossNameText, E_FAIL);
     CHECK_NULL(_bossNameBgText, E_FAIL);
+    CHECK_NULL(_burnPanel, E_FAIL);
+    CHECK_NULL(_slowIcon, E_FAIL);
+    CHECK_NULL(_burnStackText, E_FAIL);
+    CHECK_NULL(_burnStackBgText, E_FAIL);
 
     _hpGauge->Set_UseFillRatio(true);
     _hpGauge->Set_FillOrigin(UI_Image::FillOrigin::LeftToRight);
@@ -231,6 +250,12 @@ HRESULT UI_BossHpBar::Bind_UI()
         _breakGauge->Close();
     }
 
+    _burnPanel->Set_AlphaMultiplier(0.f);
+    _burnPanel->Close();
+
+    _slowIcon->Set_AlphaMultiplier(0.f);
+    _slowIcon->Close();
+
     return S_OK;
 }
 
@@ -244,6 +269,8 @@ void UI_BossHpBar::Sync_BossState(const BattleChar& target)
     Apply_HpGauge(_hpRatio);
     Apply_BreakGauge(target);
     Apply_ShieldGauge(target);
+    Apply_BurnStatus(target);
+    Apply_SlowStatus(target);
 
     const Shared<MonsterStatCom> monsterStat =
         dynamic_pointer_cast<MonsterStatCom>(target.statCom);
@@ -323,6 +350,50 @@ void UI_BossHpBar::Apply_ShieldGauge(const BattleChar& target)
 
     if (_shieldGauge->Is_Open())
         _shieldGauge->Close();
+}
+
+void UI_BossHpBar::Apply_BurnStatus(const BattleChar& target)
+{
+    if (_burnPanel == nullptr || _burnStackText == nullptr || _burnStackBgText == nullptr)
+        return;
+
+    const uint32 burnStack = Resolve_BuffStack(target, Buffs::Burn);
+    if (burnStack == 0)
+    {
+        _burnPanel->Set_AlphaMultiplier(0.f);
+        _burnPanel->Close();
+        return;
+    }
+
+    const wstring stackText = to_wstring(burnStack);
+    if (_burnStackText->Get_Text() != stackText)
+        _burnStackText->Set_Text(stackText);
+
+    if (_burnStackBgText->Get_Text() != stackText)
+        _burnStackBgText->Set_Text(stackText);
+
+    if (!_burnPanel->Is_Open())
+        _burnPanel->Open();
+
+    _burnPanel->Set_AlphaMultiplier(1.f);
+}
+
+void UI_BossHpBar::Apply_SlowStatus(const BattleChar& target)
+{
+    if (_slowIcon == nullptr)
+        return;
+
+    if (Resolve_BuffStack(target, Buffs::Slow) == 0)
+    {
+        _slowIcon->Set_AlphaMultiplier(0.f);
+        _slowIcon->Close();
+        return;
+    }
+
+    if (!_slowIcon->Is_Open())
+        _slowIcon->Open();
+
+    _slowIcon->Set_AlphaMultiplier(1.f);
 }
 
 void UI_BossHpBar::Apply_ShieldIcons(uint32 currentShield)
@@ -507,6 +578,20 @@ void UI_BossHpBar::Update_DelayHpGauge(float timeDelta, float targetRatio)
     Apply_DelayedHpGauge(_delayedHpRatio);
 }
 
+uint32 UI_BossHpBar::Resolve_BuffStack(const BattleChar& target, Buffs buffId) const
+{
+    if (target.statCom == nullptr)
+        return 0;
+
+    for (const auto& buff : target.statCom->Get_Buff())
+    {
+        if (buff != nullptr && buff->Get_BuffId() == buffId)
+            return buff->Get_Stack();
+    }
+
+    return 0;
+}
+
 uint32 UI_BossHpBar::Resolve_MaxShield(const BattleChar& target) const
 {
     if (target.statCom == nullptr)
@@ -559,8 +644,12 @@ void UI_BossHpBar::Free()
     _hpGaugeBG.reset();
     _shieldGauge.reset();
     _breakGauge.reset();
+    _burnPanel.reset();
+    _slowIcon.reset();
     _bossNameText.reset();
     _bossNameBgText.reset();
+    _burnStackText.reset();
+    _burnStackBgText.reset();
 
     for (Shared<UI_Base>& shieldIcon : _shieldIcons)
         shieldIcon.reset();

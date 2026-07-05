@@ -14,6 +14,18 @@ struct TargetEffectDesc
     Vec3 scale{ Vec3::One };
 };
 
+const TargetEffectDesc kAngelsEyeSlashEffects[] =
+{
+    { L"Gustave_AngelsEye_Slash", Vec3(-0.5f, 0.7f, -0.8f), Vec3(0.f, 0.f, -30.f), Vec3::One },
+    { L"Gustave_AngelsEye_Slash", Vec3(0.5f, 0.7f, -1.2f), Vec3(0.f, 0.f, 50.f), Vec3::One },
+    { L"Gustave_AngelsEye_Slash", Vec3(-0.4f, 0.7f, -1.f), Vec3(0.f, 0.f, -20.f), Vec3::One },
+    { L"Gustave_AngelsEye_Slash", Vec3(0.3f, 0.7f, -0.6f), Vec3(0.f, 0.f, -7.f), Vec3::One },
+    { L"Gustave_AngelsEye_Slash", Vec3(0.f, 0.7f, -0.6f), Vec3(0.f, 0.f, -75.f), Vec3::One },
+    { L"Gustave_AngelsEye_Slash", Vec3(0.f, 0.7f, -0.9f), Vec3(0.f, 0.f, 20.f), Vec3::One },
+    { L"Gustave_AngelsEye_Slash", Vec3(-1.f, 0.7f, -0.7f), Vec3(0.f, 0.f, 90.f), Vec3::One },
+    { L"Gustave_AngelsEye_Slash", Vec3(0.9f, 0.7f, -0.8f), Vec3(0.f, 0.f, -90.f), Vec3::One },
+};
+
 void Play_TargetEffect(
     const BattleChar& target,
     const wstring& effectName,
@@ -51,12 +63,15 @@ void Skill_Gustave_LumiereAssault::Execute(const Skill_Data& skill, const Battle
         return;
 
     const BattleChar& target = curTargets.front();
+    const float damage = (DamageSystem::CalculatePlayerAttackDamage(attacker, skill.powerMultiplier)) / 5.f;
+    const DamageAppliedInfo damageInfo = DamageSystem::ApplyDamage(damage, attacker, target, attackType);
 
-    const float damage = DamageSystem::CalculatePlayerAttackDamage(attacker, skill.powerMultiplier);
-    DamageSystem::ApplyDamage(damage, attacker, target, attackType);
-
+    // 크리티컬이면 2스택
     if (attacker.mechanismCom)
-        attacker.mechanismCom->Add_GustaveCharge(1);
+    {
+        const int32 charge = damageInfo.isCritical ? 2 : 1;
+        attacker.mechanismCom->Add_GustaveCharge(charge);
+    }
 }
 
 Shared<Skill_Gustave_LumiereAssault> Skill_Gustave_LumiereAssault::Create()
@@ -75,8 +90,14 @@ void Skill_Gustave_UnleashedCharge::Execute(const Skill_Data& skill, const Battl
 
     const BattleChar& target = curTargets.front();
 
-    // 과충전은 추후에, 게이지 비례한 데미지로 변경 예정
-    const float damage = DamageSystem::CalculatePlayerAttackDamage(attacker, skill.powerMultiplier);
+    float damage = DamageSystem::CalculatePlayerAttackDamage(attacker, skill.powerMultiplier);
+
+    if (attacker.mechanismCom != nullptr &&
+        attacker.mechanismCom->Consume_NextGustaveOverchargeDamageDouble())
+    {
+        damage *= 2.f;
+    }
+
     DamageSystem::ApplyDamage(damage, attacker, target, attackType);
 
     auto battle = CLIENT->Get_BattleController();
@@ -161,7 +182,7 @@ void Skill_Gustave_PerfectBreak::Execute(const Skill_Data& skill, const BattleAc
     battle->Try_ApplySkillBuff(skill, target);
 
     if (attacker.mechanismCom)
-        attacker.mechanismCom->Add_GustaveCharge(1);
+        attacker.mechanismCom->Add_GustaveCharge(2);
 }
 
 Shared<Skill_Gustave_PerfectBreak> Skill_Gustave_PerfectBreak::Create()
@@ -173,7 +194,7 @@ void Skill_Gustave_AnglesEye::Collect_PrewarmEffects(const Skill_Data&, const Ba
 {
     EffectPrewarmRequest request{};
     request.effectName = L"Gustave_AngelsEye_Slash";
-    request.targetCount = 7;
+    request.targetCount = static_cast<uint32>(size(Internal::kAngelsEyeSlashEffects));
     outRequests.push_back(request);
 }
 
@@ -188,24 +209,12 @@ void Skill_Gustave_AnglesEye::Execute(const Skill_Data& skill, const BattleActio
 
     const BattleChar& target = curTargets.front();
 
-    const float damage = DamageSystem::CalculatePlayerAttackDamage(attacker, skill.powerMultiplier);
+    const float damage = (DamageSystem::CalculatePlayerAttackDamage(attacker, skill.powerMultiplier)) / 8.f;
     DamageSystem::ApplyDamage(damage, attacker, target, attackType);
 
-    // 7연격 스폰 로컬 위치 및 회전 세팅
-    const Internal::TargetEffectDesc slashEffects[] =
-    {
-        { L"Gustave_AngelsEye_Slash", Vec3(-0.5f, 0.7f, -0.8f), Vec3(0.f, 0.f, -30.f), Vec3::One },
-        { L"Gustave_AngelsEye_Slash", Vec3(0.5f, 0.7f, -1.2f), Vec3(0.f, 0.f, 50.f), Vec3::One },
-        { L"Gustave_AngelsEye_Slash", Vec3(-0.4f, 0.7f, -1.f), Vec3(0.f, 0.f, -20.f), Vec3::One },
-        { L"Gustave_AngelsEye_Slash", Vec3(0.3f, 0.7f, -0.6f), Vec3(0.f, 0.f, -7.f), Vec3::One },
-        { L"Gustave_AngelsEye_Slash", Vec3(0.f, 0.7f, -0.6f), Vec3(0.f, 0.f, -75.f), Vec3::One },
-        { L"Gustave_AngelsEye_Slash", Vec3(0.f, 0.7f, -0.9f), Vec3(0.f, 0.f, 20.f), Vec3::One },
-        { L"Gustave_AngelsEye_Slash", Vec3(-1.f, 0.7f, -0.7f), Vec3(0.f, 0.f, 90.f), Vec3::One },
-    };
-
-    const uint32 slashEffectCount = static_cast<uint32>(size(slashEffects));
+    const uint32 slashEffectCount = static_cast<uint32>(size(Internal::kAngelsEyeSlashEffects));
     const uint32 slashEffectIndex = min(action.GetCurStepIndex(), slashEffectCount - 1);
-    const Internal::TargetEffectDesc& slashEffect = slashEffects[slashEffectIndex];
+    const Internal::TargetEffectDesc& slashEffect = Internal::kAngelsEyeSlashEffects[slashEffectIndex];
 
     Internal::Play_TargetEffect(
         target,
@@ -214,8 +223,12 @@ void Skill_Gustave_AnglesEye::Execute(const Skill_Data& skill, const BattleActio
         slashEffect.localRotation,
         slashEffect.scale);
 
-    if (attacker.mechanismCom)
-        attacker.mechanismCom->Add_GustaveCharge(1);
+    if (attacker.mechanismCom != nullptr &&
+        action.GetCurStepIndex() + 1 >= action.GetSteps().size())
+    {
+        attacker.mechanismCom->Add_GustaveCharge(attacker.mechanismCom->Get_GustaveMaxCharge());
+        attacker.mechanismCom->Set_NextGustaveOverchargeDamageDouble();
+    }
 }
 
 Shared<Skill_Gustave_AnglesEye> Skill_Gustave_AnglesEye::Create()

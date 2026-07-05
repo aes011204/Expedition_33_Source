@@ -1,6 +1,7 @@
 ﻿#include "EffectCom.h"
 
 #include "ClientInstance.h"
+#include "Camera.h"
 #include "ContainerObject.h"
 #include "EffectAssetRuntimeLoader.h"
 #include "EffectInstance.h"
@@ -23,6 +24,35 @@
 
 namespace Internal
 {
+Vec3 Resolve_CameraDirectionFromAnchor(const Vec3& anchorPosition, const Vec3& fallback)
+{
+    if (GAME != nullptr)
+    {
+        const ObjectType cameraTypes[] = {
+            ObjectType::BattleTurnCamera,
+            ObjectType::TargetCamera,
+            ObjectType::CinematicCamera,
+            ObjectType::FreeCamera,
+        };
+
+        for (const ObjectType cameraType : cameraTypes)
+        {
+            const Shared<Camera> camera = GAME->Get_CameraByType(cameraType);
+            if (camera == nullptr || camera->Get_Transform() == nullptr)
+                continue;
+
+            Vec3 direction = camera->Get_Transform()->Get_WorldPosition() - anchorPosition;
+            if (direction.LengthSquared() <= 0.000001f)
+                continue;
+
+            direction.Normalize();
+            return direction;
+        }
+    }
+
+    return fallback;
+}
+
 float Resolve_TrailDrainDuration(const Shared<const EffectDefinition>& definition)
 {
     constexpr float fallbackDuration = 0.25f;
@@ -483,6 +513,7 @@ void EffectCom::Set_InspectorEffectLocalOffset(const Vec3& localOffset)
             attached.localRotation,
             attached.scale,
             attached.transformInheritance,
+            attached.localOffsetZTowardCamera,
             targetWorldPosition,
             targetWorldRotation,
             targetWorldScale
@@ -505,6 +536,24 @@ void EffectCom::Set_AttachedEffectMaterialReveal(float alphaMultiplier, float al
 
     for (AttachedEffect& attached : _attachedEffects)
         Apply_AttachedEffectMaterialReveal(attached.poolHandle.effectObject);
+}
+
+void EffectCom::Set_AttachedEffectMaterialTintOverride(
+    const vector<uint32>& emitterIds,
+    const Vec4& targetTint,
+    float strength)
+{
+    const float clampedStrength = clamp(strength, 0.f, 1.f);
+
+    for (AttachedEffect& attached : _attachedEffects)
+    {
+        const Shared<EffectInstance> effectInstance =
+            dynamic_pointer_cast<EffectInstance>(attached.poolHandle.effectObject);
+        if (effectInstance == nullptr)
+            continue;
+
+        effectInstance->Set_MaterialTintOverride(emitterIds, targetTint, clampedStrength);
+    }
 }
 
 HRESULT EffectCom::Play_InspectorEffect()
@@ -556,6 +605,7 @@ HRESULT EffectCom::Play_Effect(const EffectPlayDesc& desc, EffectInstancePool::A
         desc.localRotation,
         desc.scale,
         desc.transformInheritance,
+        desc.localOffsetZTowardCamera,
         spawnWorldPosition,
         spawnWorldRotation,
         spawnWorldScale
@@ -624,6 +674,7 @@ HRESULT EffectCom::Play_Effect(const EffectPlayDesc& desc, EffectInstancePool::A
     attached.localRotation = desc.localRotation;
     attached.scale = desc.scale;
     attached.transformInheritance = desc.transformInheritance;
+    attached.localOffsetZTowardCamera = desc.localOffsetZTowardCamera;
     attached.followTarget = desc.followTarget;
     attached.role = AttachedEffectRole::Normal;
     attached.trailSampleProvider = desc.trailSampleProvider.lock();
@@ -695,6 +746,7 @@ bool EffectCom::Try_ResolveEffectWorldTransform(
     const Vec3& localRotation,
     const Vec3& scale,
     const EffectTransformInheritance& transformInheritance,
+    bool localOffsetZTowardCamera,
     Vec3& outWorldPosition,
     Quat& outWorldRotation,
     Vec3& outWorldScale) const
@@ -775,6 +827,21 @@ bool EffectCom::Try_ResolveEffectWorldTransform(
     }
 
     Matrix finalWorldMatrix = localMatrix * basisWorldMatrix;
+    if (localOffsetZTowardCamera)
+    {
+        const Vec3 fallbackDirection = basisLook;
+        const Vec3 cameraDirection = Internal::Resolve_CameraDirectionFromAnchor(baseTranslation, fallbackDirection);
+        const Vec3 origin = transformInheritance.inheritPosition ? baseTranslation : Vec3::Zero;
+        const Vec3 customTranslation =
+            origin +
+            basisRight * localOffset.x +
+            basisUp * localOffset.y +
+            cameraDirection * localOffset.z;
+
+        finalWorldMatrix._41 = customTranslation.x;
+        finalWorldMatrix._42 = customTranslation.y;
+        finalWorldMatrix._43 = customTranslation.z;
+    }
 
     Vec3 decomposedScale = Vec3::One;
     Quat decomposedRotation = Quat::Identity;
@@ -940,7 +1007,7 @@ HRESULT EffectCom::Play_TrailEffect(
     acquireDesc.effectName = resolvedEffectName;
     acquireDesc.layerLevelIndex = GAME->Current_LevelIndex();
     acquireDesc.layerTag = layerTag;
-    acquireDesc.worldPosition = initialSample.baseWorldPosition;
+    acquireDesc.worldPosition = initialSample.tipWorldPosition;
     acquireDesc.trailSampleProvider = attached.trailSampleProvider;
     acquireDesc.autoReleaseOnFinished = false;
 
@@ -1373,6 +1440,13 @@ void EffectCom::Update_AttachedEffects(float timeDelta)
         if (attached.poolHandle.effectObject == nullptr)
             continue;
 
+        const Shared<TransformCom> effectTransform = attached.poolHandle.effectObject->Get_Transform();
+        if (effectTransform == nullptr)
+        {
+            Release_AttachedEffect(attached);
+            continue;
+        }
+
         if (attached.isTrailDraining)
         {
             attached.trailDrainElapsed += max(0.f, timeDelta);
@@ -1403,10 +1477,7 @@ void EffectCom::Update_AttachedEffects(float timeDelta)
             if (!Try_BuildTrailSample(attached.partTag, attached.trailAnchorAsset, &attached.trailOffset, trailSample))
                 continue;
 
-            const Shared<TransformCom> effectTransform = attached.poolHandle.effectObject->Get_Transform();
-            CHECK_NULL(effectTransform);
-
-            effectTransform->Set_WorldPosition(trailSample.baseWorldPosition);
+            effectTransform->Set_WorldPosition(trailSample.tipWorldPosition);
             continue;
         }
 
@@ -1424,14 +1495,12 @@ void EffectCom::Update_AttachedEffects(float timeDelta)
             attached.localRotation,
             attached.scale,
             attached.transformInheritance,
+            attached.localOffsetZTowardCamera,
             targetWorldPosition,
             targetWorldRotation,
             targetWorldScale
         ))
             continue;
-
-        const Shared<TransformCom> effectTransform = attached.poolHandle.effectObject->Get_Transform();
-        CHECK_NULL(effectTransform);
 
         effectTransform->Set_WorldPosition(targetWorldPosition);
         effectTransform->Set_WorldRotationQuaternion(targetWorldRotation);

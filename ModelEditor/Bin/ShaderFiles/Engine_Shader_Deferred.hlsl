@@ -24,6 +24,7 @@ Texture2D g_NormalTexture;
 Texture2D g_ShadeTexture;
 Texture2D g_AmbientTexture;
 Texture2D g_SpecularTexture;
+Texture2D g_LightMaskTexture;
 Texture2D g_DepthTexture;
 Texture2DArray g_LightDepthTexture;
 Texture2D g_CachedInstancedShadowMap;

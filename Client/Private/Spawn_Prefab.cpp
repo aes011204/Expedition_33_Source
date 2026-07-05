@@ -15,6 +15,7 @@
 #include "TransformCom.h"
 #include "Client_Constants.h"
 #include <mutex>
+#include <system_error>
 #include <unordered_map>
 
 namespace fs = std::filesystem;
@@ -22,7 +23,14 @@ namespace fs = std::filesystem;
 namespace
 {
 mutex g_prefabJsonCacheMutex{};
-unordered_map<wstring, json> g_prefabJsonCache{};
+
+struct PrefabJsonCacheEntry
+{
+    json root{};
+    fs::file_time_type lastWriteTime{};
+};
+
+unordered_map<wstring, PrefabJsonCacheEntry> g_prefabJsonCache{};
 
 wstring Make_PrefabJsonCacheKey(const fs::path& prefabPath)
 {
@@ -274,13 +282,15 @@ bool Spawn_Prefab::Load_PrefabJson(const fs::path& prefabPath, json& outRoot)
         return false;
 
     const wstring cacheKey = Make_PrefabJsonCacheKey(prefabPath);
+    std::error_code timeError{};
+    const fs::file_time_type lastWriteTime = fs::last_write_time(prefabPath, timeError);
 
     {
         lock_guard<mutex> lock(g_prefabJsonCacheMutex);
         const auto iter = g_prefabJsonCache.find(cacheKey);
-        if (iter != g_prefabJsonCache.end())
+        if (iter != g_prefabJsonCache.end() && !timeError && iter->second.lastWriteTime == lastWriteTime)
         {
-            outRoot = iter->second;
+            outRoot = iter->second.root;
             return outRoot.is_object();
         }
     }
@@ -293,7 +303,7 @@ bool Spawn_Prefab::Load_PrefabJson(const fs::path& prefabPath, json& outRoot)
 
     {
         lock_guard<mutex> lock(g_prefabJsonCacheMutex);
-        g_prefabJsonCache.emplace(cacheKey, std::move(root));
+        g_prefabJsonCache[cacheKey] = { std::move(root), lastWriteTime };
     }
 
     return true;
@@ -304,8 +314,31 @@ void Spawn_Prefab::Cache_PrefabJson(const fs::path& prefabPath, const json& root
     if (prefabPath.empty() || !root.is_object())
         return;
 
+    std::error_code timeError{};
+    const fs::file_time_type lastWriteTime = fs::last_write_time(prefabPath, timeError);
+    if (timeError)
+        return;
+
     lock_guard<mutex> lock(g_prefabJsonCacheMutex);
-    g_prefabJsonCache[Make_PrefabJsonCacheKey(prefabPath)] = root;
+    g_prefabJsonCache[Make_PrefabJsonCacheKey(prefabPath)] = { root, lastWriteTime };
+}
+
+bool Spawn_Prefab::Cache_PrefabJsonIfUnmodified(
+    const fs::path& prefabPath,
+    const json& root,
+    const fs::file_time_type& expectedLastWriteTime)
+{
+    if (prefabPath.empty() || !root.is_object())
+        return false;
+
+    std::error_code timeError{};
+    const fs::file_time_type lastWriteTime = fs::last_write_time(prefabPath, timeError);
+    if (timeError || lastWriteTime != expectedLastWriteTime)
+        return false;
+
+    lock_guard<mutex> lock(g_prefabJsonCacheMutex);
+    g_prefabJsonCache[Make_PrefabJsonCacheKey(prefabPath)] = { root, lastWriteTime };
+    return true;
 }
 
 void Spawn_Prefab::Clear_PrefabJsonCache()

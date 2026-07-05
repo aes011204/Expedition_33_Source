@@ -731,7 +731,17 @@ bool ChangeSkill_Panel::Try_EquipAvailableSkillToSelectedSlot(const string& skil
 
     const auto existing = find(skillKeys.begin(), skillKeys.end(), skillId);
     if (existing != skillKeys.end())
-        return false; // 이미 장착된 스킬은 이번 기능에서 슬롯 이동/중복 장착하지 않는다.
+    {
+        const size_t existingSlotIndex = static_cast<size_t>(existing - skillKeys.begin());
+        if (existingSlotIndex == _selectedCurrentSkillSlotIndex)
+            return false;
+
+        std::iter_swap(
+            skillKeys.begin() + _selectedCurrentSkillSlotIndex,
+            existing); // 이미 장착된 스킬은 중복 장착 대신 선택 슬롯과 위치를 교환한다.
+        statCom->Set_SkillKeys(skillKeys);
+        return true;
+    }
 
     skillKeys[_selectedCurrentSkillSlotIndex] = skillId;
     statCom->Set_SkillKeys(skillKeys);
