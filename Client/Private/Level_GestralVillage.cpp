@@ -158,6 +158,10 @@ void Level_GestralVillage::BeginPlay()
 
     CLIENT->Play_Effect(leafDesc);
 
+    leafDesc.worldPosition = Vec3(-52.84f, -2.82f, 39.3f);
+
+    CLIENT->Play_Effect(leafDesc);
+
     // falling fire
     PlayEffectDesc fireDesc{};
     fireDesc.effectName = kFireEffectName;
