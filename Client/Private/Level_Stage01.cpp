@@ -260,6 +260,10 @@ HRESULT Level_Stage01::Ready_Layer_ETC(const wstring& strLayerTag)
     }
 
     dialogueObject->Set_RuntimeAuthoringLoaded(true);
+
+    return S_OK;
+}
+
 HRESULT Level_Stage01::Ready_Layer_BackGround(const wstring& strLayerTag)
 {
     SkyBoxFlow::SKYBOXFLOW_DESC skyBoxDesc{};
