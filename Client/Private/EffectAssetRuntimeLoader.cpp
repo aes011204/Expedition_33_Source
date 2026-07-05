@@ -24,7 +24,7 @@ namespace
         budget.preserveLength = true;
         budget.sharedSourceHistory = true;
         budget.trailDensityScale = max(0.f, Read_Float(data, "trailDensityScale", budget.trailDensityScale));
-        budget.spriteStampDensityScale = max(0.f, Read_Float(data, "spriteStampDensityScale", budget.spriteStampDensityScale));
+        budget.spriteStampDensityScale = 1.f;
         budget.ribbonDensityScale = max(0.f, Read_Float(data, "ribbonDensityScale", budget.ribbonDensityScale));
         budget.distortionDensityScale = max(0.f, Read_Float(data, "distortionDensityScale", budget.distortionDensityScale));
         Read_Enum(data, "updateRate", budget.updateRate);
@@ -53,10 +53,6 @@ namespace
             group.sampleInterval = max(0.f, Read_Float(node, "sampleInterval", group.sampleInterval));
             group.curveSubdivision = Read_UInt(node, "curveSubdivision", group.curveSubdivision);
             group.smoothTangent = Read_Bool(node, "smoothTangent", group.smoothTangent);
-            group.stampSpacing = max(0.f, Read_Float(node, "stampSpacing", group.stampSpacing));
-            group.stampInterval = max(0.f, Read_Float(node, "stampInterval", group.stampInterval));
-            group.maxStampCount = Read_UInt(node, "maxStampCount", group.maxStampCount);
-
             if (group.kind != EffectHistorySourceGroupKind::None && !group.stableId.empty())
                 groups.push_back(group);
         }
@@ -103,19 +99,6 @@ namespace
         return authoredSubdivision == 0u ? 0u : cappedSubdivision;
     }
 
-    uint32 Resolve_SourceHistorySpriteTrailStampFloor(
-        const ComputeSourceHistorySpriteTrailEmitterDesc& desc,
-        float effectiveStampSpacing)
-    {
-        if (desc.stampSpawnMode != EffectSourceHistorySpriteTrailStampSpawnMode::Distance ||
-            desc.maxLength <= 0.f)
-        {
-            return desc.maxStampCount;
-        }
-
-        return max(1u, static_cast<uint32>(ceilf(desc.maxLength / max(0.001f, effectiveStampSpacing))) + 1u);
-    }
-
     void Apply_SafeHistoryBudgetDensityCap(EffectDefinition& definition, EffectEmitterDefinition& emitter)
     {
         if (auto* trailDesc = get_if<ComputeTrailEmitterDesc>(&emitter.concreteDesc))
@@ -152,32 +135,6 @@ namespace
                 estimatedSourceSampleCount,
                 spriteTrailDesc->curveSubdivision
             );
-
-            if (definition.historyBudget.preset == EffectHistoryBudgetPreset::Full || spriteTrailDesc->maxStampCount == 0u)
-                return;
-
-            const EffectHistoryBudgetEffectiveDesc target = Compute_EffectHistoryBudgetEffective(
-                definition.historyBudget,
-                emitter.historyBudget,
-                EffectHistoryBudgetEffectiveInput{
-                    EffectHistoryBudgetFamily::SourceHistorySpriteTrail,
-                    estimatedSourceSampleCount,
-                    estimatedSourceSampleCount * max(1u, spriteTrailDesc->curveSubdivision),
-                    spriteTrailDesc->maxStampCount
-                }
-            );
-
-            if (target.spriteStampCount == 0u || target.spriteStampCount >= spriteTrailDesc->maxStampCount)
-                return;
-
-            const float stampDensityScale = static_cast<float>(target.spriteStampCount) / static_cast<float>(spriteTrailDesc->maxStampCount);
-            spriteTrailDesc->stampSpacing = max(0.001f, spriteTrailDesc->stampSpacing / max(0.001f, stampDensityScale));
-            spriteTrailDesc->stampInterval = max(0.001f, spriteTrailDesc->stampInterval / max(0.001f, stampDensityScale));
-
-            const uint32 stampFloor = definition.historyBudget.preserveLength
-                                      ? Resolve_SourceHistorySpriteTrailStampFloor(*spriteTrailDesc, spriteTrailDesc->stampSpacing)
-                                      : 1u;
-            spriteTrailDesc->maxStampCount = max(target.spriteStampCount, stampFloor);
         }
     }
 
@@ -303,12 +260,6 @@ namespace
             if (group->curveSubdivision > 0u)
                 spriteTrailDesc->curveSubdivision = group->curveSubdivision;
             spriteTrailDesc->smoothTangent = group->smoothTangent;
-            if (group->stampSpacing > 0.f)
-                spriteTrailDesc->stampSpacing = max(0.001f, group->stampSpacing);
-            if (group->stampInterval > 0.f)
-                spriteTrailDesc->stampInterval = max(0.001f, group->stampInterval);
-            if (group->maxStampCount > 0u)
-                spriteTrailDesc->maxStampCount = max(1u, group->maxStampCount);
         }
     }
 }

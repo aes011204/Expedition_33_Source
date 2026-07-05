@@ -296,9 +296,6 @@ namespace
             candidate.sampleSpacing = max(0.001f, data->sampleSpacing);
             candidate.curveSubdivision = data->curveSubdivision;
             candidate.smoothTangent = data->smoothTangent;
-            candidate.stampSpacing = max(0.001f, data->stampSpacing);
-            candidate.stampInterval = max(0.001f, data->stampInterval);
-            candidate.maxStampCount = max(1u, data->maxStampCount);
             break;
         }
         default:
@@ -324,11 +321,6 @@ namespace
         target.sampleInterval = max(target.sampleInterval, source.sampleInterval);
         target.curveSubdivision = max(target.curveSubdivision, source.curveSubdivision);
         target.smoothTangent = target.smoothTangent || source.smoothTangent;
-        if (source.stampSpacing > 0.f)
-            target.stampSpacing = target.stampSpacing > 0.f ? min(target.stampSpacing, source.stampSpacing) : source.stampSpacing;
-        if (source.stampInterval > 0.f)
-            target.stampInterval = target.stampInterval > 0.f ? min(target.stampInterval, source.stampInterval) : source.stampInterval;
-        target.maxStampCount = max(target.maxStampCount, source.maxStampCount);
     }
 
     const HistorySourceGroupBudgetData* Find_SourceGroupBudget(const HistoryBudgetData& budget, const string& groupId)
@@ -377,10 +369,7 @@ namespace
                Nearly_Equal(lhs.sampleSpacing, rhs.sampleSpacing) &&
                Nearly_Equal(lhs.sampleInterval, rhs.sampleInterval) &&
                lhs.curveSubdivision == rhs.curveSubdivision &&
-               lhs.smoothTangent == rhs.smoothTangent &&
-               Nearly_Equal(lhs.stampSpacing, rhs.stampSpacing) &&
-               Nearly_Equal(lhs.stampInterval, rhs.stampInterval) &&
-               lhs.maxStampCount == rhs.maxStampCount;
+               lhs.smoothTangent == rhs.smoothTangent;
     }
 
     struct EmitterBudgetRow
@@ -733,14 +722,12 @@ void HistoryBudget_View::Draw_SourceGroupSummary(Emitter_View& emitterView)
 
             const bool hasSavedBudget = selectedGroup->savedBudget != nullptr;
             if (hasSavedBudget)
-                ImGui::TextDisabled("저장 기준: %u samples / %u subdiv / %u stamps",
+                ImGui::TextDisabled("저장 기준: %u samples / %u subdiv",
                     selectedGroup->savedBudget->sourceSampleCount,
-                    selectedGroup->savedBudget->curveSubdivision,
-                    selectedGroup->savedBudget->maxStampCount);
-            ImGui::TextDisabled("추천 기준: %u samples / %u subdiv / %u stamps",
+                    selectedGroup->savedBudget->curveSubdivision);
+            ImGui::TextDisabled("추천 기준: %u samples / %u subdiv",
                 selectedGroup->candidateBudget.sourceSampleCount,
-                selectedGroup->candidateBudget.curveSubdivision,
-                selectedGroup->candidateBudget.maxStampCount);
+                selectedGroup->candidateBudget.curveSubdivision);
 
             if (ImGui::Button(hasSavedBudget ? "추천 기준 다시 채택" : "추천 기준 채택"))
             {
@@ -751,7 +738,7 @@ void HistoryBudget_View::Draw_SourceGroupSummary(Emitter_View& emitterView)
             HistorySourceGroupBudgetData editableBudget =
                 hasSavedBudget ? *selectedGroup->savedBudget : selectedGroup->candidateBudget;
             editableBudget.kind = selectedGroup->kind;
-            editableBudget.stableId = selectedGroup->label;
+            editableBudget.stableId = Build_SourceGroupLabel(selectedGroup->id);
             editableBudget.confirmed = hasSavedBudget && selectedGroup->savedBudget->confirmed;
 
             ImGui::Spacing();
@@ -765,9 +752,6 @@ void HistoryBudget_View::Draw_SourceGroupSummary(Emitter_View& emitterView)
             {
                 groupChanged |= ImGui::DragFloat("샘플 수명", &editableBudget.sampleLifetime, 0.01f, 0.f, 10000.f, "%.3f");
                 groupChanged |= ImGui::DragFloat("샘플 보강 간격", &editableBudget.sampleInterval, 0.001f, 0.f, 10000.f, "%.3f");
-                groupChanged |= ImGui::DragFloat("스탬프 간격", &editableBudget.stampSpacing, 0.001f, 0.f, 10000.f, "%.3f");
-                groupChanged |= ImGui::DragFloat("스탬프 시간 간격", &editableBudget.stampInterval, 0.001f, 0.f, 10000.f, "%.3f");
-                groupChanged |= ImGui::DragScalar("최대 스탬프 수", ImGuiDataType_U32, &editableBudget.maxStampCount, 1.f);
             }
 
             if (groupChanged)
@@ -777,9 +761,6 @@ void HistoryBudget_View::Draw_SourceGroupSummary(Emitter_View& emitterView)
                 editableBudget.sampleSpacing = max(0.f, editableBudget.sampleSpacing);
                 editableBudget.sampleInterval = max(0.f, editableBudget.sampleInterval);
                 editableBudget.curveSubdivision = max(0u, editableBudget.curveSubdivision);
-                editableBudget.stampSpacing = max(0.f, editableBudget.stampSpacing);
-                editableBudget.stampInterval = max(0.f, editableBudget.stampInterval);
-                editableBudget.maxStampCount = max(0u, editableBudget.maxStampCount);
                 Upsert_SourceGroupBudget(nextBudget, editableBudget);
                 changed = true;
             }

@@ -108,10 +108,6 @@ struct HistorySourceGroupBudgetData
     float sampleInterval{};
     uint32 curveSubdivision{};
     bool smoothTangent{ true };
-
-    float stampSpacing{};
-    float stampInterval{};
-    uint32 maxStampCount{};
 };
 
 struct HistoryBudgetData

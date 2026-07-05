@@ -2259,33 +2259,31 @@ void Detail_View::Render_TypeDataDetail(
         {
             if (_detailPropertyContext.Begin_PropertyTable("SourceHistorySpriteTrailStamp"))
             {
-                ImGui::BeginDisabled();
-                Internal::Draw_SourceHistorySpriteTrailStampSpawnModeProperty(
+                changed |= Internal::Draw_SourceHistorySpriteTrailStampSpawnModeProperty(
                     _detailPropertyContext,
                     data->stampSpawnMode,
                     defaultData.stampSpawnMode
                 );
-                _detailPropertyContext.Draw_FloatProperty(
+                changed |= _detailPropertyContext.Draw_FloatProperty(
                     "스탬프 간격",
                     data->stampSpacing,
                     defaultData.stampSpacing,
                     0.005f,
                     "Distance 모드에서 path 위 stamp 사이 거리입니다."
                 );
-                _detailPropertyContext.Draw_FloatProperty(
+                changed |= _detailPropertyContext.Draw_FloatProperty(
                     "스탬프 시간 간격",
                     data->stampInterval,
                     defaultData.stampInterval,
                     0.005f,
                     "Time 모드에서 stamp를 찍는 시간 간격입니다."
                 );
-                _detailPropertyContext.Draw_UintProperty(
+                changed |= _detailPropertyContext.Draw_UintProperty(
                     "최대 스탬프 수",
                     data->maxStampCount,
                     defaultData.maxStampCount,
                     "lane 하나가 보관할 stamp 상한입니다."
                 );
-                ImGui::EndDisabled();
                 changed |= _detailPropertyContext.Draw_FloatProperty(
                     "지터",
                     data->spawnJitter,

@@ -674,14 +674,18 @@ namespace Internal
         root["stableId"] = data.stableId;
         root["confirmed"] = data.confirmed;
         root["sourceSampleCount"] = data.sourceSampleCount;
-        root["sampleLifetime"] = data.sampleLifetime;
         root["sampleSpacing"] = data.sampleSpacing;
-        root["sampleInterval"] = data.sampleInterval;
         root["curveSubdivision"] = data.curveSubdivision;
         root["smoothTangent"] = data.smoothTangent;
-        root["stampSpacing"] = data.stampSpacing;
-        root["stampInterval"] = data.stampInterval;
-        root["maxStampCount"] = data.maxStampCount;
+
+        if (data.kind == EffectHistorySourceGroupKind::SourcePointHistory)
+        {
+            if (data.sampleLifetime > 0.f)
+                root["sampleLifetime"] = data.sampleLifetime;
+            if (data.sampleInterval > 0.f)
+                root["sampleInterval"] = data.sampleInterval;
+        }
+
         return root;
     }
 
@@ -700,18 +704,12 @@ namespace Internal
         Read_NumberField(root, "sampleInterval", outData.sampleInterval);
         Read_NumberField(root, "curveSubdivision", outData.curveSubdivision);
         Read_BoolField(root, "smoothTangent", outData.smoothTangent);
-        Read_NumberField(root, "stampSpacing", outData.stampSpacing);
-        Read_NumberField(root, "stampInterval", outData.stampInterval);
-        Read_NumberField(root, "maxStampCount", outData.maxStampCount);
 
         outData.sourceSampleCount = max(0u, outData.sourceSampleCount);
         outData.sampleLifetime = max(0.f, outData.sampleLifetime);
         outData.sampleSpacing = max(0.f, outData.sampleSpacing);
         outData.sampleInterval = max(0.f, outData.sampleInterval);
         outData.curveSubdivision = max(0u, outData.curveSubdivision);
-        outData.stampSpacing = max(0.f, outData.stampSpacing);
-        outData.stampInterval = max(0.f, outData.stampInterval);
-        outData.maxStampCount = max(0u, outData.maxStampCount);
     }
 
     json To_Json(const EmitterHistoryBudgetData& data)

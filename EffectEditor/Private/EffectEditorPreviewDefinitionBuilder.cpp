@@ -2118,7 +2118,7 @@ EffectHistoryBudgetRuntimeDesc Build_HistoryBudget(const HistoryBudgetData& data
     budget.preserveLength = true;
     budget.sharedSourceHistory = true;
     budget.trailDensityScale = max(0.f, data.trailDensityScale);
-    budget.spriteStampDensityScale = max(0.f, data.spriteStampDensityScale);
+    budget.spriteStampDensityScale = 1.f;
     budget.ribbonDensityScale = max(0.f, data.ribbonDensityScale);
     budget.distortionDensityScale = max(0.f, data.distortionDensityScale);
     budget.updateRate = data.updateRate == HistoryBudgetUpdateRate::Every2Frames
@@ -2147,9 +2147,6 @@ vector<EffectHistorySourceGroupBudgetDesc> Build_HistorySourceGroups(const vecto
         group.sampleInterval = source.sampleInterval;
         group.curveSubdivision = source.curveSubdivision;
         group.smoothTangent = source.smoothTangent;
-        group.stampSpacing = source.stampSpacing;
-        group.stampInterval = source.stampInterval;
-        group.maxStampCount = source.maxStampCount;
         groups.push_back(group);
     }
 
@@ -2273,12 +2270,6 @@ void Apply_SourceGroupBudget(
     if (group->curveSubdivision > 0u)
         desc.curveSubdivision = group->curveSubdivision;
     desc.smoothTangent = group->smoothTangent;
-    if (group->stampSpacing > 0.f)
-        desc.stampSpacing = max(0.001f, group->stampSpacing);
-    if (group->stampInterval > 0.f)
-        desc.stampInterval = max(0.001f, group->stampInterval);
-    if (group->maxStampCount > 0u)
-        desc.maxStampCount = max(1u, group->maxStampCount);
 }
 
 void Assign_HistoryBudgetEffective(
@@ -2315,19 +2306,6 @@ uint32 Resolve_HistoryBudgetCurveSubdivision(
     const uint32 desiredSubdivision = max(1u, (target.renderSegmentCount + sourceCount - 1u) / sourceCount);
     const uint32 cappedSubdivision = min(effectiveAuthoredSubdivision, desiredSubdivision);
     return authoredSubdivision == 0u ? 0u : cappedSubdivision;
-}
-
-uint32 Resolve_SourceHistorySpriteTrailStampFloor(
-    const ComputeSourceHistorySpriteTrailEmitterDesc& desc,
-    float effectiveStampSpacing)
-{
-    if (desc.stampSpawnMode != EffectSourceHistorySpriteTrailStampSpawnMode::Distance ||
-        desc.maxLength <= 0.f)
-    {
-        return desc.maxStampCount;
-    }
-
-    return max(1u, static_cast<uint32>(ceilf(desc.maxLength / max(0.001f, effectiveStampSpacing))) + 1u);
 }
 
 void Apply_SafeHistoryBudgetDensityCap(
@@ -2372,32 +2350,6 @@ void Apply_SafeHistoryBudgetDensityCap(
         estimatedSourceSampleCount,
         desc.curveSubdivision
     );
-
-    if (budget.preset == EffectHistoryBudgetPreset::Full || desc.maxStampCount == 0u)
-        return;
-
-    const EffectHistoryBudgetEffectiveDesc target = Compute_EffectHistoryBudgetEffective(
-        budget,
-        usage,
-        EffectHistoryBudgetEffectiveInput{
-            EffectHistoryBudgetFamily::SourceHistorySpriteTrail,
-            estimatedSourceSampleCount,
-            estimatedSourceSampleCount * max(1u, desc.curveSubdivision),
-            desc.maxStampCount
-        }
-    );
-
-    if (target.spriteStampCount == 0u || target.spriteStampCount >= desc.maxStampCount)
-        return;
-
-    const float stampDensityScale = static_cast<float>(target.spriteStampCount) / static_cast<float>(desc.maxStampCount);
-    desc.stampSpacing = max(0.001f, desc.stampSpacing / max(0.001f, stampDensityScale));
-    desc.stampInterval = max(0.001f, desc.stampInterval / max(0.001f, stampDensityScale));
-
-    const uint32 stampFloor = budget.preserveLength
-                              ? Resolve_SourceHistorySpriteTrailStampFloor(desc, desc.stampSpacing)
-                              : 1u;
-    desc.maxStampCount = max(target.spriteStampCount, stampFloor);
 }
 
 Shared<const EffectDefinition> Build_EffectDefinition(

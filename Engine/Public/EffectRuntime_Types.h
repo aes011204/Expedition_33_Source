@@ -135,10 +135,6 @@ struct EffectHistorySourceGroupBudgetDesc
     float sampleInterval{};
     uint32 curveSubdivision{};
     bool smoothTangent{ true };
-
-    float stampSpacing{};
-    float stampInterval{};
-    uint32 maxStampCount{};
 };
 
 inline const EffectHistorySourceGroupBudgetDesc* Find_EffectHistorySourceGroupBudget(
@@ -181,10 +177,9 @@ inline float Resolve_EffectHistoryBudgetFamilyScale(
     {
     case EffectHistoryBudgetFamily::Ribbon:
         return budget.ribbonDensityScale;
-    case EffectHistoryBudgetFamily::SourceHistorySpriteTrail:
-        return budget.spriteStampDensityScale;
     case EffectHistoryBudgetFamily::Distortion:
         return budget.distortionDensityScale;
+    case EffectHistoryBudgetFamily::SourceHistorySpriteTrail:
     case EffectHistoryBudgetFamily::Trail:
     default:
         return budget.trailDensityScale;
@@ -237,7 +232,7 @@ inline EffectHistoryBudgetEffectiveDesc Compute_EffectHistoryBudgetEffective(
 
     effective.sourceSampleCount = Scale_EffectHistoryBudgetCount(input.sourceSampleCount, scale);
     effective.renderSegmentCount = Scale_EffectHistoryBudgetCount(input.renderSegmentCount, scale);
-    effective.spriteStampCount = Scale_EffectHistoryBudgetCount(input.spriteStampCount, scale);
+    effective.spriteStampCount = input.spriteStampCount;
     return effective;
 }
 
