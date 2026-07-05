@@ -145,6 +145,131 @@ HRESULT Light_Manager::Update_PrimaryShadowLightDesc(const LIGHT_DESC& lightDesc
     return _lights.front()->Update_Desc(lightDesc);
 }
 
+Shared<Light> Light_Manager::Find_PointLight(uint32 pointIndex) const
+{
+    uint32 currentPointIndex = 0u;
+
+    for (const auto& light : _lights)
+    {
+        if (light == nullptr)
+            continue;
+
+        const LIGHT_DESC* desc = light->Get_LightDesc();
+        if (desc == nullptr || desc->type != LightType::Point)
+            continue;
+
+        if (currentPointIndex == pointIndex)
+            return light;
+
+        ++currentPointIndex;
+    }
+
+    return nullptr;
+}
+
+const LIGHT_DESC* Light_Manager::Get_PointLightDesc(uint32 pointIndex) const
+{
+    Shared<Light> light = Find_PointLight(pointIndex);
+    return light != nullptr ? light->Get_LightDesc() : nullptr;
+}
+
+uint32 Light_Manager::Get_PointLightCount() const
+{
+    uint32 count = 0u;
+
+    for (const auto& light : _lights)
+    {
+        if (light == nullptr)
+            continue;
+
+        const LIGHT_DESC* desc = light->Get_LightDesc();
+        if (desc != nullptr && desc->type == LightType::Point)
+            ++count;
+    }
+
+    return count;
+}
+
+HRESULT Light_Manager::Add_PointLight(
+    const Vec3& position,
+    float range,
+    const Vec4& diffuse,
+    const Vec4& ambient,
+    const Vec4& specular,
+    float attenuationPower)
+{
+    LIGHT_DESC desc{};
+    desc.type = LightType::Point;
+    desc.position = Vec4(position.x, position.y, position.z, 1.f);
+    desc.range = max(range, 0.f);
+    desc.pointAttenuationPower = max(attenuationPower, 0.001f);
+    desc.diffuse = diffuse;
+    desc.diffuse.w = std::clamp(desc.diffuse.w, 0.f, 1.f);
+    desc.ambient = ambient;
+    desc.specular = specular;
+
+    return Add_Light(desc);
+}
+
+HRESULT Light_Manager::Update_PointLightDesc(uint32 pointIndex, const LIGHT_DESC& lightDesc)
+{
+    Shared<Light> light = Find_PointLight(pointIndex);
+    if (light == nullptr)
+        return E_FAIL;
+
+    LIGHT_DESC desc = lightDesc;
+    desc.type = LightType::Point;
+    desc.range = max(desc.range, 0.f);
+    desc.pointAttenuationPower = max(desc.pointAttenuationPower, 0.001f);
+    desc.diffuse.w = std::clamp(desc.diffuse.w, 0.f, 1.f);
+
+    return light->Update_Desc(desc);
+}
+
+HRESULT Light_Manager::Set_PointLightPosition(uint32 pointIndex, const Vec3& position)
+{
+    const LIGHT_DESC* currentDesc = Get_PointLightDesc(pointIndex);
+    if (currentDesc == nullptr)
+        return E_FAIL;
+
+    LIGHT_DESC desc = *currentDesc;
+    desc.position = Vec4(position.x, position.y, position.z, 1.f);
+    return Update_PointLightDesc(pointIndex, desc);
+}
+
+HRESULT Light_Manager::Set_PointLightRange(uint32 pointIndex, float range)
+{
+    const LIGHT_DESC* currentDesc = Get_PointLightDesc(pointIndex);
+    if (currentDesc == nullptr)
+        return E_FAIL;
+
+    LIGHT_DESC desc = *currentDesc;
+    desc.range = range;
+    return Update_PointLightDesc(pointIndex, desc);
+}
+
+HRESULT Light_Manager::Set_PointLightAlpha(uint32 pointIndex, float alpha)
+{
+    const LIGHT_DESC* currentDesc = Get_PointLightDesc(pointIndex);
+    if (currentDesc == nullptr)
+        return E_FAIL;
+
+    LIGHT_DESC desc = *currentDesc;
+    desc.diffuse.w = alpha;
+    return Update_PointLightDesc(pointIndex, desc);
+}
+
+HRESULT Light_Manager::Set_PointLightAttenuationPower(uint32 pointIndex, float attenuationPower)
+{
+    const LIGHT_DESC* currentDesc = Get_PointLightDesc(pointIndex);
+    if (currentDesc == nullptr)
+        return E_FAIL;
+
+    LIGHT_DESC desc = *currentDesc;
+    desc.pointAttenuationPower = attenuationPower;
+    return Update_PointLightDesc(pointIndex, desc);
+}
+
 HRESULT Light_Manager::Render_Lights(Shared<ShaderCom> shader, Shared<VIBuffer_Rect> viBuffer)
 {
     for (auto& pLight : _lights)

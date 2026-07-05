@@ -2,6 +2,8 @@
 #include "Client_Defines.h"
 #include "Level_WindowTitleFps.h"
 #include "Level.h"
+#include "LightingPipeline.h"
+#include "PostProcessPipeline.h"
 
 // SmallLevel_SimonArea
 
@@ -29,6 +31,15 @@ private:
     HRESULT Ready_Layer_Camera(const wstring& strLayerTag);
     HRESULT Ready_Layer_UI(const wstring& strLayerTag);
     HRESULT Ready_Layer_BackGround(const wstring& strLayerTag);
+
+    void    Apply_Stage01RenderParams();
+    void    Restore_Stage01RenderParams();
+
+    DeferredLightingCB _savedDeferredLightingCB{};
+    SSAOCB _savedSSAOCB{};
+    PostProcessFeature _savedPostProcessFeatures = PostProcessFeature::None;
+    vector<LIGHT_DESC> _savedLightDescs{};
+    bool _hasSavedStage01RenderParams = false;
 
 public:
     static Shared<Level_Stage01> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);
