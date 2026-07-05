@@ -1286,6 +1286,9 @@
     <ClCompile Include="..\Private\LevelChange_Portal.cpp" />
     <ClCompile Include="..\Private\GradientSkill.cpp" />
     <ClCompile Include="..\Private\AL_SL_State.cpp" />
+    <ClCompile Include="..\Private\ANS_BattleTargetTrack.cpp">
+      <Filter>95. AnimNotify\01. NotifyStates</Filter>
+    </ClCompile>
     <ClCompile Include="..\Private\SL_Jump.cpp" />
     <ClCompile Include="..\private\ANS_Jump.cpp" />
     <ClCompile Include="..\private\ANS_JumpCounter.cpp" />
@@ -1502,6 +1505,9 @@
     <ClInclude Include="..\Public\LevelChange_Portal.h" />
     <ClInclude Include="..\Public\GradientSkill.h" />
     <ClInclude Include="..\Public\AL_SL_State.h" />
+    <ClInclude Include="..\Public\ANS_BattleTargetTrack.h">
+      <Filter>95. AnimNotify\01. NotifyStates</Filter>
+    </ClInclude>
     <ClInclude Include="..\Public\SL_Jump.h" />
     <ClInclude Include="..\public\ANS_Jump.h" />
     <ClInclude Include="..\public\ANS_JumpCounter.h" />
