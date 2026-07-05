@@ -403,7 +403,7 @@ struct alignas(16) FogZoneCB
 {
     static constexpr ConstantBuffer CBType = ConstantBuffer::FogZone;
     static constexpr int32 MAX_FOG_ZONES = 16;
-    static constexpr int32 MAX_FOG_OBB_ZONES = 2;
+    static constexpr int32 MAX_FOG_OBB_ZONES = 16;
 
     FogZoneEntry aabbZones[MAX_FOG_ZONES]{};
     FogOBBZoneEntry obbZones[MAX_FOG_OBB_ZONES]{};

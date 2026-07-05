@@ -133,7 +133,7 @@ HRESULT Level_GestralVillage::Initialize()
         L"../../../Client/Bin/Resources/Textures/Shader/IBL/perfilter_sunset.dds")))
         return E_FAIL;
 
-    GAME->Set_FogZoneCullingDistance(15.f);
+    GAME->Set_FogZoneCullingDistance(45.f);
 
 
     return S_OK;

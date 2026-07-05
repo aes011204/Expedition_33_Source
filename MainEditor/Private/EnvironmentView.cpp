@@ -487,6 +487,7 @@ namespace MainEditor
 
         FogEntry entry{};
         entry.volume.name = "FogZone_" + to_string(_fogEntries.size());
+        entry.fogDensity = 0.05f;
         _fogEntries.push_back(entry);
         SelectEntry(EntryKind::Fog, static_cast<int32>(_fogEntries.size() - 1));
         _runtimeDirty = true;
