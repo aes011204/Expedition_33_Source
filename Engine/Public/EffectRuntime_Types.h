@@ -28,6 +28,186 @@ enum class EffectEmitterRenderLayerOverride : uint8
     UIEffect,
 };
 
+enum class EffectHistoryBudgetPreset : uint8
+{
+    Full,
+    High,
+    Medium,
+    Performance,
+    Low,
+};
+
+enum class EffectHistoryBudgetPriority : uint8
+{
+    Core,
+    Secondary,
+    Decorative,
+    Distortion,
+};
+
+enum class EffectHistoryBudgetDensityBias : uint8
+{
+    Dense,
+    Normal,
+    Sparse,
+};
+
+enum class EffectHistoryBudgetUpdateRate : uint8
+{
+    EveryFrame,
+    Every2Frames,
+};
+
+enum class EffectHistoryBudgetFamily : uint8
+{
+    Trail,
+    Ribbon,
+    SourceHistorySpriteTrail,
+    Distortion,
+};
+
+struct EffectHistoryBudgetRuntimeDesc
+{
+    EffectHistoryBudgetPreset preset{ EffectHistoryBudgetPreset::Full };
+    bool preserveLength{ true };
+    bool sharedSourceHistory{ false };
+    float trailDensityScale{ 1.f };
+    float spriteStampDensityScale{ 1.f };
+    float ribbonDensityScale{ 1.f };
+    float distortionDensityScale{ 1.f };
+    EffectHistoryBudgetUpdateRate updateRate{ EffectHistoryBudgetUpdateRate::EveryFrame };
+};
+
+struct EffectEmitterHistoryBudgetRuntimeDesc
+{
+    EffectHistoryBudgetPriority priority{ EffectHistoryBudgetPriority::Core };
+    EffectHistoryBudgetDensityBias densityBias{ EffectHistoryBudgetDensityBias::Normal };
+    float lengthScale{ 1.f };
+};
+
+struct EffectHistoryBudgetEffectiveInput
+{
+    EffectHistoryBudgetFamily family{ EffectHistoryBudgetFamily::Trail };
+    uint32 sourceSampleCount{};
+    uint32 renderSegmentCount{};
+    uint32 spriteStampCount{};
+};
+
+struct EffectHistoryBudgetEffectiveDesc
+{
+    EffectHistoryBudgetFamily family{ EffectHistoryBudgetFamily::Trail };
+    uint32 sourceSampleCount{};
+    uint32 renderSegmentCount{};
+    uint32 spriteStampCount{};
+};
+
+enum class EffectHistorySourceGroupKind : uint8
+{
+    None,
+    TrailPairHistory,
+    SourcePointHistory,
+};
+
+struct EffectHistorySourceGroupKey
+{
+    EffectHistorySourceGroupKind kind{ EffectHistorySourceGroupKind::None };
+    string stableId{};
+};
+
+struct EffectHistorySourceGroupStats
+{
+    EffectHistorySourceGroupKind kind{ EffectHistorySourceGroupKind::None };
+    uint32 sourceRequestCount{};
+    uint32 cacheHitCount{};
+    uint32 savedRequestCount{};
+};
+
+inline float Resolve_EffectHistoryBudgetPresetScale(EffectHistoryBudgetPreset preset)
+{
+    switch (preset)
+    {
+    case EffectHistoryBudgetPreset::High:
+        return 0.85f;
+    case EffectHistoryBudgetPreset::Medium:
+        return 0.7f;
+    case EffectHistoryBudgetPreset::Performance:
+        return 0.5f;
+    case EffectHistoryBudgetPreset::Low:
+        return 0.35f;
+    case EffectHistoryBudgetPreset::Full:
+    default:
+        return 1.f;
+    }
+}
+
+inline float Resolve_EffectHistoryBudgetFamilyScale(
+    const EffectHistoryBudgetRuntimeDesc& budget,
+    EffectHistoryBudgetFamily family)
+{
+    switch (family)
+    {
+    case EffectHistoryBudgetFamily::Ribbon:
+        return budget.ribbonDensityScale;
+    case EffectHistoryBudgetFamily::SourceHistorySpriteTrail:
+        return budget.spriteStampDensityScale;
+    case EffectHistoryBudgetFamily::Distortion:
+        return budget.distortionDensityScale;
+    case EffectHistoryBudgetFamily::Trail:
+    default:
+        return budget.trailDensityScale;
+    }
+}
+
+inline float Resolve_EffectHistoryBudgetBiasScale(EffectHistoryBudgetDensityBias bias)
+{
+    switch (bias)
+    {
+    case EffectHistoryBudgetDensityBias::Dense:
+        return 1.25f;
+    case EffectHistoryBudgetDensityBias::Sparse:
+        return 0.75f;
+    case EffectHistoryBudgetDensityBias::Normal:
+    default:
+        return 1.f;
+    }
+}
+
+inline uint32 Scale_EffectHistoryBudgetCount(uint32 value, float scale)
+{
+    if (value == 0u)
+        return 0u;
+
+    const float scaled = static_cast<float>(value) * scale;
+    return static_cast<uint32>(scaled + 0.999f) < 1u ? 1u : static_cast<uint32>(scaled + 0.999f);
+}
+
+inline EffectHistoryBudgetEffectiveDesc Compute_EffectHistoryBudgetEffective(
+    const EffectHistoryBudgetRuntimeDesc& budget,
+    const EffectEmitterHistoryBudgetRuntimeDesc& usage,
+    const EffectHistoryBudgetEffectiveInput& input)
+{
+    EffectHistoryBudgetEffectiveDesc effective{};
+    effective.family = input.family;
+
+    if (budget.preset == EffectHistoryBudgetPreset::Full)
+    {
+        effective.sourceSampleCount = input.sourceSampleCount;
+        effective.renderSegmentCount = input.renderSegmentCount;
+        effective.spriteStampCount = input.spriteStampCount;
+        return effective;
+    }
+
+    const float scale =
+        Resolve_EffectHistoryBudgetPresetScale(budget.preset) *
+        Resolve_EffectHistoryBudgetFamilyScale(budget, input.family) *
+        Resolve_EffectHistoryBudgetBiasScale(usage.densityBias);
+
+    effective.sourceSampleCount = Scale_EffectHistoryBudgetCount(input.sourceSampleCount, scale);
+    effective.renderSegmentCount = Scale_EffectHistoryBudgetCount(input.renderSegmentCount, scale);
+    effective.spriteStampCount = Scale_EffectHistoryBudgetCount(input.spriteStampCount, scale);
+    return effective;
+}
+
 enum class EffectSortPolicy : uint8
 {
     None,
@@ -946,6 +1126,8 @@ struct EffectEmitterDefinition
     string name{};                                       // 디버그/로그용 emitter 이름이다.
     EffectEmitterKind kind{ EffectEmitterKind::Sprite }; // 생성할 concrete emitter 종류다.
     bool enabled{ true };                                // root가 runtime child 생성 대상으로 볼지 결정하는 플래그다.
+    EffectEmitterHistoryBudgetRuntimeDesc historyBudget{}; // Phase 1에서는 effective 표시/검증용이며 runtime density cap에는 쓰지 않는다.
+    EffectHistoryBudgetEffectiveDesc effectiveHistoryBudget{}; // 현재 budget 입력에서 계산한 history 비용성 effective 값이다.
 
     Vec3 localPosition{ 0.f, 0.f, 0.f };                 // effect root 기준 emitter local 위치다.
     Vec3 localRotationDegrees{ 0.f, 0.f, 0.f };          // effect root 기준 emitter local 회전이다.
@@ -963,6 +1145,7 @@ struct EffectEmitterDefinition
 struct EffectDefinition
 {
     string name{};                              // effect asset/display 이름이다.
+    EffectHistoryBudgetRuntimeDesc historyBudget{}; // effect 단위 history budget preset이다. Full 기본값은 기존 동작 보존이다.
     vector<EffectEmitterDefinition> emitters{}; // effect를 구성하는 emitter definition 목록이다.
 };
 

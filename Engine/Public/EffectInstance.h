@@ -46,9 +46,13 @@ public: //## Behavior::PlaybackOptions
 
 public: //## Behavior::ProviderBinding
     // 현재 acquire context가 공급한 trail sample provider를 child emitter에 다시 전파한다.
-    void Bind_TrailSampleProvider(const Weak<IEffectTrailSampleProvider>& provider);
+    void Bind_TrailSampleProvider(
+        const Weak<IEffectTrailSampleProvider>& provider,
+        const EffectHistorySourceGroupKey& sourceGroupKey = {});
     // 현재 acquire context가 공급한 source point sample provider를 child emitter에 다시 전파한다.
-    void Bind_SourcePointSampleProvider(const Weak<IEffectSourcePointSampleProvider>& provider);
+    void Bind_SourcePointSampleProvider(
+        const Weak<IEffectSourcePointSampleProvider>& provider,
+        const EffectHistorySourceGroupKey& sourceGroupKey = {});
 
 public: //## Accessors
     // 같은 effect root 안의 child emitter를 follower source id로 찾는다.
@@ -84,6 +88,13 @@ private: //## Data::Children
     // root가 직접 소유하는 child emitter 목록이다.
     vector<Shared<EffectEmitter>> _emitters{};
 
+private: //## Data::SharedHistory
+    uint64 _sharedHistoryFrameSerial{};
+    EffectHistorySourceGroupKey _trailSourceGroupKey{};
+    EffectHistorySourceGroupKey _sourcePointGroupKey{};
+    Shared<IEffectTrailSampleProvider> _sharedTrailSampleProvider{};
+    Shared<IEffectSourcePointSampleProvider> _sharedSourcePointSampleProvider{};
+
 private: //## Helper::Children
     // definition emitters를 concrete runtime child로 생성한다.
     HRESULT Ready_Emitters();
@@ -97,6 +108,9 @@ private: //## Helper::Children
     void Restart_LoopIfNeeded();
     // root가 소유한 child 목록을 정리한다.
     void Clear_Emitters();
+    bool Is_SharedSourceHistoryEnabled() const;
+    void Advance_SharedHistoryFrame();
+    void Clear_SharedHistoryCache();
 
 public:
     static Shared<EffectInstance> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);

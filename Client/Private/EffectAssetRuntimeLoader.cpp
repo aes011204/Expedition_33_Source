@@ -10,6 +10,190 @@ using namespace EffectAssetRuntimeLoad::Assets;
 using namespace EffectAssetRuntimeLoad::Emitters;
 using namespace EffectAssetRuntimeLoad::Json;
 
+namespace
+{
+    EffectHistoryBudgetRuntimeDesc Read_HistoryBudget(const json& root)
+    {
+        EffectHistoryBudgetRuntimeDesc budget{};
+        const auto budgetIter = root.find("historyBudget");
+        if (budgetIter == root.end() || !budgetIter->is_object())
+            return budget;
+
+        const json& data = *budgetIter;
+        Read_Enum(data, "preset", budget.preset);
+        budget.preserveLength = Read_Bool(data, "preserveLength", budget.preserveLength);
+        budget.sharedSourceHistory = Read_Bool(data, "sharedSourceHistory", budget.sharedSourceHistory);
+        budget.trailDensityScale = max(0.f, Read_Float(data, "trailDensityScale", budget.trailDensityScale));
+        budget.spriteStampDensityScale = max(0.f, Read_Float(data, "spriteStampDensityScale", budget.spriteStampDensityScale));
+        budget.ribbonDensityScale = max(0.f, Read_Float(data, "ribbonDensityScale", budget.ribbonDensityScale));
+        budget.distortionDensityScale = max(0.f, Read_Float(data, "distortionDensityScale", budget.distortionDensityScale));
+        Read_Enum(data, "updateRate", budget.updateRate);
+        return budget;
+    }
+
+    uint32 Estimate_SourceHistorySpriteTrailSourceSamples(const ComputeSourceHistorySpriteTrailEmitterDesc& desc)
+    {
+        return max(2u, static_cast<uint32>(ceilf(desc.sampleLifetime / max(0.001f, desc.sampleSpacing))) + 2u);
+    }
+
+    void Assign_HistoryBudgetEffective(EffectEmitterDefinition& emitter, const EffectHistoryBudgetEffectiveInput& input)
+    {
+        emitter.effectiveHistoryBudget.family = input.family;
+        emitter.effectiveHistoryBudget.sourceSampleCount = input.sourceSampleCount;
+        emitter.effectiveHistoryBudget.renderSegmentCount = input.renderSegmentCount;
+        emitter.effectiveHistoryBudget.spriteStampCount = input.spriteStampCount;
+    }
+
+    uint32 Resolve_HistoryBudgetCurveSubdivision(
+        const EffectHistoryBudgetRuntimeDesc& budget,
+        const EffectEmitterHistoryBudgetRuntimeDesc& usage,
+        EffectHistoryBudgetFamily family,
+        uint32 sourceCount,
+        uint32 authoredSubdivision)
+    {
+        if (budget.preset == EffectHistoryBudgetPreset::Full || sourceCount == 0u)
+            return authoredSubdivision;
+
+        const uint32 effectiveAuthoredSubdivision = max(1u, authoredSubdivision);
+        const EffectHistoryBudgetEffectiveDesc target = Compute_EffectHistoryBudgetEffective(
+            budget,
+            usage,
+            EffectHistoryBudgetEffectiveInput{
+                family,
+                sourceCount,
+                sourceCount * effectiveAuthoredSubdivision,
+                0u
+            }
+        );
+        const uint32 desiredSubdivision = max(1u, (target.renderSegmentCount + sourceCount - 1u) / sourceCount);
+        const uint32 cappedSubdivision = min(effectiveAuthoredSubdivision, desiredSubdivision);
+        return authoredSubdivision == 0u ? 0u : cappedSubdivision;
+    }
+
+    uint32 Resolve_SourceHistorySpriteTrailStampFloor(
+        const ComputeSourceHistorySpriteTrailEmitterDesc& desc,
+        float effectiveStampSpacing)
+    {
+        if (desc.stampSpawnMode != EffectSourceHistorySpriteTrailStampSpawnMode::Distance ||
+            desc.maxLength <= 0.f)
+        {
+            return desc.maxStampCount;
+        }
+
+        return max(1u, static_cast<uint32>(ceilf(desc.maxLength / max(0.001f, effectiveStampSpacing))) + 1u);
+    }
+
+    void Apply_SafeHistoryBudgetDensityCap(EffectDefinition& definition, EffectEmitterDefinition& emitter)
+    {
+        if (auto* trailDesc = get_if<ComputeTrailEmitterDesc>(&emitter.concreteDesc))
+        {
+            trailDesc->curveSubdivision = Resolve_HistoryBudgetCurveSubdivision(
+                definition.historyBudget,
+                emitter.historyBudget,
+                EffectHistoryBudgetFamily::Trail,
+                trailDesc->historyCount,
+                trailDesc->curveSubdivision
+            );
+            return;
+        }
+
+        if (auto* ribbonDesc = get_if<ComputeRibbonEmitterDesc>(&emitter.concreteDesc))
+        {
+            ribbonDesc->curveSubdivision = Resolve_HistoryBudgetCurveSubdivision(
+                definition.historyBudget,
+                emitter.historyBudget,
+                EffectHistoryBudgetFamily::Ribbon,
+                ribbonDesc->maxSampleCount,
+                ribbonDesc->curveSubdivision
+            );
+            return;
+        }
+
+        if (auto* spriteTrailDesc = get_if<ComputeSourceHistorySpriteTrailEmitterDesc>(&emitter.concreteDesc))
+        {
+            const uint32 estimatedSourceSampleCount = Estimate_SourceHistorySpriteTrailSourceSamples(*spriteTrailDesc);
+            spriteTrailDesc->curveSubdivision = Resolve_HistoryBudgetCurveSubdivision(
+                definition.historyBudget,
+                emitter.historyBudget,
+                EffectHistoryBudgetFamily::SourceHistorySpriteTrail,
+                estimatedSourceSampleCount,
+                spriteTrailDesc->curveSubdivision
+            );
+
+            if (definition.historyBudget.preset == EffectHistoryBudgetPreset::Full || spriteTrailDesc->maxStampCount == 0u)
+                return;
+
+            const EffectHistoryBudgetEffectiveDesc target = Compute_EffectHistoryBudgetEffective(
+                definition.historyBudget,
+                emitter.historyBudget,
+                EffectHistoryBudgetEffectiveInput{
+                    EffectHistoryBudgetFamily::SourceHistorySpriteTrail,
+                    estimatedSourceSampleCount,
+                    estimatedSourceSampleCount * max(1u, spriteTrailDesc->curveSubdivision),
+                    spriteTrailDesc->maxStampCount
+                }
+            );
+
+            if (target.spriteStampCount == 0u || target.spriteStampCount >= spriteTrailDesc->maxStampCount)
+                return;
+
+            const float stampDensityScale = static_cast<float>(target.spriteStampCount) / static_cast<float>(spriteTrailDesc->maxStampCount);
+            spriteTrailDesc->stampSpacing = max(0.001f, spriteTrailDesc->stampSpacing / max(0.001f, stampDensityScale));
+            spriteTrailDesc->stampInterval = max(0.001f, spriteTrailDesc->stampInterval / max(0.001f, stampDensityScale));
+
+            const uint32 stampFloor = definition.historyBudget.preserveLength
+                                      ? Resolve_SourceHistorySpriteTrailStampFloor(*spriteTrailDesc, spriteTrailDesc->stampSpacing)
+                                      : 1u;
+            spriteTrailDesc->maxStampCount = max(target.spriteStampCount, stampFloor);
+        }
+    }
+
+    void Refresh_HistoryBudgetEffective(EffectEmitterDefinition& emitter)
+    {
+        if (const auto* trailDesc = get_if<ComputeTrailEmitterDesc>(&emitter.concreteDesc))
+        {
+            Assign_HistoryBudgetEffective(
+                emitter,
+                EffectHistoryBudgetEffectiveInput{
+                    EffectHistoryBudgetFamily::Trail,
+                    trailDesc->historyCount,
+                    trailDesc->historyCount * max(1u, trailDesc->curveSubdivision),
+                    0u
+                }
+            );
+            return;
+        }
+
+        if (const auto* ribbonDesc = get_if<ComputeRibbonEmitterDesc>(&emitter.concreteDesc))
+        {
+            Assign_HistoryBudgetEffective(
+                emitter,
+                EffectHistoryBudgetEffectiveInput{
+                    EffectHistoryBudgetFamily::Ribbon,
+                    ribbonDesc->maxSampleCount,
+                    ribbonDesc->maxSampleCount * max(1u, ribbonDesc->curveSubdivision),
+                    0u
+                }
+            );
+            return;
+        }
+
+        if (const auto* spriteTrailDesc = get_if<ComputeSourceHistorySpriteTrailEmitterDesc>(&emitter.concreteDesc))
+        {
+            const uint32 estimatedSourceSampleCount = Estimate_SourceHistorySpriteTrailSourceSamples(*spriteTrailDesc);
+            Assign_HistoryBudgetEffective(
+                emitter,
+                EffectHistoryBudgetEffectiveInput{
+                    EffectHistoryBudgetFamily::SourceHistorySpriteTrail,
+                    estimatedSourceSampleCount,
+                    estimatedSourceSampleCount * max(1u, spriteTrailDesc->curveSubdivision),
+                    spriteTrailDesc->maxStampCount
+                }
+            );
+        }
+    }
+}
+
 Shared<const EffectDefinition> EffectAssetRuntimeLoader::Load_Definition(const wstring& effectAssetPath)
 {
     json root{};
@@ -33,6 +217,7 @@ Shared<const EffectDefinition> EffectAssetRuntimeLoader::Load_Definition(const w
     definition->name = Read_String(root, "name");
     if (definition->name.empty())
         definition->name = String::ToString(fs::path(effectAssetPath).stem().wstring());
+    definition->historyBudget = Read_HistoryBudget(root);
 
     for (const json& emitter : *emittersIter)
     {
@@ -84,6 +269,8 @@ Shared<const EffectDefinition> EffectAssetRuntimeLoader::Load_Definition(const w
             continue;
         }
 
+        Apply_SafeHistoryBudgetDensityCap(*definition, emitterDefinition);
+        Refresh_HistoryBudgetEffective(emitterDefinition);
         definition->emitters.push_back(emitterDefinition);
     }
 

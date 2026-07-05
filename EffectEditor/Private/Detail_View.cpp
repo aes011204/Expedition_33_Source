@@ -5,6 +5,7 @@
 #include "EffectEditorInstance.h"
 #include "GameInstance.h"
 #include "Helper_String.h"
+#include "HistoryBudget_View.h"
 #include "Level_EffectEditor.h"
 #include "MeshDataPreview_View.h"
 
@@ -141,6 +142,77 @@ namespace Internal
         }
         ImGui::PopID();
         return changed;
+    }
+
+    static const char* Get_HistoryBudgetPresetLabel(HistoryBudgetPreset value)
+    {
+        switch (value)
+        {
+        case HistoryBudgetPreset::High:
+            return "High";
+        case HistoryBudgetPreset::Medium:
+            return "Medium";
+        case HistoryBudgetPreset::Performance:
+            return "Performance";
+        case HistoryBudgetPreset::Low:
+            return "Low";
+        case HistoryBudgetPreset::Full:
+        default:
+            return "Full";
+        }
+    }
+
+    static const char* Get_HistoryBudgetPriorityLabel(HistoryBudgetPriority value)
+    {
+        switch (value)
+        {
+        case HistoryBudgetPriority::Secondary:
+            return "Secondary";
+        case HistoryBudgetPriority::Decorative:
+            return "Decorative";
+        case HistoryBudgetPriority::Distortion:
+            return "Distortion";
+        case HistoryBudgetPriority::Core:
+        default:
+            return "Core";
+        }
+    }
+
+    static const char* Get_HistoryBudgetDensityBiasLabel(HistoryBudgetDensityBias value)
+    {
+        switch (value)
+        {
+        case HistoryBudgetDensityBias::Dense:
+            return "Dense";
+        case HistoryBudgetDensityBias::Sparse:
+            return "Sparse";
+        case HistoryBudgetDensityBias::Normal:
+        default:
+            return "Normal";
+        }
+    }
+
+    static void Draw_HistoryBudgetLink(const Shared<Emitter_View>& emitterView, const AuthoringEmitter& emitter)
+    {
+        if (emitterView == nullptr)
+            return;
+
+        ImGui::TextDisabled(
+            "History Budget: %s / %s / %s",
+            Get_HistoryBudgetPresetLabel(emitterView->Get_HistoryBudget().preset),
+            Get_HistoryBudgetPriorityLabel(emitter.historyBudget.priority),
+            Get_HistoryBudgetDensityBiasLabel(emitter.historyBudget.densityBias)
+        );
+        ImGui::SameLine();
+        if (ImGui::SmallButton("Open History Budget"))
+        {
+            const Shared<Editor_Window> historyBudgetWindow =
+                EDITOR != nullptr ? EDITOR->Get_Window(L"History Budget") : nullptr;
+            const Shared<HistoryBudget_View> historyBudgetView =
+                dynamic_pointer_cast<HistoryBudget_View>(historyBudgetWindow);
+            if (historyBudgetView != nullptr)
+                historyBudgetView->Open_Target(emitter.id);
+        }
     }
 
     static const char* Get_SourceHistoryRibbonSourceModeLabel(SourceHistoryRibbonSourceMode value)
@@ -1752,6 +1824,7 @@ void Detail_View::Render_TypeDataDetail(
         const TrailTypeData defaultData{};
         if (ImGui::CollapsingHeader("기본", ImGuiTreeNodeFlags_DefaultOpen))
         {
+            Internal::Draw_HistoryBudgetLink(emitterView, emitter);
             if (_detailPropertyContext.Begin_PropertyTable("TrailTypeDataBase"))
             {
                 changed |= _detailPropertyContext.Draw_FloatProperty(
@@ -1767,12 +1840,6 @@ void Detail_View::Render_TypeDataDetail(
                     defaultData.segmentLifetime,
                     0.01f,
                     "trail sample이 유지되는 시간입니다. 길수록 잔상이 오래 남습니다."
-                );
-                changed |= _detailPropertyContext.Draw_UintProperty(
-                    "히스토리 수",
-                    data->historyCount,
-                    defaultData.historyCount,
-                    "저장할 trail sample 개수입니다. 많을수록 긴 궤적을 유지할 수 있습니다."
                 );
                 changed |= _detailPropertyContext.Draw_FloatProperty(
                     "UV 타일링",
@@ -1805,10 +1872,16 @@ void Detail_View::Render_TypeDataDetail(
             }
         }
 
-        if (ImGui::CollapsingHeader("곡선 품질", ImGuiTreeNodeFlags_DefaultOpen))
+        if (ImGui::CollapsingHeader("고급 히스토리/곡선 품질"))
         {
             if (_detailPropertyContext.Begin_PropertyTable("TrailTypeDataCurveQuality"))
             {
+                changed |= _detailPropertyContext.Draw_UintProperty(
+                    "히스토리 수",
+                    data->historyCount,
+                    defaultData.historyCount,
+                    "저장할 trail sample 개수입니다. 많을수록 긴 궤적을 유지할 수 있습니다."
+                );
                 changed |= Internal::Draw_TrailCurveQualityProperty(_detailPropertyContext, *data, defaultData);
                 changed |= Internal::Apply_TrailCurvePreset(*data);
 
@@ -1891,6 +1964,7 @@ void Detail_View::Render_TypeDataDetail(
         const RibbonTypeData defaultData{};
         if (ImGui::CollapsingHeader("리본", ImGuiTreeNodeFlags_DefaultOpen))
         {
+            Internal::Draw_HistoryBudgetLink(emitterView, emitter);
             if (_detailPropertyContext.Begin_PropertyTable("SourceHistoryRibbonSource"))
             {
                 changed |= Internal::Draw_SourceHistoryRibbonSourceModeProperty(
@@ -1975,7 +2049,7 @@ void Detail_View::Render_TypeDataDetail(
             ImGui::TextDisabled("tail 유지 시간은 Lifetime 모듈에서 조정합니다. 빠른 source일수록 같은 시간 안에서 더 긴 tail이 남습니다.");
         }
 
-        if (ImGui::CollapsingHeader("고급", ImGuiTreeNodeFlags_DefaultOpen))
+        if (ImGui::CollapsingHeader("고급"))
         {
             if (ImGui::TreeNodeEx("곡선 품질", ImGuiTreeNodeFlags_DefaultOpen))
             {
@@ -2137,8 +2211,9 @@ void Detail_View::Render_TypeDataDetail(
             }
         }
 
-        if (ImGui::CollapsingHeader("History", ImGuiTreeNodeFlags_DefaultOpen))
+        if (ImGui::CollapsingHeader("History Advanced"))
         {
+            Internal::Draw_HistoryBudgetLink(emitterView, emitter);
             if (_detailPropertyContext.Begin_PropertyTable("SourceHistorySpriteTrailHistory"))
             {
                 changed |= _detailPropertyContext.Draw_FloatProperty(
@@ -2161,7 +2236,7 @@ void Detail_View::Render_TypeDataDetail(
             }
         }
 
-        if (ImGui::CollapsingHeader("곡선 품질", ImGuiTreeNodeFlags_DefaultOpen))
+        if (ImGui::CollapsingHeader("고급 곡선 품질"))
         {
             if (_detailPropertyContext.Begin_PropertyTable("SourceHistorySpriteTrailCurveQuality"))
             {

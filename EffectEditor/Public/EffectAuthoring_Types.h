@@ -65,6 +65,55 @@ enum class EmitterRenderLayerOverride : uint8
     UIEffect,
 };
 
+enum class HistoryBudgetPreset : uint8
+{
+    Full,
+    High,
+    Medium,
+    Performance,
+    Low,
+};
+
+enum class HistoryBudgetPriority : uint8
+{
+    Core,
+    Secondary,
+    Decorative,
+    Distortion,
+};
+
+enum class HistoryBudgetDensityBias : uint8
+{
+    Dense,
+    Normal,
+    Sparse,
+};
+
+enum class HistoryBudgetUpdateRate : uint8
+{
+    EveryFrame,
+    Every2Frames,
+};
+
+struct HistoryBudgetData
+{
+    HistoryBudgetPreset preset{ HistoryBudgetPreset::Full };
+    bool preserveLength{ true };
+    bool sharedSourceHistory{ false };
+    float trailDensityScale{ 1.f };
+    float spriteStampDensityScale{ 1.f };
+    float ribbonDensityScale{ 1.f };
+    float distortionDensityScale{ 1.f };
+    HistoryBudgetUpdateRate updateRate{ HistoryBudgetUpdateRate::EveryFrame };
+};
+
+struct EmitterHistoryBudgetData
+{
+    HistoryBudgetPriority priority{ HistoryBudgetPriority::Core };
+    HistoryBudgetDensityBias densityBias{ HistoryBudgetDensityBias::Normal };
+    float lengthScale{ 1.f };
+};
+
 enum class EmitterScreenAlignment : uint8
 {
     Square,
@@ -1406,6 +1455,7 @@ struct AuthoringEmitter
     string name{};
     string rendererType{ "Sprite" };
     EmitterRenderLayerOverride renderLayerOverride{ EmitterRenderLayerOverride::Auto };
+    EmitterHistoryBudgetData historyBudget{};
     string resourceSummary{};
     string textureId{ "Effects/Textures/Shared/DefaultTexture.dds" };
     bool enabled{ true };
@@ -1425,6 +1475,7 @@ struct EffectAuthoringDocument
 {
     string name{};
     ParticleSystemAuthoringData particleSystemData{};
+    HistoryBudgetData historyBudget{};
     vector<AuthoringEmitter> emitters{};
 };
 

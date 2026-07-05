@@ -86,7 +86,7 @@ HRESULT Level_EffectEditor::Restart_PreviewFromAuthoring()
         return E_FAIL;
     }
 
-    CHECK_FAILED(_previewRuntime->Restart_FromAuthoring(emitterView->Build_PreviewEmitters()), E_FAIL);
+    CHECK_FAILED(_previewRuntime->Restart_FromAuthoring(emitterView->Build_PreviewEmitters(), emitterView->Get_HistoryBudget()), E_FAIL);
 
     for (const AuthoringEmitter& emitter : emitterView->Get_Emitters())
         emitterView->Clear_PreviewDirty(emitter.id);

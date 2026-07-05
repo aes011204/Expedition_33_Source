@@ -14,6 +14,7 @@ public:
     struct AuthoringSnapshot
     {
         ParticleSystemAuthoringData particleSystemData{};
+        HistoryBudgetData historyBudget{};
         vector<AuthoringEmitter> emitters{};
         optional<size_t> selectedEmitterIndex{};
         bool selectedTypeData{ false };
@@ -45,9 +46,12 @@ public:
 public: //## Accessor::Authoring
     ParticleSystemAuthoringData& Get_ParticleSystemData() { return _particleSystemData; }
     const ParticleSystemAuthoringData& Get_ParticleSystemData() const { return _particleSystemData; }
+    HistoryBudgetData& Get_HistoryBudget() { return _historyBudget; }
+    const HistoryBudgetData& Get_HistoryBudget() const { return _historyBudget; }
     const vector<AuthoringEmitter>& Get_Emitters() const { return _emitters; }
     vector<AuthoringEmitter> Build_PreviewEmitters() const;
     const optional<fs::path>& Get_CurrentDocumentPath() const { return _currentDocumentPath; }
+    void Set_HistoryBudget(const HistoryBudgetData& historyBudget, const string& description);
     AuthoringEmitter* Find_Emitter(uint32 emitterId);
     AuthoringModule* Find_Module(uint32 emitterId, uint32 moduleId);
     AuthoringEmitter* Get_SelectedOrFirstEmitter();
@@ -149,6 +153,7 @@ private: //## Static Values
 
 private: //## Data::Authoring
     ParticleSystemAuthoringData _particleSystemData{};
+    HistoryBudgetData _historyBudget{};
     // 현재 편집 중인 effect의 emitter 목록이다.
     vector<AuthoringEmitter> _emitters{};
     // 현재 authoring 문서가 기존 effect 파일과 연결되어 있으면 그 경로를 보관한다.

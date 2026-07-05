@@ -33,6 +33,51 @@ string Resolve_GameObjectLogName(const Shared<GameObject>& gameObject)
     return objectName.empty() ? "<unnamed>" : String::ToString(objectName);
 }
 
+string Format_SourceKeyVec3(const Vec3& value)
+{
+    return format("{:.4f},{:.4f},{:.4f}", value.x, value.y, value.z);
+}
+
+EffectHistorySourceGroupKey Build_TrailPairHistoryKey(
+    const wstring& partTag,
+    const TrailAnchorAsset& trailAnchorAsset,
+    uint64 trailNotifyToken)
+{
+    EffectHistorySourceGroupKey key{};
+    key.kind = EffectHistorySourceGroupKind::TrailPairHistory;
+    key.stableId = format(
+        "TrailPair|part={}|token={}|model={}|base={}:{}|tip={}:{}",
+        String::ToString(partTag),
+        trailNotifyToken,
+        trailAnchorAsset.modelGuid,
+        trailAnchorAsset.base.boneName,
+        Format_SourceKeyVec3(trailAnchorAsset.base.localPosition),
+        trailAnchorAsset.tip.boneName,
+        Format_SourceKeyVec3(trailAnchorAsset.tip.localPosition)
+    );
+    return key;
+}
+
+EffectHistorySourceGroupKey Build_SourcePointHistoryKey(
+    const wstring& partTag,
+    SourceHistorySourceBindingMode sourceBindingMode,
+    const string& socketName,
+    const string& sourceHistoryAnchorName,
+    const Vec3& sourceHistoryLocalOffset)
+{
+    EffectHistorySourceGroupKey key{};
+    key.kind = EffectHistorySourceGroupKind::SourcePointHistory;
+    key.stableId = format(
+        "SourcePoint|part={}|binding={}|socket={}|anchor={}|offset={}",
+        String::ToString(partTag),
+        static_cast<int32>(sourceBindingMode),
+        socketName,
+        sourceHistoryAnchorName,
+        Format_SourceKeyVec3(sourceHistoryLocalOffset)
+    );
+    return key;
+}
+
 Vec3 Resolve_CameraDirectionFromAnchor(const Vec3& anchorPosition, const Vec3& fallback)
 {
     if (GAME != nullptr)
@@ -1012,6 +1057,11 @@ HRESULT EffectCom::Play_TrailEffect(
     acquireDesc.layerTag = layerTag;
     acquireDesc.worldPosition = initialSample.tipWorldPosition;
     acquireDesc.trailSampleProvider = attached.trailSampleProvider;
+    acquireDesc.trailSampleGroupKey = Internal::Build_TrailPairHistoryKey(
+        attached.partTag,
+        attached.trailAnchorAsset,
+        attached.trailNotifyToken
+    );
     acquireDesc.autoReleaseOnFinished = false;
 
     attached.trailDrainDuration = Internal::Resolve_TrailDrainDuration(EffectAssetRuntimeLoader::Load_DefinitionByName(resolvedEffectName));
@@ -1317,6 +1367,13 @@ HRESULT EffectCom::Play_SourceHistoryEffect(
     acquireDesc.layerTag = layerTag;
     acquireDesc.worldPosition = initialSample.worldPosition;
     acquireDesc.sourcePointSampleProvider = attached.sourcePointSampleProvider;
+    acquireDesc.sourcePointGroupKey = Internal::Build_SourcePointHistoryKey(
+        attached.partTag,
+        attached.sourceHistorySourceBindingMode,
+        attached.socketName,
+        attached.sourceHistoryAnchorName,
+        attached.sourceHistoryLocalOffset
+    );
     acquireDesc.autoReleaseOnFinished = false;
 
     attached.sourceHistoryDrainDuration =

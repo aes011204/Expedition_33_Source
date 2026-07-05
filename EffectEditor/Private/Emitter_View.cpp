@@ -590,6 +590,19 @@ vector<AuthoringEmitter> Emitter_View::Build_PreviewEmitters() const
     return previewEmitters;
 }
 
+void Emitter_View::Set_HistoryBudget(const HistoryBudgetData& historyBudget, const string& description)
+{
+    Execute_AuthoringEdit(
+        description,
+        [this, historyBudget]
+        {
+            _historyBudget = historyBudget;
+            Mark_AllPreviewDirty();
+            MarkDirty();
+        }
+    );
+}
+
 AuthoringEmitter* Emitter_View::Find_Emitter(uint32 emitterId)
 {
     for (AuthoringEmitter& emitter : _emitters)
@@ -653,6 +666,7 @@ Emitter_View::AuthoringSnapshot Emitter_View::Capture_AuthoringSnapshot() const
 {
     AuthoringSnapshot snapshot{};
     snapshot.particleSystemData = _particleSystemData;
+    snapshot.historyBudget = _historyBudget;
     snapshot.emitters = _emitters;
     snapshot.selectedEmitterIndex = _selectedEmitterIndex;
     snapshot.selectedTypeData = _selectedTypeData;
@@ -665,6 +679,7 @@ void Emitter_View::Restore_AuthoringSnapshot(const AuthoringSnapshot& snapshot)
 {
     Close_ModulePicker();
     _particleSystemData = snapshot.particleSystemData;
+    _historyBudget = snapshot.historyBudget;
     _emitters = snapshot.emitters;
     _selectedEmitterIndex = snapshot.selectedEmitterIndex;
     _selectedTypeData = snapshot.selectedTypeData;
@@ -707,6 +722,7 @@ json Emitter_View::Build_AuthoringDocumentJson() const
 {
     EffectAuthoringDocument document{};
     document.particleSystemData = _particleSystemData;
+    document.historyBudget = _historyBudget;
     document.emitters = _emitters;
     return EffectAuthoringJsonSerializer::To_Json(document);
 }
@@ -727,6 +743,7 @@ bool Emitter_View::Restore_AuthoringDocumentJson(const json& root)
 
     Close_ModulePicker();
     _particleSystemData = document.particleSystemData;
+    _historyBudget = document.historyBudget;
     _emitters = move(document.emitters);
     _selectedEmitterIndex = _emitters.empty() ? optional<size_t>{} : optional<size_t>{ 0 };
     _selectedTypeData = false;

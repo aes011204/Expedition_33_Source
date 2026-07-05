@@ -11,6 +11,7 @@
 #include "Emitter_View.h"
 #include "GameInstance.h"
 #include "Hierarchy_View.h"
+#include "HistoryBudget_View.h"
 #include "MeshDataPreview_View.h"
 #include "Profile_View.h"
 #include "Scene_View.h"
@@ -57,6 +58,10 @@ HRESULT EffectEditor_Manager::Initialize()
     Add_Window(Content_Browser::Create());
     Add_Window(Detail_View::Create());
     Add_Window(CurveEditor_View::Create());
+    const Shared<HistoryBudget_View> historyBudgetView = HistoryBudget_View::Create();
+    if (historyBudgetView)
+        historyBudgetView->Set_Open(false);
+    Add_Window(historyBudgetView);
     const Shared<EffectMaterial_View> effectMaterialView = EffectMaterial_View::Create();
     if (effectMaterialView)
         effectMaterialView->Set_Open(false);
@@ -436,6 +441,7 @@ void EffectEditor_Manager::Build_DefaultDockLayout(ImGuiID dockSpaceId, ImVec2 d
     dock_registered_window(L"Emitter", emitterDockId);
     dock_registered_window(L"Content Browser", browserDockId);
     dock_registered_window(L"Curve Editor", browserDockId);
+    dock_registered_window(L"History Budget", browserDockId);
     dock_registered_window(L"Profile", browserDockId);
     dock_registered_window(L"Console", browserDockId);
     dock_registered_window(L"Effect Material", materialDockId);

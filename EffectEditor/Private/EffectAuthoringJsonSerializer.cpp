@@ -623,6 +623,85 @@ namespace Internal
         return fabsf(lhs - rhs) <= 0.0001f;
     }
 
+    bool Is_DefaultHistoryBudget(const HistoryBudgetData& data)
+    {
+        const HistoryBudgetData defaults{};
+        return data.preset == defaults.preset &&
+               data.preserveLength == defaults.preserveLength &&
+               data.sharedSourceHistory == defaults.sharedSourceHistory &&
+               Nearly_Equal(data.trailDensityScale, defaults.trailDensityScale) &&
+               Nearly_Equal(data.spriteStampDensityScale, defaults.spriteStampDensityScale) &&
+               Nearly_Equal(data.ribbonDensityScale, defaults.ribbonDensityScale) &&
+               Nearly_Equal(data.distortionDensityScale, defaults.distortionDensityScale) &&
+               data.updateRate == defaults.updateRate;
+    }
+
+    bool Is_DefaultEmitterHistoryBudget(const EmitterHistoryBudgetData& data)
+    {
+        const EmitterHistoryBudgetData defaults{};
+        return data.priority == defaults.priority &&
+               data.densityBias == defaults.densityBias &&
+               Nearly_Equal(data.lengthScale, defaults.lengthScale);
+    }
+
+    json To_Json(const HistoryBudgetData& data)
+    {
+        json root = json::object();
+        root["preset"] = To_EnumToken(data.preset);
+        root["preserveLength"] = data.preserveLength;
+        root["sharedSourceHistory"] = data.sharedSourceHistory;
+        root["trailDensityScale"] = data.trailDensityScale;
+        root["spriteStampDensityScale"] = data.spriteStampDensityScale;
+        root["ribbonDensityScale"] = data.ribbonDensityScale;
+        root["distortionDensityScale"] = data.distortionDensityScale;
+        root["updateRate"] = To_EnumToken(data.updateRate);
+        return root;
+    }
+
+    void From_Json(const json& root, HistoryBudgetData& outData)
+    {
+        if (!root.is_object())
+            return;
+
+        if (const auto presetIter = root.find("preset"); presetIter != root.end())
+            Try_ReadEnumToken(*presetIter, outData.preset);
+        Read_BoolField(root, "preserveLength", outData.preserveLength);
+        Read_BoolField(root, "sharedSourceHistory", outData.sharedSourceHistory);
+        Read_NumberField(root, "trailDensityScale", outData.trailDensityScale);
+        Read_NumberField(root, "spriteStampDensityScale", outData.spriteStampDensityScale);
+        Read_NumberField(root, "ribbonDensityScale", outData.ribbonDensityScale);
+        Read_NumberField(root, "distortionDensityScale", outData.distortionDensityScale);
+        if (const auto updateRateIter = root.find("updateRate"); updateRateIter != root.end())
+            Try_ReadEnumToken(*updateRateIter, outData.updateRate);
+
+        outData.trailDensityScale = max(0.f, outData.trailDensityScale);
+        outData.spriteStampDensityScale = max(0.f, outData.spriteStampDensityScale);
+        outData.ribbonDensityScale = max(0.f, outData.ribbonDensityScale);
+        outData.distortionDensityScale = max(0.f, outData.distortionDensityScale);
+    }
+
+    json To_Json(const EmitterHistoryBudgetData& data)
+    {
+        json root = json::object();
+        root["priority"] = To_EnumToken(data.priority);
+        root["densityBias"] = To_EnumToken(data.densityBias);
+        root["lengthScale"] = data.lengthScale;
+        return root;
+    }
+
+    void From_Json(const json& root, EmitterHistoryBudgetData& outData)
+    {
+        if (!root.is_object())
+            return;
+
+        if (const auto priorityIter = root.find("priority"); priorityIter != root.end())
+            Try_ReadEnumToken(*priorityIter, outData.priority);
+        if (const auto densityBiasIter = root.find("densityBias"); densityBiasIter != root.end())
+            Try_ReadEnumToken(*densityBiasIter, outData.densityBias);
+        Read_NumberField(root, "lengthScale", outData.lengthScale);
+        outData.lengthScale = max(0.f, outData.lengthScale);
+    }
+
     RibbonCurveQuality Infer_RibbonCurveQuality(float sampleSpacing, float sampleInterval)
     {
         if (!Nearly_Equal(sampleInterval, 0.f))
@@ -3247,6 +3326,8 @@ json EffectAuthoringJsonSerializer::To_Json(const EffectAuthoringDocument& docum
     root["version"] = kEffectAuthoringJsonVersion;
     root["name"] = document.name;
     root["particleSystem"] = Internal::To_Json(document.particleSystemData);
+    if (!Internal::Is_DefaultHistoryBudget(document.historyBudget))
+        root["historyBudget"] = Internal::To_Json(document.historyBudget);
     root["emitters"] = json::array();
 
     for (const AuthoringEmitter& emitter : document.emitters)
@@ -3266,6 +3347,10 @@ bool EffectAuthoringJsonSerializer::From_Json(const json& root, EffectAuthoringD
     const auto particleSystemIter = root.find("particleSystem");
     if (particleSystemIter != root.end())
         Internal::From_Json(*particleSystemIter, document.particleSystemData);
+
+    const auto historyBudgetIter = root.find("historyBudget");
+    if (historyBudgetIter != root.end())
+        Internal::From_Json(*historyBudgetIter, document.historyBudget);
 
     const auto emittersIter = root.find("emitters");
     if (emittersIter == root.end() || !emittersIter->is_array())
@@ -3435,6 +3520,8 @@ json EffectAuthoringJsonSerializer::To_Json(const AuthoringEmitter& emitter)
     root["rendererType"] = Authoring::Resolve_RendererType(emitter.typeData);
     root["renderLayerOverride"] = Internal::To_EnumToken(emitter.renderLayerOverride);
     root["enabled"] = emitter.enabled;
+    if (!Internal::Is_DefaultEmitterHistoryBudget(emitter.historyBudget))
+        root["historyBudget"] = Internal::To_Json(emitter.historyBudget);
     if (emitter.typeData.kind != AuthoringTypeDataKind::None)
         root["typeData"] = Internal::To_Json(emitter.typeData);
     root["modules"] = json::array();
@@ -3611,6 +3698,8 @@ bool EffectAuthoringJsonSerializer::From_Json(const json& root, AuthoringEmitter
     if (const auto renderLayerOverrideIter = root.find("renderLayerOverride"); renderLayerOverrideIter != root.end())
         Internal::Try_ReadEnumToken(*renderLayerOverrideIter, emitter.renderLayerOverride);
     emitter.enabled = root.value("enabled", emitter.enabled);
+    if (const auto historyBudgetIter = root.find("historyBudget"); historyBudgetIter != root.end())
+        Internal::From_Json(*historyBudgetIter, emitter.historyBudget);
     emitter.previewDirty = true;
 
     const auto typeDataIter = root.find("typeData");
