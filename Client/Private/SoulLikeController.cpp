@@ -26,6 +26,7 @@
 #include "MonsterStatCom.h"
 #include "SL_Skill.h"
 #include "SL_EstherManager.h"
+#include "Unlock_Manager.h"
 
 #include <chrono>
 
@@ -230,6 +231,7 @@ bool SoulLikeController::Begin_Battle()
     _enterFxTimer = max(0.f, _enterFxDelay);
     _victorySlowElapsed = 0.f;
     _lastVictoryRewardExp = 0;
+    _lastVictoryRewardPictosIds.clear();
     _healingPotionCount = kMaxHealingPotionCount;
     _state = BattleState::EnterFx;
 
@@ -1323,6 +1325,7 @@ void SoulLikeController::Begin_Victory()
 
     GAME->Set_WorldTimeScale(0.0001f);
     Apply_VictoryRewardExp();
+    Apply_VictoryUnlockRewards();
 
     _state = BattleState::Victory;
     _enterFxTimer = 0.f;
@@ -1341,12 +1344,7 @@ void SoulLikeController::Apply_VictoryRewardExp()
         return;
 
     const Shared<SL_Base> monster = _monster.lock();
-    const Shared<SL_Maelle> player = _player.lock();
-    const Shared<PlayerStatCom> playerStat = player
-        ? dynamic_pointer_cast<PlayerStatCom>(player->Get_Stat())
-        : nullptr;
-
-    if (monster == nullptr || playerStat == nullptr)
+    if (monster == nullptr)
         return;
 
     const Shared<CombatStatCom> monsterStat = monster->Get_Stat();
@@ -1356,7 +1354,61 @@ void SoulLikeController::Apply_VictoryRewardExp()
     _lastVictoryRewardExp = monsterStat->Get_StatInfo().exp;
 
     if (_lastVictoryRewardExp > 0)
-        playerStat->Add_Exp(_lastVictoryRewardExp);
+    {
+        for (const HeroPartyEntry& entry : CLIENT->Get_HeroEntries())
+        {
+            const Shared<PlayerStatCom> worldStat = entry.hero
+                ? entry.hero->Get_Component<PlayerStatCom>()
+                : nullptr;
+
+            if (worldStat != nullptr)
+                worldStat->Add_Exp(_lastVictoryRewardExp);
+        }
+
+        const Shared<SL_Maelle> player = _player.lock();
+        const Shared<PlayerStatCom> playerStat = player
+            ? dynamic_pointer_cast<PlayerStatCom>(player->Get_Stat())
+            : nullptr;
+
+        if (playerStat != nullptr)
+            playerStat->Add_Exp(_lastVictoryRewardExp);
+    }
+}
+
+void SoulLikeController::Apply_VictoryUnlockRewards()
+{
+    if (!_lastVictoryRewardPictosIds.empty() || _monsterPrefab.empty())
+        return;
+
+    vector<string> defeatedEnemyKeys{};
+    defeatedEnemyKeys.reserve(2);
+
+    const Shared<SL_Base> monster = _monster.lock();
+    if (monster != nullptr && !monster->Get_SourcePrefabName().empty())
+        defeatedEnemyKeys.emplace_back(monster->Get_SourcePrefabName());
+
+    if (find(defeatedEnemyKeys.begin(), defeatedEnemyKeys.end(), _monsterPrefab) == defeatedEnemyKeys.end())
+        defeatedEnemyKeys.emplace_back(_monsterPrefab);
+
+    Vec3 rewardOrigin = Vec3::Zero;
+    const Vec3* rewardOriginPtr = nullptr;
+    if (monster != nullptr)
+    {
+        if (const Shared<TransformCom> monsterTransform = monster->Get_Transform())
+        {
+            rewardOrigin = monsterTransform->Get_WorldPosition();
+            rewardOriginPtr = &rewardOrigin;
+        }
+    }
+
+    if (Unlock_Manager* unlockManager = CLIENT->Get_UnlockManager())
+    {
+        _lastVictoryRewardPictosIds = unlockManager->Handle_BattleVictory(
+            defeatedEnemyKeys,
+            0,
+            GAME->Current_LevelIndex(),
+            rewardOriginPtr);
+    }
 }
 
 void SoulLikeController::Sync_PlayerResultToWorld()
@@ -1600,6 +1652,13 @@ bool SoulLikeController::Update_Esther()
 
     if (GAME->Is_UIInputEnabled() && GAME->Get_GameplayInputMode() == GameplayInputMode::UIOnly)
         return false;
+
+    if (GAME->KeyDown(KEY_TYPE::KEY_8))
+    {
+        _estherManager->Fill_GaugeForDebug();
+        return true;
+    }
+
 
     if (GAME->KeyDown(KEY_TYPE::KEY_3))
         return _estherManager->Request_Esther(SL_EstherType::GustaveOvercharge);

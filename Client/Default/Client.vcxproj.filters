@@ -357,6 +357,9 @@
     <ClCompile Include="..\Private\ANS_Trail.cpp">
       <Filter>95. AnimNotify\01. NotifyStates</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\ANS_WeakColor.cpp">
+      <Filter>95. AnimNotify\01. NotifyStates</Filter>
+    </ClCompile>
     <ClCompile Include="..\Private\ANS_Visible_Parts.cpp">
       <Filter>95. AnimNotify\01. NotifyStates</Filter>
     </ClCompile>
@@ -1820,6 +1823,9 @@
       <Filter>95. AnimNotify\01. NotifyStates</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\ANS_Trail.h">
+      <Filter>95. AnimNotify\01. NotifyStates</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\ANS_WeakColor.h">
       <Filter>95. AnimNotify\01. NotifyStates</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\ANS_Visible_Parts.h">

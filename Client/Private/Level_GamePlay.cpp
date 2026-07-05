@@ -76,6 +76,7 @@ HRESULT Level_GamePlay::Initialize()
 
     RuntimeRuleStateService::Apply_ToCurrentRuntime(
         RuntimeRuleStateService::Build_GameplayStartUnlocks(), false);
+    CLIENT->Restore_CurrentHeroesHpToMax();
 
     //if (FAILED(Ready_Layer_Effect(TEXT("Layer_Effect"))))
     //    return E_FAIL;

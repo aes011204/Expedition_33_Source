@@ -21,6 +21,7 @@ HRESULT Level_MapTest::Initialize()
     CHECK_FAILED(Ready_Layer_BackGround(TEXT("Layer_BackGround")), E_FAIL);
 
     CHECK_FAILED(Ready_Layer_Player(TEXT("Layer_Player")), E_FAIL);
+    CLIENT->Restore_CurrentHeroesHpToMax();
     CHECK_FAILED(Ready_Layer_UI(TEXT("Layer_UI")), E_FAIL);
 
     // 플레이어가 생성되고 나서 Target 카메라를 준비해야한다. 순서 조심

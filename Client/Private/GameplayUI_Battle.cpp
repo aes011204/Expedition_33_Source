@@ -1076,16 +1076,15 @@ void GameplayUI_Battle::Handle_DamageApplied(const DamageAppliedInfo& info)
     if (selectedSlot == nullptr)
         return;
 
-    Character_BattleBase* targetActor = target.actor.get();
     uint32 targetStackIndex = 0;
-    if (_lastDamageFontTargetActor == targetActor)
+
+    for (const auto& damageFont : _damageFonts)
     {
-        targetStackIndex = _damageFontTargetStackIndex++;
-    }
-    else
-    {
-        _lastDamageFontTargetActor = targetActor;
-        _damageFontTargetStackIndex = 1;
+        if (!damageFont || damageFont.get() == selectedSlot)
+            continue;
+
+        if (damageFont->Is_PlayingForTarget(target))
+            ++targetStackIndex;
     }
 
     constexpr uint32 kDamageFontAlternationBandCount = (kDamageFontPoolSize - 1) / 2;

@@ -49,6 +49,8 @@ public:
     float   Get_GaugeRatio() const;
     bool    Is_GaugeFull() const;
 
+    void    Fill_GaugeForDebug();
+
 private:
     HRESULT Initialize(const Shared<SoulLikeController>& controller);
 

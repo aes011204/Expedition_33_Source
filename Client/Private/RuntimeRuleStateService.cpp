@@ -490,17 +490,22 @@ RuntimeRuleStateIO::RuleState RuntimeRuleStateService::Build_GestralVillageStart
 	{
 		HeroId heroId;
 		const char* characterId;
+        uint32 level;
+        uint32 exp;
 		vector<const char*> skillKeys;
 	} heroes[] =
 	{
-		{ HeroId::Gustave, "Gustave", { "LumiereAssault", "UnleashedCharge", "MarkingShot", "Shatter", "PerfectBreak" } },
-		{ HeroId::Lune, "Lune", { "Immolation", "IceGust", "Thunderfall", "TerraQuake", "CripplingTsunami" } },
-		{ HeroId::Maelle, "Maelle", { "Spark", "Percee", "FleureFury", "SwordBallet", "Pyrolyse" } },
+		{ HeroId::Gustave, "Gustave", 8, 1397, { "LumiereAssault", "UnleashedCharge", "MarkingShot", "Shatter", "PerfectBreak" } },
+		{ HeroId::Lune, "Lune", 8, 887, { "Immolation", "IceGust", "Thunderfall", "TerraQuake", "CripplingTsunami" } },
+		{ HeroId::Maelle, "Maelle", 8, 887, { "Spark", "Percee", "FleureFury", "SwordBallet", "Pyrolyse" } },
 	};
 
 	for (const auto& hero : heroes)
 	{
 		RuntimeCheckpointIO::HeroState heroState = Build_HeroSkillState({ hero.heroId, hero.skillKeys });
+
+        heroState.statJson["level"] = hero.level;
+        heroState.statJson["exp"] = hero.exp;
 
 		const GameDataTable::WeaponDesc* weaponDesc =
 			CLIENT->Get_WeaponDesc(hero.characterId, "Baguette");
@@ -616,7 +621,30 @@ RuntimeRuleStateIO::RuleState RuntimeRuleStateService::Build_PotatoBagStartUnloc
 
 RuntimeRuleStateIO::RuleState RuntimeRuleStateService::Build_DuallistStartUnlocks()
 {
-    return Build_PotatoBagStartUnlocks();
+	RuntimeRuleStateIO::RuleState ruleState = Build_PotatoBagStartUnlocks();
+
+	for (RuntimeCheckpointIO::HeroState& heroState : ruleState.heroes)
+	{
+		if (!heroState.statJson.is_object())
+			continue;
+
+		heroState.statJson["level"] = 10;
+
+		switch (heroState.heroId)
+		{
+		case HeroId::Gustave:
+			heroState.statJson["exp"] = 597;
+			break;
+		case HeroId::Lune:
+		case HeroId::Maelle:
+			heroState.statJson["exp"] = 87;
+			break;
+		default:
+			break;
+		}
+	}
+
+	return ruleState;
 }
 
 RuntimeRuleStateIO::RuleState RuntimeRuleStateService::Build_SimonStartUnlocks()
@@ -633,6 +661,53 @@ RuntimeRuleStateIO::RuleState RuntimeRuleStateService::Build_SimonStartUnlocks()
 	ruleState.unlockManagerJson = Build_HeroUnlockSaveJson(
 		{ kRuleMimeCostume, kRulePotatoCostume, kRuleFirstTutorialUnlockParty },
 		{ HeroId::Gustave, HeroId::Lune, HeroId::Maelle });
+
+	ruleState.inventoryJson["unlocked_pictos"] = json::array({
+		"EnergisingTurn",
+		"WarmingUp",
+		"AugmentedAttack",
+		"Roulette",
+		"AugmentedAim",
+		"GlassCannon",
+		});
+
+	for (RuntimeCheckpointIO::HeroState& heroState : ruleState.heroes)
+	{
+		if (!heroState.statJson.is_object())
+			continue;
+
+		heroState.statJson["level"] = 11;
+
+		switch (heroState.heroId)
+		{
+		case HeroId::Gustave:
+			heroState.statJson["exp"] = 2974;
+			heroState.statJson["equipped_pictos_ids"] = json::array({
+				"EnergisingTurn",
+				"WarmingUp",
+				"GlassCannon",
+				});
+			break;
+		case HeroId::Lune:
+			heroState.statJson["exp"] = 1864;
+			heroState.statJson["equipped_pictos_ids"] = json::array({
+				"EnergisingTurn",
+				"Roulette",
+				"GlassCannon",
+				});
+			break;
+		case HeroId::Maelle:
+			heroState.statJson["exp"] = 1864;
+			heroState.statJson["equipped_pictos_ids"] = json::array({
+				"EnergisingTurn",
+				"WarmingUp",
+				"GlassCannon",
+				});
+			break;
+		default:
+			break;
+		}
+	}
 
 	return ruleState;
 }
