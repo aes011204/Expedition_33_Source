@@ -258,7 +258,8 @@ void ModelCom::Set_Animation(const string& animName, bool isLoop, float startFra
 {
     if (!_mappedAnimIndices.contains(animName))
     {
-        LOG_WARN("Failed to find animation by name: {}", animName);
+        if (_missingAnimationWarningKeys.emplace(animName).second)
+            LOG_WARN("Failed to find animation by name: {}", animName);
         return;
     }
 
@@ -269,7 +270,8 @@ void ModelCom::Set_Animation(const string& animName, float blendDuration, bool i
 {
     if (!_mappedAnimIndices.contains(animName))
     {
-        LOG_WARN("Failed to find animation by name: {}", animName);
+        if (_missingAnimationWarningKeys.emplace(animName).second)
+            LOG_WARN("Failed to find animation by name: {}", animName);
         return;
     }
 
@@ -2994,6 +2996,7 @@ void ModelCom::Reset_ModelData()
     _animations.clear();
     _stateAnimIndices.clear();
     _mappedAnimIndices.clear();
+    _missingAnimationWarningKeys.clear();
     _computeAnimationSource = {};
 
     _isFinished = false;
@@ -3073,6 +3076,7 @@ void ModelCom::Free()
     _combinedBoneMatrixCache.clear();
 
     _mappedAnimIndices.clear();
+    _missingAnimationWarningKeys.clear();
     _stateAnimIndices.clear();
     _animations.clear();
     Clear_SameAnimationBlend();

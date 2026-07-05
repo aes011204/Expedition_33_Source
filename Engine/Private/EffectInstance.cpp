@@ -10,6 +10,104 @@ uint32 Generate_EffectPlaybackSeed()
     state ^= state << 5;
     return state != 0u ? state : 0xA341316Cu;
 }
+
+class SharedTrailSampleProvider final : public IEffectTrailSampleProvider
+{
+public:
+    SharedTrailSampleProvider(
+        Weak<IEffectTrailSampleProvider> sourceProvider,
+        const uint64* frameSerial,
+        EffectHistorySourceGroupKey sourceGroupKey)
+        : _sourceProvider(move(sourceProvider))
+        , _frameSerial(frameSerial)
+        , _sourceGroupKey(move(sourceGroupKey))
+    {
+    }
+
+    bool Try_GetTrailSample(EffectTrailSample& outSample) const override
+    {
+        const uint64 currentFrameSerial = _frameSerial != nullptr ? *_frameSerial : 0u;
+        if (!_hasCachedFrame || _cachedFrameSerial != currentFrameSerial)
+        {
+            _cachedFrameSerial = currentFrameSerial;
+            _hasCachedFrame = true;
+            _stats.sourceRequestCount++;
+
+            const Shared<IEffectTrailSampleProvider> sourceProvider = _sourceProvider.lock();
+            _cachedResult = sourceProvider != nullptr && sourceProvider->Try_GetTrailSample(_cachedSample);
+        }
+        else
+        {
+            _stats.cacheHitCount++;
+            _stats.savedRequestCount++;
+        }
+
+        if (!_cachedResult)
+            return false;
+
+        outSample = _cachedSample;
+        return true;
+    }
+
+private:
+    Weak<IEffectTrailSampleProvider> _sourceProvider{};
+    const uint64* _frameSerial{};
+    EffectHistorySourceGroupKey _sourceGroupKey{};
+    mutable EffectHistorySourceGroupStats _stats{ EffectHistorySourceGroupKind::TrailPairHistory };
+    mutable uint64 _cachedFrameSerial{};
+    mutable bool _hasCachedFrame{};
+    mutable bool _cachedResult{};
+    mutable EffectTrailSample _cachedSample{};
+};
+
+class SharedSourcePointSampleProvider final : public IEffectSourcePointSampleProvider
+{
+public:
+    SharedSourcePointSampleProvider(
+        Weak<IEffectSourcePointSampleProvider> sourceProvider,
+        const uint64* frameSerial,
+        EffectHistorySourceGroupKey sourceGroupKey)
+        : _sourceProvider(move(sourceProvider))
+        , _frameSerial(frameSerial)
+        , _sourceGroupKey(move(sourceGroupKey))
+    {
+    }
+
+    bool Try_GetSourcePointSample(EffectSourcePointSample& outSample) const override
+    {
+        const uint64 currentFrameSerial = _frameSerial != nullptr ? *_frameSerial : 0u;
+        if (!_hasCachedFrame || _cachedFrameSerial != currentFrameSerial)
+        {
+            _cachedFrameSerial = currentFrameSerial;
+            _hasCachedFrame = true;
+            _stats.sourceRequestCount++;
+
+            const Shared<IEffectSourcePointSampleProvider> sourceProvider = _sourceProvider.lock();
+            _cachedResult = sourceProvider != nullptr && sourceProvider->Try_GetSourcePointSample(_cachedSample);
+        }
+        else
+        {
+            _stats.cacheHitCount++;
+            _stats.savedRequestCount++;
+        }
+
+        if (!_cachedResult)
+            return false;
+
+        outSample = _cachedSample;
+        return true;
+    }
+
+private:
+    Weak<IEffectSourcePointSampleProvider> _sourceProvider{};
+    const uint64* _frameSerial{};
+    EffectHistorySourceGroupKey _sourceGroupKey{};
+    mutable EffectHistorySourceGroupStats _stats{ EffectHistorySourceGroupKind::SourcePointHistory };
+    mutable uint64 _cachedFrameSerial{};
+    mutable bool _hasCachedFrame{};
+    mutable bool _cachedResult{};
+    mutable EffectSourcePointSample _cachedSample{};
+};
 }
 
 IMPLEMENT_REFLECTION(EffectInstance)
@@ -97,6 +195,8 @@ void EffectInstance::Update(float timeDelta)
     if (_isPlaybackPaused)
         return; // 트레일/파티클 history와 material elapsed를 현재 프레임에 고정한다.
 
+    Advance_SharedHistoryFrame();
+
     const float effectTimeDelta = timeDelta * _playbackSpeed;
     for (const auto& emitter : _emitters)
     {
@@ -156,6 +256,7 @@ void EffectInstance::Stop()
 {
     Bind_TrailSampleProvider({});
     Bind_SourcePointSampleProvider({});
+    Clear_SharedHistoryCache();
     _isPlaybackPaused = false; // Stop은 완전 정지이므로 pause 상태도 같이 해제한다.
     _playbackState = EffectPlaybackState::Stopped;
     Set_Visible(false);
@@ -168,6 +269,7 @@ HRESULT EffectInstance::Reset()
     _isPlaybackPaused = false; // Reset 이후 새 재생은 pause되지 않은 상태로 시작한다.
     Set_Visible(false);
     Set_MaterialRevealOverride(1.f, 0.f);
+    Advance_SharedHistoryFrame();
     Sync_Emitters();
 
     for (const Shared<EffectEmitter>& emitter : _emitters)
@@ -239,25 +341,61 @@ void EffectInstance::Set_MaterialTintOverride(const vector<uint32>& emitterIds, 
     }
 }
 
-void EffectInstance::Bind_TrailSampleProvider(const Weak<IEffectTrailSampleProvider>& provider)
+void EffectInstance::Bind_TrailSampleProvider(
+    const Weak<IEffectTrailSampleProvider>& provider,
+    const EffectHistorySourceGroupKey& sourceGroupKey)
 {
+    Weak<IEffectTrailSampleProvider> boundProvider = provider;
+    _trailSourceGroupKey = sourceGroupKey;
+    _sharedTrailSampleProvider.reset();
+
+    if (Is_SharedSourceHistoryEnabled() &&
+        sourceGroupKey.kind == EffectHistorySourceGroupKind::TrailPairHistory &&
+        provider.lock() != nullptr)
+    {
+        _sharedTrailSampleProvider = make_shared<Internal::SharedTrailSampleProvider>(
+            provider,
+            &_sharedHistoryFrameSerial,
+            sourceGroupKey
+        );
+        boundProvider = _sharedTrailSampleProvider;
+    }
+
     for (const Shared<EffectEmitter>& emitter : _emitters)
     {
         if (nullptr == emitter)
             continue;
 
-        emitter->Bind_TrailSampleProvider(provider);
+        emitter->Bind_TrailSampleProvider(boundProvider);
     }
 }
 
-void EffectInstance::Bind_SourcePointSampleProvider(const Weak<IEffectSourcePointSampleProvider>& provider)
+void EffectInstance::Bind_SourcePointSampleProvider(
+    const Weak<IEffectSourcePointSampleProvider>& provider,
+    const EffectHistorySourceGroupKey& sourceGroupKey)
 {
+    Weak<IEffectSourcePointSampleProvider> boundProvider = provider;
+    _sourcePointGroupKey = sourceGroupKey;
+    _sharedSourcePointSampleProvider.reset();
+
+    if (Is_SharedSourceHistoryEnabled() &&
+        sourceGroupKey.kind == EffectHistorySourceGroupKind::SourcePointHistory &&
+        provider.lock() != nullptr)
+    {
+        _sharedSourcePointSampleProvider = make_shared<Internal::SharedSourcePointSampleProvider>(
+            provider,
+            &_sharedHistoryFrameSerial,
+            sourceGroupKey
+        );
+        boundProvider = _sharedSourcePointSampleProvider;
+    }
+
     for (const Shared<EffectEmitter>& emitter : _emitters)
     {
         if (nullptr == emitter)
             continue;
 
-        emitter->Bind_SourcePointSampleProvider(provider);
+        emitter->Bind_SourcePointSampleProvider(boundProvider);
     }
 }
 
@@ -270,6 +408,27 @@ Shared<EffectEmitter> EffectInstance::Find_EmitterById(uint32 emitterId) const
     }
 
     return nullptr;
+}
+
+bool EffectInstance::Is_SharedSourceHistoryEnabled() const
+{
+    return _definition != nullptr && _definition->historyBudget.sharedSourceHistory;
+}
+
+void EffectInstance::Advance_SharedHistoryFrame()
+{
+    ++_sharedHistoryFrameSerial;
+    if (_sharedHistoryFrameSerial == 0u)
+        _sharedHistoryFrameSerial = 1u;
+}
+
+void EffectInstance::Clear_SharedHistoryCache()
+{
+    ++_sharedHistoryFrameSerial;
+    _trailSourceGroupKey = {};
+    _sourcePointGroupKey = {};
+    _sharedTrailSampleProvider.reset();
+    _sharedSourcePointSampleProvider.reset();
 }
 
 HRESULT EffectInstance::Ready_Emitters()

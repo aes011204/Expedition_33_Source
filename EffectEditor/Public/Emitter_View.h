@@ -14,6 +14,7 @@ public:
     struct AuthoringSnapshot
     {
         ParticleSystemAuthoringData particleSystemData{};
+        HistoryBudgetData historyBudget{};
         vector<AuthoringEmitter> emitters{};
         optional<size_t> selectedEmitterIndex{};
         bool selectedTypeData{ false };
@@ -31,8 +32,10 @@ public:
 
     // 현재 effect authoring document가 Save 대상임을 알린다.
     bool CanSave() const override;
-    // Save As dialog를 열어 emitter/module authoring json을 저장한다.
+    // 기존 문서 경로가 있으면 바로 저장하고, 없으면 Save As로 저장한다.
     void Save() override;
+    // Save As dialog를 열어 emitter/module authoring json을 저장한다.
+    void SaveAs();
     // 현재 effect authoring document가 Open 대상으로 교체 가능함을 알린다.
     bool CanOpen() const;
     // Open dialog로 .effect.json을 열어 authoring 상태를 복원한다.
@@ -45,9 +48,12 @@ public:
 public: //## Accessor::Authoring
     ParticleSystemAuthoringData& Get_ParticleSystemData() { return _particleSystemData; }
     const ParticleSystemAuthoringData& Get_ParticleSystemData() const { return _particleSystemData; }
+    HistoryBudgetData& Get_HistoryBudget() { return _historyBudget; }
+    const HistoryBudgetData& Get_HistoryBudget() const { return _historyBudget; }
     const vector<AuthoringEmitter>& Get_Emitters() const { return _emitters; }
     vector<AuthoringEmitter> Build_PreviewEmitters() const;
     const optional<fs::path>& Get_CurrentDocumentPath() const { return _currentDocumentPath; }
+    void Set_HistoryBudget(const HistoryBudgetData& historyBudget, const string& description);
     AuthoringEmitter* Find_Emitter(uint32 emitterId);
     AuthoringModule* Find_Module(uint32 emitterId, uint32 moduleId);
     AuthoringEmitter* Get_SelectedOrFirstEmitter();
@@ -149,6 +155,7 @@ private: //## Static Values
 
 private: //## Data::Authoring
     ParticleSystemAuthoringData _particleSystemData{};
+    HistoryBudgetData _historyBudget{};
     // 현재 편집 중인 effect의 emitter 목록이다.
     vector<AuthoringEmitter> _emitters{};
     // 현재 authoring 문서가 기존 effect 파일과 연결되어 있으면 그 경로를 보관한다.
@@ -188,6 +195,9 @@ private: //## Data::Clipboard
     AuthoringClipboardKind _clipboardKind{ AuthoringClipboardKind::None };
     optional<AuthoringEmitter> _clipboardEmitter{};
     optional<AuthoringModule> _clipboardModule{};
+
+private: //## Helper::DocumentSave
+    bool Save_ToPath(const fs::path& savePath, bool backupExistingFile);
 
 private: //## Helper::AuthoringFactory
     // 새 emitter/module에 부여할 editor-local id를 발급한다.

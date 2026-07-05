@@ -1561,6 +1561,22 @@ bool GameInstance::Try_GetRenderViewHotspotSnapshot(RenderViewHotspotSnapshot& o
     return _renderer->Try_GetRenderViewHotspotSnapshot(outSnapshot);
 }
 
+void GameInstance::Set_RenderViewHotspotCaptureEnabled(bool enabled)
+{
+    if (_renderer == nullptr)
+        return;
+
+    _renderer->Set_RenderViewHotspotCaptureEnabled(enabled);
+}
+
+bool GameInstance::Is_RenderViewHotspotCaptureEnabled() const
+{
+    if (_renderer == nullptr)
+        return false;
+
+    return _renderer->Is_RenderViewHotspotCaptureEnabled();
+}
+
 const Shared<PostProcessPipeline> GameInstance::Get_PostProcessPipeline() const
 {
     return _renderer ? _renderer->Get_PostProcessPipeline() : nullptr;

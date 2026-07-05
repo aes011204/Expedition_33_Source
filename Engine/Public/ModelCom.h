@@ -315,6 +315,7 @@ private:
     vector<Shared<Animation>>	        _animations;
     vector<uint32>                      _stateAnimIndices;
     unordered_map<string, uint32>       _mappedAnimIndices;
+    unordered_set<string>               _missingAnimationWarningKeys;
     vector<Shared<AnimationModifier>>   _modifiers;
     Shared<ModelDeform>                _modelDeform;
 

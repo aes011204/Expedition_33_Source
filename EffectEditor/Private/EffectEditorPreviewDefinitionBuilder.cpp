@@ -2077,18 +2077,290 @@ namespace Internal
 }
 
 EffectEmitterDefinition Build_PreviewEmitterDefinition(const AuthoringEmitter& emitter);
-EffectEmitterDefinition Build_PreviewTrailEmitterDefinition(const AuthoringEmitter& emitter);
-EffectEmitterDefinition Build_PreviewSourceHistoryRibbonEmitterDefinition(const AuthoringEmitter& emitter);
-EffectEmitterDefinition Build_PreviewSourceHistorySpriteTrailEmitterDefinition(const AuthoringEmitter& emitter);
+EffectEmitterDefinition Build_PreviewTrailEmitterDefinition(
+    const AuthoringEmitter& emitter,
+    const EffectHistoryBudgetRuntimeDesc& budget,
+    const vector<EffectHistorySourceGroupBudgetDesc>& sourceGroups);
+EffectEmitterDefinition Build_PreviewSourceHistoryRibbonEmitterDefinition(
+    const AuthoringEmitter& emitter,
+    const EffectHistoryBudgetRuntimeDesc& budget,
+    const vector<EffectHistorySourceGroupBudgetDesc>& sourceGroups);
+EffectEmitterDefinition Build_PreviewSourceHistorySpriteTrailEmitterDefinition(
+    const AuthoringEmitter& emitter,
+    const EffectHistoryBudgetRuntimeDesc& budget,
+    const vector<EffectHistorySourceGroupBudgetDesc>& sourceGroups);
 EffectEmitterDefinition Build_PreviewBeamEmitterDefinition(const AuthoringEmitter& emitter);
 EffectEmitterDefinition Build_PreviewMeshEmitterDefinition(const AuthoringEmitter& emitter);
 
+EffectHistoryBudgetRuntimeDesc Build_HistoryBudget(const HistoryBudgetData& data)
+{
+    EffectHistoryBudgetRuntimeDesc budget{};
+    switch (data.preset)
+    {
+    case HistoryBudgetPreset::High:
+        budget.preset = EffectHistoryBudgetPreset::High;
+        break;
+    case HistoryBudgetPreset::Medium:
+        budget.preset = EffectHistoryBudgetPreset::Medium;
+        break;
+    case HistoryBudgetPreset::Performance:
+        budget.preset = EffectHistoryBudgetPreset::Performance;
+        break;
+    case HistoryBudgetPreset::Low:
+        budget.preset = EffectHistoryBudgetPreset::Low;
+        break;
+    case HistoryBudgetPreset::Full:
+    default:
+        budget.preset = EffectHistoryBudgetPreset::Full;
+        break;
+    }
+
+    budget.preserveLength = true;
+    budget.sharedSourceHistory = true;
+    budget.trailDensityScale = max(0.f, data.trailDensityScale);
+    budget.spriteStampDensityScale = 1.f;
+    budget.ribbonDensityScale = max(0.f, data.ribbonDensityScale);
+    budget.distortionDensityScale = max(0.f, data.distortionDensityScale);
+    budget.updateRate = data.updateRate == HistoryBudgetUpdateRate::Every2Frames
+                        ? EffectHistoryBudgetUpdateRate::Every2Frames
+                        : EffectHistoryBudgetUpdateRate::EveryFrame;
+    return budget;
+}
+
+vector<EffectHistorySourceGroupBudgetDesc> Build_HistorySourceGroups(const vector<HistorySourceGroupBudgetData>& data)
+{
+    vector<EffectHistorySourceGroupBudgetDesc> groups{};
+    groups.reserve(data.size());
+
+    for (const HistorySourceGroupBudgetData& source : data)
+    {
+        if (source.kind == EffectHistorySourceGroupKind::None || source.stableId.empty())
+            continue;
+
+        EffectHistorySourceGroupBudgetDesc group{};
+        group.kind = source.kind;
+        group.stableId = source.stableId;
+        group.confirmed = source.confirmed;
+        group.sourceSampleCount = source.sourceSampleCount;
+        group.sampleLifetime = source.sampleLifetime;
+        group.sampleSpacing = source.sampleSpacing;
+        group.sampleInterval = source.sampleInterval;
+        group.curveSubdivision = source.curveSubdivision;
+        group.smoothTangent = source.smoothTangent;
+        groups.push_back(group);
+    }
+
+    return groups;
+}
+
+EffectEmitterHistoryBudgetRuntimeDesc Build_HistoryBudgetUsage(const EmitterHistoryBudgetData& data)
+{
+    EffectEmitterHistoryBudgetRuntimeDesc usage{};
+    switch (data.priority)
+    {
+    case HistoryBudgetPriority::Secondary:
+        usage.priority = EffectHistoryBudgetPriority::Secondary;
+        break;
+    case HistoryBudgetPriority::Decorative:
+        usage.priority = EffectHistoryBudgetPriority::Decorative;
+        break;
+    case HistoryBudgetPriority::Distortion:
+        usage.priority = EffectHistoryBudgetPriority::Distortion;
+        break;
+    case HistoryBudgetPriority::Core:
+    default:
+        usage.priority = EffectHistoryBudgetPriority::Core;
+        break;
+    }
+
+    switch (data.densityBias)
+    {
+    case HistoryBudgetDensityBias::Dense:
+        usage.densityBias = EffectHistoryBudgetDensityBias::Dense;
+        break;
+    case HistoryBudgetDensityBias::Sparse:
+        usage.densityBias = EffectHistoryBudgetDensityBias::Sparse;
+        break;
+    case HistoryBudgetDensityBias::Normal:
+    default:
+        usage.densityBias = EffectHistoryBudgetDensityBias::Normal;
+        break;
+    }
+
+    usage.lengthScale = max(0.f, data.lengthScale);
+    return usage;
+}
+
+const char* Resolve_TrailSourceGroupId()
+{
+    return "TrailProvider";
+}
+
+string Resolve_SourcePointSourceGroupId(EffectSourceHistoryRibbonSourceMode sourceMode, uint32 sourceEmitterId)
+{
+    if (sourceMode == EffectSourceHistoryRibbonSourceMode::ParticleEmitter)
+        return format("ParticleEmitter:{}", sourceEmitterId);
+
+    return "SelfRoot";
+}
+
+void Apply_SourceGroupBudget(
+    const vector<EffectHistorySourceGroupBudgetDesc>& sourceGroups,
+    ComputeTrailEmitterDesc& desc)
+{
+    const EffectHistorySourceGroupBudgetDesc* group = Find_EffectHistorySourceGroupBudget(
+        sourceGroups,
+        EffectHistorySourceGroupKind::TrailPairHistory,
+        Resolve_TrailSourceGroupId()
+    );
+    if (group == nullptr)
+        return;
+
+    if (group->sourceSampleCount > 0u)
+        desc.historyCount = max(2u, group->sourceSampleCount);
+    if (group->sampleSpacing > 0.f)
+        desc.sampleSpacing = max(0.001f, group->sampleSpacing);
+    if (group->curveSubdivision > 0u)
+        desc.curveSubdivision = group->curveSubdivision;
+    desc.smoothTangent = group->smoothTangent;
+}
+
+void Apply_SourceGroupBudget(
+    const vector<EffectHistorySourceGroupBudgetDesc>& sourceGroups,
+    ComputeRibbonEmitterDesc& desc)
+{
+    const string sourceGroupId = Resolve_SourcePointSourceGroupId(desc.sourceMode, desc.sourceEmitterId);
+    const EffectHistorySourceGroupBudgetDesc* group = Find_EffectHistorySourceGroupBudget(
+        sourceGroups,
+        EffectHistorySourceGroupKind::SourcePointHistory,
+        sourceGroupId
+    );
+    if (group == nullptr)
+        return;
+
+    if (group->sourceSampleCount > 0u)
+        desc.maxSampleCount = max(2u, group->sourceSampleCount);
+    if (group->sampleLifetime > 0.f)
+        desc.sampleLifetime = max(0.0001f, group->sampleLifetime);
+    if (group->sampleSpacing > 0.f)
+        desc.sampleSpacing = max(0.001f, group->sampleSpacing);
+    desc.sampleInterval = max(0.f, group->sampleInterval);
+    if (group->curveSubdivision > 0u)
+        desc.curveSubdivision = group->curveSubdivision;
+    desc.smoothTangent = group->smoothTangent;
+}
+
+void Apply_SourceGroupBudget(
+    const vector<EffectHistorySourceGroupBudgetDesc>& sourceGroups,
+    ComputeSourceHistorySpriteTrailEmitterDesc& desc)
+{
+    const string sourceGroupId = Resolve_SourcePointSourceGroupId(desc.sourceMode, desc.sourceEmitterId);
+    const EffectHistorySourceGroupBudgetDesc* group = Find_EffectHistorySourceGroupBudget(
+        sourceGroups,
+        EffectHistorySourceGroupKind::SourcePointHistory,
+        sourceGroupId
+    );
+    if (group == nullptr)
+        return;
+
+    if (group->sampleLifetime > 0.f)
+        desc.sampleLifetime = max(0.0001f, group->sampleLifetime);
+    if (group->sampleSpacing > 0.f)
+        desc.sampleSpacing = max(0.001f, group->sampleSpacing);
+    if (group->curveSubdivision > 0u)
+        desc.curveSubdivision = group->curveSubdivision;
+    desc.smoothTangent = group->smoothTangent;
+}
+
+void Assign_HistoryBudgetEffective(
+    EffectEmitterDefinition& definition,
+    const EffectHistoryBudgetEffectiveInput& input)
+{
+    definition.effectiveHistoryBudget.family = input.family;
+    definition.effectiveHistoryBudget.sourceSampleCount = input.sourceSampleCount;
+    definition.effectiveHistoryBudget.renderSegmentCount = input.renderSegmentCount;
+    definition.effectiveHistoryBudget.spriteStampCount = input.spriteStampCount;
+}
+
+uint32 Resolve_HistoryBudgetCurveSubdivision(
+    const EffectHistoryBudgetRuntimeDesc& budget,
+    const EffectEmitterHistoryBudgetRuntimeDesc& usage,
+    EffectHistoryBudgetFamily family,
+    uint32 sourceCount,
+    uint32 authoredSubdivision)
+{
+    if (budget.preset == EffectHistoryBudgetPreset::Full || sourceCount == 0u)
+        return authoredSubdivision;
+
+    const uint32 effectiveAuthoredSubdivision = max(1u, authoredSubdivision);
+    const EffectHistoryBudgetEffectiveDesc target = Compute_EffectHistoryBudgetEffective(
+        budget,
+        usage,
+        EffectHistoryBudgetEffectiveInput{
+            family,
+            sourceCount,
+            sourceCount * effectiveAuthoredSubdivision,
+            0u
+        }
+    );
+    const uint32 desiredSubdivision = max(1u, (target.renderSegmentCount + sourceCount - 1u) / sourceCount);
+    const uint32 cappedSubdivision = min(effectiveAuthoredSubdivision, desiredSubdivision);
+    return authoredSubdivision == 0u ? 0u : cappedSubdivision;
+}
+
+void Apply_SafeHistoryBudgetDensityCap(
+    const EffectHistoryBudgetRuntimeDesc& budget,
+    const EffectEmitterHistoryBudgetRuntimeDesc& usage,
+    ComputeTrailEmitterDesc& desc)
+{
+    desc.curveSubdivision = Resolve_HistoryBudgetCurveSubdivision(
+        budget,
+        usage,
+        EffectHistoryBudgetFamily::Trail,
+        desc.historyCount,
+        desc.curveSubdivision
+    );
+}
+
+void Apply_SafeHistoryBudgetDensityCap(
+    const EffectHistoryBudgetRuntimeDesc& budget,
+    const EffectEmitterHistoryBudgetRuntimeDesc& usage,
+    ComputeRibbonEmitterDesc& desc)
+{
+    desc.curveSubdivision = Resolve_HistoryBudgetCurveSubdivision(
+        budget,
+        usage,
+        EffectHistoryBudgetFamily::Ribbon,
+        desc.maxSampleCount,
+        desc.curveSubdivision
+    );
+}
+
+void Apply_SafeHistoryBudgetDensityCap(
+    const EffectHistoryBudgetRuntimeDesc& budget,
+    const EffectEmitterHistoryBudgetRuntimeDesc& usage,
+    ComputeSourceHistorySpriteTrailEmitterDesc& desc)
+{
+    const uint32 estimatedSourceSampleCount =
+        max(2u, static_cast<uint32>(ceilf(desc.sampleLifetime / max(0.001f, desc.sampleSpacing))) + 2u);
+    desc.curveSubdivision = Resolve_HistoryBudgetCurveSubdivision(
+        budget,
+        usage,
+        EffectHistoryBudgetFamily::SourceHistorySpriteTrail,
+        estimatedSourceSampleCount,
+        desc.curveSubdivision
+    );
+}
+
 Shared<const EffectDefinition> Build_EffectDefinition(
     const vector<AuthoringEmitter>& emitters,
+    const HistoryBudgetData& historyBudget,
     bool includeTrail)
 {
     auto definition = make_shared<EffectDefinition>();
     definition->name = "EffectEditorPreview";
+    definition->historyBudget = Build_HistoryBudget(historyBudget);
+    definition->historySourceGroups = Build_HistorySourceGroups(historyBudget.sourceGroups);
 
     for (const AuthoringEmitter& emitter : emitters)
     {
@@ -2101,7 +2373,7 @@ Shared<const EffectDefinition> Build_EffectDefinition(
             if (!includeTrail)
                 break;
 
-            definition->emitters.push_back(Build_PreviewTrailEmitterDefinition(emitter));
+            definition->emitters.push_back(Build_PreviewTrailEmitterDefinition(emitter, definition->historyBudget, definition->historySourceGroups));
             break;
 
         case AuthoringTypeDataKind::Mesh:
@@ -2109,11 +2381,11 @@ Shared<const EffectDefinition> Build_EffectDefinition(
             break;
 
         case AuthoringTypeDataKind::Ribbon:
-            definition->emitters.push_back(Build_PreviewSourceHistoryRibbonEmitterDefinition(emitter));
+            definition->emitters.push_back(Build_PreviewSourceHistoryRibbonEmitterDefinition(emitter, definition->historyBudget, definition->historySourceGroups));
             break;
 
         case AuthoringTypeDataKind::SourceHistorySpriteTrail:
-            definition->emitters.push_back(Build_PreviewSourceHistorySpriteTrailEmitterDefinition(emitter));
+            definition->emitters.push_back(Build_PreviewSourceHistorySpriteTrailEmitterDefinition(emitter, definition->historyBudget, definition->historySourceGroups));
             break;
 
         case AuthoringTypeDataKind::Beam:
@@ -2130,17 +2402,19 @@ Shared<const EffectDefinition> Build_EffectDefinition(
     return definition;
 }
 
-Shared<const EffectDefinition> Build_TrailEffectDefinition(const vector<AuthoringEmitter>& emitters)
+Shared<const EffectDefinition> Build_TrailEffectDefinition(const vector<AuthoringEmitter>& emitters, const HistoryBudgetData& historyBudget)
 {
     auto definition = make_shared<EffectDefinition>();
     definition->name = "EffectEditorPreviewTrailStroke";
+    definition->historyBudget = Build_HistoryBudget(historyBudget);
+    definition->historySourceGroups = Build_HistorySourceGroups(historyBudget.sourceGroups);
 
     for (const AuthoringEmitter& emitter : emitters)
     {
         if (!emitter.enabled || emitter.typeData.kind != AuthoringTypeDataKind::Trail)
             continue;
 
-        definition->emitters.push_back(Build_PreviewTrailEmitterDefinition(emitter));
+        definition->emitters.push_back(Build_PreviewTrailEmitterDefinition(emitter, definition->historyBudget, definition->historySourceGroups));
     }
 
     return definition->emitters.empty() ? nullptr : definition;
@@ -2497,7 +2771,10 @@ EffectEmitterDefinition Build_PreviewEmitterDefinition(const AuthoringEmitter& e
     return definition;
 }
 
-EffectEmitterDefinition Build_PreviewTrailEmitterDefinition(const AuthoringEmitter& emitter)
+EffectEmitterDefinition Build_PreviewTrailEmitterDefinition(
+    const AuthoringEmitter& emitter,
+    const EffectHistoryBudgetRuntimeDesc& budget,
+    const vector<EffectHistorySourceGroupBudgetDesc>& sourceGroups)
 {
     EffectEmitterDefinition definition{};
     definition.id = emitter.id;
@@ -2505,6 +2782,7 @@ EffectEmitterDefinition Build_PreviewTrailEmitterDefinition(const AuthoringEmitt
     definition.kind = EffectEmitterKind::Trail;
     definition.enabled = emitter.enabled;
     definition.renderLayerOverride = Internal::Resolve_EffectRenderLayerOverride(emitter.renderLayerOverride);
+    definition.historyBudget = Build_HistoryBudgetUsage(emitter.historyBudget);
 
     ComputeTrailEmitterDesc emitterDesc{};
     emitterDesc.renderLayerOverride = definition.renderLayerOverride;
@@ -2648,11 +2926,25 @@ EffectEmitterDefinition Build_PreviewTrailEmitterDefinition(const AuthoringEmitt
         emitterDesc.spawnPerUnit.maxFrameDistance = max(0.f, spawnPerUnit->maxFrameDistance);
     }
 
+    Apply_SourceGroupBudget(sourceGroups, emitterDesc);
+    Apply_SafeHistoryBudgetDensityCap(budget, definition.historyBudget, emitterDesc);
     definition.concreteDesc = emitterDesc;
+    Assign_HistoryBudgetEffective(
+        definition,
+        EffectHistoryBudgetEffectiveInput{
+            EffectHistoryBudgetFamily::Trail,
+            emitterDesc.historyCount,
+            emitterDesc.historyCount * max(1u, emitterDesc.curveSubdivision),
+            0u
+        }
+    );
     return definition;
 }
 
-EffectEmitterDefinition Build_PreviewSourceHistoryRibbonEmitterDefinition(const AuthoringEmitter& emitter)
+EffectEmitterDefinition Build_PreviewSourceHistoryRibbonEmitterDefinition(
+    const AuthoringEmitter& emitter,
+    const EffectHistoryBudgetRuntimeDesc& budget,
+    const vector<EffectHistorySourceGroupBudgetDesc>& sourceGroups)
 {
     EffectEmitterDefinition definition{};
     definition.id = emitter.id;
@@ -2660,6 +2952,7 @@ EffectEmitterDefinition Build_PreviewSourceHistoryRibbonEmitterDefinition(const 
     definition.kind = EffectEmitterKind::Ribbon;
     definition.enabled = emitter.enabled;
     definition.renderLayerOverride = Internal::Resolve_EffectRenderLayerOverride(emitter.renderLayerOverride);
+    definition.historyBudget = Build_HistoryBudgetUsage(emitter.historyBudget);
 
     ComputeRibbonEmitterDesc emitterDesc{};
     emitterDesc.renderLayerOverride = definition.renderLayerOverride;
@@ -2866,18 +3159,38 @@ EffectEmitterDefinition Build_PreviewSourceHistoryRibbonEmitterDefinition(const 
     if (const auto* sizeByLife = Internal::Find_ModuleData<SizeByLifeModuleData>(emitter, AuthoringModuleType::SizeByLife))
         Internal::Fill_SizeByLifePayload(emitterDesc.sizeByLife, *sizeByLife);
 
-    emitterDesc.maxSampleCount = Internal::Resolve_RibbonAutoHistoryCount(
-        emitterDesc.maxSampleCount,
-        emitterDesc.sampleLifetime,
-        emitterDesc.sampleSpacing,
-        emitterDesc.maxLength
-    );
+    Apply_SourceGroupBudget(sourceGroups, emitterDesc);
+    if (Find_EffectHistorySourceGroupBudget(
+            sourceGroups,
+            EffectHistorySourceGroupKind::SourcePointHistory,
+            Resolve_SourcePointSourceGroupId(emitterDesc.sourceMode, emitterDesc.sourceEmitterId)) == nullptr)
+    {
+        emitterDesc.maxSampleCount = Internal::Resolve_RibbonAutoHistoryCount(
+            emitterDesc.maxSampleCount,
+            emitterDesc.sampleLifetime,
+            emitterDesc.sampleSpacing,
+            emitterDesc.maxLength
+        );
+    }
 
+    Apply_SafeHistoryBudgetDensityCap(budget, definition.historyBudget, emitterDesc);
     definition.concreteDesc = emitterDesc;
+    Assign_HistoryBudgetEffective(
+        definition,
+        EffectHistoryBudgetEffectiveInput{
+            EffectHistoryBudgetFamily::Ribbon,
+            emitterDesc.maxSampleCount,
+            emitterDesc.maxSampleCount * max(1u, emitterDesc.curveSubdivision),
+            0u
+        }
+    );
     return definition;
 }
 
-EffectEmitterDefinition Build_PreviewSourceHistorySpriteTrailEmitterDefinition(const AuthoringEmitter& emitter)
+EffectEmitterDefinition Build_PreviewSourceHistorySpriteTrailEmitterDefinition(
+    const AuthoringEmitter& emitter,
+    const EffectHistoryBudgetRuntimeDesc& budget,
+    const vector<EffectHistorySourceGroupBudgetDesc>& sourceGroups)
 {
     EffectEmitterDefinition definition{};
     definition.id = emitter.id;
@@ -2885,6 +3198,7 @@ EffectEmitterDefinition Build_PreviewSourceHistorySpriteTrailEmitterDefinition(c
     definition.kind = EffectEmitterKind::SourceHistorySpriteTrail;
     definition.enabled = emitter.enabled;
     definition.renderLayerOverride = Internal::Resolve_EffectRenderLayerOverride(emitter.renderLayerOverride);
+    definition.historyBudget = Build_HistoryBudgetUsage(emitter.historyBudget);
 
     ComputeSourceHistorySpriteTrailEmitterDesc emitterDesc{};
     emitterDesc.renderLayerOverride = definition.renderLayerOverride;
@@ -3229,7 +3543,20 @@ EffectEmitterDefinition Build_PreviewSourceHistorySpriteTrailEmitterDefinition(c
         Internal::Fill_RotationRateScaleByLifePayload(emitterDesc.rotation, *rotationRateScaleByLife);
     }
 
+    Apply_SourceGroupBudget(sourceGroups, emitterDesc);
+    Apply_SafeHistoryBudgetDensityCap(budget, definition.historyBudget, emitterDesc);
     definition.concreteDesc = emitterDesc;
+    const uint32 estimatedSourceSampleCount =
+        max(2u, static_cast<uint32>(ceilf(emitterDesc.sampleLifetime / max(0.001f, emitterDesc.sampleSpacing))) + 2u);
+    Assign_HistoryBudgetEffective(
+        definition,
+        EffectHistoryBudgetEffectiveInput{
+            EffectHistoryBudgetFamily::SourceHistorySpriteTrail,
+            estimatedSourceSampleCount,
+            estimatedSourceSampleCount * max(1u, emitterDesc.curveSubdivision),
+            emitterDesc.maxStampCount
+        }
+    );
     return definition;
 }
 

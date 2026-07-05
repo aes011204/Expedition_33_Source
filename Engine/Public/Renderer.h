@@ -34,6 +34,9 @@ public:
     void    Sync_ViewportDependentState(uint32 width, uint32 height);
     uint32  Get_RenderCall() const;
     bool    Try_GetRenderViewHotspotSnapshot(RenderViewHotspotSnapshot& outSnapshot) const;
+    // Render hotspot capture is editor diagnostics only and is off by default.
+    void    Set_RenderViewHotspotCaptureEnabled(bool enabled);
+    bool    Is_RenderViewHotspotCaptureEnabled() const { return _renderViewHotspotCaptureEnabled; }
     void    Set_ShadowEnabled(bool enabled)
     {
         if (_shadowEnabled != enabled)
@@ -270,6 +273,7 @@ private:
 private:
     RenderViewHotspotSnapshot _hotspotPendingSnapshot = {};
     RenderViewHotspotSnapshot _hotspotLastSnapshot = {};
+    bool _renderViewHotspotCaptureEnabled = false;
 
 public:
 	static Unique<Renderer> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);
