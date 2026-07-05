@@ -14,6 +14,10 @@
 #include "Helper_String.h"
 #include "Notification_Manager.h"
 
+#include <ctime>
+#include <iomanip>
+#include <sstream>
+
 NS_BEGIN(EffectEditor)
 
 namespace Internal
@@ -24,6 +28,7 @@ namespace Internal
     constexpr auto kEffectAuthoringSaveDefaultFolder = L"../../../Client/Bin/Resources/Effects/Assets";
     constexpr auto kEffectAuthoringSaveDefaultFileName = L"NewEffect.effect.json";
     constexpr auto kEffectAuthoringExtension = L".effect.json";
+    constexpr auto kEffectAuthoringBackupFolderName = L"Backup";
     constexpr auto kSoloPreviewIcon = ICON_FA_BULLSEYE;
     constexpr auto kPreviewTransformIcon = ICON_FA_UP_DOWN_LEFT_RIGHT;
     constexpr ImU32 kCurveEditorFocusBarColor = IM_COL32(80, 170, 205, 255);
@@ -87,6 +92,92 @@ namespace Internal
             return filePath;
 
         return fs::path(filePath.wstring() + kEffectAuthoringExtension);
+    }
+
+    bool Try_MakeRelativePathUnderRoot(const fs::path& filePath, const fs::path& rootPath, fs::path& outRelativePath)
+    {
+        outRelativePath.clear();
+        if (filePath.empty() || rootPath.empty())
+            return false;
+
+        try
+        {
+            const fs::path relativePath = fs::relative(filePath, rootPath);
+            if (relativePath.empty())
+                return false;
+
+            for (const fs::path& part : relativePath)
+            {
+                if (part.native() == L"..")
+                    return false;
+            }
+
+            if (relativePath.is_absolute())
+                return false;
+
+            outRelativePath = relativePath;
+            return true;
+        }
+        catch (...)
+        {
+            return false;
+        }
+    }
+
+    fs::path Resolve_EffectAuthoringBackupRoot()
+    {
+        if (GAME != nullptr)
+        {
+            const wstring assetRoot = GAME->Get_AssetRoot();
+            if (!assetRoot.empty())
+                return (fs::path(assetRoot) / L"Effects" / L"Assets" / kEffectAuthoringBackupFolderName).lexically_normal();
+        }
+
+        const fs::path defaultFolder = Normalize_EffectSaveDialogPath(kEffectAuthoringSaveDefaultFolder);
+        return (defaultFolder / kEffectAuthoringBackupFolderName).lexically_normal();
+    }
+
+    wstring Make_BackupTimestamp()
+    {
+        const time_t now = time(nullptr);
+        tm localTime{};
+        localtime_s(&localTime, &now);
+
+        wstringstream stream{};
+        stream << put_time(&localTime, L"%Y%m%d_%H%M%S");
+        return stream.str();
+    }
+
+    fs::path Build_EffectAuthoringBackupPath(const fs::path& sourcePath)
+    {
+        const fs::path normalizedSourcePath = Normalize_EffectSaveDialogPath(sourcePath);
+        const fs::path backupRoot = Resolve_EffectAuthoringBackupRoot();
+        fs::path backupFolder = backupRoot;
+
+        fs::path relativeSourcePath{};
+        if (Try_MakeRelativePathUnderRoot(normalizedSourcePath, backupRoot.parent_path(), relativeSourcePath))
+            backupFolder /= relativeSourcePath.parent_path();
+
+        const wstring backupFileName =
+            normalizedSourcePath.filename().wstring() + L"." + Make_BackupTimestamp() + L".bak";
+        return backupFolder / backupFileName;
+    }
+
+    bool Try_BackupExistingEffectFile(const fs::path& sourcePath, fs::path& outBackupPath)
+    {
+        outBackupPath = Build_EffectAuthoringBackupPath(sourcePath);
+
+        try
+        {
+            fs::create_directories(outBackupPath.parent_path());
+            fs::copy_file(sourcePath, outBackupPath, fs::copy_options::none);
+            return true;
+        }
+        catch (...)
+        {
+            outBackupPath.clear();
+            return false;
+        }
     }
 
     bool Try_PickEffectSaveFileDialog(fs::path& outFilePath)
@@ -344,11 +435,51 @@ bool Emitter_View::CanSave() const
 
 void Emitter_View::Save()
 {
+    error_code errorCode{};
+    if (!_currentDocumentPath.has_value() || !fs::exists(_currentDocumentPath.value(), errorCode))
+    {
+        SaveAs();
+        return;
+    }
+
+    Save_ToPath(_currentDocumentPath.value(), true);
+}
+
+void Emitter_View::SaveAs()
+{
     fs::path savePath{};
     if (!Internal::Try_PickEffectSaveFileDialog(savePath))
         return;
 
-    ofstream file(savePath);
+    Save_ToPath(savePath, false);
+}
+
+bool Emitter_View::Save_ToPath(const fs::path& savePath, bool backupExistingFile)
+{
+    const fs::path normalizedSavePath = Internal::Normalize_EffectSaveDialogPath(savePath);
+    error_code errorCode{};
+    if (backupExistingFile &&
+        fs::exists(normalizedSavePath, errorCode) &&
+        !errorCode &&
+        fs::is_regular_file(normalizedSavePath, errorCode) &&
+        !errorCode)
+    {
+        fs::path backupPath{};
+        if (!Internal::Try_BackupExistingEffectFile(normalizedSavePath, backupPath))
+        {
+            if (EDITOR != nullptr && EDITOR->Get_Notification() != nullptr)
+            {
+                EDITOR->Get_Notification()->Add_Notification_With_Type(
+                    NotifyType::Warning,
+                    "Effect 백업 실패, 저장 중단: {}",
+                    String::ToString(normalizedSavePath.filename().wstring())
+                );
+            }
+            return false;
+        }
+    }
+
+    ofstream file(normalizedSavePath);
     if (!file.is_open())
     {
         if (EDITOR != nullptr && EDITOR->Get_Notification() != nullptr)
@@ -356,10 +487,10 @@ void Emitter_View::Save()
             EDITOR->Get_Notification()->Add_Notification_With_Type(
                 NotifyType::Warning,
                 "Effect 저장 실패: {}",
-                String::ToString(savePath.filename().wstring())
+                String::ToString(normalizedSavePath.filename().wstring())
             );
         }
-        return;
+        return false;
     }
 
     const json documentJson = Build_AuthoringDocumentJson();
@@ -372,14 +503,14 @@ void Emitter_View::Save()
             EDITOR->Get_Notification()->Add_Notification_With_Type(
                 NotifyType::Warning,
                 "Effect 저장 실패: {}",
-                String::ToString(savePath.filename().wstring())
+                String::ToString(normalizedSavePath.filename().wstring())
             );
         }
-        return;
+        return false;
     }
 
-    const string effectGuid = GAME != nullptr ? GAME->Ensure_AssetGUID(savePath.wstring(), "Effect") : string{};
-    _currentDocumentPath = Internal::Normalize_EffectSaveDialogPath(savePath);
+    const string effectGuid = GAME != nullptr ? GAME->Ensure_AssetGUID(normalizedSavePath.wstring(), "Effect") : string{};
+    _currentDocumentPath = normalizedSavePath;
 
     ClearDirty();
 
@@ -390,7 +521,7 @@ void Emitter_View::Save()
             EDITOR->Get_Notification()->Add_Notification_With_Type(
                 NotifyType::Success,
                 "Effect 저장 완료: {}",
-                String::ToString(savePath.filename().wstring())
+                String::ToString(normalizedSavePath.filename().wstring())
             );
         }
         else
@@ -398,10 +529,12 @@ void Emitter_View::Save()
             EDITOR->Get_Notification()->Add_Notification_With_Type(
                 NotifyType::Warning,
                 "Effect 저장 완료, meta 생성 실패: {}",
-                String::ToString(savePath.filename().wstring())
+                String::ToString(normalizedSavePath.filename().wstring())
             );
         }
     }
+
+    return true;
 }
 
 bool Emitter_View::CanOpen() const

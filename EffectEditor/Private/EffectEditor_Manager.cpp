@@ -174,6 +174,9 @@ void EffectEditor_Manager::Render_MainMenuBar()
         if (ImGui::MenuItem("Save", "Ctrl+S", false, canSaveEffectDocument))
             Save_EffectDocument();
 
+        if (ImGui::MenuItem("Save As", "Ctrl+Shift+S", false, canSaveEffectDocument))
+            SaveAs_EffectDocument();
+
         const bool canOpenEffectDocument = CanOpen_EffectDocument();
         if (ImGui::MenuItem("Open", "Ctrl+O", false, canOpenEffectDocument))
             Open_EffectDocument();
@@ -235,6 +238,14 @@ void EffectEditor_Manager::Render_RuntimeToolbar()
     ImGui::BeginDisabled(!canSaveEffectDocument);
     if (ImGui::Button(ICON_FA_FLOPPY_DISK " Save"))
         Save_EffectDocument();
+    ImGui::EndDisabled();
+    if (!canSaveEffectDocument && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+        ImGui::SetTooltip("저장 가능한 effect 문서가 없습니다.");
+
+    ImGui::SameLine();
+    ImGui::BeginDisabled(!canSaveEffectDocument);
+    if (ImGui::Button(ICON_FA_FLOPPY_DISK " Save As"))
+        SaveAs_EffectDocument();
     ImGui::EndDisabled();
     if (!canSaveEffectDocument && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
         ImGui::SetTooltip("저장 가능한 effect 문서가 없습니다.");
@@ -479,7 +490,9 @@ void EffectEditor_Manager::Handle_Shortcuts()
     if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_Y, false))
         EDITOR->Redo();
 
-    if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_S, false))
+    if (io.KeyCtrl && io.KeyShift && ImGui::IsKeyPressed(ImGuiKey_S, false))
+        SaveAs_EffectDocument();
+    else if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_S, false))
         Save_EffectDocument();
 
     if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_O, false))
@@ -604,6 +617,8 @@ void EffectEditor_Manager::Render_ShortcutHelp()
             draw_shortcut_row("Shift -", "Time Scale Down");
 
             draw_section_row("Windows / Global");
+            draw_shortcut_row("Ctrl + S", "Save Effect");
+            draw_shortcut_row("Ctrl + Shift + S", "Save Effect As");
             draw_shortcut_row("Ctrl + O", "Open Effect");
             draw_shortcut_row("F8", "Switch Camera");
             draw_shortcut_row("Alt + Enter", "Fullscreen Toggle");
@@ -660,6 +675,16 @@ bool EffectEditor_Manager::Save_EffectDocument()
         return false;
 
     emitterView->Save();
+    return true;
+}
+
+bool EffectEditor_Manager::SaveAs_EffectDocument()
+{
+    const Shared<Emitter_View> emitterView = Find_EffectAuthoringView();
+    if (emitterView == nullptr || !emitterView->CanSave())
+        return false;
+
+    emitterView->SaveAs();
     return true;
 }
 

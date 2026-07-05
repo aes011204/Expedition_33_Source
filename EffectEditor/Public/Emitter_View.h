@@ -32,8 +32,10 @@ public:
 
     // 현재 effect authoring document가 Save 대상임을 알린다.
     bool CanSave() const override;
-    // Save As dialog를 열어 emitter/module authoring json을 저장한다.
+    // 기존 문서 경로가 있으면 바로 저장하고, 없으면 Save As로 저장한다.
     void Save() override;
+    // Save As dialog를 열어 emitter/module authoring json을 저장한다.
+    void SaveAs();
     // 현재 effect authoring document가 Open 대상으로 교체 가능함을 알린다.
     bool CanOpen() const;
     // Open dialog로 .effect.json을 열어 authoring 상태를 복원한다.
@@ -193,6 +195,9 @@ private: //## Data::Clipboard
     AuthoringClipboardKind _clipboardKind{ AuthoringClipboardKind::None };
     optional<AuthoringEmitter> _clipboardEmitter{};
     optional<AuthoringModule> _clipboardModule{};
+
+private: //## Helper::DocumentSave
+    bool Save_ToPath(const fs::path& savePath, bool backupExistingFile);
 
 private: //## Helper::AuthoringFactory
     // 새 emitter/module에 부여할 editor-local id를 발급한다.
