@@ -242,6 +242,9 @@ public: /* For.Renderer */
     void Add_RenderGroup(RenderGroup renderGroup, Shared<GameObject> gameObject);
     uint32 Get_RenderCall() const;
     bool Try_GetRenderViewHotspotSnapshot(RenderViewHotspotSnapshot& outSnapshot) const;
+    // Render hotspot capture is editor diagnostics only and is off by default.
+    void Set_RenderViewHotspotCaptureEnabled(bool enabled);
+    bool Is_RenderViewHotspotCaptureEnabled() const;
     const Shared<PostProcessPipeline>   Get_PostProcessPipeline() const;
     Shared<PostProcessPipeline>         Get_PostProcessPipeline();
     HRESULT Begin_DOFOverrideScope(const string& ownerTag);

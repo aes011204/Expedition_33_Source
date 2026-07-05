@@ -729,10 +729,8 @@ void BattleCameraPreview_View::Pre_Render()
         return;
 
     Ensure_PreviewCamera();
-    Ensure_PreviewSkyBackdrop();
-    Ensure_PreviewRenderTarget(_previewWidth, _previewHeight);
 
-    if (_previewRenderTarget == nullptr || _previewCamera == nullptr)
+    if (_previewCamera == nullptr)
         return;
 
     if (_previewEnabled && _previewObjectsDirty)
@@ -754,6 +752,15 @@ void BattleCameraPreview_View::Pre_Render()
     Position_PreviewObjects();
     if (_previewEnabled)
         Update_PreviewAttackActorMotion(_previewContext.timeSec);
+
+    if (!Is_Visible())
+        return;
+
+    Ensure_PreviewSkyBackdrop();
+    Ensure_PreviewRenderTarget(_previewWidth, _previewHeight);
+
+    if (_previewRenderTarget == nullptr)
+        return;
 
     const Matrix savedView = *GAME->Get_Transform(D3DTS::View);
     const Matrix savedProj = *GAME->Get_Transform(D3DTS::Proj);
@@ -904,8 +911,13 @@ void BattleCameraPreview_View::Render()
     bool isOpen = Is_Open();
     const string windowName = String::ToString(Get_WindowName());
 
+    _isFocused = false;
+    _isHovered = false;
+    _isVisible = false;
+
     if (ImGui::Begin(windowName.c_str(), &isOpen))
     {
+        _isVisible = true;
         _isFocused = ImGui::IsWindowFocused(ImGuiFocusedFlags_ChildWindows);
         _isHovered = ImGui::IsWindowHovered(ImGuiHoveredFlags_ChildWindows);
 

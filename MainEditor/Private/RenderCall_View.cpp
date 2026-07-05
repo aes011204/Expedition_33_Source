@@ -40,13 +40,29 @@ RenderCall_View::RenderCall_View()
 void RenderCall_View::Render()
 {
     if (!Is_Open())
+    {
+        if (GAME->Is_RenderViewHotspotCaptureEnabled())
+            GAME->Set_RenderViewHotspotCaptureEnabled(false);
         return;
+    }
 
     bool isOpen = Is_Open();
     if (ImGui::Begin("RenderCall", &isOpen))
     {
         _isFocused = ImGui::IsWindowFocused(ImGuiFocusedFlags_ChildWindows);
         _isHovered = ImGui::IsWindowHovered(ImGuiHoveredFlags_ChildWindows);
+
+        bool capture = GAME->Is_RenderViewHotspotCaptureEnabled();
+        if (ImGui::Checkbox("Capture", &capture))
+            GAME->Set_RenderViewHotspotCaptureEnabled(capture);
+
+        if (!capture)
+        {
+            ImGui::TextUnformatted("Render hotspot capture is disabled.");
+            Set_Open(isOpen);
+            ImGui::End();
+            return;
+        }
 
         Engine::RenderViewHotspotSnapshot snapshot{};
         if (!GAME->Try_GetRenderViewHotspotSnapshot(snapshot))

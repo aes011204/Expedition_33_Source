@@ -91,7 +91,9 @@ void Renderer::Add_RenderGroup(RenderGroup renderGroup, const Shared<GameObject>
         return;
 
     _renderGroups[ETOI(renderGroup)].push_back(gameObject);
-    Capture_RenderViewHotspotCandidate(renderGroup, gameObject);
+
+    if (_renderViewHotspotCaptureEnabled)
+        Capture_RenderViewHotspotCandidate(renderGroup, gameObject);
 }
 
 void Renderer::Draw()
@@ -101,7 +103,7 @@ void Renderer::Draw()
     // ======================================================================================================
 
     _screenSize = { GAME->Get_ViewportWidth(), GAME->Get_ViewportHeight() };
-    if (_renderOnlyPreviewMode)
+    if (_renderOnlyPreviewMode || !_renderViewHotspotCaptureEnabled)
         _hotspotPendingSnapshot = {};
     else
         Publish_RenderViewHotspotSnapshot();
@@ -2503,8 +2505,24 @@ uint32 Renderer::Get_RenderCall() const
 
 bool Renderer::Try_GetRenderViewHotspotSnapshot(RenderViewHotspotSnapshot& outSnapshot) const
 {
+    if (!_renderViewHotspotCaptureEnabled)
+        return false;
+
     outSnapshot = _hotspotLastSnapshot;
     return outSnapshot.hasCamera || outSnapshot.totalSubmissions > 0;
+}
+
+void Renderer::Set_RenderViewHotspotCaptureEnabled(bool enabled)
+{
+    if (_renderViewHotspotCaptureEnabled == enabled)
+        return;
+
+    _renderViewHotspotCaptureEnabled = enabled;
+    if (!enabled)
+    {
+        _hotspotPendingSnapshot = {};
+        _hotspotLastSnapshot = {};
+    }
 }
 
 void Renderer::Reset_RenderCall()

@@ -514,7 +514,23 @@ HRESULT MeshEmitter::Render()
         const uint32 materialIndex = _model->Get_MeshMaterialIndex(meshIndex);
 
         if (!Is_DistortionFamily())
-            CHECK_FAILED_THROTTLED(Bind_ModelMaterialResourcesForMesh(meshIndex, materialIndex), 60, E_FAIL);
+        {
+            if (FAILED(Bind_ModelMaterialResourcesForMesh(meshIndex, materialIndex)))
+            {
+                LOG_WARN_THROTTLED(
+                    60,
+                    "MeshEmitter render failed: model material binding failed. emitter='{}', meshIndex={}, materialIndex={}, materialFamily='{}', shader='{}', modelGuid='{}', modelPath='{}'",
+                    _emitterName,
+                    meshIndex,
+                    materialIndex,
+                    string(magic_enum::enum_name(_desc.material.materialFamily)),
+                    String::ToString(_loadedShaderPrototypeTag),
+                    _desc.modelGuid,
+                    _desc.modelPath
+                );
+                return E_FAIL;
+            }
+        }
 
         if (FAILED(_shader->Begin(passIndex)))
         {
@@ -1162,19 +1178,36 @@ HRESULT MeshEmitter::Bind_ModelMaterialResourcesForMesh(uint32 meshIndex, uint32
 {
     CHECK_NULL(_texture, E_FAIL);
 
+    const auto logBindFailure = [&](const char* bindName) -> HRESULT
+        {
+            LOG_WARN_THROTTLED(
+                60,
+                "MeshEmitter model material bind failed: bind='{}', emitter='{}', meshIndex={}, materialIndex={}, useModelMaterials={}, materialFamily='{}', shader='{}', modelGuid='{}', modelPath='{}'",
+                bindName,
+                _emitterName,
+                meshIndex,
+                materialIndex,
+                _desc.useModelMaterials,
+                string(magic_enum::enum_name(_desc.material.materialFamily)),
+                String::ToString(_loadedShaderPrototypeTag),
+                _desc.modelGuid,
+                _desc.modelPath
+            );
+            return E_FAIL;
+        };
+
     Vec4 modelMaterialFlags = Vec4::Zero;
     const bool supportsModelOrm = !Is_MeshGlassFamily();
     if (!_desc.useModelMaterials || _model == nullptr)
     {
-        CHECK_FAILED_THROTTLED(_shader->Bind_SRV("g_ModelNormalTexture", nullptr), 60, E_FAIL);
-        CHECK_FAILED_THROTTLED(_shader->Bind_SRV("g_ModelEmissiveTexture", nullptr), 60, E_FAIL);
-        if (supportsModelOrm)
-            CHECK_FAILED_THROTTLED(_shader->Bind_SRV("g_ModelOrmTexture", nullptr), 60, E_FAIL);
-        CHECK_FAILED_THROTTLED(
-            _shader->Bind_RawValue("g_EffectMeshModelMaterialFlags", &modelMaterialFlags, sizeof(modelMaterialFlags)),
-            60,
-            E_FAIL
-        );
+        if (FAILED(_shader->Bind_SRV("g_ModelNormalTexture", nullptr)))
+            return logBindFailure("g_ModelNormalTexture=null");
+        if (FAILED(_shader->Bind_SRV("g_ModelEmissiveTexture", nullptr)))
+            return logBindFailure("g_ModelEmissiveTexture=null");
+        if (supportsModelOrm && FAILED(_shader->Bind_SRV("g_ModelOrmTexture", nullptr)))
+            return logBindFailure("g_ModelOrmTexture=null");
+        if (FAILED(_shader->Bind_RawValue("g_EffectMeshModelMaterialFlags", &modelMaterialFlags, sizeof(modelMaterialFlags))))
+            return logBindFailure("g_EffectMeshModelMaterialFlags");
         return S_OK;
     }
 
@@ -1191,32 +1224,39 @@ HRESULT MeshEmitter::Bind_ModelMaterialResourcesForMesh(uint32 meshIndex, uint32
             _desc.modelGuid,
             _desc.modelPath
         );
-        CHECK_FAILED_THROTTLED(_texture->Bind_ShaderResourceView(_shader.get(), "g_Texture", 0), 60, E_FAIL);
+        if (FAILED(_texture->Bind_ShaderResourceView(_shader.get(), "g_Texture", 0)))
+            return logBindFailure("g_Texture=fallbackEffectMaterial");
     }
 
     if (SUCCEEDED(_model->Bind_Material(_shader.get(), "g_ModelNormalTexture", meshIndex, MaterialTextureSlot::Normal)))
         modelMaterialFlags.y = 1.f;
     else
-        CHECK_FAILED_THROTTLED(_shader->Bind_SRV("g_ModelNormalTexture", nullptr), 60, E_FAIL);
+    {
+        if (FAILED(_shader->Bind_SRV("g_ModelNormalTexture", nullptr)))
+            return logBindFailure("g_ModelNormalTexture=null");
+    }
 
     if (SUCCEEDED(_model->Bind_Material(_shader.get(), "g_ModelEmissiveTexture", meshIndex, MaterialTextureSlot::Emissive)))
         modelMaterialFlags.z = 1.f;
     else
-        CHECK_FAILED_THROTTLED(_shader->Bind_SRV("g_ModelEmissiveTexture", nullptr), 60, E_FAIL);
+    {
+        if (FAILED(_shader->Bind_SRV("g_ModelEmissiveTexture", nullptr)))
+            return logBindFailure("g_ModelEmissiveTexture=null");
+    }
 
     if (supportsModelOrm)
     {
         if (SUCCEEDED(_model->Bind_Material(_shader.get(), "g_ModelOrmTexture", meshIndex, MaterialTextureSlot::ORM)))
             modelMaterialFlags.w = 1.f;
         else
-            CHECK_FAILED_THROTTLED(_shader->Bind_SRV("g_ModelOrmTexture", nullptr), 60, E_FAIL);
+        {
+            if (FAILED(_shader->Bind_SRV("g_ModelOrmTexture", nullptr)))
+                return logBindFailure("g_ModelOrmTexture=null");
+        }
     }
 
-    CHECK_FAILED_THROTTLED(
-        _shader->Bind_RawValue("g_EffectMeshModelMaterialFlags", &modelMaterialFlags, sizeof(modelMaterialFlags)),
-        60,
-        E_FAIL
-    );
+    if (FAILED(_shader->Bind_RawValue("g_EffectMeshModelMaterialFlags", &modelMaterialFlags, sizeof(modelMaterialFlags))))
+        return logBindFailure("g_EffectMeshModelMaterialFlags");
     return S_OK;
 }
 
