@@ -26,10 +26,13 @@ public:
     void    Update(float timeDelta) override;
     void    Late_Update(float timeDelta) override;
     void    OnBeginOverlap(Shared<ColliderCom> self, Shared<ColliderCom> other) override;
+    void    OnStayOverlap(Shared<ColliderCom> self, Shared<ColliderCom> other) override;
+    void    OnEndOverlap(Shared<ColliderCom> self, Shared<ColliderCom> other) override;
 
 private:
     HRESULT Ready_Components();
     void    Play_PortalEffect();
+    bool    Has_ActiveHeroOverlap() const;
 
 private:
     Shared<ColliderCom> _colliderCom{};
@@ -37,6 +40,7 @@ private:
 
     LevelType _targetLevel = LevelType::GameEntry;
     float _effectScale = 2.0f;
+    uset<ColliderCom*> _playerOverlapColliders{};
     bool _transitionRequested = false;
 
 public:

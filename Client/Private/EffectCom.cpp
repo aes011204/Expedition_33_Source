@@ -538,6 +538,24 @@ void EffectCom::Set_AttachedEffectMaterialReveal(float alphaMultiplier, float al
         Apply_AttachedEffectMaterialReveal(attached.poolHandle.effectObject);
 }
 
+void EffectCom::Set_AttachedEffectMaterialTintOverride(
+    const vector<uint32>& emitterIds,
+    const Vec4& targetTint,
+    float strength)
+{
+    const float clampedStrength = clamp(strength, 0.f, 1.f);
+
+    for (AttachedEffect& attached : _attachedEffects)
+    {
+        const Shared<EffectInstance> effectInstance =
+            dynamic_pointer_cast<EffectInstance>(attached.poolHandle.effectObject);
+        if (effectInstance == nullptr)
+            continue;
+
+        effectInstance->Set_MaterialTintOverride(emitterIds, targetTint, clampedStrength);
+    }
+}
+
 HRESULT EffectCom::Play_InspectorEffect()
 {
     if (_inspectorEffectName.empty())

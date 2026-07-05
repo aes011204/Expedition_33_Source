@@ -14,6 +14,7 @@
 #include "NPC_Base.h"
 #include "Player_WorldBase.h"
 #include "MovementCom.h"
+#include "Trigger_WorldDialogue.h"
 
 namespace
 {
@@ -73,6 +74,25 @@ namespace
         Vec3(-7.65f, 8.82f, 96.49f),
         Vec3(-6.46f, 8.9f, 101.09f)
     };
+
+    bool Has_WorldDialogueTrigger(uint32 levelIndex)
+    {
+        bool found = false;
+
+        GAME->Visit_LevelObjects(
+            levelIndex,
+            [&found](const wstring& layerTag, const Shared<GameObject>& gameObject)
+            {
+                UNREFERENCED_PARAMETER(layerTag);
+
+                if (found || gameObject == nullptr)
+                    return;
+
+                found = gameObject->Get_SourcePrefabName() == Constants::Prefab::Trigger_WorldDialogue;
+            });
+
+        return found;
+    }
 }
 
 Level_GestralVillage::Level_GestralVillage(const ComPtr<Device>& device, const ComPtr<Context>& context)
@@ -89,6 +109,7 @@ HRESULT Level_GestralVillage::Initialize()
         return E_FAIL;
 
     UnlockRules_GestralVillage();
+    CLIENT->Restore_CurrentHeroesHpToMax();
 
     if (FAILED(Ready_Layer_UI(TEXT("Layer_UI"))))
         return E_FAIL;
@@ -155,6 +176,10 @@ void Level_GestralVillage::BeginPlay()
     leafDesc.effectName = kLeafEffectName;
     leafDesc.worldPosition = Vec3(2.38f, -0.05f, 143.15f);
     leafDesc.scale = Vec3(1.f, 1.f, 1.f);
+
+    CLIENT->Play_Effect(leafDesc);
+
+    leafDesc.worldPosition = Vec3(-52.84f, -2.82f, 39.3f);
 
     CLIENT->Play_Effect(leafDesc);
 
@@ -259,7 +284,7 @@ HRESULT Level_GestralVillage::Ready_Lights()
         if (FAILED(GAME->Set_ShadowCascadeLevel(CascadeLevel::Normal)))
             return E_FAIL;
 
-        GAME->Set_DynamicShadowCascadeTemporalUpdateIntervals(1u, 1u, 2u, 12u);
+        GAME->Set_DynamicShadowCascadeTemporalUpdateIntervals(1u, 1u, 4u, 12u);
     }
 
     return S_OK;
@@ -380,7 +405,7 @@ HRESULT Level_GestralVillage::Ready_Layer_NPC(const wstring& strLayerTag)
     const Shared<GameObject> golgra = Spawn_Prefab::Prefab("NPC_Golgra")
         .AtLevel(ETOI(LevelType::GestralVillage))
         .InLayer(strLayerTag)
-        .Position(Vec3(2.41f, 3.50f, 88.82f))
+        .Position(Vec3(2.41f, 3.62f, 88.82f))
         .Rotation(Vec3(0.f, 0.f, 0.f))
         .Spawn();
 
@@ -416,8 +441,8 @@ HRESULT Level_GestralVillage::Ready_Layer_NPC(const wstring& strLayerTag)
     const Shared<GameObject> dance = Spawn_Prefab::Prefab("NPC_Dance")
         .AtLevel(ETOI(LevelType::GestralVillage))
         .InLayer(strLayerTag)
-        .Position(Vec3(-62.24f, -1.59f, 38.08f))
-        .Rotation(Vec3(0.f, 111.6f, 0.f))
+        .Position(Vec3(33.02f, -7.06f, 3.f))
+        .Rotation(Vec3(0.f, -77.5f, 0.f))
         .Scale(Vec3(1.f, 1.f, 1.f))
         .Spawn();
 
@@ -454,6 +479,33 @@ HRESULT Level_GestralVillage::Ready_Layer_ETC(const wstring& strLayerTag)
         .Spawn();
 
     CHECK_NULL(bgmZone, E_FAIL);
+
+    {
+        const uint32 levelIndex = ETOI(LevelType::GestralVillage);
+        if (!Has_WorldDialogueTrigger(levelIndex))
+        {
+            const Shared<GameObject> dialogueObject = Spawn_Prefab::Prefab(Constants::Prefab::Trigger_WorldDialogue)
+                .AtLevel(levelIndex)
+                .InLayer(strLayerTag)
+                .Position(Vec3(-16.3f, 1.05f, 131.6f))
+                .Rotation(Vec3(0.f, 0.f, 0.f))
+                .Scale(Vec3(1.f, 1.f, 1.f))
+                .Spawn();
+
+            CHECK_NULL(dialogueObject, E_FAIL);
+            if (const Shared<Trigger_WorldDialogue> dialogueTrigger =
+                dynamic_pointer_cast<Trigger_WorldDialogue>(dialogueObject))
+            {
+                dialogueTrigger->Set_UIRequest(
+                    Constants::UI::UI_WorldDialogue_GestralVillage,
+                    L"Panel_WorldDialogue_GestralVillage",
+                    Constants::UI_Anim::UI_WorldDialogue_GestralVillageAnim_Path,
+                    10.f);
+            }
+
+            dialogueObject->Set_RuntimeAuthoringLoaded(true);
+        }
+    }
 
     {
         MapAmbientVisibility::MAP_AMBIENT_VISIBILITY_DESC symbolDesc{};

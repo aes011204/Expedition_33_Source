@@ -43,6 +43,7 @@ public: //## Behavior::PlaybackOptions
     void Set_PlaybackSpeed(float speed);
     float Get_PlaybackSpeed() const { return _playbackSpeed; }
     void Set_MaterialRevealOverride(float alphaMultiplier, float alphaErosion);
+    void Set_MaterialTintOverride(const vector<uint32>& emitterIds, const Vec4& targetTint, float strength);
 
 public: //## Behavior::ProviderBinding
     // 현재 acquire context가 공급한 trail sample provider를 child emitter에 다시 전파한다.

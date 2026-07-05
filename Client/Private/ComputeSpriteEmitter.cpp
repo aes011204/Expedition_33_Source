@@ -439,6 +439,7 @@ HRESULT ComputeSpriteEmitter::Reset_ForEffectReplay()
 {
     Reset_PlaybackRuntime();
     Set_MaterialRevealOverride(1.f, 0.f);
+    Set_MaterialTintOverride(Vec4(1.f, 1.f, 1.f, 1.f), 0.f);
     CHECK_NULL(_viBuffer, E_FAIL);
     Update_RuntimeDescForCurrentScale(true);
     Sync_WorldCenterToComputeBuffer();
@@ -451,6 +452,12 @@ void ComputeSpriteEmitter::Set_MaterialRevealOverride(float alphaMultiplier, flo
 {
     _materialRevealAlphaMultiplier = clamp(alphaMultiplier, 0.f, 1.f);
     _materialRevealAlphaErosion = clamp(alphaErosion, 0.f, 1.f);
+}
+
+void ComputeSpriteEmitter::Set_MaterialTintOverride(const Vec4& targetTint, float strength)
+{
+    _materialTintOverrideTarget = targetTint;
+    _materialTintOverrideStrength = clamp(strength, 0.f, 1.f);
 }
 
 bool ComputeSpriteEmitter::Is_EffectFinished() const
@@ -827,6 +834,11 @@ HRESULT ComputeSpriteEmitter::Bind_MaterialResources()
         Resolve_EmitterTimeMaterialUniformParameterModulation(_desc.required.material, emitterPhase, _effectPlaybackSeed);
     material.alphaMultiplier *= _materialRevealAlphaMultiplier;
     material.alphaErosion = max(material.alphaErosion, _materialRevealAlphaErosion);
+    material.tint = Vec4::Lerp(material.tint, _materialTintOverrideTarget, _materialTintOverrideStrength);
+    material.coreEmissive.coreColor = Vec4::Lerp(
+        material.coreEmissive.coreColor,
+        _materialTintOverrideTarget,
+        _materialTintOverrideStrength);
 
     if (nullptr != _noiseTexture)
         CHECK_FAILED_ONCE(_noiseTexture->Bind_ShaderResourceView(_shader.get(), "g_NoiseTexture", 0), E_FAIL);

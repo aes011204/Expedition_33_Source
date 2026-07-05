@@ -13,7 +13,7 @@ HRESULT Collision_Manager::Initialize()
 void Collision_Manager::Update()
 {
 #if defined(_DEBUG) || defined(_EDITOR)
-    if (GAME->KeyDown(KEY_TYPE::F1))
+    if (GAME->Is_EditorRuntimeDebugEnabled() && GAME->KeyDown(KEY_TYPE::F1))
         _isDebug = !_isDebug;
 #endif
 }
@@ -101,7 +101,7 @@ void Collision_Manager::Update_FromPhysX(const vector<PhysXPairEvent>& events)
 
 
 #if defined(_DEBUG) || defined(_EDITOR)
-    if (GAME->KeyDown(KEY_TYPE::F1))
+    if (GAME->Is_EditorRuntimeDebugEnabled() && GAME->KeyDown(KEY_TYPE::F1))
         _isDebug = !_isDebug;
 #endif
 

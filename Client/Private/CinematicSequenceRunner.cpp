@@ -21,6 +21,7 @@
 #include <algorithm>
 #include <cmath>
 #include <fstream>
+#include <system_error>
 #include <thread>
 
 namespace
@@ -53,11 +54,17 @@ wstring Make_PathKey(const fs::path& path)
     return path.lexically_normal().wstring();
 }
 
-bool Load_JsonFileForPrewarm(const fs::path& path, json& outRoot)
+bool Load_JsonFileForPrewarm(const fs::path& path, json& outRoot, fs::file_time_type& outLastWriteTime)
 {
     outRoot = json{};
+    outLastWriteTime = {};
 
     if (path.empty() || !fs::exists(path))
+        return false;
+
+    std::error_code beforeError{};
+    const fs::file_time_type beforeWriteTime = fs::last_write_time(path, beforeError);
+    if (beforeError)
         return false;
 
     ifstream file(path);
@@ -65,6 +72,14 @@ bool Load_JsonFileForPrewarm(const fs::path& path, json& outRoot)
         return false;
 
     file >> outRoot;
+    file.close();
+
+    std::error_code afterError{};
+    const fs::file_time_type afterWriteTime = fs::last_write_time(path, afterError);
+    if (afterError || beforeWriteTime != afterWriteTime)
+        return false;
+
+    outLastWriteTime = afterWriteTime;
     return outRoot.is_object();
 }
 
@@ -1113,7 +1128,15 @@ void CinematicSequenceRunner::Drain_CompletedPrewarmPrefabs()
             continue;
         }
 
-        Spawn_Prefab::Cache_PrefabJson(result.prefabPath, result.root);
+        if (!Spawn_Prefab::Cache_PrefabJsonIfUnmodified(
+            result.prefabPath,
+            result.root,
+            result.lastWriteTime))
+        {
+            _queuedPrewarmPrefabPaths.erase(prefabPathKey);
+            continue;
+        }
+
         _prewarmedPrefabPaths.insert(prefabPathKey);
         ++_prewarmedPrefabCount;
 
@@ -1154,7 +1177,7 @@ void CinematicSequenceRunner::Queue_PrewarmPrefabPath(const fs::path& prefabPath
         {
             PrewarmPrefabResult result{};
             result.prefabPath = prefabPath;
-            result.succeeded = Load_JsonFileForPrewarm(prefabPath, result.root);
+            result.succeeded = Load_JsonFileForPrewarm(prefabPath, result.root, result.lastWriteTime);
             if (result.succeeded)
             {
                 Collect_PrefabDependencyJson(
@@ -1178,7 +1201,7 @@ void CinematicSequenceRunner::Queue_PrewarmPrefabPath(const fs::path& prefabPath
 
     PrewarmPrefabResult result{};
     result.prefabPath = prefabPath;
-    result.succeeded = Load_JsonFileForPrewarm(prefabPath, result.root);
+    result.succeeded = Load_JsonFileForPrewarm(prefabPath, result.root, result.lastWriteTime);
     if (result.succeeded)
     {
         Collect_PrefabDependencyJson(

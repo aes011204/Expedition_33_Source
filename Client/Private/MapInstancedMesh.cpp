@@ -13,6 +13,8 @@
 
 namespace
 {
+    constexpr float kExtendedGestralCullDistanceMultiplier = 2.f;
+
     float DistanceSq_ToBounds(const Vec3& point, const BoundingBox& bounds)
     {
         const Vec3 minPoint = bounds.Center - bounds.Extents;
@@ -63,6 +65,23 @@ namespace
     {
         return modelPath.find(L"Level_Main_GestralVillage_V2") != wstring::npos &&
             modelPath.find(L"Palisade_Spike") != wstring::npos;
+    }
+
+    bool Is_GestralTreeModelPath(const wstring& modelPath)
+    {
+        return modelPath.find(L"Level_Main_GestralVillage_V2") != wstring::npos &&
+            (modelPath.find(L"Tree") != wstring::npos ||
+                modelPath.find(L"tree") != wstring::npos ||
+                modelPath.find(L"EuropeanBeech") != wstring::npos ||
+                modelPath.find(L"EuropeanHornbeam") != wstring::npos);
+    }
+
+    float Resolve_CullDistance(const wstring& modelPath, float cullDist)
+    {
+        if (Is_GestralTreeModelPath(modelPath) || Is_GestralPalisadeModelPath(modelPath))
+            return cullDist * kExtendedGestralCullDistanceMultiplier;
+
+        return cullDist;
     }
 }
 
@@ -270,7 +289,7 @@ void MapInstancedMesh::Late_Update(float timeDelta)
 
     if (hasCamPos)
     {
-        const float cullDist = _cullDist;
+        const float cullDist = Resolve_CullDistance(_modelPath, _cullDist);
         if (DistanceSq_ToBounds(camPos, _groupBounds) > cullDist * cullDist)
         {
             submitShadowIfInRange();
@@ -588,7 +607,7 @@ bool MapInstancedMesh::Get_RenderHotspotInstancedMeshStats(RenderHotspotInstance
         Is_GestralPalisadeModelPath(_modelPath);
     outStats.usesIndirectCull = (_cullEnabled || forceGestralPalisadeCull) && outStats.hasCullResources;
     outStats.sourceInstanceCount = _instanceCount;
-    outStats.cullDist = _cullDist;
+    outStats.cullDist = Resolve_CullDistance(_modelPath, _cullDist);
     outStats.lod1Dist = _lod1Dist;
     outStats.lod2Dist = _lod2Dist;
 
@@ -1203,7 +1222,7 @@ void MapInstancedMesh::DispatchCull()
         params.planes[i] = planes[i];
     }
     params.totalCount = _instanceCount;
-    params.maxDist = _cullDist;
+    params.maxDist = Resolve_CullDistance(_modelPath, _cullDist);
     params.lod1Dist = _lodModels[1] ? _lod1Dist : params.maxDist;
     params.lod2Dist = _lodModels[2] ? _lod2Dist : params.maxDist;
 

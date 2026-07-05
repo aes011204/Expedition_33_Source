@@ -10,7 +10,7 @@
 namespace
 {
     constexpr float kHalfExtent = 0.5f;
-    constexpr float kOuterInsetRatio = 0.92f;
+    constexpr float kOuterInsetRatio = 1.f;
     constexpr float kAxisRotationOffsetRadians = 0.f; // 같은 값이면 위 꼭짓점 기준의 정확한 정오각형이 되게 축 보정을 끈다.
     constexpr std::array<Vec2, 5> kAbilityAxisDirections =
     {

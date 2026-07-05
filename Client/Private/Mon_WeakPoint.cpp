@@ -54,6 +54,7 @@ HRESULT Mon_WeakPoint::Initialize(void* arg)
 
     _socketMatrix = desc->socketMatrix;
     _socketName = desc->socketName;
+    _weakPointEffectName = desc->weakPointEffectName;
     _offsetMatrix = Matrix::CreateRotationX(XMConvertToRadians(-90.f));
 
     if (FAILED(Monster_Part::Initialize(desc)))
@@ -114,7 +115,7 @@ HRESULT Mon_WeakPoint::Render_Shadow()
 void Mon_WeakPoint::From_Json(const json& data)
 {
     Monster_Part::From_Json(data);
-    Ready_DefaultWeakPointEffectSettings();
+    Ready_DefaultWeakPointEffectSettings(true);
 
     if (_colliderCom)
         _colliderCom->Set_CollisionPreset(Collision_Preset::Monster_WeakPoint);
@@ -190,23 +191,28 @@ HRESULT Mon_WeakPoint::Ready_WeakPointCollider()
     return S_OK;
 }
 
-void Mon_WeakPoint::Ready_DefaultWeakPointEffectSettings()
+void Mon_WeakPoint::Ready_DefaultWeakPointEffectSettings(bool preserveInspectorTransform)
 {
     if (_partEffectCom == nullptr)
         return;
 
     EffectCom::InspectorEffectSettings settings = _partEffectCom->Get_InspectorEffectSettings();
     settings.autoPlay = false;
-    if (settings.effectName.empty())
+    if (!_weakPointEffectName.empty())
+        settings.effectName = _weakPointEffectName;
+    else if (settings.effectName.empty())
         settings.effectName = kDefaultWeakPointEffectName;
     settings.target = EffectCom::EffectPlayTarget::OwnerRoot;
     settings.partTag.clear();
     settings.socketName.clear();
     settings.layerTag = L"Layer_Effect";
-    settings.localOffset = Vec3::Zero;
-    settings.localRotation = Vec3::Zero;
+    if (!preserveInspectorTransform)
+    {
+        settings.localOffset = Vec3::Zero;
+        settings.localRotation = Vec3::Zero;
+        settings.scale = Vec3(_weakPointEffectScale);
+    }
     settings.followTarget = true;
-    settings.scale = Vec3(_weakPointEffectScale);
     settings.requiresManualRelease = true;
 
     _partEffectCom->Set_InspectorEffectSettings(settings);
@@ -224,12 +230,16 @@ void Mon_WeakPoint::Play_WeakPointEffect()
     EffectCom::EffectPlayDesc desc{};
     desc.levelIndex = GAME->Current_LevelIndex();
     desc.effectName = settings.effectName;
+    if (!_weakPointEffectName.empty())
+        desc.effectName = _weakPointEffectName;
     if (desc.effectName.empty())
         desc.effectName = kDefaultWeakPointEffectName;
     desc.target = EffectCom::EffectPlayTarget::OwnerRoot;
     desc.layerTag = L"Layer_Effect";
+    desc.localOffset = settings.localOffset;
+    desc.localRotation = settings.localRotation;
     desc.followTarget = true;
-    desc.scale = Vec3(_weakPointEffectScale);
+    desc.scale = settings.scale;
     desc.requiresManualRelease = true;
 
     _partEffectCom->Play_Effect(desc);

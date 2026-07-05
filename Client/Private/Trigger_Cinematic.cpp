@@ -116,7 +116,8 @@ void Trigger_Cinematic::OnBeginOverlap(Shared<ColliderCom> self, Shared<Collider
                 });
         }
 
-        CLIENT->Play_Sequence(sequencePath, 0);
+        if (!CLIENT->Request_CinematicSequenceTransition(sequencePath, 0))
+            CLIENT->Play_Sequence(sequencePath, 0);
     }
 }
 

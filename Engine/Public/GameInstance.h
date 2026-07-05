@@ -131,6 +131,7 @@ public:
 public:
     void Set_GameplayPaused(bool paused) { _isGameplayPaused = paused; }
     bool Is_GameplayPaused() const { return _isGameplayPaused; }
+    bool Is_EditorRuntimeDebugEnabled() const { return _enableEditorRuntimeDebug; }
 
     // 월드 시간 조절
     void Set_WorldTimeScale(float timeScale);
@@ -726,6 +727,7 @@ private:
     Unique<Culling_Manager> _cullingManager{};
     Unique<ThreadPool> _threadPool{};
     Unique<Event_Bus> _eventBus{};
+    bool _enableEditorRuntimeDebug = false;
 
 #ifdef _DEBUG
     Unique<Print_Manager> _printManager{};
