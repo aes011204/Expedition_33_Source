@@ -157,6 +157,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="..\Public\AL_SL_State.h" />
+    <ClInclude Include="..\Public\ANS_BattleTargetTrack.h" />
     <ClInclude Include="..\Public\ANS_AnimSpeed.h" />
     <ClInclude Include="..\Public\ANS_CanAction.h" />
     <ClInclude Include="..\Public\ANS_CollisionEnable.h" />
@@ -668,6 +669,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\Private\AL_SL_State.cpp" />
+    <ClCompile Include="..\Private\ANS_BattleTargetTrack.cpp" />
     <ClCompile Include="..\Private\ANS_AnimSpeed.cpp" />
     <ClCompile Include="..\Private\ANS_CanAction.cpp" />
     <ClCompile Include="..\Private\ANS_CollisionEnable.cpp" />
