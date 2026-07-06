@@ -41,6 +41,7 @@ private:
 
     LevelType _targetLevel = LevelType::GameEntry;
     LevelType _gameEntryRevealLevel = LevelType::GestralVillage;
+    wstring _portalEffectName = L"Effects\\Assets\\Map\\FX_Portal.effect.json";
     float _effectScale = 2.0f;
     uset<ColliderCom*> _playerOverlapColliders{};
     bool _transitionRequested = false;

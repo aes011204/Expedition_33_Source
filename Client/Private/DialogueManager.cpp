@@ -407,7 +407,7 @@ bool DialogueManager::ExecuteLineAction(const string& action)
     {
         EndDialogue();
 
-        const Shared<GameObject> spawned = Spawn_Prefab::Prefab(Constants::Prefab::Portal_BishopReward)
+        const Shared<GameObject> spawned = Spawn_Prefab::Prefab(Constants::Prefab::Portal_GestralReward)
             .AtLevel(GAME->Current_LevelIndex())
             .InLayer(kRewardPortalLayer)
             .Position(kSimonPortalPosition)
