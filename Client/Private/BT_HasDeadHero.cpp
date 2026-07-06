@@ -1,4 +1,4 @@
-#include "BT_HasDeadHero.h"
+﻿#include "BT_HasDeadHero.h"
 
 #include "AIController.h"
 #include "BlackBoard.h"

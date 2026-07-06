@@ -123,6 +123,7 @@ public:
 
 #ifdef _DEBUG
     bool Try_ConsumePerfSummary(float windowSec, RenderPerfSummary& outSummary);
+    bool Get_LastFramePerfSummary(RenderPerfSummary& outSummary) const;
 #endif
 
 public:
@@ -250,6 +251,7 @@ private:
     };
 
     RenderPerfWindow _renderPerfWindow{};
+    RenderPerfSummary _lastFramePerfSummary{};
     chrono::steady_clock::time_point _lastPerfSampleTime{};
     bool _hasLastPerfSampleTime{ false };
 
@@ -262,7 +264,10 @@ private:
         double combinedHDRMs,
         double postprocessMs,
         double nonLightMs,
+        double effectMaskedMs,
         double blendMs,
+        double glowMs,
+        double distortionMs,
         double uiMs,
         double debugMs);
 

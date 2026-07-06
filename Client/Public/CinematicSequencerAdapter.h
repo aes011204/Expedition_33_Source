@@ -1,5 +1,5 @@
 ﻿#pragma once
-#include <ImSequencer.h>
+#include "../../MainEditor/Public/ImSequencer.h"
 #include "Cinematic_Types.h"
 
 class CinematicSequencerAdapter : public ImSequencer::SequenceInterface
@@ -37,6 +37,8 @@ public:
     int GetFrameMax() const override;
     int GetItemCount() const override;
     const char* GetItemLabel(int index) const override;
+    void SetVisibleFrameRange(int frameMin, int frameMax) override;
+    bool BlocksFrameScrub() const override;
     void Get(int index, int** start, int** end, int* type, unsigned int* color) override;
     size_t GetCustomHeight(int index) override;
     void CustomDraw(int index, ImDrawList* draw_list, const ImRect& rc, const ImRect& legendRect, const ImRect& clippingRect, const ImRect& legendClippingRect) override;
@@ -64,5 +66,7 @@ private:
     bool* _cameraTrackEnabled = nullptr;
     bool* _eventTrackEnabled = nullptr;
     bool* _actorTransformTrackEnabled = nullptr;
+    int _visibleFrameMin = 0;
+    int _visibleFrameMax = 1;
 };
 

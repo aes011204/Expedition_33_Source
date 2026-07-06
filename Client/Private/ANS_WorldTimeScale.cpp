@@ -30,7 +30,8 @@ IMPLEMENT_REFLECTION(ANS_WorldTimeScale)
 
 void ANS_WorldTimeScale::On_Begin(const AnimNotifyContext& context)
 {
-    UNREFERENCED_PARAMETER(context);
+    if (context.isCinematic)
+        return;
 
     if (_isApplied)
         return;
@@ -52,7 +53,8 @@ void ANS_WorldTimeScale::On_Tick(const AnimNotifyContext& context)
 
 void ANS_WorldTimeScale::On_End(const AnimNotifyContext& context)
 {
-    UNREFERENCED_PARAMETER(context);
+    if (context.isCinematic)
+        return;
 
     if (!_isApplied)
         return;

@@ -24,18 +24,18 @@
 
 namespace Internal
 {
-string Resolve_GameObjectLogName(const Shared<GameObject>& gameObject)
-{
-    if (gameObject == nullptr)
-        return "<null>";
-
-    const wstring& objectName = gameObject->Get_Name();
-    return objectName.empty() ? "<unnamed>" : String::ToString(objectName);
-}
-
 string Format_SourceKeyVec3(const Vec3& value)
 {
     return format("{:.4f},{:.4f},{:.4f}", value.x, value.y, value.z);
+}
+
+bool Is_SameTrailAnchor(const TrailAnchorAsset& lhs, const TrailAnchorAsset& rhs)
+{
+    return lhs.modelGuid == rhs.modelGuid &&
+        lhs.base.boneName == rhs.base.boneName &&
+        lhs.tip.boneName == rhs.tip.boneName &&
+        Format_SourceKeyVec3(lhs.base.localPosition) == Format_SourceKeyVec3(rhs.base.localPosition) &&
+        Format_SourceKeyVec3(lhs.tip.localPosition) == Format_SourceKeyVec3(rhs.tip.localPosition);
 }
 
 EffectHistorySourceGroupKey Build_TrailPairHistoryKey(
@@ -377,6 +377,33 @@ void EffectCom::Restore_AttachedEffectPauseStates(vector<AttachedEffectPauseStat
     }
 
     states.clear();
+}
+
+EffectCom::AttachedEffectDebugSummary EffectCom::Get_AttachedEffectDebugSummary() const
+{
+    AttachedEffectDebugSummary summary{};
+    summary.totalCount = static_cast<uint32>(_attachedEffects.size());
+
+    for (const AttachedEffect& attached : _attachedEffects)
+    {
+        if (attached.poolHandle.effectObject != nullptr)
+            ++summary.activeCount;
+
+        if (attached.role == AttachedEffectRole::Trail)
+        {
+            ++summary.trailCount;
+            if (attached.isTrailDraining)
+                ++summary.trailDrainingCount;
+        }
+        else if (attached.role == AttachedEffectRole::SourceHistoryPoint)
+        {
+            ++summary.sourceHistoryCount;
+            if (attached.isSourceHistoryDraining)
+                ++summary.sourceHistoryDrainingCount;
+        }
+    }
+
+    return summary;
 }
 
 void EffectCom::Start_SwitchDissolve(float durationSec, const string& noiseName)
@@ -734,18 +761,6 @@ HRESULT EffectCom::Play_Effect(const EffectPlayDesc& desc, EffectInstancePool::A
     attached.trailSampleProvider = desc.trailSampleProvider.lock();
     _attachedEffects.push_back(attached);
 
-    LOG_INFO(
-        "[EffectCom][Diag] track attached effect. owner={}, effect={}, part={}, socket={}, layer={}, follow={}, manualRelease={}, trackedCount={}",
-        Internal::Resolve_GameObjectLogName(Get_Owner()),
-        String::ToString(desc.effectName),
-        String::ToString(desc.partTag),
-        desc.socketName,
-        String::ToString(desc.layerTag),
-        desc.followTarget,
-        handle.requiresManualRelease,
-        _attachedEffects.size()
-    );
-
     if (outHandle != nullptr)
         *outHandle = handle;
 
@@ -1084,20 +1099,26 @@ HRESULT EffectCom::Play_TrailEffect(
 
     attached.trailDrainDuration = Internal::Resolve_TrailDrainDuration(EffectAssetRuntimeLoader::Load_DefinitionByName(resolvedEffectName));
 
+    for (AttachedEffect& existing : _attachedEffects)
+    {
+        if (existing.role != AttachedEffectRole::Trail || !existing.isTrailDraining)
+            continue;
+        if (existing.effectName != attached.effectName)
+            continue;
+        if (existing.partTag != attached.partTag)
+            continue;
+        if (existing.layerTag != attached.layerTag)
+            continue;
+        if (!Internal::Is_SameTrailAnchor(existing.trailAnchorAsset, attached.trailAnchorAsset))
+            continue;
+
+        Release_AttachedEffect(existing);
+    }
+    Prune_ReleasedAttachedEffects();
+
     CHECK_FAILED(effectPool->Acquire(acquireDesc, attached.poolHandle), E_FAIL);
 
     _attachedEffects.push_back(attached);
-
-    LOG_INFO(
-        "[EffectCom][Diag] start trail effect. owner={}, effect={}, part={}, layer={}, notifyToken={}, drainSec={:.3f}, trackedCount={}",
-        Internal::Resolve_GameObjectLogName(ownerObject),
-        String::ToString(resolvedEffectName),
-        String::ToString(partTag),
-        String::ToString(layerTag),
-        trailNotifyToken,
-        attached.trailDrainDuration,
-        _attachedEffects.size()
-    );
 
     return S_OK;
 }
@@ -1415,19 +1436,6 @@ HRESULT EffectCom::Play_SourceHistoryEffect(
 
     _attachedEffects.push_back(attached);
 
-    LOG_INFO(
-        "[EffectCom][Diag] start source-history effect. owner={}, effect={}, part={}, layer={}, binding={}, socket={}, anchor={}, drainSec={:.3f}, trackedCount={}",
-        Internal::Resolve_GameObjectLogName(ownerObject),
-        String::ToString(resolvedEffectName),
-        String::ToString(partTag),
-        String::ToString(layerTag),
-        static_cast<int>(sourceBindingMode),
-        socketName,
-        sourceHistoryAnchorName,
-        attached.sourceHistoryDrainDuration,
-        _attachedEffects.size()
-    );
-
     return S_OK;
 }
 
@@ -1621,18 +1629,6 @@ void EffectCom::Release_AttachedEffect(AttachedEffect& attached)
     if (nullptr == attached.poolHandle.effectObject)
         return;
 
-    LOG_INFO(
-        "[EffectCom][Diag] release attached effect. owner={}, effect={}, role={}, part={}, layer={}, trailDraining={}, sourceHistoryDraining={}, trackedCount={}",
-        Internal::Resolve_GameObjectLogName(Get_Owner()),
-        String::ToString(attached.effectName),
-        static_cast<int>(attached.role),
-        String::ToString(attached.partTag),
-        String::ToString(attached.layerTag),
-        attached.isTrailDraining,
-        attached.isSourceHistoryDraining,
-        _attachedEffects.size()
-    );
-
     effectPool->Release(attached.poolHandle);
     attached.poolHandle = {};
     attached.trailSampleEnabled.reset();
@@ -1653,15 +1649,6 @@ void EffectCom::Begin_TrailDrain(AttachedEffect& attached)
     if (attached.trailSampleEnabled != nullptr)
         *attached.trailSampleEnabled = false;
 
-    LOG_INFO(
-        "[EffectCom][Diag] begin trail drain. owner={}, effect={}, part={}, notifyToken={}, drainSec={:.3f}",
-        Internal::Resolve_GameObjectLogName(Get_Owner()),
-        String::ToString(attached.effectName),
-        String::ToString(attached.partTag),
-        attached.trailNotifyToken,
-        attached.trailDrainDuration
-    );
-
     attached.isTrailDraining = true;
     attached.trailDrainElapsed = 0.f;
 }
@@ -1673,15 +1660,6 @@ void EffectCom::Begin_SourceHistoryDrain(AttachedEffect& attached)
 
     if (attached.sourcePointSampleEnabled != nullptr)
         *attached.sourcePointSampleEnabled = false;
-
-    LOG_INFO(
-        "[EffectCom][Diag] begin source-history drain. owner={}, effect={}, part={}, binding={}, drainSec={:.3f}",
-        Internal::Resolve_GameObjectLogName(Get_Owner()),
-        String::ToString(attached.effectName),
-        String::ToString(attached.partTag),
-        static_cast<int>(attached.sourceHistorySourceBindingMode),
-        attached.sourceHistoryDrainDuration
-    );
 
     attached.isSourceHistoryDraining = true;
     attached.sourceHistoryDrainElapsed = 0.f;
