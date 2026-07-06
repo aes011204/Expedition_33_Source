@@ -651,6 +651,8 @@ namespace Client::Constants::SoundCue
     constexpr const wchar_t* UI_SavePoint_Resting = L"UI_SavePoint_Resting";
 
     constexpr const wchar_t* UI_Dialogue_CanvasEnter = L"UI_Dialogue_CanvasEnter";
+    constexpr const wchar_t* UI_Journal_Open = L"UI_Journal_Open";
+    constexpr const wchar_t* UI_Journal_Close = L"UI_Journal_Close";
     constexpr const wchar_t* UI_Global_GenericEnter = L"UI_Global_GenericEnter";
     constexpr const wchar_t* UI_Global_GenericExit = L"UI_Global_GenericExit";
     constexpr const wchar_t* UI_Global_NavigateClick = L"UI_Global_NavigateClick";

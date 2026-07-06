@@ -39,7 +39,7 @@ void UI_DailyLog::Open(JournalOpenAnimation openAnimation)
     Suppress_ButtonHoverAnimations();
 
     if (!wasOpen)
-        GAME->Play_SoundCue(Constants::SoundCue::UI_Global_GenericEnter);
+        GAME->Play_SoundCue(Constants::SoundCue::UI_Journal_Open);
 
     Play_OpenAnimation(openAnimation);
 
@@ -49,6 +49,11 @@ void UI_DailyLog::Open(JournalOpenAnimation openAnimation)
 
 void UI_DailyLog::Close()
 {
+    const bool wasOpen = Is_Open();
+
+    if (wasOpen)
+        GAME->Play_SoundCue(Constants::SoundCue::UI_Journal_Close);
+
     UI_RuntimePanelBase::Close();
 
     GAME->Set_GameplayPaused(false);
