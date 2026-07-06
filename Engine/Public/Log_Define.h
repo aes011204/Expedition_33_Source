@@ -34,8 +34,17 @@ struct RenderPerfSummary
     float nonLightAvgMs{};
     float nonLightMaxMs{};
 
+    float effectMaskedAvgMs{};
+    float effectMaskedMaxMs{};
+
     float blendAvgMs{};
     float blendMaxMs{};
+
+    float glowAvgMs{};
+    float glowMaxMs{};
+
+    float distortionAvgMs{};
+    float distortionMaxMs{};
 
     float uiAvgMs{};
     float uiMaxMs{};
@@ -162,6 +171,9 @@ struct RenderPerfWindow
     PerfCounter combinedHDR{};
     PerfCounter postProcess{};
     PerfCounter blend{};
+    PerfCounter effectMasked{};
+    PerfCounter glow{};
+    PerfCounter distortion{};
     PerfCounter ui{};
     PerfCounter debug{};
 };

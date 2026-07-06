@@ -271,7 +271,7 @@ void EditorInstance::Stop()
     if (_runtimeState == EDITOR_RUNTIME_STATE::Play ||
         _runtimeState == EDITOR_RUNTIME_STATE::Pause)
     {
-        CLIENT->Stop_Sequence();
+        CLIENT->Stop_Sequence(true);
         CLIENT->EndDialogue();
         GAME->Set_LetterboxEnabled(false);
         GAME->Set_PreviewLetterboxEnabled(false);

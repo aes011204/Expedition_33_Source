@@ -25,6 +25,9 @@ IMPLEMENT_REFLECTION(ANS_SL_TargetTrack)
 
 void ANS_SL_TargetTrack::On_Begin(const AnimNotifyContext& context)
 {
+    if (context.isCinematic)
+        return;
+
     Shared<GameObject> moveTarget = Resolve_MoveTarget(context.owner);
     if (moveTarget == nullptr || moveTarget->Get_Transform() == nullptr)
         return;
@@ -48,6 +51,9 @@ void ANS_SL_TargetTrack::On_Begin(const AnimNotifyContext& context)
 
 void ANS_SL_TargetTrack::On_Tick(const AnimNotifyContext& context)
 {
+    if (context.isCinematic)
+        return;
+
     Shared<GameObject> moveTarget = Resolve_MoveTarget(context.owner);
     if (moveTarget == nullptr || moveTarget->Get_Transform() == nullptr)
         return;
@@ -91,6 +97,9 @@ void ANS_SL_TargetTrack::On_Tick(const AnimNotifyContext& context)
 
 void ANS_SL_TargetTrack::On_End(const AnimNotifyContext& context)
 {
+    if (context.isCinematic)
+        return;
+
     Shared<GameObject> moveTarget = Resolve_MoveTarget(context.owner);
     if (moveTarget == nullptr || moveTarget->Get_Transform() == nullptr)
         return;
@@ -186,6 +195,9 @@ Vec3 ANS_SL_TargetTrack::Resolve_LookAtRotation(const Vec3& fromWorldPos, const 
 
 void ANS_SL_TargetTrack::Apply_Position(const AnimNotifyContext& context, const Shared<GameObject>& target, const Vec3& desiredWorldPos) const
 {
+    if (context.isCinematic)
+        return;
+
     const Shared<TransformCom> transform = target ? target->Get_Transform() : nullptr;
     if (transform == nullptr)
         return;

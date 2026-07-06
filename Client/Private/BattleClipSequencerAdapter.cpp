@@ -269,7 +269,8 @@ void DrawBattleClipKeyMarkers(
             allowSelection &&
             g_battleClipKeyDragState.trackIndex == index &&
             g_battleClipKeyDragState.keyIndex == keyIndex &&
-            ImGui::IsMouseDown(ImGuiMouseButton_Left);
+            ImGui::IsMouseDown(ImGuiMouseButton_Left) &&
+            ImGui::IsMouseHoveringRect(rc.Min, rc.Max, false);
 
         if (isDraggingThisKey)
         {

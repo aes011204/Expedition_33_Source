@@ -508,7 +508,9 @@ void GameInstance::Update_Engine(float timeDelta, const function<void(float)>& c
     _worldTimeDelta = timeDelta * _worldTimeScale;
 
 #ifdef _DEBUG
-    const bool sampleRuntimePerf = Should_SampleRuntimePerf();
+    const bool periodicRuntimePerfSample = Should_SampleRuntimePerf();
+    const bool forceRuntimeFrameDropSample = timeDelta >= (1.f / 30.f);
+    const bool sampleRuntimePerf = periodicRuntimePerfSample || forceRuntimeFrameDropSample;
     chrono::steady_clock::time_point updateBegin{};
     double debugMgrMs = 0.0;
     double inputMgrMs = 0.0;
@@ -718,6 +720,18 @@ void GameInstance::Update_Engine(float timeDelta, const function<void(float)>& c
     if (sampleRuntimePerf)
     {
         const double updateMs = chrono::duration<double, milli>(chrono::steady_clock::now() - updateBegin).count();
+        _lastRuntimeFrameDeltaMs = timeDelta * 1000.f;
+        _lastEngineUpdateMs = static_cast<float>(updateMs);
+        _lastClientUpdateMs = static_cast<float>(clientMs);
+        _lastLevelUpdateMs = static_cast<float>(levelMs);
+        _lastPriorityObjectUpdateMs = static_cast<float>(priorityObjMs);
+        _lastObjectUpdateMs = static_cast<float>(objMs);
+        _lastLateObjectUpdateMs = static_cast<float>(lateObjMs);
+        _lastPhysXUpdateMs = static_cast<float>(physxUpdateMs);
+        _lastCollisionFromPhysXMs = static_cast<float>(collFromPhysxMs);
+        _lastCameraUpdateMs = static_cast<float>(cameraMs);
+        _lastUiUpdateMs = static_cast<float>(uiMs);
+
         Accumulate_UpdatePerf(
             updateMs,
             debugMgrMs,
@@ -743,9 +757,26 @@ void GameInstance::Update_Engine(float timeDelta, const function<void(float)>& c
 
 HRESULT GameInstance::Draw()
 {
+#ifdef _DEBUG
+    const auto gameDrawBegin = chrono::steady_clock::now();
+    auto stageBegin = gameDrawBegin;
+#endif
+
     _renderer->Draw();
+#ifdef _DEBUG
+    _lastRendererDrawMs = static_cast<float>(chrono::duration<double, milli>(chrono::steady_clock::now() - stageBegin).count());
+    if (_renderer != nullptr)
+        _renderer->Get_LastFramePerfSummary(_lastDrawRenderPerf);
+
+    stageBegin = chrono::steady_clock::now();
+#endif
 
     _levelManager->Render();
+#ifdef _DEBUG
+    _lastLevelRenderMs = static_cast<float>(chrono::duration<double, milli>(chrono::steady_clock::now() - stageBegin).count());
+
+    stageBegin = chrono::steady_clock::now();
+#endif
 
     //CHECK_FAILED(Update_Picking(), E_FAIL);
 
@@ -769,12 +800,18 @@ HRESULT GameInstance::Draw()
     }
 
 #endif
+#ifdef _DEBUG
+    _lastDebugRenderMs = static_cast<float>(chrono::duration<double, milli>(chrono::steady_clock::now() - stageBegin).count());
+#endif
 
 #ifdef _DEBUG
     Try_FlushRuntimePerfLog();
 #endif
 
 #pragma region UI Render
+#ifdef _DEBUG
+    stageBegin = chrono::steady_clock::now();
+#endif
     // Background UI는 3D 씬 이후, Foreground UI 이전에 그린다.
     if (FAILED(_uiManager->Render(UI_RenderGroup::Background)))
         return E_FAIL;
@@ -783,16 +820,32 @@ HRESULT GameInstance::Draw()
     if (FAILED(_uiManager->Render(UI_RenderGroup::Foreground)))
         return E_FAIL;
 #pragma endregion
+#ifdef _DEBUG
+    _lastUiRenderMs = static_cast<float>(chrono::duration<double, milli>(chrono::steady_clock::now() - stageBegin).count());
+
+    stageBegin = chrono::steady_clock::now();
+#endif
 
     // UI 이후의 모든 화면 효과(ScreenFx, 캡처, UIEffect)를 단일 함수로 캡슐화하여 렌더링
     _renderer->PostDraw();
+#ifdef _DEBUG
+    _lastPostDrawMs = static_cast<float>(chrono::duration<double, milli>(chrono::steady_clock::now() - stageBegin).count());
+
+    stageBegin = chrono::steady_clock::now();
+#endif
 
     // Overlay UI는 UIEffect 이후에 그려 전투 알림처럼 최우선으로 보여야 하는 UI를 보장한다.
     if (FAILED(_uiManager->Render(UI_RenderGroup::Overlay)))
         return E_FAIL;
+#ifdef _DEBUG
+    _lastUiRenderMs += static_cast<float>(chrono::duration<double, milli>(chrono::steady_clock::now() - stageBegin).count());
+#endif
 
 #ifdef _DEBUG
+    stageBegin = chrono::steady_clock::now();
     _printManager->Render();
+    _lastPrintMs = static_cast<float>(chrono::duration<double, milli>(chrono::steady_clock::now() - stageBegin).count());
+    _lastGameDrawMs = static_cast<float>(chrono::duration<double, milli>(chrono::steady_clock::now() - gameDrawBegin).count());
 #endif
 
     return S_OK;
@@ -1095,7 +1148,10 @@ void GameInstance::Try_FlushRuntimePerfLog()
             "combinedHDR_ms(avg={:.2f} max={:.2f}) "
             "postprocess_ms (avg={:.2f} max={:.2f}) "
             "nonlight_ms(avg={:.2f} max={:.2f}) "
+            "effectmasked_ms(avg={:.2f} max={:.2f}) "
             "blend_ms(avg={:.2f} max={:.2f}) "
+            "glow_ms(avg={:.2f} max={:.2f}) "
+            "distortion_ms(avg={:.2f} max={:.2f}) "
             "ui_ms(avg={:.2f} max={:.2f}) "
             "debug_ms(avg={:.2f} max={:.2f}) "
             "collision_ms(avg={:.2f} max={:.2f}) pairs={:.1f}/s intersects={:.1f}/s hits={:.1f}/s "
@@ -1186,8 +1242,17 @@ void GameInstance::Try_FlushRuntimePerfLog()
             runtimeSummary.render.nonLightAvgMs,
             runtimeSummary.render.nonLightMaxMs,
 
+            runtimeSummary.render.effectMaskedAvgMs,
+            runtimeSummary.render.effectMaskedMaxMs,
+
             runtimeSummary.render.blendAvgMs,
             runtimeSummary.render.blendMaxMs,
+
+            runtimeSummary.render.glowAvgMs,
+            runtimeSummary.render.glowMaxMs,
+
+            runtimeSummary.render.distortionAvgMs,
+            runtimeSummary.render.distortionMaxMs,
 
             runtimeSummary.render.uiAvgMs,
             runtimeSummary.render.uiMaxMs,
@@ -1220,6 +1285,69 @@ void GameInstance::Try_FlushRuntimePerfLog()
     );
 
     Reset_RuntimePerfWindowState(now);
+}
+
+void GameInstance::Log_RuntimeFrameDropIfNeeded(float presentMs)
+{
+    constexpr float kFrameDropThresholdMs = 1000.f / 30.f;
+    constexpr float kFrameDropLogCooldownSec = 0.25f;
+
+    const float drawPresentMs = _lastGameDrawMs + presentMs;
+    const float frameMs = max(_lastRuntimeFrameDeltaMs, drawPresentMs);
+    if (frameMs < kFrameDropThresholdMs)
+        return;
+
+    const auto now = chrono::steady_clock::now();
+    if (_lastRuntimeFrameDropLogTime != chrono::steady_clock::time_point{})
+    {
+        const float elapsedSec = static_cast<float>(
+            chrono::duration<double>(now - _lastRuntimeFrameDropLogTime).count());
+        if (elapsedSec < kFrameDropLogCooldownSec)
+            return;
+    }
+    _lastRuntimeFrameDropLogTime = now;
+
+    const RenderPerfSummary& render = _lastDrawRenderPerf;
+    LOG_WARN(
+        "[RuntimeFrameDrop] frameMs={:.2f} fps={:.1f} updateMs={:.2f} drawPresentMs={:.2f} drawMs={:.2f} rendererMs={:.2f} levelRenderMs={:.2f} debugRenderMs={:.2f} uiRenderMs={:.2f} postDrawMs={:.2f} printMs={:.2f} presentMs={:.2f} "
+        "update(client={:.2f},level={:.2f},priorityObj={:.2f},obj={:.2f},lateObj={:.2f},physx={:.2f},collFromPhysx={:.2f},camera={:.2f},ui={:.2f}) "
+        "render(calls={},render={:.2f},priority={:.2f},shadow={:.2f},nonBlend={:.2f},lights={:.2f},combinedHDR={:.2f},post={:.2f},nonLight={:.2f},effectMasked={:.2f},blend={:.2f},glow={:.2f},distortion={:.2f},ui={:.2f},debug={:.2f})",
+        frameMs,
+        frameMs > 0.f ? 1000.f / frameMs : 0.f,
+        _lastEngineUpdateMs,
+        drawPresentMs,
+        _lastGameDrawMs,
+        _lastRendererDrawMs,
+        _lastLevelRenderMs,
+        _lastDebugRenderMs,
+        _lastUiRenderMs,
+        _lastPostDrawMs,
+        _lastPrintMs,
+        presentMs,
+        _lastClientUpdateMs,
+        _lastLevelUpdateMs,
+        _lastPriorityObjectUpdateMs,
+        _lastObjectUpdateMs,
+        _lastLateObjectUpdateMs,
+        _lastPhysXUpdateMs,
+        _lastCollisionFromPhysXMs,
+        _lastCameraUpdateMs,
+        _lastUiUpdateMs,
+        render.renderCallCount,
+        render.renderAvgMs,
+        render.priorityAvgMs,
+        render.shadowAvgMs,
+        render.nonBlendAvgMs,
+        render.lightsAvgMs,
+        render.combinedHDRAvgMs,
+        render.postprocessAvgMs,
+        render.nonLightAvgMs,
+        render.effectMaskedAvgMs,
+        render.blendAvgMs,
+        render.glowAvgMs,
+        render.distortionAvgMs,
+        render.uiAvgMs,
+        render.debugAvgMs);
 }
 
 #endif
@@ -1340,7 +1468,15 @@ HRESULT GameInstance::Clear_Buffers(const Vec4& clearColor)
 
 HRESULT GameInstance::Present()
 {
-    return _graphicDevice->Present();
+#ifdef _DEBUG
+    const auto presentBegin = chrono::steady_clock::now();
+#endif
+    const HRESULT result = _graphicDevice->Present();
+#ifdef _DEBUG
+    const float presentMs = static_cast<float>(chrono::duration<double, milli>(chrono::steady_clock::now() - presentBegin).count());
+    Log_RuntimeFrameDropIfNeeded(presentMs);
+#endif
+    return result;
 }
 
 void GameInstance::Bind_BackBuffer()

@@ -1792,9 +1792,9 @@ bool ClientInstance::Play_Sequence(
         applyActorTransformTrack);
 }
 
-void ClientInstance::Stop_Sequence()
+void ClientInstance::Stop_Sequence(bool forceRemoveAllSpawned)
 {
-    return  _cinematicSequenceRunner->Stop_Sequence();
+    return  _cinematicSequenceRunner->Stop_Sequence(forceRemoveAllSpawned);
 }
 
 void ClientInstance::Stop_SequenceKeepContext()

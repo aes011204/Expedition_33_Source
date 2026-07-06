@@ -44,6 +44,9 @@ IMPLEMENT_REFLECTION(ANS_SL_MoveTo)
 
 void ANS_SL_MoveTo::On_Begin(const AnimNotifyContext& context)
 {
+    if (context.isCinematic)
+        return;
+
     _goalClampedByPlayer = false;
 
     Shared<GameObject> target = Resolve_MoveTarget(context.owner);
@@ -61,6 +64,9 @@ void ANS_SL_MoveTo::On_Begin(const AnimNotifyContext& context)
 
 void ANS_SL_MoveTo::On_Tick(const AnimNotifyContext& context)
 {
+    if (context.isCinematic)
+        return;
+
     Shared<GameObject> target = Resolve_MoveTarget(context.owner);
     if (target == nullptr || target->Get_Transform() == nullptr)
         return;
@@ -73,6 +79,9 @@ void ANS_SL_MoveTo::On_Tick(const AnimNotifyContext& context)
 
 void ANS_SL_MoveTo::On_End(const AnimNotifyContext& context)
 {
+    if (context.isCinematic)
+        return;
+
     Shared<GameObject> target = Resolve_MoveTarget(context.owner);
     if (target == nullptr || target->Get_Transform() == nullptr)
         return;
@@ -170,6 +179,9 @@ Vec3 ANS_SL_MoveTo::Resolve_GoalPosition(const Shared<GameObject>& moveTarget, c
 
 void ANS_SL_MoveTo::Apply_Position(const AnimNotifyContext& context, const Shared<GameObject>& target, const Vec3& desiredWorldPos)
 {
+    if (context.isCinematic)
+        return;
+
     const Shared<TransformCom> transform = target ? target->Get_Transform() : nullptr;
     if (transform == nullptr)
         return;
