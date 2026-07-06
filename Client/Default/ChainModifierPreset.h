@@ -94,6 +94,16 @@ public:
         TransformCom* ownerTransform,
         const wstring& modifierTag = L"PhysicsModifier_PotatoCape");
 
+    static void BuildGustaveHairPhysicsDesc(
+        PhysicsModifier::PhysicsModifierDesc& outDesc,
+        TransformCom* ownerTransform,
+        const wstring& modifierTag = L"PhysicsModifier_GustaveHair");
+
+    static void BuildMaelleBackHairPhysicsDesc(
+        PhysicsModifier::PhysicsModifierDesc& outDesc,
+        TransformCom* ownerTransform,
+        const wstring& modifierTag = L"PhysicsModifier_MaelleBackHair");
+
     static void BuildBackpackBandDesc(
         ChainModifier::ChainModifierDesc& outDesc,
         TransformCom* ownerTransform,
