@@ -134,6 +134,7 @@ private:
     Unique<ChangeSkill_Panel>           _changeSkillPanel;
     Unique<Wardrobe_Panel>              _wardrobePanel;
     Unique<Pictos_Panel>                _pictosPanel;
+    bool                                _merchantShopKeepsDialogueFocus = false;
 
     vector<GameplayMenu>                _menuStack{};
     GamePlayMenuFade                    _menuFade{};
