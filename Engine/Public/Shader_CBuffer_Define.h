@@ -204,7 +204,7 @@ struct alignas(16) PostProcessCB
     float dofFocusDistance = 3.f;
     float dofFocusRange = 40.f;
     float dofNearMaxRadius = 0.55f;
-    float dofFarMaxRadius = 0.85f;
+    float dofFarMaxRadius = 1.f;
 
     float dofBokehThreshold = 1.5f;
     float dofBokehIntensity = 4.f;
@@ -212,7 +212,7 @@ struct alignas(16) PostProcessCB
     float dofCoCEpsilon = 0.01f;
 
     float dofNearIntensity = 0.85f;
-    float dofFarIntensity = 0.48f;
+    float dofFarIntensity = 0.38f;
     uint32 dofSampleCount = 12;
     uint32 dofDebugMode = 0;
 
