@@ -561,6 +561,7 @@ namespace Client::Constants::Prefab
     inline constexpr char Eye_Target[]      = "ETC/EyeTarget";
     inline constexpr char SoulLikeController[] = "ETC/SoulLikeController";
     inline constexpr char Portal_BishopReward[] = "ETC/Portal_BishopReward";
+    inline constexpr char Portal_GestralReward[] = "ETC/Portal_GestralReward";
     inline constexpr char Trigger_Cinematic[] = "ETC/Trigger_Cinematic";
     inline constexpr char Trigger_BGMZone[] = "ETC/Trigger_BGMZone";
     inline constexpr char Trigger_WorldDialogue[] = "ETC/Trigger_WorldDialogue";

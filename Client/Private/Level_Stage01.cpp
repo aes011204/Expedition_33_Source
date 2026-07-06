@@ -11,6 +11,7 @@
 #include "SkyBoxFlow.h"
 #include "Trigger_TeleportZone.h"
 #include "SimonCriticalGlowController.h"
+#include "MapAmbientVisibility.h"
 #include "MovementCom.h"
 #include "Player_WorldBase.h"
 #include "Trigger_WorldDialogue.h"
@@ -63,6 +64,7 @@ HRESULT Level_Stage01::Initialize()
     CHECK_FAILED(Ready_Layer_Monster(TEXT("Layer_Monster")), E_FAIL);
     CHECK_FAILED(Ready_Layer_Camera(TEXT("Layer_Camera")), E_FAIL);
     CHECK_FAILED(Ready_Layer_UI(TEXT("Layer_UI")), E_FAIL);
+    CHECK_FAILED(Ready_Layer_AmbientVisibility(TEXT("Layer_AmbientVisibility")), E_FAIL);
     CHECK_FAILED(Ready_Layer_ETC(TEXT("Layer_ETC")), E_FAIL);
     CHECK_FAILED(Ready_Layer_BackGround(TEXT("Layer_BackGround")), E_FAIL);
     CHECK_FAILED(Ready_Layer_CinematicTrigger(TEXT("Layer_Cinematic")), E_FAIL);
@@ -263,6 +265,29 @@ HRESULT Level_Stage01::Ready_Layer_UI(const wstring& strLayerTag)
     return S_OK;
 }
 
+HRESULT Level_Stage01::Ready_Layer_AmbientVisibility(const wstring& strLayerTag)
+{
+    MapAmbientVisibility::MAP_AMBIENT_VISIBILITY_DESC desc{};
+    desc.name = L"AV_Cube_Stage01_Test";
+    desc.modelPath = L"../../../Client/Bin/Resources/Map/SmallLevel_SimonArea/Cube.model";
+    desc.position = Vec3(33.38f, 4.73f, 0.20f);
+    desc.rotation = Quat::Identity;
+    desc.scale = Vec3(461.883f, 200.f, 200.f);
+    desc.ambientVisibilityAmount = 0.45f;
+    desc.visible = true;
+    desc.cullEnabled = true;
+
+    CHECK_FAILED(GAME->Add_GameObject(
+        ETOI(LevelType::Static),
+        TEXT("GameObject_MapAmbientVisibility"),
+        ETOI(LevelType::Stage01),
+        strLayerTag,
+        &desc),
+        E_FAIL);
+
+    return S_OK;
+}
+
 HRESULT Level_Stage01::Ready_Layer_ETC(const wstring& strLayerTag)
 {
     const uint32 levelIndex = ETOI(LevelType::Stage01);
@@ -451,6 +476,7 @@ void Level_Stage01::Apply_Stage01RenderParams()
             PostProcessFeature::Bloom |
             PostProcessFeature::Gamma |
             PostProcessFeature::LightShaft);
+        postProcessPipeline->Set_PostProcessFeature(PostProcessFeature::DOF, false);
     }
 }
 
@@ -468,7 +494,10 @@ void Level_Stage01::Restore_Stage01RenderParams()
 
     Shared<PostProcessPipeline> postProcessPipeline = GAME->Get_PostProcessPipeline();
     if (postProcessPipeline != nullptr)
+    {
+        postProcessPipeline->Set_PostProcessFeature(PostProcessFeature::DOF, true);
         postProcessPipeline->Set_PostProcessFeatures(_savedPostProcessFeatures);
+    }
 
     if (!_savedLightDescs.empty())
         GAME->Set_Lights(_savedLightDescs);
