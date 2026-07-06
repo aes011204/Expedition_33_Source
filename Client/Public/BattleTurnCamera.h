@@ -300,7 +300,10 @@ private:
     // DOF_MODIFY 
     BattleDOFProfile     _playerFocusDOFProfile{};
     BattleDOFProfile     _enemyFocusDOFProfile{};
+    BattleDOFProfile     _enemyAttackDOFProfile{};
+    BattleDOFProfile     _playerAttackDOFProfile{};
     BattleDOFProfile     _selectItemDOFProfile{};
+    BattleDOFProfile     _selectPlayerDOFProfile{};
     BattleDOFProfile     _selectSkillDOFProfile{};
     Shared<TransformCom> _targetTransform{};
     Vec3                 _smoothedTargetPos = Vec3::Zero;

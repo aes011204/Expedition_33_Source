@@ -4,6 +4,7 @@
 #include "DialogueCamera.h"
 #include "GameplayUI.h"
 #include "Item.h"
+#include "LevelChange_Portal.h"
 #include "UI_Dialogue.h"
 #include "Player_WorldBase.h"
 #include "NPC_Base.h"
@@ -406,7 +407,7 @@ bool DialogueManager::ExecuteLineAction(const string& action)
     {
         EndDialogue();
 
-        const Shared<GameObject> spawned = Spawn_Prefab::Prefab(Constants::Prefab::Portal_BishopReward)
+        const Shared<GameObject> spawned = Spawn_Prefab::Prefab(Constants::Prefab::Portal_GestralReward)
             .AtLevel(GAME->Current_LevelIndex())
             .InLayer(kRewardPortalLayer)
             .Position(kSimonPortalPosition)
@@ -414,7 +415,12 @@ bool DialogueManager::ExecuteLineAction(const string& action)
             .Spawn();
 
         if (spawned != nullptr)
+        {
             spawned->Set_RuntimeAuthoringLoaded(true);
+
+            if (const Shared<LevelChange_Portal> portal = dynamic_pointer_cast<LevelChange_Portal>(spawned))
+                portal->Set_GameEntryRevealLevel(LevelType::Stage01);
+        }
 
         return true;
     }
