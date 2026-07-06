@@ -13,7 +13,7 @@ IMPLEMENT_REFLECTION(AN_CounterReturnAll)
 
 void AN_CounterReturnAll::Execute(const AnimNotifyContext& context)
 {
-    if (context.isPreview)
+    if (context.isPreview || context.isCinematic)
         return;
 
     if (context.model == nullptr)
