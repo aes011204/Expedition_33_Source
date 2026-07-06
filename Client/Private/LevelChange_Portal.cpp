@@ -8,7 +8,7 @@
 
 namespace
 {
-    constexpr wchar_t kPortalEffectName[] = L"Effects\\Assets\\Monster\\FX_Portal.effect.json";
+    constexpr wchar_t kDefaultPortalEffectName[] = L"Effects\\Assets\\Map\\FX_Portal.effect.json";
 }
 
 IMPLEMENT_REFLECTION(LevelChange_Portal)
@@ -21,6 +21,7 @@ IMPLEMENT_REFLECTION(LevelChange_Portal)
 
     using SelfType = LevelChange_Portal;
     PROPERTY_ENUM("목적지 레벨", _targetLevel, LevelType);
+    PROPERTY_WSTRING("포탈 이펙트", _portalEffectName);
     PROPERTY_FLOAT("이펙트 스케일", _effectScale, 0.f, 10.f, 0.01f);
 
     return true;
@@ -34,6 +35,7 @@ LevelChange_Portal::LevelChange_Portal(const ComPtr<Device>& device, const ComPt
 LevelChange_Portal::LevelChange_Portal(const LevelChange_Portal& prototype)
     : GameObject(prototype)
     , _targetLevel(prototype._targetLevel)
+    , _portalEffectName(prototype._portalEffectName)
     , _effectScale(prototype._effectScale)
 {
 }
@@ -187,10 +189,13 @@ void LevelChange_Portal::Play_PortalEffect()
 
     EffectCom::EffectPlayDesc desc{};
     desc.levelIndex = GAME->Current_LevelIndex();
-    desc.effectName = kPortalEffectName;
+    if (_portalEffectName.empty())
+        desc.effectName = kDefaultPortalEffectName;
+    else
+        desc.effectName = _portalEffectName;
     desc.target = EffectCom::EffectPlayTarget::OwnerRoot;
     desc.layerTag = L"Layer_Effect";
-    desc.localOffset = Vec3(0.f, 1.f, 0.f);
+    desc.localOffset = Vec3(0.f, 1.5f, 0.f);
     desc.followTarget = true;
     desc.scale = Vec3(_effectScale);
     desc.requiresManualRelease = true;

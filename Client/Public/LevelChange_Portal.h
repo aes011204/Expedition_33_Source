@@ -39,6 +39,7 @@ private:
     Shared<EffectCom>   _effectCom{};
 
     LevelType _targetLevel = LevelType::GameEntry;
+    wstring _portalEffectName = L"Effects\\Assets\\Map\\FX_Portal.effect.json";
     float _effectScale = 2.0f;
     uset<ColliderCom*> _playerOverlapColliders{};
     bool _transitionRequested = false;
