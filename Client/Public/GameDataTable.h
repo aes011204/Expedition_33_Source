@@ -169,6 +169,7 @@ public:
     const Item_Data* Get_Item(BattleItemType itemType);
 
     bool Consume_Item(BattleItemType itemType);
+    void Reset_BattleItemCounts();
 
     HRESULT Load_SkillPhaseData(const wstring& jsonRootPath);
 public:
