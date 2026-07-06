@@ -11,6 +11,8 @@ NS_END
 
 NS_BEGIN(Client)
 
+class EffectCom;
+
 class VictoriaFlag : public GameObject
 {
     GENERATED_GAMEOBJECT(VictoriaFlag, ObjectType::StaticMesh)
@@ -60,6 +62,7 @@ private:
     Shared<Texture> _numberTexture = nullptr;
     Shared<Texture> _numberAtlasTexture = nullptr;
     Shared<ColliderCom> _interactionColliderCom = nullptr;
+    Shared<EffectCom> _effectCom = nullptr;
 
     Vec3 _clothLocalPosition = Vec3(0.f, 51.586124f, 226.74954f);
     Vec3 _clothLocalRotation = Vec3::Zero;
