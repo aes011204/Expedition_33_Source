@@ -392,6 +392,7 @@ void Level_Stage01::Apply_Stage01RenderParams()
             PostProcessFeature::Bloom |
             PostProcessFeature::Gamma |
             PostProcessFeature::LightShaft);
+        postProcessPipeline->Set_PostProcessFeature(PostProcessFeature::DOF, false);
     }
 }
 
@@ -409,7 +410,10 @@ void Level_Stage01::Restore_Stage01RenderParams()
 
     Shared<PostProcessPipeline> postProcessPipeline = GAME->Get_PostProcessPipeline();
     if (postProcessPipeline != nullptr)
+    {
+        postProcessPipeline->Set_PostProcessFeature(PostProcessFeature::DOF, true);
         postProcessPipeline->Set_PostProcessFeatures(_savedPostProcessFeatures);
+    }
 
     if (!_savedLightDescs.empty())
         GAME->Set_Lights(_savedLightDescs);

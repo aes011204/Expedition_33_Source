@@ -298,6 +298,12 @@ HRESULT BattleTurnCamera::Initialize(void* arg)
    _enemyFocusDOFProfile.preset.farMaxRadius = 1.2f;
    _enemyFocusDOFProfile.preset.farIntensity = 0.4f;
 
+   _enemyAttackDOFProfile.preset = Build_BattleDOFPreset();
+   _enemyAttackDOFProfile.preset.focusDistance = 0.f;
+   _enemyAttackDOFProfile.preset.focusRange = 9.f;
+   _enemyAttackDOFProfile.preset.farMaxRadius = 1.2f;
+   _enemyAttackDOFProfile.preset.farIntensity = 0.35f;
+
    _selectItemDOFProfile.preset = Build_BattleDOFPreset();
    _selectItemDOFProfile.preset.focusDistance = 0.f;
    _selectItemDOFProfile.preset.focusRange = 5.f;
@@ -834,6 +840,8 @@ const BattleTurnCamera::BattleDOFProfile* BattleTurnCamera::Find_DOFProfileStora
         return &_playerFocusDOFProfile;
     case BattleCameraMode::ENEMYFOCUS:
         return &_enemyFocusDOFProfile;
+    case BattleCameraMode::ENEMYATTACK:
+        return &_enemyAttackDOFProfile;
     case BattleCameraMode::SELECTITEM:
         return &_selectItemDOFProfile;
     case BattleCameraMode::SELECTPLAYER:
@@ -1138,24 +1146,8 @@ void BattleTurnCamera::Sync_BattleDOF(const EvaluatedPose& pose, BattleCameraMod
     const bool presetModeChanged = !_battleDOFPresetApplied || _battleDOFActiveMode != cameraMode;
     const float autoFocusDistance = max(0.f, (pose.lookTarget - pose.cameraPos).Length());
     DOFPreset preset = dofProfile ? dofProfile->preset : Build_BattleDOFPreset();
-    float focusDistance = max(0.f, autoFocusDistance + preset.focusDistance);
-    float focusRange = preset.focusRange;
-
-    if (Shared<PostProcessPipeline> pipeline = GAME->Get_PostProcessPipeline())
-    {
-        const PostProcessCB& params = pipeline->Get_PostProcessParams();
-        if (!presetModeChanged)
-            focusRange = max(0.01f, params.dofFocusRange);
-
-        if (!presetModeChanged)
-        {
-            const float userFocusDistanceDelta = params.dofFocusDistance - _battleDOFLastAppliedFocusDistance;
-            focusDistance = max(0.f, focusDistance + userFocusDistanceDelta);
-        }
-    }
-
-    preset.focusDistance = focusDistance;
-    preset.focusRange = focusRange;
+    preset.focusDistance = max(0.f, autoFocusDistance + preset.focusDistance);
+    preset.focusRange = max(0.01f, preset.focusRange);
 
     if (presetModeChanged)
     {

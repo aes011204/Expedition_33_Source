@@ -299,6 +299,7 @@ private:
     // DOF_MODIFY 
     BattleDOFProfile     _playerFocusDOFProfile{};
     BattleDOFProfile     _enemyFocusDOFProfile{};
+    BattleDOFProfile     _enemyAttackDOFProfile{};
     BattleDOFProfile     _selectItemDOFProfile{};
     BattleDOFProfile     _selectPlayerDOFProfile{};
     BattleDOFProfile     _selectSkillDOFProfile{};
