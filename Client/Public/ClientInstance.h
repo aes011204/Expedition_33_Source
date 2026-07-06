@@ -135,6 +135,7 @@ public: /* For.GameData Table */
     const Item_Data*  Get_Item(const string& itemId);
     const Item_Data*  Get_Item(BattleItemType itemType);
     bool              Consume_Item(BattleItemType itemType);
+    void              Reset_BattleItemCounts();
 
     const GameDataTable::PictosDesc* Get_PictosDesc(const string& pictosId) const;
     const vector<GameDataTable::PictosDesc>& Get_PictosDescs() const;

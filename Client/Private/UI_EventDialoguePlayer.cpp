@@ -1,7 +1,5 @@
-#include "UI_EventDialoguePlayer.h"
+﻿#include "UI_EventDialoguePlayer.h"
 
-#include "Client_Constants.h"
-#include "GameInstance.h"
 #include "UI_Base.h"
 #include "UI_RuntimeLoader.h"
 #include "UI_Utils.h"
@@ -72,7 +70,7 @@ bool UI_EventDialoguePlayer::Open_EventDialogue(const EventDialogueUIRequest& re
     _hasAutoClose = _autoCloseRemainingSec > 0.f;
 
     UI_RuntimePanelBase::Open();
-    GAME->Play_SoundCue(Constants::SoundCue::UI_Dialogue_CanvasEnter);
+
     return true;
 }
 
