@@ -1,11 +1,13 @@
 ﻿#include "ComputeTrailEmitter.h"
 
+#include "ClientInstance.h"
 #include "ComputeShaderCom.h"
 #include "ComputeStructuredBuffer.h"
 #include "EffectMaterialScalarModulationRuntime.h"
 #include "GameInstance.h"
 #include "Renderer_Define.h"
 #include "Texture.h"
+#include "UIPreviewManager.h"
 
 namespace Client::EffectAssetRuntimeLoad
 {
@@ -22,6 +24,14 @@ static int Resolve_MaterialSourceIndex(const string& source)
         return sourceLuminance;
 
     return sourceAlpha;
+}
+
+static bool Is_ChangeWeaponPreviewActive()
+{
+    const Shared<UIPreviewManager> previewManager = CLIENT ? CLIENT->Get_PreviewManager() : nullptr;
+    return previewManager != nullptr &&
+        previewManager->Is_Active() &&
+        previewManager->Get_ActivePanel() == PreviewShotPanel::ChangeWeapon;
 }
 
 static uint32 Resolve_SeedSalt(const PointParticleRandomSeedRuntimeDesc& seed, uint32 effectPlaybackSeed)
@@ -307,6 +317,26 @@ HRESULT ComputeTrailEmitter::Render()
 
     CHECK_FAILED_THROTTLED(_shader->Begin(Resolve_ShaderPassIndex()), 60, E_FAIL);
 
+    const bool isPreviewMaskTrail =
+        _emitterName.find("Mask") != string::npos ||
+        _emitterName.find("mask") != string::npos ||
+        _emitterName.find("Black") != string::npos ||
+        _emitterName.find("black") != string::npos ||
+        _emitterName.find("Distortion") != string::npos ||
+        _emitterName.find("distortion") != string::npos;
+    const bool writeChangeWeaponPreviewStencil =
+        EffectAssetRuntimeLoad::Is_ChangeWeaponPreviewActive() &&
+        !Is_DistortionFamily() &&
+        !isPreviewMaskTrail;
+
+    ComPtr<ID3D11DepthStencilState> previousDepthStencilState{};
+    UINT previousStencilRef = 0;
+    if (writeChangeWeaponPreviewStencil)
+    {
+        _context->OMGetDepthStencilState(previousDepthStencilState.GetAddressOf(), &previousStencilRef);
+        CHECK_FAILED_THROTTLED(GAME->Bind_PlayerStencilWriteState(false), 60, E_FAIL);
+    }
+
     constexpr uint32 stride0 = sizeof(Vec3);
     constexpr uint32 offset0 = 0;
     constexpr uint32 stride1 = sizeof(TrailInstanceVertex);
@@ -319,6 +349,10 @@ HRESULT ComputeTrailEmitter::Render()
     _context->IASetIndexBuffer(_indexBuffer.Get(), DXGI_FORMAT_R16_UINT, 0);
     _context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_POINTLIST);
     _context->DrawIndexedInstancedIndirect(_indirectArgsBuffer.Get(), 0);
+
+    if (writeChangeWeaponPreviewStencil)
+        _context->OMSetDepthStencilState(previousDepthStencilState.Get(), previousStencilRef);
+
     return S_OK;
 }
 
@@ -703,7 +737,15 @@ void ComputeTrailEmitter::Update_History(float timeDelta)
 
     Prune_HistoryForVisibleControl();
 
-    if (Count_VisibleHistorySamples() < 2u)
+    const uint32 visibleSampleCount = Count_VisibleHistorySamples();
+    if (!sampleAccepted && visibleSampleCount <= 2u)
+    {
+        _history.clear();
+        _drawSegmentCount = 0;
+        return;
+    }
+
+    if (visibleSampleCount < 2u)
         _drawSegmentCount = 0;
 }
 
