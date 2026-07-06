@@ -49,7 +49,6 @@ public:
 		float idleMotionDeadzone{ 0.06f };
 		float maxOutputAngleDegree{ 150.f };
 
-		float contactRotationFollowAlpha{ 0.34f };
 		float freeRotationFollowAlpha{ 0.46f };
 		float rotationFollowDepthScale{ 0.10f };
 
@@ -74,7 +73,6 @@ public:
 		float bendConstraintAlpha{ 0.f };
 		uint32 projectionIterations{ 1 };
 
-		float contactInertiaDamping{ 0.18f };
 		float releaseInertiaDamping{ 0.12f };
 
 		bool enableCollision{ true };
@@ -83,8 +81,6 @@ public:
 		float collisionContactSkinWidth{ 0.08f };
 		float collisionSphereRadius{ 0.24f };
 		float collisionPushOutScale{ 1.f };
-		float contactSnapAlpha{ 0.90f };
-		float collisionCorrectionSmoothAlpha{ 0.30f };
 		float collisionNormalSmoothAlpha{ 0.30f };
 		uint32 collisionProjectionIterations{ 3 };
 		bool useHardCollisionProjection{ false };

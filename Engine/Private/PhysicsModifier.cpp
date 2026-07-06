@@ -1616,8 +1616,6 @@ void PhysicsModifier::Apply_PostSimulationConstraints(const vector<WorldCapsule>
 
 	const float skinWidth = std::max(0.f, _desc.collisionContactSkinWidth);
 	const float pushOutScale = std::max(0.f, _desc.collisionPushOutScale);
-	const float snapAlpha = std::clamp(_desc.contactSnapAlpha, 0.f, 1.f);
-	const float correctionSmoothAlpha = std::clamp(_desc.collisionCorrectionSmoothAlpha, 0.f, 1.f);
 	const float normalSmoothAlpha = std::clamp(_desc.collisionNormalSmoothAlpha, 0.f, 1.f);
 	const bool useHardCollisionProjection = _desc.useHardCollisionProjection;
 	const uint32 iterations = useHardCollisionProjection
@@ -1722,38 +1720,9 @@ void PhysicsModifier::Apply_PostSimulationConstraints(const vector<WorldCapsule>
 				}
 				if (resolved)
 				{
-					if (snapAlpha > 0.f)
-					{
-						const float appliedSnapAlpha = std::clamp(snapAlpha, 0.f, 1.f);
-						position = Vec3::Lerp(currentPosition, position, appliedSnapAlpha);
-					}
-
 					const Vec3 correctionOffset = position - currentPosition;
-					if (node.hasSmoothedCollisionOffset)
-					{
-						const float correctionAlpha = std::clamp(correctionSmoothAlpha, 0.f, 1.f);
-						node.smoothedCollisionOffset = Vec3::Lerp(node.smoothedCollisionOffset, correctionOffset, correctionAlpha);
-
-						const float targetLength = correctionOffset.Length();
-						const float smoothedLength = node.smoothedCollisionOffset.Length();
-						const float maxSmoothedLength = targetLength + 0.001f;
-						if (smoothedLength > maxSmoothedLength && smoothedLength > 0.0001f)
-							node.smoothedCollisionOffset *= maxSmoothedLength / smoothedLength;
-					}
-					else
-					{
-						node.smoothedCollisionOffset = correctionOffset;
-						node.hasSmoothedCollisionOffset = true;
-					}
-
-					const float penetrationAlpha = std::clamp(
-						maxPenetration / std::max(0.001f, nodeRadius + skinWidth),
-						0.f,
-						1.f);
-					position = Vec3::Lerp(
-						currentPosition + node.smoothedCollisionOffset,
-						position,
-						penetrationAlpha);
+					node.smoothedCollisionOffset = correctionOffset;
+					node.hasSmoothedCollisionOffset = true;
 
 					node.solvedPosition = position;
 					node.hadContactThisFrame = true;
@@ -1792,7 +1761,6 @@ void PhysicsModifier::Apply_PostSimulationConstraints(const vector<WorldCapsule>
 							}
 						}
 
-						linearVelocity *= (1.f - std::clamp(_desc.contactInertiaDamping, 0.f, 1.f));
 						node.actor->setLinearVelocity(To_PxVec3(linearVelocity));
 					}
 				}
@@ -1800,12 +1768,8 @@ void PhysicsModifier::Apply_PostSimulationConstraints(const vector<WorldCapsule>
 				{
 					if (node.hasSmoothedCollisionOffset)
 					{
-						node.smoothedCollisionOffset *= std::clamp(correctionSmoothAlpha, 0.f, 1.f);
-						if (node.smoothedCollisionOffset.LengthSquared() <= 0.000001f)
-						{
-							node.smoothedCollisionOffset = Vec3::Zero;
-							node.hasSmoothedCollisionOffset = false;
-						}
+						node.smoothedCollisionOffset = Vec3::Zero;
+						node.hasSmoothedCollisionOffset = false;
 					}
 
 					if (node.hasSmoothedContactNormal)
@@ -2077,7 +2041,6 @@ void PhysicsModifier::Apply_PostSimulationConstraints(const vector<WorldCapsule>
 								}
 							}
 
-							linearVelocity *= (1.f - std::clamp(_desc.contactInertiaDamping, 0.f, 1.f));
 							node.actor->setLinearVelocity(To_PxVec3(linearVelocity));
 						}
 					}
@@ -2365,7 +2328,7 @@ void PhysicsModifier::Write_BackToModel(ModelCom* model, const Matrix& ownerWorl
 			if (restLocalDir.LengthSquared() <= 0.0001f || targetLocalDir.LengthSquared() <= 0.0001f)
 				return false;
 
-			const bool forceCollisionOutput = hadContact && _desc.useHardCollisionProjection;
+			const bool forceCollisionOutput = hadContact;
 
 			restLocalDir.Normalize();
 			targetLocalDir.Normalize();
@@ -2391,11 +2354,13 @@ void PhysicsModifier::Write_BackToModel(ModelCom* model, const Matrix& ownerWorl
 			}
 
 			const float minimumFollowAlpha = hadContact
-				? _desc.contactRotationFollowAlpha - clampedDepth * _desc.rotationFollowDepthScale
+				? 1.f
 				: _desc.freeRotationFollowAlpha - clampedDepth * _desc.rotationFollowDepthScale;
-			const float baseRotationFollowAlpha = std::max(
-				std::clamp(minimumFollowAlpha, 0.f, 1.f),
-				std::clamp(smoothAlpha * chain.desc.smoothMultiplier, 0.f, 1.f));
+			const float baseRotationFollowAlpha = hadContact
+				? 1.f
+				: std::max(
+					std::clamp(minimumFollowAlpha, 0.f, 1.f),
+					std::clamp(smoothAlpha * chain.desc.smoothMultiplier, 0.f, 1.f));
 			const float depthSmoothWeight = SmoothStep(clampedDepth);
 			const float rotationFollowAlpha = baseRotationFollowAlpha;
 			if (node.hasSmoothedLocalDirection &&
@@ -2420,10 +2385,12 @@ void PhysicsModifier::Write_BackToModel(ModelCom* model, const Matrix& ownerWorl
 				std::lerp(std::clamp(chain.desc.smoothMultiplier, 0.f, 1.f), 1.f, depthSmoothWeight),
 				0.f,
 				1.f);
-			const float nodeRotationOutputAlpha = std::clamp(
-				overallOutputAlpha * chain.desc.outputMultiplier * _desc.rotationOutputAlpha * depthOutputAlpha,
-				0.f,
-				1.f);
+			const float nodeRotationOutputAlpha = hadContact
+				? 1.f
+				: std::clamp(
+					overallOutputAlpha * chain.desc.outputMultiplier * _desc.rotationOutputAlpha * depthOutputAlpha,
+					0.f,
+					1.f);
 			Quat blendedRotation = Quat::Slerp(poseRotation, solvedRotation, nodeRotationOutputAlpha);
 			blendedRotation.Normalize();
 
@@ -2474,11 +2441,13 @@ void PhysicsModifier::Write_BackToModel(ModelCom* model, const Matrix& ownerWorl
 
 			if (hadSmoothedLocalTransform)
 			{
-				const float translationFollowAlpha = allowTranslationOutput
+				const float translationFollowAlpha = hadContact
+					? 1.f
+					: allowTranslationOutput
 					? std::clamp(
 						std::lerp(
 							smoothAlpha,
-							hadContact ? _desc.contactRotationFollowAlpha : _desc.freeRotationFollowAlpha,
+							_desc.freeRotationFollowAlpha,
 							std::clamp(chain.desc.smoothMultiplier, 0.f, 1.f)),
 						0.f,
 						1.f)
@@ -2816,7 +2785,6 @@ const ClassReflectionInfo* PhysicsModifier::Get_RuntimeReflectionInfo() const
 			AddRuntimeProperty(result.properties, PropertyType::Float, "idleMotionDeadzone", "Idle Dead", PhysicsOffset(&PhysicsModifierDesc::idleMotionDeadzone), 0.001f, 0.f, 10.f);
 			AddRuntimeProperty(result.properties, PropertyType::Float, "maxOutputAngleDegree", "Max Angle", PhysicsOffset(&PhysicsModifierDesc::maxOutputAngleDegree), 0.25f, 0.f, 180.f);
 
-			AddRuntimeProperty(result.properties, PropertyType::Float, "contactRotationFollowAlpha", "Contact Follow", PhysicsOffset(&PhysicsModifierDesc::contactRotationFollowAlpha), 0.005f, 0.f, 1.f);
 			AddRuntimeProperty(result.properties, PropertyType::Float, "freeRotationFollowAlpha", "Free Follow", PhysicsOffset(&PhysicsModifierDesc::freeRotationFollowAlpha), 0.005f, 0.f, 1.f);
 			AddRuntimeProperty(result.properties, PropertyType::Float, "rotationFollowDepthScale", "Depth Follow", PhysicsOffset(&PhysicsModifierDesc::rotationFollowDepthScale), 0.005f, 0.f, 1.f);
 			AddRuntimeProperty(result.properties, PropertyType::Float, "poseRestoreAlpha", "Restore", PhysicsOffset(&PhysicsModifierDesc::poseRestoreAlpha), 0.005f, 0.f, 1.f);
@@ -2837,7 +2805,6 @@ const ClassReflectionInfo* PhysicsModifier::Get_RuntimeReflectionInfo() const
 			AddRuntimeProperty(result.properties, PropertyType::Float, "bendConstraintAlpha", "Bend Cst", PhysicsOffset(&PhysicsModifierDesc::bendConstraintAlpha), 0.005f, 0.f, 1.f);
 			AddRuntimeProperty(result.properties, PropertyType::Int, "projectionIterations", "Proj Iter", PhysicsOffset(&PhysicsModifierDesc::projectionIterations), 1.f, 1.f, 16.f);
 
-			AddRuntimeProperty(result.properties, PropertyType::Float, "contactInertiaDamping", "Contact Damp", PhysicsOffset(&PhysicsModifierDesc::contactInertiaDamping), 0.005f, 0.f, 1.f);
 			AddRuntimeProperty(result.properties, PropertyType::Float, "releaseInertiaDamping", "Release Damp", PhysicsOffset(&PhysicsModifierDesc::releaseInertiaDamping), 0.005f, 0.f, 1.f);
 
 			AddRuntimeProperty(result.properties, PropertyType::Float, "collisionPrimitiveScale", "Col Scale", PhysicsOffset(&PhysicsModifierDesc::collisionPrimitiveScale), 0.005f, 0.001f, 10.f);
@@ -2845,8 +2812,6 @@ const ClassReflectionInfo* PhysicsModifier::Get_RuntimeReflectionInfo() const
 			AddRuntimeProperty(result.properties, PropertyType::Float, "collisionContactSkinWidth", "Col Skin", PhysicsOffset(&PhysicsModifierDesc::collisionContactSkinWidth), 0.005f, 0.f, 10.f);
 			AddRuntimeProperty(result.properties, PropertyType::Float, "collisionSphereRadius", "Node Radius", PhysicsOffset(&PhysicsModifierDesc::collisionSphereRadius), 0.005f, 0.001f, 10.f);
 			AddRuntimeProperty(result.properties, PropertyType::Float, "collisionPushOutScale", "Push Out", PhysicsOffset(&PhysicsModifierDesc::collisionPushOutScale), 0.01f, 0.f, 10.f);
-			AddRuntimeProperty(result.properties, PropertyType::Float, "contactSnapAlpha", "Contact Snap", PhysicsOffset(&PhysicsModifierDesc::contactSnapAlpha), 0.005f, 0.f, 1.f);
-			AddRuntimeProperty(result.properties, PropertyType::Float, "collisionCorrectionSmoothAlpha", "Col Smooth", PhysicsOffset(&PhysicsModifierDesc::collisionCorrectionSmoothAlpha), 0.005f, 0.f, 1.f);
 			AddRuntimeProperty(result.properties, PropertyType::Float, "collisionNormalSmoothAlpha", "Normal Smooth", PhysicsOffset(&PhysicsModifierDesc::collisionNormalSmoothAlpha), 0.005f, 0.f, 1.f);
 			AddRuntimeProperty(result.properties, PropertyType::Int, "collisionProjectionIterations", "Col Iter", PhysicsOffset(&PhysicsModifierDesc::collisionProjectionIterations), 1.f, 0.f, 32.f);
 			AddRuntimeProperty(result.properties, PropertyType::Bool, "useHardCollisionProjection", "Hard Col", PhysicsOffset(&PhysicsModifierDesc::useHardCollisionProjection));

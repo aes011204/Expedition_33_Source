@@ -760,7 +760,6 @@ void ChainModifierPreset::BuildSimonHairPhysicsDesc(
     desc.idleMotionDeadzone = 0.055f;
     desc.maxOutputAngleDegree = 170.f;
 
-    desc.contactRotationFollowAlpha = 0.24f;
     desc.freeRotationFollowAlpha = 0.090f;
     desc.rotationFollowDepthScale = 0.040f;
     desc.poseRestoreAlpha = 0.070f;
@@ -781,7 +780,6 @@ void ChainModifierPreset::BuildSimonHairPhysicsDesc(
     desc.bendConstraintAlpha = 0.006f;
     desc.projectionIterations = 3;
 
-    desc.contactInertiaDamping = 0.18f;
     desc.releaseInertiaDamping = 0.780f;
 
     desc.enableCollision = true;
@@ -790,13 +788,11 @@ void ChainModifierPreset::BuildSimonHairPhysicsDesc(
     desc.collisionRadiusPadding = 0.06f;
     desc.collisionContactSkinWidth = 0.045f;
     desc.collisionPushOutScale = 1.00f;
-    desc.contactSnapAlpha = 0.58f;
-    desc.collisionCorrectionSmoothAlpha = 0.48f;
     desc.collisionNormalSmoothAlpha = 0.40f;
-    desc.collisionProjectionIterations = 3;
+    desc.collisionProjectionIterations = 4;
     desc.useHardCollisionProjection = true;
-    desc.hardCollisionProjectionIterations = 6;
-    desc.hardCollisionLengthAlpha = 0.85f;
+    desc.hardCollisionProjectionIterations = 10;
+    desc.hardCollisionLengthAlpha = 1.00f;
 
     desc.windDirection = kBackwardWindDirection;
     desc.windScale = 0.078f;
@@ -832,7 +828,6 @@ void ChainModifierPreset::BuildDuallisteHairbandPhysicsDesc(
     desc.idleMotionDeadzone = 0.002f;
     desc.maxOutputAngleDegree = 180.f;
 
-    desc.contactRotationFollowAlpha = 0.26f;
     desc.freeRotationFollowAlpha = 0.36f;
     desc.rotationFollowDepthScale = 0.04f;
     desc.poseRestoreAlpha = 0.024f;
@@ -853,7 +848,6 @@ void ChainModifierPreset::BuildDuallisteHairbandPhysicsDesc(
     desc.bendConstraintAlpha = 0.001f;
     desc.projectionIterations = 4;
 
-    desc.contactInertiaDamping = 0.08f;
     desc.releaseInertiaDamping = 0.115f;
 
     desc.enableCollision = false;
@@ -960,7 +954,6 @@ void ChainModifierPreset::BuildGustavePotatoCapePhysicsDesc(
     desc.idleMotionDeadzone = 0.055f;
     desc.maxOutputAngleDegree = 105.f;
 
-    desc.contactRotationFollowAlpha = 0.14f;
     desc.freeRotationFollowAlpha = 0.22f;
     desc.rotationFollowDepthScale = 0.10f;
     desc.poseRestoreAlpha = 0.18f;
@@ -980,7 +973,6 @@ void ChainModifierPreset::BuildGustavePotatoCapePhysicsDesc(
     desc.bendConstraintAlpha = 0.010f;
     desc.projectionIterations = 3;
 
-    desc.contactInertiaDamping = 0.120f;
     desc.releaseInertiaDamping = 0.550f;
 
     desc.enableCollision = false;
@@ -1032,7 +1024,6 @@ void ChainModifierPreset::BuildGustaveHairPhysicsDesc(
     desc.idleMotionDeadzone = 0.050f;
     desc.maxOutputAngleDegree = 58.f;
 
-    desc.contactRotationFollowAlpha = 0.18f;
     desc.freeRotationFollowAlpha = 0.26f;
     desc.rotationFollowDepthScale = 0.08f;
     desc.poseRestoreAlpha = 0.22f;
@@ -1052,7 +1043,6 @@ void ChainModifierPreset::BuildGustaveHairPhysicsDesc(
     desc.bendConstraintAlpha = 0.025f;
     desc.projectionIterations = 3;
 
-    desc.contactInertiaDamping = 0.16f;
     desc.releaseInertiaDamping = 0.52f;
 
     desc.enableCollision = false;
@@ -1107,7 +1097,6 @@ void ChainModifierPreset::BuildLuneHairPhysicsDesc(
     desc.idleMotionDeadzone = 0.050f;
     desc.maxOutputAngleDegree = 52.f;
 
-    desc.contactRotationFollowAlpha = 0.16f;
     desc.freeRotationFollowAlpha = 0.22f;
     desc.rotationFollowDepthScale = 0.08f;
     desc.poseRestoreAlpha = 0.14f;
@@ -1127,7 +1116,6 @@ void ChainModifierPreset::BuildLuneHairPhysicsDesc(
     desc.bendConstraintAlpha = 0.018f;
     desc.projectionIterations = 3;
 
-    desc.contactInertiaDamping = 0.18f;
     desc.releaseInertiaDamping = 0.42f;
 
     desc.enableCollision = false;
@@ -1170,7 +1158,6 @@ void ChainModifierPreset::BuildMaelleBackHairPhysicsDesc(
     desc.idleMotionDeadzone = 0.055f;
     desc.maxOutputAngleDegree = 152.f;
 
-    desc.contactRotationFollowAlpha = 0.14f;
     desc.freeRotationFollowAlpha = 0.22f;
     desc.rotationFollowDepthScale = 0.10f;
     desc.poseRestoreAlpha = 0.400f;
@@ -1191,7 +1178,6 @@ void ChainModifierPreset::BuildMaelleBackHairPhysicsDesc(
     desc.bendConstraintAlpha = 0.006f;
     desc.projectionIterations = 3;
 
-    desc.contactInertiaDamping = 0.120f;
     desc.releaseInertiaDamping = 0.820f;
 
     desc.enableCollision = false;
@@ -1236,7 +1222,6 @@ void ChainModifierPreset::BuildMaelleFrontHairPhysicsDesc(
     desc.idleMotionDeadzone = 0.050f;
     desc.maxOutputAngleDegree = 38.f;
 
-    desc.contactRotationFollowAlpha = 0.14f;
     desc.freeRotationFollowAlpha = 0.22f;
     desc.rotationFollowDepthScale = 0.08f;
     desc.poseRestoreAlpha = 0.14f;
@@ -1256,7 +1241,6 @@ void ChainModifierPreset::BuildMaelleFrontHairPhysicsDesc(
     desc.bendConstraintAlpha = 0.020f;
     desc.projectionIterations = 3;
 
-    desc.contactInertiaDamping = 0.16f;
     desc.releaseInertiaDamping = 0.44f;
 
     desc.enableCollision = false;
