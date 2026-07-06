@@ -441,6 +441,7 @@ void BattleTurnCamera::Focus_Battle(const vector<BattleChar>& heroes, const vect
     Apply_RuntimeDrift(pose, timeDelta);
     Apply_RuntimeShake(pose, timeDelta);
     Apply_EvaluatedPoseWithDOF(pose, BattleCameraMode::WIDE);
+    GAME->UpdateFrustum(*GAME->Get_Transform(D3DTS::View), *GAME->Get_Transform(D3DTS::Proj));
     _smoothedTargetPos = pose.cameraPos;
 }
 
@@ -1938,7 +1939,10 @@ void BattleTurnCamera::Apply_ShotRequest(const BattleShotRequest& request)
         EvaluatedPose toPose {};
 
         if(Evaluate_ShotRequestPose(_currentRequest, _currentPreset, &_smoothedTargetPos, BattleCameraClipSample{}, _clipShakeTime, toPose ))
-        Apply_EvaluatedPoseWithDOF(toPose, _currentRequest.mode);
+        {
+            Apply_EvaluatedPoseWithDOF(toPose, _currentRequest.mode);
+            GAME->UpdateFrustum(*GAME->Get_Transform(D3DTS::View), *GAME->Get_Transform(D3DTS::Proj));
+        }
 
         return;
     }

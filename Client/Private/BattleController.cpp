@@ -3673,6 +3673,7 @@ void BattleController::Complete_BattleField()
 
     // 현제 케릭 아이디 , 적 아이디로 전투 용 객체 생성
     Create_BattleChar(_pendingBattleHeroIds, _pendingBattleMonsterSpawnDescs);
+    CLIENT->Reset_BattleItemCounts(); // 새 배틀 시작마다 Tint 수량을 DT_Item 기본값으로 다시 세팅한다.
     Capture_PreBattleBGM();
 
     if (_battleTutorialController)
