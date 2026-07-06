@@ -709,8 +709,16 @@ void ChainModifierPreset::BuildSimonHairPhysicsDesc(
     desc.physicsAssetPath = L"../Bin/Resources/ModelPhysics/SK_Simon_Physics.json";
     desc.includedCollisionBones = {
         "pelvis",
+        "lowerarm_r",
+        "hand_r",
         "spine_02",
+        "thigh_l",
+        "thigh_r",
         "spine_04",
+        "upperarm_l",
+        "upperarm_r",
+        "calf_l",
+        "calf_r",
         "neck_01"
     };
 
@@ -742,59 +750,59 @@ void ChainModifierPreset::BuildSimonHairPhysicsDesc(
 
     for (int32 i = 1; i <= 15; ++i)
     {
-        addChain(makeRootName(i, 1), 1.10f, 0.24f, 2.60f, 1.00f, 0.040f, 0.36f);
+        addChain(makeRootName(i, 1), 1.00f, 0.18f, 2.30f, 1.00f, 0.055f, 0.44f);
     }
 
     desc.outputAlpha = 1.00f;
     desc.rotationOutputAlpha = 1.00f;
-    desc.outputSmoothAlpha = 0.045f;
-    desc.idleOutputSmoothAlpha = 0.54f;
+    desc.outputSmoothAlpha = 0.028f;
+    desc.idleOutputSmoothAlpha = 0.48f;
     desc.idleMotionDeadzone = 0.055f;
     desc.maxOutputAngleDegree = 170.f;
 
-    desc.contactRotationFollowAlpha = 0.26f;
-    desc.freeRotationFollowAlpha = 0.075f;
-    desc.rotationFollowDepthScale = 0.045f;
-    desc.poseRestoreAlpha = 0.055f;
-    desc.poseRestoreMaxSpeed = 4.4f;
-    desc.maxLocalOffset = Vec3(7.50f, 2.80f, 10.00f);
-    desc.movementInertiaScale = 2.65f;
-    desc.tipMovementInertiaScale = 26.00f;
-    desc.maxMovementInertiaSpeed = 76.0f;
-    desc.lateralInertiaScale = 5.20f;
-    desc.verticalInertiaScale = 0.42f;
-    desc.depthInertiaScale = 3.00f;
+    desc.contactRotationFollowAlpha = 0.18f;
+    desc.freeRotationFollowAlpha = 0.040f;
+    desc.rotationFollowDepthScale = 0.025f;
+    desc.poseRestoreAlpha = 0.035f;
+    desc.poseRestoreMaxSpeed = 3.2f;
+    desc.maxLocalOffset = Vec3(19.00f, 3.00f, 10.90f);
+    desc.movementInertiaScale = 3.40f;
+    desc.tipMovementInertiaScale = 68.00f;
+    desc.maxMovementInertiaSpeed = 120.0f;
+    desc.lateralInertiaScale = 16.25f;
+    desc.verticalInertiaScale = 0.30f;
+    desc.depthInertiaScale = 2.45f;
     desc.includeDriverLateralInertia = true;
-    desc.accelerationInertiaScale = 0.012f;
-    desc.inertiaVelocitySmoothAlpha = 0.030f;
-    desc.poseSpringStrength = 0.14f;
-    desc.poseSpringDamping = 0.450f;
-    desc.lengthConstraintAlpha = 0.100f;
-    desc.bendConstraintAlpha = 0.008f;
-    desc.projectionIterations = 4;
+    desc.accelerationInertiaScale = 0.005f;
+    desc.inertiaVelocitySmoothAlpha = 0.065f;
+    desc.poseSpringStrength = 0.32f;
+    desc.poseSpringDamping = 0.720f;
+    desc.lengthConstraintAlpha = 0.055f;
+    desc.bendConstraintAlpha = 0.006f;
+    desc.projectionIterations = 3;
 
-    desc.contactInertiaDamping = 0.520f;
-    desc.releaseInertiaDamping = 0.340f;
+    desc.contactInertiaDamping = 0.18f;
+    desc.releaseInertiaDamping = 0.780f;
 
     desc.enableCollision = true;
     desc.collisionPrimitiveScale = 0.15f;
-    desc.collisionSphereRadius = 0.25f;
+    desc.collisionSphereRadius = 0.18f;
     desc.collisionRadiusPadding = 0.04f;
     desc.collisionContactSkinWidth = 0.03f;
     desc.collisionPushOutScale = 1.00f;
-    desc.contactSnapAlpha = 0.72f;
-    desc.collisionCorrectionSmoothAlpha = 0.58f;
-    desc.collisionNormalSmoothAlpha = 0.42f;
+    desc.contactSnapAlpha = 0.58f;
+    desc.collisionCorrectionSmoothAlpha = 0.48f;
+    desc.collisionNormalSmoothAlpha = 0.40f;
     desc.collisionProjectionIterations = 3;
     desc.useHardCollisionProjection = true;
     desc.hardCollisionProjectionIterations = 6;
-    desc.hardCollisionLengthAlpha = 0.90f;
+    desc.hardCollisionLengthAlpha = 0.85f;
 
-    desc.windDirection = kCommonWindDirection;
-    desc.windScale = 0.038f;
-    desc.windWaveScale = 0.42f;
-    desc.windWaveFrequency = 0.55f;
-    desc.windWaveDepthPhase = 0.60f;
+    desc.windDirection = kBackwardWindDirection;
+    desc.windScale = 0.078f;
+    desc.windWaveScale = 0.78f;
+    desc.windWaveFrequency = 0.78f;
+    desc.windWaveDepthPhase = 0.86f;
     desc.gravityScale = 0.42f;
     desc.teleportDistance = 300.f;
     desc.solverIterations = 8;
