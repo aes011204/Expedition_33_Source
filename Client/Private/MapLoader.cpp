@@ -1128,6 +1128,7 @@ HRESULT MapLoader::Process_LoadSession(LoadSession& session, size_t maxMeshesPer
         desc.visible = true;
         desc.cullEnabled = true;
         desc.castShadow = true;
+        desc.hasCollision = false;
         desc.displayName = String::ToWString(
             Build_InstancedMeshDisplayName(displayNameLabel, totalInstanceCount));
 
@@ -1137,6 +1138,7 @@ HRESULT MapLoader::Process_LoadSession(LoadSession& session, size_t maxMeshesPer
             if (!entry.value("Visible", true))     desc.visible = false;
             if (!entry.value("CullEnabled", true)) desc.cullEnabled = false;
             if (!entry.value("CastShadow", true))  desc.castShadow = false;
+            if (entry.value("HasCollision", false)) desc.hasCollision = true;
         }
 
         desc.modelPath = String::ToWString(MapAdapter::ResolveMapModelPath(session.modelFolder, modelPathStr));
@@ -1173,10 +1175,16 @@ HRESULT MapLoader::Process_LoadSession(LoadSession& session, size_t maxMeshesPer
         }
 
         // InstancedMeshes도 static mesh와 같은 collision cache를 재사용한다.
-        desc.collisionData = MapCollisionAdapter::GetOrCreateStaticCollision(
-            MakeCollisionRuntimeContext(session),
-            desc.model,
-            modelPathStr);
+        const bool isCollisionFlagTrustedMap =
+            session.sourceMapPath.find(L"SmallLevel_MF_Zone_01_Mk1") != wstring::npos;
+
+        if (desc.hasCollision || !isCollisionFlagTrustedMap)
+        {
+            desc.collisionData = MapCollisionAdapter::GetOrCreateStaticCollision(
+                MakeCollisionRuntimeContext(session),
+                desc.model,
+                modelPathStr);
+        }
 
         const auto instancedTransformBegin = chrono::steady_clock::now();
         for (size_t idx : groupIndices)

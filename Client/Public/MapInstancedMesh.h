@@ -40,6 +40,7 @@ public:
         bool cullEnabled = true;
         bool castShadow = true;
         float cullDist = 125.f;
+        bool hasCollision = true;
     } MAPINSTANCEDMESH_DESC;
 
 public:
