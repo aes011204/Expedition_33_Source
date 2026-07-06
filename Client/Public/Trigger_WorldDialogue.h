@@ -18,6 +18,7 @@ public:
     void    Update(float timeDelta) override;
     void    Late_Update(float timeDelta) override;
     void    OnBeginOverlap(Shared<ColliderCom> self, Shared<ColliderCom> other) override;
+    void    OnStayOverlap(Shared<ColliderCom> self, Shared<ColliderCom> other) override;
     void    OnEndOverlap(Shared<ColliderCom> self, Shared<ColliderCom> other) override;
 
 public:
@@ -27,15 +28,22 @@ public:
         const wstring& animationPath = L"",
         float autoCloseDelaySec = -1.f);
     void    Set_TriggerOptions(bool triggerOnce, bool closeOnExit);
+    const wstring& Get_UIJsonPath() const { return _uiJsonPath; }
 
 private:
     HRESULT Ready_Components();
     bool    Is_ActivePlayerCollider(const Shared<ColliderCom>& other) const;
+    const char* Get_OpenBlockReason() const;
     bool    Can_OpenUI() const;
     bool    Has_PlayerOverlap() const { return !_playerOverlapColliders.empty(); }
     bool    Try_OpenUI();
     void    Close_UI();
     void    Disable_TriggerCollider();
+
+#if defined(_DEBUG) || defined(_EDITOR)
+    void    Debug_LogOverlapEvent(const char* eventName, const Shared<ColliderCom>& other, bool activePlayer);
+    void    Debug_LogOpenBlocked(const char* reason);
+#endif
 
 private:
     Shared<ColliderCom> _colliderCom{};
@@ -50,6 +58,12 @@ private:
 
     bool  _openedForCurrentOverlap = false;
     bool  _played = false;
+
+#if defined(_DEBUG) || defined(_EDITOR)
+    uint32 _debugRejectedOverlapLogCount = 0;
+    uint32 _debugStayOverlapLogCount = 0;
+    const char* _debugLastOpenBlockReason = nullptr;
+#endif
 
 public:
     static Shared<Trigger_WorldDialogue> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);

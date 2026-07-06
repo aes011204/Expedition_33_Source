@@ -363,6 +363,9 @@ void Mon_Simon_Weapon::Begin_WeaponEchoPlayback(
 
     if (_weaponEchoPendingTrailValid)
     {
+        const wstring& pendingTrailEffectName =
+            Resolve_WeaponEchoTrailEffectName(_weaponEchoPendingTrailEffectName);
+
         for (uint32 laneIndex = 0; laneIndex < kMaxWeaponEchoLaneCount; ++laneIndex)
         {
             WeaponEchoLane& lane = _weaponEchoLanes[laneIndex];
@@ -372,7 +375,7 @@ void Mon_Simon_Weapon::Begin_WeaponEchoPlayback(
             Start_WeaponEchoTrail(
                 lane,
                 laneIndex,
-                _weaponEchoPendingTrailEffectName,
+                pendingTrailEffectName,
                 _weaponEchoPendingTrailLayerTag,
                 _weaponEchoPendingTrailOffset);
         }
@@ -489,19 +492,33 @@ void Mon_Simon_Weapon::Update_WeaponEchoPlayback(float timeDelta)
         _weaponEchoHasSourceTime = false;
     }
 
+    bool anyActiveLane = false;
     for (WeaponEchoLane& lane : _weaponEchoLanes)
     {
         if (!lane.active)
             continue;
 
+        anyActiveLane = true;
         lane.playbackSec = playbackTimeSec;
 
         if (lane.recordingEnded && lane.playbackSec > lane.delaySec + lane.endElapsedSec)
         {
             Stop_WeaponEchoTrail(lane);
             Reset_WeaponEchoLane(lane);
+            anyActiveLane = false;
+            for (const WeaponEchoLane& otherLane : _weaponEchoLanes)
+            {
+                if (otherLane.active)
+                {
+                    anyActiveLane = true;
+                    break;
+                }
+            }
         }
     }
+
+    if (!anyActiveLane)
+        _weaponEchoTrailEffectOverride.clear();
 }
 
 void Mon_Simon_Weapon::Reset_WeaponEchoLane(WeaponEchoLane& lane)
@@ -661,8 +678,10 @@ void Mon_Simon_Weapon::Begin_WeaponEchoTrail(
     const wstring& layerTag,
     const EffectCom::TrailOffsetRuntimeDesc& offsetDesc)
 {
+    const wstring& resolvedEffectName = Resolve_WeaponEchoTrailEffectName(effectName);
+
     _weaponEchoPendingTrailValid = true;
-    _weaponEchoPendingTrailEffectName = effectName;
+    _weaponEchoPendingTrailEffectName = resolvedEffectName;
     _weaponEchoPendingTrailLayerTag = layerTag;
     _weaponEchoPendingTrailOffset = offsetDesc;
     _weaponEchoPendingTrailOffset.phase = std::clamp(_weaponEchoPendingTrailOffset.phase, 0.f, 1.f);
@@ -681,7 +700,7 @@ void Mon_Simon_Weapon::Begin_WeaponEchoTrail(
             continue;
         }
 
-        Start_WeaponEchoTrail(lane, laneIndex, effectName, layerTag, offsetDesc);
+        Start_WeaponEchoTrail(lane, laneIndex, resolvedEffectName, layerTag, offsetDesc);
     }
 }
 
@@ -756,6 +775,18 @@ void Mon_Simon_Weapon::Start_WeaponEchoTrail(
     }
 
     lane.trailStarted = true;
+}
+
+const wstring& Mon_Simon_Weapon::Resolve_WeaponEchoTrailEffectName(const wstring& effectName) const
+{
+    return _weaponEchoTrailEffectOverride.empty()
+        ? effectName
+        : _weaponEchoTrailEffectOverride;
+}
+
+void Mon_Simon_Weapon::Set_WeaponEchoTrailEffectOverride(const wstring& effectName)
+{
+    _weaponEchoTrailEffectOverride = effectName;
 }
 
 void Mon_Simon_Weapon::Stop_WeaponEchoTrail()
@@ -917,6 +948,7 @@ Shared<GameObject> Mon_Simon_Weapon::Clone(void* arg)
 void Mon_Simon_Weapon::Free()
 {
     Stop_WeaponEchoTrail();
+    _weaponEchoTrailEffectOverride.clear();
 
     Monster_Part::Free();
 }

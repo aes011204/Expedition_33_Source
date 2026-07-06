@@ -102,7 +102,7 @@ void VictoriaFlag::Update(float timeDelta)
         return;
     }
 
-    CLIENT->Request_InteractionPrompt(this, InteractionPromptType::Cross);
+    CLIENT->Request_InteractionPrompt(this, InteractionPromptType::SavePoint);
 
     if (!GAME->KeyDown(KEY_TYPE::E))
         return;

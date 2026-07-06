@@ -1,6 +1,7 @@
 ﻿#include "pch.h"
 #include "ChooseSkill.h"
 #include "BattleAnimutils.h"
+#include "Client_Constants.h"
 #include "Input_Manager.h"
 #include "GameInstance.h"
 #include "ClientInstance.h"
@@ -81,7 +82,10 @@ void ChooseSkill::Update(float timeDelta)
         request.skillKey.clear(); // 스킬 메뉴 취소
         request.skillPage = 0;
 
-        battleFSM->Change_State(BattleTurnState::ChooseAction);
+        if (!battleFSM->Change_State(BattleTurnState::ChooseAction))
+            return;
+
+        GAME->Play_SoundCue(Constants::SoundCue::UI_Battle_SpellsMenuClose);
 
         BattleAnimUtils::Play_TurnStartOrBattleIdle(request.actor, 0.2f);
 
@@ -115,6 +119,7 @@ void ChooseSkill::Update(float timeDelta)
         }
 
         request.skillPage = (request.skillPage == 0) ? 1 : 0;
+        GAME->Play_SoundCue(Constants::SoundCue::UI_Skill_NavigatePage);
         return;
     }
 
@@ -162,6 +167,7 @@ void ChooseSkill::Update(float timeDelta)
             skillKey.c_str(),
             request.actor.statCom->Get_CurAP(),
             apCost);
+        GAME->Play_SoundCue(Constants::SoundCue::UI_Battle_NoAP);
         return;
     }
 

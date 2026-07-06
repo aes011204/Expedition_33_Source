@@ -123,6 +123,7 @@ namespace Client
         Cross,
         Up,
         Down,
+        SavePoint,
     };
 
 }

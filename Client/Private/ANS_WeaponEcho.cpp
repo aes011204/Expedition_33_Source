@@ -11,6 +11,9 @@
 
 namespace
 {
+    constexpr const wchar_t* kSimonEchoPhase2TrailEffectName = L"Simon_Trail_Phase2_Green";
+    constexpr const wchar_t* kSimonEchoPhase3TrailEffectName = L"Simon_Trail_Phase3_Red";
+
     struct ActiveWeaponEchoWindow
     {
         const ANS_WeaponEcho* notifyState = nullptr;
@@ -72,6 +75,41 @@ namespace
         return !skillData.targetingType.empty() &&
             stepIndex + 1 >= skillData.targetingType.size();
 
+    }
+
+    wstring Resolve_SimonEchoTrailEffectName(const AnimNotifyContext& context, uint32 echoCount)
+    {
+        if (context.isPreview)
+        {
+            if (echoCount == 0)
+                return {};
+
+            return echoCount >= 2
+                ? wstring(kSimonEchoPhase3TrailEffectName)
+                : wstring(kSimonEchoPhase2TrailEffectName);
+        }
+
+        if (context.owner == nullptr)
+            return {};
+
+        Shared<GameObject> current = context.owner->GetSharedPtr<GameObject>();
+        while (current)
+        {
+            Monster_BattleBase* battleMonster = dynamic_cast<Monster_BattleBase*>(current.get());
+            if (battleMonster != nullptr)
+            {
+                if (battleMonster->Get_SourcePrefabName() != Constants::Prefab::MB_Simon_V2)
+                    return {};
+
+                return battleMonster->Get_CurPhase() == Monster_BattleBase::BattlePhase::Critical
+                    ? wstring(kSimonEchoPhase3TrailEffectName)
+                    : wstring(kSimonEchoPhase2TrailEffectName);
+            }
+
+            current = current->Get_Owner();
+        }
+
+        return {};
     }
 }
 
@@ -164,6 +202,8 @@ void ANS_WeaponEcho::On_Begin(const AnimNotifyContext& context)
     {
         if (Mon_Simon_Weapon* simonWeapon = Resolve_TargetSimonWeapon(context))
         {
+            simonWeapon->Set_WeaponEchoTrailEffectOverride(Resolve_SimonEchoTrailEffectName(context, window.echoCount));
+
             Mon_Simon_Weapon::WeaponEchoMaterialOverrideDesc materialOverrides[2]{};
             uint32 materialOverrideCount = 0;
 
@@ -353,6 +393,9 @@ Mon_Simon_Weapon* ANS_WeaponEcho::Resolve_TargetSimonWeapon(const AnimNotifyCont
 
 uint32 ANS_WeaponEcho::Resolve_EchoCount(const AnimNotifyContext& context) const
 {
+    if (context.isPreview && _echoCountOverride > 0)
+        return std::clamp(static_cast<uint32>(_echoCountOverride), 1u, 2u);
+
     const uint32 autoEchoCount = Resolve_AutoEchoCount(context);
     if (autoEchoCount == 0)
         return 0u;
