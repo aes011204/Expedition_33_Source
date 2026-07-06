@@ -204,7 +204,7 @@ public: /* For.Fade Transition */
         const wstring& filePath,
         int trackIndex,
         const function<void()>& FailedAction = nullptr);
-    bool Request_LevelTransition(LevelType TargetLevel);
+    bool Request_LevelTransition(LevelType TargetLevel, LevelType GameEntryRevealLevel = LevelType::END);
     bool Request_LoadedLevelTransition(LevelType TargetLevel, Shared<Level> TargetLevelInstance);
     bool Request_CurrentLevelReplay();
     void Reset_CurrentLevelRuntimeState();

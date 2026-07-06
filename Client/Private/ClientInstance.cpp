@@ -1223,14 +1223,14 @@ bool ClientInstance::Request_CinematicSequenceTransition(
     return _screenFadeTransition->Request_Transition(playSequence);
 }
 
-bool ClientInstance::Request_LevelTransition(LevelType TargetLevel)
+bool ClientInstance::Request_LevelTransition(LevelType TargetLevel, LevelType GameEntryRevealLevel)
 {
     if (_screenFadeTransition && _screenFadeTransition->Is_Playing())
         return false;
 
     if (_levelTransitionFade)
     {
-        const bool requested = _levelTransitionFade->Request_LevelTransition(TargetLevel);
+        const bool requested = _levelTransitionFade->Request_LevelTransition(TargetLevel, GameEntryRevealLevel);
         if (requested)
             Clear_EffectPrewarmQueue();
 
@@ -1676,7 +1676,10 @@ bool ClientInstance::Request_DialogueBattlePotatoBag()
     battleMonsterSpawnDescs.emplace_back(move(spawnDesc));
 
     if (_screenFxManager)
+    {
         _screenFxManager->Play_BattleInCounterFx();
+        _screenFxManager->Request_NextBattleTransitionBlackSource();
+    }
 
     GAME->Play_SoundCue(Constants::SoundCue::UI_Battle_Encounter);
 

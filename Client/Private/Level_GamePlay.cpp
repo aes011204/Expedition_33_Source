@@ -470,7 +470,7 @@ void Level_GamePlay::Apply_GamePlayRenderParams()
 
     _hasSavedGamePlayRenderParams = true;
 
-    Vec3 lightDirection(-7.300f, -5.030f, -1.000f);
+    Vec3 lightDirection(-0.759842f, -0.523145f, -0.385952f);
     if (lightDirection.LengthSquared() > 0.0001f)
     {
         lightDirection.Normalize();
@@ -503,12 +503,12 @@ void Level_GamePlay::Apply_GamePlayRenderParams()
         DeferredLightingCB lighting = _savedDeferredLightingCB;
         lighting.stylizedLightContrastEnabled = 1u;
         lighting.stylizedLightContrastStrength = 0.11f;
-        lighting.stylizedLightThreshold = 0.28f;
+        lighting.stylizedLightThreshold = 0.5f;
         lighting.stylizedLightSoftness = 0.283f;
         lighting.stylizedLitBoost = 4.00f;
         lighting.stylizedUnlitAmbientScale = 0.00f;
         lighting.stylizedDeepUnlitThreshold = 0.00f;
-        lighting.stylizedDeepUnlitSoftness = 0.001f;
+        lighting.stylizedDeepUnlitSoftness = 0.5f;
         lighting.stylizedDeepUnlitAmbientScale = 0.00f;
         lightingPipeline->Set_DeferredLightingParams(lighting);
     }
