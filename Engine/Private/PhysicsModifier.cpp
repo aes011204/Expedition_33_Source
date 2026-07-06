@@ -76,6 +76,15 @@ namespace
 
 	Vec3 Local_Get_Position(const Matrix& matrix) { return Vec3(matrix._41, matrix._42, matrix._43); }
 
+	Matrix Local_With_Position(const Matrix& matrix, const Vec3& position)
+	{
+		Matrix result = matrix;
+		result._41 = position.x;
+		result._42 = position.y;
+		result._43 = position.z;
+		return result;
+	}
+
 	float SmoothStep(float value)
 	{
 		value = std::clamp(value, 0.f, 1.f);
@@ -275,6 +284,18 @@ namespace
 		}
 
 		return clamped;
+	}
+
+	Vec3 Clamp_VectorLength(const Vec3& value, float maxLength)
+	{
+		if (maxLength <= 0.0001f)
+			return value;
+
+		const float length = value.Length();
+		if (length <= maxLength || length <= 0.0001f)
+			return value;
+
+		return value * (maxLength / length);
 	}
 
 	float SegmentSegmentClosestPoints(
@@ -1134,10 +1155,8 @@ void PhysicsModifier::Reset_PhysXStateToPose(ModelCom* model, const ModelCom* co
 			node.smoothedLocalRotation = poseRotation;
 			node.hasSmoothedLocalTransform = true;
 
-			node.smoothedCollisionOffset = Vec3::Zero;
-			node.smoothedContactNormal = Vec3::Zero;
-			node.hasSmoothedCollisionOffset = false;
-			node.hasSmoothedContactNormal = false;
+			node.collisionOutputPosition = Vec3::Zero;
+			node.hasCollisionOutputPosition = false;
 			node.hadContactThisFrame = false;
 			node.hadPushThisFrame = false;
 		}
@@ -1173,6 +1192,8 @@ void PhysicsModifier::Sync_KinematicActors(ModelCom* model, const ModelCom* coll
 
 		for (auto& node : chain.nodes)
 		{
+			node.collisionOutputPosition = Vec3::Zero;
+			node.hasCollisionOutputPosition = false;
 			node.hadContactThisFrame = false;
 			node.hadPushThisFrame = false;
 			if (node.isKinematic && node.actor)
@@ -1594,10 +1615,6 @@ void PhysicsModifier::Apply_PostSimulationConstraints(const vector<WorldCapsule>
 	if (!_desc.enableCollision || worldCapsules.empty()) return;
 
 	const float skinWidth = std::max(0.f, _desc.collisionContactSkinWidth);
-	const float pushOutScale = std::max(0.f, _desc.collisionPushOutScale);
-	const float snapAlpha = std::clamp(_desc.contactSnapAlpha, 0.f, 1.f);
-	const float correctionSmoothAlpha = std::clamp(_desc.collisionCorrectionSmoothAlpha, 0.f, 1.f);
-	const float normalSmoothAlpha = std::clamp(_desc.collisionNormalSmoothAlpha, 0.f, 1.f);
 	const bool useHardCollisionProjection = _desc.useHardCollisionProjection;
 	const uint32 iterations = useHardCollisionProjection
 		? std::max(1u, _desc.collisionProjectionIterations)
@@ -1606,6 +1623,7 @@ void PhysicsModifier::Apply_PostSimulationConstraints(const vector<WorldCapsule>
 		? std::max(1u, _desc.hardCollisionProjectionIterations)
 		: 0u;
 	const float hardLengthAlpha = std::clamp(_desc.hardCollisionLengthAlpha, 0.f, 1.f);
+	constexpr float kHardSegmentMinChildT = 0.35f;
 
 	for (auto& chain : _chains)
 	{
@@ -1620,9 +1638,6 @@ void PhysicsModifier::Apply_PostSimulationConstraints(const vector<WorldCapsule>
 				const Vec3 currentPosition = node.solvedPosition;
 				Vec3 position = currentPosition;
 				bool resolved = false;
-				Vec3 contactNormal = Vec3::Zero;
-				uint32 contactCount = 0;
-				float maxPenetration = 0.f;
 
 				Vec3 parentPosition = currentPosition;
 				if (node.parentNodeIndex >= 0)
@@ -1633,7 +1648,7 @@ void PhysicsModifier::Apply_PostSimulationConstraints(const vector<WorldCapsule>
 						: parentNode.solvedPosition;
 				}
 
-				auto pushPositionOut = [&](const Vec3& rawNormal, float penetration, float scale)
+				auto pushPositionOut = [&](const Vec3& rawNormal, float penetration)
 					{
 						if (penetration <= 0.f)
 							return;
@@ -1647,11 +1662,8 @@ void PhysicsModifier::Apply_PostSimulationConstraints(const vector<WorldCapsule>
 							normal = Vec3::UnitY;
 						normal.Normalize();
 
-						const float depenetration = penetration * scale + 0.0005f;
+						const float depenetration = penetration + 0.0005f;
 						position += normal * depenetration;
-						contactNormal += normal;
-						++contactCount;
-						maxPenetration = std::max(maxPenetration, penetration);
 						resolved = true;
 					};
 
@@ -1667,8 +1679,7 @@ void PhysicsModifier::Apply_PostSimulationConstraints(const vector<WorldCapsule>
 						const Vec3 normal = dist > 0.0001f ? delta / dist : Vec3::Zero;
 						pushPositionOut(
 							normal,
-							combinedRadius - dist,
-							pushOutScale);
+							combinedRadius - dist);
 					}
 
 					if ((node.prevSolvedPosition - currentPosition).LengthSquared() > 0.000001f)
@@ -1693,108 +1704,18 @@ void PhysicsModifier::Apply_PostSimulationConstraints(const vector<WorldCapsule>
 							Vec3 sweepNormal = sweepClosest - capsuleClosest;
 							pushPositionOut(
 								sweepNormal,
-								combinedRadius - sweepDistance,
-								pushOutScale);
+								combinedRadius - sweepDistance);
 						}
 					}
 				}
 				if (resolved)
 				{
-					if (snapAlpha > 0.f)
-					{
-						const float appliedSnapAlpha = std::clamp(snapAlpha, 0.f, 1.f);
-						position = Vec3::Lerp(currentPosition, position, appliedSnapAlpha);
-					}
+					node.collisionOutputPosition = position;
+					node.hasCollisionOutputPosition = true;
 
-					const Vec3 correctionOffset = position - currentPosition;
-					if (node.hasSmoothedCollisionOffset)
-					{
-						const float correctionAlpha = std::clamp(correctionSmoothAlpha, 0.f, 1.f);
-						node.smoothedCollisionOffset = Vec3::Lerp(node.smoothedCollisionOffset, correctionOffset, correctionAlpha);
-
-						const float targetLength = correctionOffset.Length();
-						const float smoothedLength = node.smoothedCollisionOffset.Length();
-						const float maxSmoothedLength = targetLength + 0.001f;
-						if (smoothedLength > maxSmoothedLength && smoothedLength > 0.0001f)
-							node.smoothedCollisionOffset *= maxSmoothedLength / smoothedLength;
-					}
-					else
-					{
-						node.smoothedCollisionOffset = correctionOffset;
-						node.hasSmoothedCollisionOffset = true;
-					}
-
-					const float penetrationAlpha = std::clamp(
-						maxPenetration / std::max(0.001f, nodeRadius + skinWidth),
-						0.f,
-						1.f);
-					position = Vec3::Lerp(
-						currentPosition + node.smoothedCollisionOffset,
-						position,
-						penetrationAlpha);
-
-					node.solvedPosition = position;
 					node.hadContactThisFrame = true;
 					node.hadPushThisFrame = true;
 					++_desc.debugCollisionHitCount;
-
-					if (node.actor)
-					{
-						PxTransform pose = node.actor->getGlobalPose();
-						pose.p = To_PxVec3(position);
-						node.actor->setGlobalPose(pose);
-
-						Vec3 linearVelocity = From_PxVec3(node.actor->getLinearVelocity());
-						if (contactCount > 0)
-						{
-							contactNormal /= static_cast<float>(contactCount);
-							if (contactNormal.LengthSquared() > 0.0001f)
-							{
-								contactNormal.Normalize();
-								if (node.hasSmoothedContactNormal && node.smoothedContactNormal.Dot(contactNormal) > -0.15f)
-								{
-									contactNormal = Vec3::Lerp(node.smoothedContactNormal, contactNormal, normalSmoothAlpha);
-									if (contactNormal.LengthSquared() > 0.0001f)
-										contactNormal.Normalize();
-								}
-
-								node.smoothedContactNormal = contactNormal;
-								node.hasSmoothedContactNormal = true;
-
-								const float normalSpeed = linearVelocity.Dot(contactNormal);
-								const Vec3 tangentVelocity = linearVelocity - contactNormal * normalSpeed;
-								if (normalSpeed < 0.f)
-									linearVelocity = tangentVelocity;
-								else
-									linearVelocity = tangentVelocity + contactNormal * normalSpeed;
-							}
-						}
-
-						linearVelocity *= (1.f - std::clamp(_desc.contactInertiaDamping, 0.f, 1.f));
-						node.actor->setLinearVelocity(To_PxVec3(linearVelocity));
-					}
-				}
-				else
-				{
-					if (node.hasSmoothedCollisionOffset)
-					{
-						node.smoothedCollisionOffset *= std::clamp(correctionSmoothAlpha, 0.f, 1.f);
-						if (node.smoothedCollisionOffset.LengthSquared() <= 0.000001f)
-						{
-							node.smoothedCollisionOffset = Vec3::Zero;
-							node.hasSmoothedCollisionOffset = false;
-						}
-					}
-
-					if (node.hasSmoothedContactNormal)
-					{
-						node.smoothedContactNormal *= std::clamp(normalSmoothAlpha, 0.f, 1.f);
-						if (node.smoothedContactNormal.LengthSquared() <= 0.0001f)
-						{
-							node.smoothedContactNormal = Vec3::Zero;
-							node.hasSmoothedContactNormal = false;
-						}
-					}
 				}
 
 				if (useHardCollisionProjection && iter + 1u == iterations)
@@ -1814,22 +1735,42 @@ void PhysicsModifier::Apply_PostSimulationConstraints(const vector<WorldCapsule>
 								: Get_Position(chain.anchorWorld);
 						};
 
-					Vec3 hardPosition = node.solvedPosition;
+					Vec3 hardPosition = node.hasCollisionOutputPosition
+						? node.collisionOutputPosition
+						: node.solvedPosition;
 					Vec3 hardParentPosition = resolveParentPosition();
-					Vec3 hardContactNormal = Vec3::Zero;
-					uint32 hardContactCount = 0;
 					bool hardResolved = false;
+					const float hardStepLimit = std::max(
+						nodeRadius + skinWidth + 0.0005f,
+						node.length * 0.45f);
 
 					auto accumulateHardContact = [&](const Vec3& normal)
 						{
 							if (normal.LengthSquared() <= 0.0001f)
 								return;
 
-							Vec3 normalized = normal;
-							normalized.Normalize();
-							hardContactNormal += normalized;
-							++hardContactCount;
 							hardResolved = true;
+						};
+
+					auto applyHardCorrection = [&](const Vec3& rawNormal, float distance)
+						{
+							if (distance <= 0.f)
+								return false;
+
+							Vec3 normal = rawNormal;
+							if (normal.LengthSquared() <= 0.0001f)
+								return false;
+							normal.Normalize();
+
+							const Vec3 correction = Clamp_VectorLength(
+								normal * distance,
+								hardStepLimit);
+							if (correction.LengthSquared() <= 0.000001f)
+								return false;
+
+							hardPosition += correction;
+							accumulateHardContact(normal);
+							return true;
 						};
 
 					auto preserveNodeLength = [&]()
@@ -1875,9 +1816,9 @@ void PhysicsModifier::Apply_PostSimulationConstraints(const vector<WorldCapsule>
 							else
 								normal = buildFallbackNormal(closest);
 
-							hardPosition += normal * (combinedRadius - distance + 0.0005f);
-							accumulateHardContact(normal);
-							return true;
+							return applyHardCorrection(
+								normal,
+								combinedRadius - distance + 0.0005f);
 						};
 
 					auto projectSegmentAgainstCapsule = [&](const WorldCapsule& capsule)
@@ -1898,6 +1839,8 @@ void PhysicsModifier::Apply_PostSimulationConstraints(const vector<WorldCapsule>
 								capsuleT);
 							if (distanceSq >= combinedRadius * combinedRadius)
 								return false;
+							if (hairT <= kHardSegmentMinChildT)
+								return false;
 
 							Vec3 normal = hairClosest - capsuleClosest;
 							const float distance = sqrtf(std::max(0.f, distanceSq));
@@ -1907,10 +1850,10 @@ void PhysicsModifier::Apply_PostSimulationConstraints(const vector<WorldCapsule>
 								normal = buildFallbackNormal(capsuleClosest);
 
 							const float penetration = combinedRadius - distance;
-							const float childWeight = std::clamp(hairT, 0.30f, 1.f);
-							hardPosition += normal * (penetration / childWeight + 0.0005f);
-							accumulateHardContact(normal);
-							return true;
+							const float childWeight = std::clamp(hairT, kHardSegmentMinChildT, 1.f);
+							return applyHardCorrection(
+								normal,
+								penetration / childWeight + 0.0005f);
 						};
 
 					for (uint32 hardIter = 0; hardIter < hardProjectionIterations; ++hardIter)
@@ -1952,6 +1895,13 @@ void PhysicsModifier::Apply_PostSimulationConstraints(const vector<WorldCapsule>
 							capsuleT);
 						if (distanceSq >= combinedRadius * combinedRadius)
 							continue;
+						if (sweepT <= 0.25f)
+							continue;
+
+						const float sweepTravel = Vec3::Distance(node.prevSolvedPosition, hardPosition);
+						const float maxSweepTravel = std::max(combinedRadius * 2.5f, node.length * 2.5f);
+						if (maxSweepTravel > 0.0001f && sweepTravel > maxSweepTravel)
+							continue;
 
 						Vec3 normal = sweepClosest - capsuleClosest;
 						const float distance = sqrtf(std::max(0.f, distanceSq));
@@ -1961,7 +1911,9 @@ void PhysicsModifier::Apply_PostSimulationConstraints(const vector<WorldCapsule>
 							normal = buildFallbackNormal(capsuleClosest);
 
 						const Vec3 capsuleSurface = capsuleClosest + normal * (combinedRadius + 0.0005f);
-						hardPosition = Vec3::Lerp(hardPosition, capsuleSurface, std::clamp(0.65f + sweepT * 0.25f, 0.f, 0.92f));
+						const Vec3 sweepCorrection = capsuleSurface - hardPosition;
+						const float sweepAlpha = std::clamp(0.35f + sweepT * 0.25f, 0.f, 0.55f);
+						hardPosition += Clamp_VectorLength(sweepCorrection * sweepAlpha, hardStepLimit);
 						accumulateHardContact(normal);
 						preserveNodeLength();
 					}
@@ -1992,37 +1944,12 @@ void PhysicsModifier::Apply_PostSimulationConstraints(const vector<WorldCapsule>
 					if (hardResolved)
 					{
 						const bool wasAlreadyCounted = node.hadPushThisFrame;
-						node.solvedPosition = hardPosition;
+						node.collisionOutputPosition = hardPosition;
+						node.hasCollisionOutputPosition = true;
 						node.hadContactThisFrame = true;
 						node.hadPushThisFrame = true;
 						if (!wasAlreadyCounted)
 							++_desc.debugCollisionHitCount;
-
-						if (node.actor)
-						{
-							PxTransform pose = node.actor->getGlobalPose();
-							pose.p = To_PxVec3(hardPosition);
-							node.actor->setGlobalPose(pose);
-
-							Vec3 linearVelocity = From_PxVec3(node.actor->getLinearVelocity());
-							if (hardContactCount > 0)
-							{
-								hardContactNormal /= static_cast<float>(hardContactCount);
-								if (hardContactNormal.LengthSquared() > 0.0001f)
-								{
-									hardContactNormal.Normalize();
-									node.smoothedContactNormal = hardContactNormal;
-									node.hasSmoothedContactNormal = true;
-
-									const float normalSpeed = linearVelocity.Dot(hardContactNormal);
-									if (normalSpeed < 0.f)
-										linearVelocity -= hardContactNormal * normalSpeed;
-								}
-							}
-
-							linearVelocity *= (1.f - std::clamp(_desc.contactInertiaDamping, 0.f, 1.f));
-							node.actor->setLinearVelocity(To_PxVec3(linearVelocity));
-						}
 					}
 				}
 			}
@@ -2156,11 +2083,23 @@ void PhysicsModifier::Apply_LocalOffsetConstraints(float timeDelta, bool isOwner
 			if (node.isKinematic)
 				continue;
 
-			const Matrix parentWorld = node.parentNodeIndex >= 0
-				? chain.nodes[static_cast<size_t>(node.parentNodeIndex)].originalWorld
-				: chain.anchorWorld;
+			Matrix restParentWorld = chain.anchorWorld;
+			Vec3 parentPosition = chain.anchorActor != nullptr
+				? From_PxVec3(chain.anchorActor->getGlobalPose().p)
+				: Get_Position(chain.anchorWorld);
+			if (node.parentNodeIndex >= 0)
+			{
+				const Node& parentNode = chain.nodes[static_cast<size_t>(node.parentNodeIndex)];
+				restParentWorld = parentNode.originalWorld;
+				parentPosition = parentNode.actor != nullptr
+					? From_PxVec3(parentNode.actor->getGlobalPose().p)
+					: parentNode.solvedPosition;
+			}
+
+			const Matrix parentWorld = Local_With_Position(restParentWorld, parentPosition);
 			const Matrix parentInv = parentWorld.Invert();
-			const Vec3 restPosition = Get_Position(node.originalWorld);
+			const Vec3 restLocalPosition = Vec3::Transform(Get_Position(node.originalWorld), restParentWorld.Invert());
+			const Vec3 restPosition = Vec3::Transform(restLocalPosition, parentWorld);
 			const Vec3 currentPosition = node.solvedPosition;
 			const Vec3 localOffset = Vec3::TransformNormal(currentPosition - restPosition, parentInv);
 
@@ -2176,7 +2115,19 @@ void PhysicsModifier::Apply_LocalOffsetConstraints(float timeDelta, bool isOwner
 			if (!shouldApply)
 				continue;
 
-			if (wasClamped && !isOwnerIdle && timeDelta > 0.0001f)
+			float maxOverflowRatio = 0.f;
+			if (wasClamped)
+			{
+				if (maxLocalOffset.x > 0.0001f)
+					maxOverflowRatio = std::max(maxOverflowRatio, fabsf(localOffset.x) / maxLocalOffset.x);
+				if (maxLocalOffset.y > 0.0001f)
+					maxOverflowRatio = std::max(maxOverflowRatio, fabsf(localOffset.y) / maxLocalOffset.y);
+				if (maxLocalOffset.z > 0.0001f)
+					maxOverflowRatio = std::max(maxOverflowRatio, fabsf(localOffset.z) / maxLocalOffset.z);
+			}
+
+			const bool escapedConstraintFrame = maxOverflowRatio >= 2.5f;
+			if (wasClamped && !escapedConstraintFrame && !isOwnerIdle && timeDelta > 0.0001f)
 			{
 				Vec3 correction = constrainedPosition - currentPosition;
 				const float correctionLength = correction.Length();
@@ -2219,7 +2170,11 @@ void PhysicsModifier::Apply_LocalOffsetConstraints(float timeDelta, bool isOwner
 
 			Vec3 linearVelocity = From_PxVec3(node.actor->getLinearVelocity());
 			Vec3 localVelocity = Vec3::TransformNormal(linearVelocity, parentInv);
-			if (wasClamped)
+			if (escapedConstraintFrame)
+			{
+				localVelocity = Vec3::Zero;
+			}
+			else if (wasClamped)
 			{
 				const float clampVelocityKeep = std::clamp(
 					1.f - std::clamp(_desc.releaseInertiaDamping, 0.f, 0.98f),
@@ -2272,8 +2227,7 @@ void PhysicsModifier::Write_BackToModel(ModelCom* model, const Matrix& ownerWorl
 			const Vec3& simulatedLocalDirection,
 			const Vec3& simulatedLocalTranslation,
 			bool allowTranslationOutput,
-			float outputDepthRatio,
-			bool hadContact) -> bool
+			float outputDepthRatio) -> bool
 		{
 			Vec3 restLocalDir = restLocalDirection;
 			Vec3 targetLocalDir = simulatedLocalDirection;
@@ -2300,9 +2254,7 @@ void PhysicsModifier::Write_BackToModel(ModelCom* model, const Matrix& ownerWorl
 					targetLocalDir = restLocalDir;
 			}
 
-			const float minimumFollowAlpha = hadContact
-				? _desc.contactRotationFollowAlpha - clampedDepth * _desc.rotationFollowDepthScale
-				: _desc.freeRotationFollowAlpha - clampedDepth * _desc.rotationFollowDepthScale;
+			const float minimumFollowAlpha = _desc.freeRotationFollowAlpha - clampedDepth * _desc.rotationFollowDepthScale;
 			const float baseRotationFollowAlpha = std::max(
 				std::clamp(minimumFollowAlpha, 0.f, 1.f),
 				std::clamp(smoothAlpha * chain.desc.smoothMultiplier, 0.f, 1.f));
@@ -2357,24 +2309,29 @@ void PhysicsModifier::Write_BackToModel(ModelCom* model, const Matrix& ownerWorl
 			if (poseScale.LengthSquared() <= 0.000001f)
 				poseScale = node.bindScale;
 
+			auto matchRestTranslationLength = [&translation](Vec3 targetTranslation) -> Vec3
+				{
+					const float restTranslationLength = translation.Length();
+					const float targetTranslationLength = targetTranslation.Length();
+					if (restTranslationLength > 0.0001f && targetTranslationLength > 0.0001f)
+					{
+						targetTranslation /= targetTranslationLength;
+						targetTranslation *= restTranslationLength;
+					}
+					return targetTranslation;
+				};
+
 			Vec3 targetTranslation = translation;
 			if (allowTranslationOutput)
 			{
-				targetTranslation = simulatedLocalTranslation;
-				const float restTranslationLength = translation.Length();
-				const float targetTranslationLength = targetTranslation.Length();
-				if (restTranslationLength > 0.0001f && targetTranslationLength > 0.0001f)
-				{
-					targetTranslation /= targetTranslationLength;
-					targetTranslation *= restTranslationLength;
-				}
+				targetTranslation = matchRestTranslationLength(simulatedLocalTranslation);
 
 				Vec3 translationOffset = targetTranslation - translation;
 				Vec3 maxLocalOffset(
 					std::max(0.f, fabsf(_desc.maxLocalOffset.x)),
 					std::max(0.f, fabsf(_desc.maxLocalOffset.y)),
 					std::max(0.f, fabsf(_desc.maxLocalOffset.z)));
-				if (Has_LocalOffsetLimit(maxLocalOffset) && !hadContact)
+				if (Has_LocalOffsetLimit(maxLocalOffset))
 				{
 					bool unusedClamped = false;
 					translationOffset = Clamp_LocalOffset(translationOffset, maxLocalOffset, unusedClamped);
@@ -2410,6 +2367,33 @@ void PhysicsModifier::Write_BackToModel(ModelCom* model, const Matrix& ownerWorl
 			return true;
 		};
 
+	auto applyCollisionOutputTranslation =
+		[this, model, &ownerWorld](Chain& chain, Node& node) -> bool
+		{
+			if (!node.hasCollisionOutputPosition || node.parentNodeIndex < 0)
+				return false;
+
+			const Node& parentNode = chain.nodes[static_cast<size_t>(node.parentNodeIndex)];
+			const Matrix* parentCombined = model->Get_BoneMatrixPtr(parentNode.boneIndex);
+			const Matrix parentWorld = parentCombined != nullptr
+				? (*parentCombined) * ownerWorld
+				: parentNode.originalWorld;
+
+			Matrix currentLocal = model->Get_BoneLocalMatrix(node.boneIndex);
+			Vec3 localScale = Vec3::One;
+			Quat localRotation = Quat::Identity;
+			Vec3 unusedTranslation = Vec3::Zero;
+			currentLocal.Decompose(localScale, localRotation, unusedTranslation);
+			if (localScale.LengthSquared() <= 0.000001f)
+				localScale = node.bindScale;
+			localRotation.Normalize();
+
+			const Vec3 collisionLocalTranslation = Vec3::Transform(node.collisionOutputPosition, parentWorld.Invert());
+			const Matrix finalLocal = Build_LocalMatrix_FromSRT(localScale, localRotation, collisionLocalTranslation);
+			model->Set_BoneLocalMatrix(node.boneIndex, finalLocal);
+			return true;
+		};
+
 	for (auto& chain : _chains)
 	{
 		for (auto& node : chain.nodes)
@@ -2439,8 +2423,7 @@ void PhysicsModifier::Write_BackToModel(ModelCom* model, const Matrix& ownerWorl
 				simulatedLocalDir,
 				Get_Position(node.poseLocal),
 				false,
-				childNode.depthRatio,
-				childNode.hadContactThisFrame) || wroteAnyBone;
+				childNode.depthRatio) || wroteAnyBone;
 		}
 	}
 
@@ -2477,8 +2460,7 @@ void PhysicsModifier::Write_BackToModel(ModelCom* model, const Matrix& ownerWorl
 							simulatedLocalDir,
 							Get_Position(node.poseLocal),
 							false,
-							childNode.depthRatio,
-							childNode.hadContactThisFrame))
+							childNode.depthRatio))
 						{
 							wroteAnyBone = true;
 							model->Rebuild_BoneCombinedMatrices();
@@ -2495,14 +2477,21 @@ void PhysicsModifier::Write_BackToModel(ModelCom* model, const Matrix& ownerWorl
 				? (*parentCombined) * ownerWorld
 				: parentNode.originalWorld;
 
-			Vec3 simulatedWorldDir = getNodePosition(node) - getNodePosition(parentNode);
+			const Vec3 nodePhysicsPosition = getNodePosition(node);
+			const bool forceTranslationOutput = node.hasCollisionOutputPosition;
+			const Vec3 nodeOutputPosition = forceTranslationOutput
+				? node.collisionOutputPosition
+				: nodePhysicsPosition;
+			Vec3 simulatedWorldDir = nodePhysicsPosition - getNodePosition(parentNode);
+			if (simulatedWorldDir.LengthSquared() <= 0.0001f && forceTranslationOutput)
+				simulatedWorldDir = nodeOutputPosition - getNodePosition(parentNode);
 			if (simulatedWorldDir.LengthSquared() <= 0.0001f)
 				continue;
 
 			simulatedWorldDir.Normalize();
 			const Vec3 simulatedLocalDir = Get_LocalDirection(parentWorld, simulatedWorldDir);
 			const Vec3 simulatedLocalTranslation =
-				Vec3::Transform(getNodePosition(node), parentWorld.Invert());
+				Vec3::Transform(nodePhysicsPosition, parentWorld.Invert());
 			const Vec3 restLocalDir = node.poseLocalDir.LengthSquared() > 0.0001f
 				? node.poseLocalDir
 				: node.bindLocalDir;
@@ -2514,8 +2503,22 @@ void PhysicsModifier::Write_BackToModel(ModelCom* model, const Matrix& ownerWorl
 				simulatedLocalDir,
 				simulatedLocalTranslation,
 				true,
-				node.depthRatio,
-				node.hadContactThisFrame))
+				node.depthRatio))
+			{
+				wroteAnyBone = true;
+				model->Rebuild_BoneCombinedMatrices();
+			}
+		}
+	}
+
+	for (auto& chain : _chains)
+	{
+		for (auto& node : chain.nodes)
+		{
+			if (node.isKinematic)
+				continue;
+
+			if (applyCollisionOutputTranslation(chain, node))
 			{
 				wroteAnyBone = true;
 				model->Rebuild_BoneCombinedMatrices();
@@ -2638,11 +2641,14 @@ void PhysicsModifier::Build_DebugOutput(ModelCom* model, const Matrix& ownerWorl
 			Vec3 actorPosition = node.solvedPosition;
 			if (node.actor != nullptr)
 				actorPosition = From_PxVec3(node.actor->getGlobalPose().p);
+			const Vec3 displayPosition = node.hasCollisionOutputPosition
+				? node.collisionOutputPosition
+				: actorPosition;
 
 			if (node.debugSphereRadius > 0.f)
 			{
 				RuntimeDebugSphere sphere{};
-				sphere.center = actorPosition;
+				sphere.center = displayPosition;
 				sphere.radius = node.debugSphereRadius;
 				sphere.hasContact = node.hadContactThisFrame;
 				_runtimeDebugSpheres.push_back(sphere);
@@ -2652,16 +2658,23 @@ void PhysicsModifier::Build_DebugOutput(ModelCom* model, const Matrix& ownerWorl
 			if (node.parentNodeIndex >= 0)
 			{
 				const Node& parentNode = chain.nodes[static_cast<size_t>(node.parentNodeIndex)];
-				segment.startPoint = parentNode.actor != nullptr
-					? From_PxVec3(parentNode.actor->getGlobalPose().p)
-					: parentNode.solvedPosition;
+				if (parentNode.hasCollisionOutputPosition)
+				{
+					segment.startPoint = parentNode.collisionOutputPosition;
+				}
+				else
+				{
+					segment.startPoint = parentNode.actor != nullptr
+						? From_PxVec3(parentNode.actor->getGlobalPose().p)
+						: parentNode.solvedPosition;
+				}
 			}
 			else
 			{
 				segment.startPoint = anchorPosition;
 			}
 
-			segment.endPoint = actorPosition;
+			segment.endPoint = displayPosition;
 			segment.hasContact = node.hadContactThisFrame;
 			segment.hasPush = node.hadPushThisFrame;
 			_runtimeDebugSegments.push_back(segment);
@@ -2726,7 +2739,6 @@ const ClassReflectionInfo* PhysicsModifier::Get_RuntimeReflectionInfo() const
 			AddRuntimeProperty(result.properties, PropertyType::Float, "idleMotionDeadzone", "Idle Dead", PhysicsOffset(&PhysicsModifierDesc::idleMotionDeadzone), 0.001f, 0.f, 10.f);
 			AddRuntimeProperty(result.properties, PropertyType::Float, "maxOutputAngleDegree", "Max Angle", PhysicsOffset(&PhysicsModifierDesc::maxOutputAngleDegree), 0.25f, 0.f, 180.f);
 
-			AddRuntimeProperty(result.properties, PropertyType::Float, "contactRotationFollowAlpha", "Contact Follow", PhysicsOffset(&PhysicsModifierDesc::contactRotationFollowAlpha), 0.005f, 0.f, 1.f);
 			AddRuntimeProperty(result.properties, PropertyType::Float, "freeRotationFollowAlpha", "Free Follow", PhysicsOffset(&PhysicsModifierDesc::freeRotationFollowAlpha), 0.005f, 0.f, 1.f);
 			AddRuntimeProperty(result.properties, PropertyType::Float, "rotationFollowDepthScale", "Depth Follow", PhysicsOffset(&PhysicsModifierDesc::rotationFollowDepthScale), 0.005f, 0.f, 1.f);
 			AddRuntimeProperty(result.properties, PropertyType::Float, "poseRestoreAlpha", "Restore", PhysicsOffset(&PhysicsModifierDesc::poseRestoreAlpha), 0.005f, 0.f, 1.f);
@@ -2747,17 +2759,12 @@ const ClassReflectionInfo* PhysicsModifier::Get_RuntimeReflectionInfo() const
 			AddRuntimeProperty(result.properties, PropertyType::Float, "bendConstraintAlpha", "Bend Cst", PhysicsOffset(&PhysicsModifierDesc::bendConstraintAlpha), 0.005f, 0.f, 1.f);
 			AddRuntimeProperty(result.properties, PropertyType::Int, "projectionIterations", "Proj Iter", PhysicsOffset(&PhysicsModifierDesc::projectionIterations), 1.f, 1.f, 16.f);
 
-			AddRuntimeProperty(result.properties, PropertyType::Float, "contactInertiaDamping", "Contact Damp", PhysicsOffset(&PhysicsModifierDesc::contactInertiaDamping), 0.005f, 0.f, 1.f);
 			AddRuntimeProperty(result.properties, PropertyType::Float, "releaseInertiaDamping", "Release Damp", PhysicsOffset(&PhysicsModifierDesc::releaseInertiaDamping), 0.005f, 0.f, 1.f);
 
 			AddRuntimeProperty(result.properties, PropertyType::Float, "collisionPrimitiveScale", "Col Scale", PhysicsOffset(&PhysicsModifierDesc::collisionPrimitiveScale), 0.005f, 0.001f, 10.f);
 			AddRuntimeProperty(result.properties, PropertyType::Float, "collisionRadiusPadding", "Col Pad", PhysicsOffset(&PhysicsModifierDesc::collisionRadiusPadding), 0.005f, 0.f, 10.f);
 			AddRuntimeProperty(result.properties, PropertyType::Float, "collisionContactSkinWidth", "Col Skin", PhysicsOffset(&PhysicsModifierDesc::collisionContactSkinWidth), 0.005f, 0.f, 10.f);
 			AddRuntimeProperty(result.properties, PropertyType::Float, "collisionSphereRadius", "Node Radius", PhysicsOffset(&PhysicsModifierDesc::collisionSphereRadius), 0.005f, 0.001f, 10.f);
-			AddRuntimeProperty(result.properties, PropertyType::Float, "collisionPushOutScale", "Push Out", PhysicsOffset(&PhysicsModifierDesc::collisionPushOutScale), 0.01f, 0.f, 10.f);
-			AddRuntimeProperty(result.properties, PropertyType::Float, "contactSnapAlpha", "Contact Snap", PhysicsOffset(&PhysicsModifierDesc::contactSnapAlpha), 0.005f, 0.f, 1.f);
-			AddRuntimeProperty(result.properties, PropertyType::Float, "collisionCorrectionSmoothAlpha", "Col Smooth", PhysicsOffset(&PhysicsModifierDesc::collisionCorrectionSmoothAlpha), 0.005f, 0.f, 1.f);
-			AddRuntimeProperty(result.properties, PropertyType::Float, "collisionNormalSmoothAlpha", "Normal Smooth", PhysicsOffset(&PhysicsModifierDesc::collisionNormalSmoothAlpha), 0.005f, 0.f, 1.f);
 			AddRuntimeProperty(result.properties, PropertyType::Int, "collisionProjectionIterations", "Col Iter", PhysicsOffset(&PhysicsModifierDesc::collisionProjectionIterations), 1.f, 0.f, 32.f);
 			AddRuntimeProperty(result.properties, PropertyType::Bool, "useHardCollisionProjection", "Hard Col", PhysicsOffset(&PhysicsModifierDesc::useHardCollisionProjection));
 			AddRuntimeProperty(result.properties, PropertyType::Int, "hardCollisionProjectionIterations", "Hard Iter", PhysicsOffset(&PhysicsModifierDesc::hardCollisionProjectionIterations), 1.f, 0.f, 16.f);
