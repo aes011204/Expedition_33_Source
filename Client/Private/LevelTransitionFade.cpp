@@ -2,6 +2,7 @@
 #include "LevelTransitionFade.h"
 
 #include "GameInstance.h"
+#include "Level_GameEntry.h"
 #include "Level_Loading.h"
 #include "UI_ScreenFade.h"
 
@@ -46,13 +47,29 @@ void LevelTransitionFade::Update(float TimeDelta)
     Update_Fade(fadeTimeDelta);
 }
 
-bool LevelTransitionFade::Request_LevelTransition(LevelType TargetLevel)
+bool LevelTransitionFade::Request_LevelTransition(LevelType TargetLevel, LevelType GameEntryRevealLevel)
 {
     if (Is_Playing())
         return false;
 
     _targetLevel = TargetLevel;
     _targetLevelInstance.reset();
+
+    if (TargetLevel == LevelType::GameEntry)
+    {
+        Shared<Level_GameEntry> gameEntryLevel = Level_GameEntry::Create(_device.Get(), _context.Get());
+        if (gameEntryLevel == nullptr)
+            return false;
+
+        gameEntryLevel->Set_RevealedLevelOnEntry(GameEntryRevealLevel);
+        _targetLevelInstance = gameEntryLevel;
+
+        if (_screenFade == nullptr)
+            return Change_ToLoadedLevel();
+
+        Begin_Fade(Phase::FadeOutToLoadedLevel, 1.f, _fadeOutDuration);
+        return true;
+    }
 
     if (_screenFade == nullptr)
         return Change_ToLoadingLevel();

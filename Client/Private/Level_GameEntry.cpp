@@ -39,6 +39,12 @@ HRESULT Level_GameEntry::Render()
     return S_OK;
 }
 
+void Level_GameEntry::Set_RevealedLevelOnEntry(LevelType levelType)
+{
+    _revealedLevelOnEntry = levelType;
+    Apply_RevealedLevelVisibility();
+}
+
 void Level_GameEntry::Handle_Button()
 {
     if (CLIENT->Is_FadeTransitionPlaying())
@@ -128,7 +134,62 @@ HRESULT Level_GameEntry::Ready_Layer_UI(const wstring& strLayerTag)
         L"Button_TestLevel",
         "Level_GameEntry");
 
+    Apply_RevealedLevelVisibility();
+
     return S_OK;
+}
+
+void Level_GameEntry::Apply_RevealedLevelVisibility()
+{
+    const wchar_t* thumbnailName = nullptr;
+    const wchar_t* textName = nullptr;
+    const wchar_t* buttonName = nullptr;
+
+    switch (_revealedLevelOnEntry)
+    {
+    case LevelType::GestralVillage:
+        buttonName = L"Button_SecondLevel";
+        thumbnailName = L"Image_Second_Level_Thumnail";
+        textName = L"Text_Second_Level_Name";
+        break;
+
+    case LevelType::Stage01:
+    case LevelType::Simon:
+        buttonName = L"Button_ThirdLevel";
+        thumbnailName = L"Image_Third_Level_Thumnail";
+        textName = L"Text_Third_Level_Name";
+        break;
+
+    default:
+        return;
+    }
+
+    Shared<UI_Button> button = Find_TypedUI<UI_Button>(
+        _uiByName,
+        buttonName,
+        "Level_GameEntry");
+    if (button != nullptr)
+    {
+        button->Open();
+        button->Set_SuppressSelfStateAnimation(true);
+        button->Set_AlphaMultiplier(1.f);
+    }
+
+    const wchar_t* targetNames[] =
+    {
+        thumbnailName,
+        textName,
+    };
+
+    for (const wchar_t* targetName : targetNames)
+    {
+        Shared<UI_Base> ui = Find_UI(_uiByName, targetName);
+        if (ui == nullptr)
+            continue;
+
+        ui->Open();
+        ui->Set_AlphaMultiplier(1.f);
+    }
 }
 
 Shared<Level_GameEntry> Level_GameEntry::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)

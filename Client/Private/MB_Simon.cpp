@@ -266,7 +266,6 @@ void MB_Simon::PlaySimonEffect()
     desc.transformInheritance.inheritScale = false;
     desc.followTarget = true; // ANS는 EffectCom::_attachedEffects에서 계속 follow한다.
 
-    EffectInstancePool::AttachedHandle _activeEffectHandle1 = {};
     _effectCom->Play_Effect(desc, &_activeEffectHandle1);
 
 
@@ -286,7 +285,6 @@ void MB_Simon::PlaySimonEffect()
     desc.followTarget = true; // ANS는 EffectCom::_attachedEffects에서 계속 follow한다.
 
 
-    EffectInstancePool::AttachedHandle _activeEffectHandle2 = {};
     _effectCom->Play_Effect(desc, &_activeEffectHandle2);
 
 
@@ -357,5 +355,7 @@ Shared<GameObject> MB_Simon::Clone(void* arg)
 
 void MB_Simon::Free()
 {
+    StopSimonEffect();
+
     Monster_BattleBase::Free();
 }

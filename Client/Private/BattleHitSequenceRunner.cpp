@@ -17,7 +17,7 @@ void BattleHitSequenceRunner::Update(float timeDelta)
         return;
     }
 
-    if (_pending.target.actor == nullptr || _pending.target.statCom == nullptr)
+    if (!Has_ValidTarget(_pending.targets))
     {
         Clear();
         return;
@@ -32,17 +32,13 @@ void BattleHitSequenceRunner::Update(float timeDelta)
         _isApplyingHitSequenceDamage = true;
         _isCurrentHitSequenceDamageFinal = _pending.remainingHits == 1; // 지연 다단히트는 마지막 예약 타격에서만 파괴를 허용한다.
 
-        DamageSystem::ApplyDamage(
-            _pending.hitDamage,
-            _pending.attacker,
-            _pending.target,
-            _pending.attackType);
+        for (const BattleChar& target : _pending.targets)
+        {
+            Apply_SequenceHit(target);
+        }
 
         _isApplyingHitSequenceDamage = false;
         _isCurrentHitSequenceDamageFinal = false;
-
-        Play_HitEffect(_pending.target, _pending.hitEffect);
-        Play_HitSound(_pending.target, _pending.hitEffect.hitSoundCue);
 
         --_pending.remainingHits;
     }
@@ -60,9 +56,29 @@ void BattleHitSequenceRunner::Begin_RepeatedHit(
     AttackType attackType,
     const HitEffectDesc& hitEffect)
 {
+    Begin_RepeatedHit(
+        attacker,
+        vector<BattleChar>{ target },
+        hitCount,
+        interval,
+        hitDamage,
+        attackType,
+        hitEffect);
+}
+
+void BattleHitSequenceRunner::Begin_RepeatedHit(
+    const BattleChar& attacker,
+    const vector<BattleChar>& targets,
+    int32 hitCount,
+    float interval,
+    float hitDamage,
+    AttackType attackType,
+    const HitEffectDesc& hitEffect,
+    bool useTargetFeedbackWorldPos)
+{
     Clear();
 
-    if (target.actor == nullptr || target.statCom == nullptr)
+    if (!Has_ValidTarget(targets))
         return;
 
     if (hitCount <= 0)
@@ -76,13 +92,15 @@ void BattleHitSequenceRunner::Begin_RepeatedHit(
 
     _pending.active = true;
     _pending.attacker = attacker;
-    _pending.target = target;
+    _pending.target = targets.front();
+    _pending.targets = targets;
     _pending.remainingHits = hitCount;
     _pending.hitInterval = interval;
     _pending.elapsed = 0.f;
     _pending.hitDamage = hitDamage;
     _pending.attackType = attackType;
     _pending.hitEffect = hitEffect;
+    _pending.useTargetFeedbackWorldPos = useTargetFeedbackWorldPos;
 }
 
 void BattleHitSequenceRunner::Begin_RepeatedHitWithImmediateFirstHit(
@@ -94,9 +112,29 @@ void BattleHitSequenceRunner::Begin_RepeatedHitWithImmediateFirstHit(
     AttackType attackType,
     const HitEffectDesc& hitEffect)
 {
+    Begin_RepeatedHitWithImmediateFirstHit(
+        attacker,
+        vector<BattleChar>{ target },
+        hitCount,
+        interval,
+        hitDamage,
+        attackType,
+        hitEffect);
+}
+
+void BattleHitSequenceRunner::Begin_RepeatedHitWithImmediateFirstHit(
+    const BattleChar& attacker,
+    const vector<BattleChar>& targets,
+    int32 hitCount,
+    float interval,
+    float hitDamage,
+    AttackType attackType,
+    const HitEffectDesc& hitEffect,
+    bool useTargetFeedbackWorldPos)
+{
     Clear();
 
-    if (target.actor == nullptr || target.statCom == nullptr)
+    if (!Has_ValidTarget(targets))
         return;
 
     if (hitCount <= 0)
@@ -111,17 +149,20 @@ void BattleHitSequenceRunner::Begin_RepeatedHitWithImmediateFirstHit(
     _isApplyingHitSequenceDamage = true;
     _isCurrentHitSequenceDamageFinal = hitCount == 1; // 즉시 첫 타도 다단히트 전체 기준 마지막 여부로 판단한다.
 
-    DamageSystem::ApplyDamage(
-        hitDamage,
-        attacker,
-        target,
-        attackType);
+    _pending.attacker = attacker;
+    _pending.targets = targets;
+    _pending.hitDamage = hitDamage;
+    _pending.attackType = attackType;
+    _pending.hitEffect = hitEffect;
+    _pending.useTargetFeedbackWorldPos = useTargetFeedbackWorldPos;
+
+    for (const BattleChar& target : targets)
+    {
+        Apply_SequenceHit(target);
+    }
 
     _isApplyingHitSequenceDamage = false;
     _isCurrentHitSequenceDamageFinal = false;
-
-    Play_HitEffect(target, hitEffect);
-    Play_HitSound(target, hitEffect.hitSoundCue);
 
     const int32 remainingHits = hitCount - 1;
     if (remainingHits <= 0)
@@ -129,12 +170,13 @@ void BattleHitSequenceRunner::Begin_RepeatedHitWithImmediateFirstHit(
 
     Begin_RepeatedHit(
         attacker,
-        target,
+        targets,
         remainingHits,
         interval,
         hitDamage,
         attackType,
-        hitEffect);
+        hitEffect,
+        useTargetFeedbackWorldPos);
 }
 
 void BattleHitSequenceRunner::Clear()
@@ -182,4 +224,39 @@ void BattleHitSequenceRunner::Play_HitSound(const BattleChar& target, const wstr
     }
 
     GAME->Play_SoundCue(hitSoundCue, soundPositionPtr);
+}
+
+bool BattleHitSequenceRunner::Has_ValidTarget(const vector<BattleChar>& targets) const
+{
+    for (const BattleChar& target : targets)
+    {
+        if (target.actor != nullptr && target.statCom != nullptr)
+            return true;
+    }
+
+    return false;
+}
+
+void BattleHitSequenceRunner::Apply_SequenceHit(const BattleChar& target)
+{
+    if (target.actor == nullptr || target.statCom == nullptr)
+        return;
+
+    Vec3 feedbackWorldPos{};
+    const Vec3* feedbackWorldPosPtr = nullptr;
+    if (_pending.useTargetFeedbackWorldPos &&
+        target.actor->Try_GetDamageFeedbackWorldPosition(feedbackWorldPos))
+    {
+        feedbackWorldPosPtr = &feedbackWorldPos;
+    }
+
+    DamageSystem::ApplyDamage(
+        _pending.hitDamage,
+        _pending.attacker,
+        target,
+        _pending.attackType,
+        feedbackWorldPosPtr);
+
+    Play_HitEffect(target, _pending.hitEffect);
+    Play_HitSound(target, _pending.hitEffect.hitSoundCue);
 }

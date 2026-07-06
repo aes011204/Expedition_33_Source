@@ -4,6 +4,7 @@
 #include "DialogueCamera.h"
 #include "GameplayUI.h"
 #include "Item.h"
+#include "LevelChange_Portal.h"
 #include "UI_Dialogue.h"
 #include "Player_WorldBase.h"
 #include "NPC_Base.h"
@@ -13,7 +14,7 @@
 
 namespace
 {
-    const Vec3 kSimonPortalPosition = Vec3(30.f, 0.f, 128.f);
+    const Vec3 kSimonPortalPosition = Vec3(30.f, 1.08f, 128.f);
     const Vec3 kSimonPortalRotation = Vec3::Zero;
     constexpr const wchar_t* kRewardPortalLayer = L"Layer_Portal";
 
@@ -414,7 +415,12 @@ bool DialogueManager::ExecuteLineAction(const string& action)
             .Spawn();
 
         if (spawned != nullptr)
+        {
             spawned->Set_RuntimeAuthoringLoaded(true);
+
+            if (const Shared<LevelChange_Portal> portal = dynamic_pointer_cast<LevelChange_Portal>(spawned))
+                portal->Set_GameEntryRevealLevel(LevelType::Stage01);
+        }
 
         return true;
     }
@@ -569,7 +575,10 @@ void DialogueManager::ApplyCurrentLine()
     }
 
     if (!currentLine->soundCueId.empty())
+    {
+        GAME->Stop_SoundChannel(SoundChannel::NPC);
         GAME->Play_SoundCue(String::ToWString(currentLine->soundCueId));
+    }
 
     LOG_INFO("Dialogue Line : {}", String::ToString(currentLine->text));
 

@@ -1281,7 +1281,8 @@ void GameplayUI_Battle::Handle_BattleApChanged(const BattleChar& actor, uint32 a
     const bool shouldShowAddAp =
         reason == EAPChangeReason::Parry ||
         reason == EAPChangeReason::TurnStart ||
-        reason == EAPChangeReason::BaseAttack;
+        reason == EAPChangeReason::BaseAttack ||
+        reason == EAPChangeReason::ConsumableItem;
 
     const bool shouldRefreshHud =
         shouldShowAddAp ||
