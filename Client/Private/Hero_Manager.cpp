@@ -24,6 +24,16 @@ static const HeroSpawnDesc heroSpawnDescs[] =
     { HeroId::Maelle,  Constants::Prefab::PW_Maelle,  Constants::Prefab::PB_Maelle  }, // 파일명 변경과 스폰 이름을 같은 상수로 묶는다.
 };
 
+namespace
+{
+    constexpr float kSimonAreaPlayerCCTMovingGroundYDeadZone = 0.10f;
+
+    bool Is_SimonAreaLevel(uint32 levelIndex)
+    {
+        return levelIndex == ETOI(LevelType::Stage01);
+    }
+}
+
 void Hero_Manager::Change_GameMenuAnimation(uint32 introAnim, uint32 idleAnim)
 {
     using plAnim = Body_Player::PlayerWorldAnimation;
@@ -72,7 +82,12 @@ HRESULT Hero_Manager::Initialize_Hero(uint32 levelIndex, const wstring& layerTag
         hero->Get_Transform()->Set_WorldRotationEuler(startRot);
 
         if (auto movement = hero->Get_Component<MovementCom>())
+        {
+            if (Is_SimonAreaLevel(levelIndex))
+                movement->Set_CCTMovingGroundYDeadZone(kSimonAreaPlayerCCTMovingGroundYDeadZone); // 시몽 맵의 잔돌 CCT 높이 흔들림만 완화한다.
+
             movement->Sync_RuntimePositionToTransform();
+        }
 
         _heroes.push_back(HeroPartyEntry{ desc.heroId, hero });
     }

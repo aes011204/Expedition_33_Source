@@ -76,8 +76,8 @@ namespace
     constexpr char kNpcSumoDialogueKey[] = "NPC_Sumo";
     constexpr char kNpcSumoAfterPotatoBagDialogueKey[] = "NPC_Sumo_AfterPotatoBag";
 
-    const Vec3 kBishopPostBattleWorldPosition = Vec3(122.10f, 21.61f, -2.56f);
-    const Vec3 kBishopPostBattleWorldRotation = Vec3(0.f, 80.3f, 0.f);
+    const Vec3 kBishopPostBattleWorldPosition = Vec3(133.98f, 21.57f, -1.26f);
+    const Vec3 kBishopPostBattleWorldRotation = Vec3(0.f, 75.3f, 0.f);
 
     constexpr float kSkillPresentationDissolveDuration = 0.12f;
     constexpr float kSkillPresentationHideConfirmDuration = 0.04f;
@@ -517,6 +517,8 @@ EBattleEndResult BattleController::OnExitBattleField(EBattleEndResult result)
     _lastVictoryRewardExp = 0;
     _lastVictoryRewardPictosIds.clear();
     bool defeatedSimonPhase1 = false;
+    bool defeatedSimonFinal = false;
+    bool isSimonWorldBattle = false;
 
     if (result == EBattleEndResult::Victory && _battleSpawnRegistry)
     {
@@ -560,6 +562,9 @@ EBattleEndResult BattleController::OnExitBattleField(EBattleEndResult result)
         defeatedSimonPhase1 =
             find(defeatedEnemyKeys.begin(), defeatedEnemyKeys.end(), Constants::Prefab::MB_Simon) !=
             defeatedEnemyKeys.end();
+        defeatedSimonFinal =
+            find(defeatedEnemyKeys.begin(), defeatedEnemyKeys.end(), Constants::Prefab::MB_Simon_V2) !=
+            defeatedEnemyKeys.end();
 
         vector<HeroId> victoryHeroIds{};
         victoryHeroIds.reserve(_heroes.size());
@@ -573,6 +578,9 @@ EBattleEndResult BattleController::OnExitBattleField(EBattleEndResult result)
         }
 
         Shared<GameObject> sourceWorldObject = _battleSpawnRegistry->Get_SourceWorldObject();
+        isSimonWorldBattle =
+            sourceWorldObject != nullptr &&
+            sourceWorldObject->Get_SourcePrefabName() == Constants::Prefab::MW_Simon;
 
         Vec3 rewardOrigin = Vec3::Zero;
         const Vec3* rewardOriginPtr = nullptr;
@@ -619,9 +627,16 @@ EBattleEndResult BattleController::OnExitBattleField(EBattleEndResult result)
             worldStat->Apply_BattleSyncSnapshot(battleStat->Create_BattleSyncSnapshot());
     }
 
+    Stop_BattleSpawnAttachedEffects(); // 승리 UI/후속 전투로 넘어가기 전에 이전 전투 캐릭터에 붙은 이펙트를 먼저 끊는다.
     Clear_TargetPreview();
     if (result == EBattleEndResult::Victory && _battleTurnCamera)
         _battleTurnCamera->Stop_BattleCameraShake();
+
+    if (result == EBattleEndResult::Victory &&
+        isSimonWorldBattle &&
+        defeatedSimonFinal &&
+        Try_RequestSimonFinalOutroCinematic())
+        return result;
 
     OnBattleEnded.Broadcast(result); // battle end UI 정리는 GameplayUI_Battle에서 처리
 
@@ -3470,6 +3485,7 @@ void BattleController::Clear_BattleRuntimeState()
 {
     // 전투 종료/ F4로 게임 Stop할 때
     Restore_SkillPresentationHeroVisibility(); // 전투 종료/F4 Stop 정리 시 숨김 상태가 런타임 밖으로 새지 않게 먼저 복구한다.
+    Stop_BattleSpawnAttachedEffects(); // pending remove 이전에도 전투 부착 이펙트가 다음 전투로 남지 않게 즉시 정리한다.
 
     for (BattleChar& hero : _heroes)
     {
@@ -3532,6 +3548,106 @@ void BattleController::Clear_BattleRuntimeState()
         _battleTurnCamera->Reset_RuntimeState();
 }
 
+void BattleController::Stop_BattleSpawnAttachedEffects()
+{
+    if (_battleSpawnRegistry == nullptr)
+        return;
+
+    _battleSpawnRegistry->Visit_SpawnedObjects(
+        [](const BattleSpawnRegistry::BattleEntry& entry)
+        {
+            const Shared<GameObject>& actor = entry.object;
+            if (actor == nullptr)
+                return;
+
+            if (const Shared<EffectCom> effectCom = actor->Get_Component<EffectCom>())
+                effectCom->Stop_AllAttachedEffects();
+
+            const Shared<ContainerObject> container = dynamic_pointer_cast<ContainerObject>(actor);
+            if (container == nullptr)
+                return;
+
+            for (const auto& [partTag, partObject] : container->Get_PartObjects())
+            {
+                UNREFERENCED_PARAMETER(partTag);
+
+                if (partObject == nullptr)
+                    continue;
+
+                if (const Shared<EffectCom> partEffectCom = partObject->Get_Component<EffectCom>())
+                    partEffectCom->Stop_AllAttachedEffects();
+            }
+        });
+}
+
+bool BattleController::Try_RequestSimonFinalOutroCinematic()
+{
+    const wstring sequencePath =
+        wstring(Constants::Cinematic::RuntimeJson_Dir) + Constants::Cinematic::SimonOutro3FileId;
+
+    CLIENT->Clear_CinematicCompletedCallbacks();
+    CLIENT->Add_CinematicCompletedCallback(
+        []()
+        {
+            if (BattleFollowupManager* followManager = CLIENT->Get_BattleFollowupManager())
+                followManager->Restore_SimonPhase2WorldVisualChange();
+        });
+
+    const bool requested = CLIENT->Request_CinematicSequenceTransition(
+        sequencePath,
+        0,
+        []()
+        {
+            CLIENT->Clear_CinematicCompletedCallbacks();
+            if (BattleFollowupManager* followManager = CLIENT->Get_BattleFollowupManager())
+                followManager->Restore_SimonPhase2WorldVisualChange();
+        });
+
+    if (!requested)
+    {
+        CLIENT->Clear_CinematicCompletedCallbacks();
+        return false;
+    }
+
+    OnBattleEnded.Broadcast(EBattleEndResult::Neutral); // Battle Victory UI 없이 전투 HUD만 닫는다.
+
+    GAME->Play_BGM(Constants::SoundBGM::SimonOutroCinematic, 0.7f, true, 0.f);
+    GAME->Stop_WorldTimeSlow();
+    GAME->Set_WorldTimeScale(1.f);
+    GAME->Set_PlayerInputBlocked(false);
+
+    _isPendingVictorySlow = false;
+    _isWaitingVictoryConfirm = false;
+    _victorySlow.elapsed = 0.f;
+
+    _battleEnded = false;
+    _isBattleActive = false;
+    _isBattleEntering = false;
+    _isWaitingBattleTransition = false;
+
+    End_BattleDOFOverride();
+    Clear_BattleRuntimeState();
+
+    if (_battleSpawnRegistry)
+    {
+        _battleSpawnRegistry->Destroy_SpawnedObjects();
+        _battleSpawnRegistry->Destroy_SourceWorldObject();
+    }
+
+    _heroes.clear();
+    _enemies.clear();
+    _battleTurnCamera.reset();
+
+    Clear_BattleEnterPending();
+    _activeBattleFieldID = 0;
+
+    _firstAnimflag = false;
+    _firstAnimCount = 0;
+    _firstAnimTargetCount = 0;
+
+    return true;
+}
+
 void BattleController::Complete_BattleField()
 {
     if (_isBattleActive)
@@ -3584,6 +3700,10 @@ void BattleController::Complete_BattleField()
         if (battleFieldId == Constants::Value::potatoBagEncounterId)
         {
             GAME->Play_BGM(Constants::SoundBGM::PotatoBagBattleMain, 0.7f, true, 0.f);
+        }
+        else if (battleFieldId == BattleEncounterIds::LancelierTutorial)
+        {
+            GAME->Play_BGM(Constants::SoundBGM::LancelierBattleMain, 0.7f, true, 0.f);
         }
         else
         {
@@ -3722,6 +3842,14 @@ void BattleController::Restore_PreBattleBGM()
 {
     if (!_hasCapturedPreBattleBGM)
         return;
+
+    if (_activeBattleFieldID == BattleEncounterIds::LancelierTutorial)
+    {
+        GAME->Play_BGM(Constants::SoundBGM::SpringBGM, 0.7f, true, 0.f);
+        _preBattleBGM.clear();
+        _hasCapturedPreBattleBGM = false;
+        return;
+    }
 
     if (_preBattleBGM.empty())
         GAME->Stop_SoundChannel(SoundChannel::BGM, 0.f);

@@ -113,6 +113,13 @@ void UI_Button::Suppress_HoverStateAnimationUntilMouseMove()
     _previousHoveredForState = _isHovered;
 }
 
+void UI_Button::Set_SuppressSelfStateAnimation(bool suppress)
+{
+    _suppressSelfStateAnimation = suppress;
+    if (_suppressSelfStateAnimation)
+        Stop_UIAnimation();
+}
+
 void UI_Button::Update_StateAnimationEvents()
 {
     if (_previousDisabledForState != _isDisabled)
@@ -151,7 +158,7 @@ bool UI_Button::Try_PlayStateAnimation(UI_StateAnimationEvent eventType)
 
     bool played = false;
     const wstring& animationName = _stateAnimationProfile.eventAnimationNames[eventIndex];
-    if (!animationName.empty())
+    if (!animationName.empty() && !_suppressSelfStateAnimation)
         played = Play_UIAnimation(animationName, true);
 
     const vector<UI_StateAnimationTargetAction>& targetActions = _stateAnimationProfile.eventTargetActions[eventIndex];
@@ -162,6 +169,9 @@ bool UI_Button::Try_PlayStateAnimation(UI_StateAnimationEvent eventType)
 
         Shared<UI_Base> target = targetAction.target.lock();
         if (nullptr == target)
+            continue;
+
+        if (_suppressSelfStateAnimation && target.get() == this)
             continue;
 
         played = target->Play_UIAnimation(targetAction.animationName, true) || played;

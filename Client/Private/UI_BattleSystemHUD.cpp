@@ -565,10 +565,9 @@ void UI_BattleSystemHUD::Apply_ApGauge(PartyBattleStatSlot& slot, uint32 slotInd
         if (i < curAp && i < clampedMaxAp)
         {
             if (!slot.apStates[i]->Is_Open())
-            {
                 slot.apStates[i]->Open();
-                Apply_CurrentTurnApTransform(slotIndex, i);
-            }
+
+            Apply_CurrentTurnApTransform(slotIndex, i); // 이미 열린 AP도 현재 턴 크기/위치로 다시 맞춘다.
         }
         else
         {

@@ -19,7 +19,6 @@ namespace
     constexpr float kHorizontalMoveSpeedDamping = 18.f;
     constexpr float kStillGroundJitterSpeedSq = 0.01f;
     constexpr float kStillGroundXZDeadZone = 0.02f;
-    constexpr float kStillGroundYDeadZone = 0.06f;
 }
 
 IMPLEMENT_REFLECTION(MovementCom)
@@ -1061,13 +1060,15 @@ void MovementCom::Sync_Transform_FromCCT(const Vec3& footPosition, float timeDel
 
     if (suppressSmallGroundAdjust)
     {
+        const float stillGroundYDeadZone = max(0.f, _moveDesc.cct.stillGroundYDeadZone);
+
         if (fabsf(footPosition.x - position.x) > kStillGroundXZDeadZone)
             position.x = footPosition.x;
 
         if (fabsf(footPosition.z - position.z) > kStillGroundXZDeadZone)
             position.z = footPosition.z;
 
-        if (fabsf(footPosition.y - position.y) > kStillGroundYDeadZone)
+        if (fabsf(footPosition.y - position.y) > stillGroundYDeadZone)
         {
             if (smoothGrounding)
             {
@@ -1087,7 +1088,18 @@ void MovementCom::Sync_Transform_FromCCT(const Vec3& footPosition, float timeDel
     position.x = footPosition.x;
     position.z = footPosition.z;
 
-    if (smoothGrounding)
+    const float movingGroundYDeadZone = max(0.f, _moveDesc.cct.movingGroundYDeadZone);
+    const bool suppressMovingGroundYAdjust =
+        movingGroundYDeadZone > 0.f &&
+        _isGrounded &&
+        !_isJumping &&
+        fabsf(footPosition.y - position.y) <= movingGroundYDeadZone;
+
+    if (suppressMovingGroundYAdjust)
+    {
+        // 잔돌처럼 작은 CCT Y 변화는 카메라/캐릭터 Transform까지 바로 흔들지 않는다.
+    }
+    else if (smoothGrounding)
     {
         const float t = clamp(timeDelta * _moveDesc.cct.groundLerpSpeed, 0.f, 1.f);
         position.y = lerp(position.y, footPosition.y, t); // 지면에 붙어 있을 때만 Y를 부드럽게 반영
