@@ -304,6 +304,12 @@ HRESULT BattleTurnCamera::Initialize(void* arg)
    _enemyAttackDOFProfile.preset.farMaxRadius = 1.2f;
    _enemyAttackDOFProfile.preset.farIntensity = 0.35f;
 
+   _playerAttackDOFProfile.preset = Build_BattleDOFPreset();
+   _playerAttackDOFProfile.preset.focusDistance = 0.f;
+   _playerAttackDOFProfile.preset.focusRange = 9.f;
+   _playerAttackDOFProfile.preset.farMaxRadius = 1.1f;
+   _playerAttackDOFProfile.preset.farIntensity = 0.3f;
+
    _selectItemDOFProfile.preset = Build_BattleDOFPreset();
    _selectItemDOFProfile.preset.focusDistance = 0.f;
    _selectItemDOFProfile.preset.focusRange = 5.f;
@@ -842,6 +848,8 @@ const BattleTurnCamera::BattleDOFProfile* BattleTurnCamera::Find_DOFProfileStora
         return &_enemyFocusDOFProfile;
     case BattleCameraMode::ENEMYATTACK:
         return &_enemyAttackDOFProfile;
+    case BattleCameraMode::PLAYERATTACK:
+        return &_playerAttackDOFProfile;
     case BattleCameraMode::SELECTITEM:
         return &_selectItemDOFProfile;
     case BattleCameraMode::SELECTPLAYER:
