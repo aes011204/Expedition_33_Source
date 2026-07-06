@@ -448,7 +448,7 @@ void Unlock_Manager::Apply_Reward(
             if (reward.prefabName == kBishopRewardPortalPrefab)
             {
                 if (const Shared<LevelChange_Portal> portal = dynamic_pointer_cast<LevelChange_Portal>(spawned))
-                    portal->Set_GameEntryRevealLevel(LevelType::Stage01); // Bishop 보상 포탈은 GameEntry에서 눈의 섬 카드가 선택된 상태로 돌아간다.
+                    portal->Set_GameEntryRevealLevel(LevelType::GamePlay); // Bishop 보상 포탈은 GameEntry에서 첫 번째 눈의 섬 카드가 선택된 상태로 돌아간다.
             }
 
             LOG_INFO("UnlockManager: spawned reward prefab={}, level={}, position=({}, {}, {})",
