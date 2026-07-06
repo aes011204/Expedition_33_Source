@@ -19,6 +19,7 @@
 #include "ItemTargeting.h"
 #include "MB_Lancelier.h"
 #include "MB_Simon.h"
+#include "Monster_BattleBase.h"
 #include "Player_WorldBase.h"
 #include "Player_BattleBase.h"
 #include "SkillTargeting.h"
@@ -72,6 +73,9 @@ namespace
     constexpr wchar_t kHealTintEffect[] = L"Effects\\Assets\\Item\\HealTint_G.effect.json";
     constexpr wchar_t kEnergyTintEffect[] = L"Effects\\Assets\\Item\\HealTint_B.effect.json";
     constexpr wchar_t kReviveTintEffect[] = L"Effects\\Assets\\Item\\HealTint_P.effect.json";
+    constexpr wchar_t kBreakEffectPartTag[] = L"Part_Body";
+    constexpr char kBreakEffectSocketName[] = "spine_01";
+    const Vec3 kBreakEffectSocketLocalOffset = Vec3(0.f, 0.2f, 0.9f);
 
     constexpr char kNpcSumoDialogueKey[] = "NPC_Sumo";
     constexpr char kNpcSumoAfterPotatoBagDialogueKey[] = "NPC_Sumo_AfterPotatoBag";
@@ -3193,14 +3197,43 @@ void BattleController::Apply_Buff(const BattleChar& target, Buffs buffId, uint32
 
     if (shouldPlayBreakEffect)
     {
-        PlayEffectDesc effectDesc{};
-        effectDesc.effectName = Constants::Effect::BreakEffect;
-        effectDesc.spawnBasisTarget = target.actor;
-        effectDesc.localOffset = Vec3(0.f, 1.7f, 0.3f);
-        effectDesc.scale = Vec3(1.f, 1.f, 1.f);
-        effectDesc.playbackSpeed = 0.6f;
+        bool playedSocketEffect = false;
 
-        CLIENT->Play_Effect(effectDesc);
+        if (dynamic_pointer_cast<Monster_BattleBase>(target.actor))
+        {
+            const Shared<EffectCom> effectCom = target.actor->Get_Component<EffectCom>();
+            if (effectCom)
+            {
+                EffectCom::EffectPlayDesc effectDesc{};
+                effectDesc.levelIndex = GAME->Current_LevelIndex();
+                effectDesc.effectName = Constants::Effect::BreakEffect;
+                effectDesc.target = EffectCom::EffectPlayTarget::PartSocket;
+                effectDesc.partTag = kBreakEffectPartTag;
+                effectDesc.socketName = kBreakEffectSocketName;
+                effectDesc.layerTag = L"Layer_Effect";
+                effectDesc.localOffset = kBreakEffectSocketLocalOffset;
+                effectDesc.scale = Vec3(1.f, 1.f, 1.f);
+                effectDesc.playbackSpeed = 0.6f;
+                effectDesc.localOffsetZTowardCamera = true;
+                effectDesc.transformInheritance.inheritPosition = true;
+                effectDesc.transformInheritance.inheritRotation = false;
+                effectDesc.transformInheritance.inheritScale = false;
+
+                playedSocketEffect = SUCCEEDED(effectCom->Play_Effect(effectDesc));
+            }
+        }
+
+        if (!playedSocketEffect)
+        {
+            PlayEffectDesc effectDesc{};
+            effectDesc.effectName = Constants::Effect::BreakEffect;
+            effectDesc.spawnBasisTarget = target.actor;
+            effectDesc.localOffset = Vec3(0.f, 1.7f, 0.3f);
+            effectDesc.scale = Vec3(1.f, 1.f, 1.f);
+            effectDesc.playbackSpeed = 0.6f;
+
+            CLIENT->Play_Effect(effectDesc);
+        }
     }
 }
 
