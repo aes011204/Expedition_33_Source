@@ -2736,7 +2736,9 @@ void BattleController::Spawn_BattleChar(bool IsHero, string prefabName, Vec3 pos
 
         _heroes.push_back(battleChar);
 
-        battleChar.actor->Get_Transform()->Set_Position(pos);
+        Vec3 spawnPos = pos;
+        spawnPos.y += 0.4f;
+        battleChar.actor->Get_Transform()->Set_Position(spawnPos);
         Vec3 rot = battleChar.actor->Get_Transform()->Get_RotationEuler();
         rot.y = yawDeg;
         battleChar.actor->Get_Transform()->Set_RotationEuler(rot);
@@ -2766,17 +2768,19 @@ void BattleController::Spawn_BattleChar(bool IsHero, string prefabName, Vec3 pos
 
         PartObject* body = ply ? ply->Get_PartObject(L"Part_Body") : nullptr;
         battleChar.ModelCom = body ? body->Get_Component<ModelCom>() : nullptr; // 몬스터 종류와 무관하게 Part_Body의 ModelCom를 사용한다.
-        battleChar.actor->Get_Transform()->Set_Position(pos);
+        Vec3 spawnPos = pos;
+        spawnPos.y += 0.4f;
+        battleChar.actor->Get_Transform()->Set_Position(spawnPos);
         Vec3 rot = battleChar.actor->Get_Transform()->Get_RotationEuler();
         rot.y = yawDeg;
         battleChar.actor->Get_Transform()->Set_RotationEuler(rot);
         if (Shared<Monster_BattleBase> monster = dynamic_pointer_cast<Monster_BattleBase>(battleChar.actor))
-            monster->Set_RevivePosition(pos);
+            monster->Set_RevivePosition(spawnPos);
 
         _enemies.push_back(battleChar);
 
         const float battlePlaneYawRad = XMConvertToRadians(_pendingBattlePlaneYaw);
-        const Vec3 battleRight(cosf(battlePlaneYawRad), 0.f, -sinf(battlePlaneYawRad));
+        const Vec3 battleRight(cosf(battlePlaneYawRad), 0, -sinf(battlePlaneYawRad));
 
         stable_sort(_enemies.begin(), _enemies.end(),
             [&battleRight](const BattleChar& lhs, const BattleChar& rhs)
