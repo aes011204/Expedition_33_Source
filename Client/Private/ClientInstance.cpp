@@ -926,6 +926,14 @@ bool ClientInstance::Consume_Item(BattleItemType itemType)
     return _gameDataTable->Consume_Item(itemType);
 }
 
+void ClientInstance::Reset_BattleItemCounts()
+{
+    if (_gameDataTable == nullptr)
+        return;
+
+    _gameDataTable->Reset_BattleItemCounts();
+}
+
 const GameDataTable::PictosDesc* ClientInstance::Get_PictosDesc(const string& pictosId) const
 {
     if (_gameDataTable == nullptr)
