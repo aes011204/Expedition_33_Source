@@ -568,6 +568,9 @@ void DialogueManager::ApplyCurrentLine()
 
     }
 
+    if (!currentLine->soundCueId.empty())
+        GAME->Play_SoundCue(String::ToWString(currentLine->soundCueId));
+
     LOG_INFO("Dialogue Line : {}", String::ToString(currentLine->text));
 
     if (!currentLine->choices.empty())

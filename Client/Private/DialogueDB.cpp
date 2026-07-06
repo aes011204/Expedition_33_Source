@@ -51,6 +51,7 @@ void DialogueDB::LoadFromFile(const string& filePath)
                 line.lineIndex = lineJson.value("lineIndex", 0);
                 line.text = String::ToWString(lineJson.value("text", ""));
                 line.cameraPresetId = lineJson.value("cameraPresetId", "");
+                line.soundCueId = lineJson.value("soundCueId", "");
                 line.action = lineJson.value("action", "");
                 line.nextLineIndex = lineJson.value("nextLineIndex", -1);
                 line.speakerAnimationKey = lineJson.value("speakerAnimationKey", "");

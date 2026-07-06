@@ -57,6 +57,8 @@ namespace ImSequencer
         virtual const char* GetItemTypeName(int /*typeIndex*/) const { return ""; }
         virtual const char* GetItemLabel(int /*index*/) const { return ""; }
         virtual const char* GetCollapseFmt() const { return "%d Frames / %d entries"; }
+        virtual void SetVisibleFrameRange(int /*frameMin*/, int /*frameMax*/) {}
+        virtual bool BlocksFrameScrub() const { return false; }
 
         virtual void Get(int index, int** start, int** end, int* type, unsigned int* color) = 0;
         virtual void Add(int /*type*/) {}
@@ -89,5 +91,6 @@ namespace ImSequencer
         int* firstFrame,
         int sequenceOptions,
         int viewFrameMin = INT_MIN,
-        int viewFrameMax = INT_MIN);
+        int viewFrameMax = INT_MIN,
+        float* currentFrameExact = nullptr);
 }

@@ -17,7 +17,8 @@ IMPLEMENT_REFLECTION(ANS_Jump)
 
 void ANS_Jump::On_Begin(const AnimNotifyContext& context)
 {
-    UNREFERENCED_PARAMETER(context);
+    if (context.isPreview || context.isCinematic)
+        return;
 
     auto battle = CLIENT->Get_BattleController();
     if (battle == nullptr)
@@ -29,13 +30,12 @@ void ANS_Jump::On_Begin(const AnimNotifyContext& context)
 void ANS_Jump::On_Tick(const AnimNotifyContext& context)
 {
     UNREFERENCED_PARAMETER(context);
-
-    LOG_INFO("JUMP");
 }
 
 void ANS_Jump::On_End(const AnimNotifyContext& context)
 {
-    UNREFERENCED_PARAMETER(context);
+    if (context.isPreview || context.isCinematic)
+        return;
 
     auto battle = CLIENT->Get_BattleController();
     if (battle == nullptr)

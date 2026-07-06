@@ -17,6 +17,9 @@ IMPLEMENT_REFLECTION(ANS_SL_DodgeMove)
 
 void ANS_SL_DodgeMove::On_Begin(const AnimNotifyContext& context)
 {
+    if (context.isCinematic)
+        return;
+
     Shared<GameObject> target = Resolve_MoveTarget(context.owner);
     if (target == nullptr || target->Get_Transform() == nullptr)
         return;
@@ -30,6 +33,9 @@ void ANS_SL_DodgeMove::On_Begin(const AnimNotifyContext& context)
 
 void ANS_SL_DodgeMove::On_Tick(const AnimNotifyContext& context)
 {
+    if (context.isCinematic)
+        return;
+
     Shared<GameObject> target = Resolve_MoveTarget(context.owner);
     if (target == nullptr || target->Get_Transform() == nullptr)
         return;
@@ -40,6 +46,9 @@ void ANS_SL_DodgeMove::On_Tick(const AnimNotifyContext& context)
 
 void ANS_SL_DodgeMove::On_End(const AnimNotifyContext& context)
 {
+    if (context.isCinematic)
+        return;
+
     Shared<GameObject> target = Resolve_MoveTarget(context.owner);
     if (target == nullptr || target->Get_Transform() == nullptr)
         return;

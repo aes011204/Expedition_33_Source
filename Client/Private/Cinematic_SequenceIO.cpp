@@ -114,6 +114,66 @@ void DeserializeSpawnData(const json& sourceJson, CinematicSpawnEventData& outPa
     outPayload.cleanupPolicy = ParseCleanupPolicy(sourceJson["cleanupPolicy"]);
 }
 
+void SerializePlayEffectData(json& targetJson, const CinematicPlayEffectEventData& payload)
+{
+    targetJson["effectName"] = String::ToString(payload.effectName);
+    targetJson["target"] = static_cast<int32>(payload.target);
+    targetJson["partTag"] = String::ToString(payload.partTag);
+    targetJson["socketName"] = payload.socketName;
+    targetJson["layerTag"] = String::ToString(payload.layerTag);
+    targetJson["localOffset"] =
+    {
+        { "x", payload.localOffset.x },
+        { "y", payload.localOffset.y },
+        { "z", payload.localOffset.z }
+    };
+    targetJson["localRotation"] =
+    {
+        { "x", payload.localRotation.x },
+        { "y", payload.localRotation.y },
+        { "z", payload.localRotation.z }
+    };
+    targetJson["scale"] =
+    {
+        { "x", payload.scale.x },
+        { "y", payload.scale.y },
+        { "z", payload.scale.z }
+    };
+    targetJson["playbackSpeed"] = payload.playbackSpeed;
+}
+
+void DeserializePlayEffectData(const json& sourceJson, CinematicPlayEffectEventData& outPayload)
+{
+    outPayload.effectName = String::ToWString(sourceJson.value("effectName", String::ToString(outPayload.effectName)));
+    outPayload.target = static_cast<Client::EffectCom::EffectPlayTarget>(
+        sourceJson.value("target", static_cast<int32>(outPayload.target)));
+    outPayload.partTag = String::ToWString(sourceJson.value("partTag", String::ToString(outPayload.partTag)));
+    outPayload.socketName = sourceJson.value("socketName", outPayload.socketName);
+    outPayload.layerTag = String::ToWString(sourceJson.value("layerTag", String::ToString(outPayload.layerTag)));
+    outPayload.localOffset = ParseVec3FromJson(sourceJson["localOffset"], outPayload.localOffset);
+    outPayload.localRotation = ParseVec3FromJson(sourceJson["localRotation"], outPayload.localRotation);
+    outPayload.scale = ParseVec3FromJson(sourceJson["scale"], outPayload.scale);
+    outPayload.playbackSpeed = sourceJson.value("playbackSpeed", outPayload.playbackSpeed);
+}
+
+void SerializePlaySoundData(json& targetJson, const CinematicPlaySoundEventData& payload)
+{
+    targetJson["soundCue"] = String::ToString(payload.soundCue);
+    targetJson["useTargetPosition"] = payload.useTargetPosition;
+    targetJson["volume"] = payload.volume;
+    targetJson["speed"] = payload.speed;
+    targetJson["startRatio"] = payload.startRatio;
+}
+
+void DeserializePlaySoundData(const json& sourceJson, CinematicPlaySoundEventData& outPayload)
+{
+    outPayload.soundCue = String::ToWString(sourceJson.value("soundCue", String::ToString(outPayload.soundCue)));
+    outPayload.useTargetPosition = sourceJson.value("useTargetPosition", outPayload.useTargetPosition);
+    outPayload.volume = sourceJson.value("volume", outPayload.volume);
+    outPayload.speed = sourceJson.value("speed", outPayload.speed);
+    outPayload.startRatio = sourceJson.value("startRatio", outPayload.startRatio);
+}
+
 json SerializeActorTransformKeyframe(const CINEMATIC_ACTOR_TRANSFORM_KEYFRAME& keyframe)
 {
     return
@@ -367,6 +427,16 @@ json SerializeEvent(const CINEMATIC_EVENT& event)
         eventJson["speed"] = playAnim->speed;
         eventJson["holdFrame"] = playAnim->holdFrame;
     }
+    else if (const auto* playEffect = get_if<CinematicPlayEffectEventData>(&event.payload))
+    {
+        eventJson["type"] = "play_effect";
+        SerializePlayEffectData(eventJson, *playEffect);
+    }
+    else if (const auto* playSound = get_if<CinematicPlaySoundEventData>(&event.payload))
+    {
+        eventJson["type"] = "play_sound";
+        SerializePlaySoundData(eventJson, *playSound);
+    }
     else if (get_if<CinematicDespawnEventData>(&event.payload) != nullptr)
     {
         eventJson["type"] = "despawn";
@@ -401,6 +471,18 @@ void DeserializeEvent(const json& eventJson, CINEMATIC_EVENT& outEvent)
         payload.startFrame = eventJson.value("startFrame", payload.startFrame);
         payload.speed = eventJson.value("speed", payload.speed);
         payload.holdFrame = eventJson.value("holdFrame", payload.holdFrame);
+        outEvent.payload = payload;
+    }
+    else if (type == "play_effect")
+    {
+        CinematicPlayEffectEventData payload{};
+        DeserializePlayEffectData(eventJson, payload);
+        outEvent.payload = payload;
+    }
+    else if (type == "play_sound")
+    {
+        CinematicPlaySoundEventData payload{};
+        DeserializePlaySoundData(eventJson, payload);
         outEvent.payload = payload;
     }
     else if (type == "despawn")

@@ -73,6 +73,8 @@ Shared<GameObject> Item_DailyLog::Clone(void* arg)
 void Item_DailyLog::Apply_PickupReward()
 {
     CLIENT->Open_Journal(Resolve_JournalOpenAnimation(static_cast<LevelType>(GAME->Current_LevelIndex())));
+
+    CLIENT->Play_ChromaPickupItemSound();
 }
 
 void Item_DailyLog::Free()
