@@ -16,7 +16,7 @@ IMPLEMENT_REFLECTION(MW_Portier)
 
 MW_Portier::MW_Portier(const ComPtr<Device>& device, const ComPtr<Context>& context):Monster_WorldBase(device,context)
 {
-    _worldMoveSpeedScale = 0.1f;
+    _worldMoveSpeedScale = 0.3f;
 }
 
 MW_Portier::MW_Portier(const MW_Portier& prototype) : Monster_WorldBase(prototype)
