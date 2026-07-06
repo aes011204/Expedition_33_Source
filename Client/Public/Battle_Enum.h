@@ -152,6 +152,7 @@ namespace Client
         BattleItemType itemType = BattleItemType::Invalid;
 
         int32 count = 0;      // 전투 중 현재 사용 가능한 수량
+        int32 defaultCount = 0; // 새 전투 시작 시 count를 되돌릴 기준 수량
         int32 healHp = 0;     // HealingTint 전용 회복량
         int32 restoreAp = 0;  // EnergyTint 전용 AP 회복량
         int32 reviveHp = 0;   // ReviveTint 전용 부활 후 HP

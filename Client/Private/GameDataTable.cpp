@@ -336,6 +336,7 @@ HRESULT GameDataTable::Load_ItemData(const wstring& jsonRootPath)
             magic_enum::enum_cast<BattleItemType>(item.value("itemType", "Invalid"))
             .value_or(BattleItemType::Invalid);
         itemData.count = item.value("count", 0);
+        itemData.defaultCount = itemData.count;
         itemData.healHp = item.value("healHp", 0);
         itemData.restoreAp = item.value("restoreAp", 0);
         itemData.reviveHp = item.value("reviveHp", 0);
@@ -484,6 +485,23 @@ bool GameDataTable::Consume_Item(BattleItemType itemType)
     }
 
     return false;
+}
+
+void GameDataTable::Reset_BattleItemCounts()
+{
+    for (Item_Data& item : _itemDefs)
+    {
+        switch (item.itemType)
+        {
+        case BattleItemType::HealingTint:
+        case BattleItemType::EnergyTint:
+        case BattleItemType::ReviveTint:
+            item.count = item.defaultCount; // DT_Item의 기본 수량으로 새 전투 시작 상태를 복원한다.
+            break;
+        default:
+            break;
+        }
+    }
 }
 
 HRESULT GameDataTable::Load_SkillPhaseData(const wstring& jsonRootPath)
