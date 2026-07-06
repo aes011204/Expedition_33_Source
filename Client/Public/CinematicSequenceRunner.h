@@ -133,6 +133,23 @@ private:
         vector<HairPreviewRestoreState> previewHairRestores{};
     };
 
+    struct FramePerfBreakdown
+    {
+        float runnerMs = 0.f;
+        float playerMs = 0.f;
+        float cameraMs = 0.f;
+        float eventsMs = 0.f;
+        float actorTracksMs = 0.f;
+        float animMs = 0.f;
+        float animPlayMs = 0.f;
+        float animPartMs = 0.f;
+        float maxAnimActorMs = 0.f;
+        string maxAnimActorId{};
+        uint32 animActorCount = 0;
+        float attachedEffectMs = 0.f;
+        uint32 attachedEffectComCount = 0;
+    };
+
     void Execute_EventsUpToFrame(
         int currentFrame,
         float currentFrameExact,
@@ -149,6 +166,7 @@ private:
         const string& targetId,
         const CinematicPlayAnimEventData& payload);
     bool Execute_PlayEffectEvent(const string& targetId, const CinematicPlayEffectEventData& payload);
+    bool Execute_PlaySoundEvent(const string& targetId, const CinematicPlaySoundEventData& payload);
     bool Execute_DespawnEvent(const string& targetId, const CinematicDespawnEventData& payload);
     bool Execute_PartVisibilityEvent(const string& targetId, const CinematicPartVisibilityEventData& payload);
     bool Execute_WorldTimeScaleEvent(const CinematicWorldTimeScaleEventData& payload);
@@ -165,8 +183,8 @@ private:
         bool spawnedBySequence,
         CinematicCleanupPolicy cleanupPolicy);
 
-    void Apply_ActorTransformTracks(float currentFrameExact);
-    void Apply_AuthoredActorTracks(float currentFrameExact);
+    void Apply_ActorTransformTracks(float currentFrameExact, bool deferActiveAnimPartRefresh = false);
+    void Apply_AuthoredActorTracks(float currentFrameExact, bool deferActiveAnimPartRefresh = false);
     void Apply_PartRotationTracks(float currentFrameExact);
     bool Evaluate_ActorTransformTrack(
         const CINEMATIC_ACTOR_TRANSFORM_TRACK& track,
@@ -180,8 +198,9 @@ private:
 
     void Apply_BoundActorAnimationPreview(float currentFrameExact, bool suppressNotifyExecution = false);
     void Set_BoundActorAnimationPaused(bool paused);
-    void Update_BoundActorAnimations(float timeDelta);
-    void Update_BoundActorAttachedEffects(float timeDelta) const;
+    void Update_BoundActorAnimations(float timeDelta, FramePerfBreakdown* perf = nullptr);
+    void Update_BoundActorAttachedEffects(float timeDelta, FramePerfBreakdown* perf = nullptr) const;
+    void Log_PerfDropIfNeeded(float timeDelta, float currentFrameExact, const FramePerfBreakdown& perf);
     void Cleanup_Context(bool forceRemoveAllSpawned = false);
     void Set_GameplayUIHiddenForCinematic(bool hidden) const;
 
@@ -240,6 +259,7 @@ private:
     bool _usePreviewPlaybackOptimizations = false;
     bool _hasWorldTimeScaleOverride = false;
     float _restoreWorldTimeScale = 1.f;
+    float _perfDropLogCooldownSec = 0.f;
     wstring _activeSequencePath{};
 
     std::unordered_map<wstring, CINEMATIC_SEQUENCE> _prewarmedSequences{};

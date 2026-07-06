@@ -98,6 +98,18 @@ vector<string> Collect_LayerTagSuggestions(const CINEMATIC_SEQUENCE& sequence)
     return values;
 }
 
+vector<string> Collect_SoundCueSuggestions(const CINEMATIC_SEQUENCE& sequence)
+{
+    vector<string> values{};
+    for (const auto& event : sequence.eventTrack)
+    {
+        if (const auto* playSound = get_if<CinematicPlaySoundEventData>(&event.payload))
+            Append_UniqueValue(values, String::ToString(playSound->soundCue));
+    }
+
+    return values;
+}
+
 bool Draw_StringSuggestionCombo(const char* label, string& value, const vector<string>& suggestions)
 {
     if (suggestions.empty())
@@ -211,6 +223,19 @@ bool Should_RebuildPreviewForEventEdit(
             beforePlayEffect->playbackSpeed != afterPlayEffect->playbackSpeed;
     }
 
+    if (const auto* beforePlaySound = get_if<CinematicPlaySoundEventData>(&before.payload))
+    {
+        const auto* afterPlaySound = get_if<CinematicPlaySoundEventData>(&after.payload);
+        if (afterPlaySound == nullptr)
+            return true;
+
+        return beforePlaySound->soundCue != afterPlaySound->soundCue ||
+            beforePlaySound->useTargetPosition != afterPlaySound->useTargetPosition ||
+            beforePlaySound->volume != afterPlaySound->volume ||
+            beforePlaySound->speed != afterPlaySound->speed ||
+            beforePlaySound->startRatio != afterPlaySound->startRatio;
+    }
+
     if (const auto* beforePartVisibility = get_if<CinematicPartVisibilityEventData>(&before.payload))
     {
         const auto* afterPartVisibility = get_if<CinematicPartVisibilityEventData>(&after.payload);
@@ -278,6 +303,9 @@ const char* Get_CinematicEventTypeLabel(const CINEMATIC_EVENT& event)
 
     if (get_if<CinematicPlayEffectEventData>(&event.payload) != nullptr)
         return "PlayEffect";
+
+    if (get_if<CinematicPlaySoundEventData>(&event.payload) != nullptr)
+        return "PlaySound";
 
     if (get_if<CinematicDespawnEventData>(&event.payload) != nullptr)
         return "Despawn";
@@ -1569,6 +1597,10 @@ void Cinematic_Tool::Render_EventTrack()
 
         ImGui::TableNextRow();
         ImGui::TableNextColumn();
+        if (ImGui::Button("Add PlaySound", ImVec2(-FLT_MIN, 0.f)))
+            addEvent(CinematicPlaySoundEventData{}, true);
+
+        ImGui::TableNextColumn();
         if (!canRemoveEvent)
             ImGui::BeginDisabled();
         if (ImGui::Button("Remove Selected", ImVec2(-FLT_MIN, 0.f)))
@@ -1670,6 +1702,15 @@ void Cinematic_Tool::Render_EventTrack()
             eventEdited = true;
         }
         if (isPlayEffect)
+            ImGui::SetItemDefaultFocus();
+
+        const bool isPlaySound = get_if<CinematicPlaySoundEventData>(&event.payload) != nullptr;
+        if (ImGui::Selectable("PlaySound", isPlaySound))
+        {
+            event.payload = CinematicPlaySoundEventData{};
+            eventEdited = true;
+        }
+        if (isPlaySound)
             ImGui::SetItemDefaultFocus();
 
         const bool isDespawn = get_if<CinematicDespawnEventData>(&event.payload) != nullptr;
@@ -1794,6 +1835,45 @@ void Cinematic_Tool::Render_EventTrack()
         if (ImGui::DragFloat("playback speed", &playEffect->playbackSpeed, 0.01f, 0.01f, 10.f, "%.2f"))
         {
             playEffect->playbackSpeed = std::max(playEffect->playbackSpeed, 0.01f);
+            eventEdited = true;
+        }
+    }
+    else if (auto* playSound = get_if<CinematicPlaySoundEventData>(&event.payload))
+    {
+        string soundCue = String::ToString(playSound->soundCue);
+        char soundCueBuffer[128]{};
+        strncpy_s(soundCueBuffer, soundCue.c_str(), _TRUNCATE);
+        if (ImGui::InputText("sound cue", soundCueBuffer, static_cast<size_t>(_countof(soundCueBuffer))))
+        {
+            soundCue = soundCueBuffer;
+            playSound->soundCue = String::ToWString(soundCue);
+            eventEdited = true;
+        }
+
+        if (Draw_StringSuggestionCombo("sound cue presets", soundCue, Collect_SoundCueSuggestions(_sequence)))
+        {
+            playSound->soundCue = String::ToWString(soundCue);
+            eventEdited = true;
+        }
+
+        if (ImGui::Checkbox("use target position", &playSound->useTargetPosition))
+            eventEdited = true;
+
+        if (ImGui::DragFloat("volume", &playSound->volume, 0.01f, 0.f, 10.f, "%.2f"))
+        {
+            playSound->volume = std::clamp(playSound->volume, 0.f, 10.f);
+            eventEdited = true;
+        }
+
+        if (ImGui::DragFloat("speed", &playSound->speed, 0.01f, 0.1f, 3.f, "%.2f"))
+        {
+            playSound->speed = std::clamp(playSound->speed, 0.1f, 3.f);
+            eventEdited = true;
+        }
+
+        if (ImGui::DragFloat("start ratio", &playSound->startRatio, 0.01f, 0.f, 0.99f, "%.2f"))
+        {
+            playSound->startRatio = std::clamp(playSound->startRatio, 0.f, 0.99f);
             eventEdited = true;
         }
     }

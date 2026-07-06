@@ -156,6 +156,24 @@ void DeserializePlayEffectData(const json& sourceJson, CinematicPlayEffectEventD
     outPayload.playbackSpeed = sourceJson.value("playbackSpeed", outPayload.playbackSpeed);
 }
 
+void SerializePlaySoundData(json& targetJson, const CinematicPlaySoundEventData& payload)
+{
+    targetJson["soundCue"] = String::ToString(payload.soundCue);
+    targetJson["useTargetPosition"] = payload.useTargetPosition;
+    targetJson["volume"] = payload.volume;
+    targetJson["speed"] = payload.speed;
+    targetJson["startRatio"] = payload.startRatio;
+}
+
+void DeserializePlaySoundData(const json& sourceJson, CinematicPlaySoundEventData& outPayload)
+{
+    outPayload.soundCue = String::ToWString(sourceJson.value("soundCue", String::ToString(outPayload.soundCue)));
+    outPayload.useTargetPosition = sourceJson.value("useTargetPosition", outPayload.useTargetPosition);
+    outPayload.volume = sourceJson.value("volume", outPayload.volume);
+    outPayload.speed = sourceJson.value("speed", outPayload.speed);
+    outPayload.startRatio = sourceJson.value("startRatio", outPayload.startRatio);
+}
+
 json SerializeActorTransformKeyframe(const CINEMATIC_ACTOR_TRANSFORM_KEYFRAME& keyframe)
 {
     return
@@ -414,6 +432,11 @@ json SerializeEvent(const CINEMATIC_EVENT& event)
         eventJson["type"] = "play_effect";
         SerializePlayEffectData(eventJson, *playEffect);
     }
+    else if (const auto* playSound = get_if<CinematicPlaySoundEventData>(&event.payload))
+    {
+        eventJson["type"] = "play_sound";
+        SerializePlaySoundData(eventJson, *playSound);
+    }
     else if (get_if<CinematicDespawnEventData>(&event.payload) != nullptr)
     {
         eventJson["type"] = "despawn";
@@ -454,6 +477,12 @@ void DeserializeEvent(const json& eventJson, CINEMATIC_EVENT& outEvent)
     {
         CinematicPlayEffectEventData payload{};
         DeserializePlayEffectData(eventJson, payload);
+        outEvent.payload = payload;
+    }
+    else if (type == "play_sound")
+    {
+        CinematicPlaySoundEventData payload{};
+        DeserializePlaySoundData(eventJson, payload);
         outEvent.payload = payload;
     }
     else if (type == "despawn")

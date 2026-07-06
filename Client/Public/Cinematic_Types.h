@@ -166,13 +166,23 @@ struct CinematicPlayEffectEventData
     float playbackSpeed = 1.f;
 };
 
+struct CinematicPlaySoundEventData
+{
+    wstring soundCue;
+    bool useTargetPosition = true;
+    float volume = 1.f;
+    float speed = 1.f;
+    float startRatio = 0.f;
+};
+
 using CinematicEventPayload = variant<
     CinematicSpawnEventData,
     CinematicPlayAnimEventData,
     CinematicDespawnEventData,
     CinematicPartVisibilityEventData,
     CinematicWorldTimeScaleEventData,
-    CinematicPlayEffectEventData>;
+    CinematicPlayEffectEventData,
+    CinematicPlaySoundEventData>;
 
 typedef struct CinematicEvent
 {

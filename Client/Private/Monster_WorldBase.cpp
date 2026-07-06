@@ -422,7 +422,7 @@ void Monster_WorldBase::Late_Update(float timeDelta)
 
     if (weakPoint && !weakPoint->Is_Visible())
         weakPoint->Restore_WorldWeakPointAfterBattle();
-
+    
     if (_isCinematicDriven)
     {
         Character::Late_Update(timeDelta);

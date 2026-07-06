@@ -6,6 +6,7 @@
 #include "ClientInstance.h"
 #include "ContainerObject.h"
 #include "EffectCom.h"
+#include "EffectInstancePool.h"
 #include "GameInstance.h"
 #include "GameplayUI.h"
 #include "Hair_Player.h"
@@ -21,13 +22,30 @@
 #include "Spawn_Prefab.h"
 #include "TransformCom.h"
 #include <algorithm>
+#include <chrono>
 #include <cmath>
 #include <fstream>
+#include <sstream>
 #include <system_error>
 #include <thread>
 
 namespace
 {
+constexpr float kPerfDropLogThresholdSec = 1.f / 30.f;
+constexpr float kPerfDropLogCooldownSec = 0.25f;
+
+using PerfClock = std::chrono::steady_clock;
+
+float ElapsedMs(PerfClock::time_point start)
+{
+    return std::chrono::duration<float, std::milli>(PerfClock::now() - start).count();
+}
+
+bool NearlyEqualVec3(const Vec3& lhs, const Vec3& rhs, float epsilon = 0.0005f)
+{
+    return (lhs - rhs).LengthSquared() <= epsilon * epsilon;
+}
+
 float WrapDegrees180(float degrees)
 {
     float wrapped = fmodf(degrees + 180.f, 360.f);
@@ -214,6 +232,65 @@ PartObject* Find_TargetAnimPart(const Shared<GameObject>& actor)
         return container->Get_PartObject(L"Part_Body");
 
     return nullptr;
+}
+
+string Resolve_ObjectLabel(const Shared<GameObject>& object)
+{
+    if (object == nullptr)
+        return "<null>";
+
+    const string& prefabName = object->Get_SourcePrefabName();
+    if (!prefabName.empty())
+        return prefabName;
+
+    const wstring& objectName = object->Get_Name();
+    return objectName.empty() ? "<unnamed>" : String::ToString(objectName);
+}
+
+bool Try_GetWorldPosition(const Shared<GameObject>& object, Vec3& outPosition)
+{
+    if (object == nullptr || object->Get_Transform() == nullptr)
+        return false;
+
+    outPosition = object->Get_Transform()->Get_WorldPosition();
+    return true;
+}
+
+EffectCom::AttachedEffectDebugSummary Collect_AttachedEffectDebugSummary(const Shared<GameObject>& actor)
+{
+    EffectCom::AttachedEffectDebugSummary summary{};
+    if (actor == nullptr)
+        return summary;
+
+    const auto addSummary = [&summary](const Shared<EffectCom>& effectCom)
+        {
+            if (effectCom == nullptr)
+                return;
+
+            const EffectCom::AttachedEffectDebugSummary current = effectCom->Get_AttachedEffectDebugSummary();
+            summary.totalCount += current.totalCount;
+            summary.activeCount += current.activeCount;
+            summary.trailCount += current.trailCount;
+            summary.trailDrainingCount += current.trailDrainingCount;
+            summary.sourceHistoryCount += current.sourceHistoryCount;
+            summary.sourceHistoryDrainingCount += current.sourceHistoryDrainingCount;
+        };
+
+    addSummary(actor->Get_Component<EffectCom>());
+
+    const Shared<ContainerObject> container = dynamic_pointer_cast<ContainerObject>(actor);
+    if (container == nullptr)
+        return summary;
+
+    for (const auto& [partTag, partObject] : container->Get_PartObjects())
+    {
+        UNREFERENCED_PARAMETER(partTag);
+
+        if (partObject != nullptr)
+            addSummary(partObject->Get_Component<EffectCom>());
+    }
+
+    return summary;
 }
 
 }
@@ -887,24 +964,51 @@ void CinematicSequenceRunner::Update(float timeDelta, bool tickBoundAnimationsMa
     if (!wasPlaying)
         return;
 
+    const PerfClock::time_point runnerStart = PerfClock::now();
+    FramePerfBreakdown perf{};
+
+    PerfClock::time_point stageStart = PerfClock::now();
     _player->Update(timeDelta);
+    perf.playerMs = ElapsedMs(stageStart);
+
+    stageStart = PerfClock::now();
     Apply_ActiveCameraTrackPose(_player->Get_CurrentFrameExact());
+    perf.cameraMs = ElapsedMs(stageStart);
 
     const int currentFrame = _player->Get_CurrentFrame();
     const float currentFrameExact = _player->Get_CurrentFrameExact();
     const bool isPlayingAfterUpdate = _player->Is_CinematicPlaying();
+    const bool willTickBoundAnimations =
+        tickBoundAnimationsManually && isPlayingAfterUpdate && !_player->Is_CinematicPaused();
 
     if (_applyEventTrack)
-        Execute_EventsUpToFrame(currentFrame, currentFrameExact);
-    if (_applyEventTrack && _applyActorTransformTrack && !_suspendActorTransformTrackPreview)
-        Apply_AuthoredActorTracks(currentFrameExact);
-
-    if (tickBoundAnimationsManually && isPlayingAfterUpdate && !_player->Is_CinematicPaused())
     {
-        Update_BoundActorAnimations(timeDelta);
-        if (_usePreviewPlaybackOptimizations)
-            Update_BoundActorAttachedEffects(timeDelta);
+        stageStart = PerfClock::now();
+        Execute_EventsUpToFrame(currentFrame, currentFrameExact);
+        perf.eventsMs = ElapsedMs(stageStart);
     }
+    if (_applyEventTrack && _applyActorTransformTrack && !_suspendActorTransformTrackPreview)
+    {
+        stageStart = PerfClock::now();
+        Apply_AuthoredActorTracks(currentFrameExact, willTickBoundAnimations);
+        perf.actorTracksMs = ElapsedMs(stageStart);
+    }
+
+    if (willTickBoundAnimations)
+    {
+        stageStart = PerfClock::now();
+        Update_BoundActorAnimations(timeDelta, &perf);
+        perf.animMs = ElapsedMs(stageStart);
+        if (_usePreviewPlaybackOptimizations)
+        {
+            stageStart = PerfClock::now();
+            Update_BoundActorAttachedEffects(timeDelta, &perf);
+            perf.attachedEffectMs = ElapsedMs(stageStart);
+        }
+    }
+
+    perf.runnerMs = ElapsedMs(runnerStart);
+    Log_PerfDropIfNeeded(timeDelta, currentFrameExact, perf);
 
     if (wasPlaying && !_player->Is_CinematicPlaying())
     {
@@ -1335,6 +1439,11 @@ void CinematicSequenceRunner::Execute_Event(
         if (!suppressTransientEffects)
             Execute_PlayEffectEvent(event.targetId, *playEffect);
     }
+    else if (const auto* playSound = get_if<CinematicPlaySoundEventData>(&event.payload))
+    {
+        if (!suppressTransientEffects)
+            Execute_PlaySoundEvent(event.targetId, *playSound);
+    }
     else if (get_if<CinematicDespawnEventData>(&event.payload) != nullptr)
     {
         Execute_DespawnEvent(event.targetId, CinematicDespawnEventData{});
@@ -1574,6 +1683,65 @@ bool CinematicSequenceRunner::Execute_PlayEffectEvent(
     return true;
 }
 
+bool CinematicSequenceRunner::Execute_PlaySoundEvent(
+    const string& targetId,
+    const CinematicPlaySoundEventData& payload)
+{
+    if (payload.soundCue.empty())
+    {
+        LOG_WARN("[CinematicSequenceRunner] PlaySoundEvent skipped: empty soundCue. frame={}", Get_CurrentFrame());
+        return false;
+    }
+
+    Vec3 soundPositionValue = Vec3::Zero;
+    const Vec3* soundPosition = nullptr;
+    if (payload.useTargetPosition && !targetId.empty())
+    {
+        Shared<GameObject> actor = Get_BoundActor(targetId);
+        if (actor == nullptr)
+        {
+            LOG_WARN(
+                "[CinematicSequenceRunner] PlaySoundEvent failed: target='{}' sound='{}' is not bound. frame={}",
+                targetId,
+                String::ToString(payload.soundCue),
+                Get_CurrentFrame());
+            return false;
+        }
+
+        if (!Try_GetWorldPosition(actor, soundPositionValue))
+        {
+            LOG_WARN(
+                "[CinematicSequenceRunner] PlaySoundEvent failed: target='{}' sound='{}' has no transform. frame={}",
+                targetId,
+                String::ToString(payload.soundCue),
+                Get_CurrentFrame());
+            return false;
+        }
+
+        soundPosition = &soundPositionValue;
+    }
+
+    const float volume = std::clamp(payload.volume, 0.f, 10.f);
+    const float speed = std::max(payload.speed, 0.01f);
+    const float startRatio = std::clamp(payload.startRatio, 0.f, 0.99f);
+    if (!GAME->Play_SoundCue(payload.soundCue, soundPosition, volume, speed, startRatio))
+    {
+        LOG_WARN(
+            "[CinematicSequenceRunner] PlaySoundEvent failed: target='{}' sound='{}' frame={}",
+            targetId,
+            String::ToString(payload.soundCue),
+            Get_CurrentFrame());
+        return false;
+    }
+
+    LOG_INFO(
+        "[CinematicSequenceRunner] PlaySoundEvent success: target='{}' sound='{}' frame={}",
+        targetId,
+        String::ToString(payload.soundCue),
+        Get_CurrentFrame());
+    return true;
+}
+
 bool CinematicSequenceRunner::Execute_DespawnEvent(const string& targetId, const CinematicDespawnEventData& payload)
 {
     UNREFERENCED_PARAMETER(payload);
@@ -1700,7 +1868,7 @@ bool CinematicSequenceRunner::Execute_WorldTimeScaleEvent(const CinematicWorldTi
     return true;
 }
 
-void CinematicSequenceRunner::Apply_ActorTransformTracks(float currentFrameExact)
+void CinematicSequenceRunner::Apply_ActorTransformTracks(float currentFrameExact, bool deferActiveAnimPartRefresh)
 {
     for (const auto& track : _sequence.actorTransformTracks)
     {
@@ -1720,18 +1888,37 @@ void CinematicSequenceRunner::Apply_ActorTransformTracks(float currentFrameExact
         if (!Evaluate_ActorTransformTrack(track, currentFrameExact, position, rotation))
             continue;
 
+        if (NearlyEqualVec3(transform->Get_WorldPosition(), position) &&
+            NearlyEqualVec3(transform->Get_WorldRotationEuler(), rotation))
+            continue;
+
         transform->Set_WorldPosition(position);
         transform->Set_WorldRotationEuler(rotation);
         transform->Update_WorldMatrix();
+
+        bool deferPartRefresh = false;
+        if (deferActiveAnimPartRefresh)
+        {
+            const auto stateIt = _bindingStates.find(track.targetId);
+            deferPartRefresh =
+                stateIt != _bindingStates.end() &&
+                stateIt->second.actor == actor &&
+                stateIt->second.hasActivePlayAnim &&
+                !stateIt->second.activePlayAnim.holdFrame &&
+                Find_TargetModel(actor) != nullptr;
+        }
+
+        if (deferPartRefresh)
+            continue;
 
         if (const auto container = dynamic_pointer_cast<ContainerObject>(actor))
             container->Refresh_PartObjectTransforms();
     }
 }
 
-void CinematicSequenceRunner::Apply_AuthoredActorTracks(float currentFrameExact)
+void CinematicSequenceRunner::Apply_AuthoredActorTracks(float currentFrameExact, bool deferActiveAnimPartRefresh)
 {
-    Apply_ActorTransformTracks(currentFrameExact);
+    Apply_ActorTransformTracks(currentFrameExact, deferActiveAnimPartRefresh);
     Apply_PartRotationTracks(currentFrameExact);
 }
 
@@ -1951,15 +2138,13 @@ void CinematicSequenceRunner::Set_BoundActorAnimationPaused(bool paused)
     }
 }
 
-void CinematicSequenceRunner::Update_BoundActorAnimations(float timeDelta)
+void CinematicSequenceRunner::Update_BoundActorAnimations(float timeDelta, FramePerfBreakdown* perf)
 {
     if (timeDelta <= 0.f)
         return;
 
     for (auto& [targetId, state] : _bindingStates)
     {
-        UNREFERENCED_PARAMETER(targetId);
-
         if (!state.hasActivePlayAnim || state.actor == nullptr)
             continue;
 
@@ -1977,27 +2162,51 @@ void CinematicSequenceRunner::Update_BoundActorAnimations(float timeDelta)
             state.pendingPlayAnimInitialAdvanceSec = -1.f;
         }
 
-        model->Play_Animation(animationDelta);
+        const PerfClock::time_point actorStart = PerfClock::now();
+        PerfClock::time_point stageStart = PerfClock::now();
+        const bool animationFinished = model->Play_Animation(animationDelta);
+        const float playMs = ElapsedMs(stageStart);
 
+        float partMs = 0.f;
         if (const auto container = dynamic_pointer_cast<ContainerObject>(state.actor))
         {
+            stageStart = PerfClock::now();
             container->Refresh_PartObjectTransforms();
+            partMs = ElapsedMs(stageStart);
         }
         else if (PartObject* animPart = Find_TargetAnimPart(state.actor))
         {
+            stageStart = PerfClock::now();
             animPart->Update(0.f);
+            partMs = ElapsedMs(stageStart);
         }
+
+        if (perf != nullptr)
+        {
+            const float actorMs = ElapsedMs(actorStart);
+            ++perf->animActorCount;
+            perf->animPlayMs += playMs;
+            perf->animPartMs += partMs;
+            if (actorMs > perf->maxAnimActorMs)
+            {
+                perf->maxAnimActorMs = actorMs;
+                perf->maxAnimActorId = targetId;
+            }
+        }
+
+        if (animationFinished && !state.activePlayAnim.loop)
+            state.hasActivePlayAnim = false;
     }
 }
 
-void CinematicSequenceRunner::Update_BoundActorAttachedEffects(float timeDelta) const
+void CinematicSequenceRunner::Update_BoundActorAttachedEffects(float timeDelta, FramePerfBreakdown* perf) const
 {
     if (timeDelta <= 0.f)
         return;
 
     std::unordered_set<EffectCom*> updatedEffectComs{};
 
-    const auto updateEffectCom = [&updatedEffectComs, timeDelta](const Shared<EffectCom>& effectCom)
+    const auto updateEffectCom = [&updatedEffectComs, timeDelta, perf](const Shared<EffectCom>& effectCom)
         {
             if (effectCom == nullptr)
                 return;
@@ -2007,6 +2216,8 @@ void CinematicSequenceRunner::Update_BoundActorAttachedEffects(float timeDelta) 
 
             effectCom->Update_AttachedEffects(timeDelta);
             effectCom->Tick_AttachedEffectInstances(timeDelta);
+            if (perf != nullptr)
+                ++perf->attachedEffectComCount;
         };
 
     for (const auto& [targetId, state] : _bindingStates)
@@ -2032,6 +2243,135 @@ void CinematicSequenceRunner::Update_BoundActorAttachedEffects(float timeDelta) 
             updateEffectCom(partObject->Get_Component<EffectCom>());
         }
     }
+}
+
+void CinematicSequenceRunner::Log_PerfDropIfNeeded(
+    float timeDelta,
+    float currentFrameExact,
+    const FramePerfBreakdown& perf)
+{
+    _perfDropLogCooldownSec = max(0.f, _perfDropLogCooldownSec - max(0.f, timeDelta));
+    if (timeDelta < kPerfDropLogThresholdSec || _perfDropLogCooldownSec > 0.f)
+        return;
+
+    _perfDropLogCooldownSec = kPerfDropLogCooldownSec;
+
+    EffectInstancePool::DebugSummary poolSummary{};
+    string activeEffectBreakdown = "<no-pool>";
+    if (CLIENT != nullptr)
+    {
+        if (EffectInstancePool* effectPool = CLIENT->Get_EffectInstancePool())
+        {
+            poolSummary = effectPool->Get_DebugSummary();
+            activeEffectBreakdown = effectPool->Build_DebugActiveEffectBreakdown();
+        }
+    }
+
+    Shared<GameObject> simon = Get_BoundActor("Simon");
+    Vec3 simonPosition{};
+    const bool hasSimonPosition = Try_GetWorldPosition(simon, simonPosition);
+
+    EffectCom::AttachedEffectDebugSummary totalEffectSummary{};
+    std::ostringstream actors;
+    bool firstActor = true;
+
+    for (const auto& [targetId, state] : _bindingStates)
+    {
+        if (state.actor == nullptr)
+            continue;
+
+        const EffectCom::AttachedEffectDebugSummary actorEffectSummary =
+            Collect_AttachedEffectDebugSummary(state.actor);
+        totalEffectSummary.totalCount += actorEffectSummary.totalCount;
+        totalEffectSummary.activeCount += actorEffectSummary.activeCount;
+        totalEffectSummary.trailCount += actorEffectSummary.trailCount;
+        totalEffectSummary.trailDrainingCount += actorEffectSummary.trailDrainingCount;
+        totalEffectSummary.sourceHistoryCount += actorEffectSummary.sourceHistoryCount;
+        totalEffectSummary.sourceHistoryDrainingCount += actorEffectSummary.sourceHistoryDrainingCount;
+
+        Vec3 actorPosition{};
+        const bool hasActorPosition = Try_GetWorldPosition(state.actor, actorPosition);
+        const float distanceToSimon =
+            hasActorPosition && hasSimonPosition && state.actor != simon
+            ? (actorPosition - simonPosition).Length()
+            : -1.f;
+
+        const string activeAnimName = state.hasActivePlayAnim ? state.activePlayAnim.animName : "<none>";
+        float animTimeSec = -1.f;
+        float animDurationSec = -1.f;
+        if (Shared<ModelCom> model = Find_TargetModel(state.actor))
+        {
+            animTimeSec = model->Get_CurrentAnimationTimeSec();
+            animDurationSec = model->Get_CurrentAnimationDurationSec();
+        }
+
+        if (!firstActor)
+            actors << "; ";
+        firstActor = false;
+
+        actors
+            << targetId
+            << "{obj=" << Resolve_ObjectLabel(state.actor)
+            << ",anim=" << activeAnimName
+            << ",animSec=" << format("{:.3f}/{:.3f}", animTimeSec, animDurationSec)
+            << ",pos=";
+
+        if (hasActorPosition)
+            actors << format("{:.2f},{:.2f},{:.2f}", actorPosition.x, actorPosition.y, actorPosition.z);
+        else
+            actors << "n/a";
+
+        if (distanceToSimon >= 0.f)
+            actors << ",distSimon=" << format("{:.2f}", distanceToSimon);
+
+        actors
+            << ",attached=" << actorEffectSummary.totalCount
+            << ",active=" << actorEffectSummary.activeCount
+            << ",trail=" << actorEffectSummary.trailCount
+            << ",trailDrain=" << actorEffectSummary.trailDrainingCount
+            << "}";
+    }
+
+    LOG_WARN(
+        "[CinematicPerf][Drop] seq='{}' frame={:.2f}/{} dtMs={:.2f} fps={:.1f} nextEvent={} pool(active={}, idle={}, entries={}, activeEffects=[{}]) attached(total={}, active={}, trail={}, trailDrain={}, srcHist={}, srcHistDrain={}) actors=[{}]",
+        _sequence.name,
+        currentFrameExact,
+        _sequence.endFrame,
+        timeDelta * 1000.f,
+        timeDelta > 0.f ? 1.f / timeDelta : 0.f,
+        _nextEventIndex,
+        poolSummary.activeCount,
+        poolSummary.idleCount,
+        poolSummary.entryCount,
+        activeEffectBreakdown,
+        totalEffectSummary.totalCount,
+        totalEffectSummary.activeCount,
+        totalEffectSummary.trailCount,
+        totalEffectSummary.trailDrainingCount,
+        totalEffectSummary.sourceHistoryCount,
+        totalEffectSummary.sourceHistoryDrainingCount,
+        actors.str()
+    );
+
+    LOG_WARN(
+        "[CinematicPerf][Stage] seq='{}' frame={:.2f} dtMs={:.2f} runnerMs={:.2f} playerMs={:.2f} cameraMs={:.2f} eventsMs={:.2f} actorTracksMs={:.2f} animMs={:.2f} animPlayMs={:.2f} animPartMs={:.2f} animActors={} maxAnim={}:{:.2f} attachedMs={:.2f} attachedComs={}",
+        _sequence.name,
+        currentFrameExact,
+        timeDelta * 1000.f,
+        perf.runnerMs,
+        perf.playerMs,
+        perf.cameraMs,
+        perf.eventsMs,
+        perf.actorTracksMs,
+        perf.animMs,
+        perf.animPlayMs,
+        perf.animPartMs,
+        perf.animActorCount,
+        perf.maxAnimActorId.empty() ? "<none>" : perf.maxAnimActorId,
+        perf.maxAnimActorMs,
+        perf.attachedEffectMs,
+        perf.attachedEffectComCount
+    );
 }
 
 void CinematicSequenceRunner::Cleanup_Context(bool forceRemoveAllSpawned)
