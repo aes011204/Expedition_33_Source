@@ -787,8 +787,6 @@ void ChainModifierPreset::BuildSimonHairPhysicsDesc(
     desc.collisionSphereRadius = 0.27f;
     desc.collisionRadiusPadding = 0.06f;
     desc.collisionContactSkinWidth = 0.045f;
-    desc.collisionPushOutScale = 1.00f;
-    desc.collisionNormalSmoothAlpha = 0.40f;
     desc.collisionProjectionIterations = 4;
     desc.useHardCollisionProjection = true;
     desc.hardCollisionProjectionIterations = 10;
