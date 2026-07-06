@@ -3,6 +3,7 @@
 
 #include "AIController.h"
 #include "BlackBoard.h"
+#include "MB_Simon.h"
 #include "MonsterStatCom.h"
 #include "GameInstance.h"
 #include "Monster_BattleBase.h"
@@ -46,6 +47,26 @@ BNode::NODE_STATE BT_Set_TargetAI::Logic_Update(float deltaTime)
     const Shared<MonsterStatCom> stat = _owner.lock()->Get_Component<MonsterStatCom>();
     int32 skillIndex = bb->Get_Value<int32>("SkillIndex");
     auto skill = CLIENT->Get_Skill(stat->Get_SkillKey()[skillIndex]);
+
+    if (dynamic_pointer_cast<MB_Simon>(_owner.lock()) != nullptr &&
+        skill != nullptr &&
+        !skill->targetingType.empty() &&
+        (skill->targetingType[0] == TargetType::AllEnemies ||
+            skill->targetingType[0] == TargetType::AllEnemiesJump))
+    {
+        for (int32 i = 0; i < static_cast<int32>(heroes.size()); ++i)
+        {
+            if (heroes[i].heroId != HeroId::Lune)
+                continue;
+
+            if (heroes[i].statCom == nullptr ||
+                heroes[i].statCom->Get_AliveStatus() != EAliveStatus::Alive)
+                continue;
+
+            bb->Set_Value("TargetIndex", i);
+            return BNode::NODE_STATE::SUCCESS;
+        }
+    }
 
     float bestScore = -FLT_MAX;
     int32 targetIndex = -1;
