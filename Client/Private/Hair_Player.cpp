@@ -58,7 +58,7 @@ HRESULT Hair_Player::Initialize(void* arg)
         _hairPhysicsDesc = desc->hairPhysicsDesc;
         _hairCB = desc->hairCB;
         _usePoseFollowModifier = desc->usePoseFollowModifier;
-        _useMaelleBackHairPhysicsModifier = desc->useMaelleBackHairPhysicsModifier;
+        _useLuneHairPhysicsModifier = desc->useLuneHairPhysicsModifier;
     }
 
     _offsetMatrix = Matrix::Identity;
@@ -98,7 +98,7 @@ void Hair_Player::Update(float timeDelta)
 
     Update_CombinedWorldMatrix(_transformCom->Get_WorldMatrix());
 
-    if (_usePoseFollowModifier)
+    if (_usePoseFollowModifier || _useLuneHairPhysicsModifier)
     {
         if (!_hairPoseFollowModifierReady)
         {
@@ -162,102 +162,30 @@ void Hair_Player::Update(float timeDelta)
 
             if (characterType == PlayerCharacterType::Maelle)
             {
-                if (_useMaelleBackHairPhysicsModifier)
-                {
-                    PhysicsModifier::PhysicsModifierDesc backHairPhysicsDesc{};
-                    ChainModifierPreset::BuildMaelleBackHairPhysicsDesc(
-                        backHairPhysicsDesc,
-                        ownerTransform.get());
-                    addPhysicsModifier(backHairPhysicsDesc);
-                }
-                else
-                {
-                    ChainModifier::ChainModifierDesc backHairDesc{};
-                    ChainModifierPreset::BuildBindPoseHairDesc(
-                        backHairDesc,
-                        ownerTransform.get(),
-                        characterType,
-                        L"BindPose_Hair_Back");
+                PhysicsModifier::PhysicsModifierDesc backHairPhysicsDesc{};
+                ChainModifierPreset::BuildMaelleBackHairPhysicsDesc(
+                    backHairPhysicsDesc,
+                    ownerTransform.get());
+                addPhysicsModifier(backHairPhysicsDesc);
 
-                    decltype(backHairDesc.groups) backGroups{};
-                    for (const auto& group : backHairDesc.groups)
-                    {
-                        if (group.rootBoneName == "Strand_0_1")
-                        {
-                            backGroups.push_back(group);
-                        }
-                    }
-                    backHairDesc.groups = std::move(backGroups);
-                    addModifier(backHairDesc);
-                }
-
-                ChainModifier::ChainModifierDesc frontHairDesc{};
-                ChainModifierPreset::BuildBindPoseHairDesc(
-                    frontHairDesc,
-                    ownerTransform.get(),
-                    characterType,
-                    L"BindPose_Hair_Front");
-
-                decltype(frontHairDesc.groups) frontGroups{};
-                for (const auto& group : frontHairDesc.groups)
-                {
-                    if (group.rootBoneName == "Strand_5_1" || group.rootBoneName == "Strand_6_1")
-                    {
-                        auto frontGroup = group;
-                        frontGroup.stiffnessMul = 1.025f;
-                        frontGroup.dampingMul = 1.010f;
-                        frontGroup.movementInertiaMul = 1.25f;
-                        frontGroup.poseRestoreMul = 1.05f;
-                        frontGroup.maxBendAngleMul = 0.90f;
-                        frontGroups.push_back(frontGroup);
-
-                        if (group.rootBoneName == "Strand_5_1")
-                        {
-                            frontGroup.rootBoneName = "strand_5_1";
-                            frontGroups.push_back(frontGroup);
-                        }
-                        else if (group.rootBoneName == "Strand_6_1")
-                        {
-                            frontGroup.rootBoneName = "strand_6_1";
-                            frontGroups.push_back(frontGroup);
-                        }
-                    }
-                }
-                frontHairDesc.groups = std::move(frontGroups);
-                frontHairDesc.shape.stiffness = 0.805f;
-                frontHairDesc.shape.tipStiffnessScale = 1.000f;
-                frontHairDesc.shape.poseRestoreStrength = 0.020f;
-                frontHairDesc.shape.tipPoseRestoreScale = 0.540f;
-                frontHairDesc.shape.maxBendAngleDegree = 28.f;
-                frontHairDesc.shape.tipMaxBendAngleScale = 1.000f;
-                frontHairDesc.shape.surfaceConstraintStrength = 0.f;
-                frontHairDesc.shape.rootOutputAlpha = 0.070f;
-                frontHairDesc.shape.tipOutputAlpha = 1.f;
-                frontHairDesc.shape.pinRoot = false;
-
-                frontHairDesc.motion.damping = 0.830f;
-                frontHairDesc.motion.tipDampingScale = 1.420f;
-                frontHairDesc.motion.movementInertiaScale = 0.125f;
-                frontHairDesc.motion.ownerMovementInertiaScale = 0.875f;
-                frontHairDesc.motion.tipMovementInertiaScale = 1.220f;
-                frontHairDesc.motion.maxMovementOffset = 0.018f;
-
-                frontHairDesc.runtime.gravity = Vec3(0.f, -0.6f, 0.f);
-                frontHairDesc.runtime.windScale = 0.f;
-                frontHairDesc.runtime.windStartRatio = -1.f;
-                frontHairDesc.runtime.windWeightScale = -1.f;
-                frontHairDesc.runtime.constraintDeadzone = 0.010f;
-                frontHairDesc.runtime.resetDistance = 3.f;
-                frontHairDesc.runtime.targetFrameRate = 60.f;
-
-                frontHairDesc.collision.enableCollision = false;
-                frontHairDesc.collision.particleCollisionRadius = 0.f;
-                addModifier(frontHairDesc);
+                PhysicsModifier::PhysicsModifierDesc frontHairPhysicsDesc{};
+                ChainModifierPreset::BuildMaelleFrontHairPhysicsDesc(
+                    frontHairPhysicsDesc,
+                    ownerTransform.get());
+                addPhysicsModifier(frontHairPhysicsDesc);
             }
             else if (characterType == PlayerCharacterType::Gustave)
             {
                 PhysicsModifier::PhysicsModifierDesc hairPhysicsDesc{};
                 ChainModifierPreset::BuildGustaveHairPhysicsDesc(
+                    hairPhysicsDesc,
+                    ownerTransform.get());
+                addPhysicsModifier(hairPhysicsDesc);
+            }
+            else if (characterType == PlayerCharacterType::Lune && _useLuneHairPhysicsModifier)
+            {
+                PhysicsModifier::PhysicsModifierDesc hairPhysicsDesc{};
+                ChainModifierPreset::BuildLuneHairPhysicsDesc(
                     hairPhysicsDesc,
                     ownerTransform.get());
                 addPhysicsModifier(hairPhysicsDesc);
