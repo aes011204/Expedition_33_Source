@@ -51,7 +51,7 @@ public:
     // 데이터 연동
     void    Sync_PreviewHeroRuntimeData(HeroId heroId);
 
-    void    Play_PreviewAnimation(HeroId heroId, PreviewAnimState introAnim, PreviewAnimState idleAnim);
+    void    Play_PreviewAnimation(HeroId heroId, PreviewAnimState introAnim, PreviewAnimState idleAnim, float blendDuration = 0.25f);
 
 private:
     HRESULT Ensure_PreviewCamera();

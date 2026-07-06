@@ -197,7 +197,16 @@ void BuffSystem::Apply_BurnTurnStartDamage(const BattleChar& target)
         return;
 
     const float maxHp = target.statCom->Get_StatInfo().maxHp;
-    const float damage = maxHp * BURN_MAX_HP_RATE * static_cast<float>(burn->Get_Stack());
+    float burnRate = 0.f;
+    float stackRate = BURN_MAX_HP_RATE;
+
+    for (uint32 i = 0; i < burn->Get_Stack(); ++i)
+    {
+        burnRate += stackRate;
+        stackRate *= BURN_STACK_RATE_DECAY;
+    }
+
+    const float damage = maxHp * burnRate;
 
     DamageSystem::ApplyDamage(damage, target, AttackType::BuffEffect);
 

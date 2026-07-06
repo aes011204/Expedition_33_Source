@@ -17,6 +17,7 @@ public:
 public:
     HRESULT Initialize();
     void Set_Critical(bool critical, float duration);
+    void Reset_ToBaseColor();
     void Update(float timeDelta);
 
 private:

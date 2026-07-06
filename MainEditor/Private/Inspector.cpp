@@ -29,6 +29,7 @@
 #include "UI_Transform.h"
 #include "Renderer_Define.h"
 
+#include <array>
 #include <iomanip>
 #include <sstream>
 
@@ -1661,6 +1662,22 @@ bool Inspector::Draw_MonsterBattlePrefabList(const Shared<GameObject>& target)
     ImGui::PushID("InspectorBattleMonsterPrefabs");
 
     constexpr float BattlePrefabLabelWidth = 110.f;
+
+    array<Vec3, Client::kBattlePlayerSpawnOffsetCount>& playerOffsets =
+        monster->Get_BattlePlayerSpawnOffsets_ForEdit();
+    for (size_t playerIndex = 0; playerIndex < playerOffsets.size(); ++playerIndex)
+    {
+        Vec3 playerOffset = playerOffsets[playerIndex];
+        ImGui::Text("Player %zu Offset", playerIndex);
+        ImGui::SameLine(BattlePrefabLabelWidth);
+        ImGui::SetNextItemWidth(max(80.f, ImGui::GetContentRegionAvail().x));
+        string inputId = "##InspectorBattlePlayerOffset" + to_string(playerIndex);
+        if (ImGui::DragFloat3(inputId.c_str(), &playerOffset.x, 0.05f))
+        {
+            playerOffsets[playerIndex] = playerOffset;
+            changed = true;
+        }
+    }
 
     int32 removeIndex = -1;
     for (int32 i = 0; i < static_cast<int32>(spawnDescs.size()); ++i)

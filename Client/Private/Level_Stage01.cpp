@@ -14,6 +14,7 @@
 #include "MovementCom.h"
 #include "Player_WorldBase.h"
 #include "Trigger_WorldDialogue.h"
+#include "Trigger_Cinematic.h"
 
 namespace
 {
@@ -23,6 +24,11 @@ namespace
 
     constexpr Vec3 kTeleportPos = Vec3(197.57f, -4023.57f, 50.95f);
     constexpr Vec3 kTeleportRot = Vec3(0.f, 27.6f, 0.f);
+
+    constexpr Vec3 kSimonWorldSpawnPos = Vec3(209.f, -4023.35f, 75.66f);
+    constexpr Vec3 kSimonWorldSpawnRot = Vec3(0.f, 40.3f, 0.f);
+
+    constexpr Vec3 kSimonCinematicTriggerPos = Vec3(205.f, -4023.f, 68.44f);
 
     bool Has_WorldDialogueTrigger(uint32 levelIndex)
     {
@@ -54,14 +60,17 @@ HRESULT Level_Stage01::Initialize()
 {
     CHECK_FAILED(Ready_Lights(), E_FAIL);
     CHECK_FAILED(Ready_Layer_Player(TEXT("Layer_Player")), E_FAIL);
+    CHECK_FAILED(Ready_Layer_Monster(TEXT("Layer_Monster")), E_FAIL);
     CHECK_FAILED(Ready_Layer_Camera(TEXT("Layer_Camera")), E_FAIL);
     CHECK_FAILED(Ready_Layer_UI(TEXT("Layer_UI")), E_FAIL);
     CHECK_FAILED(Ready_Layer_ETC(TEXT("Layer_ETC")), E_FAIL);
     CHECK_FAILED(Ready_Layer_BackGround(TEXT("Layer_BackGround")), E_FAIL);
+    CHECK_FAILED(Ready_Layer_CinematicTrigger(TEXT("Layer_Cinematic")), E_FAIL);
 
     RuntimeRuleStateService::Apply_ToCurrentRuntime(
         RuntimeRuleStateService::Build_SimonStartUnlocks(), false);
     CLIENT->Restore_CurrentHeroesHpToMax();
+    Prewarm_SimonBattleSetup();
 
     // 안개, 빛 설정
     GAME->Set_RenderEnvironment(true);
@@ -70,7 +79,8 @@ HRESULT Level_Stage01::Initialize()
         L"../../../Client/Bin/Resources/Textures/Shader/IBL/perfilter_eye.dds")))
         return E_FAIL;
 
-    //GAME->Play_BGM(Constants::SoundBGM::SpringBGM, 1.f, true, 0.f);
+    // 바람 소리?
+    CLIENT->Request_BGMAfterLevelFade(Constants::SoundBGM::SimonStartWindBGM, 0.7f, true, 0.f);
 
     return S_OK;
 }
@@ -123,6 +133,10 @@ void Level_Stage01::Update(float fTimeDelta)
     {
         glowController->Update(fTimeDelta);
     }
+
+    if (GAME->KeyPress(KEY_TYPE::F7))
+        Respawn_CinematicTrigger();
+
     // 시몽 앞으로 순간이동
     if (GAME->KeyDown(KEY_TYPE::KEY_9))
     {
@@ -174,7 +188,22 @@ HRESULT Level_Stage01::Ready_Layer_Player(const wstring& strLayerTag)
     Vec3 startPos = Vec3(78.57f, 2.46f, -1.5f);
     Vec3 startRot = Vec3(0.f, 85.8f, 0.f);
 
-    CHECK_FAILED(CLIENT->Initialize_Hero(ETOI(LevelType::Stage01), strLayerTag, startPos), E_FAIL);
+    CHECK_FAILED(CLIENT->Initialize_Hero(ETOI(LevelType::Stage01), strLayerTag, startPos, startRot), E_FAIL);
+
+    return S_OK;
+}
+
+HRESULT Level_Stage01::Ready_Layer_Monster(const wstring& strLayerTag)
+{
+    Shared<GameObject> simonObject = Spawn_Prefab::Prefab(Constants::Prefab::MW_Simon)
+        .AtLevel(ETOI(LevelType::Stage01))
+        .InLayer(L"Layer_GameObject")
+        .Position(kSimonWorldSpawnPos)
+        .Rotation(kSimonWorldSpawnRot)
+        .Spawn();
+
+    CHECK_NULL(simonObject, E_FAIL);
+    simonObject->Set_RuntimeAuthoringLoaded(true);
 
     return S_OK;
 }
@@ -220,7 +249,7 @@ HRESULT Level_Stage01::Ready_Layer_Camera(const wstring& strLayerTag)
 
     const auto targetCamera = dynamic_pointer_cast<TargetCamera>(cameraObject);
     if (targetCamera != nullptr)
-        targetCamera->Set_OrbitAngles(-90.f, 1.1f);
+        targetCamera->Set_OrbitAngles(90.f, 1.1f);
 
     CLIENT->Set_TargetCamera(targetCamera);
 
@@ -289,6 +318,61 @@ HRESULT Level_Stage01::Ready_Layer_BackGround(const wstring& strLayerTag)
         E_FAIL);
 
     return S_OK;
+}
+
+HRESULT Level_Stage01::Ready_Layer_CinematicTrigger(const wstring& strLayerTag)
+{
+    const Shared<GameObject> triggerObject = Spawn_Prefab::Prefab(Constants::Prefab::Trigger_Cinematic)
+        .AtLevel(ETOI(LevelType::Stage01))
+        .InLayer(strLayerTag)
+        .Position(kSimonCinematicTriggerPos)
+        .Spawn();
+
+    CHECK_NULL(triggerObject, E_FAIL);
+
+    const Shared<Trigger_Cinematic> simonTrigger =
+        dynamic_pointer_cast<Trigger_Cinematic>(triggerObject);
+    CHECK_NULL(simonTrigger, E_FAIL);
+
+    simonTrigger->Set_SequenceFileId(Constants::Cinematic::SimonIntroFileId);
+    simonTrigger->Set_StartBattleOnComplete(true, "Simon");
+    triggerObject->Set_RuntimeAuthoringLoaded(true);
+
+    return S_OK;
+}
+
+void Level_Stage01::Prewarm_SimonBattleSetup()
+{
+    BattleMonsterSpawnDesc simonSpawnDesc{};
+    simonSpawnDesc.prefabName = Constants::Prefab::MB_Simon;
+
+    CLIENT->Queue_BattleEffectPrewarmForBattleSetup(
+        vector<HeroId>{ HeroId::Gustave, HeroId::Lune, HeroId::Maelle },
+        vector<BattleMonsterSpawnDesc>{ simonSpawnDesc },
+        ETOI(LevelType::Stage01));
+    CLIENT->Flush_EffectPrewarmQueue();
+}
+
+void Level_Stage01::Respawn_CinematicTrigger()
+{
+    vector<Shared<GameObject>> triggersToRemove{};
+
+    GAME->Visit_LevelObjects(
+        ETOI(LevelType::Stage01),
+        [&](const wstring&, const Shared<GameObject>& gameObject)
+        {
+            if (dynamic_pointer_cast<Trigger_Cinematic>(gameObject) == nullptr)
+                return;
+
+            triggersToRemove.push_back(gameObject);
+        });
+
+    for (const Shared<GameObject>& triggerObject : triggersToRemove)
+        GAME->Remove_GameObject(ETOI(LevelType::Stage01), triggerObject);
+
+    GAME->Flush_RemovedGameObjects();
+
+    CHECK_FAILED(Ready_Layer_CinematicTrigger(TEXT("Layer_Cinematic")));
 }
 
 Shared<Level_Stage01> Level_Stage01::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)

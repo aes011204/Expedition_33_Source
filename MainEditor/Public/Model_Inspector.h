@@ -24,6 +24,7 @@ private:
         int32 selectedAnimIndex = -1;
         bool loop = true;
         float blendDuration = 0.1f;
+        float previewFrame = 0.f;
         string filterText{};
     };
 

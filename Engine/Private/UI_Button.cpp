@@ -130,7 +130,8 @@ void UI_Button::Update_StateAnimationEvents()
     }
     else if (_previousHoveredForState != _isHovered)
     {
-        Try_PlayStateAnimation(_isHovered ? UI_StateAnimationEvent::HoverEnter : UI_StateAnimationEvent::HoverExit);
+        if (_isHovered || !_isFocusedForState)
+            Try_PlayStateAnimation(_isHovered ? UI_StateAnimationEvent::HoverEnter : UI_StateAnimationEvent::HoverExit);
     }
 
     if (_previousFocusedForState != _isFocusedForState)

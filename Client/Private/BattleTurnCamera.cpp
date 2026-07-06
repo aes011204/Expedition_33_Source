@@ -533,6 +533,7 @@ void BattleTurnCamera::Reset_RuntimeState()
     _pitch = 0.f;
     _isClipPreview = false;
     _isRuntimePausedByTutorial = false;
+    _isBattleCameraShakeSuppressed = false;
     _isFirstUpdate = true;
     _isWideMode = false;
     _battleDOFPresetApplied = false;
@@ -543,6 +544,15 @@ void BattleTurnCamera::Reset_RuntimeState()
     _isJumpCounterPoseOffsetActive = false;
     _jumpCounterPoseOffsetProgress = 0.f;
     _jumpCounterPoseOffsetWeight = 0.f;
+}
+
+void BattleTurnCamera::Stop_BattleCameraShake()
+{
+    _isBattleCameraShakeSuppressed = true;
+    _runtimeShake = {};
+    _clipShakeTime = 0.f;
+    _lastActiveClipSample.shakeAmplitude = 0.f;
+    _clipDiscontinuityFadeSample.shakeAmplitude = 0.f;
 }
 
 void BattleTurnCamera::Set_JumpCounterPoseOffsetActive(bool active)
@@ -869,6 +879,9 @@ const BattleCameraClip* BattleTurnCamera::Find_ClipStorage(BattleCameraMode came
 
 void BattleTurnCamera::Start_RuntimeShake(const EvtBattleCameraShake& event)
 {
+    if (_isBattleCameraShakeSuppressed)
+        return;
+
     _runtimeShake.active = true;
     _runtimeShake.elapsed = 0.f;
     _runtimeShake.duration = event.duration;
@@ -884,6 +897,9 @@ void BattleTurnCamera::Start_RuntimeShake(const EvtBattleCameraShake& event)
 void BattleTurnCamera::Apply_RuntimeShake(EvaluatedPose& pose, float timeDelta)
 {
    UNREFERENCED_PARAMETER(timeDelta);
+
+   if (_isBattleCameraShakeSuppressed)
+      return;
 
    if(!_runtimeShake.active)
       return;
@@ -1002,6 +1018,9 @@ void BattleTurnCamera::Apply_ClipShake(
 {
     // clip shake도 drift 이후의 최종 pose에 additive로 얹어야
     // notify shake와 비슷한 화면 체감을 내고 다른 보정에 덜 묻힌다.
+
+    if (_isBattleCameraShakeSuppressed)
+        return;
 
     if (clipSample.shakeAmplitude <= 0.f)
         return;
