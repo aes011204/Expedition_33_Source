@@ -357,13 +357,17 @@ void ChangeSkill_Panel::Handle_ButtonInput()
             continue;
 
         const bool equipped = Try_EquipAvailableSkillToSelectedSlot(slot.skillId);
-        GAME->Play_SoundCue(Constants::SoundCue::UI_Global_NavigateClick);
 
         if (equipped)
         {
+            GAME->Play_SoundCue(Constants::SoundCue::UI_SkillTree_Equip);
             _selectedCurrentSkillSlotIndex = InvalidSkillSlotIndex;
             Refresh_All();
             Refresh_CurrentSkillButtonFocus();
+        }
+        else
+        {
+            GAME->Play_SoundCue(Constants::SoundCue::UI_Global_NavigateClick);
         }
 
         return;

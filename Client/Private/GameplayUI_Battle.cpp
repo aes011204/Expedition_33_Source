@@ -636,6 +636,7 @@ void GameplayUI_Battle::Handle_BattleStarted(uint32 fieldId, bool isPlayerAdvant
     _battleStartVictoryStats = Build_BattleVictoryPlayerStats();
     _battleWorldWarmupHeroFlags.fill(false);
 
+    GAME->Play_SoundCue(Constants::SoundCue::UI_Battle_Start);
     GAME->Get_ScreenFxManager()->Clear_ScreenEffect();
 
     // 플레이어 선제공격인지
@@ -810,6 +811,11 @@ void GameplayUI_Battle::Handle_TurnStarted(const BattleChar& actor, BattleTurnSt
     // 플레이어 턴인지
     _isPlayerTurnUiActive =
         (actor.statCom != nullptr && actor.statCom->Is_Player());
+
+    GAME->Play_SoundCue(
+        _isPlayerTurnUiActive
+            ? Constants::SoundCue::UI_Battle_TurnStartAlly
+            : Constants::SoundCue::UI_Battle_TurnStartEnemy);
 
     if (_isPlayerTurnUiActive)
     {

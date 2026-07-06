@@ -3,6 +3,7 @@
 #include "BattleAnimUtils.h"
 #include "BattleController.h"
 #include "BattleStateMachine.h"
+#include "Client_Constants.h"
 #include "ClientInstance.h"
 #include "CombatStatCom.h"
 #include "Event_Bus.h"
@@ -75,7 +76,10 @@ void ChooseGradient::Update(float timeDelta)
         event.subject = request.actor.actor;
         GAME->Get_EventBus().Publish(event);
 
-        battleFSM->Change_State(BattleTurnState::ChooseAction);
+        if (!battleFSM->Change_State(BattleTurnState::ChooseAction))
+            return;
+
+        GAME->Play_SoundCue(Constants::SoundCue::UI_Battle_SpellsMenuClose);
         return;
     }
 
@@ -96,7 +100,10 @@ void ChooseGradient::Update(float timeDelta)
 
     const uint32 apCost = skillData->apCost > 0 ? static_cast<uint32>(skillData->apCost) : 0u;
     if (request.actor.statCom->Get_CurAP() < apCost)
+    {
+        GAME->Play_SoundCue(Constants::SoundCue::UI_Battle_NoAP);
         return;
+    }
 
     request.type = EBattleContext::Skill;
     request.skillKey = skillData->skillKey; // SkillTargeting confirms the target before ExecuteActionRequest consumes it.
