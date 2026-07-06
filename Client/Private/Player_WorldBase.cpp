@@ -1136,7 +1136,8 @@ Shared<Hair_Player> Player_WorldBase::Create_CostumeHairVariant(const wstring& m
     hairDesc.modelType = ModelType::Anim;
     hairDesc.modelTag = modelTag;
     hairDesc.hairPhysicsDesc = Get_HairChainPhysicsDesc();
-    hairDesc.usePoseFollowModifier = true;
+    hairDesc.usePoseFollowModifier = Get_HeroId() != HeroId::Lune;
+    hairDesc.useLuneHairPhysicsModifier = Get_HeroId() == HeroId::Lune;
     hairDesc.socketMatrixPointer = head->Get_SocketBoneMatrixPtr("head");
 
     Shared<PartObject> clonedPart = static_pointer_cast<PartObject>(
@@ -1230,7 +1231,8 @@ HRESULT Player_WorldBase::Add_CostumeHair(const wstring& modelTag, const Head_Pl
     hairDesc.modelType = ModelType::Anim;
     hairDesc.modelTag = modelTag;
     hairDesc.hairPhysicsDesc = Get_HairChainPhysicsDesc();
-    hairDesc.usePoseFollowModifier = true;
+    hairDesc.usePoseFollowModifier = Get_HeroId() != HeroId::Lune;
+    hairDesc.useLuneHairPhysicsModifier = Get_HeroId() == HeroId::Lune;
     hairDesc.socketMatrixPointer = head->Get_SocketBoneMatrixPtr("head");
 
     CHECK_FAILED(__super::Add_PartObject(
@@ -1393,7 +1395,8 @@ HRESULT Player_WorldBase::Ready_PartObjects()
     hairPartDesc.modelType = ModelType::Anim;
     hairPartDesc.modelTag = Get_HairModelTag();
     hairPartDesc.hairPhysicsDesc = Get_HairChainPhysicsDesc();
-    hairPartDesc.usePoseFollowModifier = true;
+    hairPartDesc.usePoseFollowModifier = Get_HeroId() != HeroId::Lune;
+    hairPartDesc.useLuneHairPhysicsModifier = Get_HeroId() == HeroId::Lune;
     hairPartDesc.socketMatrixPointer = head->Get_SocketBoneMatrixPtr("head");
 
     if (FAILED(

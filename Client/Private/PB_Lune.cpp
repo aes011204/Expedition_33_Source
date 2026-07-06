@@ -2,7 +2,6 @@
 
 #include "ClientInstance.h"
 #include "GameDataTable.h"
-#include "Hair_Player.h"
 #include "PlayerStatCom.h"
 
 IMPLEMENT_REFLECTION(PB_Lune)
@@ -33,15 +32,6 @@ HRESULT PB_Lune::Ready_BodyModifiers(Body_Player* body, const wchar_t* bodyModel
 
     if (wcscmp(bodyModelTag, L"Model_LuneBody") == 0)
         return Add_BodyArmbandAndCoatModifiers(body, PlayerCharacterType::Lune);
-
-    return S_OK;
-}
-
-HRESULT PB_Lune::Ready_HairModifiers(Hair_Player* hair, const wchar_t* hairModelTag)
-{
-    CHECK_NULL(hair, E_FAIL);
-    if (hairModelTag != nullptr && wcscmp(hairModelTag, L"Model_LuneHair") == 0)
-        hair->Enable_PoseFollowModifier();
 
     return S_OK;
 }

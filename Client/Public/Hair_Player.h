@@ -21,6 +21,7 @@ public:
         HairChainPhysicsDesc    hairPhysicsDesc{};
         HairCB                  hairCB{};
         bool                    usePoseFollowModifier = false;
+        bool                    useLuneHairPhysicsModifier = false;
     } HAIR_PLAYER_DESC;
 
 public:
@@ -49,6 +50,7 @@ private:
     HairCB                  _hairCB{};
     bool                    _hairPhysicsReady = false;
     bool                    _usePoseFollowModifier = false;
+    bool                    _useLuneHairPhysicsModifier = false;
     bool                    _hairPoseFollowModifierReady = false;
     bool                    _suppressCinematicPreviewSimulation = false;
 
