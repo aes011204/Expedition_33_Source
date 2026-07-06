@@ -59,6 +59,13 @@ namespace
         }
     }
 
+    void Close_ChangeWeaponBlackBackground(const umap<wstring, Shared<UI_Base>>& uiByName)
+    {
+        const auto iter = uiByName.find(L"Image_BlackBG");
+        if (iter != uiByName.end() && iter->second)
+            iter->second->Close();
+    }
+
     vector<UIPreviewManager::PreviewSlotDesc> Build_ChangeWeaponPreviewLayout()
     {
         return
@@ -191,6 +198,7 @@ void ChangeWeapon_Panel::Open()
 
     UI_RuntimePanelBase::Open();
     Set_UIMapOpenState(_uiByName, true);
+    Close_ChangeWeaponBlackBackground(_uiByName);
 
     if (_selectedHeroId == HeroId::END)
         _selectedHeroId = HeroId::Lune;
@@ -247,6 +255,7 @@ void ChangeWeapon_Panel::Open_AsProgressionContent(HeroId selectedHeroId)
         UI_RuntimePanelBase::Open();
 
     Set_UIMapOpenState(_uiByName, true);
+    Close_ChangeWeaponBlackBackground(_uiByName);
     Refresh_ForSelectedHero(_selectedHeroId);
 }
 
