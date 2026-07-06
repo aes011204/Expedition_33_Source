@@ -1194,13 +1194,13 @@ void ChainModifierPreset::BuildLuneHairPhysicsDesc(
     desc.rotationFollowDepthScale = 0.08f;
     desc.poseRestoreAlpha = 0.38f;
     desc.poseRestoreMaxSpeed = 24.0f;
-    desc.maxLocalOffset = Vec3(2.55f, 1.45f, 2.90f);
+    desc.maxLocalOffset = Vec3(2.55f, 1.45f, 1.45f);
     desc.movementInertiaScale = 0.92f;
     desc.tipMovementInertiaScale = 24.00f;
     desc.maxMovementInertiaSpeed = 72.0f;
     desc.lateralInertiaScale = 1.75f;
     desc.verticalInertiaScale = 0.30f;
-    desc.depthInertiaScale = 1.15f;
+    desc.depthInertiaScale = 0.55f;
     desc.accelerationInertiaScale = 0.004f;
     desc.inertiaVelocitySmoothAlpha = 0.030f;
     desc.poseSpringStrength = 0.72f;
