@@ -517,6 +517,8 @@ EBattleEndResult BattleController::OnExitBattleField(EBattleEndResult result)
     _lastVictoryRewardExp = 0;
     _lastVictoryRewardPictosIds.clear();
     bool defeatedSimonPhase1 = false;
+    bool defeatedSimonFinal = false;
+    bool isSimonWorldBattle = false;
 
     if (result == EBattleEndResult::Victory && _battleSpawnRegistry)
     {
@@ -560,6 +562,9 @@ EBattleEndResult BattleController::OnExitBattleField(EBattleEndResult result)
         defeatedSimonPhase1 =
             find(defeatedEnemyKeys.begin(), defeatedEnemyKeys.end(), Constants::Prefab::MB_Simon) !=
             defeatedEnemyKeys.end();
+        defeatedSimonFinal =
+            find(defeatedEnemyKeys.begin(), defeatedEnemyKeys.end(), Constants::Prefab::MB_Simon_V2) !=
+            defeatedEnemyKeys.end();
 
         vector<HeroId> victoryHeroIds{};
         victoryHeroIds.reserve(_heroes.size());
@@ -573,6 +578,9 @@ EBattleEndResult BattleController::OnExitBattleField(EBattleEndResult result)
         }
 
         Shared<GameObject> sourceWorldObject = _battleSpawnRegistry->Get_SourceWorldObject();
+        isSimonWorldBattle =
+            sourceWorldObject != nullptr &&
+            sourceWorldObject->Get_SourcePrefabName() == Constants::Prefab::MW_Simon;
 
         Vec3 rewardOrigin = Vec3::Zero;
         const Vec3* rewardOriginPtr = nullptr;
@@ -623,6 +631,12 @@ EBattleEndResult BattleController::OnExitBattleField(EBattleEndResult result)
     Clear_TargetPreview();
     if (result == EBattleEndResult::Victory && _battleTurnCamera)
         _battleTurnCamera->Stop_BattleCameraShake();
+
+    if (result == EBattleEndResult::Victory &&
+        isSimonWorldBattle &&
+        defeatedSimonFinal &&
+        Try_RequestSimonFinalOutroCinematic())
+        return result;
 
     OnBattleEnded.Broadcast(result); // battle end UI 정리는 GameplayUI_Battle에서 처리
 
@@ -3564,6 +3578,74 @@ void BattleController::Stop_BattleSpawnAttachedEffects()
                     partEffectCom->Stop_AllAttachedEffects();
             }
         });
+}
+
+bool BattleController::Try_RequestSimonFinalOutroCinematic()
+{
+    const wstring sequencePath =
+        wstring(Constants::Cinematic::RuntimeJson_Dir) + Constants::Cinematic::SimonOutro3FileId;
+
+    CLIENT->Clear_CinematicCompletedCallbacks();
+    CLIENT->Add_CinematicCompletedCallback(
+        []()
+        {
+            if (BattleFollowupManager* followManager = CLIENT->Get_BattleFollowupManager())
+                followManager->Restore_SimonPhase2WorldVisualChange();
+        });
+
+    const bool requested = CLIENT->Request_CinematicSequenceTransition(
+        sequencePath,
+        0,
+        []()
+        {
+            CLIENT->Clear_CinematicCompletedCallbacks();
+            if (BattleFollowupManager* followManager = CLIENT->Get_BattleFollowupManager())
+                followManager->Restore_SimonPhase2WorldVisualChange();
+        });
+
+    if (!requested)
+    {
+        CLIENT->Clear_CinematicCompletedCallbacks();
+        return false;
+    }
+
+    OnBattleEnded.Broadcast(EBattleEndResult::Neutral); // Battle Victory UI 없이 전투 HUD만 닫는다.
+
+    GAME->Play_BGM(Constants::SoundBGM::SimonOutroCinematic, 0.7f, true, 0.f);
+    GAME->Stop_WorldTimeSlow();
+    GAME->Set_WorldTimeScale(1.f);
+    GAME->Set_PlayerInputBlocked(false);
+
+    _isPendingVictorySlow = false;
+    _isWaitingVictoryConfirm = false;
+    _victorySlow.elapsed = 0.f;
+
+    _battleEnded = false;
+    _isBattleActive = false;
+    _isBattleEntering = false;
+    _isWaitingBattleTransition = false;
+
+    End_BattleDOFOverride();
+    Clear_BattleRuntimeState();
+
+    if (_battleSpawnRegistry)
+    {
+        _battleSpawnRegistry->Destroy_SpawnedObjects();
+        _battleSpawnRegistry->Destroy_SourceWorldObject();
+    }
+
+    _heroes.clear();
+    _enemies.clear();
+    _battleTurnCamera.reset();
+
+    Clear_BattleEnterPending();
+    _activeBattleFieldID = 0;
+
+    _firstAnimflag = false;
+    _firstAnimCount = 0;
+    _firstAnimTargetCount = 0;
+
+    return true;
 }
 
 void BattleController::Complete_BattleField()
