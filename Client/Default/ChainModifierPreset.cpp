@@ -1117,7 +1117,6 @@ void ChainModifierPreset::BuildGustaveHairPhysicsDesc(
     desc.idleMotionDeadzone = 0.050f;
     desc.maxOutputAngleDegree = 58.f;
 
-    desc.contactRotationFollowAlpha = 0.18f;
     desc.freeRotationFollowAlpha = 0.26f;
     desc.rotationFollowDepthScale = 0.08f;
     desc.poseRestoreAlpha = 0.42f;
@@ -1137,7 +1136,6 @@ void ChainModifierPreset::BuildGustaveHairPhysicsDesc(
     desc.bendConstraintAlpha = 0.025f;
     desc.projectionIterations = 3;
 
-    desc.contactInertiaDamping = 0.16f;
     desc.releaseInertiaDamping = 0.78f;
 
     desc.enableCollision = false;
@@ -1169,20 +1167,20 @@ void ChainModifierPreset::BuildLuneHairPhysicsDesc(
     desc.blendMode = AnimationModifier::ModifierBlendMode::ModifyReplace;
 
     desc.chains = {
-        { "Strand_1_1", 1.00f, 0.14f, 0.90f, 1.00f, 0.34f, 1.08f },
-        { "Strand_2_1", 1.00f, 0.14f, 0.90f, 1.00f, 0.34f, 1.08f },
-        { "Strand_3_1", 1.00f, 0.12f, 1.08f, 1.00f, 0.30f, 0.92f },
-        { "Strand_4_1", 1.00f, 0.12f, 1.08f, 1.00f, 0.30f, 0.92f },
-        { "Strand_5_1", 1.00f, 0.10f, 0.78f, 1.00f, 0.24f, 1.10f },
-        { "Strand_6_1", 1.00f, 0.10f, 0.78f, 1.00f, 0.24f, 1.10f },
-        { "Strand_7_1", 1.00f, 0.10f, 0.78f, 1.00f, 0.24f, 1.10f },
-        { "Strand_8_1", 1.00f, 0.10f, 0.78f, 1.00f, 0.24f, 1.10f },
-        { "Strand_9_1", 1.00f, 0.10f, 0.78f, 1.00f, 0.24f, 1.10f },
-        { "Strand_10_1", 1.00f, 0.10f, 0.78f, 1.00f, 0.24f, 1.10f },
-        { "Strand_11_1", 1.00f, 0.10f, 0.78f, 1.00f, 0.24f, 1.10f },
-        { "Strand_12_1", 1.00f, 0.14f, 0.90f, 1.00f, 0.34f, 1.08f },
-        { "Strand_13_1", 1.00f, 0.14f, 0.90f, 1.00f, 0.34f, 1.08f },
-        { "Strand_14_1", 1.00f, 0.14f, 0.90f, 1.00f, 0.34f, 1.08f }
+        { "Strand_1_1", 1.00f, 0.04f, 0.90f, 1.00f, 0.34f, 1.08f },
+        { "Strand_2_1", 1.00f, 0.04f, 0.90f, 1.00f, 0.34f, 1.08f },
+        { "Strand_3_1", 1.00f, 0.035f, 1.08f, 1.00f, 0.30f, 0.92f },
+        { "Strand_4_1", 1.00f, 0.035f, 1.08f, 1.00f, 0.30f, 0.92f },
+        { "Strand_5_1", 1.00f, 0.03f, 0.78f, 1.00f, 0.24f, 1.10f },
+        { "Strand_6_1", 1.00f, 0.03f, 0.78f, 1.00f, 0.24f, 1.10f },
+        { "Strand_7_1", 1.00f, 0.03f, 0.78f, 1.00f, 0.24f, 1.10f },
+        { "Strand_8_1", 1.00f, 0.03f, 0.78f, 1.00f, 0.24f, 1.10f },
+        { "Strand_9_1", 1.00f, 0.03f, 0.78f, 1.00f, 0.24f, 1.10f },
+        { "Strand_10_1", 1.00f, 0.03f, 0.78f, 1.00f, 0.24f, 1.10f },
+        { "Strand_11_1", 1.00f, 0.03f, 0.78f, 1.00f, 0.24f, 1.10f },
+        { "Strand_12_1", 1.00f, 0.04f, 0.90f, 1.00f, 0.34f, 1.08f },
+        { "Strand_13_1", 1.00f, 0.04f, 0.90f, 1.00f, 0.34f, 1.08f },
+        { "Strand_14_1", 1.00f, 0.04f, 0.90f, 1.00f, 0.34f, 1.08f }
     };
 
     desc.outputAlpha = 1.00f;
@@ -1192,28 +1190,26 @@ void ChainModifierPreset::BuildLuneHairPhysicsDesc(
     desc.idleMotionDeadzone = 0.050f;
     desc.maxOutputAngleDegree = 52.f;
 
-    desc.contactRotationFollowAlpha = 0.16f;
     desc.freeRotationFollowAlpha = 0.22f;
     desc.rotationFollowDepthScale = 0.08f;
-    desc.poseRestoreAlpha = 0.14f;
-    desc.poseRestoreMaxSpeed = 6.0f;
+    desc.poseRestoreAlpha = 0.38f;
+    desc.poseRestoreMaxSpeed = 24.0f;
     desc.maxLocalOffset = Vec3(2.55f, 1.45f, 2.90f);
     desc.movementInertiaScale = 0.92f;
-    desc.tipMovementInertiaScale = 7.50f;
-    desc.maxMovementInertiaSpeed = 48.0f;
+    desc.tipMovementInertiaScale = 24.00f;
+    desc.maxMovementInertiaSpeed = 72.0f;
     desc.lateralInertiaScale = 1.75f;
     desc.verticalInertiaScale = 0.30f;
     desc.depthInertiaScale = 1.15f;
     desc.accelerationInertiaScale = 0.004f;
     desc.inertiaVelocitySmoothAlpha = 0.030f;
-    desc.poseSpringStrength = 0.28f;
-    desc.poseSpringDamping = 0.64f;
+    desc.poseSpringStrength = 0.72f;
+    desc.poseSpringDamping = 0.80f;
     desc.lengthConstraintAlpha = 0.110f;
     desc.bendConstraintAlpha = 0.018f;
     desc.projectionIterations = 3;
 
-    desc.contactInertiaDamping = 0.18f;
-    desc.releaseInertiaDamping = 0.42f;
+    desc.releaseInertiaDamping = 0.78f;
 
     desc.enableCollision = false;
     desc.collisionSphereRadius = 0.12f;
@@ -1222,75 +1218,11 @@ void ChainModifierPreset::BuildLuneHairPhysicsDesc(
     desc.collisionProjectionIterations = 1;
 
     desc.windDirection = kCommonWindDirection;
-    desc.windScale = 0.055f;
-    desc.windWaveScale = 0.52f;
-    desc.windWaveFrequency = 0.55f;
-    desc.windWaveDepthPhase = 0.60f;
+    desc.windScale = 0.035f;
+    desc.windWaveScale = 0.90f;
+    desc.windWaveFrequency = 0.42f;
+    desc.windWaveDepthPhase = 0.62f;
     desc.gravityScale = 0.30f;
-    desc.teleportDistance = 300.f;
-    desc.solverIterations = 8;
-    desc.writeBackEnabled = true;
-}
-
-void ChainModifierPreset::BuildMaelleBackHairPhysicsDesc(
-    PhysicsModifier::PhysicsModifierDesc& outDesc,
-    TransformCom* ownerTransform,
-    const wstring& modifierTag)
-{
-    auto& desc = outDesc;
-    desc = {};
-    desc.modifierTag = modifierTag;
-    desc.ownerTransform = ownerTransform;
-    desc.blendMode = AnimationModifier::ModifierBlendMode::ModifyReplace;
-
-    desc.chains = {
-        { "Strand_0_1", 1.00f, 0.18f, 2.30f, 1.00f, 0.055f, 0.66f },
-        { "strand_0", 1.00f, 0.18f, 2.30f, 1.00f, 0.055f, 0.66f }
-    };
-
-    desc.outputAlpha = 1.00f;
-    desc.rotationOutputAlpha = 1.00f;
-    desc.outputSmoothAlpha = 0.220f;
-    desc.idleOutputSmoothAlpha = 0.74f;
-    desc.idleMotionDeadzone = 0.055f;
-    desc.maxOutputAngleDegree = 152.f;
-
-    desc.contactRotationFollowAlpha = 0.14f;
-    desc.freeRotationFollowAlpha = 0.22f;
-    desc.rotationFollowDepthScale = 0.10f;
-    desc.poseRestoreAlpha = 0.400f;
-    desc.poseRestoreMaxSpeed = 30.0f;
-    desc.maxLocalOffset = Vec3(19.00f, 1.65f, 10.90f);
-    desc.movementInertiaScale = 3.40f;
-    desc.tipMovementInertiaScale = 68.00f;
-    desc.maxMovementInertiaSpeed = 140.0f;
-    desc.lateralInertiaScale = 16.25f;
-    desc.verticalInertiaScale = 0.22f;
-    desc.depthInertiaScale = 2.45f;
-    desc.includeDriverLateralInertia = true;
-    desc.accelerationInertiaScale = 0.005f;
-    desc.inertiaVelocitySmoothAlpha = 0.110f;
-    desc.poseSpringStrength = 0.90f;
-    desc.poseSpringDamping = 0.780f;
-    desc.lengthConstraintAlpha = 0.055f;
-    desc.bendConstraintAlpha = 0.006f;
-    desc.projectionIterations = 3;
-
-    desc.contactInertiaDamping = 0.120f;
-    desc.releaseInertiaDamping = 0.820f;
-
-    desc.enableCollision = false;
-    desc.collisionSphereRadius = 0.18f;
-    desc.collisionRadiusPadding = 0.08f;
-    desc.collisionContactSkinWidth = 0.06f;
-    desc.collisionProjectionIterations = 2;
-
-    desc.windDirection = kBackwardWindDirection;
-    desc.windScale = 0.078f;
-    desc.windWaveScale = 0.78f;
-    desc.windWaveFrequency = 0.78f;
-    desc.windWaveDepthPhase = 0.86f;
-    desc.gravityScale = 0.42f;
     desc.teleportDistance = 300.f;
     desc.solverIterations = 8;
     desc.writeBackEnabled = true;
