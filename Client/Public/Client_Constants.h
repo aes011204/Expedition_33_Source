@@ -637,7 +637,7 @@ namespace Client::Constants::Cinematic
     inline constexpr wchar_t Dualliste_PhaseChange[] = L"Dualliste.json";
 
     inline constexpr wchar_t SimonIntroFileId[] = L"Simon_Intro.json";
-    inline constexpr wchar_t SimonOutro3FileId[] = L"Simon_Outro3.json";
+    inline constexpr wchar_t SimonOutro3FileId[] = L"Simon_Outro.json";
 }
 
 namespace Client::Constants::SoundCue
