@@ -164,9 +164,19 @@ void Level_GameEntry::Apply_RevealedLevelVisibility()
         return;
     }
 
+    Shared<UI_Button> button = Find_TypedUI<UI_Button>(
+        _uiByName,
+        buttonName,
+        "Level_GameEntry");
+    if (button != nullptr)
+    {
+        button->Open();
+        button->Set_SuppressSelfStateAnimation(true);
+        button->Set_AlphaMultiplier(1.f);
+    }
+
     const wchar_t* targetNames[] =
     {
-        buttonName,
         thumbnailName,
         textName,
     };

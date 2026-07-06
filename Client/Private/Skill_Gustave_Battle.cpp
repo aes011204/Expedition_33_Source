@@ -133,7 +133,8 @@ void Skill_Gustave_MarkingShot::Execute(const Skill_Data& skill, const BattleAct
     const float damage = DamageSystem::CalculatePlayerAttackDamage(attacker, skill.powerMultiplier);
     DamageSystem::ApplyDamage(damage, attacker, target, attackType);
 
-    battle->Apply_Buff(target, Buffs::Mark);
+    if (target.statCom != nullptr && target.statCom->Get_AliveStatus() == EAliveStatus::Alive)
+        battle->Apply_Buff(target, Buffs::Mark);
 
     if (attacker.mechanismCom)
         attacker.mechanismCom->Add_GustaveCharge(1);

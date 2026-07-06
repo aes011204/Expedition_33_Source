@@ -109,6 +109,7 @@ void UI_MonsterHpBar::Close()
 
     _freeAimEmphasis = false;
     _freeAimScale = kFreeAimMinScale;
+    _targetPulseScale = 1.f;
 
     if (_hasRootBaseScale && _root && _root->Get_Transform())
         _root->Get_Transform()->Set_Scale(_rootBaseScale);
@@ -137,10 +138,16 @@ void UI_MonsterHpBar::Show_TrackedTarget(const BattleChar& target)
     if (!Is_ValidMonsterTarget(target))
         return;
 
+    const bool targetChanged =
+        _displayMode != DisplayMode::Tracked || _displayTarget.actor != target.actor;
+
     _displayTarget = target;
     _displayMode = DisplayMode::Tracked;
     _displayElapsed = 0.f;
     _displayDuration = 0.f;
+
+    if (targetChanged)
+        _targetPulseScale = kTargetPulseStartScale;
 
     const float maxHp = max(target.statCom->Get_StatInfo().maxHp, 1.f);
     Sync_DelayedHpGauge(clamp(target.statCom->Get_CurHp() / maxHp, 0.f, 1.f));
@@ -219,7 +226,13 @@ void UI_MonsterHpBar::Update_FreeAimScale(float timeDelta)
 
     _freeAimScale = std::lerp(_freeAimScale, targetScale, alpha);
 
-    _root->Get_Transform()->Set_Scale(_rootBaseScale * _freeAimScale);
+    const float pulseAlpha = clamp(timeDelta * kTargetPulseScaleLerpSpeed, 0.f, 1.f);
+    _targetPulseScale = std::lerp(_targetPulseScale, 1.f, pulseAlpha);
+
+    if (abs(_targetPulseScale - 1.f) <= 0.001f)
+        _targetPulseScale = 1.f;
+
+    _root->Get_Transform()->Set_Scale(_rootBaseScale * _freeAimScale * _targetPulseScale);
 }
 
 HRESULT UI_MonsterHpBar::Load_UI(uint32 levelIndex)
