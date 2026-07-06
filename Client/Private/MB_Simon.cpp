@@ -277,7 +277,7 @@ void MB_Simon::PlaySimonEffect()
     desc.socketName = "spine_01";
     desc.layerTag = L"Layer_Effect";
     desc.localOffset = Vec3{ 0.f,0.f,0.f };
-    desc.localRotation = Vec3{ 0.f,0.f,0.f };
+    desc.localRotation = Vec3{ 0.f,1.f,0.f };
     desc.scale = Vec3{ 2.f,1.f,1.f };
     desc.playbackSpeed = 1;
     desc.transformInheritance.inheritPosition = true;
