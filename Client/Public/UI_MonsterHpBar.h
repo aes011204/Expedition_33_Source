@@ -95,12 +95,15 @@ private:
 private:
     bool    _freeAimEmphasis = false;
     float   _freeAimScale = 1.f;
+    float   _targetPulseScale = 1.f;
     Vec2    _rootBaseScale = Vec2(1.f, 1.f);
     bool    _hasRootBaseScale = false;
 
     static constexpr float kFreeAimMinScale = 1.f;
     static constexpr float kFreeAimMaxScale = 1.3f;
     static constexpr float kFreeAimScaleLerpSpeed = 8.f;
+    static constexpr float kTargetPulseStartScale = 1.18f;
+    static constexpr float kTargetPulseScaleLerpSpeed = 12.f;
     static constexpr float kFreeAimScreenOffsetX = 35.f;
     static constexpr float kFreeAimScreenOffsetY = -130.f;
     static constexpr float kHpBarScaleX = 0.6f;

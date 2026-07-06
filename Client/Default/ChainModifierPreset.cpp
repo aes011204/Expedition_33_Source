@@ -1006,13 +1006,13 @@ void ChainModifierPreset::BuildGustaveHairPhysicsDesc(
         { "Strand_2_1", 0.72f, 0.26f, 0.82f, 0.62f, 0.32f, 1.12f },
         { "Strand_3_1", 0.78f, 0.24f, 0.94f, 0.70f, 0.28f, 1.00f },
         { "Strand_4_1", 0.78f, 0.24f, 0.94f, 0.70f, 0.28f, 1.00f },
-        { "Strand_5_1", 0.82f, 0.22f, 1.08f, 0.78f, 0.24f, 0.92f },
-        { "Strand_6_1", 0.82f, 0.22f, 1.08f, 0.78f, 0.24f, 0.92f },
-        { "Strand_7_1", 0.86f, 0.20f, 1.18f, 0.84f, 0.22f, 0.86f },
-        { "Strand_8_1", 0.86f, 0.20f, 1.18f, 0.84f, 0.22f, 0.86f },
-        { "Strand_9_1", 0.86f, 0.20f, 1.18f, 0.84f, 0.22f, 0.86f },
-        { "Strand_10_1", 0.70f, 0.28f, 0.78f, 0.60f, 0.34f, 1.16f },
-        { "Strand_11_1", 0.70f, 0.28f, 0.78f, 0.60f, 0.34f, 1.16f }
+        { "Strand_5_1", 0.82f, 0.22f, 1.08f, 0.78f, 0.30f, 1.10f },
+        { "Strand_6_1", 0.82f, 0.22f, 1.08f, 0.78f, 0.30f, 1.10f },
+        { "Strand_7_1", 0.42f, 0.12f, 0.52f, 0.44f, 0.42f, 1.45f },
+        { "Strand_8_1", 0.42f, 0.12f, 0.52f, 0.44f, 0.42f, 1.45f },
+        { "Strand_9_1", 0.42f, 0.12f, 0.52f, 0.44f, 0.42f, 1.45f },
+        { "Strand_10_1", 0.30f, 0.12f, 0.36f, 0.30f, 0.48f, 1.65f },
+        { "Strand_11_1", 0.30f, 0.12f, 0.36f, 0.30f, 0.48f, 1.65f }
     };
 
     desc.outputAlpha = 0.82f;
@@ -1024,24 +1024,25 @@ void ChainModifierPreset::BuildGustaveHairPhysicsDesc(
 
     desc.freeRotationFollowAlpha = 0.26f;
     desc.rotationFollowDepthScale = 0.08f;
-    desc.poseRestoreAlpha = 0.22f;
-    desc.poseRestoreMaxSpeed = 8.0f;
-    desc.maxLocalOffset = Vec3(2.60f, 1.30f, 2.80f);
-    desc.movementInertiaScale = 1.20f;
-    desc.tipMovementInertiaScale = 8.00f;
-    desc.maxMovementInertiaSpeed = 42.0f;
-    desc.lateralInertiaScale = 2.20f;
+    desc.poseRestoreAlpha = 0.42f;
+    desc.poseRestoreMaxSpeed = 18.0f;
+    desc.maxLocalOffset = Vec3(1.70f, 0.85f, 1.75f);
+    desc.movementInertiaScale = 0.72f;
+    desc.tipMovementInertiaScale = 3.10f;
+    desc.maxMovementInertiaSpeed = 24.0f;
+    desc.lateralInertiaScale = 1.15f;
     desc.verticalInertiaScale = 0.32f;
-    desc.depthInertiaScale = 1.35f;
+    desc.depthInertiaScale = 0.80f;
     desc.accelerationInertiaScale = 0.004f;
     desc.inertiaVelocitySmoothAlpha = 0.035f;
-    desc.poseSpringStrength = 0.42f;
-    desc.poseSpringDamping = 0.72f;
+    desc.poseSpringStrength = 0.85f;
+    desc.poseSpringDamping = 0.90f;
     desc.lengthConstraintAlpha = 0.120f;
     desc.bendConstraintAlpha = 0.025f;
     desc.projectionIterations = 3;
 
-    desc.releaseInertiaDamping = 0.52f;
+    desc.contactInertiaDamping = 0.16f;
+    desc.releaseInertiaDamping = 0.78f;
 
     desc.enableCollision = false;
     desc.collisionSphereRadius = 0.11f;
@@ -1050,10 +1051,10 @@ void ChainModifierPreset::BuildGustaveHairPhysicsDesc(
     desc.collisionProjectionIterations = 1;
 
     desc.windDirection = kCommonWindDirection;
-    desc.windScale = 0.038f;
-    desc.windWaveScale = 0.42f;
-    desc.windWaveFrequency = 0.55f;
-    desc.windWaveDepthPhase = 0.60f;
+    desc.windScale = 0.028f;
+    desc.windWaveScale = 0.28f;
+    desc.windWaveFrequency = 0.50f;
+    desc.windWaveDepthPhase = 0.48f;
     desc.gravityScale = 0.20f;
     desc.teleportDistance = 300.f;
     desc.solverIterations = 8;

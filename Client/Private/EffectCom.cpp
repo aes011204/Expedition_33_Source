@@ -240,10 +240,13 @@ IMPLEMENT_REFLECTION(EffectCom)
     info.displayName = "EffectCom";
     info.category = "Component";
 
+    PROPERTY_BOOL("Auto Play", _inspectorAutoPlayEffect);
     PROPERTY_WSTRING("Effect Name", _inspectorEffectName);
     PROPERTY_VEC3("Position", _inspectorLocalOffset, 0.01f);
     PROPERTY_VEC3("Rotation", _inspectorLocalRotation, 0.1f);
     PROPERTY_VEC3("Scale", _inspectorScale, 0.01f);
+    PROPERTY_BOOL("Follow Target", _inspectorFollowTarget);
+    PROPERTY_BOOL("Manual Release", _inspectorRequiresManualRelease);
 
     return true;
 }

@@ -603,6 +603,11 @@ namespace Client::Constants::SoundBGM
     constexpr const wchar_t* BishopBattleBossMain = L"BGM/SpringMeadow/MUS_SpringMeadows_BT_Boss_Main.wav";
     constexpr const wchar_t* BishopBattleBossVictory = L"BGM/SpringMeadow/MUS_SpringMeadows_BT_Boss_VictoryScreen.wav";
 
+    constexpr const wchar_t* LancelierIntroCinematic =
+        L"BGM/SpringMeadow/MUS_SpringMeadows_CIN_FirstLancelier_Intro [1].wav";
+    constexpr const wchar_t* LancelierBattleMain =
+        L"BGM/SpringMeadow/MUS_SpringMeadows_BT_FirstLancelier_Main [1].wav";
+
     constexpr const wchar_t* SimonBattlePhase1Intro = L"BGM/Simon/MUS_Common_BT_Simon_DivergentStars_Main.wav";
     constexpr const wchar_t* SimonBattlePhase1Main = L"BGM/Simon/MUS_Simon_BT_WeLost_Phase1_Main.wav";
 
@@ -632,6 +637,7 @@ namespace Client::Constants::Cinematic
     inline constexpr wchar_t Dualliste_PhaseChange[] = L"Dualliste.json";
 
     inline constexpr wchar_t SimonIntroFileId[] = L"Simon_Intro.json";
+    inline constexpr wchar_t SimonOutro3FileId[] = L"Simon_Outro3.json";
 }
 
 namespace Client::Constants::SoundCue
@@ -646,6 +652,8 @@ namespace Client::Constants::SoundCue
     constexpr const wchar_t* UI_SavePoint_Resting = L"UI_SavePoint_Resting";
 
     constexpr const wchar_t* UI_Dialogue_CanvasEnter = L"UI_Dialogue_CanvasEnter";
+    constexpr const wchar_t* UI_Journal_Open = L"UI_Journal_Open";
+    constexpr const wchar_t* UI_Journal_Close = L"UI_Journal_Close";
     constexpr const wchar_t* UI_Global_GenericEnter = L"UI_Global_GenericEnter";
     constexpr const wchar_t* UI_Global_GenericExit = L"UI_Global_GenericExit";
     constexpr const wchar_t* UI_Global_NavigateClick = L"UI_Global_NavigateClick";

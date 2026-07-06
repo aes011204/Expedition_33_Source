@@ -57,6 +57,7 @@ void BattleFollowupManager::Queue_SimonPhase2(const vector<HeroId>& heroIds, uin
 {
     BattleMonsterSpawnDesc simonPhase2{};
     simonPhase2.prefabName = Constants::Prefab::MB_Simon_V2;
+    simonPhase2.offset = Vec3(0.f, -0.12f, 0.f);
 
     _hasPendingFollowup = true;
     _pendingFollowup = {};
