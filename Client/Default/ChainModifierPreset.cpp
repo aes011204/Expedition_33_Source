@@ -1228,6 +1228,68 @@ void ChainModifierPreset::BuildLuneHairPhysicsDesc(
     desc.writeBackEnabled = true;
 }
 
+void ChainModifierPreset::BuildMaelleBackHairPhysicsDesc(
+    PhysicsModifier::PhysicsModifierDesc& outDesc,
+    TransformCom* ownerTransform,
+    const wstring& modifierTag)
+{
+    auto& desc = outDesc;
+    desc = {};
+    desc.modifierTag = modifierTag;
+    desc.ownerTransform = ownerTransform;
+    desc.blendMode = AnimationModifier::ModifierBlendMode::ModifyReplace;
+
+    desc.chains = {
+        { "Strand_0_1", 1.00f, 0.18f, 2.30f, 1.00f, 0.055f, 0.66f },
+        { "strand_0", 1.00f, 0.18f, 2.30f, 1.00f, 0.055f, 0.66f }
+    };
+
+    desc.outputAlpha = 1.00f;
+    desc.rotationOutputAlpha = 1.00f;
+    desc.outputSmoothAlpha = 0.220f;
+    desc.idleOutputSmoothAlpha = 0.74f;
+    desc.idleMotionDeadzone = 0.055f;
+    desc.maxOutputAngleDegree = 152.f;
+
+    desc.freeRotationFollowAlpha = 0.22f;
+    desc.rotationFollowDepthScale = 0.10f;
+    desc.poseRestoreAlpha = 0.400f;
+    desc.poseRestoreMaxSpeed = 30.0f;
+    desc.maxLocalOffset = Vec3(19.00f, 1.65f, 10.90f);
+    desc.movementInertiaScale = 3.40f;
+    desc.tipMovementInertiaScale = 68.00f;
+    desc.maxMovementInertiaSpeed = 140.0f;
+    desc.lateralInertiaScale = 16.25f;
+    desc.verticalInertiaScale = 0.22f;
+    desc.depthInertiaScale = 2.45f;
+    desc.includeDriverLateralInertia = true;
+    desc.accelerationInertiaScale = 0.005f;
+    desc.inertiaVelocitySmoothAlpha = 0.110f;
+    desc.poseSpringStrength = 0.90f;
+    desc.poseSpringDamping = 0.780f;
+    desc.lengthConstraintAlpha = 0.055f;
+    desc.bendConstraintAlpha = 0.006f;
+    desc.projectionIterations = 3;
+
+    desc.releaseInertiaDamping = 0.820f;
+
+    desc.enableCollision = false;
+    desc.collisionSphereRadius = 0.18f;
+    desc.collisionRadiusPadding = 0.08f;
+    desc.collisionContactSkinWidth = 0.06f;
+    desc.collisionProjectionIterations = 2;
+
+    desc.windDirection = kBackwardWindDirection;
+    desc.windScale = 0.078f;
+    desc.windWaveScale = 0.78f;
+    desc.windWaveFrequency = 0.78f;
+    desc.windWaveDepthPhase = 0.86f;
+    desc.gravityScale = 0.42f;
+    desc.teleportDistance = 300.f;
+    desc.solverIterations = 8;
+    desc.writeBackEnabled = true;
+}
+
 void ChainModifierPreset::BuildMaelleFrontHairPhysicsDesc(
     PhysicsModifier::PhysicsModifierDesc& outDesc,
     TransformCom* ownerTransform,
