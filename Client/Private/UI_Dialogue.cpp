@@ -1,6 +1,5 @@
 ﻿#include "UI_Dialogue.h"
 #include "Client_Constants.h"
-#include "GameInstance.h"
 #include "UI_Button.h"
 #include "UI_RuntimeLoader.h"
 #include "UI_Text.h"
@@ -79,7 +78,6 @@ void UI_Dialogue::Show_Dialogue()
 
     if (wasClosed)
     {
-        GAME->Play_SoundCue(Constants::SoundCue::UI_Dialogue_CanvasEnter);
         Play_DialogueIntro();
     }
 }
