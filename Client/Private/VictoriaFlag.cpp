@@ -3,6 +3,7 @@
 #include "Bounding_Sphere.h"
 #include "ClientInstance.h"
 #include "ColliderCom.h"
+#include "EffectCom.h"
 #include "GameplayUI.h"
 #include "Material.h"
 #include "ModelCom.h"
@@ -86,6 +87,9 @@ void VictoriaFlag::Priority_Update(float timeDelta)
 void VictoriaFlag::Update(float timeDelta)
 {
     _flagElapsed += max(timeDelta, 0.f);
+
+    if (_effectCom)
+        _effectCom->Update(timeDelta);
 
     if (!Has_ActiveHeroOverlap())
     {
@@ -207,6 +211,7 @@ HRESULT VictoriaFlag::Ready_Components(const VICTORIAFLAG_DESC& desc)
     CHECK_FAILED(Add_Component(ETOI(LevelType::Static), desc.postShaderTag, _postShader), E_FAIL);
     CHECK_FAILED(Add_Component(ETOI(LevelType::Static), desc.numberTextureTag, _numberTexture), E_FAIL);
     CHECK_FAILED(Add_Component(ETOI(LevelType::Static), desc.numberAtlasTextureTag, _numberAtlasTexture), E_FAIL);
+    CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Com_Effect"), _effectCom), E_FAIL);
 
     Bounding_Sphere::FBoundingSphereDesc sphereDesc{};
     sphereDesc.center = kInteractionColliderCenter;
