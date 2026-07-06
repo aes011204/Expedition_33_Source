@@ -16,7 +16,7 @@ IMPLEMENT_REFLECTION(ANS_CounterTimeScale)
 
 void ANS_CounterTimeScale::On_Begin(const AnimNotifyContext& context)
 {
-    if (context.isPreview)
+    if (context.isPreview || context.isCinematic)
         return;
 
     auto battle = CLIENT->Get_BattleController();

@@ -88,6 +88,7 @@ public: //## Debug::EditorSession
     // active/idle 여부와 무관하게 runtime effect instance를 레이어에서 제거한다.
     uint32 Discard_All();
     DebugSummary Get_DebugSummary() const;
+    string Build_DebugActiveEffectBreakdown(uint32 maxItems = 8) const;
 
     // 같은 이팩트를 count개 미리 생성해서 idle 상태로 돌려두기
     HRESULT Prewarm(const AcquireDesc& desc, uint32 count);
