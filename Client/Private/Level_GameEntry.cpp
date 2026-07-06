@@ -164,6 +164,49 @@ void Level_GameEntry::Apply_RevealedLevelVisibility()
         return;
     }
 
+    const wchar_t* revealButtonNames[] =
+    {
+        L"Button_FirstLevel",
+        L"Button_SecondLevel",
+        L"Button_ThirdLevel",
+        L"Button_TestLevel",
+    };
+
+    for (const wchar_t* revealButtonName : revealButtonNames)
+    {
+        Shared<UI_Button> revealButton = Find_TypedUI<UI_Button>(
+            _uiByName,
+            revealButtonName,
+            "Level_GameEntry");
+        if (revealButton == nullptr)
+            continue;
+
+        revealButton->Close(); // 새로 reveal할 카드만 남기기 위해 JSON 기본 visible 상태를 먼저 정리한다.
+        revealButton->Set_SuppressSelfStateAnimation(false);
+    }
+
+    const wchar_t* revealUiNames[] =
+    {
+        L"Image_First_Level_Thumnail",
+        L"Text_First_Level_Name",
+        L"Image_Second_Level_Thumnail",
+        L"Text_Second_Level_Name",
+        L"Image_Third_Level_Thumnail",
+        L"Text_Third_Level_Name",
+        L"Image_Test_Level_Thumnail",
+        L"Text_Test_Level_Name",
+    };
+
+    for (const wchar_t* revealUiName : revealUiNames)
+    {
+        Shared<UI_Base> ui = Find_UI(_uiByName, revealUiName);
+        if (ui == nullptr)
+            continue;
+
+        ui->Close(); // 여러 레벨명이 겹쳐 보이지 않게 선택 대상 외 텍스트/썸네일을 닫는다.
+        ui->Set_AlphaMultiplier(1.f);
+    }
+
     Shared<UI_Button> button = Find_TypedUI<UI_Button>(
         _uiByName,
         buttonName,
