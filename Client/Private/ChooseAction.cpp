@@ -1,5 +1,6 @@
 ﻿#include "pch.h"
 #include "ChooseAction.h"
+#include "Client_Constants.h"
 #include "Input_Manager.h"
 #include "GameInstance.h"
 #include "BattleController.h"
@@ -60,6 +61,7 @@ void ChooseAction::Update(float timeDelta)
 
     if (GAME->KeyDown(KEY_TYPE::TAB)) // 턴 넘기기
     {
+        GAME->Play_SoundCue(Constants::SoundCue::UI_Battle_TurnPass);
         owner->EndTurn();
         return;
     }
@@ -83,12 +85,15 @@ void ChooseAction::Update(float timeDelta)
         if (!owner->Ensure_EnemyTargetPreview())
             return;
 
-        battleFSM->Change_State(BattleTurnState::AttackTargeting);
+        if (battleFSM->Change_State(BattleTurnState::AttackTargeting))
+            GAME->Play_SoundCue(Constants::SoundCue::UI_Battle_TargetEnemyStart);
+
         return;
     }
 
     if (GAME->KeyDown(KEY_TYPE::C)) // ㅌㅌ
     {
+        GAME->Play_SoundCue(Constants::SoundCue::UI_Battle_FleeActivation);
         owner->Request_EscapeBattle();
         return;
     }
@@ -108,7 +113,10 @@ void ChooseAction::Update(float timeDelta)
         // Let the Gradient menu open even when the skill cannot be confirmed yet.
         // ChooseGradient keeps the final use gate so the card can show its disabled state.
         owner->Get_TurnActionRequest().type = EBattleContext::Skill;
-        battleFSM->Change_State(BattleTurnState::ChooseGradient);
+        if (!battleFSM->Change_State(BattleTurnState::ChooseGradient))
+            return;
+
+        GAME->Play_SoundCue(Constants::SoundCue::UI_Battle_SpellsMenuOpen);
 
         EvtBattlePresentation event;
         event.cameraMode = BattleCameraMode::SELECTSKILL;
@@ -124,7 +132,10 @@ void ChooseAction::Update(float timeDelta)
     {
         owner->Get_TurnActionRequest().type = EBattleContext::Skill;
         owner->Ensure_EnemyTargetPreview();
-        battleFSM->Change_State(BattleTurnState::ChooseSkill);
+        if (!battleFSM->Change_State(BattleTurnState::ChooseSkill))
+            return;
+
+        GAME->Play_SoundCue(Constants::SoundCue::UI_Battle_SpellsMenuOpen);
 
         EvtBattlePresentation event;
         event.cameraMode = BattleCameraMode::SELECTSKILL;
@@ -139,7 +150,10 @@ void ChooseAction::Update(float timeDelta)
     if (GAME->KeyDown(KEY_TYPE::W)) // 아이템
     {
         owner->Get_TurnActionRequest().type = EBattleContext::ConsumableItem;
-        battleFSM->Change_State(BattleTurnState::ChooseItem);
+        if (!battleFSM->Change_State(BattleTurnState::ChooseItem))
+            return;
+
+        GAME->Play_SoundCue(Constants::SoundCue::UI_Battle_ItemMenuOpen);
 
         EvtBattlePresentation event;
         event.cameraMode = BattleCameraMode::SELECTITEM;

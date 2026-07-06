@@ -1,6 +1,7 @@
 ﻿#include "UI_BattleTutorial.h"
 
 #include "Client_Constants.h"
+#include "GameInstance.h"
 #include "UI_Base.h"
 #include "UI_RuntimeLoader.h"
 #include "UI_Utils.h"
@@ -47,6 +48,7 @@ void UI_BattleTutorial::Show_Tutorial(const BattleTutorialRequest& request)
 
     _activeStep = request.step;
     Open();
+    GAME->Play_SoundCue(Constants::SoundCue::UI_Tuto_Appear);
 
     for (const Shared<UI_Base>& ui : view->uiList)
     {

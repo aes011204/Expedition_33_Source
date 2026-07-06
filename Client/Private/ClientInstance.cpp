@@ -189,6 +189,7 @@ namespace
         case InteractionPromptType::Cross:
         case InteractionPromptType::Up:
         case InteractionPromptType::Down:
+        case InteractionPromptType::SavePoint:
             return 100;
 
         default:
@@ -445,6 +446,7 @@ HRESULT ClientInstance::Initialize_Client_ForEffectEditor(const ComPtr<Device>& 
 void ClientInstance::Update_Client(float timeDelta)
 {
     Update_FadeTransitions(timeDelta);
+    Update_PendingLevelBGM();
 
     if (_heroManager)
         _heroManager->Update_HeroManager(timeDelta);
@@ -489,6 +491,49 @@ void ClientInstance::Update_FadeTransitions(float timeDelta)
 
     if (_levelTransitionFade)
         _levelTransitionFade->Update(timeDelta);
+}
+
+void ClientInstance::Request_BGMAfterLevelFade(
+    const wstring& soundFile,
+    float volume,
+    bool stopPrevBGM,
+    float fadeOutDuration)
+{
+    _pendingLevelBGM.soundFile = soundFile;
+    _pendingLevelBGM.volume = volume;
+    _pendingLevelBGM.stopPrevBGM = stopPrevBGM;
+    _pendingLevelBGM.fadeOutDuration = fadeOutDuration;
+    _pendingLevelBGM.active = !soundFile.empty();
+    _pendingLevelBGM.waitForFadeEnd =
+        GAME->Current_LevelIndex() == ETOI(LevelType::Loading) || Is_FadeTransitionPlaying();
+    _pendingLevelBGM.observedFade = Is_FadeTransitionPlaying();
+}
+
+void ClientInstance::Update_PendingLevelBGM()
+{
+    if (!_pendingLevelBGM.active)
+        return;
+
+    if (_pendingLevelBGM.waitForFadeEnd)
+    {
+        if (Is_FadeTransitionPlaying())
+        {
+            // 로딩 레벨에서 예약된 BGM은 실제 월드 진입 페이드가 시작된 뒤 끝날 때까지 기다린다.
+            _pendingLevelBGM.observedFade = true;
+            return;
+        }
+
+        if (!_pendingLevelBGM.observedFade && GAME->Current_LevelIndex() == ETOI(LevelType::Loading))
+            return;
+    }
+
+    GAME->Play_BGM(
+        _pendingLevelBGM.soundFile,
+        _pendingLevelBGM.volume,
+        _pendingLevelBGM.stopPrevBGM,
+        _pendingLevelBGM.fadeOutDuration);
+
+    _pendingLevelBGM = PendingLevelBGM{};
 }
 
 void ClientInstance::Update_UIPreviewOnly(float timeDelta)
@@ -1178,14 +1223,14 @@ bool ClientInstance::Request_CinematicSequenceTransition(
     return _screenFadeTransition->Request_Transition(playSequence);
 }
 
-bool ClientInstance::Request_LevelTransition(LevelType TargetLevel)
+bool ClientInstance::Request_LevelTransition(LevelType TargetLevel, LevelType GameEntryRevealLevel)
 {
     if (_screenFadeTransition && _screenFadeTransition->Is_Playing())
         return false;
 
     if (_levelTransitionFade)
     {
-        const bool requested = _levelTransitionFade->Request_LevelTransition(TargetLevel);
+        const bool requested = _levelTransitionFade->Request_LevelTransition(TargetLevel, GameEntryRevealLevel);
         if (requested)
             Clear_EffectPrewarmQueue();
 
@@ -1631,7 +1676,10 @@ bool ClientInstance::Request_DialogueBattlePotatoBag()
     battleMonsterSpawnDescs.emplace_back(move(spawnDesc));
 
     if (_screenFxManager)
+    {
         _screenFxManager->Play_BattleInCounterFx();
+        _screenFxManager->Request_NextBattleTransitionBlackSource();
+    }
 
     GAME->Play_SoundCue(Constants::SoundCue::UI_Battle_Encounter);
 
@@ -2441,12 +2489,12 @@ void ClientInstance::Sync_PreviewHeroRuntimeData(HeroId heroId)
     _previewManager->Sync_PreviewHeroRuntimeData(heroId);
 }
 
-void ClientInstance::Play_PreviewAnimation(HeroId heroId, PreviewAnimState introAnim, PreviewAnimState idleAnim)
+void ClientInstance::Play_PreviewAnimation(HeroId heroId, PreviewAnimState introAnim, PreviewAnimState idleAnim, float blendDuration)
 {
     if (_previewManager == nullptr)
         return;
 
-    _previewManager->Play_PreviewAnimation(heroId, introAnim, idleAnim);
+    _previewManager->Play_PreviewAnimation(heroId, introAnim, idleAnim, blendDuration);
 }
 
 void ClientInstance::Set_SoulLikeController(const Shared<SoulLikeController>& controller)

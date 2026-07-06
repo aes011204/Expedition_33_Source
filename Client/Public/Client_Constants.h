@@ -220,6 +220,8 @@ namespace Client::Constants::UI
     inline constexpr wchar_t UI_WorldDialogue[] = L"UI/UI_Json/CommonSystem/UI_WorldDialogue.json";
     inline constexpr wchar_t UI_WorldDialogue_GestralVillage[] =
         L"UI/UI_Json/CommonSystem/UI_WorldDialogue_GestralVillage.json";
+    inline constexpr wchar_t UI_WorldDialogue_GestralVillage_Second[] =
+        L"UI/UI_Json/CommonSystem/UI_WorldDialogue_GestralVillage_Second.json";
     inline constexpr wchar_t UI_WorldDialogue_Simon[] =
         L"UI/UI_Json/CommonSystem/UI_WorldDialogue_Simon.json";
 #pragma endregion
@@ -257,6 +259,8 @@ namespace Client::Constants::UI_Anim
     inline constexpr wchar_t UI_InteractionOutroAnim_Path[] = L"UI/UI_Animations/Common/Interaction_Outro";
     inline constexpr wchar_t UI_WorldDialogue_GestralVillageAnim_Path[] =
         L"UI/UI_Animations/Common/WorldDialogue_GestralVillage";
+    inline constexpr wchar_t UI_WorldDialogue_GestralVillageSecondAnim_Path[] =
+        L"UI/UI_Animations/Common/WorldDialogue_GestralVillage_Second";
     inline constexpr wchar_t UI_WorldDialogue_SimonAnim_Path[] =
         L"UI/UI_Animations/Common/WorldDialogue_Simon";
     inline constexpr wchar_t UI_JournalUIIntroAnim_Path[] =
@@ -297,6 +301,10 @@ namespace Client::Constants::UI_Anim
     inline constexpr wchar_t UI_BattleMechanismIntroAnim_Path[] = L"UI/UI_Animations/BattleSystem/BattleSystem_Mechanism_Intro";
 
     inline constexpr wchar_t UI_BattleSystemIntroAnim_Path[] = L"UI/UI_Animations/BattleSystem/BattleSystem_Intro";
+
+    inline constexpr wchar_t UI_BattleDefenseUseDodgeAnim_Path[] = L"UI/UI_Animations/BattleSystem/Use_Dodge";
+    inline constexpr wchar_t UI_BattleDefenseUseParryAnim_Path[] = L"UI/UI_Animations/BattleSystem/Use_Parry";
+    inline constexpr wchar_t UI_BattleDefenseUseJumpAnim_Path[] = L"UI/UI_Animations/BattleSystem/Use_Jump";
 
     inline constexpr wchar_t UI_BattleVictoryIntroAnim_Path[] = L"UI/UI_Animations/BattleSystem/BattleVictory";
     inline constexpr wchar_t UI_BattleVictoryOutroAnim_Path[] = L"UI/UI_Animations/BattleSystem/BattleVictory_Outro";
@@ -553,6 +561,7 @@ namespace Client::Constants::Prefab
     inline constexpr char Eye_Target[]      = "ETC/EyeTarget";
     inline constexpr char SoulLikeController[] = "ETC/SoulLikeController";
     inline constexpr char Portal_BishopReward[] = "ETC/Portal_BishopReward";
+    inline constexpr char Portal_GestralReward[] = "ETC/Portal_GestralReward";
     inline constexpr char Trigger_Cinematic[] = "ETC/Trigger_Cinematic";
     inline constexpr char Trigger_BGMZone[] = "ETC/Trigger_BGMZone";
     inline constexpr char Trigger_WorldDialogue[] = "ETC/Trigger_WorldDialogue";
@@ -579,6 +588,11 @@ namespace Client::Constants::SoundBGM
     constexpr const wchar_t* GestralVillageGolgraThrone =
         L"BGM/Gestral/MUS_GestralVillage_ENV_GolgraThrone.wav";
 
+    constexpr const wchar_t* PotatoBagBattleMain =
+        L"BGM/Gestral/MUS_AncientSanctuary_BT_Summer2022_Main.wav";
+    constexpr const wchar_t* PotatoBagBattleTransition =
+        L"BGM/Gestral/MUS_AncientSanctuary_BT_Summer2022_Transition.wav";
+
     constexpr const wchar_t* DuallisteBattlePhase1Main =
         L"BGM/Gestral/MUS_ForgottenBattlefield_BT_Dualliste_Phase1_Main.wav";
     constexpr const wchar_t* DuallisteBattlePhaseTransition =
@@ -589,10 +603,22 @@ namespace Client::Constants::SoundBGM
     constexpr const wchar_t* BishopBattleBossMain = L"BGM/SpringMeadow/MUS_SpringMeadows_BT_Boss_Main.wav";
     constexpr const wchar_t* BishopBattleBossVictory = L"BGM/SpringMeadow/MUS_SpringMeadows_BT_Boss_VictoryScreen.wav";
 
-    constexpr const wchar_t* SimonBattlePhase1Intro = L"BGM/Simon/MUS_Simon_BT_WeLost_Phase1_Intro.wav";
+    constexpr const wchar_t* SimonBattlePhase1Intro = L"BGM/Simon/MUS_Common_BT_Simon_DivergentStars_Main.wav";
     constexpr const wchar_t* SimonBattlePhase1Main = L"BGM/Simon/MUS_Simon_BT_WeLost_Phase1_Main.wav";
+
+    constexpr const wchar_t* SimonBattlePhase1Transition = L"BGM/Simon/MUS_Common_BT_Simon_DivergentStars_Transition.wav";
+
     constexpr const wchar_t* SimonBattlePhase2Intro = L"BGM/Simon/MUS_Simon_BT_WeLost_Phase2_Intro.wav";
     constexpr const wchar_t* SimonBattlePhase2Main = L"BGM/Simon/MUS_Simon_BT_WeLost_Phase2_Main.wav";
+
+    constexpr const wchar_t* SimonStartWindBGM = L"BGM/Simon/AMB_PAD_SeaCliff_Main [1].wav";
+
+    constexpr const wchar_t* SimonIntroCinematic =
+        L"BGM/Simon/MUS_Simon_CIN_SimonIntro.wav";
+
+    constexpr const wchar_t* SimonOutroCinematic =
+        L"BGM/Simon/MUS_Simon_CIN_SimonOutro.wav";
+
 }
 
 namespace Client::Constants::Cinematic
@@ -604,6 +630,8 @@ namespace Client::Constants::Cinematic
 
     inline constexpr wchar_t Dualliste_Intro[] = L"Dualliste_Intro.json";
     inline constexpr wchar_t Dualliste_PhaseChange[] = L"Dualliste.json";
+
+    inline constexpr wchar_t SimonIntroFileId[] = L"Simon_Intro.json";
 }
 
 namespace Client::Constants::SoundCue
@@ -615,12 +643,61 @@ namespace Client::Constants::SoundCue
 
     constexpr const wchar_t* UI_SavePoint_Open = L"UI_SavePoint_Open";
     constexpr const wchar_t* UI_SavePoint_Close = L"UI_SavePoint_Close";
+    constexpr const wchar_t* UI_SavePoint_Resting = L"UI_SavePoint_Resting";
 
+    constexpr const wchar_t* UI_Dialogue_CanvasEnter = L"UI_Dialogue_CanvasEnter";
     constexpr const wchar_t* UI_Global_GenericEnter = L"UI_Global_GenericEnter";
+    constexpr const wchar_t* UI_Global_GenericExit = L"UI_Global_GenericExit";
     constexpr const wchar_t* UI_Global_NavigateClick = L"UI_Global_NavigateClick";
+    constexpr const wchar_t* UI_Global_NavigateClickBack = L"UI_Global_NavigateClickBack";
+    constexpr const wchar_t* UI_Global_NavigateClickValid = L"UI_Global_NavigateClickValid";
+    constexpr const wchar_t* UI_Global_NavigateClickPaint = L"UI_Global_NavigateClickPaint";
+    constexpr const wchar_t* UI_Global_NavigateClickPaintBack = L"UI_Global_NavigateClickPaintBack";
+    constexpr const wchar_t* UI_Global_NavigateClickPaintValid = L"UI_Global_NavigateClickPaintValid";
+    constexpr const wchar_t* UI_Global_NavigatePaint = L"UI_Global_NavigatePaint";
+    constexpr const wchar_t* UI_Global_PaintEnter = L"UI_Global_PaintEnter";
+    constexpr const wchar_t* UI_Global_PaintExit = L"UI_Global_PaintExit";
+    constexpr const wchar_t* UI_Global_InterfaceClickMenu = L"UI_Global_InterfaceClickMenu";
+    constexpr const wchar_t* UI_Level_Announce = L"UI_Level_Announce";
+
+    constexpr const wchar_t* UI_Attribute_ChangeValue = L"UI_Attribute_ChangeValue";
+    constexpr const wchar_t* UI_Attribute_Navigate = L"UI_Attribute_Navigate";
+    constexpr const wchar_t* UI_Attribute_UpgradeAccept = L"UI_Attribute_UpgradeAccept";
+    constexpr const wchar_t* UI_Attribute_UpgradeLoad = L"UI_Attribute_UpgradeLoad";
+    constexpr const wchar_t* UI_Attribute_UpgradeLoadMagic = L"UI_Attribute_UpgradeLoadMagic";
+    constexpr const wchar_t* UI_Attribute_UpgradeLoadMecanism = L"UI_Attribute_UpgradeLoadMecanism";
+    constexpr const wchar_t* UI_Attribute_UpgradeLoadStop = L"UI_Attribute_UpgradeLoadStop";
+
+    constexpr const wchar_t* UI_ScoreBoard_Appear = L"UI_ScoreBoard_Appear";
+    constexpr const wchar_t* UI_ScoreBoard_Disappear = L"UI_ScoreBoard_Disappear";
+    constexpr const wchar_t* UI_Tuto_Appear = L"UI_Tuto_Appear";
+
     constexpr const wchar_t* UI_Battle_SelectAlly = L"UI_Battle_SelectAlly";
+    constexpr const wchar_t* UI_Battle_SelectEnemy = L"UI_Battle_SelectEnemy";
     constexpr const wchar_t* UI_Battle_Encounter = L"UI_Battle_Encounter";
     constexpr const wchar_t* UI_Battle_StateEnd = L"UI_Battle_StateEnd";
+    constexpr const wchar_t* UI_Battle_NoAP = L"UI_Battle_NoAP";
+    constexpr const wchar_t* UI_Battle_Start = L"UI_Battle_Start";
+    constexpr const wchar_t* UI_Battle_TargetAllyOpen = L"UI_Battle_TargetAllyOpen";
+    constexpr const wchar_t* UI_Battle_TargetAllyClose = L"UI_Battle_TargetAllyClose";
+    constexpr const wchar_t* UI_Battle_TargetEnemyOpen = L"UI_Battle_TargetEnemyOpen";
+    constexpr const wchar_t* UI_Battle_TargetEnemyClose = L"UI_Battle_TargetEnemyClose";
+    constexpr const wchar_t* UI_Battle_TurnPass = L"UI_Battle_TurnPass";
+    constexpr const wchar_t* UI_Battle_TurnStartAlly = L"UI_Battle_TurnStartAlly";
+    constexpr const wchar_t* UI_Battle_TurnStartEnemy = L"UI_Battle_TurnStartEnemy";
+    constexpr const wchar_t* UI_Skill_NavigatePage = L"UI_Skill_NavigatePage";
+    constexpr const wchar_t* UI_Battle_FleeActivation = L"UI_Battle_FleeActivation";
+    constexpr const wchar_t* UI_Battle_FleeSelect = L"UI_Battle_FleeSelect";
+    constexpr const wchar_t* UI_Battle_ItemMenuOpen = L"UI_Battle_ItemMenuOpen";
+    constexpr const wchar_t* UI_Battle_ItemMenuClose = L"UI_Battle_ItemMenuClose";
+    constexpr const wchar_t* UI_Battle_ItemTargetAllyStart = L"UI_Battle_ItemTargetAllyStart";
+    constexpr const wchar_t* UI_Battle_ItemTargetAllyStop = L"UI_Battle_ItemTargetAllyStop";
+    constexpr const wchar_t* UI_Battle_QTE_ValidationPerfect = L"UI_Battle_QTE_ValidationPerfect";
+    constexpr const wchar_t* UI_Battle_TargetEnemyStart = L"UI_Battle_TargetEnemyStart";
+    constexpr const wchar_t* UI_Battle_TargetEnemyStop = L"UI_Battle_TargetEnemyStop";
+    constexpr const wchar_t* UI_Battle_SpellsMenuOpen = L"UI_Battle_SpellsMenuOpen";
+    constexpr const wchar_t* UI_Battle_SpellsMenuClose = L"UI_Battle_SpellsMenuClose";
+    constexpr const wchar_t* UI_Battle_SpellsMoreOpen = L"UI_Battle_SpellsMoreOpen";
 
     constexpr const wchar_t* UI_Battle_QTE_Start = L"UI_Battle_QTE_Start";
     constexpr const wchar_t* UI_Battle_QTE_Miss = L"UI_Battle_QTE_Miss";
@@ -634,14 +711,17 @@ namespace Client::Constants::SoundCue
     constexpr const wchar_t* UI_SkillTree_Navigate = L"UI_SkillTree_Navigate";
     constexpr const wchar_t* UI_SkillTree_Learn = L"UI_SkillTree_Learn";
     constexpr const wchar_t* UI_SkillTree_Blocked = L"UI_SkillTree_Blocked";
+    constexpr const wchar_t* UI_SkillTree_Equip = L"UI_SkillTree_Equip";
+    constexpr const wchar_t* UI_SkillTree_Unequip = L"UI_SkillTree_Unequip";
 
     constexpr const wchar_t* SFX_Eveque_Earth_SpikeHit = L"SFX_Eveque_Earth_SpikeHit";
 
     constexpr const wchar_t* Battle_Parry_Success = L"Battle_Parry_Success";
 
-
     constexpr const wchar_t* Duallist_Attack = L"VO_ENM_Duallist_Attack";
     constexpr const wchar_t* Duallist_Pain = L"VO_ENM_Duallist_Pain";
+
+    constexpr const wchar_t* Gestral_Potato_Announce = L"Gestral_Potato_Announce";
 
 
 }

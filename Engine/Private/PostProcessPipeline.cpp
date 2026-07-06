@@ -312,6 +312,16 @@ HRESULT PostProcessPipeline::End_DOFOverrideScope(const string& ownerTag, const 
 
     if (clearResult == S_FALSE)
     {
+        if (_dofOverride.transitionActive)
+            return S_OK;
+
+        _dofOverride.currentPreset = _dofOverride.targetPreset;
+        Apply_DOFPresetToCB(_dofOverride.currentPreset, _postProcessCB);
+        if (_dofForceDisabled)
+            Set_Flag(_featureFlag, PostProcessFeature::DOF, false);
+        else
+            Set_Flag(_featureFlag, PostProcessFeature::DOF, _dofOverride.currentPreset.enableDOF);
+        _postProcessCB.featureMask = To_Underlying(_featureFlag);
         _dofOverride = DOFOverrideState{};
         return S_OK;
     }
