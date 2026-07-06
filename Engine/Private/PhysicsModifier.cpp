@@ -76,6 +76,15 @@ namespace
 
 	Vec3 Local_Get_Position(const Matrix& matrix) { return Vec3(matrix._41, matrix._42, matrix._43); }
 
+	Matrix Local_With_Position(const Matrix& matrix, const Vec3& position)
+	{
+		Matrix result = matrix;
+		result._41 = position.x;
+		result._42 = position.y;
+		result._43 = position.z;
+		return result;
+	}
+
 	float SmoothStep(float value)
 	{
 		value = std::clamp(value, 0.f, 1.f);
@@ -275,6 +284,18 @@ namespace
 		}
 
 		return clamped;
+	}
+
+	Vec3 Clamp_VectorLength(const Vec3& value, float maxLength)
+	{
+		if (maxLength <= 0.0001f)
+			return value;
+
+		const float length = value.Length();
+		if (length <= maxLength || length <= 0.0001f)
+			return value;
+
+		return value * (maxLength / length);
 	}
 
 	float SegmentSegmentClosestPoints(
@@ -1606,6 +1627,7 @@ void PhysicsModifier::Apply_PostSimulationConstraints(const vector<WorldCapsule>
 		? std::max(1u, _desc.hardCollisionProjectionIterations)
 		: 0u;
 	const float hardLengthAlpha = std::clamp(_desc.hardCollisionLengthAlpha, 0.f, 1.f);
+	constexpr float kHardSegmentMinChildT = 0.35f;
 
 	for (auto& chain : _chains)
 	{
@@ -1819,6 +1841,9 @@ void PhysicsModifier::Apply_PostSimulationConstraints(const vector<WorldCapsule>
 					Vec3 hardContactNormal = Vec3::Zero;
 					uint32 hardContactCount = 0;
 					bool hardResolved = false;
+					const float hardStepLimit = std::max(
+						nodeRadius + skinWidth + 0.0005f,
+						node.length * 0.45f);
 
 					auto accumulateHardContact = [&](const Vec3& normal)
 						{
@@ -1830,6 +1855,27 @@ void PhysicsModifier::Apply_PostSimulationConstraints(const vector<WorldCapsule>
 							hardContactNormal += normalized;
 							++hardContactCount;
 							hardResolved = true;
+						};
+
+					auto applyHardCorrection = [&](const Vec3& rawNormal, float distance)
+						{
+							if (distance <= 0.f)
+								return false;
+
+							Vec3 normal = rawNormal;
+							if (normal.LengthSquared() <= 0.0001f)
+								return false;
+							normal.Normalize();
+
+							const Vec3 correction = Clamp_VectorLength(
+								normal * distance,
+								hardStepLimit);
+							if (correction.LengthSquared() <= 0.000001f)
+								return false;
+
+							hardPosition += correction;
+							accumulateHardContact(normal);
+							return true;
 						};
 
 					auto preserveNodeLength = [&]()
@@ -1875,9 +1921,9 @@ void PhysicsModifier::Apply_PostSimulationConstraints(const vector<WorldCapsule>
 							else
 								normal = buildFallbackNormal(closest);
 
-							hardPosition += normal * (combinedRadius - distance + 0.0005f);
-							accumulateHardContact(normal);
-							return true;
+							return applyHardCorrection(
+								normal,
+								combinedRadius - distance + 0.0005f);
 						};
 
 					auto projectSegmentAgainstCapsule = [&](const WorldCapsule& capsule)
@@ -1898,6 +1944,8 @@ void PhysicsModifier::Apply_PostSimulationConstraints(const vector<WorldCapsule>
 								capsuleT);
 							if (distanceSq >= combinedRadius * combinedRadius)
 								return false;
+							if (hairT <= kHardSegmentMinChildT)
+								return false;
 
 							Vec3 normal = hairClosest - capsuleClosest;
 							const float distance = sqrtf(std::max(0.f, distanceSq));
@@ -1907,10 +1955,10 @@ void PhysicsModifier::Apply_PostSimulationConstraints(const vector<WorldCapsule>
 								normal = buildFallbackNormal(capsuleClosest);
 
 							const float penetration = combinedRadius - distance;
-							const float childWeight = std::clamp(hairT, 0.30f, 1.f);
-							hardPosition += normal * (penetration / childWeight + 0.0005f);
-							accumulateHardContact(normal);
-							return true;
+							const float childWeight = std::clamp(hairT, kHardSegmentMinChildT, 1.f);
+							return applyHardCorrection(
+								normal,
+								penetration / childWeight + 0.0005f);
 						};
 
 					for (uint32 hardIter = 0; hardIter < hardProjectionIterations; ++hardIter)
@@ -1952,6 +2000,13 @@ void PhysicsModifier::Apply_PostSimulationConstraints(const vector<WorldCapsule>
 							capsuleT);
 						if (distanceSq >= combinedRadius * combinedRadius)
 							continue;
+						if (sweepT <= 0.25f)
+							continue;
+
+						const float sweepTravel = Vec3::Distance(node.prevSolvedPosition, hardPosition);
+						const float maxSweepTravel = std::max(combinedRadius * 2.5f, node.length * 2.5f);
+						if (maxSweepTravel > 0.0001f && sweepTravel > maxSweepTravel)
+							continue;
 
 						Vec3 normal = sweepClosest - capsuleClosest;
 						const float distance = sqrtf(std::max(0.f, distanceSq));
@@ -1961,7 +2016,9 @@ void PhysicsModifier::Apply_PostSimulationConstraints(const vector<WorldCapsule>
 							normal = buildFallbackNormal(capsuleClosest);
 
 						const Vec3 capsuleSurface = capsuleClosest + normal * (combinedRadius + 0.0005f);
-						hardPosition = Vec3::Lerp(hardPosition, capsuleSurface, std::clamp(0.65f + sweepT * 0.25f, 0.f, 0.92f));
+						const Vec3 sweepCorrection = capsuleSurface - hardPosition;
+						const float sweepAlpha = std::clamp(0.35f + sweepT * 0.25f, 0.f, 0.55f);
+						hardPosition += Clamp_VectorLength(sweepCorrection * sweepAlpha, hardStepLimit);
 						accumulateHardContact(normal);
 						preserveNodeLength();
 					}
@@ -2156,11 +2213,23 @@ void PhysicsModifier::Apply_LocalOffsetConstraints(float timeDelta, bool isOwner
 			if (node.isKinematic)
 				continue;
 
-			const Matrix parentWorld = node.parentNodeIndex >= 0
-				? chain.nodes[static_cast<size_t>(node.parentNodeIndex)].originalWorld
-				: chain.anchorWorld;
+			Matrix restParentWorld = chain.anchorWorld;
+			Vec3 parentPosition = chain.anchorActor != nullptr
+				? From_PxVec3(chain.anchorActor->getGlobalPose().p)
+				: Get_Position(chain.anchorWorld);
+			if (node.parentNodeIndex >= 0)
+			{
+				const Node& parentNode = chain.nodes[static_cast<size_t>(node.parentNodeIndex)];
+				restParentWorld = parentNode.originalWorld;
+				parentPosition = parentNode.actor != nullptr
+					? From_PxVec3(parentNode.actor->getGlobalPose().p)
+					: parentNode.solvedPosition;
+			}
+
+			const Matrix parentWorld = Local_With_Position(restParentWorld, parentPosition);
 			const Matrix parentInv = parentWorld.Invert();
-			const Vec3 restPosition = Get_Position(node.originalWorld);
+			const Vec3 restLocalPosition = Vec3::Transform(Get_Position(node.originalWorld), restParentWorld.Invert());
+			const Vec3 restPosition = Vec3::Transform(restLocalPosition, parentWorld);
 			const Vec3 currentPosition = node.solvedPosition;
 			const Vec3 localOffset = Vec3::TransformNormal(currentPosition - restPosition, parentInv);
 
@@ -2176,7 +2245,19 @@ void PhysicsModifier::Apply_LocalOffsetConstraints(float timeDelta, bool isOwner
 			if (!shouldApply)
 				continue;
 
-			if (wasClamped && !isOwnerIdle && timeDelta > 0.0001f)
+			float maxOverflowRatio = 0.f;
+			if (wasClamped)
+			{
+				if (maxLocalOffset.x > 0.0001f)
+					maxOverflowRatio = std::max(maxOverflowRatio, fabsf(localOffset.x) / maxLocalOffset.x);
+				if (maxLocalOffset.y > 0.0001f)
+					maxOverflowRatio = std::max(maxOverflowRatio, fabsf(localOffset.y) / maxLocalOffset.y);
+				if (maxLocalOffset.z > 0.0001f)
+					maxOverflowRatio = std::max(maxOverflowRatio, fabsf(localOffset.z) / maxLocalOffset.z);
+			}
+
+			const bool escapedConstraintFrame = maxOverflowRatio >= 2.5f;
+			if (wasClamped && !escapedConstraintFrame && !isOwnerIdle && timeDelta > 0.0001f)
 			{
 				Vec3 correction = constrainedPosition - currentPosition;
 				const float correctionLength = correction.Length();
@@ -2219,7 +2300,11 @@ void PhysicsModifier::Apply_LocalOffsetConstraints(float timeDelta, bool isOwner
 
 			Vec3 linearVelocity = From_PxVec3(node.actor->getLinearVelocity());
 			Vec3 localVelocity = Vec3::TransformNormal(linearVelocity, parentInv);
-			if (wasClamped)
+			if (escapedConstraintFrame)
+			{
+				localVelocity = Vec3::Zero;
+			}
+			else if (wasClamped)
 			{
 				const float clampVelocityKeep = std::clamp(
 					1.f - std::clamp(_desc.releaseInertiaDamping, 0.f, 0.98f),
@@ -2280,15 +2365,20 @@ void PhysicsModifier::Write_BackToModel(ModelCom* model, const Matrix& ownerWorl
 			if (restLocalDir.LengthSquared() <= 0.0001f || targetLocalDir.LengthSquared() <= 0.0001f)
 				return false;
 
+			const bool forceCollisionOutput = hadContact && _desc.useHardCollisionProjection;
+
 			restLocalDir.Normalize();
 			targetLocalDir.Normalize();
 
 			const float clampedDepth = std::clamp(outputDepthRatio, 0.f, 1.f);
-			const float nodeAngleLimit = Compute_NodeAngleLimitDegree(chain, clampedDepth);
-			targetLocalDir = Limit_LocalDirectionByAngle(restLocalDir, targetLocalDir, nodeAngleLimit);
+			if (!forceCollisionOutput)
+			{
+				const float nodeAngleLimit = Compute_NodeAngleLimitDegree(chain, clampedDepth);
+				targetLocalDir = Limit_LocalDirectionByAngle(restLocalDir, targetLocalDir, nodeAngleLimit);
+			}
 
 			const float outputRestoreAlpha = std::clamp(
-				isOwnerIdle ? _desc.poseRestoreAlpha : 0.f,
+				!forceCollisionOutput && isOwnerIdle ? _desc.poseRestoreAlpha : 0.f,
 				0.f,
 				1.f);
 			if (outputRestoreAlpha > 0.f)
@@ -2388,7 +2478,7 @@ void PhysicsModifier::Write_BackToModel(ModelCom* model, const Matrix& ownerWorl
 					? std::clamp(
 						std::lerp(
 							smoothAlpha,
-							_desc.freeRotationFollowAlpha,
+							hadContact ? _desc.contactRotationFollowAlpha : _desc.freeRotationFollowAlpha,
 							std::clamp(chain.desc.smoothMultiplier, 0.f, 1.f)),
 						0.f,
 						1.f)

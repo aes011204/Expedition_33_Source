@@ -37,10 +37,6 @@ HRESULT Mon_Simon_Hair::Initialize(void* arg)
     if (_model)
     {
         _model->Set_LocalRootNode(_model->Get_BoneIndex("Simon_Strand_Hair_root"));
-        if (_useHairAnimationPlayback)
-        {
-            _model->Set_Animation("Simon_Hair", true);
-        }
     }
 
     CHECK_FAILED(Ready_PhysicsModifier(), E_FAIL);
@@ -71,7 +67,7 @@ HRESULT Mon_Simon_Hair::Ready_PhysicsModifier()
         return E_FAIL;
     }
 
-    _model->Add_AnimModifier(_hairPhysicsModifier);
+    _hairPhysicsModifier->Bind_Model(_model.get());
     _hairPhysicsReady = true;
     return S_OK;
 }
@@ -90,11 +86,10 @@ void Mon_Simon_Hair::Update(float timeDelta)
 
     if (_model)
     {
-        if (_useHairAnimationPlayback)
+        if (_hairPhysicsReady && _hairPhysicsModifier)
         {
-            _model->Play_Animation(timeDelta);
+            _hairPhysicsModifier->Evaluate_Modifier(_model.get(), timeDelta);
         }
-
     }
 
     if (_partEffectCom)

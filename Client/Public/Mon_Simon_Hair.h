@@ -55,7 +55,6 @@ private:
     Matrix _offsetMatrix = {};
     Shared<PhysicsModifier> _hairPhysicsModifier = {};
     bool _hairPhysicsReady = false;
-    bool _useHairAnimationPlayback = true;
 
 public:
     static Shared<Mon_Simon_Hair> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);
