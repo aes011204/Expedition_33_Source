@@ -256,6 +256,8 @@ bool SoulLikeController::Begin_Battle()
     {
         const auto screenFxStartedAt = chrono::steady_clock::now();
         screenFxManager->Play_BattleInCounterFx();
+        if (Is_DuallisteBattle())
+            screenFxManager->Request_NextBattleTransitionBlackSource();
         screenFxManager->Transition_To_BattleField();
         screenFxMs = ElapsedMs(screenFxStartedAt);
     }

@@ -35,6 +35,7 @@ LevelChange_Portal::LevelChange_Portal(const ComPtr<Device>& device, const ComPt
 LevelChange_Portal::LevelChange_Portal(const LevelChange_Portal& prototype)
     : GameObject(prototype)
     , _targetLevel(prototype._targetLevel)
+    , _gameEntryRevealLevel(prototype._gameEntryRevealLevel)
     , _portalEffectName(prototype._portalEffectName)
     , _effectScale(prototype._effectScale)
 {
@@ -98,7 +99,7 @@ void LevelChange_Portal::Update(float timeDelta)
     if (_targetLevel == LevelType::GameEntry)
         GAME->Stop_SoundChannel(SoundChannel::BGM, 0.f);
 
-    if (!CLIENT->Request_LevelTransition(_targetLevel))
+    if (!CLIENT->Request_LevelTransition(_targetLevel, _gameEntryRevealLevel))
     {
         LOG_INFO("LevelChange_Portal: level transition request failed. target={}",
             magic_enum::enum_name(_targetLevel));
@@ -163,6 +164,11 @@ void LevelChange_Portal::OnEndOverlap(Shared<ColliderCom> self, Shared<ColliderC
 
     if (!Has_ActiveHeroOverlap())
         CLIENT->Clear_InteractionPrompt(this);
+}
+
+void LevelChange_Portal::Set_GameEntryRevealLevel(LevelType levelType)
+{
+    _gameEntryRevealLevel = levelType;
 }
 
 HRESULT LevelChange_Portal::Ready_Components()

@@ -20,7 +20,7 @@ public:
     HRESULT Initialize(const ComPtr<Device>& Device, const ComPtr<Context>& Context);
     void    Update(float TimeDelta);
 
-    bool    Request_LevelTransition(LevelType TargetLevel);
+    bool    Request_LevelTransition(LevelType TargetLevel, LevelType GameEntryRevealLevel = LevelType::END);
     bool    Request_LoadedLevelTransition(LevelType TargetLevel, Shared<Level> TargetLevelInstance);
     bool    Is_Playing() const { return _phase != Phase::Idle; }
 
