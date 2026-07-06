@@ -177,7 +177,7 @@ void CharacterStatus_Panel::Handle_SelectionInput()
 
 	if (previousIndex != _selectedHeroIndex)
 	{
-		GAME->Play_SoundCue(Constants::SoundCue::UI_Battle_SelectAlly);
+		GAME->Play_SoundCue(Constants::SoundCue::UI_Attribute_Navigate);
 
 		Refresh_CombatStats();
 		Refresh_CharacterSelectUI();
@@ -200,10 +200,11 @@ void CharacterStatus_Panel::Handle_StatInput()
 		if (!button || !button->Was_Clicked())
 			return;
 
-		GAME->Play_SoundCue(Constants::SoundCue::UI_Global_NavigateClick);
-
         if (Adjust_PendingStat(type, delta))
+        {
+            GAME->Play_SoundCue(Constants::SoundCue::UI_Attribute_ChangeValue);
             needsRefresh = true; // draft가 바뀐 경우만 화면 갱신
+        }
     };
 
 	TryAdjustPending(_statDecreaseButtons[To_StatIndex(StatType::Vitality)], StatType::Vitality, -1);
@@ -471,6 +472,8 @@ void CharacterStatus_Panel::Apply_PendingStats()
         StatType::Luck,
     };
 
+    bool appliedAny = false;
+
     for (StatType type : statTypes)
     {
         int32& pendingValue = pending[To_StatIndex(type)];
@@ -480,9 +483,13 @@ void CharacterStatus_Panel::Apply_PendingStats()
             if (!playerStat->Add_Stat(type))
                 break; // runtime 반영 실패 시 여기서 중단
 
+            appliedAny = true;
             --pendingValue; // 실제 반영된 수만큼만 pending 차감
         }
     }
+
+    if (appliedAny)
+        GAME->Play_SoundCue(Constants::SoundCue::UI_Attribute_UpgradeAccept);
 
     Refresh_CombatStats();
 }

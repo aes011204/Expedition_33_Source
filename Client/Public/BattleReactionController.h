@@ -30,6 +30,11 @@ public:
     );
 
     DECLARE_DELEGATE(
+        FOnReactionInputSubmitted,
+        BattleReactionType /* 입력으로 사용한 Reaction 종류 */
+    );
+
+    DECLARE_DELEGATE(
         FOnCounterStarted,
         const vector<BattleChar>& /* Counter 애니메이션이 실제 시작된 플레이어들 */
     );
@@ -213,6 +218,7 @@ private:
 public:
     FOnReactionWindowOpened OnReactionWindowOpened;
     FOnReactionWindowClosed OnReactionWindowClosed;
+    FOnReactionInputSubmitted OnReactionInputSubmitted;
     FOnReactionSucceeded    OnReactionSucceeded;
     FOnCounterStarted       OnCounterStarted;
 

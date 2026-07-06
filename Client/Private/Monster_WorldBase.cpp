@@ -17,6 +17,8 @@
 #include "Mon_WeakPoint.h"
 #include "BattleEncounterProfile.h"
 
+#include <algorithm>
+
 REGISTER_GLOBAL_ENUM(Monster_WorldBase::MonsterWorldAnim, "MonsterWorldAnim")
 
 namespace
@@ -64,6 +66,16 @@ namespace
         };
     }
 
+    json BattlePlayerSpawnOffsets_ToJson(const array<Vec3, Client::kBattlePlayerSpawnOffsetCount>& offsets)
+    {
+        json result = json::array();
+
+        for (const Vec3& offset : offsets)
+            result.push_back(Vec3_ToJson(offset));
+
+        return result;
+    }
+
     bool Json_ToBattleMonsterSpawnDesc(const json& value, Client::BattleMonsterSpawnDesc& outDesc)
     {
         if (!value.is_object())
@@ -84,6 +96,20 @@ namespace
         outDesc.enemyGroupBackOffset = value.value("enemy_group_back_offset", 0.f);
         outDesc.enemyGroupHeightOffset = value.value("enemy_group_height_offset", 0.f);
         outDesc.enemyGroupLookHeightOffset = value.value("enemy_group_look_height_offset", 0.f);
+
+        return true;
+    }
+
+    bool Json_ToBattlePlayerSpawnOffsets(
+        const json& value,
+        array<Vec3, Client::kBattlePlayerSpawnOffsetCount>& outOffsets)
+    {
+        if (!value.is_array())
+            return false;
+
+        const size_t count = std::min(value.size(), outOffsets.size());
+        for (size_t i = 0; i < count; ++i)
+            (void)Json_ToVec3(value[i], outOffsets[i]);
 
         return true;
     }
@@ -451,6 +477,7 @@ json Monster_WorldBase::To_Json() const
     json& customProperties = data["custom_properties"];
     customProperties["battle_start_spawner_id"] = _battleStartSpawnerId;
     customProperties["battle_start_offset"] = Vec3_ToJson(_battleStartOffset);
+    customProperties["battle_player_offsets"] = BattlePlayerSpawnOffsets_ToJson(_battlePlayerSpawnOffsets);
     customProperties["battle_encounter_id"] = _battleEncounterId;
     customProperties["start_idle_until_player_in_range"] = _startIdleUntilPlayerInRange;
     customProperties["start_idle_release_distance"] = _startIdleReleaseDistance;
@@ -484,6 +511,7 @@ void Monster_WorldBase::From_Json(const json& data)
     _startIdleUntilPlayerInRange = false;
     _hasReleasedStartIdle = false;
     _startIdleReleaseDistance = 0.f;
+    _battlePlayerSpawnOffsets = {};
     _PatrolPoints.clear();
     _defaultPatrolPoints.clear();
 
@@ -515,6 +543,9 @@ void Monster_WorldBase::From_Json(const json& data)
     _startIdleReleaseDistance = customProperties.value("start_idle_release_distance", 0.f);
     if (customProperties.contains("battle_start_offset"))
         (void)Json_ToVec3(customProperties["battle_start_offset"], _battleStartOffset);
+
+    if (customProperties.contains("battle_player_offsets"))
+        (void)Json_ToBattlePlayerSpawnOffsets(customProperties["battle_player_offsets"], _battlePlayerSpawnOffsets);
 
     if (customProperties.contains("patrol_points") && customProperties["patrol_points"].is_array())
     {

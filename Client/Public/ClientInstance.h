@@ -213,6 +213,13 @@ public: /* For.Fade Transition */
 
     bool Is_FadeTransitionPlaying() const;
 
+public: /* For.Level BGM */
+    void Request_BGMAfterLevelFade(
+        const wstring& soundFile,
+        float volume,
+        bool stopPrevBGM,
+        float fadeOutDuration);
+
 public: /* For.Battle_Controller */
     void OnEnterBattleField(
         uint32 FieldID,
@@ -358,7 +365,7 @@ public: /* Costume Manager */
     CostumeManager* Get_CostumeManager() const { return _costumeManager.get(); }
 
     void    Sync_PreviewHeroRuntimeData(HeroId heroId);
-    void    Play_PreviewAnimation(HeroId heroId, PreviewAnimState introAnim, PreviewAnimState idleAnim);
+    void    Play_PreviewAnimation(HeroId heroId, PreviewAnimState introAnim, PreviewAnimState idleAnim, float blendDuration = 0.25f);
 
 public: /* SoulLike */
     void Set_SoulLikeController(const Shared<SoulLikeController>& controller);
@@ -403,6 +410,7 @@ private:
 	HRESULT Ready_ResourceLoader();
     HRESULT Ready_GameDataTables();
     void Handle_BattleSoundTurnStarted(const BattleChar& actor, BattleTurnState state);
+    void Update_PendingLevelBGM();
     void Capture_ReplayWorldSnapshotIfNeeded();
     void Restore_ReplayWorldObjectsFromSnapshot();
     void Capture_ReplayCameraSnapshot();
@@ -425,6 +433,19 @@ private:
     const void*  _interactionPromptSourceId = nullptr;
     InteractionPromptType _interactionPromptType = InteractionPromptType::None;
     int32        _interactionPromptPriority = 0;
+
+    struct PendingLevelBGM
+    {
+        wstring soundFile{};
+        float volume = 0.7f;
+        bool stopPrevBGM = true;
+        float fadeOutDuration = 0.f;
+        bool active = false;
+        bool waitForFadeEnd = false;
+        bool observedFade = false;
+    };
+
+    PendingLevelBGM _pendingLevelBGM{};
 
 private:
     Shared<CameraDirector>              _cameraDirector;

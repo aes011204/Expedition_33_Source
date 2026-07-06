@@ -1,6 +1,7 @@
 #include "UI_LevelAnnounce.h"
 
 #include "Client_Constants.h"
+#include "GameInstance.h"
 #include "UI_Base.h"
 #include "UI_RuntimeLoader.h"
 #include "UI_Text.h"
@@ -16,6 +17,21 @@ namespace
     constexpr wchar_t kLevelTextName[] = L"Text_Level_Announce_Current_Level";
     constexpr wchar_t kLevelTextBgName[] = L"Text_Level_Announce_Current_Level_BG";
     constexpr float kLevelAnnounceDurationSec = 4.f; // Level_Announce_Intro.uianim: 0~60f / 15fps
+
+    bool Try_MarkLevelAnnounceSoundPlayed(LevelType levelType)
+    {
+        const uint32 levelIndex = ETOI(levelType);
+        static array<bool, ETOI(LevelType::END)> playedByLevel{};
+
+        if (levelIndex >= playedByLevel.size())
+            return false;
+
+        if (playedByLevel[levelIndex])
+            return false;
+
+        playedByLevel[levelIndex] = true;
+        return true;
+    }
 }
 
 HRESULT UI_LevelAnnounce::Initialize(uint32 levelIndex)
@@ -59,6 +75,9 @@ void UI_LevelAnnounce::Play_ForLevel(LevelType levelType)
     Stop_Animation();
     UI_RuntimePanelBase::Open();
     Play_Animation();
+
+    if (Try_MarkLevelAnnounceSoundPlayed(levelType))
+        GAME->Play_SoundCue(Constants::SoundCue::UI_Level_Announce);
 }
 
 void UI_LevelAnnounce::Close()

@@ -179,7 +179,7 @@ void UIPreviewManager::Sync_PreviewHeroRuntimeData(HeroId heroId)
     entry.player->Sync_FromRuntimeData();
 }
 
-void UIPreviewManager::Play_PreviewAnimation(HeroId heroId, PreviewAnimState introAnim, PreviewAnimState idleAnim)
+void UIPreviewManager::Play_PreviewAnimation(HeroId heroId, PreviewAnimState introAnim, PreviewAnimState idleAnim, float blendDuration)
 {
     const int32 heroIndex = static_cast<int32>(heroId);
     if (heroIndex < 0 || heroIndex >= static_cast<int32>(_previewHeroes.size()))
@@ -189,7 +189,7 @@ void UIPreviewManager::Play_PreviewAnimation(HeroId heroId, PreviewAnimState int
     if (entry.player == nullptr)
         return;
 
-    entry.player->Play_PreviewAnimation(introAnim, idleAnim);
+    entry.player->Play_PreviewAnimation(introAnim, idleAnim, blendDuration);
 }
 
 HRESULT UIPreviewManager::Ensure_PreviewCamera()

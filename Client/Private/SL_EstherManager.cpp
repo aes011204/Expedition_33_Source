@@ -27,6 +27,7 @@ namespace
 
     constexpr char kGustaveSkill[] = "UnleashedCharge";
     constexpr char kLuneSkill[] = "Immolation";
+    constexpr char kGustaveEstherWeaponId[] = "Tireso";
 
     //constexpr char kGustaveAnim[] = "Gustave_Noah_Skill_Overcharge_VeryStrong";
     constexpr char kGustaveAnim[] = "SL_Gustave_Verso_Skill_Flawless_Spiral"; // 천사의 눈
@@ -349,14 +350,26 @@ Shared<Player_BattleBase> SL_EstherManager::Spawn_EstherActor(SL_EstherType esth
     const Vec3 spawnPosition = Resolve_SpawnPosition(estherType, player, target);
     const Vec3 spawnRotation = Resolve_SpawnRotation(spawnPosition, target);
 
+    const uint32 levelIndex = GAME->Current_LevelIndex();
+
     Shared<GameObject> object = Spawn_Prefab::Prefab(prefabName)
-        .AtLevel(GAME->Current_LevelIndex())
+        .AtLevel(levelIndex)
         .InLayer(TEXT("Layer_Player"))
         .Position(spawnPosition)
         .Rotation(spawnRotation)
         .Spawn();
 
-    return dynamic_pointer_cast<Player_BattleBase>(object);
+    Shared<Player_BattleBase> estherActor = dynamic_pointer_cast<Player_BattleBase>(object);
+    if (estherActor != nullptr && estherType == SL_EstherType::GustaveOvercharge)
+    {
+        if (FAILED(estherActor->Apply_WeaponPreviewById(kGustaveEstherWeaponId)))
+        {
+            GAME->Remove_GameObject(levelIndex, estherActor);
+            return nullptr;
+        }
+    }
+
+    return estherActor;
 }
 
 bool SL_EstherManager::Play_EstherAnimation(const Shared<Player_BattleBase>& actor, const string& animationName, float animationSpeed)

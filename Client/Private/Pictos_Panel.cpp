@@ -1,5 +1,6 @@
 ﻿#include "Pictos_Panel.h"
 
+#include "Client_Constants.h"
 #include "ClientInstance.h"
 #include "GameInstance.h"
 #include "PlayerInventory.h"
@@ -193,7 +194,7 @@ void Pictos_Panel::Open()
     _isTooltipHoverArmed = false; // 패널을 연 직후 커서가 이미 버튼 위에 있어도 툴팁이 바로 뜨지 않게 한다.
     Refresh_All();
 
-    GAME->Play_SoundCue(Constants::SoundCue::UI_Global_GenericEnter);
+    GAME->Play_SoundCue(Constants::SoundCue::UI_Global_PaintEnter);
     GAME->Unlock_Mouse();
     GAME->Set_GameplayPaused(true);
 }
@@ -205,9 +206,14 @@ void Pictos_Panel::Close()
 
 void Pictos_Panel::Close_Immediately(bool restoreWorldControl)
 {
+    const bool shouldPlayExitSound = restoreWorldControl && Is_Open();
+
     _isProgressionContentMode = false;
     _isTooltipHoverArmed = false;
     _isClickInputLatched = false;
+    if (shouldPlayExitSound)
+        GAME->Play_SoundCue(Constants::SoundCue::UI_Global_PaintExit);
+
     UI_RuntimePanelBase::Close();
     Set_UIMapOpenState(_uiByName, false);
     CLIENT->Hide_Preview();
@@ -463,12 +469,12 @@ void Pictos_Panel::Handle_SlotSelectionInput()
         _selectedEquipSlotIndex = _equippedSlots.size();
         _isClickInputLatched = true;
 
-        GAME->Play_SoundCue(Constants::SoundCue::UI_Global_NavigateClick);
+        GAME->Play_SoundCue(Constants::SoundCue::UI_Global_NavigateClickPaintValid);
         Refresh_All();
         return;
     }
 
-    GAME->Play_SoundCue(Constants::SoundCue::UI_Global_NavigateClick);
+    GAME->Play_SoundCue(Constants::SoundCue::UI_Global_NavigatePaint);
 }
 
 bool Pictos_Panel::Handle_AvailablePictosInput()
@@ -482,7 +488,7 @@ bool Pictos_Panel::Handle_AvailablePictosInput()
             continue;
 
         _pendingEquipPictosId = slot.pictosId; // Available 클릭은 이제 즉시 장착이 아니라 장착 후보 선택만 담당한다.
-        GAME->Play_SoundCue(Constants::SoundCue::UI_Global_NavigateClick);
+        GAME->Play_SoundCue(Constants::SoundCue::UI_Global_NavigateClickPaint);
         Refresh_ActionHints();
         return true;
     }
@@ -526,7 +532,7 @@ void Pictos_Panel::Clear_EquippedPictos()
     _selectedEquipSlotIndex = _equippedSlots.size(); // 해제 후 특정 슬롯에 선택 상태가 남지 않게 푼다.
 
     CLIENT->Sync_PreviewHeroRuntimeData(_selectedHeroId);
-    GAME->Play_SoundCue(Constants::SoundCue::UI_Global_NavigateClick);
+    GAME->Play_SoundCue(Constants::SoundCue::UI_Global_NavigateClickPaintBack);
     Refresh_All();
 }
 

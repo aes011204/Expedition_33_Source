@@ -30,6 +30,30 @@ void SimonCriticalGlowController::Set_Critical(bool critical, float duration)
     _isTransitioning = true;
 }
 
+void SimonCriticalGlowController::Reset_ToBaseColor()
+{
+    if (!_hasResolvedTarget)
+    {
+        Resolve_TargetMaterials();
+    }
+
+    _isCritical = false;
+    _isTransitioning = false;
+    _elapsed = 0.f;
+    _currentColor = _baseColor;
+    _fromColor = _baseColor;
+    _toColor = _baseColor;
+
+    for (const auto& [model, materialIndex] : _targetMaterials)
+    {
+        MaterialInstanceOverride overrideData{};
+        overrideData.cbMask.emissiveColor = true;
+        overrideData.cb.emissiveColor = _baseColor;
+        model->Set_InstanceOverride(materialIndex, overrideData);
+        model->Apply_EffectiveMaterial(materialIndex);
+    }
+}
+
 void SimonCriticalGlowController::Update(float timeDelta)
 {
     if (!_isTransitioning)

@@ -319,7 +319,7 @@ void BattleTutorialController::Close_Tutorial()
     _activeStep = BattleTutorialStep::END;
 
     OnTutorialClosed.Broadcast();
-
+    
     Advance_SequenceAfterClosed(closedStep);
 }
 

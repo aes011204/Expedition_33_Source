@@ -335,6 +335,29 @@ void ChangeSkill_Panel::Handle_ButtonInput()
         if (_currentSkillButtons[i] == nullptr || !_currentSkillButtons[i]->Was_Clicked())
             continue;
 
+        if (_selectedCurrentSkillSlotIndex < NormalSkillSlotCount && _selectedCurrentSkillSlotIndex != i)
+        {
+            const size_t sourceSlotIndex = _selectedCurrentSkillSlotIndex;
+            const Shared<PlayerStatCom> statCom = Resolve_SelectedPlayerStat();
+            if (statCom)
+            {
+                vector<string> skillKeys = Build_CurrentNormalSkillKeys(statCom);
+                if (sourceSlotIndex < skillKeys.size() && i < skillKeys.size())
+                {
+                    std::iter_swap(
+                        skillKeys.begin() + sourceSlotIndex,
+                        skillKeys.begin() + i);
+                    statCom->Set_SkillKeys(skillKeys);
+                    _selectedCurrentSkillSlotIndex = InvalidSkillSlotIndex;
+                    Refresh_All();
+
+                    GAME->Play_SoundCue(Constants::SoundCue::UI_Global_NavigateClick);
+                    LOG_DEBUG("ChangeSkill_Panel: current skill slots swapped. from={}, to={}", sourceSlotIndex, i);
+                    return;
+                }
+            }
+        }
+
         _selectedCurrentSkillSlotIndex = i;
         Refresh_CurrentSkillButtonFocus();
 
@@ -357,13 +380,17 @@ void ChangeSkill_Panel::Handle_ButtonInput()
             continue;
 
         const bool equipped = Try_EquipAvailableSkillToSelectedSlot(slot.skillId);
-        GAME->Play_SoundCue(Constants::SoundCue::UI_Global_NavigateClick);
 
         if (equipped)
         {
+            GAME->Play_SoundCue(Constants::SoundCue::UI_SkillTree_Equip);
             _selectedCurrentSkillSlotIndex = InvalidSkillSlotIndex;
             Refresh_All();
             Refresh_CurrentSkillButtonFocus();
+        }
+        else
+        {
+            GAME->Play_SoundCue(Constants::SoundCue::UI_Global_NavigateClick);
         }
 
         return;
