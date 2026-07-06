@@ -41,7 +41,7 @@ HRESULT PB_Maelle::Ready_HairModifiers(Hair_Player* hair, const wchar_t* hairMod
 {
     CHECK_NULL(hair, E_FAIL);
     UNREFERENCED_PARAMETER(hairModelTag);
-    hair->Enable_PoseFollowModifier();
+    hair->Enable_HairModifier();
 
     return S_OK;
 }
