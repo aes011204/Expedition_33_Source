@@ -59,6 +59,8 @@ public:
         float contactOffset = 0.03f;
         float slopeLimitDeg = 49.0f;
         float groundLerpSpeed = 15.f;
+        float stillGroundYDeadZone = 0.06f;
+        float movingGroundYDeadZone = 0.f;
     };
 
     struct MoveDesc
@@ -108,6 +110,7 @@ public:
     void Set_MoveBackend(MoveBackend backend);
     void Set_CCTTransformSyncSuppressed(bool suppressed) { _suppressCCTTransformSync = suppressed; }
     bool Is_CCTTransformSyncSuppressed() const { return _suppressCCTTransformSync; }
+    void Set_CCTMovingGroundYDeadZone(float deadZone) { _moveDesc.cct.movingGroundYDeadZone = deadZone; }
 
     void Set_Transform(const Shared<TransformCom> transform)
     {

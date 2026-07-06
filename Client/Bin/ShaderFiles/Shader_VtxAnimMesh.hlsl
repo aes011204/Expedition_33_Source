@@ -371,9 +371,9 @@ PS_OUT PS_CharacterHair(PS_IN In, bool IsFrontFace : SV_IsFrontFace)
 
     float3 hairBSDFColor = Compute_BlenderHairColor(finalUV);
 
-    float3 normalW = IsFrontFace ? In.Normal.xyz : -In.Normal.xyz;
-    float3 tangentW = IsFrontFace ? In.Tangent.xyz : -In.Tangent.xyz;
-    float3 binormalW = IsFrontFace ? In.Binormal.xyz : -In.Binormal.xyz;
+    float3 normalW = In.Normal.xyz;
+    float3 tangentW = In.Tangent.xyz;
+    float3 binormalW = In.Binormal.xyz;
 
     float3 worldNormal = ComputeWorldNormal(normalW, tangentW, binormalW, finalUV);
     worldNormal = normalize(worldNormal);

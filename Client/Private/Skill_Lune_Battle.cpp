@@ -55,6 +55,8 @@ namespace Internal
     }
 
     constexpr float kSkyBreakDamageMultiplierPerStain = 1.3f;
+    constexpr int32 kTerraQuakeHitCount = 3;
+    constexpr float kTerraQuakeHitInterval = 0.2f;
 }
 
 /* 제물 */
@@ -222,6 +224,7 @@ void Skill_Lune_TerraQuake::Execute(const Skill_Data& skill, const BattleAction&
 
     BattleHitSequenceRunner::HitEffectDesc effectDesc{};
     effectDesc.effectName = L"Lune_TerraQuake_Attack";
+    effectDesc.hitSoundCue = L"Lune_TerraQuake_Hit";
     effectDesc.scale = { 1.3f, 1.4f, 1.3f };
 
     if (attacker.mechanismCom)
@@ -249,15 +252,20 @@ void Skill_Lune_TerraQuake::Execute(const Skill_Data& skill, const BattleAction&
         damage *= 1.3f;
     }
 
-    DamageSystem::ApplyDamage(damage, attacker, curTargets, attackType, true);
+    auto battle = CLIENT->Get_BattleController();
+    if (battle == nullptr)
+        return;
 
-    for (auto& target : curTargets)
-    {
-        Internal::Play_TargetHitEffect(target, effectDesc);
-    }
-
-    // 한 번만. 이거 근데 왜이리 소리가 작아;
-    GAME->Play_SoundCue(L"Lune_TerraQuake_Hit", nullptr, 4.5f, 1.f);
+    battle->Get_HitSequenceRunner().Begin_RepeatedHitWithImmediateFirstHit(
+        attacker,
+        curTargets,
+        Internal::kTerraQuakeHitCount,
+        Internal::kTerraQuakeHitInterval,
+        damage / static_cast<float>(Internal::kTerraQuakeHitCount),
+        attackType,
+        effectDesc,
+        true
+    );
 }
 
 Shared<Skill_Lune_TerraQuake> Skill_Lune_TerraQuake::Create()
@@ -269,7 +277,13 @@ void Skill_Lune_TerraQuake::Collect_PrewarmEffects(const Skill_Data& skill, cons
 {
     UNREFERENCED_PARAMETER(skill);
 
-    Internal::Add_PrewarmRequest(outRequests, L"Lune_TerraQuake_Attack", max(2u, context.currentEnemyCount));
+    const uint32 prewarmTargetCount =
+        static_cast<uint32>(context.currentEnemyCount) * static_cast<uint32>(Internal::kTerraQuakeHitCount);
+
+    Internal::Add_PrewarmRequest(
+        outRequests,
+        L"Lune_TerraQuake_Attack",
+        max(2u, prewarmTargetCount));
 }
 
 /* 억압의 쓰나미 */

@@ -27,11 +27,13 @@ public:
 
         BattleChar attacker{};
         BattleChar target{};
+        vector<BattleChar> targets{};
 
         int32 remainingHits = 0;   // 앞으로 몇 대 더 때릴지
         float hitInterval = 0.3f;  // 타격 간격
         float elapsed = 0.f;       // 누적 시간
         float hitDamage = 0.f;     // 1타당 데미지
+        bool useTargetFeedbackWorldPos = false;
 
         // 첫 타랑 같은 타입으로 들어가게
         AttackType attackType = AttackType::SingleSkill;
@@ -53,6 +55,15 @@ public:
         float hitDamage,
         AttackType attackType,
         const HitEffectDesc& hitEffect = {});
+    void Begin_RepeatedHit(
+        const BattleChar& attacker,
+        const vector<BattleChar>& targets,
+        int32 hitCount,
+        float interval,
+        float hitDamage,
+        AttackType attackType,
+        const HitEffectDesc& hitEffect = {},
+        bool useTargetFeedbackWorldPos = false);
     void Begin_RepeatedHitWithImmediateFirstHit(
         const BattleChar& attacker,
         const BattleChar& target,
@@ -61,6 +72,15 @@ public:
         float hitDamage,
         AttackType attackType,
         const HitEffectDesc& hitEffect = {});
+    void Begin_RepeatedHitWithImmediateFirstHit(
+        const BattleChar& attacker,
+        const vector<BattleChar>& targets,
+        int32 hitCount,
+        float interval,
+        float hitDamage,
+        AttackType attackType,
+        const HitEffectDesc& hitEffect = {},
+        bool useTargetFeedbackWorldPos = false);
 
     void Clear();
 
@@ -79,6 +99,8 @@ private:
     void Play_HitEffect(const BattleChar& target, const HitEffectDesc& hitEffect) const;
 
     void Play_HitSound(const BattleChar& target, const wstring& hitSoundCue) const;
+    bool Has_ValidTarget(const vector<BattleChar>& targets) const;
+    void Apply_SequenceHit(const BattleChar& target);
 };
 
 NS_END
