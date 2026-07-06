@@ -2227,8 +2227,6 @@ void PhysicsModifier::Write_BackToModel(ModelCom* model, const Matrix& ownerWorl
 			const Vec3& simulatedLocalDirection,
 			const Vec3& simulatedLocalTranslation,
 			bool allowTranslationOutput,
-			const Vec3& forcedLocalTranslation,
-			bool forceTranslationOutput,
 			float outputDepthRatio) -> bool
 		{
 			Vec3 restLocalDir = restLocalDirection;
@@ -2364,11 +2362,34 @@ void PhysicsModifier::Write_BackToModel(ModelCom* model, const Matrix& ownerWorl
 				node.smoothedLocalTranslation = targetTranslation;
 			}
 
-			Vec3 finalTranslation = node.smoothedLocalTranslation;
-			if (forceTranslationOutput)
-				finalTranslation = matchRestTranslationLength(forcedLocalTranslation);
+			Matrix finalLocal = Build_LocalMatrix_FromSRT(poseScale, node.smoothedLocalRotation, node.smoothedLocalTranslation);
+			model->Set_BoneLocalMatrix(node.boneIndex, finalLocal);
+			return true;
+		};
 
-			Matrix finalLocal = Build_LocalMatrix_FromSRT(poseScale, node.smoothedLocalRotation, finalTranslation);
+	auto applyCollisionOutputTranslation =
+		[this, model, &ownerWorld](Chain& chain, Node& node) -> bool
+		{
+			if (!node.hasCollisionOutputPosition || node.parentNodeIndex < 0)
+				return false;
+
+			const Node& parentNode = chain.nodes[static_cast<size_t>(node.parentNodeIndex)];
+			const Matrix* parentCombined = model->Get_BoneMatrixPtr(parentNode.boneIndex);
+			const Matrix parentWorld = parentCombined != nullptr
+				? (*parentCombined) * ownerWorld
+				: parentNode.originalWorld;
+
+			Matrix currentLocal = model->Get_BoneLocalMatrix(node.boneIndex);
+			Vec3 localScale = Vec3::One;
+			Quat localRotation = Quat::Identity;
+			Vec3 unusedTranslation = Vec3::Zero;
+			currentLocal.Decompose(localScale, localRotation, unusedTranslation);
+			if (localScale.LengthSquared() <= 0.000001f)
+				localScale = node.bindScale;
+			localRotation.Normalize();
+
+			const Vec3 collisionLocalTranslation = Vec3::Transform(node.collisionOutputPosition, parentWorld.Invert());
+			const Matrix finalLocal = Build_LocalMatrix_FromSRT(localScale, localRotation, collisionLocalTranslation);
 			model->Set_BoneLocalMatrix(node.boneIndex, finalLocal);
 			return true;
 		};
@@ -2402,8 +2423,6 @@ void PhysicsModifier::Write_BackToModel(ModelCom* model, const Matrix& ownerWorl
 				simulatedLocalDir,
 				Get_Position(node.poseLocal),
 				false,
-				Vec3::Zero,
-				false,
 				childNode.depthRatio) || wroteAnyBone;
 		}
 	}
@@ -2433,17 +2452,6 @@ void PhysicsModifier::Write_BackToModel(ModelCom* model, const Matrix& ownerWorl
 						const Vec3 restLocalDir = childNode.poseLocalDir.LengthSquared() > 0.0001f
 							? childNode.poseLocalDir
 							: childNode.bindLocalDir;
-						Vec3 forcedLocalTranslation = Vec3::Zero;
-						const bool forceTranslationOutput = node.hasCollisionOutputPosition;
-						if (forceTranslationOutput)
-						{
-							const Node& parentNode = chain.nodes[static_cast<size_t>(node.parentNodeIndex)];
-							const Matrix* parentCombined = model->Get_BoneMatrixPtr(parentNode.boneIndex);
-							const Matrix parentWorld = parentCombined != nullptr
-								? (*parentCombined) * ownerWorld
-								: parentNode.originalWorld;
-							forcedLocalTranslation = Vec3::Transform(node.collisionOutputPosition, parentWorld.Invert());
-						}
 
 						if (writeNodeRotation(
 							chain,
@@ -2452,8 +2460,6 @@ void PhysicsModifier::Write_BackToModel(ModelCom* model, const Matrix& ownerWorl
 							simulatedLocalDir,
 							Get_Position(node.poseLocal),
 							false,
-							forcedLocalTranslation,
-							forceTranslationOutput,
 							childNode.depthRatio))
 						{
 							wroteAnyBone = true;
@@ -2486,9 +2492,6 @@ void PhysicsModifier::Write_BackToModel(ModelCom* model, const Matrix& ownerWorl
 			const Vec3 simulatedLocalDir = Get_LocalDirection(parentWorld, simulatedWorldDir);
 			const Vec3 simulatedLocalTranslation =
 				Vec3::Transform(nodePhysicsPosition, parentWorld.Invert());
-			const Vec3 forcedLocalTranslation = forceTranslationOutput
-				? Vec3::Transform(nodeOutputPosition, parentWorld.Invert())
-				: Vec3::Zero;
 			const Vec3 restLocalDir = node.poseLocalDir.LengthSquared() > 0.0001f
 				? node.poseLocalDir
 				: node.bindLocalDir;
@@ -2500,9 +2503,22 @@ void PhysicsModifier::Write_BackToModel(ModelCom* model, const Matrix& ownerWorl
 				simulatedLocalDir,
 				simulatedLocalTranslation,
 				true,
-				forcedLocalTranslation,
-				forceTranslationOutput,
 				node.depthRatio))
+			{
+				wroteAnyBone = true;
+				model->Rebuild_BoneCombinedMatrices();
+			}
+		}
+	}
+
+	for (auto& chain : _chains)
+	{
+		for (auto& node : chain.nodes)
+		{
+			if (node.isKinematic)
+				continue;
+
+			if (applyCollisionOutputTranslation(chain, node))
 			{
 				wroteAnyBone = true;
 				model->Rebuild_BoneCombinedMatrices();

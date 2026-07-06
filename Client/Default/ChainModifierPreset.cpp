@@ -706,21 +706,6 @@ void ChainModifierPreset::BuildSimonHairPhysicsDesc(
     desc.modifierTag = modifierTag;
     desc.ownerTransform = ownerTransform;
     desc.blendMode = AnimationModifier::ModifierBlendMode::ModifyReplace;
-    desc.physicsAssetPath = L"../Bin/Resources/ModelPhysics/SK_Simon_Physics.json";
-    desc.includedCollisionBones = {
-        "pelvis",
-        "lowerarm_r",
-        "hand_r",
-        "spine_02",
-        "thigh_l",
-        "thigh_r",
-        "spine_04",
-        "upperarm_l",
-        "upperarm_r",
-        "calf_l",
-        "calf_r",
-        "neck_01"
-    };
 
     auto addChain = [&desc](
         const string& rootBoneName,
@@ -750,25 +735,25 @@ void ChainModifierPreset::BuildSimonHairPhysicsDesc(
 
     for (int32 i = 1; i <= 15; ++i)
     {
-        addChain(makeRootName(i, 1), 1.00f, 0.18f, 2.30f, 1.00f, 0.055f, 0.44f);
+        addChain(makeRootName(i, 1), 1.00f, 0.18f, 0.65f, 1.00f, 0.055f, 0.44f);
     }
 
     desc.outputAlpha = 1.00f;
     desc.rotationOutputAlpha = 1.00f;
-    desc.outputSmoothAlpha = 0.085f;
+    desc.outputSmoothAlpha = 0.010f;
     desc.idleOutputSmoothAlpha = 0.48f;
     desc.idleMotionDeadzone = 0.055f;
-    desc.maxOutputAngleDegree = 170.f;
+    desc.maxOutputAngleDegree = 120.f;
 
-    desc.freeRotationFollowAlpha = 0.090f;
-    desc.rotationFollowDepthScale = 0.040f;
+    desc.freeRotationFollowAlpha = 0.018f;
+    desc.rotationFollowDepthScale = 0.018f;
     desc.poseRestoreAlpha = 0.070f;
-    desc.poseRestoreMaxSpeed = 7.0f;
-    desc.maxLocalOffset = Vec3(19.00f, 3.00f, 10.90f);
+    desc.poseRestoreMaxSpeed = 2.30f;
+    desc.maxLocalOffset = Vec3(19.00f, 10.00f, 10.90f);
     desc.movementInertiaScale = 5.20f;
-    desc.tipMovementInertiaScale = 92.00f;
-    desc.maxMovementInertiaSpeed = 190.0f;
-    desc.lateralInertiaScale = 22.00f;
+    desc.tipMovementInertiaScale = 500.00f;
+    desc.maxMovementInertiaSpeed = 500.00f;
+    desc.lateralInertiaScale = 100.00f;
     desc.verticalInertiaScale = 0.48f;
     desc.depthInertiaScale = 3.40f;
     desc.includeDriverLateralInertia = true;
@@ -782,21 +767,89 @@ void ChainModifierPreset::BuildSimonHairPhysicsDesc(
 
     desc.releaseInertiaDamping = 0.780f;
 
-    desc.enableCollision = true;
-    desc.collisionPrimitiveScale = 0.225f;
-    desc.collisionSphereRadius = 0.27f;
-    desc.collisionRadiusPadding = 0.06f;
+    desc.enableCollision = false;
+    desc.collisionPrimitiveScale = 0.396f;
+    desc.collisionSphereRadius = 0.056f;
+    desc.collisionRadiusPadding = 0.055f;
     desc.collisionContactSkinWidth = 0.045f;
     desc.collisionProjectionIterations = 4;
     desc.useHardCollisionProjection = true;
     desc.hardCollisionProjectionIterations = 10;
     desc.hardCollisionLengthAlpha = 1.00f;
 
-    desc.windDirection = kBackwardWindDirection;
-    desc.windScale = 0.078f;
-    desc.windWaveScale = 0.78f;
-    desc.windWaveFrequency = 0.78f;
-    desc.windWaveDepthPhase = 0.86f;
+    desc.windDirection = Vec3(1.00f, 1.00f, 1.00f);
+    desc.windScale = 0.075f;
+    desc.windWaveScale = 0.900f;
+    desc.windWaveFrequency = 0.420f;
+    desc.windWaveDepthPhase = 0.620f;
+    desc.gravityScale = 30.00f;
+    desc.useHierarchicalDepthRatio = false;
+    desc.teleportDistance = 300.f;
+    desc.solverIterations = 8;
+    desc.writeBackEnabled = true;
+    desc.debugDrawCollisionCapsules = false;
+}
+
+void ChainModifierPreset::BuildSimonCoatPhysicsDesc(
+    PhysicsModifier::PhysicsModifierDesc& outDesc,
+    TransformCom* ownerTransform,
+    const wstring& modifierTag)
+{
+    auto& desc = outDesc;
+    desc = {};
+    desc.modifierTag = modifierTag;
+    desc.ownerTransform = ownerTransform;
+    desc.blendMode = AnimationModifier::ModifierBlendMode::ModifyReplace;
+
+    desc.chains = {
+        { "Simon_Coat_01_01", 0.92f, 0.20f, 0.90f, 1.00f, 0.13f, 0.74f },
+        { "Simon_Coat_02_01", 0.92f, 0.20f, 0.90f, 1.00f, 0.13f, 0.74f },
+        { "Simon_Coat_03_01", 0.92f, 0.20f, 0.90f, 1.00f, 0.13f, 0.74f },
+        { "Simon_Coat_04_01", 0.92f, 0.20f, 0.90f, 1.00f, 0.13f, 0.74f },
+        { "Simon_Coat_05_01", 0.92f, 0.20f, 0.90f, 1.00f, 0.13f, 0.74f },
+        { "Simon_Coat_06_01", 0.92f, 0.20f, 0.90f, 1.00f, 0.13f, 0.74f }
+    };
+
+    desc.outputAlpha = 1.00f;
+    desc.rotationOutputAlpha = 1.00f;
+    desc.outputSmoothAlpha = 0.060f;
+    desc.idleOutputSmoothAlpha = 0.82f;
+    desc.idleMotionDeadzone = 0.055f;
+    desc.maxOutputAngleDegree = 92.f;
+
+    desc.freeRotationFollowAlpha = 0.16f;
+    desc.rotationFollowDepthScale = 0.075f;
+    desc.poseRestoreAlpha = 0.18f;
+    desc.poseRestoreMaxSpeed = 8.0f;
+    desc.maxLocalOffset = Vec3(8.50f, 2.60f, 9.20f);
+    desc.movementInertiaScale = 2.80f;
+    desc.tipMovementInertiaScale = 26.00f;
+    desc.maxMovementInertiaSpeed = 82.0f;
+    desc.lateralInertiaScale = 5.40f;
+    desc.verticalInertiaScale = 0.38f;
+    desc.depthInertiaScale = 2.20f;
+    desc.includeDriverLateralInertia = true;
+    desc.accelerationInertiaScale = 0.005f;
+    desc.inertiaVelocitySmoothAlpha = 0.030f;
+    desc.poseSpringStrength = 0.34f;
+    desc.poseSpringDamping = 0.720f;
+    desc.lengthConstraintAlpha = 0.075f;
+    desc.bendConstraintAlpha = 0.012f;
+    desc.projectionIterations = 3;
+
+    desc.releaseInertiaDamping = 0.620f;
+
+    desc.enableCollision = false;
+    desc.collisionSphereRadius = 0.18f;
+    desc.collisionRadiusPadding = 0.08f;
+    desc.collisionContactSkinWidth = 0.06f;
+    desc.collisionProjectionIterations = 2;
+
+    desc.windDirection = Vec3(1.00f, 0.00f, 1.00f);
+    desc.windScale = 0.050f;
+    desc.windWaveScale = 0.620f;
+    desc.windWaveFrequency = 0.420f;
+    desc.windWaveDepthPhase = 0.620f;
     desc.gravityScale = 0.42f;
     desc.teleportDistance = 300.f;
     desc.solverIterations = 8;
@@ -1041,7 +1094,6 @@ void ChainModifierPreset::BuildGustaveHairPhysicsDesc(
     desc.bendConstraintAlpha = 0.025f;
     desc.projectionIterations = 3;
 
-    desc.contactInertiaDamping = 0.16f;
     desc.releaseInertiaDamping = 0.78f;
 
     desc.enableCollision = false;

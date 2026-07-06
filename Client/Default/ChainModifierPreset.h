@@ -57,6 +57,11 @@ public:
         TransformCom* ownerTransform,
         const wstring& modifierTag = L"PhysicsModifier_SimonHair");
 
+    static void BuildSimonCoatPhysicsDesc(
+        PhysicsModifier::PhysicsModifierDesc& outDesc,
+        TransformCom* ownerTransform,
+        const wstring& modifierTag = L"PhysicsModifier_SimonCoat");
+
     static void BuildDuallisteHairbandPhysicsDesc(
         PhysicsModifier::PhysicsModifierDesc& outDesc,
         TransformCom* ownerTransform,
