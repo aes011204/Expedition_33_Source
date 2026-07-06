@@ -76,8 +76,8 @@ namespace
     constexpr char kNpcSumoDialogueKey[] = "NPC_Sumo";
     constexpr char kNpcSumoAfterPotatoBagDialogueKey[] = "NPC_Sumo_AfterPotatoBag";
 
-    const Vec3 kBishopPostBattleWorldPosition = Vec3(122.10f, 21.61f, -2.56f);
-    const Vec3 kBishopPostBattleWorldRotation = Vec3(0.f, 80.3f, 0.f);
+    const Vec3 kBishopPostBattleWorldPosition = Vec3(133.98f, 21.57f, -1.26f);
+    const Vec3 kBishopPostBattleWorldRotation = Vec3(0.f, 75.3f, 0.f);
 
     constexpr float kSkillPresentationDissolveDuration = 0.12f;
     constexpr float kSkillPresentationHideConfirmDuration = 0.04f;
