@@ -1137,6 +1137,7 @@ Shared<Hair_Player> Player_WorldBase::Create_CostumeHairVariant(const wstring& m
     hairDesc.modelTag = modelTag;
     hairDesc.hairPhysicsDesc = Get_HairChainPhysicsDesc();
     hairDesc.usePoseFollowModifier = true;
+    hairDesc.useMaelleBackHairPhysicsModifier = true;
     hairDesc.socketMatrixPointer = head->Get_SocketBoneMatrixPtr("head");
 
     Shared<PartObject> clonedPart = static_pointer_cast<PartObject>(
@@ -1231,6 +1232,7 @@ HRESULT Player_WorldBase::Add_CostumeHair(const wstring& modelTag, const Head_Pl
     hairDesc.modelTag = modelTag;
     hairDesc.hairPhysicsDesc = Get_HairChainPhysicsDesc();
     hairDesc.usePoseFollowModifier = true;
+    hairDesc.useMaelleBackHairPhysicsModifier = true;
     hairDesc.socketMatrixPointer = head->Get_SocketBoneMatrixPtr("head");
 
     CHECK_FAILED(__super::Add_PartObject(
@@ -1394,6 +1396,7 @@ HRESULT Player_WorldBase::Ready_PartObjects()
     hairPartDesc.modelTag = Get_HairModelTag();
     hairPartDesc.hairPhysicsDesc = Get_HairChainPhysicsDesc();
     hairPartDesc.usePoseFollowModifier = true;
+    hairPartDesc.useMaelleBackHairPhysicsModifier = true;
     hairPartDesc.socketMatrixPointer = head->Get_SocketBoneMatrixPtr("head");
 
     if (FAILED(
