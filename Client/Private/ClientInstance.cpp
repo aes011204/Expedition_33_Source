@@ -189,6 +189,7 @@ namespace
         case InteractionPromptType::Cross:
         case InteractionPromptType::Up:
         case InteractionPromptType::Down:
+        case InteractionPromptType::SavePoint:
             return 100;
 
         default:

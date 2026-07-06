@@ -1,5 +1,6 @@
 ﻿#include "pch.h"
 #include "AttackTargeting.h"
+#include "Client_Constants.h"
 #include "Input_Manager.h"
 #include "GameInstance.h"
 #include "BattleController.h"
@@ -73,7 +74,10 @@ void AttackTargeting::Update(float timeDelta)
         auto& request = owner->Get_TurnActionRequest();
         request.itemType = BattleItemType::Invalid;
 
-        battleFSM->Change_State(BattleTurnState::ChooseAction);
+        if (!battleFSM->Change_State(BattleTurnState::ChooseAction))
+            return;
+
+        GAME->Play_SoundCue(Constants::SoundCue::UI_Battle_TargetEnemyStop);
         BattleAnimUtils::Play_TurnStartOrBattleIdle(request.actor, 0.2f);
 
         return;
@@ -98,6 +102,7 @@ void AttackTargeting::Update(float timeDelta)
 
         LOG_DEBUG("AttackTargeting: selected skill={}", request.skillKey.c_str());
 
+        GAME->Play_SoundCue(Constants::SoundCue::UI_Battle_SelectEnemy);
         battleFSM->Change_State(BattleTurnState::AttackPlaying);
         owner->ExecuteActionRequest(request);
         return;
@@ -109,6 +114,7 @@ void AttackTargeting::Update(float timeDelta)
             return;
 
         owner->Publish_TargetPreviewEnemyFocus();
+        GAME->Play_SoundCue(Constants::SoundCue::UI_Battle_SelectEnemy);
         return;
     }
 
@@ -118,6 +124,7 @@ void AttackTargeting::Update(float timeDelta)
             return;
 
         owner->Publish_TargetPreviewEnemyFocus();
+        GAME->Play_SoundCue(Constants::SoundCue::UI_Battle_SelectEnemy);
         return;
     }
 }

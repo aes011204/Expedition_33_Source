@@ -31,6 +31,13 @@ namespace
             type == BattleReactionType::JumpCounter;
     }
 
+    bool IsDefenseUseReaction(BattleReactionType type)
+    {
+        return type == BattleReactionType::Dodge ||
+            type == BattleReactionType::Parry ||
+            type == BattleReactionType::Jump;
+    }
+
     void Play_TargetOwnerEffect(
         const BattleChar& target,
         const wstring& effectName,
@@ -578,6 +585,9 @@ BattleReactionController::BattleReactionInputResult BattleReactionController::Su
         CloseWindow(BattleReactionType::JumpCounter);
         LOG_INFO("JUMPCOUNTER success step={}", context.stepIndex);
     }
+
+    if (result.hasInput && IsDefenseUseReaction(result.type))
+        OnReactionInputSubmitted.Broadcast(result.type);
 
     if (result.success)
         OnReactionSucceeded.Broadcast(result.type, inputTargets);
@@ -1663,6 +1673,7 @@ void BattleReactionController::Free()
 {
     OnReactionWindowOpened.Clear();
     OnReactionWindowClosed.Clear();
+    OnReactionInputSubmitted.Clear();
     OnReactionSucceeded.Clear();
     OnCounterStarted.Clear();
 

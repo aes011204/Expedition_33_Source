@@ -99,7 +99,7 @@ void Merchant_Panel::Open()
     Set_AllUIOpenState(true);
     Refresh_AllSlots();
 
-    GAME->Play_SoundCue(Constants::SoundCue::UI_Global_GenericEnter);
+    GAME->Play_SoundCue(Constants::SoundCue::UI_Global_InterfaceClickMenu);
     GAME->Unlock_Mouse();
     GAME->Set_GameplayInputMode(GameplayInputMode::UIOnly);
 }
@@ -247,9 +247,9 @@ void Merchant_Panel::Handle_ShopInput()
         if (purchaseRequested)
         {
             if (Try_Purchase(i))
-                GAME->Play_SoundCue(Constants::SoundCue::UI_Battle_SelectAlly);
+                GAME->Play_SoundCue(Constants::SoundCue::UI_Global_NavigateClickValid);
             else
-                GAME->Play_SoundCue(Constants::SoundCue::UI_Global_NavigateClick);
+                GAME->Play_SoundCue(Constants::SoundCue::UI_Global_NavigateClickBack);
 
             Refresh_AllSlots();
             return;

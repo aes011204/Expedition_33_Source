@@ -6,6 +6,7 @@
 #include "BattleController.h"
 #include "BattleStateMachine.h"
 #include "CameraPresetTypes.h"
+#include "Client_Constants.h"
 #include "Event_Bus.h"
 #include "ClientInstance.h"
 SkillTargeting::SkillTargeting(const Shared<BattleController>& owner)
@@ -56,7 +57,11 @@ bool SkillTargeting::EnterInvoke()
         return false;
 
     owner->Publish_TargetPreviewEnemyFocus();
-    return Battle_State::EnterInvoke();
+    const bool entered = Battle_State::EnterInvoke();
+    if (entered)
+        GAME->Play_SoundCue(Constants::SoundCue::UI_Battle_TargetEnemyStart);
+
+    return entered;
 }
 
 void SkillTargeting::Update(float timeDelta)
@@ -82,7 +87,10 @@ void SkillTargeting::Update(float timeDelta)
 
     if (GAME->KeyDown(KEY_TYPE::ESCAPE))
     {
-        battleFSM->Change_State(BattleTurnState::ChooseSkill);
+        if (!battleFSM->Change_State(BattleTurnState::ChooseSkill))
+            return;
+
+        GAME->Play_SoundCue(Constants::SoundCue::UI_Battle_TargetEnemyStop);
 
         EvtBattlePresentation event;
         event.cameraMode = BattleCameraMode::SELECTSKILL;
@@ -100,14 +108,20 @@ void SkillTargeting::Update(float timeDelta)
     if (requiresManualTarget && GAME->KeyDown(KEY_TYPE::A))
     {
         if (owner->Move_EnemyTargetPreview(-1))
+        {
             owner->Publish_TargetPreviewEnemyFocus();
+            GAME->Play_SoundCue(Constants::SoundCue::UI_Battle_SelectEnemy);
+        }
         return;
     }
 
     if (requiresManualTarget && GAME->KeyDown(KEY_TYPE::D))
     {
         if (owner->Move_EnemyTargetPreview(+1))
+        {
             owner->Publish_TargetPreviewEnemyFocus();
+            GAME->Play_SoundCue(Constants::SoundCue::UI_Battle_SelectEnemy);
+        }
         return;
     }
 
@@ -139,6 +153,9 @@ void SkillTargeting::Update(float timeDelta)
 
         LOG_DEBUG("SkillTargeting: confirm skill={}",
             action.skillKey.c_str());
+
+        if (requiresManualTarget)
+            GAME->Play_SoundCue(Constants::SoundCue::UI_Battle_SelectEnemy);
 
         battleFSM->Change_State(BattleTurnState::AttackPlaying);
         owner->ExecuteActionRequest(action);

@@ -38,6 +38,9 @@ namespace
         case InteractionPromptType::Down:
             return L"Panel_Interaction_Down";
 
+        case InteractionPromptType::SavePoint:
+            return L"Panel_Interaction_SavePoint";
+
         default:
             return nullptr;
         }
@@ -158,6 +161,7 @@ HRESULT UI_Interaction::Bind_UI()
         InteractionPromptType::Cross,
         InteractionPromptType::Up,
         InteractionPromptType::Down,
+        InteractionPromptType::SavePoint,
     };
 
     for (const InteractionPromptType type : promptTypes)

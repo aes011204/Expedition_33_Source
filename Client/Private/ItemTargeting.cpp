@@ -5,6 +5,7 @@
 #include "BattleStateMachine.h"
 #include "Battle_Event.h"
 #include "CameraPresetTypes.h"
+#include "Client_Constants.h"
 #include "CombatStatCom.h"
 #include "GameInstance.h"
 #include "Event_Bus.h"
@@ -54,7 +55,11 @@ bool ItemTargeting::EnterInvoke()
 
 	owner->Set_TargetPreview(_targetCandidates[_targetIndex]);
 
-	return Battle_State::EnterInvoke();
+	const bool entered = Battle_State::EnterInvoke();
+	if (entered)
+		GAME->Play_SoundCue(Constants::SoundCue::UI_Battle_ItemTargetAllyStart);
+
+	return entered;
 }
 
 void ItemTargeting::Update(float timeDelta)
@@ -78,7 +83,10 @@ void ItemTargeting::Update(float timeDelta)
 	if (GAME->KeyDown(KEY_TYPE::ESCAPE))
 	{
 		owner->Clear_TargetPreview();
-		battleFSM->Change_State(BattleTurnState::ChooseItem);
+		if (!battleFSM->Change_State(BattleTurnState::ChooseItem))
+			return;
+
+		GAME->Play_SoundCue(Constants::SoundCue::UI_Battle_ItemTargetAllyStop);
 
 	    EvtBattlePresentation event;
 	    event.cameraMode = BattleCameraMode::SELECTITEM;
@@ -95,6 +103,7 @@ void ItemTargeting::Update(float timeDelta)
 		if (Try_MoveTargetIndex(+1))
 		{
 			owner->Set_TargetPreview(_targetCandidates[_targetIndex]);
+			GAME->Play_SoundCue(Constants::SoundCue::UI_Battle_SelectAlly);
 
 	        EvtBattlePresentation event;
 	        event.cameraMode = BattleCameraMode::SELECTPLAYER;
@@ -111,6 +120,7 @@ void ItemTargeting::Update(float timeDelta)
 		if (Try_MoveTargetIndex(-1))
 		{
 			owner->Set_TargetPreview(_targetCandidates[_targetIndex]);
+			GAME->Play_SoundCue(Constants::SoundCue::UI_Battle_SelectAlly);
 
 		    EvtBattlePresentation event;
 		    event.cameraMode = BattleCameraMode::SELECTPLAYER;
@@ -132,6 +142,7 @@ void ItemTargeting::Update(float timeDelta)
 
 		auto& request = owner->Get_TurnActionRequest();
 		request.InitTarget = _targetCandidates[_targetIndex];
+		GAME->Play_SoundCue(Constants::SoundCue::UI_Battle_SelectAlly);
 
 		if (!actor.ModelCom->Set_AnimationByState(ETOI(BattleAnimType::Item_Use), 0.1f, false))
 		{

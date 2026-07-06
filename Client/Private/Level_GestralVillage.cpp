@@ -15,6 +15,7 @@
 #include "Player_WorldBase.h"
 #include "MovementCom.h"
 #include "Trigger_WorldDialogue.h"
+#include "Helper_String.h"
 
 namespace
 {
@@ -75,23 +76,114 @@ namespace
         Vec3(-6.46f, 8.9f, 101.09f)
     };
 
-    bool Has_WorldDialogueTrigger(uint32 levelIndex)
+    constexpr Vec3 kWorldDialogueGestralVillagePosition = Vec3(-16.3f, 1.05f, 131.6f);
+    constexpr Vec3 kWorldDialogueGestralVillageSecondPosition = Vec3(-47.5f, -2.25f, 38.7f);
+    constexpr Vec3 kWorldDialogueGestralVillageSecondScale = Vec3(5.36f, 3.22f, 3.f);
+    constexpr float kWorldDialogueTriggerPositionMatchDistanceSq = 4.f;
+
+    Shared<Trigger_WorldDialogue> Find_WorldDialogueTrigger(
+        uint32 levelIndex,
+        const Vec3& position,
+        const wstring& uiJsonPath)
     {
-        bool found = false;
+        Shared<Trigger_WorldDialogue> positionMatch = nullptr;
+        Shared<Trigger_WorldDialogue> uiMatch = nullptr;
 
         GAME->Visit_LevelObjects(
             levelIndex,
-            [&found](const wstring& layerTag, const Shared<GameObject>& gameObject)
+            [&positionMatch, &uiMatch, &position, &uiJsonPath](const wstring& layerTag, const Shared<GameObject>& gameObject)
             {
                 UNREFERENCED_PARAMETER(layerTag);
 
-                if (found || gameObject == nullptr)
+                if (gameObject == nullptr)
                     return;
 
-                found = gameObject->Get_SourcePrefabName() == Constants::Prefab::Trigger_WorldDialogue;
+                if (gameObject->Get_SourcePrefabName() != Constants::Prefab::Trigger_WorldDialogue)
+                    return;
+
+                const Shared<Trigger_WorldDialogue> dialogueTrigger =
+                    dynamic_pointer_cast<Trigger_WorldDialogue>(gameObject);
+                if (dialogueTrigger == nullptr)
+                    return;
+
+                if (uiMatch == nullptr && dialogueTrigger->Get_UIJsonPath() == uiJsonPath)
+                    uiMatch = dialogueTrigger;
+
+                if (positionMatch != nullptr)
+                    return;
+
+                const Shared<TransformCom> transform = dialogueTrigger->Get_Transform();
+                if (transform == nullptr)
+                    return;
+
+                const Vec3 delta = transform->Get_WorldPosition() - position;
+                if (delta.LengthSquared() <= kWorldDialogueTriggerPositionMatchDistanceSq)
+                    positionMatch = dialogueTrigger;
             });
 
-        return found;
+        return positionMatch != nullptr ? positionMatch : uiMatch;
+    }
+
+    HRESULT Ensure_WorldDialogueTrigger(
+        uint32 levelIndex,
+        const wstring& layerTag,
+        const Vec3& position,
+        const Vec3& scale,
+        const wstring& uiJsonPath,
+        const wstring& rootUIName,
+        const wstring& animationPath)
+    {
+        Shared<Trigger_WorldDialogue> dialogueTrigger =
+            Find_WorldDialogueTrigger(levelIndex, position, uiJsonPath);
+
+        const bool reusedExisting = dialogueTrigger != nullptr;
+        Shared<GameObject> dialogueObject = dialogueTrigger;
+        if (dialogueObject == nullptr)
+        {
+            dialogueObject = Spawn_Prefab::Prefab(Constants::Prefab::Trigger_WorldDialogue)
+                .AtLevel(levelIndex)
+                .InLayer(layerTag)
+                .Position(position)
+                .Rotation(Vec3(0.f, 0.f, 0.f))
+                .Scale(scale)
+                .Spawn();
+        }
+        CHECK_NULL(dialogueObject, E_FAIL);
+
+        dialogueTrigger = dynamic_pointer_cast<Trigger_WorldDialogue>(dialogueObject);
+        CHECK_NULL(dialogueTrigger, E_FAIL);
+
+        if (const Shared<TransformCom> transform = dialogueObject->Get_Transform())
+        {
+            transform->Set_WorldPosition(position);
+            transform->Set_WorldRotationEuler(Vec3(0.f, 0.f, 0.f));
+            transform->Set_Scale(scale);
+        }
+
+        dialogueTrigger->Set_UIRequest(
+            uiJsonPath,
+            rootUIName,
+            animationPath,
+            10.f);
+
+        dialogueObject->Set_RuntimeAuthoringLoaded(true);
+
+#if defined(_DEBUG) || defined(_EDITOR)
+        LOG_INFO(
+            "[GestralVillage] WorldDialogue trigger ensured. reused={} ui='{}' root='{}' anim='{}' pos=({}, {}, {}) scale=({}, {}, {})",
+            reusedExisting,
+            String::ToString(uiJsonPath),
+            String::ToString(rootUIName),
+            String::ToString(animationPath),
+            position.x,
+            position.y,
+            position.z,
+            scale.x,
+            scale.y,
+            scale.z);
+#endif
+
+        return S_OK;
     }
 }
 
@@ -482,29 +574,24 @@ HRESULT Level_GestralVillage::Ready_Layer_ETC(const wstring& strLayerTag)
 
     {
         const uint32 levelIndex = ETOI(LevelType::GestralVillage);
-        if (!Has_WorldDialogueTrigger(levelIndex))
-        {
-            const Shared<GameObject> dialogueObject = Spawn_Prefab::Prefab(Constants::Prefab::Trigger_WorldDialogue)
-                .AtLevel(levelIndex)
-                .InLayer(strLayerTag)
-                .Position(Vec3(-16.3f, 1.05f, 131.6f))
-                .Rotation(Vec3(0.f, 0.f, 0.f))
-                .Scale(Vec3(1.f, 1.f, 1.f))
-                .Spawn();
 
-            CHECK_NULL(dialogueObject, E_FAIL);
-            if (const Shared<Trigger_WorldDialogue> dialogueTrigger =
-                dynamic_pointer_cast<Trigger_WorldDialogue>(dialogueObject))
-            {
-                dialogueTrigger->Set_UIRequest(
-                    Constants::UI::UI_WorldDialogue_GestralVillage,
-                    L"Panel_WorldDialogue_GestralVillage",
-                    Constants::UI_Anim::UI_WorldDialogue_GestralVillageAnim_Path,
-                    10.f);
-            }
+        CHECK_FAILED(Ensure_WorldDialogueTrigger(
+            levelIndex,
+            strLayerTag,
+            kWorldDialogueGestralVillagePosition,
+            Vec3(1.f, 1.f, 1.f),
+            Constants::UI::UI_WorldDialogue_GestralVillage,
+            L"Panel_WorldDialogue_GestralVillage",
+            Constants::UI_Anim::UI_WorldDialogue_GestralVillageAnim_Path), E_FAIL);
 
-            dialogueObject->Set_RuntimeAuthoringLoaded(true);
-        }
+        CHECK_FAILED(Ensure_WorldDialogueTrigger(
+            levelIndex,
+            strLayerTag,
+            kWorldDialogueGestralVillageSecondPosition,
+            kWorldDialogueGestralVillageSecondScale,
+            Constants::UI::UI_WorldDialogue_GestralVillage_Second,
+            L"Panel_WorldDialogue_GestralVillage_Second",
+            Constants::UI_Anim::UI_WorldDialogue_GestralVillageSecondAnim_Path), E_FAIL);
     }
 
     {

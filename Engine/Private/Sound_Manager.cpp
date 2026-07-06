@@ -900,7 +900,10 @@ HRESULT Sound_Manager::Create_ChannelGroups()
         "Boss",
         "Ambient",
         "Voice",
-        "System"
+        "WorldEvent",
+        "System",
+        "Cinematic",
+        "NPC"
     };
 
     for (uint32 i = 0; i < ETOI(SoundChannel::END); ++i)
