@@ -1,6 +1,7 @@
 ﻿#pragma once
 #include <variant>
 #include "EffectMaterialAuthoring_Types.h"
+#include "EffectRuntime_Types.h"
 #include "Particle_Types.h"
 
 NS_BEGIN(EffectEditor)
@@ -63,6 +64,70 @@ enum class EmitterRenderLayerOverride : uint8
 {
     Auto,
     UIEffect,
+};
+
+enum class HistoryBudgetPreset : uint8
+{
+    Full,
+    High,
+    Medium,
+    Performance,
+    Low,
+};
+
+enum class HistoryBudgetPriority : uint8
+{
+    Core,
+    Secondary,
+    Decorative,
+    Distortion,
+};
+
+enum class HistoryBudgetDensityBias : uint8
+{
+    Dense,
+    Normal,
+    Sparse,
+};
+
+enum class HistoryBudgetUpdateRate : uint8
+{
+    EveryFrame,
+    Every2Frames,
+};
+
+struct HistorySourceGroupBudgetData
+{
+    EffectHistorySourceGroupKind kind{ EffectHistorySourceGroupKind::None };
+    string stableId{};
+    bool confirmed{};
+
+    uint32 sourceSampleCount{};
+    float sampleLifetime{};
+    float sampleSpacing{};
+    float sampleInterval{};
+    uint32 curveSubdivision{};
+    bool smoothTangent{ true };
+};
+
+struct HistoryBudgetData
+{
+    HistoryBudgetPreset preset{ HistoryBudgetPreset::Full };
+    bool preserveLength{ true };
+    bool sharedSourceHistory{ true };
+    float trailDensityScale{ 1.f };
+    float spriteStampDensityScale{ 1.f };
+    float ribbonDensityScale{ 1.f };
+    float distortionDensityScale{ 1.f };
+    HistoryBudgetUpdateRate updateRate{ HistoryBudgetUpdateRate::EveryFrame };
+    vector<HistorySourceGroupBudgetData> sourceGroups{};
+};
+
+struct EmitterHistoryBudgetData
+{
+    HistoryBudgetPriority priority{ HistoryBudgetPriority::Core };
+    HistoryBudgetDensityBias densityBias{ HistoryBudgetDensityBias::Normal };
+    float lengthScale{ 1.f };
 };
 
 enum class EmitterScreenAlignment : uint8
@@ -1406,6 +1471,7 @@ struct AuthoringEmitter
     string name{};
     string rendererType{ "Sprite" };
     EmitterRenderLayerOverride renderLayerOverride{ EmitterRenderLayerOverride::Auto };
+    EmitterHistoryBudgetData historyBudget{};
     string resourceSummary{};
     string textureId{ "Effects/Textures/Shared/DefaultTexture.dds" };
     bool enabled{ true };
@@ -1425,6 +1491,7 @@ struct EffectAuthoringDocument
 {
     string name{};
     ParticleSystemAuthoringData particleSystemData{};
+    HistoryBudgetData historyBudget{};
     vector<AuthoringEmitter> emitters{};
 };
 

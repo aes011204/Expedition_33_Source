@@ -30,6 +30,7 @@ namespace Client::PlayerWorldTuning
 {
     constexpr float kFallStateEnterDelaySec = 0.10f;
     constexpr float kFallStateEnterSpeedY = -2.4f;
+    constexpr wchar_t kGameMenuFacialModifierTag[] = L"GameMenuFacialPreview";
 
     constexpr array<Vec3, 5> kDebugWarpPoints =
     {
@@ -278,6 +279,8 @@ void Player_WorldBase::Update(float timeDelta)
     if (!_partyVisibilityAllowed)
         return;
 
+    Update_GameMenuFacialPreview(timeDelta, true);
+
     if (_isCinematicDriven)
     {
         if (_effectCom)
@@ -372,16 +375,29 @@ bool Player_WorldBase::Is_ParkourBlockedByCurrentLevel() const
 
 void Player_WorldBase::Update_GameMenuFacialPreview(float timeDelta, bool enabled)
 {
+    UNREFERENCED_PARAMETER(timeDelta);
+
     auto* head = dynamic_cast<Head_Player*>(Get_PartObject(L"Part_Head"));
     if (head == nullptr)
+    {
+        if (!enabled && _gameMenuFacialModifier != nullptr)
+            _gameMenuFacialModifier->Set_Active(false);
         return;
+    }
 
     const Shared<ModelCom> headModel = head->Get_Model();
     if (headModel == nullptr)
+    {
+        if (!enabled && _gameMenuFacialModifier != nullptr)
+            _gameMenuFacialModifier->Set_Active(false);
         return;
+    }
 
     if (!enabled)
     {
+        if (auto* currentModifier = headModel->Find_AnimModifierByTag(PlayerWorldTuning::kGameMenuFacialModifierTag))
+            currentModifier->Set_Active(false);
+
         if (_gameMenuFacialEnabled && _gameMenuFacialModifier != nullptr)
         {
             _gameMenuFacialModifier->Set_Active(false);
@@ -408,10 +424,11 @@ void Player_WorldBase::Update_GameMenuFacialPreview(float timeDelta, bool enable
         _gameMenuFacialClip = clip;
     }
 
-    if (_gameMenuFacialModifier == nullptr)
+    auto* currentModifier = headModel->Find_AnimModifierByTag(PlayerWorldTuning::kGameMenuFacialModifierTag);
+    if (currentModifier == nullptr)
     {
         FacialAnimationModifier::FacialModifierDesc modifierDesc{};
-        modifierDesc.modifierTag = L"GameMenuFacialPreview";
+        modifierDesc.modifierTag = PlayerWorldTuning::kGameMenuFacialModifierTag;
         modifierDesc.clip = _gameMenuFacialClip;
         modifierDesc.loop = true;
         modifierDesc.suppressMouthArea = true;
@@ -421,10 +438,14 @@ void Player_WorldBase::Update_GameMenuFacialPreview(float timeDelta, bool enable
             return;
 
         headModel->Add_AnimModifier(_gameMenuFacialModifier);
+        currentModifier = _gameMenuFacialModifier.get();
     }
 
+    if (_gameMenuFacialModifier != nullptr && _gameMenuFacialModifier.get() != currentModifier)
+        _gameMenuFacialModifier->Set_Active(false);
+
     _gameMenuFacialEnabled = true;
-    _gameMenuFacialModifier->Set_Active(true);
+    currentModifier->Set_Active(true);
 }
 
 const wchar_t* Player_WorldBase::Get_GameMenuFacialClipPath() const
@@ -1116,6 +1137,7 @@ Shared<Hair_Player> Player_WorldBase::Create_CostumeHairVariant(const wstring& m
     hairDesc.modelTag = modelTag;
     hairDesc.hairPhysicsDesc = Get_HairChainPhysicsDesc();
     hairDesc.usePoseFollowModifier = true;
+    hairDesc.useMaelleBackHairPhysicsModifier = true;
     hairDesc.socketMatrixPointer = head->Get_SocketBoneMatrixPtr("head");
 
     Shared<PartObject> clonedPart = static_pointer_cast<PartObject>(
@@ -1210,6 +1232,7 @@ HRESULT Player_WorldBase::Add_CostumeHair(const wstring& modelTag, const Head_Pl
     hairDesc.modelTag = modelTag;
     hairDesc.hairPhysicsDesc = Get_HairChainPhysicsDesc();
     hairDesc.usePoseFollowModifier = true;
+    hairDesc.useMaelleBackHairPhysicsModifier = true;
     hairDesc.socketMatrixPointer = head->Get_SocketBoneMatrixPtr("head");
 
     CHECK_FAILED(__super::Add_PartObject(
@@ -1373,6 +1396,7 @@ HRESULT Player_WorldBase::Ready_PartObjects()
     hairPartDesc.modelTag = Get_HairModelTag();
     hairPartDesc.hairPhysicsDesc = Get_HairChainPhysicsDesc();
     hairPartDesc.usePoseFollowModifier = true;
+    hairPartDesc.useMaelleBackHairPhysicsModifier = true;
     hairPartDesc.socketMatrixPointer = head->Get_SocketBoneMatrixPtr("head");
 
     if (FAILED(

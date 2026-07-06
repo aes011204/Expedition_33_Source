@@ -33,12 +33,6 @@ namespace
 
 HRESULT EffectInstancePool::Acquire(const AcquireDesc& desc, AttachedHandle& outHandle)
 {
-    //LOG_INFO(
-    //    "[EffectPool] acquire requested. key={}, layer={}, entries={}",
-    //    String::ToString(desc.effectName),
-    //    desc.layerLevelIndex,
-    //    _entries.size());
-
     Shared<const EffectDefinition> definition{};
     Shared<EffectInstance> instance{};
     CHECK_FAILED(Acquire_Instance(desc, definition, instance), E_FAIL);
@@ -56,11 +50,21 @@ HRESULT EffectInstancePool::Acquire(const AcquireDesc& desc, AttachedHandle& out
         }
     }
 
-    //LOG_DEBUG(
-    //    "[EffectPool] acquire completed. key={}, manualRelease={}, enabledEmitters={}",
-    //    String::ToString(desc.effectName),
-    //    outHandle.requiresManualRelease,
-    //    enabledEmitterCount);
+    if (outHandle.requiresManualRelease || !desc.autoReleaseOnFinished)
+    {
+        const DebugSummary summary = Get_DebugSummary();
+        LOG_INFO(
+            "[EffectPool][Diag] acquire tracked. effect={}, manualRelease={}, autoRelease={}, emitters={}, active={}, idle={}, entries={}, object={}",
+            String::ToString(desc.effectName),
+            outHandle.requiresManualRelease,
+            desc.autoReleaseOnFinished,
+            enabledEmitterCount,
+            summary.activeCount,
+            summary.idleCount,
+            summary.entryCount,
+            static_cast<const void*>(instance.get())
+        );
+    }
 
     return S_OK;
 }
@@ -113,26 +117,21 @@ void EffectInstancePool::Release(const AttachedHandle& handle)
     entry->instance->Stop();
     entry->inUse = false;
 
-    uint32 activeCount = 0;
-    uint32 idleCount = 0;
-    for (const PooledInstance& pooledEntry : _entries)
-    {
-        if (pooledEntry.inUse)
-            ++activeCount;
-        else
-            ++idleCount;
-    }
-
-    //LOG_INFO(
-    //    "[EffectPool] released. key={}, active={}, idle={}",
-    //    String::ToString(entry->effectName),
-    //    activeCount,
-    //    idleCount);
+    const DebugSummary summary = Get_DebugSummary();
+    LOG_INFO(
+        "[EffectPool][Diag] explicit release. effect={}, active={}, idle={}, entries={}, object={}",
+        String::ToString(entry->effectName),
+        summary.activeCount,
+        summary.idleCount,
+        summary.entryCount,
+        static_cast<const void*>(entry->instance.get())
+    );
 }
 
 void EffectInstancePool::Release_Finished()
 {
     uint32 releasedCount = 0;
+    wstring firstReleasedEffectName{};
 
     for (PooledInstance& entry : _entries)
     {
@@ -146,12 +145,22 @@ void EffectInstancePool::Release_Finished()
 
         entry.instance->Stop();
         entry.inUse = false;
+        if (firstReleasedEffectName.empty())
+            firstReleasedEffectName = entry.effectName;
         ++releasedCount;
     }
 
     if (releasedCount > 0)
     {
-        //LOG_INFO("[EffectPool] released finished entries. count={}, entries={}", releasedCount, _entries.size());
+        const DebugSummary summary = Get_DebugSummary();
+        LOG_INFO(
+            "[EffectPool][Diag] auto release finished. count={}, firstEffect={}, active={}, idle={}, entries={}",
+            releasedCount,
+            String::ToString(firstReleasedEffectName),
+            summary.activeCount,
+            summary.idleCount,
+            summary.entryCount
+        );
     }
 }
 
@@ -409,41 +418,30 @@ HRESULT EffectInstancePool::Acquire_Instance(
         entry->autoReleaseOnFinished = desc.autoReleaseOnFinished;
         outInstance = entry->instance;
 
-        uint32 activeCount = 0;
-        uint32 idleCount = 0;
-        for (const PooledInstance& pooledEntry : _entries)
+        if (!desc.autoReleaseOnFinished)
         {
-            if (pooledEntry.inUse)
-                ++activeCount;
-            else
-                ++idleCount;
+            const DebugSummary summary = Get_DebugSummary();
+            LOG_INFO(
+                "[EffectPool][Diag] acquire hit tracked. effect={}, active={}, idle={}, entries={}, object={}",
+                String::ToString(desc.effectName),
+                summary.activeCount,
+                summary.idleCount,
+                summary.entryCount,
+                static_cast<const void*>(outInstance.get())
+            );
         }
-
-        //LOG_INFO(
-        //    "[EffectPool] acquire hit. key={}, active={}, idle={}",
-        //    String::ToString(desc.effectName),
-        //    activeCount,
-        //    idleCount);
-        //LOG_DEBUG(
-        //    "[EffectPool] acquire hit: effect={}, level={}, layer={}, active={}, idle={}, object={}",
-        //    String::ToString(desc.effectName),
-        //    desc.layerLevelIndex,
-        //    String::ToString(desc.layerTag),
-        //    activeCount,
-        //    idleCount,
-        //    static_cast<const void*>(outInstance.get())
-        //);
 
         return S_OK;
     }
 
-    //LOG_INFO("[EffectPool] acquire miss. key={}, spawning new instance.", String::ToString(desc.effectName));
-    //LOG_DEBUG(
-    //    "[EffectPool] acquire miss: effect={}, level={}, layer={}, spawning new instance.",
-    //    String::ToString(desc.effectName),
-    //    desc.layerLevelIndex,
-    //    String::ToString(desc.layerTag)
-    //);
+    LOG_INFO(
+        "[EffectPool][Diag] acquire miss. effect={}, level={}, layer={}, autoRelease={}, entries={}",
+        String::ToString(desc.effectName),
+        desc.layerLevelIndex,
+        String::ToString(desc.layerTag),
+        desc.autoReleaseOnFinished,
+        _entries.size()
+    );
 
     const HRESULT spawnResult = Spawn_NewInstance(desc, outDefinition, outInstance);
     if (FAILED(spawnResult))
@@ -468,17 +466,15 @@ HRESULT EffectInstancePool::Acquire_Instance(
     newEntry.autoReleaseOnFinished = desc.autoReleaseOnFinished;
     _entries.push_back(newEntry);
 
-    //LOG_INFO(
-    //    "[EffectPool] spawned new instance. key={}, layerTag={}, entries={}",
-    //    String::ToString(desc.effectName),
-    //    String::ToString(desc.layerTag),
-    //    _entries.size());
-    LOG_DEBUG(
-        "[EffectPool] spawned new instance: effect={}, level={}, layer={}, entries={}, object={}",
+    const DebugSummary summary = Get_DebugSummary();
+    LOG_INFO(
+        "[EffectPool][Diag] spawned new instance. effect={}, level={}, layer={}, active={}, idle={}, entries={}, object={}",
         String::ToString(desc.effectName),
         desc.layerLevelIndex,
         String::ToString(desc.layerTag),
-        _entries.size(),
+        summary.activeCount,
+        summary.idleCount,
+        summary.entryCount,
         static_cast<const void*>(outInstance.get())
     );
 
@@ -536,8 +532,8 @@ HRESULT EffectInstancePool::Prepare_AcquiredInstance(
     const Shared<EffectInstance>& instance)
 {
     CHECK_NULL(instance, E_FAIL);
-    instance->Bind_TrailSampleProvider(desc.trailSampleProvider);
-    instance->Bind_SourcePointSampleProvider(desc.sourcePointSampleProvider);
+    instance->Bind_TrailSampleProvider(desc.trailSampleProvider, desc.trailSampleGroupKey);
+    instance->Bind_SourcePointSampleProvider(desc.sourcePointSampleProvider, desc.sourcePointGroupKey);
     instance->Set_Name(Make_EffectInstanceDisplayName(desc, definition));
 
     const Shared<TransformCom> transform = instance->Get_Transform();

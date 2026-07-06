@@ -97,6 +97,7 @@ public:
 		float windWaveFrequency{ 0.f };
 		float windWaveDepthPhase{ 0.f };
 		float gravityScale{ 1.f };
+		bool useHierarchicalDepthRatio{ false };
 
 		float teleportDistance{ 300.f };
 		uint32 solverIterations{ 5 };

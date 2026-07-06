@@ -148,6 +148,7 @@ namespace EffectAssetRuntimeLoad
         bool Build_SourceHistorySpriteTrailEmitterDefinition(const json& emitter, EffectEmitterDefinition& outDefinition);
         bool Build_BeamEmitterDefinition(const json& emitter, EffectEmitterDefinition& outDefinition);
         bool Build_MeshEmitterDefinition(const json& emitter, EffectEmitterDefinition& outDefinition);
+        EffectEmitterHistoryBudgetRuntimeDesc Read_HistoryBudgetUsage(const json& emitter);
     }
 
     namespace Assets

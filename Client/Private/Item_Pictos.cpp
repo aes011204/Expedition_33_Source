@@ -14,6 +14,7 @@ IMPLEMENT_REFLECTION(Item_Pictos)
     info.category = "Item";
 
     PROPERTY_ENUM("픽토스 타입", _pictosType, Item_Pictos::PictosPickupType);
+    PROPERTY_WSTRING("획득 이펙트", _pickupEffectName);
 
     return true;
 }
@@ -55,6 +56,8 @@ void Item_Pictos::Apply_PickupReward()
         if (Unlock_Manager* unlockManager = CLIENT->Get_UnlockManager())
             unlockManager->Queue_GetPictosPresentation(pictosId);
     }
+
+    CLIENT->Play_PictosPickupItemSound();
 }
 
 string Item_Pictos::Resolve_PictosId() const

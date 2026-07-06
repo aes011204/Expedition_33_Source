@@ -14,6 +14,7 @@ IMPLEMENT_REFLECTION(Item_Chroma)
     info.category = "Item";
 
     PROPERTY_INT("크로마", _amount);
+    PROPERTY_WSTRING("획득 이펙트", _pickupEffectName);
 
     return true;
 }
@@ -40,6 +41,8 @@ void Item_Chroma::Apply_PickupReward()
 
     if (const Shared<GameplayUI> gameplayUI = CLIENT->Get_GameplayUI())
         gameplayUI->Queue_GetChromaPresentation(_amount);
+
+    CLIENT->Play_ChromaPickupItemSound();
 }
 
 Shared<Item_Chroma> Item_Chroma::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)

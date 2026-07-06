@@ -287,11 +287,9 @@ void SoulLikeCamera_Viewer::Pre_Render()
         return;
 
     Ensure_PreviewCamera();
-    Ensure_PreviewSkyBackdrop();
     Ensure_PreviewActors();
-    Ensure_PreviewRenderTarget(_previewWidth, _previewHeight);
 
-    if (_previewCamera == nullptr || _previewRenderTarget == nullptr)
+    if (_previewCamera == nullptr)
         return;
 
     Refresh_PlayerAnimationList();
@@ -300,6 +298,16 @@ void SoulLikeCamera_Viewer::Pre_Render()
     const float dt = ImGui::GetIO().DeltaTime;
     Apply_PreviewAnimation(dt);
     Apply_SoulLikeCameraPreviewPose();
+
+    if (!Is_Visible())
+        return;
+
+    Ensure_PreviewSkyBackdrop();
+    Ensure_PreviewRenderTarget(_previewWidth, _previewHeight);
+
+    if (_previewRenderTarget == nullptr)
+        return;
+
     Render_PreviewScene(dt);
 }
 
@@ -312,6 +320,10 @@ void SoulLikeCamera_Viewer::Render()
 
     bool isOpen = Is_Open();
     const string windowName = String::ToString(Get_WindowName());
+
+    _isFocused = false;
+    _isHovered = false;
+    _isVisible = false;
 
     if (ImGui::Begin(windowName.c_str(), &isOpen))
     {

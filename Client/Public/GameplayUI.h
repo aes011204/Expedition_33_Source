@@ -53,6 +53,7 @@ public:
     bool    Open_MerchantShop();
     bool    Open_WeaponUpgrade();
     bool    Open_ArenaCharacterSelect();
+    bool    Open_SavePoint();
     bool    Open_Journal(JournalOpenAnimation openAnimation = JournalOpenAnimation::JournalUI);
 
     void    Queue_GetChromaPresentation(uint32 chromaAmount);
