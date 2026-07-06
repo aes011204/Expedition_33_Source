@@ -11,6 +11,7 @@
 #include "PoseFollowChainModifier.h"
 #include "ChainModifier.h"
 #include "ChainModifierPreset.h"
+#include "PhysicsModifier.h"
 
 namespace
 {
@@ -57,6 +58,7 @@ HRESULT Hair_Player::Initialize(void* arg)
         _hairPhysicsDesc = desc->hairPhysicsDesc;
         _hairCB = desc->hairCB;
         _usePoseFollowModifier = desc->usePoseFollowModifier;
+        _useMaelleBackHairPhysicsModifier = desc->useMaelleBackHairPhysicsModifier;
     }
 
     _offsetMatrix = Matrix::Identity;
@@ -106,8 +108,20 @@ void Hair_Player::Update(float timeDelta)
 
             const PlayerCharacterType characterType = ToPlayerCharacterType(_hairPhysicsDesc.profile);
             bool modifierAdded = false;
-            auto addModifier = [&](const ChainModifier::ChainModifierDesc& desc)
+            auto addModifier = [&](ChainModifier::ChainModifierDesc& desc)
             {
+                desc.runtime.ownerWorldMatrix = &_combinedWorldMatrix;
+
+                desc.groups.erase(
+                    remove_if(
+                        desc.groups.begin(),
+                        desc.groups.end(),
+                        [this](const ChainModifier::BoneChainGroupDesc& group)
+                        {
+                            return _modelCom->Get_BoneIndex(group.rootBoneName) < 0;
+                        }),
+                    desc.groups.end());
+
                 if (desc.groups.empty())
                 {
                     return;
@@ -119,26 +133,63 @@ void Hair_Player::Update(float timeDelta)
                     modifierAdded = true;
                 }
             };
+            auto addPhysicsModifier = [&](PhysicsModifier::PhysicsModifierDesc& desc)
+            {
+                desc.ownerWorldMatrix = &_combinedWorldMatrix;
+                desc.collisionOwnerWorldMatrix = &_combinedWorldMatrix;
+
+                desc.chains.erase(
+                    remove_if(
+                        desc.chains.begin(),
+                        desc.chains.end(),
+                        [this](const PhysicsModifier::ChainDesc& chain)
+                        {
+                            return _modelCom->Get_BoneIndex(chain.rootBoneName) < 0;
+                        }),
+                    desc.chains.end());
+
+                if (desc.chains.empty())
+                {
+                    return;
+                }
+
+                if (auto modifier = PhysicsModifier::Create(&desc))
+                {
+                    _modelCom->Add_AnimModifier(modifier);
+                    modifierAdded = true;
+                }
+            };
 
             if (characterType == PlayerCharacterType::Maelle)
             {
-                ChainModifier::ChainModifierDesc backHairDesc{};
-                ChainModifierPreset::BuildBindPoseHairDesc(
-                    backHairDesc,
-                    ownerTransform.get(),
-                    characterType,
-                    L"BindPose_Hair_Back");
-
-                decltype(backHairDesc.groups) backGroups{};
-                for (const auto& group : backHairDesc.groups)
+                if (_useMaelleBackHairPhysicsModifier)
                 {
-                    if (group.rootBoneName == "Strand_0_1")
-                    {
-                        backGroups.push_back(group);
-                    }
+                    PhysicsModifier::PhysicsModifierDesc backHairPhysicsDesc{};
+                    ChainModifierPreset::BuildMaelleBackHairPhysicsDesc(
+                        backHairPhysicsDesc,
+                        ownerTransform.get());
+                    addPhysicsModifier(backHairPhysicsDesc);
                 }
-                backHairDesc.groups = std::move(backGroups);
-                addModifier(backHairDesc);
+                else
+                {
+                    ChainModifier::ChainModifierDesc backHairDesc{};
+                    ChainModifierPreset::BuildBindPoseHairDesc(
+                        backHairDesc,
+                        ownerTransform.get(),
+                        characterType,
+                        L"BindPose_Hair_Back");
+
+                    decltype(backHairDesc.groups) backGroups{};
+                    for (const auto& group : backHairDesc.groups)
+                    {
+                        if (group.rootBoneName == "Strand_0_1")
+                        {
+                            backGroups.push_back(group);
+                        }
+                    }
+                    backHairDesc.groups = std::move(backGroups);
+                    addModifier(backHairDesc);
+                }
 
                 ChainModifier::ChainModifierDesc frontHairDesc{};
                 ChainModifierPreset::BuildBindPoseHairDesc(
@@ -159,6 +210,17 @@ void Hair_Player::Update(float timeDelta)
                         frontGroup.poseRestoreMul = 1.05f;
                         frontGroup.maxBendAngleMul = 0.90f;
                         frontGroups.push_back(frontGroup);
+
+                        if (group.rootBoneName == "Strand_5_1")
+                        {
+                            frontGroup.rootBoneName = "strand_5_1";
+                            frontGroups.push_back(frontGroup);
+                        }
+                        else if (group.rootBoneName == "Strand_6_1")
+                        {
+                            frontGroup.rootBoneName = "strand_6_1";
+                            frontGroups.push_back(frontGroup);
+                        }
                     }
                 }
                 frontHairDesc.groups = std::move(frontGroups);
@@ -191,6 +253,14 @@ void Hair_Player::Update(float timeDelta)
                 frontHairDesc.collision.enableCollision = false;
                 frontHairDesc.collision.particleCollisionRadius = 0.f;
                 addModifier(frontHairDesc);
+            }
+            else if (characterType == PlayerCharacterType::Gustave)
+            {
+                PhysicsModifier::PhysicsModifierDesc hairPhysicsDesc{};
+                ChainModifierPreset::BuildGustaveHairPhysicsDesc(
+                    hairPhysicsDesc,
+                    ownerTransform.get());
+                addPhysicsModifier(hairPhysicsDesc);
             }
             else
             {
