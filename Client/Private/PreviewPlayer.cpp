@@ -487,7 +487,7 @@ HRESULT PreviewPlayer::Ready_DefaultCostumeParts()
         hairDesc.modelType = ModelType::Anim;
         hairDesc.modelTag = hairModelTag;
         hairDesc.hairPhysicsDesc = Get_HairChainPhysicsDesc();
-        hairDesc.usePoseFollowModifier = _heroId != HeroId::Lune;
+        hairDesc.useHairModifier = _heroId != HeroId::Lune;
         hairDesc.useLuneHairPhysicsModifier = _heroId == HeroId::Lune;
         hairDesc.socketMatrixPointer = head->Get_SocketBoneMatrixPtr("head");
         CHECK_FAILED(Add_PartObject(ETOI(LevelType::Static), TEXT("GameObject_Hair_Player"), TEXT("Part_Hair"), &hairDesc), E_FAIL);
@@ -1124,7 +1124,7 @@ Shared<Hair_Player> PreviewPlayer::Create_CostumeHairVariant(const wstring& mode
     hairDesc.modelType = ModelType::Anim;
     hairDesc.modelTag = modelTag;
     hairDesc.hairPhysicsDesc = Get_HairChainPhysicsDesc();
-    hairDesc.usePoseFollowModifier = _heroId != HeroId::Lune;
+    hairDesc.useHairModifier = _heroId != HeroId::Lune;
     hairDesc.useLuneHairPhysicsModifier = _heroId == HeroId::Lune;
     hairDesc.socketMatrixPointer = head->Get_SocketBoneMatrixPtr("head");
 
