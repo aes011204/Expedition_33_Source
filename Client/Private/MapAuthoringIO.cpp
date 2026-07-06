@@ -68,6 +68,7 @@ namespace
             {
                 customProperties.erase("battle_monster_spawns");
                 customProperties.erase("battle_monster_prefab_names");
+                customProperties.erase("battle_player_offsets");
             }
         }
     }

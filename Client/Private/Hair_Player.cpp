@@ -8,7 +8,6 @@
 #include "Debug_Profile.h"
 #include "AnimComputeRuntime.h"
 #include "EffectCom.h"
-#include "PoseFollowChainModifier.h"
 #include "ChainModifier.h"
 #include "ChainModifierPreset.h"
 #include "PhysicsModifier.h"
@@ -57,7 +56,7 @@ HRESULT Hair_Player::Initialize(void* arg)
         // PW_* 캐릭터에서 넘긴 hair physics 값을 실제 파츠에 저장
         _hairPhysicsDesc = desc->hairPhysicsDesc;
         _hairCB = desc->hairCB;
-        _usePoseFollowModifier = desc->usePoseFollowModifier;
+        _useHairModifier = desc->useHairModifier;
         _useLuneHairPhysicsModifier = desc->useLuneHairPhysicsModifier;
     }
 
@@ -77,10 +76,10 @@ void Hair_Player::BeginPlay()
 
 }
 
-void Hair_Player::Enable_PoseFollowModifier()
+void Hair_Player::Enable_HairModifier()
 {
-    _usePoseFollowModifier = true;
-    _hairPoseFollowModifierReady = false;
+    _useHairModifier = true;
+    _hairModifierReady = false;
 }
 
 void Hair_Player::Set_CinematicPreviewSimulationSuppressed(bool suppressed)
@@ -103,9 +102,9 @@ void Hair_Player::Update(float timeDelta)
 
     Update_CombinedWorldMatrix(_transformCom->Get_WorldMatrix());
 
-    if (_usePoseFollowModifier || _useLuneHairPhysicsModifier)
+    if (_useHairModifier || _useLuneHairPhysicsModifier)
     {
-        if (!_hairPoseFollowModifierReady)
+        if (!_hairModifierReady)
         {
             Shared<TransformCom> ownerTransform{};
             if (const Shared<GameObject> owner = Get_Owner())
@@ -206,10 +205,10 @@ void Hair_Player::Update(float timeDelta)
                 addModifier(hairDesc);
             }
 
-            _hairPoseFollowModifierReady = modifierAdded;
+            _hairModifierReady = modifierAdded;
         }
 
-        if (_hairPoseFollowModifierReady)
+        if (_hairModifierReady)
         {
             if (_animComputeRuntime != nullptr)
             {

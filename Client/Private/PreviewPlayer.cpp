@@ -277,7 +277,7 @@ HRESULT PreviewPlayer::Render_PreviewParts()
     return S_OK;
 }
 
-void PreviewPlayer::Play_PreviewAnimation(PreviewAnimState introAnim, PreviewAnimState idleAnim)
+void PreviewPlayer::Play_PreviewAnimation(PreviewAnimState introAnim, PreviewAnimState idleAnim, float blendDuration)
 {
     _currentPreviewIntroAnim = introAnim;
     _currentPreviewIdleAnim = idleAnim;
@@ -286,14 +286,14 @@ void PreviewPlayer::Play_PreviewAnimation(PreviewAnimState introAnim, PreviewAni
     if (body == nullptr)
         return;
 
-    if (body->Set_AnimationByState(ETOI(introAnim), 0.25f, false))
+    if (body->Set_AnimationByState(ETOI(introAnim), blendDuration, false))
     {
         _pendingPreviewIdleAnim = idleAnim;
         _isPlayingPreviewIntro = true;
         return;
     }
 
-    body->Set_AnimationByState(ETOI(idleAnim), 0.25f, true);
+    body->Set_AnimationByState(ETOI(idleAnim), blendDuration, true);
     _isPlayingPreviewIntro = false;
     _pendingPreviewIdleAnim = idleAnim;
 }
@@ -487,7 +487,7 @@ HRESULT PreviewPlayer::Ready_DefaultCostumeParts()
         hairDesc.modelType = ModelType::Anim;
         hairDesc.modelTag = hairModelTag;
         hairDesc.hairPhysicsDesc = Get_HairChainPhysicsDesc();
-        hairDesc.usePoseFollowModifier = _heroId != HeroId::Lune;
+        hairDesc.useHairModifier = _heroId != HeroId::Lune;
         hairDesc.useLuneHairPhysicsModifier = _heroId == HeroId::Lune;
         hairDesc.socketMatrixPointer = head->Get_SocketBoneMatrixPtr("head");
         CHECK_FAILED(Add_PartObject(ETOI(LevelType::Static), TEXT("GameObject_Hair_Player"), TEXT("Part_Hair"), &hairDesc), E_FAIL);
@@ -1124,7 +1124,7 @@ Shared<Hair_Player> PreviewPlayer::Create_CostumeHairVariant(const wstring& mode
     hairDesc.modelType = ModelType::Anim;
     hairDesc.modelTag = modelTag;
     hairDesc.hairPhysicsDesc = Get_HairChainPhysicsDesc();
-    hairDesc.usePoseFollowModifier = _heroId != HeroId::Lune;
+    hairDesc.useHairModifier = _heroId != HeroId::Lune;
     hairDesc.useLuneHairPhysicsModifier = _heroId == HeroId::Lune;
     hairDesc.socketMatrixPointer = head->Get_SocketBoneMatrixPtr("head");
 

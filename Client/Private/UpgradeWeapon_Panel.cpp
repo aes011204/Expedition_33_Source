@@ -404,7 +404,7 @@ void UpgradeWeapon_Panel::Handle_WeaponInput()
 
             _selectedWeaponIndex = i;
             Refresh_SelectedDetails(true);
-            GAME->Play_SoundCue(Constants::SoundCue::UI_Battle_SelectAlly);
+            GAME->Play_SoundCue(Constants::SoundCue::UI_Attribute_Navigate);
             return;
         }
     }
@@ -467,7 +467,7 @@ bool UpgradeWeapon_Panel::Try_UpgradeSelectedWeapon()
     Refresh_WeaponRows();
     Refresh_SelectedDetails(true);
     Play_UpgradeSuccessAnimation(weaponIndex);
-    GAME->Play_SoundCue(Constants::SoundCue::UI_Battle_SelectAlly);
+    GAME->Play_SoundCue(Constants::SoundCue::UI_Attribute_UpgradeAccept);
     return true;
 }
 

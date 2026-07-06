@@ -195,6 +195,7 @@ void SavePoint_Panel::Handle_ButtonInput()
 {
     if (_restButton && _restButton->Was_Clicked())
     {
+        GAME->Play_SoundCue(Constants::SoundCue::UI_SavePoint_Resting);
         _lastAction = SavePointAction::Rest;
         LOG_DEBUG("SavePoint_Panel: Rest clicked");
         return;

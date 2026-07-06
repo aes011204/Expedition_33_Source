@@ -4,6 +4,7 @@
 #include "ClientInstance.h"
 #include "ColliderCom.h"
 #include "GameplayUI_Types.h"
+#include "Helper_String.h"
 
 IMPLEMENT_REFLECTION(Trigger_WorldDialogue)
 {
@@ -94,7 +95,34 @@ void Trigger_WorldDialogue::OnBeginOverlap(Shared<ColliderCom> self, Shared<Coll
     if (_colliderCom == nullptr || self.get() != _colliderCom.get())
         return;
 
-    if (!Is_ActivePlayerCollider(other))
+    const bool activePlayer = Is_ActivePlayerCollider(other);
+#if defined(_DEBUG) || defined(_EDITOR)
+    Debug_LogOverlapEvent("Begin", other, activePlayer);
+#endif
+
+    if (!activePlayer)
+        return;
+
+    if (other != nullptr)
+        _playerOverlapColliders.insert(other.get());
+
+    if (!_openedForCurrentOverlap && (!_triggerOnce || !_played))
+        Try_OpenUI();
+}
+
+void Trigger_WorldDialogue::OnStayOverlap(Shared<ColliderCom> self, Shared<ColliderCom> other)
+{
+    GameObject::OnStayOverlap(self, other);
+
+    if (_colliderCom == nullptr || self.get() != _colliderCom.get())
+        return;
+
+    const bool activePlayer = Is_ActivePlayerCollider(other);
+#if defined(_DEBUG) || defined(_EDITOR)
+    Debug_LogOverlapEvent("Stay", other, activePlayer);
+#endif
+
+    if (!activePlayer)
         return;
 
     if (other != nullptr)
@@ -111,7 +139,12 @@ void Trigger_WorldDialogue::OnEndOverlap(Shared<ColliderCom> self, Shared<Collid
     if (_colliderCom == nullptr || self.get() != _colliderCom.get())
         return;
 
-    if (!Is_ActivePlayerCollider(other))
+    const bool activePlayer = Is_ActivePlayerCollider(other);
+#if defined(_DEBUG) || defined(_EDITOR)
+    Debug_LogOverlapEvent("End", other, activePlayer);
+#endif
+
+    if (!activePlayer)
         return;
 
     if (other != nullptr)
@@ -175,18 +208,26 @@ bool Trigger_WorldDialogue::Is_ActivePlayerCollider(const Shared<ColliderCom>& o
     return CLIENT->Is_ActiveHero(heroOwner);
 }
 
-bool Trigger_WorldDialogue::Can_OpenUI() const
+const char* Trigger_WorldDialogue::Get_OpenBlockReason() const
 {
     if (_uiJsonPath.empty() || _rootUIName.empty())
-        return false;
+        return "empty uiJsonPath/rootUIName";
 
     if (CLIENT->Is_WorldControlSuspended())
-        return false;
+        return "world control suspended";
 
     if (GAME->Is_WorldGameplayInputBlocked())
-        return false;
+        return "world gameplay input blocked";
 
     if (CLIENT->IsDialogueActive() || CLIENT->IsDialogueInteractLocked())
+        return "dialogue active or interact locked";
+
+    return nullptr;
+}
+
+bool Trigger_WorldDialogue::Can_OpenUI() const
+{
+    if (Get_OpenBlockReason() != nullptr)
         return false;
 
     return true;
@@ -194,8 +235,14 @@ bool Trigger_WorldDialogue::Can_OpenUI() const
 
 bool Trigger_WorldDialogue::Try_OpenUI()
 {
-    if (!Can_OpenUI())
+    const char* blockReason = Get_OpenBlockReason();
+    if (blockReason != nullptr)
+    {
+#if defined(_DEBUG) || defined(_EDITOR)
+        Debug_LogOpenBlocked(blockReason);
+#endif
         return false;
+    }
 
     EventDialogueUIRequest request{};
     request.uiJsonPath = _uiJsonPath;
@@ -204,10 +251,23 @@ bool Trigger_WorldDialogue::Try_OpenUI()
     request.autoCloseDelaySec = _autoCloseDelaySec;
 
     if (!CLIENT->Open_EventDialogueUI(request))
+    {
+#if defined(_DEBUG) || defined(_EDITOR)
+        Debug_LogOpenBlocked("Open_EventDialogueUI returned false");
+#endif
         return false;
+    }
 
     _openedForCurrentOverlap = true;
     _played = true;
+#if defined(_DEBUG) || defined(_EDITOR)
+    _debugLastOpenBlockReason = nullptr;
+    LOG_INFO(
+        "[WorldDialogueTrigger] Opened ui='{}' root='{}' anim='{}'",
+        String::ToString(_uiJsonPath),
+        String::ToString(_rootUIName),
+        String::ToString(_animationPath));
+#endif
 
     if (_triggerOnce && !_closeOnExit)
         Disable_TriggerCollider();
@@ -229,6 +289,79 @@ void Trigger_WorldDialogue::Disable_TriggerCollider()
     _colliderCom->Clear_Overlap();
     _playerOverlapColliders.clear();
 }
+
+#if defined(_DEBUG) || defined(_EDITOR)
+void Trigger_WorldDialogue::Debug_LogOverlapEvent(
+    const char* eventName,
+    const Shared<ColliderCom>& other,
+    bool activePlayer)
+{
+    if (!activePlayer)
+    {
+        if (_debugRejectedOverlapLogCount >= 12)
+            return;
+
+        ++_debugRejectedOverlapLogCount;
+    }
+    else if (eventName != nullptr && eventName[0] == 'S')
+    {
+        if (_debugStayOverlapLogCount >= 5)
+            return;
+
+        ++_debugStayOverlapLogCount;
+    }
+
+    const Shared<GameObject> otherOwner = other ? other->Get_Owner() : nullptr;
+    const Shared<GameObject> parentOwner = otherOwner ? otherOwner->Get_Owner() : nullptr;
+
+    const string otherOwnerName =
+        otherOwner ? String::ToString(otherOwner->Get_Name()) : string("null");
+    const string parentOwnerName =
+        parentOwner ? String::ToString(parentOwner->Get_Name()) : string("null");
+
+    Vec3 position{};
+    Vec3 scale{ 1.f, 1.f, 1.f };
+    if (_transformCom != nullptr)
+    {
+        position = _transformCom->Get_WorldPosition();
+        scale = _transformCom->Get_Scale();
+    }
+
+    LOG_INFO(
+        "[WorldDialogueTrigger][{}] ui='{}' activeHero={} opened={} played={} otherPreset={} otherOwner='{}' parentOwner='{}' pos=({}, {}, {}) scale=({}, {}, {})",
+        eventName != nullptr ? eventName : "Unknown",
+        String::ToString(_uiJsonPath),
+        activePlayer,
+        _openedForCurrentOverlap,
+        _played,
+        other ? static_cast<int32>(other->Get_CollisionPreset()) : -1,
+        otherOwnerName,
+        parentOwnerName,
+        position.x,
+        position.y,
+        position.z,
+        scale.x,
+        scale.y,
+        scale.z);
+}
+
+void Trigger_WorldDialogue::Debug_LogOpenBlocked(const char* reason)
+{
+    if (_debugLastOpenBlockReason == reason)
+        return;
+
+    _debugLastOpenBlockReason = reason;
+
+    LOG_WARN(
+        "[WorldDialogueTrigger] Open blocked. reason='{}' ui='{}' root='{}' overlapCount={} opened={} played={}",
+        reason != nullptr ? reason : "unknown",
+        String::ToString(_uiJsonPath),
+        String::ToString(_rootUIName),
+        _playerOverlapColliders.size(),
+        _openedForCurrentOverlap,
+        _played);
+}
+#endif
 
 Shared<Trigger_WorldDialogue> Trigger_WorldDialogue::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)
 {

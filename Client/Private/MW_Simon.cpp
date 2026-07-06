@@ -124,6 +124,9 @@ HRESULT MW_Simon::Ready_PartObjects()
     _weapon->From_Json(loadedPrefab.rootJson);
     _weapon->Set_SourcePrefabName(Constants::Prefab::Simon_Weapon);
 
+    _weapon->Get_Transform()->Set_Position(Vec3(1.9f, -5.63f, -1.7f));
+    _weapon->Get_Transform()->Set_RotationEuler(Vec3(76.3f, 11.5f, -1.6f));
+
     return S_OK;
 }
 
