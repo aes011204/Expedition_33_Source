@@ -68,7 +68,7 @@ namespace Engine::ShaderSRV
 
 namespace Engine::DebugPerf
 {
-#ifdef _DEBUG
+#if defined(_DEBUG) || defined(_EDITOR)
     // 성능 평가의 sample_interval 값. 변경하면 체크 주기를 줄이거나 늘릴 수 있다.
     inline constexpr float kRuntimePerfSampleIntervalSec = ENGINE_RUNTIME_PERF_LOG_SAMPLE_INTERVAL_SEC;
     inline constexpr float kRuntimePerfLogWindowSec = ENGINE_RUNTIME_PERF_LOG_WINDOW_SEC;

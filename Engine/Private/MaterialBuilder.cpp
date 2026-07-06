@@ -3,6 +3,29 @@
 #include "Material.h"
 #include "ModelCom.h"
 
+namespace
+{
+    bool Is_MapModelMaterialSidecarFile(const fs::path& path)
+    {
+        std::ifstream file(path);
+        if (!file.is_open())
+            return false;
+
+        json root{};
+        try
+        {
+            file >> root;
+        }
+        catch (...)
+        {
+            return false;
+        }
+
+        return root.is_object() &&
+            root.value("schema", string{}) == "map_model_material";
+    }
+}
+
 MaterialBuilder::MaterialBuilder()
 {
 }
@@ -179,6 +202,9 @@ void MaterialBuilder::Initialize(const fs::path& materialsRoot)
 
         const fs::path& path = entry.path();
         if (!Is_MaterialBundleFile(path))
+            continue;
+
+        if (path.parent_path() != _root && Is_MapModelMaterialSidecarFile(path))
             continue;
 
         // 파일명에서 번들 key를 만든다.

@@ -153,6 +153,33 @@ struct RuntimePerfSummary
     PhysXQueryPerfSummary physxQuery{};
 };
 
+struct RuntimeFramePerfSnapshot
+{
+    bool valid{};
+    float runtimeFrameDeltaMs{};
+    float worldTimeDeltaMs{};
+    float worldTimeScale{ 1.f };
+    float engineUpdateMs{};
+    float gameDrawMs{};
+    float rendererDrawMs{};
+    float levelRenderMs{};
+    float debugRenderMs{};
+    float uiRenderMs{};
+    float postDrawMs{};
+    float printMs{};
+    float presentMs{};
+    float clientUpdateMs{};
+    float levelUpdateMs{};
+    float priorityObjectUpdateMs{};
+    float objectUpdateMs{};
+    float lateObjectUpdateMs{};
+    float physXUpdateMs{};
+    float collisionFromPhysXMs{};
+    float cameraUpdateMs{};
+    float uiUpdateMs{};
+    RenderPerfSummary render{};
+};
+
 struct PerfCounter
 {
     size_t sampleCount{};

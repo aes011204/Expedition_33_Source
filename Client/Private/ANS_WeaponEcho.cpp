@@ -160,7 +160,7 @@ void ANS_WeaponEcho::On_Begin(const AnimNotifyContext& context)
     window.echoCount = Resolve_EchoCount(context);
     g_activeWeaponEchoWindows.push_back(window);
 
-    if (!context.isPreview && window.echoCount > 0)
+    if (!context.isPreview && !context.isCinematic && window.echoCount > 0)
 {
     auto battle = CLIENT->Get_BattleController();
     if (battle != nullptr)
@@ -276,7 +276,7 @@ void ANS_WeaponEcho::Queue_EchoAttackSteps(const AnimNotifyContext& context, con
     const vector<BattleChar>& targets, const BattleChar& reactionTarget, uint32 sourceStepIndex, AttackType attackType,
     float powerMultiplier)
 {
-    if (context.isPreview || context.owner == nullptr || targets.empty())
+    if (context.isPreview || context.isCinematic || context.owner == nullptr || targets.empty())
         return;
 
     auto battle = CLIENT->Get_BattleController();
@@ -312,7 +312,7 @@ void ANS_WeaponEcho::Queue_EchoAttackSteps(const AnimNotifyContext& context, con
 void ANS_WeaponEcho::Queue_EchoReactionWindowsFromNotify(const AnimNotifyContext& context,
     BattleReactionType reactionType, const BattleAction& turnAction, float sourceWindowDurationSec)
 {
-    if (context.isPreview || context.owner == nullptr)
+    if (context.isPreview || context.isCinematic || context.owner == nullptr)
         return;
 
     if (reactionType != BattleReactionType::Dodge &&

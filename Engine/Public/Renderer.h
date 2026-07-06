@@ -121,7 +121,7 @@ public:
     }
     bool Is_PreviewLetterboxEnabled() const { return _previewLetterboxEnabled; }
 
-#ifdef _DEBUG
+#if defined(_DEBUG) || defined(_EDITOR)
     bool Try_ConsumePerfSummary(float windowSec, RenderPerfSummary& outSummary);
     bool Get_LastFramePerfSummary(RenderPerfSummary& outSummary) const;
 #endif
@@ -241,7 +241,7 @@ private:
     void Capture_RenderViewHotspotCandidate(RenderGroup renderGroup, const Shared<GameObject>& gameObject);
     void Publish_RenderViewHotspotSnapshot();
 
-#ifdef _DEBUG
+#if defined(_DEBUG) || defined(_EDITOR)
 private:
     struct PerfCounter
     {
@@ -271,7 +271,9 @@ private:
         double uiMs,
         double debugMs);
 
+#ifdef _DEBUG
     void DumpCurrentOMState(const wchar_t* stageTag) const;
+#endif
 
 #endif
 
