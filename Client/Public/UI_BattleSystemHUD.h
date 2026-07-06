@@ -29,12 +29,7 @@ public:
         Shared<UI_Text> apText{};
         Shared<UI_Text> apTextBg{};
 
-        Shared<UI_Base> apBar{};
-        Vec2 apBarDefaultPosition{}; // AP 조각의 부모 바도 portrait animation이 움직일 수 있어서 같이 복구한다.
-        Vec2 apBarDefaultSize{};
         Shared<UI_Image> apStates[9]{};
-        Vec2 apDefaultPositions[9]{}; // JSON에서 로드된 기본 AP 위치. 현재 턴 확대가 끝나면 이 값으로 되돌린다.
-        Vec2 apDefaultSizes[9]{};     // JSON에서 로드된 기본 AP 크기.
 
         bool hasBattleStatSnapshot = false;
         int32 cachedCurrentHp = 0;
@@ -88,8 +83,8 @@ private:
     void    Apply_HpGauge(PartyBattleStatSlot& slot, float ratio);
     void    Apply_ApGauge(PartyBattleStatSlot& slot, uint32 slotIndex, uint32 curAp, uint32 maxAp);
     void    Apply_BattlePartyLayout();
-    void    Restore_DefaultApBarTransform(uint32 slotIndex);
-    void    Restore_DefaultApTransform(uint32 slotIndex, uint32 apIndex);
+    void    Apply_CurrentTurnApTransform(uint32 slotIndex, uint32 apIndex);
+    bool    Is_CurrentTurnSlot(uint32 slotIndex) const;
     static void Set_HpText(PartyBattleStatSlot& slot, float hp, float maxHp);
     static void Set_ApText(PartyBattleStatSlot& slot, uint32 ap);
     void    Invalidate_PartyStatSnapshots();

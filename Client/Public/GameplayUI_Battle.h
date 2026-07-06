@@ -46,6 +46,7 @@ class UI_QTE;
 class UI_BattleTutorial;
 class UI_BattleGradientGauge;
 class UI_MarkEffect;
+class UI_Mark;
 class UI_Burn;
 class UI_Slow;
 
@@ -97,6 +98,7 @@ private:
     void    Handle_BuffConsumed(const BattleChar& target, Buffs buffId, float bonusDamage);
     void    Play_MarkEffect(const BattleChar& target);
     void    Clear_MarkEffect();
+    void    Play_MarkConsumed(const BattleChar& target);
     void    Play_BurnApplied(const BattleChar& target);
     void    Play_SlowApplied(const BattleChar& target);
     UI_DamageFont* Find_PlayingDamageFontForTarget(const BattleChar& target) const;
@@ -125,6 +127,7 @@ private:
     void    Update_ChoiceTarget(float timeDelta);
     void    Update_TurnOrder(float timeDelta);
     void    Update_DamageFonts(float timeDelta);
+    void    Update_Marks(float timeDelta);
     void    Update_Burns(float timeDelta);
     void    Update_Slows(float timeDelta);
     void    Update_DestroyShields(float timeDelta);
@@ -249,6 +252,9 @@ private:
 
     static constexpr uint32 kBurnPoolSize = 8;
     array<Unique<UI_Burn>, kBurnPoolSize> _burns{};
+
+    static constexpr uint32 kMarkPoolSize = 8;
+    array<Unique<UI_Mark>, kMarkPoolSize> _marks{};
 
     static constexpr uint32 kSlowPoolSize = 8;
     array<Unique<UI_Slow>, kSlowPoolSize> _slows{};

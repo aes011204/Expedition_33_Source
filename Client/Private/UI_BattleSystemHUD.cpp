@@ -29,6 +29,21 @@ namespace
 
     constexpr Vec2 kBattlePictosPortraitAnchorOffset{ 70.f, -68.f };
 
+    constexpr Vec2 kCurrentTurnApPositions[9] =
+    {
+        Vec2{ 95.21306268017625f, 23.29340820053867f },
+        Vec2{ 95.04943987285988f, 21.70324476817105f },
+        Vec2{ 95.37305604805002f, 21.546790404634205f },
+        Vec2{ 95.64049251262853f, 21.147207400085513f },
+        Vec2{ 95.52874902775294f, 20.965926007274472f },
+        Vec2{ 95.38242665783588f, 21.186578073106332f },
+        Vec2{ 95.8516612826187f, 21.33495265183805f },
+        Vec2{ 95.47974026927716f, 21.422410404555134f },
+        Vec2{ 95.3334178993601f, 21.635815134766453f },
+    };
+
+    constexpr Vec2 kCurrentTurnApSize{ 136.9499969482422f, 16.04599952697754f };
+
     const wchar_t* Resolve_PortraitActivationAnimationName(HeroId heroId)
     {
         switch (heroId)
@@ -392,7 +407,6 @@ HRESULT UI_BattleSystemHUD::Bind_UI()
         _partySlots[i].maxHpTextBg = Find_TypedUI<UI_Text>(_uiByName, L"Text_BattlePortrait_" + portraitName + L"_Max_HP_BG");
         _partySlots[i].apText = Find_TypedUI<UI_Text>(_uiByName, L"Text_BattlePortrait_" + portraitName + L"_Icon_AP");
         _partySlots[i].apTextBg = Find_TypedUI<UI_Text>(_uiByName, L"Text_BattlePortrait_" + portraitName + L"_Icon_AP_BG");
-        _partySlots[i].apBar = Find_UI(_uiByName, L"Panel_BattlePortrait_" + portraitName + L"_AP_Bar");
 
         CHECK_NULL(_partySlots[i].hpGauge, E_FAIL);
         CHECK_NULL(_partySlots[i].currentHpText, E_FAIL);
@@ -401,13 +415,6 @@ HRESULT UI_BattleSystemHUD::Bind_UI()
         CHECK_NULL(_partySlots[i].maxHpTextBg, E_FAIL);
         CHECK_NULL(_partySlots[i].apText, E_FAIL);
         CHECK_NULL(_partySlots[i].apTextBg, E_FAIL);
-        CHECK_NULL(_partySlots[i].apBar, E_FAIL);
-
-        if (_partySlots[i].apBar->Get_Transform())
-        {
-            _partySlots[i].apBarDefaultPosition = _partySlots[i].apBar->Get_Transform()->Get_Position();
-            _partySlots[i].apBarDefaultSize = _partySlots[i].apBar->Get_Transform()->Get_Size();
-        }
 
         _partySlots[i].hpGauge->Set_UseFillRatio(true);
         _partySlots[i].hpGauge->Set_FillOrigin(UI_Image::FillOrigin::LeftToRight);
@@ -417,12 +424,6 @@ HRESULT UI_BattleSystemHUD::Bind_UI()
             _partySlots[i].apStates[apIndex] =
                 Find_TypedUI<UI_Image>(_uiByName, L"Image_BattlePortrait_" + portraitName + L"_AP_" + to_wstring(apIndex + 1));
             CHECK_NULL(_partySlots[i].apStates[apIndex], E_FAIL);
-
-            if (_partySlots[i].apStates[apIndex]->Get_Transform())
-            {
-                _partySlots[i].apDefaultPositions[apIndex] = _partySlots[i].apStates[apIndex]->Get_Transform()->Get_Position();
-                _partySlots[i].apDefaultSizes[apIndex] = _partySlots[i].apStates[apIndex]->Get_Transform()->Get_Size();
-            }
         }
     }
 
@@ -549,14 +550,10 @@ void UI_BattleSystemHUD::Apply_ApGauge(PartyBattleStatSlot& slot, uint32 slotInd
 {
     const uint32 clampedMaxAp = min(maxAp, 9u);
 
-    Restore_DefaultApBarTransform(slotIndex); // AP 바 부모가 animation에 밀리면 자식 기본 위치도 화면에서 어긋난다.
-
     for (uint32 i = 0; i < 9; ++i)
     {
         if (slot.apStates[i] == nullptr)
             continue;
-
-        Restore_DefaultApTransform(slotIndex, i); // Target animation이나 이전 현재 턴 확대값이 남아도 AP 조각은 JSON 기본 위치를 유지한다.
 
         if (curAp == 0 || clampedMaxAp == 0)
         {
@@ -569,6 +566,8 @@ void UI_BattleSystemHUD::Apply_ApGauge(PartyBattleStatSlot& slot, uint32 slotInd
         {
             if (!slot.apStates[i]->Is_Open())
                 slot.apStates[i]->Open();
+
+            Apply_CurrentTurnApTransform(slotIndex, i); // 이미 열린 AP도 현재 턴 크기/위치로 다시 맞춘다.
         }
         else
         {
@@ -612,30 +611,36 @@ void UI_BattleSystemHUD::Apply_BattlePartyLayout()
     }
 }
 
-void UI_BattleSystemHUD::Restore_DefaultApBarTransform(uint32 slotIndex)
+void UI_BattleSystemHUD::Apply_CurrentTurnApTransform(uint32 slotIndex, uint32 apIndex)
 {
-    if (slotIndex >= 3)
-        return;
-
-    Shared<UI_Base> apBar = _partySlots[slotIndex].apBar;
-    if (apBar == nullptr || apBar->Get_Transform() == nullptr)
-        return;
-
-    apBar->Get_Transform()->Set_Position(_partySlots[slotIndex].apBarDefaultPosition);
-    apBar->Get_Transform()->Set_Size(_partySlots[slotIndex].apBarDefaultSize);
-}
-
-void UI_BattleSystemHUD::Restore_DefaultApTransform(uint32 slotIndex, uint32 apIndex)
-{
-    if (slotIndex >= 3 || apIndex >= 9)
+    if (!Is_CurrentTurnSlot(slotIndex) || apIndex >= 9)
         return;
 
     Shared<UI_Image> apState = _partySlots[slotIndex].apStates[apIndex];
     if (apState == nullptr || apState->Get_Transform() == nullptr)
         return;
 
-    apState->Get_Transform()->Set_Position(_partySlots[slotIndex].apDefaultPositions[apIndex]);
-    apState->Get_Transform()->Set_Size(_partySlots[slotIndex].apDefaultSizes[apIndex]);
+    apState->Get_Transform()->Set_Position(kCurrentTurnApPositions[apIndex]);
+    apState->Get_Transform()->Set_Size(kCurrentTurnApSize);
+}
+
+bool UI_BattleSystemHUD::Is_CurrentTurnSlot(uint32 slotIndex) const
+{
+    switch (_activePortraitHeroId)
+    {
+    case HeroId::Gustave:
+        return slotIndex == 0;
+
+    case HeroId::Lune:
+        return slotIndex == 1;
+
+    case HeroId::Maelle:
+        return slotIndex == 2;
+
+    case HeroId::END:
+    default:
+        return false;
+    }
 }
 
 void UI_BattleSystemHUD::Set_HpText(PartyBattleStatSlot& slot, float hp, float maxHp)
@@ -863,25 +868,6 @@ void UI_BattleSystemHUD::Play_TargetAnimation(const wchar_t* animationName)
 
         ui->Play_UIAnimation(animationName, true);
     }
-
-    for (uint32 slotIndex = 0; slotIndex < 3; ++slotIndex)
-    {
-        if (_partySlots[slotIndex].apBar)
-        {
-            _partySlots[slotIndex].apBar->Stop_UIAnimation(); // AP 바 부모도 portrait animation 위치 대신 HUD 기본 위치를 따른다.
-            Restore_DefaultApBarTransform(slotIndex);
-        }
-
-        for (uint32 apIndex = 0; apIndex < 9; ++apIndex)
-        {
-            Shared<UI_Image> apState = _partySlots[slotIndex].apStates[apIndex];
-            if (apState == nullptr)
-                continue;
-
-            apState->Stop_UIAnimation(); // portrait target animation이 AP 조각 위치를 다시 밀지 못하게 HUD 코드가 소유한다.
-            Restore_DefaultApTransform(slotIndex, apIndex);
-        }
-    }
 }
 
 void UI_BattleSystemHUD::Stop_TargetAnimations()
@@ -974,7 +960,6 @@ void UI_BattleSystemHUD::Free()
         _partySlots[i].maxHpTextBg.reset();
         _partySlots[i].apText.reset();
         _partySlots[i].apTextBg.reset();
-        _partySlots[i].apBar.reset();
 
         for (uint32 apIndex = 0; apIndex < 9; ++apIndex)
             _partySlots[i].apStates[apIndex].reset();
