@@ -32,6 +32,9 @@ void ANS_CollisionEnable::On_Begin(const AnimNotifyContext& context)
 
 void ANS_CollisionEnable::On_Tick(const AnimNotifyContext& context)
 {
+    if (context.isCinematic)
+        return;
+
     const Shared<GameObject> owner = Resolve_CollisionOwner(context.owner);
     const Shared<ColliderCom> collider = Resolve_Collider(owner);
 
@@ -82,7 +85,7 @@ void ANS_CollisionEnable::Sync_Collider(const Shared<GameObject>& owner, const S
 
 void ANS_CollisionEnable::Set_ColliderActive(const AnimNotifyContext& context, bool active) const
 {
-    if (context.isPreview)
+    if (context.isPreview || (context.isCinematic && active))
         return;
 
     const Shared<GameObject> owner = Resolve_CollisionOwner(context.owner);

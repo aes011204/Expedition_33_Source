@@ -25,6 +25,7 @@ struct KeyDragState
 };
 
 KeyDragState g_keyDragState{};
+bool g_blocksFrameScrubThisFrame = false;
 
 constexpr int kModifierTrackCount = CinematicSequencerAdapter::kModifierTrackCount;
 constexpr int kEventTrackCount = CinematicSequencerAdapter::kEventTrackCount;
@@ -253,6 +254,10 @@ void DrawCinematicKeyMarkers(
         const bool isHovered = ImGui::IsMouseHoveringRect(handleRect.Min, handleRect.Max, false);
         if (isHovered && outIsHoveringAnyKey != nullptr)
             *outIsHoveringAnyKey = true;
+        if (isHovered)
+            g_blocksFrameScrubThisFrame = true;
+        if (isHovered)
+            g_blocksFrameScrubThisFrame = true;
 
         if (isHovered && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
         {
@@ -292,18 +297,12 @@ void DrawCinematicKeyMarkers(
 
         if (isDraggingThisKey)
         {
+            g_blocksFrameScrubThisFrame = true;
             const float mouseX = std::max(rc.Min.x, std::min(ImGui::GetIO().MousePos.x, rc.Max.x));
             const float normalizedMouse = (mouseX - rc.Min.x) / std::max(rc.Max.x - rc.Min.x, 1.f);
             const int rawFrame = frameMin + static_cast<int>(std::lround(normalizedMouse * static_cast<float>(frameRange)));
 
-            int minFrame = frameMin;
-            int maxFrame = frameMax;
-            if (keyIndex > 0)
-                minFrame = std::max(minFrame, track.keyframes[keyIndex - 1].frame);
-            if (keyIndex + 1 < static_cast<int>(track.keyframes.size()))
-                maxFrame = std::min(maxFrame, track.keyframes[keyIndex + 1].frame);
-
-            track.keyframes[keyIndex].frame = std::clamp(rawFrame, minFrame, maxFrame);
+            track.keyframes[keyIndex].frame = std::clamp(rawFrame, frameMin, frameMax);
             if (currentFrame != nullptr)
                 *currentFrame = track.keyframes[keyIndex].frame;
         }
@@ -403,18 +402,12 @@ void DrawModifierKeyMarkers(
 
         if (isDraggingThisKey)
         {
+            g_blocksFrameScrubThisFrame = true;
             const float mouseX = std::max(rc.Min.x, std::min(ImGui::GetIO().MousePos.x, rc.Max.x));
             const float normalizedMouse = (mouseX - rc.Min.x) / std::max(rc.Max.x - rc.Min.x, 1.f);
             const int rawFrame = frameMin + static_cast<int>(std::lround(normalizedMouse * static_cast<float>(frameRange)));
 
-            int minFrame = frameMin;
-            int maxFrame = frameMax;
-            if (keyIndex > 0)
-                minFrame = std::max(minFrame, ModifierTimeToFrame(sequence, track.keyframes[keyIndex - 1].time));
-            if (keyIndex + 1 < static_cast<int>(track.keyframes.size()))
-                maxFrame = std::min(maxFrame, ModifierTimeToFrame(sequence, track.keyframes[keyIndex + 1].time));
-
-            const int clampedFrame = std::clamp(rawFrame, minFrame, maxFrame);
+            const int clampedFrame = std::clamp(rawFrame, frameMin, frameMax);
             keyframe.time = FrameToModifierTime(sequence, clampedFrame);
             if (currentFrame != nullptr)
                 *currentFrame = clampedFrame;
@@ -458,6 +451,8 @@ void DrawKeyMarkers(
     bool* requestRemoveKeyPopup,
     int* contextTrackIndex,
     int* contextFrame,
+    int visibleFrameMin,
+    int visibleFrameMax,
     int index,
     ImDrawList* draw_list,
     const ImRect& rc,
@@ -470,8 +465,8 @@ void DrawKeyMarkers(
     if (!ImGui::IsMouseDown(ImGuiMouseButton_Left))
         g_keyDragState = {};
 
-    const int frameMin = sequence->startFrame;
-    const int frameMax = sequence->endFrame;
+    const int frameMin = std::clamp(visibleFrameMin, sequence->startFrame, sequence->endFrame);
+    const int frameMax = std::clamp(visibleFrameMax, frameMin + 1, std::max(sequence->startFrame + 1, sequence->endFrame));
     bool isHoveringAnyKey = false;
 
     draw_list->PushClipRect(clippingRect.Min, clippingRect.Max, true);
@@ -518,6 +513,14 @@ void DrawKeyMarkers(
             const bool isHovered = ImGui::IsMouseHoveringRect(handleRect.Min, handleRect.Max, false);
             if (isHovered)
                 isHoveringAnyKey = true;
+            if (isHovered)
+                g_blocksFrameScrubThisFrame = true;
+            if (isHovered)
+                g_blocksFrameScrubThisFrame = true;
+            if (isHovered)
+                g_blocksFrameScrubThisFrame = true;
+            if (isHovered)
+                g_blocksFrameScrubThisFrame = true;
 
             if (isHovered && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
             {
@@ -561,18 +564,12 @@ void DrawKeyMarkers(
 
             if (isDraggingThisKey)
             {
+                g_blocksFrameScrubThisFrame = true;
                 const float mouseX = std::max(rc.Min.x, std::min(ImGui::GetIO().MousePos.x, rc.Max.x));
                 const float normalizedMouse = (mouseX - rc.Min.x) / std::max(rc.Max.x - rc.Min.x, 1.f);
                 const int rawFrame = frameMin + static_cast<int>(std::lround(normalizedMouse * static_cast<float>(frameRange)));
 
-                int minFrame = frameMin;
-                int maxFrame = frameMax;
-                if (keyIndex > 0)
-                    minFrame = std::max(minFrame, track.keyframes[keyIndex - 1].frame);
-                if (keyIndex + 1 < static_cast<int>(track.keyframes.size()))
-                    maxFrame = std::min(maxFrame, track.keyframes[keyIndex + 1].frame);
-
-                keyframe.frame = std::clamp(rawFrame, minFrame, maxFrame);
+                keyframe.frame = std::clamp(rawFrame, frameMin, frameMax);
                 if (currentFrame != nullptr)
                     *currentFrame = keyframe.frame;
             }
@@ -654,18 +651,12 @@ void DrawKeyMarkers(
 
             if (isDraggingThisEvent)
             {
+                g_blocksFrameScrubThisFrame = true;
                 const float mouseX = std::max(rc.Min.x, std::min(ImGui::GetIO().MousePos.x, rc.Max.x));
                 const float normalizedMouse = (mouseX - rc.Min.x) / std::max(rc.Max.x - rc.Min.x, 1.f);
                 const int rawFrame = frameMin + static_cast<int>(std::lround(normalizedMouse * static_cast<float>(frameRange)));
 
-                int minFrame = frameMin;
-                int maxFrame = frameMax;
-                if (eventIndex > 0)
-                    minFrame = std::max(minFrame, sequence->eventTrack[eventIndex - 1].frame);
-                if (eventIndex + 1 < static_cast<int>(sequence->eventTrack.size()))
-                    maxFrame = std::min(maxFrame, sequence->eventTrack[eventIndex + 1].frame);
-
-                event.frame = std::clamp(rawFrame, minFrame, maxFrame);
+                event.frame = std::clamp(rawFrame, frameMin, frameMax);
                 if (currentFrame != nullptr)
                     *currentFrame = event.frame;
             }
@@ -740,18 +731,11 @@ void DrawKeyMarkers(
 
             if (isDraggingThisKey)
             {
+                g_blocksFrameScrubThisFrame = true;
                 const float mouseX = std::max(rc.Min.x, std::min(ImGui::GetIO().MousePos.x, rc.Max.x));
                 const float normalizedMouse = (mouseX - rc.Min.x) / std::max(rc.Max.x - rc.Min.x, 1.f);
                 const int rawFrame = frameMin + static_cast<int>(std::lround(normalizedMouse * static_cast<float>(frameRange)));
-
-                int minFrame = frameMin;
-                int maxFrame = frameMax;
-                if (keyIndex > 0)
-                    minFrame = std::max(minFrame, track.keyframes[keyIndex - 1].frame);
-                if (keyIndex + 1 < static_cast<int>(track.keyframes.size()))
-                    maxFrame = std::min(maxFrame, track.keyframes[keyIndex + 1].frame);
-
-                keyframe.frame = std::clamp(rawFrame, minFrame, maxFrame);
+                keyframe.frame = std::clamp(rawFrame, frameMin, frameMax);
                 if (currentFrame != nullptr)
                     *currentFrame = keyframe.frame;
             }
@@ -844,18 +828,11 @@ void DrawKeyMarkers(
 
             if (isDraggingThisKey)
             {
+                g_blocksFrameScrubThisFrame = true;
                 const float mouseX = std::max(rc.Min.x, std::min(ImGui::GetIO().MousePos.x, rc.Max.x));
                 const float normalizedMouse = (mouseX - rc.Min.x) / std::max(rc.Max.x - rc.Min.x, 1.f);
                 const int rawFrame = frameMin + static_cast<int>(std::lround(normalizedMouse * static_cast<float>(frameRange)));
-
-                int minFrame = frameMin;
-                int maxFrame = frameMax;
-                if (keyIndex > 0)
-                    minFrame = std::max(minFrame, track.keyframes[keyIndex - 1].frame);
-                if (keyIndex + 1 < static_cast<int>(track.keyframes.size()))
-                    maxFrame = std::min(maxFrame, track.keyframes[keyIndex + 1].frame);
-
-                keyframe.frame = std::clamp(rawFrame, minFrame, maxFrame);
+                keyframe.frame = std::clamp(rawFrame, frameMin, frameMax);
                 if (currentFrame != nullptr)
                     *currentFrame = keyframe.frame;
             }
@@ -980,6 +957,11 @@ CinematicSequencerAdapter::CinematicSequencerAdapter(
     , _eventTrackEnabled(eventTrackEnabled)
     , _actorTransformTrackEnabled(actorTransformTrackEnabled)
 {
+    if (_sequence != nullptr)
+    {
+        _visibleFrameMin = _sequence->startFrame;
+        _visibleFrameMax = std::max(_sequence->startFrame + 1, _sequence->endFrame);
+    }
 }
 
 int CinematicSequencerAdapter::GetFrameMin() const
@@ -1040,6 +1022,21 @@ const char* CinematicSequencerAdapter::GetItemLabel(int index) const
         return GetModifierTrackLabel(GetModifierTrackIndex(_sequence, index));
 
     return "";
+}
+
+void CinematicSequencerAdapter::SetVisibleFrameRange(int frameMin, int frameMax)
+{
+    if (_sequence == nullptr)
+        return;
+
+    g_blocksFrameScrubThisFrame = false;
+    _visibleFrameMin = std::clamp(frameMin, _sequence->startFrame, _sequence->endFrame);
+    _visibleFrameMax = std::clamp(frameMax, _visibleFrameMin + 1, std::max(_sequence->startFrame + 1, _sequence->endFrame));
+}
+
+bool CinematicSequencerAdapter::BlocksFrameScrub() const
+{
+    return g_blocksFrameScrubThisFrame;
 }
 
 void CinematicSequencerAdapter::Get(int index, int** start, int** end, int* type, unsigned int* color)
@@ -1150,6 +1147,8 @@ void CinematicSequencerAdapter::CustomDraw(int index, ImDrawList* draw_list, con
         _requestRemoveKeyPopup,
         _contextTrackIndex,
         _contextFrame,
+        _visibleFrameMin,
+        _visibleFrameMax,
         index,
         draw_list,
         rc,
@@ -1180,6 +1179,8 @@ void CinematicSequencerAdapter::CustomDrawCompact(int index, ImDrawList* draw_li
         _requestRemoveKeyPopup,
         _contextTrackIndex,
         _contextFrame,
+        _visibleFrameMin,
+        _visibleFrameMax,
         index,
         draw_list,
         rc,

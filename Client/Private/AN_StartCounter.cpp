@@ -13,6 +13,9 @@ IMPLEMENT_REFLECTION(AN_StartCounter)
 
 void AN_StartCounter::Execute(const AnimNotifyContext& context)
 {
+    if (context.isPreview || context.isCinematic)
+        return;
+
     if (!context.owner)
         return;
 

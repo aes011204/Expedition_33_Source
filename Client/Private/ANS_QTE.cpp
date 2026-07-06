@@ -23,7 +23,7 @@ IMPLEMENT_REFLECTION(ANS_QTE)
 
 void ANS_QTE::On_Begin(const AnimNotifyContext& context)
 {
-	if (context.isPreview)
+	if (context.isPreview || context.isCinematic)
 		return;
 
 	auto battle = CLIENT->Get_BattleController();

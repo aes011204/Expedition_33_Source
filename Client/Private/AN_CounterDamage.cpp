@@ -14,6 +14,9 @@ IMPLEMENT_REFLECTION(AN_CounterDamage)
 
 void AN_CounterDamage::Execute(const AnimNotifyContext& context)
 {
+    if (context.isPreview || context.isCinematic)
+        return;
+
     if (!context.owner)
         return;
 
