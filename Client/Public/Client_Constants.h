@@ -579,6 +579,11 @@ namespace Client::Constants::SoundBGM
     constexpr const wchar_t* GestralVillageGolgraThrone =
         L"BGM/Gestral/MUS_GestralVillage_ENV_GolgraThrone.wav";
 
+    constexpr const wchar_t* PotatoBagBattleMain =
+        L"BGM/Gestral/MUS_AncientSanctuary_BT_Summer2022_Main.wav";
+    constexpr const wchar_t* PotatoBagBattleTransition =
+        L"BGM/Gestral/MUS_AncientSanctuary_BT_Summer2022_Transition.wav";
+
     constexpr const wchar_t* DuallisteBattlePhase1Main =
         L"BGM/Gestral/MUS_ForgottenBattlefield_BT_Dualliste_Phase1_Main.wav";
     constexpr const wchar_t* DuallisteBattlePhaseTransition =
@@ -589,10 +594,22 @@ namespace Client::Constants::SoundBGM
     constexpr const wchar_t* BishopBattleBossMain = L"BGM/SpringMeadow/MUS_SpringMeadows_BT_Boss_Main.wav";
     constexpr const wchar_t* BishopBattleBossVictory = L"BGM/SpringMeadow/MUS_SpringMeadows_BT_Boss_VictoryScreen.wav";
 
-    constexpr const wchar_t* SimonBattlePhase1Intro = L"BGM/Simon/MUS_Simon_BT_WeLost_Phase1_Intro.wav";
+    constexpr const wchar_t* SimonBattlePhase1Intro = L"BGM/Simon/MUS_Common_BT_Simon_DivergentStars_Main.wav";
     constexpr const wchar_t* SimonBattlePhase1Main = L"BGM/Simon/MUS_Simon_BT_WeLost_Phase1_Main.wav";
+
+    constexpr const wchar_t* SimonBattlePhase1Transition = L"BGM/Simon/MUS_Common_BT_Simon_DivergentStars_Transition.wav";
+
     constexpr const wchar_t* SimonBattlePhase2Intro = L"BGM/Simon/MUS_Simon_BT_WeLost_Phase2_Intro.wav";
     constexpr const wchar_t* SimonBattlePhase2Main = L"BGM/Simon/MUS_Simon_BT_WeLost_Phase2_Main.wav";
+
+    constexpr const wchar_t* SimonStartWindBGM = L"BGM/Simon/AMB_PAD_SeaCliff_Main [1].wav";
+
+    constexpr const wchar_t* SimonIntroCinematic =
+        L"BGM/Simon/MUS_Simon_CIN_SimonIntro.wav";
+
+    constexpr const wchar_t* SimonOutroCinematic =
+        L"BGM/Simon/MUS_Simon_CIN_SimonOutro.wav";
+
 }
 
 namespace Client::Constants::Cinematic
@@ -604,6 +621,8 @@ namespace Client::Constants::Cinematic
 
     inline constexpr wchar_t Dualliste_Intro[] = L"Dualliste_Intro.json";
     inline constexpr wchar_t Dualliste_PhaseChange[] = L"Dualliste.json";
+
+    inline constexpr wchar_t SimonIntroFileId[] = L"Simon_Intro.json";
 }
 
 namespace Client::Constants::SoundCue
@@ -639,9 +658,10 @@ namespace Client::Constants::SoundCue
 
     constexpr const wchar_t* Battle_Parry_Success = L"Battle_Parry_Success";
 
-
     constexpr const wchar_t* Duallist_Attack = L"VO_ENM_Duallist_Attack";
     constexpr const wchar_t* Duallist_Pain = L"VO_ENM_Duallist_Pain";
+
+    constexpr const wchar_t* Gestral_Potato_Announce = L"Gestral_Potato_Announce";
 
 
 }

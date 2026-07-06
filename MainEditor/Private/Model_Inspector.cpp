@@ -2,6 +2,7 @@
 
 #include "GameInstance.h"
 #include "Animation_NameUtils.h"
+#include "Animation.h"
 #include "ModelCom.h"
 #include "Material.h"
 #include <filesystem>
@@ -864,12 +865,24 @@ void ModelCom_Inspector::Draw_AnimationSection(const Shared<Engine::ModelCom>& m
 
     if (state.selectedAnimIndex >= 0)
     {
+        const Animation* selectedAnimation = model->Get_Animation(static_cast<uint32>(state.selectedAnimIndex));
+        const float selectedFrameMax = selectedAnimation != nullptr ? selectedAnimation->Get_Duration() : 0.f;
+        state.previewFrame = ::clamp(state.previewFrame, 0.f, selectedFrameMax);
+
+        ImGui::SetNextItemWidth(120.f);
+        ImGui::DragFloat("Frame", &state.previewFrame, 1.f, 0.f, selectedFrameMax, "%.0f");
+        if (ImGui::IsItemDeactivatedAfterEdit())
+            state.previewFrame = ::clamp(state.previewFrame, 0.f, selectedFrameMax);
+
+        ImGui::SameLine();
+        ImGui::TextDisabled("/ %.0f", selectedFrameMax);
+
         if (ImGui::Button("Play Selected", ImVec2(140.f, 0.f)))
         {
             if (state.blendDuration > 0.f)
-                model->Set_Animation(static_cast<uint32>(state.selectedAnimIndex), state.blendDuration, state.loop);
+                model->Set_Animation(static_cast<uint32>(state.selectedAnimIndex), state.blendDuration, state.loop, state.previewFrame);
             else
-                model->Set_Animation(static_cast<uint32>(state.selectedAnimIndex), state.loop);
+                model->Set_Animation(static_cast<uint32>(state.selectedAnimIndex), state.loop, state.previewFrame);
 
             model->Set_AnimationPaused(false); // Stop으로 멈춘 뒤 다시 눌렀을 때 즉시 재생되게 한다.
         }
@@ -878,8 +891,18 @@ void ModelCom_Inspector::Draw_AnimationSection(const Shared<Engine::ModelCom>& m
 
         if (ImGui::Button("Restart", ImVec2(100.f, 0.f)))
         {
+            state.previewFrame = 0.f;
             model->Set_Animation(static_cast<uint32>(state.selectedAnimIndex), state.loop);
             model->Set_AnimationPaused(false); // 처음 프레임부터 다시 재생한다.
+        }
+
+        ImGui::SameLine();
+
+        if (ImGui::Button("Set Frame", ImVec2(100.f, 0.f)))
+        {
+            model->Set_Animation(static_cast<uint32>(state.selectedAnimIndex), state.loop, state.previewFrame);
+            model->Set_AnimationPaused(true); // 지정한 프레임 포즈를 유지해서 긴 애니메이션을 바로 확인한다.
+            model->Refresh_CurrentAnimationPose();
         }
 
         ImGui::SameLine();
@@ -912,9 +935,9 @@ void ModelCom_Inspector::Draw_AnimationSection(const Shared<Engine::ModelCom>& m
                     state.selectedAnimIndex = item.playbackIndex;
 
                     if (state.blendDuration > 0.f)
-                        model->Set_Animation(static_cast<uint32>(item.playbackIndex), state.blendDuration, state.loop);
+                        model->Set_Animation(static_cast<uint32>(item.playbackIndex), state.blendDuration, state.loop, state.previewFrame);
                     else
-                        model->Set_Animation(static_cast<uint32>(item.playbackIndex), state.loop);
+                        model->Set_Animation(static_cast<uint32>(item.playbackIndex), state.loop, state.previewFrame);
                 }
             }
         }

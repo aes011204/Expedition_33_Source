@@ -516,6 +516,7 @@ EBattleEndResult BattleController::OnExitBattleField(EBattleEndResult result)
 {
     _lastVictoryRewardExp = 0;
     _lastVictoryRewardPictosIds.clear();
+    bool defeatedSimonPhase1 = false;
 
     if (result == EBattleEndResult::Victory && _battleSpawnRegistry)
     {
@@ -555,6 +556,10 @@ EBattleEndResult BattleController::OnExitBattleField(EBattleEndResult result)
                     kNpcSumoAfterPotatoBagDialogueKey);
             }
         }
+
+        defeatedSimonPhase1 =
+            find(defeatedEnemyKeys.begin(), defeatedEnemyKeys.end(), Constants::Prefab::MB_Simon) !=
+            defeatedEnemyKeys.end();
 
         vector<HeroId> victoryHeroIds{};
         victoryHeroIds.reserve(_heroes.size());
@@ -615,6 +620,9 @@ EBattleEndResult BattleController::OnExitBattleField(EBattleEndResult result)
     }
 
     Clear_TargetPreview();
+    if (result == EBattleEndResult::Victory && _battleTurnCamera)
+        _battleTurnCamera->Stop_BattleCameraShake();
+
     OnBattleEnded.Broadcast(result); // battle end UI 정리는 GameplayUI_Battle에서 처리
 
     if (result == EBattleEndResult::Victory)
@@ -622,7 +630,17 @@ EBattleEndResult BattleController::OnExitBattleField(EBattleEndResult result)
         const bool isBishopCinematicBGM =
             GAME->Get_CurrentBGM() == Constants::SoundBGM::BishopBattleBossMain;
 
-        if (Is_TutorialBattleEncounter(_activeBattleFieldID))
+        if (_activeBattleFieldID == Constants::Value::potatoBagEncounterId)
+        {
+            GAME->Stop_SoundChannel(SoundChannel::BGM, 0.f);
+            GAME->Play_Sound(Constants::SoundBGM::PotatoBagBattleTransition, SoundChannel::BGM, 0.7f);
+        }
+        else if (defeatedSimonPhase1)
+        {
+            GAME->Stop_SoundChannel(SoundChannel::BGM, 0.f);
+            GAME->Play_Sound(Constants::SoundBGM::SimonBattlePhase1Transition, SoundChannel::BGM, 0.7f);
+        }
+        else if (Is_TutorialBattleEncounter(_activeBattleFieldID))
         {
             GAME->Stop_SoundChannel(SoundChannel::BGM);
         }
@@ -3563,22 +3581,29 @@ void BattleController::Complete_BattleField()
 
     if (!isBishopCinematicBGM)
     {
-        wstring simonIntroBGM{};
-        wstring simonMainBGM{};
-        if (Try_ResolveSimonBattleBGM(simonIntroBGM, simonMainBGM))
+        if (battleFieldId == Constants::Value::potatoBagEncounterId)
         {
-            if (simonIntroBGM.empty())
-                GAME->Play_BGM(simonMainBGM, 0.7f, true, 0.f);
-            else
-                GAME->Play_BGMIntroThenLoop(simonIntroBGM, simonMainBGM, 0.7f, true, 0.f);
+            GAME->Play_BGM(Constants::SoundBGM::PotatoBagBattleMain, 0.7f, true, 0.f);
         }
         else
         {
-            GAME->Play_BGM(
-                hasBossEnemy ? Constants::SoundBGM::BattleBossBGM : Constants::SoundBGM::BattleNormalBGM,
-                0.7f,
-                true,
-                0.f);
+            wstring simonIntroBGM{};
+            wstring simonMainBGM{};
+            if (Try_ResolveSimonBattleBGM(simonIntroBGM, simonMainBGM))
+            {
+                if (simonIntroBGM.empty())
+                    GAME->Play_BGM(simonMainBGM, 0.7f, true, 0.f);
+                else
+                    GAME->Play_BGMIntroThenLoop(simonIntroBGM, simonMainBGM, 0.7f, true, 0.f);
+            }
+            else
+            {
+                GAME->Play_BGM(
+                    hasBossEnemy ? Constants::SoundBGM::BattleBossBGM : Constants::SoundBGM::BattleNormalBGM,
+                    0.7f,
+                    true,
+                    0.f);
+            }
         }
     }
 
@@ -3621,6 +3646,9 @@ void BattleController::Complete_BattleField()
 
     // 턴 시작
     // battle start event만 넘겨주고, 전환 연출은 GameplayUI_Battle이 처리한다.
+    if (battleFieldId == Constants::Value::potatoBagEncounterId)
+        GAME->Play_SoundCue(Constants::SoundCue::Gestral_Potato_Announce);
+
     OnBattleStarted.Broadcast(battleFieldId, isPlayerAdvantage);
     _isWaitingBattleTransition = true;
 }

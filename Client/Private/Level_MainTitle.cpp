@@ -43,7 +43,7 @@ void Level_MainTitle::BeginPlay()
 {
     Level::BeginPlay();
 
-    GAME->Play_BGM(Constants::SoundBGM::MainTitleBGM, 0.7f, true, 0.f);
+    CLIENT->Request_BGMAfterLevelFade(Constants::SoundBGM::MainTitleBGM, 0.7f, true, 0.f);
 
     PlayEffectDesc leafDesc{};
     leafDesc.effectName = kLeafEffectName;
