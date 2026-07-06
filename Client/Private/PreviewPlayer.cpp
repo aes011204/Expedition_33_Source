@@ -1,6 +1,8 @@
 ﻿#include "PreviewPlayer.h"
 
 #include "Body_Player.h"
+#include "ChainModifier.h"
+#include "ChainModifierPreset.h"
 #include "Client_Constants.h"
 #include "ClientInstance.h"
 #include "EffectCom.h"
@@ -37,6 +39,71 @@ bool Read_Vec3Property(const json& customProperties, const char* key, Vec3& outV
     outValue.y = value[1].get<float>();
     outValue.z = value[2].get<float>();
     return true;
+}
+
+PlayerCharacterType To_PlayerCharacterType(HeroId heroId)
+{
+    switch (heroId)
+    {
+    case HeroId::Gustave: return PlayerCharacterType::Gustave;
+    case HeroId::Lune:    return PlayerCharacterType::Lune;
+    case HeroId::Maelle:  return PlayerCharacterType::Maelle;
+    case HeroId::END:
+    default:              return PlayerCharacterType::None;
+    }
+}
+
+bool HasBone(const ModelCom* model, const string& boneName)
+{
+    return model != nullptr && model->Get_BoneIndex(boneName) >= 0;
+}
+
+void RemoveMissingGroups(ChainModifier::ChainModifierDesc& desc, const ModelCom* model)
+{
+    desc.groups.erase(
+        remove_if(
+            desc.groups.begin(),
+            desc.groups.end(),
+            [model](const ChainModifier::BoneChainGroupDesc& group)
+            {
+                return !HasBone(model, group.rootBoneName);
+            }),
+        desc.groups.end());
+}
+
+HRESULT AddPreviewArmbandModifier(Body_Player* body, TransformCom* ownerTransform, HeroId heroId)
+{
+    CHECK_NULL(body, E_FAIL);
+    CHECK_NULL(ownerTransform, E_FAIL);
+
+    const PlayerCharacterType characterType = To_PlayerCharacterType(heroId);
+    if (characterType == PlayerCharacterType::None)
+        return S_OK;
+
+    const Shared<ModelCom> model = body->Get_Model();
+    if (model == nullptr)
+        return S_OK;
+
+    ChainModifier::ChainModifierDesc armbandDesc{};
+    ChainModifierPreset::BuildArmbandDesc(
+        armbandDesc,
+        ownerTransform,
+        characterType);
+
+    if (model->Find_AnimModifierByTag(armbandDesc.modifierTag) != nullptr)
+        return S_OK;
+
+    RemoveMissingGroups(armbandDesc, model.get());
+    if (armbandDesc.groups.empty())
+        return S_OK;
+
+    if (auto modifier = ChainModifier::Create(&armbandDesc))
+    {
+        model->Add_AnimModifier(modifier);
+        return S_OK;
+    }
+
+    return E_FAIL;
 }
 }
 
@@ -379,6 +446,7 @@ HRESULT PreviewPlayer::Ready_DefaultCostumeParts()
 
     Body_Player* body = dynamic_cast<Body_Player*>(Get_PartObject(TEXT("Part_Body")));
     CHECK_NULL(body, E_FAIL);
+    CHECK_FAILED(AddPreviewArmbandModifier(body, _transformCom.get(), _heroId), E_FAIL);
 
     Head_Player::HEAD_PLAYER_DESC headDesc{};
     headDesc.parentMatrix = &_transformCom->Get_WorldMatrix();
@@ -1015,6 +1083,9 @@ Shared<Body_Player> PreviewPlayer::Create_CostumeBodyVariant(const wstring& mode
         model->Apply_BaseMaterialFromBundle_AllSlots();
         (void)model->Normalize_OwnerComponentTagAndBindings();
     }
+
+    if (FAILED(AddPreviewArmbandModifier(body.get(), _transformCom.get(), _heroId)))
+        return nullptr;
 
     return body;
 }
