@@ -83,6 +83,16 @@ public: //## Types::Public
         bool wasPaused = false;          // 튜토리얼 시작 전 pause 상태로 되돌리기 위해 저장한다.
     };
 
+    struct AttachedEffectDebugSummary
+    {
+        uint32 totalCount = 0;
+        uint32 activeCount = 0;
+        uint32 trailCount = 0;
+        uint32 trailDrainingCount = 0;
+        uint32 sourceHistoryCount = 0;
+        uint32 sourceHistoryDrainingCount = 0;
+    };
+
     struct TrailOffsetRuntimeDesc
     {
         float phase = 0.f;
@@ -136,6 +146,7 @@ public: //## Behavior::AttachedEffects
     void Update_AttachedEffects(float timeDelta);
     void Capture_AttachedEffectPauseStates(vector<AttachedEffectPauseState>& outStates);
     void Restore_AttachedEffectPauseStates(vector<AttachedEffectPauseState>& states);
+    AttachedEffectDebugSummary Get_AttachedEffectDebugSummary() const;
 
     InspectorEffectSettings Get_InspectorEffectSettings() const;
     void Set_InspectorEffectSettings(const InspectorEffectSettings& settings);

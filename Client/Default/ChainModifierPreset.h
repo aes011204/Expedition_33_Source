@@ -78,6 +78,11 @@ public:
         TransformCom* ownerTransform,
         const wstring& modifierTag = L"PhysicsModifier_GustaveHair");
 
+    static void BuildLuneHairPhysicsDesc(
+        PhysicsModifier::PhysicsModifierDesc& outDesc,
+        TransformCom* ownerTransform,
+        const wstring& modifierTag = L"PhysicsModifier_LuneHair");
+
     static void BuildMaelleBackHairPhysicsDesc(
         PhysicsModifier::PhysicsModifierDesc& outDesc,
         TransformCom* ownerTransform,

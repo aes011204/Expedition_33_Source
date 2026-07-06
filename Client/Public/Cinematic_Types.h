@@ -3,6 +3,7 @@
 #include <variant>
 
 #include "Delegate.h"
+#include "EffectCom.h"
 #include "ScalarTrackTypes.h"
 #include "CameraModifierTypes.h"
 
@@ -152,12 +153,36 @@ struct CinematicWorldTimeScaleEventData
     float worldTimeScale = 1.f;
 };
 
+struct CinematicPlayEffectEventData
+{
+    wstring effectName;
+    Client::EffectCom::EffectPlayTarget target = Client::EffectCom::EffectPlayTarget::OwnerRoot;
+    wstring partTag;
+    string socketName;
+    wstring layerTag = L"Layer_Effect";
+    Vec3 localOffset = Vec3::Zero;
+    Vec3 localRotation = Vec3::Zero;
+    Vec3 scale = Vec3::One;
+    float playbackSpeed = 1.f;
+};
+
+struct CinematicPlaySoundEventData
+{
+    wstring soundCue;
+    bool useTargetPosition = true;
+    float volume = 1.f;
+    float speed = 1.f;
+    float startRatio = 0.f;
+};
+
 using CinematicEventPayload = variant<
     CinematicSpawnEventData,
     CinematicPlayAnimEventData,
     CinematicDespawnEventData,
     CinematicPartVisibilityEventData,
-    CinematicWorldTimeScaleEventData>;
+    CinematicWorldTimeScaleEventData,
+    CinematicPlayEffectEventData,
+    CinematicPlaySoundEventData>;
 
 typedef struct CinematicEvent
 {

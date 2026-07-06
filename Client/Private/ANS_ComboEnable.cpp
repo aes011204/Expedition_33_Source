@@ -32,7 +32,7 @@ void ANS_ComboEnable::On_End(const AnimNotifyContext& context)
 
 void ANS_ComboEnable::Set_ComboWindow(const AnimNotifyContext& context, bool enabled) const
 {
-    if (context.isPreview)
+    if (context.isPreview || (context.isCinematic && enabled))
         return;
 
     Shared<GameObject> current = context.owner ? context.owner->GetSharedPtr<GameObject>() : nullptr;
