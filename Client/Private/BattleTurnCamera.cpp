@@ -148,7 +148,10 @@ DOFPreset Build_BattleDOFPreset()
 {
     DOFPreset preset{};
     preset.enableDOF = true;
+    preset.focusDistance = 0.f;
     preset.focusRange = 1.5f;
+    preset.nearMaxRadius = 0.f;
+    preset.nearIntensity = 0.f;
     return preset;
 }
 
@@ -287,22 +290,31 @@ HRESULT BattleTurnCamera::Initialize(void* arg)
    _playerFocusDOFProfile.preset.focusDistance = 0.01f;
    _playerFocusDOFProfile.preset.focusRange = 25.61f;
    _playerFocusDOFProfile.preset.farMaxRadius = 1.25f;
-   _playerFocusDOFProfile.preset.farIntensity = 0.45f;
+   _playerFocusDOFProfile.preset.farIntensity = 0.3f;
 
    _enemyFocusDOFProfile.preset = Build_BattleDOFPreset();
-   _enemyFocusDOFProfile.preset.focusDistance = 2.f;
-   _enemyFocusDOFProfile.preset.focusRange = 15.f;
-   _enemyFocusDOFProfile.preset.farIntensity = 0.65f;
+   _enemyFocusDOFProfile.preset.focusDistance = 0.f;
+   _enemyFocusDOFProfile.preset.focusRange = 5.5f;
+   _enemyFocusDOFProfile.preset.farMaxRadius = 1.2f;
+   _enemyFocusDOFProfile.preset.farIntensity = 0.4f;
 
    _selectItemDOFProfile.preset = Build_BattleDOFPreset();
    _selectItemDOFProfile.preset.focusDistance = 0.f;
-   _selectItemDOFProfile.preset.focusRange = 2.16f;
-   _selectItemDOFProfile.preset.farIntensity = 0.50f;
+   _selectItemDOFProfile.preset.focusRange = 5.f;
+   _selectItemDOFProfile.preset.farMaxRadius = 1.8f;
+   _selectItemDOFProfile.preset.farIntensity = 0.3f;
+
+   _selectPlayerDOFProfile.preset = Build_BattleDOFPreset();
+   _selectPlayerDOFProfile.preset.focusDistance = 0.f;
+   _selectPlayerDOFProfile.preset.focusRange = 5.f;
+   _selectPlayerDOFProfile.preset.farMaxRadius = 1.9f;
+   _selectPlayerDOFProfile.preset.farIntensity = 0.3f;
 
    _selectSkillDOFProfile.preset = Build_BattleDOFPreset();
    _selectSkillDOFProfile.preset.focusDistance = 0.f;
    _selectSkillDOFProfile.preset.focusRange = 5.f;
-   _selectSkillDOFProfile.preset.farIntensity = 0.70f;
+   _selectSkillDOFProfile.preset.farMaxRadius = 1.9f;
+   _selectSkillDOFProfile.preset.farIntensity = 0.3f;
 
    _playerAttackDefaultProfile.preset = _playerAttackPreset;
    _playerAttackDefaultProfile.clip = _playerAttackClip;
@@ -824,6 +836,8 @@ const BattleTurnCamera::BattleDOFProfile* BattleTurnCamera::Find_DOFProfileStora
         return &_enemyFocusDOFProfile;
     case BattleCameraMode::SELECTITEM:
         return &_selectItemDOFProfile;
+    case BattleCameraMode::SELECTPLAYER:
+        return &_selectPlayerDOFProfile;
     case BattleCameraMode::SELECTSKILL:
         return &_selectSkillDOFProfile;
     default:
