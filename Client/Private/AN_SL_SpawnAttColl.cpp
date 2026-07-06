@@ -57,7 +57,7 @@ IMPLEMENT_REFLECTION(ANS_SL_SpawnAttColl)
 
 void ANS_SL_SpawnAttColl::On_Begin(const AnimNotifyContext& context)
 {
-    if (context.isPreview || context.owner == nullptr || _prefabName.empty())
+    if (context.isPreview || context.isCinematic || context.owner == nullptr || _prefabName.empty())
         return;
 
     const Shared<GameObject> spawnOwner = Resolve_SpawnOwner(context.owner);

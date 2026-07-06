@@ -27,7 +27,7 @@ HRESULT Head_Player::Initialize(void* arg)
 	if (FAILED(PlayableParts::Initialize(arg)))
 	{
         LOG_ERROR("[Head_Player] : Failed to Initialize");
-        return S_OK;
+        return E_FAIL;
 	}
 
     _offsetMatrix = Matrix::Identity;

@@ -284,7 +284,7 @@ public: /*CinematicSequenceRunner*/
         bool forceRebuildContext = false);
     bool Sync_CinematicPreviewSequence(const CINEMATIC_SEQUENCE& sequence, int trackIndex = -1);
     void Set_ActorTransformTrackPreviewSuspended(bool suspended);
-    void Stop_Sequence();
+    void Stop_Sequence(bool forceRemoveAllSpawned = false);
     void Stop_SequenceKeepContext();
     bool Is_CinematicPlaying() const;
     bool Is_CinematicPaused() const;

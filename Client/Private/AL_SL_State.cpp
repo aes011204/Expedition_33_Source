@@ -19,7 +19,7 @@ IMPLEMENT_REFLECTION(AN_SL_State)
 
 void AN_SL_State::Execute(const AnimNotifyContext& context)
 {
-    if (context.isPreview)
+    if (context.isPreview || context.isCinematic)
         return;
 
     if (_nextState == SL_PlayerState::Sprint ||

@@ -1,6 +1,6 @@
 #pragma once
 
-#include <ImSequencer.h>
+#include "../../MainEditor/Public/ImSequencer.h"
 #include "BattleCameraClipTypes.h"
 
 constexpr int kBattleClipTrackCount = 19;

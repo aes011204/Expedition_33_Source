@@ -39,6 +39,8 @@ public:
     HRESULT Render() override;
     HRESULT Render_Shadow() override;
     void    Enable_PoseFollowModifier();
+    void    Set_CinematicPreviewSimulationSuppressed(bool suppressed);
+    bool    Is_CinematicPreviewSimulationSuppressed() const { return _suppressCinematicPreviewSimulation; }
 
 private:
     Matrix                  _offsetMatrix{};
@@ -50,6 +52,7 @@ private:
     bool                    _usePoseFollowModifier = false;
     bool                    _useLuneHairPhysicsModifier = false;
     bool                    _hairPoseFollowModifierReady = false;
+    bool                    _suppressCinematicPreviewSimulation = false;
 
     uint32                  _hairPass = 0;
 

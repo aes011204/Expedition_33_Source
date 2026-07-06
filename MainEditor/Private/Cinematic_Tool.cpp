@@ -10,6 +10,7 @@
 #include "ContainerObject.h"
 #include "GameInstance.h"
 #include "Helper_String.h"
+#include "../Public/ImSequencer.h"
 #include "ModelCom.h"
 #include "PartObject.h"
 #include "TransformCom.h"
@@ -25,6 +26,237 @@
 namespace
 {
 constexpr float kBattleClipPreviewFps = 30.f;
+
+template <typename TValue>
+void Append_UniqueValue(vector<TValue>& values, const TValue& candidate)
+{
+    if constexpr (std::is_same_v<TValue, string>)
+    {
+        if (candidate.empty())
+            return;
+    }
+
+    if (std::find(values.begin(), values.end(), candidate) == values.end())
+        values.push_back(candidate);
+}
+
+vector<string> Collect_TargetIdSuggestions(const CINEMATIC_SEQUENCE& sequence)
+{
+    vector<string> values{};
+
+    for (const auto& event : sequence.eventTrack)
+        Append_UniqueValue(values, event.targetId);
+
+    for (const auto& track : sequence.actorRelativeCameraTracks)
+        Append_UniqueValue(values, track.targetId);
+
+    for (const auto& track : sequence.actorTransformTracks)
+        Append_UniqueValue(values, track.targetId);
+
+    for (const auto& track : sequence.partRotationTracks)
+        Append_UniqueValue(values, track.targetId);
+
+    return values;
+}
+
+vector<string> Collect_SpawnPrefabSuggestions(const CINEMATIC_SEQUENCE& sequence)
+{
+    vector<string> values{};
+    for (const auto& event : sequence.eventTrack)
+    {
+        if (const auto* spawn = get_if<CinematicSpawnEventData>(&event.payload))
+            Append_UniqueValue(values, spawn->prefabName);
+    }
+
+    return values;
+}
+
+vector<string> Collect_PartTagSuggestions(const CINEMATIC_SEQUENCE& sequence)
+{
+    vector<string> values{};
+    for (const auto& event : sequence.eventTrack)
+    {
+        if (const auto* partVisibility = get_if<CinematicPartVisibilityEventData>(&event.payload))
+            Append_UniqueValue(values, partVisibility->partTag);
+    }
+
+    for (const auto& track : sequence.partRotationTracks)
+        Append_UniqueValue(values, track.partTag);
+
+    return values;
+}
+
+vector<string> Collect_LayerTagSuggestions(const CINEMATIC_SEQUENCE& sequence)
+{
+    vector<string> values{};
+    for (const auto& event : sequence.eventTrack)
+    {
+        if (const auto* spawn = get_if<CinematicSpawnEventData>(&event.payload))
+            Append_UniqueValue(values, String::ToString(spawn->layerTag));
+    }
+
+    return values;
+}
+
+vector<string> Collect_SoundCueSuggestions(const CINEMATIC_SEQUENCE& sequence)
+{
+    vector<string> values{};
+    for (const auto& event : sequence.eventTrack)
+    {
+        if (const auto* playSound = get_if<CinematicPlaySoundEventData>(&event.payload))
+            Append_UniqueValue(values, String::ToString(playSound->soundCue));
+    }
+
+    return values;
+}
+
+bool Draw_StringSuggestionCombo(const char* label, string& value, const vector<string>& suggestions)
+{
+    if (suggestions.empty())
+        return false;
+
+    const char* previewLabel = value.empty() ? "<select>" : value.c_str();
+    if (!ImGui::BeginCombo(label, previewLabel))
+        return false;
+
+    bool changed = false;
+    for (const string& suggestion : suggestions)
+    {
+        const bool isSelected = (suggestion == value);
+        if (ImGui::Selectable(suggestion.c_str(), isSelected))
+        {
+            value = suggestion;
+            changed = true;
+        }
+
+        if (isSelected)
+            ImGui::SetItemDefaultFocus();
+    }
+
+    ImGui::EndCombo();
+    return changed;
+}
+
+bool Are_EventPayloadTypesEqual(const CINEMATIC_EVENT& lhs, const CINEMATIC_EVENT& rhs)
+{
+    return lhs.payload.index() == rhs.payload.index();
+}
+
+bool Event_AffectsCurrentPreview(
+    const CINEMATIC_EVENT& event,
+    int currentFrame,
+    bool previewApplyEventTrack)
+{
+    return previewApplyEventTrack && event.frame <= currentFrame;
+}
+
+bool Should_RebuildPreviewForEventEdit(
+    const CINEMATIC_EVENT& before,
+    const CINEMATIC_EVENT& after,
+    int currentFrame,
+    bool previewApplyEventTrack)
+{
+    if (!Event_AffectsCurrentPreview(before, currentFrame, previewApplyEventTrack) &&
+        !Event_AffectsCurrentPreview(after, currentFrame, previewApplyEventTrack))
+    {
+        return false;
+    }
+
+    if (before.frame != after.frame ||
+        before.targetId != after.targetId ||
+        !Are_EventPayloadTypesEqual(before, after))
+    {
+        return true;
+    }
+
+    if (const auto* beforeSpawn = get_if<CinematicSpawnEventData>(&before.payload))
+    {
+        const auto* afterSpawn = get_if<CinematicSpawnEventData>(&after.payload);
+        if (afterSpawn == nullptr)
+            return true;
+
+        return beforeSpawn->prefabName != afterSpawn->prefabName ||
+            beforeSpawn->layerTag != afterSpawn->layerTag ||
+            beforeSpawn->position.x != afterSpawn->position.x ||
+            beforeSpawn->position.y != afterSpawn->position.y ||
+            beforeSpawn->position.z != afterSpawn->position.z ||
+            beforeSpawn->rotation.x != afterSpawn->rotation.x ||
+            beforeSpawn->rotation.y != afterSpawn->rotation.y ||
+            beforeSpawn->rotation.z != afterSpawn->rotation.z ||
+            beforeSpawn->cleanupPolicy != afterSpawn->cleanupPolicy;
+    }
+
+    if (const auto* beforePlayAnim = get_if<CinematicPlayAnimEventData>(&before.payload))
+    {
+        const auto* afterPlayAnim = get_if<CinematicPlayAnimEventData>(&after.payload);
+        if (afterPlayAnim == nullptr)
+            return true;
+
+        return beforePlayAnim->animName != afterPlayAnim->animName ||
+            beforePlayAnim->blendDuration != afterPlayAnim->blendDuration ||
+            beforePlayAnim->loop != afterPlayAnim->loop ||
+            beforePlayAnim->startFrame != afterPlayAnim->startFrame ||
+            beforePlayAnim->speed != afterPlayAnim->speed ||
+            beforePlayAnim->holdFrame != afterPlayAnim->holdFrame;
+    }
+
+    if (const auto* beforePlayEffect = get_if<CinematicPlayEffectEventData>(&before.payload))
+    {
+        const auto* afterPlayEffect = get_if<CinematicPlayEffectEventData>(&after.payload);
+        if (afterPlayEffect == nullptr)
+            return true;
+
+        return beforePlayEffect->effectName != afterPlayEffect->effectName ||
+            beforePlayEffect->target != afterPlayEffect->target ||
+            beforePlayEffect->partTag != afterPlayEffect->partTag ||
+            beforePlayEffect->socketName != afterPlayEffect->socketName ||
+            beforePlayEffect->layerTag != afterPlayEffect->layerTag ||
+            beforePlayEffect->localOffset.x != afterPlayEffect->localOffset.x ||
+            beforePlayEffect->localOffset.y != afterPlayEffect->localOffset.y ||
+            beforePlayEffect->localOffset.z != afterPlayEffect->localOffset.z ||
+            beforePlayEffect->localRotation.x != afterPlayEffect->localRotation.x ||
+            beforePlayEffect->localRotation.y != afterPlayEffect->localRotation.y ||
+            beforePlayEffect->localRotation.z != afterPlayEffect->localRotation.z ||
+            beforePlayEffect->scale.x != afterPlayEffect->scale.x ||
+            beforePlayEffect->scale.y != afterPlayEffect->scale.y ||
+            beforePlayEffect->scale.z != afterPlayEffect->scale.z ||
+            beforePlayEffect->playbackSpeed != afterPlayEffect->playbackSpeed;
+    }
+
+    if (const auto* beforePlaySound = get_if<CinematicPlaySoundEventData>(&before.payload))
+    {
+        const auto* afterPlaySound = get_if<CinematicPlaySoundEventData>(&after.payload);
+        if (afterPlaySound == nullptr)
+            return true;
+
+        return beforePlaySound->soundCue != afterPlaySound->soundCue ||
+            beforePlaySound->useTargetPosition != afterPlaySound->useTargetPosition ||
+            beforePlaySound->volume != afterPlaySound->volume ||
+            beforePlaySound->speed != afterPlaySound->speed ||
+            beforePlaySound->startRatio != afterPlaySound->startRatio;
+    }
+
+    if (const auto* beforePartVisibility = get_if<CinematicPartVisibilityEventData>(&before.payload))
+    {
+        const auto* afterPartVisibility = get_if<CinematicPartVisibilityEventData>(&after.payload);
+        if (afterPartVisibility == nullptr)
+            return true;
+
+        return beforePartVisibility->partTag != afterPartVisibility->partTag ||
+            beforePartVisibility->visible != afterPartVisibility->visible;
+    }
+
+    if (const auto* beforeWorldTimeScale = get_if<CinematicWorldTimeScaleEventData>(&before.payload))
+    {
+        const auto* afterWorldTimeScale = get_if<CinematicWorldTimeScaleEventData>(&after.payload);
+        if (afterWorldTimeScale == nullptr)
+            return true;
+
+        return beforeWorldTimeScale->worldTimeScale != afterWorldTimeScale->worldTimeScale;
+    }
+
+    return get_if<CinematicDespawnEventData>(&before.payload) != nullptr;
+}
 
 int Get_BattleClipFrameMax(const BattleCameraClip& clip)
 {
@@ -68,6 +300,12 @@ const char* Get_CinematicEventTypeLabel(const CINEMATIC_EVENT& event)
 
     if (get_if<CinematicPlayAnimEventData>(&event.payload) != nullptr)
         return "PlayAnim";
+
+    if (get_if<CinematicPlayEffectEventData>(&event.payload) != nullptr)
+        return "PlayEffect";
+
+    if (get_if<CinematicPlaySoundEventData>(&event.payload) != nullptr)
+        return "PlaySound";
 
     if (get_if<CinematicDespawnEventData>(&event.payload) != nullptr)
         return "Despawn";
@@ -412,9 +650,12 @@ void Cinematic_Tool::Update(float timeDelta)
     if (isPlaying && !CLIENT->Is_CinematicPaused())
     {
         const int playbackFrame = CLIENT->Get_CurrentSequenceFrame();
-        if (_currentFrame != playbackFrame)
+        const float playbackFrameExact = CLIENT->Get_CurrentSequenceFrameExact();
+        if (_currentFrame != playbackFrame ||
+            std::fabs(_currentFrameExact - playbackFrameExact) > 0.0001f)
         {
             _currentFrame = playbackFrame;
+            _currentFrameExact = playbackFrameExact;
             _isPreviewDirty = true;
         }
     }
@@ -479,13 +720,27 @@ void Cinematic_Tool::Render()
         }
 
         ImGuiIO& io = ImGui::GetIO();
-        if (_isCinematicTabActive &&
-            !io.KeyCtrl &&
+        if (_isFocused &&
+            _isCinematicTabActive &&
             !io.WantTextInput &&
-            !ImGui::IsAnyItemActive() &&
-            ImGui::IsKeyPressed(ImGuiKey_Space, false))
+            !ImGui::IsAnyItemActive())
         {
-            Toggle_PreviewPlayback();
+            if (io.KeyCtrl && !io.KeyShift && ImGui::IsKeyPressed(ImGuiKey_S, false))
+                _requestOpenSaveSequenceConfirmPopup = true;
+            else if (!io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_Space, false))
+                Toggle_PreviewPlayback();
+            else if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_LeftArrow, false))
+                Step_SelectedTrackKeyframe(-1);
+            else if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_RightArrow, false))
+                Step_SelectedTrackKeyframe(1);
+            else if (io.KeyShift && ImGui::IsKeyPressed(ImGuiKey_LeftArrow, false))
+                Step_PreviewFrame(-5);
+            else if (io.KeyShift && ImGui::IsKeyPressed(ImGuiKey_RightArrow, false))
+                Step_PreviewFrame(5);
+            else if (!io.KeyCtrl && !io.KeyShift && ImGui::IsKeyPressed(ImGuiKey_LeftArrow, false))
+                Step_PreviewFrame(-1);
+            else if (!io.KeyCtrl && !io.KeyShift && ImGui::IsKeyPressed(ImGuiKey_RightArrow, false))
+                Step_PreviewFrame(1);
         }
     }
 
@@ -1337,6 +1592,15 @@ void Cinematic_Tool::Render_EventTrack()
             addEvent(CinematicWorldTimeScaleEventData{}, true);
 
         ImGui::TableNextColumn();
+        if (ImGui::Button("Add PlayEffect", ImVec2(-FLT_MIN, 0.f)))
+            addEvent(CinematicPlayEffectEventData{}, true);
+
+        ImGui::TableNextRow();
+        ImGui::TableNextColumn();
+        if (ImGui::Button("Add PlaySound", ImVec2(-FLT_MIN, 0.f)))
+            addEvent(CinematicPlaySoundEventData{}, true);
+
+        ImGui::TableNextColumn();
         if (!canRemoveEvent)
             ImGui::BeginDisabled();
         if (ImGui::Button("Remove Selected", ImVec2(-FLT_MIN, 0.f)))
@@ -1389,6 +1653,7 @@ void Cinematic_Tool::Render_EventTrack()
     ImGui::TextDisabled("Selected Event");
 
     CINEMATIC_EVENT& event = _sequence.eventTrack[_selectedEventIndex];
+    const CINEMATIC_EVENT originalEvent = event;
     bool eventEdited = false;
 
     if (ImGui::DragInt("event frame", &event.frame, 1.f, _sequence.startFrame, _sequence.endFrame))
@@ -1405,6 +1670,9 @@ void Cinematic_Tool::Render_EventTrack()
         event.targetId = targetBuffer;
         eventEdited = true;
     }
+
+    if (Draw_StringSuggestionCombo("target id presets", event.targetId, Collect_TargetIdSuggestions(_sequence)))
+        eventEdited = true;
 
     const char* currentTypeLabel = Get_CinematicEventTypeLabel(event);
     if (ImGui::BeginCombo("event type", currentTypeLabel))
@@ -1425,6 +1693,24 @@ void Cinematic_Tool::Render_EventTrack()
             eventEdited = true;
         }
         if (isPlayAnim)
+            ImGui::SetItemDefaultFocus();
+
+        const bool isPlayEffect = get_if<CinematicPlayEffectEventData>(&event.payload) != nullptr;
+        if (ImGui::Selectable("PlayEffect", isPlayEffect))
+        {
+            event.payload = CinematicPlayEffectEventData{};
+            eventEdited = true;
+        }
+        if (isPlayEffect)
+            ImGui::SetItemDefaultFocus();
+
+        const bool isPlaySound = get_if<CinematicPlaySoundEventData>(&event.payload) != nullptr;
+        if (ImGui::Selectable("PlaySound", isPlaySound))
+        {
+            event.payload = CinematicPlaySoundEventData{};
+            eventEdited = true;
+        }
+        if (isPlaySound)
             ImGui::SetItemDefaultFocus();
 
         const bool isDespawn = get_if<CinematicDespawnEventData>(&event.payload) != nullptr;
@@ -1486,6 +1772,111 @@ void Cinematic_Tool::Render_EventTrack()
         if (ImGui::Checkbox("hold frame", &playAnim->holdFrame))
             eventEdited = true;
     }
+    else if (auto* playEffect = get_if<CinematicPlayEffectEventData>(&event.payload))
+    {
+        string effectName = String::ToString(playEffect->effectName);
+        char effectBuffer[128]{};
+        strncpy_s(effectBuffer, effectName.c_str(), _TRUNCATE);
+        if (ImGui::InputText("effect name", effectBuffer, static_cast<size_t>(_countof(effectBuffer))))
+        {
+            playEffect->effectName = String::ToWString(effectBuffer);
+            eventEdited = true;
+        }
+
+        const auto beforeTarget = playEffect->target;
+        Select_PresetEnum("effect target", playEffect->target);
+        if (playEffect->target != beforeTarget)
+            eventEdited = true;
+
+        string partTag = String::ToString(playEffect->partTag);
+        char partTagBuffer[128]{};
+        strncpy_s(partTagBuffer, partTag.c_str(), _TRUNCATE);
+        if (ImGui::InputText("part tag", partTagBuffer, static_cast<size_t>(_countof(partTagBuffer))))
+        {
+            playEffect->partTag = String::ToWString(partTagBuffer);
+            eventEdited = true;
+        }
+
+        if (Draw_StringSuggestionCombo("part tag presets", partTag, Collect_PartTagSuggestions(_sequence)))
+        {
+            playEffect->partTag = String::ToWString(partTag);
+            eventEdited = true;
+        }
+
+        char socketBuffer[128]{};
+        strncpy_s(socketBuffer, playEffect->socketName.c_str(), _TRUNCATE);
+        if (ImGui::InputText("socket name", socketBuffer, static_cast<size_t>(_countof(socketBuffer))))
+        {
+            playEffect->socketName = socketBuffer;
+            eventEdited = true;
+        }
+
+        string layerTag = String::ToString(playEffect->layerTag);
+        char layerBuffer[128]{};
+        strncpy_s(layerBuffer, layerTag.c_str(), _TRUNCATE);
+        if (ImGui::InputText("layer tag", layerBuffer, static_cast<size_t>(_countof(layerBuffer))))
+        {
+            playEffect->layerTag = String::ToWString(layerBuffer);
+            eventEdited = true;
+        }
+
+        if (Draw_StringSuggestionCombo("layer presets", layerTag, Collect_LayerTagSuggestions(_sequence)))
+        {
+            playEffect->layerTag = String::ToWString(layerTag);
+            eventEdited = true;
+        }
+
+        if (ImGui::DragFloat3("local offset", &playEffect->localOffset.x, 0.1f))
+            eventEdited = true;
+        if (ImGui::DragFloat3("local rotation", &playEffect->localRotation.x, 0.1f))
+            eventEdited = true;
+        if (ImGui::DragFloat3("scale", &playEffect->scale.x, 0.01f))
+            eventEdited = true;
+        if (ImGui::DragFloat("playback speed", &playEffect->playbackSpeed, 0.01f, 0.01f, 10.f, "%.2f"))
+        {
+            playEffect->playbackSpeed = std::max(playEffect->playbackSpeed, 0.01f);
+            eventEdited = true;
+        }
+    }
+    else if (auto* playSound = get_if<CinematicPlaySoundEventData>(&event.payload))
+    {
+        string soundCue = String::ToString(playSound->soundCue);
+        char soundCueBuffer[128]{};
+        strncpy_s(soundCueBuffer, soundCue.c_str(), _TRUNCATE);
+        if (ImGui::InputText("sound cue", soundCueBuffer, static_cast<size_t>(_countof(soundCueBuffer))))
+        {
+            soundCue = soundCueBuffer;
+            playSound->soundCue = String::ToWString(soundCue);
+            eventEdited = true;
+        }
+
+        if (Draw_StringSuggestionCombo("sound cue presets", soundCue, Collect_SoundCueSuggestions(_sequence)))
+        {
+            playSound->soundCue = String::ToWString(soundCue);
+            eventEdited = true;
+        }
+
+        if (ImGui::Checkbox("use target position", &playSound->useTargetPosition))
+            eventEdited = true;
+
+        if (ImGui::DragFloat("volume", &playSound->volume, 0.01f, 0.f, 10.f, "%.2f"))
+        {
+            playSound->volume = std::clamp(playSound->volume, 0.f, 10.f);
+            eventEdited = true;
+        }
+
+        if (ImGui::DragFloat("speed", &playSound->speed, 0.01f, 0.1f, 3.f, "%.2f"))
+        {
+            playSound->speed = std::clamp(playSound->speed, 0.1f, 3.f);
+            eventEdited = true;
+        }
+
+        if (ImGui::DragFloat("start ratio", &playSound->startRatio, 0.01f, 0.f, 0.99f, "%.2f"))
+        {
+            playSound->startRatio = std::clamp(playSound->startRatio, 0.f, 0.99f);
+            eventEdited = true;
+        }
+    }
     else if (auto* spawn = get_if<CinematicSpawnEventData>(&event.payload))
     {
         char prefabBuffer[128]{};
@@ -1496,12 +1887,21 @@ void Cinematic_Tool::Render_EventTrack()
             eventEdited = true;
         }
 
+        if (Draw_StringSuggestionCombo("prefab presets", spawn->prefabName, Collect_SpawnPrefabSuggestions(_sequence)))
+            eventEdited = true;
+
         string layerTag = String::ToString(spawn->layerTag);
         char layerBuffer[128]{};
         strncpy_s(layerBuffer, layerTag.c_str(), _TRUNCATE);
         if (ImGui::InputText("layer tag", layerBuffer, static_cast<size_t>(_countof(layerBuffer))))
         {
             spawn->layerTag = String::ToWString(layerBuffer);
+            eventEdited = true;
+        }
+
+        if (Draw_StringSuggestionCombo("layer presets", layerTag, Collect_LayerTagSuggestions(_sequence)))
+        {
+            spawn->layerTag = String::ToWString(layerTag);
             eventEdited = true;
         }
 
@@ -1546,6 +1946,9 @@ void Cinematic_Tool::Render_EventTrack()
             partVisibility->partTag = partTagBuffer;
             eventEdited = true;
         }
+
+        if (Draw_StringSuggestionCombo("part tag presets", partVisibility->partTag, Collect_PartTagSuggestions(_sequence)))
+            eventEdited = true;
         if (ImGui::Checkbox("visible", &partVisibility->visible))
             eventEdited = true;
         ImGui::TextDisabled("Target should be a bound ContainerObject actor id.");
@@ -1560,9 +1963,10 @@ void Cinematic_Tool::Render_EventTrack()
         ImGui::TextDisabled("Add another WorldTimeScale event later in the sequence to restore to 1.0 or a new value.");
     }
 
-    const string selectedTargetId = event.targetId;
-    const int selectedFrame = event.frame;
-    const string selectedTypeLabel = Get_CinematicEventTypeLabel(event);
+    const CINEMATIC_EVENT updatedEvent = event;
+    const string selectedTargetId = updatedEvent.targetId;
+    const int selectedFrame = updatedEvent.frame;
+    const string selectedTypeLabel = Get_CinematicEventTypeLabel(updatedEvent);
 
     std::sort(_sequence.eventTrack.begin(), _sequence.eventTrack.end(),
         [](const CINEMATIC_EVENT& lhs, const CINEMATIC_EVENT& rhs)
@@ -1587,7 +1991,12 @@ void Cinematic_Tool::Render_EventTrack()
     }
 
     if (eventEdited)
-        Request_CinematicPreviewRefresh(true);
+        Request_CinematicPreviewRefresh(
+            Should_RebuildPreviewForEventEdit(
+                originalEvent,
+                updatedEvent,
+                _currentFrame,
+                _previewApplyEventTrack));
 }
 
 void Cinematic_Tool::Render_ActorRelativeCameraTracks()
@@ -1661,6 +2070,9 @@ void Cinematic_Tool::Render_ActorRelativeCameraTracks()
         Request_CinematicPreviewRefresh(true);
     }
 
+    if (Draw_StringSuggestionCombo("actor relative target presets", track.targetId, Collect_TargetIdSuggestions(_sequence)))
+        Request_CinematicPreviewRefresh(true);
+
     if (ImGui::Checkbox("actor relative track enabled", &track.enabled))
         Request_CinematicPreviewRefresh(false);
 }
@@ -1729,6 +2141,8 @@ void Cinematic_Tool::Render_ActorTransformTracks()
     strncpy_s(targetBuffer, track.targetId.c_str(), _TRUNCATE);
     if (ImGui::InputText("actor target id", targetBuffer, static_cast<size_t>(_countof(targetBuffer))))
         track.targetId = targetBuffer;
+
+    Draw_StringSuggestionCombo("actor target presets", track.targetId, Collect_TargetIdSuggestions(_sequence));
 
     ImGui::Checkbox("actor track enabled", &track.enabled);
 
@@ -2045,6 +2459,9 @@ void Cinematic_Tool::Render_PartRotationTracks()
         Request_CinematicPreviewRefresh(false);
     }
 
+    if (Draw_StringSuggestionCombo("part rotation target presets", track.targetId, Collect_TargetIdSuggestions(_sequence)))
+        Request_CinematicPreviewRefresh(false);
+
     char partTagBuffer[128]{};
     strncpy_s(partTagBuffer, track.partTag.c_str(), _TRUNCATE);
     if (ImGui::InputText("part tag", partTagBuffer, static_cast<size_t>(_countof(partTagBuffer))))
@@ -2052,6 +2469,9 @@ void Cinematic_Tool::Render_PartRotationTracks()
         track.partTag = partTagBuffer;
         Request_CinematicPreviewRefresh(false);
     }
+
+    if (Draw_StringSuggestionCombo("part tag presets", track.partTag, Collect_PartTagSuggestions(_sequence)))
+        Request_CinematicPreviewRefresh(false);
 
     if (ImGui::Checkbox("part rotation track enabled", &track.enabled))
         Request_CinematicPreviewRefresh(false);
@@ -2583,8 +3003,19 @@ void Cinematic_Tool::Render_ImSequencer()
     bool requestRemoveKeyPopup = false;
     int  sequencerSelectedTrackIndex = _selectedTrackIndex;
     const int previousFrame = _currentFrame;
+    const float previousFrameExact = _currentFrameExact;
     const int previousTrackIndex = _selectedTrackIndex;
     const int previousKeyIndex = _selectedKeyIndex;
+    const int fullFrameMin = _sequence.startFrame;
+    const int fullFrameMax = std::max(_sequence.startFrame + 1, _sequence.endFrame);
+    const int fullFrameRange = std::max(1, fullFrameMax - fullFrameMin);
+
+    if (_sequencerVisibleFrameCount <= 0 || _sequencerVisibleFrameCount > fullFrameRange)
+        _sequencerVisibleFrameCount = fullFrameRange;
+    _sequencerFirstFrame = std::clamp(
+        _sequencerFirstFrame,
+        fullFrameMin,
+        std::max(fullFrameMin, fullFrameMax - _sequencerVisibleFrameCount));
 
     CinematicSequencerAdapter adapter(
         &_sequence,
@@ -2610,17 +3041,148 @@ void Cinematic_Tool::Render_ImSequencer()
         nullptr);
 
     static bool expanded = true;
-    static int firstFrame = 0;
+    const int sequencerItemCount = std::max(1, adapter.GetItemCount());
+    const float sequencerHeight = std::max(120.f, 20.f + 30.f * static_cast<float>(sequencerItemCount) + 10.f);
+    ImRect sequencerItemRect(ImGui::GetCursorScreenPos(), ImGui::GetCursorScreenPos());
+    bool sequencerHovered = false;
 
-    ImSequencer::Sequencer(&adapter, &_currentFrame, &expanded, &sequencerSelectedTrackIndex, &firstFrame, ImSequencer::SEQUENCER_CHANGE_FRAME);
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.f, 0.f));
+    if (ImGui::BeginChild("CinematicSequencerFixedHeight", ImVec2(0.f, sequencerHeight), false, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse))
+    {
+        ImSequencer::Sequencer(
+            &adapter,
+            &_currentFrame,
+            &expanded,
+            &sequencerSelectedTrackIndex,
+            &_sequencerFirstFrame,
+            ImSequencer::SEQUENCER_CHANGE_FRAME,
+            _sequencerFirstFrame,
+            _sequencerFirstFrame + _sequencerVisibleFrameCount,
+            &_currentFrameExact);
+
+        sequencerItemRect = ImRect(ImGui::GetItemRectMin(), ImGui::GetItemRectMax());
+        sequencerHovered = ImGui::IsItemHovered();
+
+        const ImGuiIO& io = ImGui::GetIO();
+        if (sequencerHovered && io.KeyCtrl && io.MouseWheel != 0.f)
+        {
+            const float timelineMinX = sequencerItemRect.Min.x + 200.f;
+            const float timelineMaxX = sequencerItemRect.Max.x;
+            const float timelineWidth = std::max(1.f, timelineMaxX - timelineMinX);
+            const float mouseRatio = std::clamp((io.MousePos.x - timelineMinX) / timelineWidth, 0.f, 1.f);
+            const int oldVisibleFrameCount = std::clamp(_sequencerVisibleFrameCount, 1, fullFrameRange);
+            const int mouseFrame = _sequencerFirstFrame + static_cast<int>(std::round(mouseRatio * static_cast<float>(oldVisibleFrameCount)));
+            const float zoomScale = io.MouseWheel > 0.f ? 0.82f : 1.22f;
+            const int minVisibleFrameCount = std::min(fullFrameRange, 8);
+            const int newVisibleFrameCount = std::clamp(
+                static_cast<int>(std::round(static_cast<float>(oldVisibleFrameCount) * zoomScale)),
+                minVisibleFrameCount,
+                fullFrameRange);
+            const float pivotRatio = static_cast<float>(mouseFrame - _sequencerFirstFrame) / static_cast<float>(std::max(1, oldVisibleFrameCount));
+            const int requestedFirstFrame = mouseFrame - static_cast<int>(std::round(pivotRatio * static_cast<float>(newVisibleFrameCount)));
+            _sequencerVisibleFrameCount = newVisibleFrameCount;
+            _sequencerFirstFrame = std::clamp(
+                requestedFirstFrame,
+                fullFrameMin,
+                std::max(fullFrameMin, fullFrameMax - _sequencerVisibleFrameCount));
+        }
+        else if (sequencerHovered && io.KeyShift && !io.KeyCtrl && io.MouseWheel != 0.f)
+        {
+            const int scrollMax = std::max(fullFrameMin, fullFrameMax - _sequencerVisibleFrameCount);
+            const int scrollStep = std::max(1, static_cast<int>(std::round(static_cast<float>(_sequencerVisibleFrameCount) * 0.1f)));
+            const int direction = io.MouseWheel > 0.f ? -1 : 1;
+            _sequencerFirstFrame = std::clamp(_sequencerFirstFrame + direction * scrollStep, fullFrameMin, scrollMax);
+        }
+    }
+    ImGui::EndChild();
+    ImGui::PopStyleVar();
+
+    const int scrollMaxFrame = std::max(fullFrameMin, fullFrameMax - _sequencerVisibleFrameCount);
+    const float scrollbarOffsetX = 200.f;
+    const float scrollbarHeight = 16.f;
+    const float scrollbarWidth = std::max(1.f, sequencerItemRect.Max.x - (sequencerItemRect.Min.x + scrollbarOffsetX));
+    const bool scrollbarEnabled = _sequencerVisibleFrameCount < fullFrameRange && scrollMaxFrame > fullFrameMin;
+
+    ImGui::Dummy(ImVec2(scrollbarOffsetX, scrollbarHeight));
+    ImGui::SameLine(0.f, 0.f);
+    ImGui::InvisibleButton("##CinematicSequencerHorizontalScroll", ImVec2(scrollbarWidth, scrollbarHeight));
+
+    const ImRect scrollbarRect(ImGui::GetItemRectMin(), ImGui::GetItemRectMax());
+    const bool scrollbarHovered = ImGui::IsItemHovered();
+    const bool scrollbarActive = ImGui::IsItemActive();
+    const ImGuiIO& scrollbarIO = ImGui::GetIO();
+    const float visibleRatio = std::clamp(static_cast<float>(_sequencerVisibleFrameCount) / static_cast<float>(fullFrameRange), 0.f, 1.f);
+    const float thumbWidth = std::clamp(scrollbarWidth * visibleRatio, std::min(34.f, scrollbarWidth), scrollbarWidth);
+    const float thumbTravel = std::max(1.f, scrollbarWidth - thumbWidth);
+
+    if (scrollbarEnabled && scrollbarActive)
+    {
+        const float dragRatio = std::clamp((scrollbarIO.MousePos.x - scrollbarRect.Min.x - thumbWidth * 0.5f) / thumbTravel, 0.f, 1.f);
+        const int requestedFirstFrame = fullFrameMin + static_cast<int>(std::round(dragRatio * static_cast<float>(scrollMaxFrame - fullFrameMin)));
+        _sequencerFirstFrame = std::clamp(requestedFirstFrame, fullFrameMin, scrollMaxFrame);
+    }
+
+    const float scrollRatio = scrollMaxFrame > fullFrameMin
+        ? std::clamp(static_cast<float>(_sequencerFirstFrame - fullFrameMin) / static_cast<float>(scrollMaxFrame - fullFrameMin), 0.f, 1.f)
+        : 0.f;
+    const float thumbMinX = scrollbarRect.Min.x + thumbTravel * scrollRatio;
+    const ImRect thumbRect(
+        ImVec2(thumbMinX, scrollbarRect.Min.y + 2.f),
+        ImVec2(thumbMinX + thumbWidth, scrollbarRect.Max.y - 2.f));
+
+    ImDrawList* scrollbarDrawList = ImGui::GetWindowDrawList();
+    scrollbarDrawList->AddRectFilled(
+        scrollbarRect.Min,
+        scrollbarRect.Max,
+        scrollbarEnabled ? IM_COL32(45, 47, 53, 255) : IM_COL32(38, 38, 42, 160),
+        4.f);
+    scrollbarDrawList->AddRect(
+        scrollbarRect.Min,
+        scrollbarRect.Max,
+        IM_COL32(80, 82, 90, 180),
+        4.f);
+    scrollbarDrawList->AddRectFilled(
+        thumbRect.Min,
+        thumbRect.Max,
+        !scrollbarEnabled ? IM_COL32(72, 72, 78, 160) :
+            (scrollbarActive ? IM_COL32(118, 166, 255, 255) :
+                (scrollbarHovered ? IM_COL32(92, 138, 224, 255) : IM_COL32(72, 112, 190, 255))),
+        4.f);
+
+    const int minVisibleFrameCount = std::min(fullFrameRange, 8);
+    ImGui::SetNextItemWidth(std::max(160.f, scrollbarWidth));
+    const int previousVisibleFrameCount = _sequencerVisibleFrameCount;
+    if (ImGui::SliderInt("visible frames", &_sequencerVisibleFrameCount, minVisibleFrameCount, fullFrameRange))
+    {
+        _sequencerVisibleFrameCount = std::clamp(_sequencerVisibleFrameCount, minVisibleFrameCount, fullFrameRange);
+
+        const float pivotFrame = std::clamp(
+            _useExactFramePreview ? _currentFrameExact : static_cast<float>(_currentFrame),
+            static_cast<float>(fullFrameMin),
+            static_cast<float>(fullFrameMax));
+        const float pivotRatio = previousVisibleFrameCount > 0
+            ? std::clamp(
+                (pivotFrame - static_cast<float>(_sequencerFirstFrame)) / static_cast<float>(previousVisibleFrameCount),
+                0.f,
+                1.f)
+            : 0.5f;
+        const int requestedFirstFrame = static_cast<int>(std::round(
+            pivotFrame - pivotRatio * static_cast<float>(_sequencerVisibleFrameCount)));
+        _sequencerFirstFrame = std::clamp(
+            requestedFirstFrame,
+            fullFrameMin,
+            std::max(fullFrameMin, fullFrameMax - _sequencerVisibleFrameCount));
+    }
 
     if (!consumedKeyClick)
         _selectedTrackIndex = sequencerSelectedTrackIndex;
 
-    if (previousFrame != _currentFrame)
-    {
+    if (consumedKeyClick || requestOpenKeyPopup || requestOpenInsertPopup || requestRemoveKeyPopup)
         _currentFrameExact = static_cast<float>(_currentFrame);
-        _useExactFramePreview = false;
+
+    if (previousFrame != _currentFrame || std::fabs(previousFrameExact - _currentFrameExact) > 0.0001f)
+    {
+        _useExactFramePreview = std::fabs(_currentFrameExact - static_cast<float>(_currentFrame)) > 0.0001f;
         Request_CinematicPreviewRefresh(false);
     }
 
@@ -3269,9 +3831,13 @@ void Cinematic_Tool::Render_SelectedKeyframeEditor(CINEMATIC_KEYFRAME& keyframe)
         ImGui::EndCombo();
     }
 
-    if(ImGui::Button("Overwrite Keyframe With Current Camera"))
+    if (ImGui::Button("Overwrite Keyframe With Current Camera"))
+        _requestOpenOverwriteKeyframePopup = true;
+
+    if (_requestOpenOverwriteKeyframePopup)
     {
         ImGui::OpenPopup("Confirm Overwrite Keyframe");
+        _requestOpenOverwriteKeyframePopup = false;
     }
 
     if (ImGui::BeginPopupModal("Confirm Overwrite Keyframe", nullptr, ImGuiWindowFlags_AlwaysAutoResize))
@@ -3704,6 +4270,226 @@ void Cinematic_Tool::Render_RemoveKeyframePopup()
     ImGui::EndPopup();
 }
 
+void Cinematic_Tool::Step_PreviewFrame(int frameDelta)
+{
+    if (frameDelta == 0)
+        return;
+
+    const bool isPlaying = CLIENT->Is_CinematicPlaying();
+    const bool isPaused = CLIENT->Is_CinematicPaused();
+    if (isPlaying && !isPaused)
+        CLIENT->Pause_Sequence();
+
+    _currentFrame = std::clamp(_currentFrame + frameDelta, _sequence.startFrame, _sequence.endFrame);
+    _currentFrameExact = static_cast<float>(_currentFrame);
+    _useExactFramePreview = false;
+    Request_CinematicPreviewRefresh(false);
+}
+
+void Cinematic_Tool::Step_SelectedTrackKeyframe(int direction)
+{
+    if (direction == 0)
+        return;
+
+    int targetFrame = -1;
+    auto syncCurrentFrame = [&]()
+    {
+        _currentFrame = targetFrame;
+        _currentFrameExact = static_cast<float>(_currentFrame);
+        _useExactFramePreview = false;
+        Request_CinematicPreviewRefresh(false);
+    };
+
+    if (CINEMATIC_TRACK* track = Get_SelectedTrack())
+    {
+        int targetKeyIndex = -1;
+        for (int i = 0; i < static_cast<int>(track->keyframes.size()); ++i)
+        {
+            const int frame = track->keyframes[i].frame;
+            if (direction > 0)
+            {
+                if (frame <= _currentFrame)
+                    continue;
+                if (targetFrame < 0 || frame < targetFrame)
+                {
+                    targetFrame = frame;
+                    targetKeyIndex = i;
+                }
+            }
+            else
+            {
+                if (frame >= _currentFrame)
+                    continue;
+                if (targetFrame < 0 || frame > targetFrame)
+                {
+                    targetFrame = frame;
+                    targetKeyIndex = i;
+                }
+            }
+        }
+
+        if (targetKeyIndex >= 0)
+        {
+            _selectedKeyIndex = targetKeyIndex;
+            syncCurrentFrame();
+        }
+        return;
+    }
+
+    if (CameraTrack* modifierTrack = Get_SelectedModifierTrack())
+    {
+        int targetKeyIndex = -1;
+        for (int i = 0; i < static_cast<int>(modifierTrack->keyframes.size()); ++i)
+        {
+            const int frame = std::clamp(
+                _sequence.startFrame + static_cast<int>(std::lround(
+                    modifierTrack->keyframes[i].time * static_cast<float>(std::max(_sequence.fps, 1)))),
+                _sequence.startFrame,
+                _sequence.endFrame);
+            if (direction > 0)
+            {
+                if (frame <= _currentFrame)
+                    continue;
+                if (targetFrame < 0 || frame < targetFrame)
+                {
+                    targetFrame = frame;
+                    targetKeyIndex = i;
+                }
+            }
+            else
+            {
+                if (frame >= _currentFrame)
+                    continue;
+                if (targetFrame < 0 || frame > targetFrame)
+                {
+                    targetFrame = frame;
+                    targetKeyIndex = i;
+                }
+            }
+        }
+
+        if (targetKeyIndex >= 0)
+        {
+            _selectedKeyIndex = targetKeyIndex;
+            syncCurrentFrame();
+        }
+        return;
+    }
+
+    if (CINEMATIC_ACTOR_RELATIVE_CAMERA_TRACK* track = Get_SelectedActorRelativeCameraTrack())
+    {
+        int targetKeyIndex = -1;
+        for (int i = 0; i < static_cast<int>(track->keyframes.size()); ++i)
+        {
+            const int frame = track->keyframes[i].frame;
+            if (direction > 0)
+            {
+                if (frame <= _currentFrame)
+                    continue;
+                if (targetFrame < 0 || frame < targetFrame)
+                {
+                    targetFrame = frame;
+                    targetKeyIndex = i;
+                }
+            }
+            else
+            {
+                if (frame >= _currentFrame)
+                    continue;
+                if (targetFrame < 0 || frame > targetFrame)
+                {
+                    targetFrame = frame;
+                    targetKeyIndex = i;
+                }
+            }
+        }
+
+        if (targetKeyIndex >= 0)
+        {
+            _selectedActorRelativeCameraKeyIndex = targetKeyIndex;
+            syncCurrentFrame();
+        }
+        return;
+    }
+
+    if (Is_SelectedPartRotationTrack())
+    {
+        if (CINEMATIC_PART_ROTATION_TRACK* track = Get_SelectedPartRotationTrack())
+        {
+            int targetKeyIndex = -1;
+            for (int i = 0; i < static_cast<int>(track->keyframes.size()); ++i)
+            {
+                const int frame = track->keyframes[i].frame;
+                if (direction > 0)
+                {
+                    if (frame <= _currentFrame)
+                        continue;
+                    if (targetFrame < 0 || frame < targetFrame)
+                    {
+                        targetFrame = frame;
+                        targetKeyIndex = i;
+                    }
+                }
+                else
+                {
+                    if (frame >= _currentFrame)
+                        continue;
+                    if (targetFrame < 0 || frame > targetFrame)
+                    {
+                        targetFrame = frame;
+                        targetKeyIndex = i;
+                    }
+                }
+            }
+
+            if (targetKeyIndex >= 0)
+            {
+                _selectedPartRotationKeyIndex = targetKeyIndex;
+                syncCurrentFrame();
+            }
+        }
+        return;
+    }
+
+    if (_selectedActorTransformTrackIndex >= 0 &&
+        _selectedActorTransformTrackIndex < static_cast<int>(_sequence.actorTransformTracks.size()))
+    {
+        const auto& track = _sequence.actorTransformTracks[_selectedActorTransformTrackIndex];
+        int targetKeyIndex = -1;
+        for (int i = 0; i < static_cast<int>(track.keyframes.size()); ++i)
+        {
+            const int frame = track.keyframes[i].frame;
+            if (direction > 0)
+            {
+                if (frame <= _currentFrame)
+                    continue;
+                if (targetFrame < 0 || frame < targetFrame)
+                {
+                    targetFrame = frame;
+                    targetKeyIndex = i;
+                }
+            }
+            else
+            {
+                if (frame >= _currentFrame)
+                    continue;
+                if (targetFrame < 0 || frame > targetFrame)
+                {
+                    targetFrame = frame;
+                    targetKeyIndex = i;
+                }
+            }
+        }
+
+        if (targetKeyIndex >= 0)
+        {
+            _selectedActorTransformKeyIndex = targetKeyIndex;
+            syncCurrentFrame();
+        }
+        return;
+    }
+}
+
 void Cinematic_Tool::Render_PreviewState()
 {
     Draw_SectionHeader("Preview");
@@ -3785,7 +4571,7 @@ void Cinematic_Tool::Render_PreviewState()
             _isPreviewStoppedForEditing = false;
             EDITOR->Set_CinematicPreviewFreeCameraOverride(false);
             GAME->Set_PreviewLetterboxEnabled(false);
-            CLIENT->Stop_Sequence();
+            CLIENT->Stop_Sequence(true);
         }
     }
 
@@ -4451,7 +5237,7 @@ void Cinematic_Tool::Insert_KeyframeAtFrame(int trackIndex, int frame)
 
 void Cinematic_Tool::Clear_AllSequenceKeyframes()
 {
-    CLIENT->Stop_Sequence();
+    CLIENT->Stop_Sequence(true);
     Clear_PendingInsertRequest();
 
     for (auto& track : _sequence.cinematicTracks)
@@ -4479,7 +5265,7 @@ void Cinematic_Tool::Clear_AllSequenceKeyframes()
 
 void Cinematic_Tool::Reset_ToNewSequence()
 {
-    CLIENT->Stop_Sequence();
+    CLIENT->Stop_Sequence(true);
     Clear_PendingInsertRequest();
 
     _sequence = {};
@@ -4539,7 +5325,7 @@ void Cinematic_Tool::Load_SelectedSequenceFile()
     if (!Cinematic_SequenceIO::LoadSequenceFromFile(filePath, loadedSequence))
         return;
 
-    CLIENT->Stop_Sequence();
+    CLIENT->Stop_Sequence(true);
     Clear_PendingInsertRequest();
     _sequence = std::move(loadedSequence);
 
