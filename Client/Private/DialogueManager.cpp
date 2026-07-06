@@ -569,7 +569,10 @@ void DialogueManager::ApplyCurrentLine()
     }
 
     if (!currentLine->soundCueId.empty())
+    {
+        GAME->Stop_SoundChannel(SoundChannel::NPC);
         GAME->Play_SoundCue(String::ToWString(currentLine->soundCueId));
+    }
 
     LOG_INFO("Dialogue Line : {}", String::ToString(currentLine->text));
 
