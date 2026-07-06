@@ -463,12 +463,21 @@ void Editor_Manager::Handle_Shortcuts()
     // Esc : 게임 종료
     if (ImGui::IsKeyPressed(ImGuiKey_F4, false))
     {
+        const bool isEditorRuntimeActive = EDITOR->IsPlaying() || EDITOR->IsPaused();
+        if (!isEditorRuntimeActive && CLIENT != nullptr && CLIENT->Is_CinematicPlaying())
+        {
+            EDITOR->Set_CinematicPreviewFreeCameraOverride(false);
+            GAME->Set_PreviewLetterboxEnabled(false);
+            CLIENT->Stop_Sequence(true);
+            return;
+        }
+
         if (GAME->Is_GameplayPaused())
         {
             return;
         }
     
-        if (EDITOR->IsPlaying() || EDITOR->IsPaused())
+        if (isEditorRuntimeActive)
             EDITOR->Stop();
     
         return;

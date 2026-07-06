@@ -415,6 +415,7 @@ HRESULT SL_Maelle::Ready_PartObjects()
         hairDesc.modelType = ModelType::Anim;
         hairDesc.modelTag = hairModelTag;
         hairDesc.hairPhysicsDesc = Get_MaelleHairChainPhysicsDesc();
+        hairDesc.useHairModifier = true;
         hairDesc.socketMatrixPointer = _head->Get_SocketBoneMatrixPtr("head");
 
         CHECK_FAILED(Add_PartObject(ETOI(LevelType::Static), TEXT("GameObject_Hair_Player"), TEXT("Part_Hair"), &hairDesc), E_FAIL);

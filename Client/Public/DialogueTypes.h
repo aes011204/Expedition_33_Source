@@ -21,6 +21,7 @@ struct DialogueLine
     int lineIndex = 0;
     wstring text;
     string cameraPresetId;
+    string soundCueId;
     DialogueActorRole speakerRole = DialogueActorRole::Npc;
     string speakerAnimationKey;
     float speakerOffsetY = 0.f;

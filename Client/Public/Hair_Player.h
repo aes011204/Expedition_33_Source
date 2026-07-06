@@ -20,7 +20,8 @@ public:
     {
         HairChainPhysicsDesc    hairPhysicsDesc{};
         HairCB                  hairCB{};
-        bool                    usePoseFollowModifier = false;
+        bool                    useHairModifier = false;
+        bool                    useLuneHairPhysicsModifier = false;
     } HAIR_PLAYER_DESC;
 
 public:
@@ -37,7 +38,9 @@ public:
     void    Late_Update(float timeDelta) override;
     HRESULT Render() override;
     HRESULT Render_Shadow() override;
-    void    Enable_PoseFollowModifier();
+    void    Enable_HairModifier();
+    void    Set_CinematicPreviewSimulationSuppressed(bool suppressed);
+    bool    Is_CinematicPreviewSimulationSuppressed() const { return _suppressCinematicPreviewSimulation; }
 
 private:
     Matrix                  _offsetMatrix{};
@@ -46,8 +49,10 @@ private:
     HairChainPhysicsDesc    _hairPhysicsDesc{};
     HairCB                  _hairCB{};
     bool                    _hairPhysicsReady = false;
-    bool                    _usePoseFollowModifier = false;
-    bool                    _hairPoseFollowModifierReady = false;
+    bool                    _useHairModifier = false;
+    bool                    _useLuneHairPhysicsModifier = false;
+    bool                    _hairModifierReady = false;
+    bool                    _suppressCinematicPreviewSimulation = false;
 
     uint32                  _hairPass = 0;
 

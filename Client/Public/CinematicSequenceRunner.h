@@ -1,6 +1,7 @@
 ﻿#pragma once
 
 #include <unordered_map>
+#include <unordered_set>
 
 #include "Base.h"
 #include "Cinematic_Types.h"
@@ -13,6 +14,7 @@ NS_BEGIN(Client)
 
 class CinematicCamera;
 class Cinematic_Player;
+class Hair_Player;
 
 class CinematicSequenceRunner : public Base
 {
@@ -59,7 +61,7 @@ public:
         bool forceRebuildContext = false);
     bool Sync_PreviewSequence(const CINEMATIC_SEQUENCE& sequence, int trackIndex = -1);
     void Set_ActorTransformTrackPreviewSuspended(bool suspended);
-    void Stop_Sequence();
+    void Stop_Sequence(bool forceRemoveAllSpawned = false);
     void Stop_SequenceKeepContext();
     void Update(float timeDelta, bool tickBoundAnimationsManually = false);
     bool Is_CinematicPlaying() const;
@@ -101,6 +103,18 @@ private:
 
     struct BindingRuntimeState
     {
+        struct ShadowCasterRestoreState
+        {
+            Shared<GameObject> object = nullptr;
+            ShadowCasterType previousType = ShadowCasterType::None;
+        };
+
+        struct HairPreviewRestoreState
+        {
+            Shared<Hair_Player> hair = nullptr;
+            bool previousSimulationSuppressed = false;
+        };
+
         Shared<GameObject> actor = nullptr;
         bool spawnedBySequence = false;
         CinematicCleanupPolicy cleanupPolicy = CinematicCleanupPolicy::DespawnOnStop;
@@ -108,12 +122,42 @@ private:
         CinematicPlayAnimEventData activePlayAnim{};
         int activePlayAnimEventFrame = 0;
         float pendingPlayAnimInitialAdvanceSec = -1.f;
+        bool hasPreviewPlayAnimElapsedSec = false;
+        int previewPlayAnimEventFrame = 0;
+        float previewPlayAnimElapsedSec = 0.f;
         bool hasCinematicNotifyContextOverride = false;
         bool previousCinematicNotifyContext = false;
+        bool hasAnimNotifyExecutionOverride = false;
+        bool previousAnimNotifyExecutionEnabled = true;
+        vector<ShadowCasterRestoreState> previewShadowCasterRestores{};
+        vector<HairPreviewRestoreState> previewHairRestores{};
     };
 
-    void Execute_EventsUpToFrame(int currentFrame, float currentFrameExact);
-    void Execute_Event(const CINEMATIC_EVENT& event, float currentFrameExact);
+    struct FramePerfBreakdown
+    {
+        float runnerMs = 0.f;
+        float playerMs = 0.f;
+        float cameraMs = 0.f;
+        float eventsMs = 0.f;
+        float actorTracksMs = 0.f;
+        float animMs = 0.f;
+        float animPlayMs = 0.f;
+        float animPartMs = 0.f;
+        float maxAnimActorMs = 0.f;
+        string maxAnimActorId{};
+        uint32 animActorCount = 0;
+        float attachedEffectMs = 0.f;
+        uint32 attachedEffectComCount = 0;
+    };
+
+    void Execute_EventsUpToFrame(
+        int currentFrame,
+        float currentFrameExact,
+        bool suppressTransientEffects = false);
+    void Execute_Event(
+        const CINEMATIC_EVENT& event,
+        float currentFrameExact,
+        bool suppressTransientEffects = false);
 
     bool Execute_SpawnEvent(const string& targetId, const CinematicSpawnEventData& payload);
     bool Execute_PlayAnimEvent(
@@ -121,20 +165,26 @@ private:
         float currentFrameExact,
         const string& targetId,
         const CinematicPlayAnimEventData& payload);
+    bool Execute_PlayEffectEvent(const string& targetId, const CinematicPlayEffectEventData& payload);
+    bool Execute_PlaySoundEvent(const string& targetId, const CinematicPlaySoundEventData& payload);
     bool Execute_DespawnEvent(const string& targetId, const CinematicDespawnEventData& payload);
     bool Execute_PartVisibilityEvent(const string& targetId, const CinematicPartVisibilityEventData& payload);
     bool Execute_WorldTimeScaleEvent(const CinematicWorldTimeScaleEventData& payload);
     Shared<GameObject> Find_ReusableActorByPrefabName(const string& prefabName) const;
     bool Is_ActorAlreadyBound(const Shared<GameObject>& actor) const;
     void Apply_CinematicDrivenState(const Shared<GameObject>& actor, bool cinematicDriven) const;
+    void Stop_ActorAttachedEffects(const Shared<GameObject>& actor) const;
+    void Track_PreviewShadowCasterRestore(BindingRuntimeState& state, const Shared<GameObject>& object) const;
+    void Apply_PreviewPlaybackOptimization(BindingRuntimeState& state) const;
+    void Restore_PreviewPlaybackOptimization(const BindingRuntimeState& state) const;
     void Bind_ActorToTarget(
         const string& targetId,
         const Shared<GameObject>& actor,
         bool spawnedBySequence,
         CinematicCleanupPolicy cleanupPolicy);
 
-    void Apply_ActorTransformTracks(float currentFrameExact);
-    void Apply_AuthoredActorTracks(float currentFrameExact);
+    void Apply_ActorTransformTracks(float currentFrameExact, bool deferActiveAnimPartRefresh = false);
+    void Apply_AuthoredActorTracks(float currentFrameExact, bool deferActiveAnimPartRefresh = false);
     void Apply_PartRotationTracks(float currentFrameExact);
     bool Evaluate_ActorTransformTrack(
         const CINEMATIC_ACTOR_TRANSFORM_TRACK& track,
@@ -146,9 +196,11 @@ private:
         float currentFrameExact,
         Vec3& outRotation) const;
 
-    void Apply_BoundActorAnimationPreview(float currentFrameExact);
+    void Apply_BoundActorAnimationPreview(float currentFrameExact, bool suppressNotifyExecution = false);
     void Set_BoundActorAnimationPaused(bool paused);
-    void Update_BoundActorAnimations(float timeDelta);
+    void Update_BoundActorAnimations(float timeDelta, FramePerfBreakdown* perf = nullptr);
+    void Update_BoundActorAttachedEffects(float timeDelta, FramePerfBreakdown* perf = nullptr) const;
+    void Log_PerfDropIfNeeded(float timeDelta, float currentFrameExact, const FramePerfBreakdown& perf);
     void Cleanup_Context(bool forceRemoveAllSpawned = false);
     void Set_GameplayUIHiddenForCinematic(bool hidden) const;
 
@@ -194,6 +246,7 @@ private:
     Shared<Cinematic_Player> _player = nullptr;
     Shared<CinematicCamera> _activeCinematicCamera = nullptr;
     std::unordered_map<string, BindingRuntimeState> _bindingStates{};
+    std::unordered_set<GameObject*> _sequenceOwnedActors{};
     uint32 _sequenceLevelIndex = ETOI(LevelType::GamePlay);
     int _trackIndex = 0;
     int _nextEventIndex = 0;
@@ -202,8 +255,11 @@ private:
     bool _applyCameraTrack = true;
     bool _applyEventTrack = true;
     bool _applyActorTransformTrack = true;
+    bool _suppressAnimNotifyExecutionForBoundActors = false;
+    bool _usePreviewPlaybackOptimizations = false;
     bool _hasWorldTimeScaleOverride = false;
     float _restoreWorldTimeScale = 1.f;
+    float _perfDropLogCooldownSec = 0.f;
     wstring _activeSequencePath{};
 
     std::unordered_map<wstring, CINEMATIC_SEQUENCE> _prewarmedSequences{};

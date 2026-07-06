@@ -18,7 +18,7 @@ IMPLEMENT_REFLECTION(AN_SL_UseHealingPotion)
 
 void AN_SL_UseHealingPotion::Execute(const AnimNotifyContext& context)
 {
-    if (context.isPreview)
+    if (context.isPreview || context.isCinematic)
         return;
 
     const Shared<SL_Maelle> maelle = Resolve_Maelle(context.owner);

@@ -40,8 +40,8 @@ HRESULT PB_Maelle::Ready_BodyModifiers(Body_Player* body, const wchar_t* bodyMod
 HRESULT PB_Maelle::Ready_HairModifiers(Hair_Player* hair, const wchar_t* hairModelTag)
 {
     CHECK_NULL(hair, E_FAIL);
-    if (hairModelTag != nullptr && wcscmp(hairModelTag, L"Model_MaelleHair") == 0)
-        hair->Enable_PoseFollowModifier();
+    UNREFERENCED_PARAMETER(hairModelTag);
+    hair->Enable_HairModifier();
 
     return S_OK;
 }

@@ -126,7 +126,10 @@ void Renderer::Draw()
     double combinedHDRMs = 0.0;
     double postProcessMs = 0.0;
     double nonlightMs = 0.0;
+    double effectMaskedMs = 0.0;
     double blendMs = 0.0;
+    double glowMs = 0.0;
+    double distortionMs = 0.0;
     double uiMs = 0.0;
     double debugMs = 0.0;
 
@@ -209,6 +212,8 @@ void Renderer::Draw()
     // ========================================= //
 #ifdef _DEBUG
     DumpCurrentOMState(L"Render_NonLight:After");
+    nonlightMs = chrono::duration<double, milli>(chrono::steady_clock::now() - nonlightBegin).count();
+    const auto effectMaskedBegin = chrono::steady_clock::now();
     DumpCurrentOMState(L"Render_EffectMasked:Before");
 #endif
 
@@ -217,7 +222,7 @@ void Renderer::Draw()
     // ========================================= //
 #ifdef _DEBUG
     DumpCurrentOMState(L"Render_EffectMasked:After");
-    nonlightMs = chrono::duration<double, milli>(chrono::steady_clock::now() - nonlightBegin).count();
+    effectMaskedMs = chrono::duration<double, milli>(chrono::steady_clock::now() - effectMaskedBegin).count();
     const auto blendBegin = chrono::steady_clock::now();
     DumpCurrentOMState(L"Render_Blend:Before");
 #endif
@@ -225,11 +230,19 @@ void Renderer::Draw()
     // ========================================= //
     Render_Blend();
     // ========================================= //
-    Render_Glow();
-
 #ifdef _DEBUG
     DumpCurrentOMState(L"Render_Blend:After");
     blendMs = chrono::duration<double, milli>(chrono::steady_clock::now() - blendBegin).count();
+    const auto glowBegin = chrono::steady_clock::now();
+    DumpCurrentOMState(L"Render_Glow:Before");
+#endif
+
+    Render_Glow();
+
+#ifdef _DEBUG
+    DumpCurrentOMState(L"Render_Glow:After");
+    glowMs = chrono::duration<double, milli>(chrono::steady_clock::now() - glowBegin).count();
+    const auto distortionBegin = chrono::steady_clock::now();
     DumpCurrentOMState(L"Render_Distortion:Before");
 #endif
 
@@ -238,6 +251,7 @@ void Renderer::Draw()
     // ========================================= //
 #ifdef _DEBUG
     DumpCurrentOMState(L"Render_Distortion:After");
+    distortionMs = chrono::duration<double, milli>(chrono::steady_clock::now() - distortionBegin).count();
     const auto postProcesBegin = chrono::steady_clock::now();
     DumpCurrentOMState(L"Render_PostProcess:Before");
 #endif
@@ -281,7 +295,39 @@ void Renderer::Draw()
 
     debugMs = chrono::duration<double, milli>(chrono::steady_clock::now() - debugBegin).count();
     const auto renderMs = chrono::duration<double, milli>(chrono::steady_clock::now() - renderBegin).count();
-    Accumulate_RenderPerf(renderMs, priorityMs, shadowMs, nonBlendMs, lightsMs, combinedHDRMs, postProcessMs,nonlightMs, blendMs, uiMs, debugMs);
+    _lastFramePerfSummary = {};
+    _lastFramePerfSummary.valid = true;
+    _lastFramePerfSummary.renderCallCount = Get_RenderCall();
+    _lastFramePerfSummary.sampledFrameCount = 1;
+    _lastFramePerfSummary.renderAvgMs = static_cast<float>(renderMs);
+    _lastFramePerfSummary.renderMaxMs = static_cast<float>(renderMs);
+    _lastFramePerfSummary.priorityAvgMs = static_cast<float>(priorityMs);
+    _lastFramePerfSummary.priorityMaxMs = static_cast<float>(priorityMs);
+    _lastFramePerfSummary.shadowAvgMs = static_cast<float>(shadowMs);
+    _lastFramePerfSummary.shadowMaxMs = static_cast<float>(shadowMs);
+    _lastFramePerfSummary.nonBlendAvgMs = static_cast<float>(nonBlendMs);
+    _lastFramePerfSummary.nonBlendMaxMs = static_cast<float>(nonBlendMs);
+    _lastFramePerfSummary.lightsAvgMs = static_cast<float>(lightsMs);
+    _lastFramePerfSummary.lightsMaxMs = static_cast<float>(lightsMs);
+    _lastFramePerfSummary.combinedHDRAvgMs = static_cast<float>(combinedHDRMs);
+    _lastFramePerfSummary.combinedHDRMaxMs = static_cast<float>(combinedHDRMs);
+    _lastFramePerfSummary.postprocessAvgMs = static_cast<float>(postProcessMs);
+    _lastFramePerfSummary.postprocessMaxMs = static_cast<float>(postProcessMs);
+    _lastFramePerfSummary.nonLightAvgMs = static_cast<float>(nonlightMs);
+    _lastFramePerfSummary.nonLightMaxMs = static_cast<float>(nonlightMs);
+    _lastFramePerfSummary.effectMaskedAvgMs = static_cast<float>(effectMaskedMs);
+    _lastFramePerfSummary.effectMaskedMaxMs = static_cast<float>(effectMaskedMs);
+    _lastFramePerfSummary.blendAvgMs = static_cast<float>(blendMs);
+    _lastFramePerfSummary.blendMaxMs = static_cast<float>(blendMs);
+    _lastFramePerfSummary.glowAvgMs = static_cast<float>(glowMs);
+    _lastFramePerfSummary.glowMaxMs = static_cast<float>(glowMs);
+    _lastFramePerfSummary.distortionAvgMs = static_cast<float>(distortionMs);
+    _lastFramePerfSummary.distortionMaxMs = static_cast<float>(distortionMs);
+    _lastFramePerfSummary.uiAvgMs = static_cast<float>(uiMs);
+    _lastFramePerfSummary.uiMaxMs = static_cast<float>(uiMs);
+    _lastFramePerfSummary.debugAvgMs = static_cast<float>(debugMs);
+    _lastFramePerfSummary.debugMaxMs = static_cast<float>(debugMs);
+    Accumulate_RenderPerf(renderMs, priorityMs, shadowMs, nonBlendMs, lightsMs, combinedHDRMs, postProcessMs, nonlightMs, effectMaskedMs, blendMs, glowMs, distortionMs, uiMs, debugMs);
 #endif
 }
 
@@ -2684,9 +2730,21 @@ bool Renderer::Try_ConsumePerfSummary(const float windowSec, RenderPerfSummary& 
         LogUtils::Safe_Divide(_renderPerfWindow.nonLight.accumulatedMs, static_cast<double>(_renderPerfWindow.nonLight.sampleCount)));
     outSummary.nonLightMaxMs = static_cast<float>(_renderPerfWindow.nonLight.maxMs);
 
+    outSummary.effectMaskedAvgMs = static_cast<float>(
+        LogUtils::Safe_Divide(_renderPerfWindow.effectMasked.accumulatedMs, static_cast<double>(_renderPerfWindow.effectMasked.sampleCount)));
+    outSummary.effectMaskedMaxMs = static_cast<float>(_renderPerfWindow.effectMasked.maxMs);
+
     outSummary.blendAvgMs = static_cast<float>(
         LogUtils::Safe_Divide(_renderPerfWindow.blend.accumulatedMs, static_cast<double>(_renderPerfWindow.blend.sampleCount)));
     outSummary.blendMaxMs = static_cast<float>(_renderPerfWindow.blend.maxMs);
+
+    outSummary.glowAvgMs = static_cast<float>(
+        LogUtils::Safe_Divide(_renderPerfWindow.glow.accumulatedMs, static_cast<double>(_renderPerfWindow.glow.sampleCount)));
+    outSummary.glowMaxMs = static_cast<float>(_renderPerfWindow.glow.maxMs);
+
+    outSummary.distortionAvgMs = static_cast<float>(
+        LogUtils::Safe_Divide(_renderPerfWindow.distortion.accumulatedMs, static_cast<double>(_renderPerfWindow.distortion.sampleCount)));
+    outSummary.distortionMaxMs = static_cast<float>(_renderPerfWindow.distortion.maxMs);
 
     outSummary.uiAvgMs = static_cast<float>(
         LogUtils::Safe_Divide(_renderPerfWindow.ui.accumulatedMs, static_cast<double>(_renderPerfWindow.ui.sampleCount)));
@@ -2700,6 +2758,12 @@ bool Renderer::Try_ConsumePerfSummary(const float windowSec, RenderPerfSummary& 
     return true;
 }
 
+bool Renderer::Get_LastFramePerfSummary(RenderPerfSummary& outSummary) const
+{
+    outSummary = _lastFramePerfSummary;
+    return outSummary.valid;
+}
+
 void Renderer::Accumulate_RenderPerf(
     double renderMs,
     double priorityMs,
@@ -2709,7 +2773,10 @@ void Renderer::Accumulate_RenderPerf(
     double combinedHDRMs,
     double postprocessMs,
     double nonLightMs,
+    double effectMaskedMs,
     double blendMs,
+    double glowMs,
+    double distortionMs,
     double uiMs,
     double debugMs)
 {
@@ -2721,7 +2788,10 @@ void Renderer::Accumulate_RenderPerf(
     LogUtils::Accumulate_PassPerf(_renderPerfWindow.combinedHDR, combinedHDRMs);
     LogUtils::Accumulate_PassPerf(_renderPerfWindow.postProcess, postprocessMs);
     LogUtils::Accumulate_PassPerf(_renderPerfWindow.nonLight, nonLightMs);
+    LogUtils::Accumulate_PassPerf(_renderPerfWindow.effectMasked, effectMaskedMs);
     LogUtils::Accumulate_PassPerf(_renderPerfWindow.blend, blendMs);
+    LogUtils::Accumulate_PassPerf(_renderPerfWindow.glow, glowMs);
+    LogUtils::Accumulate_PassPerf(_renderPerfWindow.distortion, distortionMs);
     LogUtils::Accumulate_PassPerf(_renderPerfWindow.ui, uiMs);
     LogUtils::Accumulate_PassPerf(_renderPerfWindow.debug, debugMs);
 }

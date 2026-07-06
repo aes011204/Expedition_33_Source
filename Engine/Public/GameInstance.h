@@ -824,6 +824,28 @@ private:
     bool Should_SampleRuntimePerf();
     void Reset_RuntimePerfWindowState(chrono::steady_clock::time_point now);
     void Try_FlushRuntimePerfLog();
+    void Log_RuntimeFrameDropIfNeeded(float presentMs);
+
+    RenderPerfSummary _lastDrawRenderPerf{};
+    float _lastGameDrawMs{ 0.f };
+    float _lastRendererDrawMs{ 0.f };
+    float _lastLevelRenderMs{ 0.f };
+    float _lastDebugRenderMs{ 0.f };
+    float _lastUiRenderMs{ 0.f };
+    float _lastPostDrawMs{ 0.f };
+    float _lastPrintMs{ 0.f };
+    float _lastRuntimeFrameDeltaMs{ 0.f };
+    float _lastEngineUpdateMs{ 0.f };
+    float _lastClientUpdateMs{ 0.f };
+    float _lastLevelUpdateMs{ 0.f };
+    float _lastPriorityObjectUpdateMs{ 0.f };
+    float _lastObjectUpdateMs{ 0.f };
+    float _lastLateObjectUpdateMs{ 0.f };
+    float _lastPhysXUpdateMs{ 0.f };
+    float _lastCollisionFromPhysXMs{ 0.f };
+    float _lastCameraUpdateMs{ 0.f };
+    float _lastUiUpdateMs{ 0.f };
+    chrono::steady_clock::time_point _lastRuntimeFrameDropLogTime{};
 #endif
 
 public:

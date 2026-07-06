@@ -16,7 +16,7 @@ IMPLEMENT_REFLECTION(ANS_ParryWindow)
 
 void ANS_ParryWindow::On_Begin(const AnimNotifyContext& context)
 {
-    if (context.isPreview)
+    if (context.isPreview || context.isCinematic)
         return;
 
     if (Shared<SL_Maelle> maelle = Resolve_Maelle(context.owner))

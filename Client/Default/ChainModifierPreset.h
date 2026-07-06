@@ -28,22 +28,11 @@ public:
         PlayerCharacterType characterType,
         const wstring& modifierTag = L"ClothPhysics_Armband");
 
-    static void BuildPoseFollowHairDesc(
-        PoseFollowChainModifier::PoseFollowChainModifierDesc& outDesc,
-        TransformCom* ownerTransform,
-        PlayerCharacterType characterType,
-        const wstring& modifierTag = L"PoseFollow_Hair");
-
     static void BuildBindPoseHairDesc(
         ChainModifier::ChainModifierDesc& outDesc,
         TransformCom* ownerTransform,
         PlayerCharacterType characterType,
         const wstring& modifierTag = L"BindPose_Hair");
-
-    static void BuildMaelleHairChainDesc(
-        ChainModifier::ChainModifierDesc& outDesc,
-        TransformCom* ownerTransform,
-        const wstring& modifierTag = L"ClothPhysics_MaelleHair");
 
     static void BuildAbbestClothDesc(
         ChainModifier::ChainModifierDesc& outDesc,
@@ -93,6 +82,26 @@ public:
         PhysicsModifier::PhysicsModifierDesc& outDesc,
         TransformCom* ownerTransform,
         const wstring& modifierTag = L"PhysicsModifier_PotatoCape");
+
+    static void BuildGustaveHairPhysicsDesc(
+        PhysicsModifier::PhysicsModifierDesc& outDesc,
+        TransformCom* ownerTransform,
+        const wstring& modifierTag = L"PhysicsModifier_GustaveHair");
+
+    static void BuildLuneHairPhysicsDesc(
+        PhysicsModifier::PhysicsModifierDesc& outDesc,
+        TransformCom* ownerTransform,
+        const wstring& modifierTag = L"PhysicsModifier_LuneHair");
+
+    static void BuildMaelleBackHairPhysicsDesc(
+        PhysicsModifier::PhysicsModifierDesc& outDesc,
+        TransformCom* ownerTransform,
+        const wstring& modifierTag = L"PhysicsModifier_MaelleBackHair");
+
+    static void BuildMaelleFrontHairPhysicsDesc(
+        PhysicsModifier::PhysicsModifierDesc& outDesc,
+        TransformCom* ownerTransform,
+        const wstring& modifierTag = L"PhysicsModifier_MaelleFrontHair");
 
     static void BuildBackpackBandDesc(
         ChainModifier::ChainModifierDesc& outDesc,

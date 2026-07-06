@@ -288,6 +288,8 @@ HRESULT Player_BattleBase::Ready_PartObjects()
         hairDesc.modelType = ModelType::Anim;
         hairDesc.modelTag = hairModelTag;
         hairDesc.hairPhysicsDesc = Get_HairChainPhysicsDesc();
+        hairDesc.useHairModifier = Get_HeroId() == HeroId::Maelle;
+        hairDesc.useLuneHairPhysicsModifier = Get_HeroId() == HeroId::Lune;
         hairDesc.socketMatrixPointer = head->Get_SocketBoneMatrixPtr("head");
 
         CHECK_FAILED(Add_PartObject(
