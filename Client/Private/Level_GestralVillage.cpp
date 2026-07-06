@@ -770,7 +770,7 @@ void Level_GestralVillage::UnlockRules_GestralVillage()
 
 void Level_GestralVillage::Play_MapBGM()
 {
-    GAME->Play_BGM(Constants::SoundBGM::GestralVillageMarket, 0.7f, true, 0.f);
+    CLIENT->Request_BGMAfterLevelFade(Constants::SoundBGM::GestralVillageMarket, 0.7f, true, 0.f);
 }
 
 void Level_GestralVillage::Apply_GestralVillageRenderParams()

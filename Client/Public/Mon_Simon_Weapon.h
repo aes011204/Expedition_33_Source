@@ -70,6 +70,7 @@ public:
         const wstring& layerTag,
         const EffectCom::TrailOffsetRuntimeDesc& offsetDesc);
     void Update_WeaponEchoTrailOffset(const EffectCom::TrailOffsetRuntimeDesc& offsetDesc);
+    void Set_WeaponEchoTrailEffectOverride(const wstring& effectName);
 
 private:
     virtual uint32 Decide_PassIndex(Shared<Material> mat) override;
@@ -121,6 +122,7 @@ private:
         const wstring& effectName,
         const wstring& layerTag,
         const EffectCom::TrailOffsetRuntimeDesc& offsetDesc);
+    const wstring& Resolve_WeaponEchoTrailEffectName(const wstring& effectName) const;
     void Stop_WeaponEchoTrail();
     void Stop_WeaponEchoTrail(WeaponEchoLane& lane);
 
@@ -137,6 +139,7 @@ private:
     wstring _weaponEchoPendingTrailLayerTag{};
     EffectCom::TrailOffsetRuntimeDesc _weaponEchoPendingTrailOffset{};
     float _weaponEchoPendingTrailAgeSec = 0.f;
+    wstring _weaponEchoTrailEffectOverride{};
     ModelCom* _weaponEchoSourceModel = nullptr;
     string _weaponEchoSourceAnimationName{};
     float _weaponEchoLastKnownSourceTimeSec = 0.f;

@@ -148,7 +148,10 @@ DOFPreset Build_BattleDOFPreset()
 {
     DOFPreset preset{};
     preset.enableDOF = true;
+    preset.focusDistance = 0.f;
     preset.focusRange = 1.5f;
+    preset.nearMaxRadius = 0.f;
+    preset.nearIntensity = 0.f;
     return preset;
 }
 
@@ -287,22 +290,43 @@ HRESULT BattleTurnCamera::Initialize(void* arg)
    _playerFocusDOFProfile.preset.focusDistance = 0.01f;
    _playerFocusDOFProfile.preset.focusRange = 25.61f;
    _playerFocusDOFProfile.preset.farMaxRadius = 1.25f;
-   _playerFocusDOFProfile.preset.farIntensity = 0.45f;
+   _playerFocusDOFProfile.preset.farIntensity = 0.3f;
 
    _enemyFocusDOFProfile.preset = Build_BattleDOFPreset();
-   _enemyFocusDOFProfile.preset.focusDistance = 2.f;
-   _enemyFocusDOFProfile.preset.focusRange = 15.f;
-   _enemyFocusDOFProfile.preset.farIntensity = 0.65f;
+   _enemyFocusDOFProfile.preset.focusDistance = 0.f;
+   _enemyFocusDOFProfile.preset.focusRange = 5.5f;
+   _enemyFocusDOFProfile.preset.farMaxRadius = 1.2f;
+   _enemyFocusDOFProfile.preset.farIntensity = 0.4f;
+
+   _enemyAttackDOFProfile.preset = Build_BattleDOFPreset();
+   _enemyAttackDOFProfile.preset.focusDistance = 0.f;
+   _enemyAttackDOFProfile.preset.focusRange = 9.f;
+   _enemyAttackDOFProfile.preset.farMaxRadius = 1.2f;
+   _enemyAttackDOFProfile.preset.farIntensity = 0.35f;
+
+   _playerAttackDOFProfile.preset = Build_BattleDOFPreset();
+   _playerAttackDOFProfile.preset.focusDistance = 0.f;
+   _playerAttackDOFProfile.preset.focusRange = 9.f;
+   _playerAttackDOFProfile.preset.farMaxRadius = 1.1f;
+   _playerAttackDOFProfile.preset.farIntensity = 0.3f;
 
    _selectItemDOFProfile.preset = Build_BattleDOFPreset();
    _selectItemDOFProfile.preset.focusDistance = 0.f;
-   _selectItemDOFProfile.preset.focusRange = 2.16f;
-   _selectItemDOFProfile.preset.farIntensity = 0.50f;
+   _selectItemDOFProfile.preset.focusRange = 5.f;
+   _selectItemDOFProfile.preset.farMaxRadius = 1.8f;
+   _selectItemDOFProfile.preset.farIntensity = 0.3f;
+
+   _selectPlayerDOFProfile.preset = Build_BattleDOFPreset();
+   _selectPlayerDOFProfile.preset.focusDistance = 0.f;
+   _selectPlayerDOFProfile.preset.focusRange = 5.f;
+   _selectPlayerDOFProfile.preset.farMaxRadius = 1.9f;
+   _selectPlayerDOFProfile.preset.farIntensity = 0.3f;
 
    _selectSkillDOFProfile.preset = Build_BattleDOFPreset();
    _selectSkillDOFProfile.preset.focusDistance = 0.f;
    _selectSkillDOFProfile.preset.focusRange = 5.f;
-   _selectSkillDOFProfile.preset.farIntensity = 0.70f;
+   _selectSkillDOFProfile.preset.farMaxRadius = 1.9f;
+   _selectSkillDOFProfile.preset.farIntensity = 0.3f;
 
    _playerAttackDefaultProfile.preset = _playerAttackPreset;
    _playerAttackDefaultProfile.clip = _playerAttackClip;
@@ -533,6 +557,7 @@ void BattleTurnCamera::Reset_RuntimeState()
     _pitch = 0.f;
     _isClipPreview = false;
     _isRuntimePausedByTutorial = false;
+    _isBattleCameraShakeSuppressed = false;
     _isFirstUpdate = true;
     _isWideMode = false;
     _battleDOFPresetApplied = false;
@@ -543,6 +568,15 @@ void BattleTurnCamera::Reset_RuntimeState()
     _isJumpCounterPoseOffsetActive = false;
     _jumpCounterPoseOffsetProgress = 0.f;
     _jumpCounterPoseOffsetWeight = 0.f;
+}
+
+void BattleTurnCamera::Stop_BattleCameraShake()
+{
+    _isBattleCameraShakeSuppressed = true;
+    _runtimeShake = {};
+    _clipShakeTime = 0.f;
+    _lastActiveClipSample.shakeAmplitude = 0.f;
+    _clipDiscontinuityFadeSample.shakeAmplitude = 0.f;
 }
 
 void BattleTurnCamera::Set_JumpCounterPoseOffsetActive(bool active)
@@ -822,8 +856,14 @@ const BattleTurnCamera::BattleDOFProfile* BattleTurnCamera::Find_DOFProfileStora
         return &_playerFocusDOFProfile;
     case BattleCameraMode::ENEMYFOCUS:
         return &_enemyFocusDOFProfile;
+    case BattleCameraMode::ENEMYATTACK:
+        return &_enemyAttackDOFProfile;
+    case BattleCameraMode::PLAYERATTACK:
+        return &_playerAttackDOFProfile;
     case BattleCameraMode::SELECTITEM:
         return &_selectItemDOFProfile;
+    case BattleCameraMode::SELECTPLAYER:
+        return &_selectPlayerDOFProfile;
     case BattleCameraMode::SELECTSKILL:
         return &_selectSkillDOFProfile;
     default:
@@ -869,6 +909,9 @@ const BattleCameraClip* BattleTurnCamera::Find_ClipStorage(BattleCameraMode came
 
 void BattleTurnCamera::Start_RuntimeShake(const EvtBattleCameraShake& event)
 {
+    if (_isBattleCameraShakeSuppressed)
+        return;
+
     _runtimeShake.active = true;
     _runtimeShake.elapsed = 0.f;
     _runtimeShake.duration = event.duration;
@@ -884,6 +927,9 @@ void BattleTurnCamera::Start_RuntimeShake(const EvtBattleCameraShake& event)
 void BattleTurnCamera::Apply_RuntimeShake(EvaluatedPose& pose, float timeDelta)
 {
    UNREFERENCED_PARAMETER(timeDelta);
+
+   if (_isBattleCameraShakeSuppressed)
+      return;
 
    if(!_runtimeShake.active)
       return;
@@ -1002,6 +1048,9 @@ void BattleTurnCamera::Apply_ClipShake(
 {
     // clip shake도 drift 이후의 최종 pose에 additive로 얹어야
     // notify shake와 비슷한 화면 체감을 내고 다른 보정에 덜 묻힌다.
+
+    if (_isBattleCameraShakeSuppressed)
+        return;
 
     if (clipSample.shakeAmplitude <= 0.f)
         return;
@@ -1124,24 +1173,8 @@ void BattleTurnCamera::Sync_BattleDOF(const EvaluatedPose& pose, BattleCameraMod
     const bool presetModeChanged = !_battleDOFPresetApplied || _battleDOFActiveMode != cameraMode;
     const float autoFocusDistance = max(0.f, (pose.lookTarget - pose.cameraPos).Length());
     DOFPreset preset = dofProfile ? dofProfile->preset : Build_BattleDOFPreset();
-    float focusDistance = max(0.f, autoFocusDistance + preset.focusDistance);
-    float focusRange = preset.focusRange;
-
-    if (Shared<PostProcessPipeline> pipeline = GAME->Get_PostProcessPipeline())
-    {
-        const PostProcessCB& params = pipeline->Get_PostProcessParams();
-        if (!presetModeChanged)
-            focusRange = max(0.01f, params.dofFocusRange);
-
-        if (!presetModeChanged)
-        {
-            const float userFocusDistanceDelta = params.dofFocusDistance - _battleDOFLastAppliedFocusDistance;
-            focusDistance = max(0.f, focusDistance + userFocusDistanceDelta);
-        }
-    }
-
-    preset.focusDistance = focusDistance;
-    preset.focusRange = focusRange;
+    preset.focusDistance = max(0.f, autoFocusDistance + preset.focusDistance);
+    preset.focusRange = max(0.01f, preset.focusRange);
 
     if (presetModeChanged)
     {

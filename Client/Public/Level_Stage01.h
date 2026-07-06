@@ -28,10 +28,15 @@ private:
 private:
     HRESULT Ready_Lights();
     HRESULT Ready_Layer_Player(const wstring& strLayerTag);
+    HRESULT Ready_Layer_Monster(const wstring& strLayerTag);
     HRESULT Ready_Layer_Camera(const wstring& strLayerTag);
     HRESULT Ready_Layer_UI(const wstring& strLayerTag);
+    HRESULT Ready_Layer_AmbientVisibility(const wstring& strLayerTag);
     HRESULT Ready_Layer_ETC(const wstring& strLayerTag);
     HRESULT Ready_Layer_BackGround(const wstring& strLayerTag);
+    HRESULT Ready_Layer_CinematicTrigger(const wstring& strLayerTag);
+    void    Prewarm_SimonBattleSetup();
+    void    Respawn_CinematicTrigger();
 
     void    Apply_Stage01RenderParams();
     void    Restore_Stage01RenderParams();

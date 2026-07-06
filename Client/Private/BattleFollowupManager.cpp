@@ -3,6 +3,14 @@
 #include "GameInstance.h"
 #include "MapInstancedMesh.h"
 #include "MapStaticMesh.h"
+#include "ClientInstance.h"
+#include "SimonCriticalGlowController.h"
+
+namespace
+{
+    constexpr wchar_t kSimonPhase2MoonName[] = L"EditorSphere_11";
+    constexpr wchar_t kSimonBackgroundSwordNamePrefix[] = L"SM_Simon_Sword_UE5_2_";
+}
 
 HRESULT BattleFollowupManager::Initialize()
 {
@@ -83,6 +91,12 @@ void BattleFollowupManager::Clear_PendingFollowup()
 
 void BattleFollowupManager::Apply_SimonPhase2WorldVisualChange()
 {
+    if (GAME->Current_LevelIndex() != ETOI(LevelType::Stage01))
+        return;
+
+    if (SimonCriticalGlowController* glowController = CLIENT->Get_SimonCriticalGlowController())
+        glowController->Reset_ToBaseColor();
+
     GAME->Visit_LevelObjects(
         GAME->Current_LevelIndex(),
         [](const wstring& layerTag, const Shared<GameObject>& gameObject)
@@ -95,12 +109,57 @@ void BattleFollowupManager::Apply_SimonPhase2WorldVisualChange()
 
             if (const Shared<MapStaticMesh> staticMesh = dynamic_pointer_cast<MapStaticMesh>(gameObject))
             {
-                if (staticMesh->Get_Name() == TEXT("EditorSphere_11"))
+                if (staticMesh->Get_Name() == kSimonPhase2MoonName)
                 {
                     staticMesh->Set_MapVisible(true);
                 }
             }
         });
+
+    _simonPhase2WorldVisualApplied = true;
+}
+
+void BattleFollowupManager::Restore_SimonPhase2WorldVisualChange()
+{
+    if (!_simonPhase2WorldVisualApplied)
+        return;
+
+    if (GAME->Current_LevelIndex() != ETOI(LevelType::Stage01))
+    {
+        _simonPhase2WorldVisualApplied = false;
+        return;
+    }
+
+    if (SimonCriticalGlowController* glowController = CLIENT->Get_SimonCriticalGlowController())
+        glowController->Reset_ToBaseColor();
+
+    GAME->Visit_LevelObjects(
+        GAME->Current_LevelIndex(),
+        [](const wstring& layerTag, const Shared<GameObject>& gameObject)
+        {
+            if (const Shared<MapInstancedMesh> instancedMesh = dynamic_pointer_cast<MapInstancedMesh>(gameObject))
+            {
+                instancedMesh->Set_MapVisible(true);
+                return;
+            }
+
+            if (const Shared<MapStaticMesh> staticMesh = dynamic_pointer_cast<MapStaticMesh>(gameObject))
+            {
+                const wstring& meshName = staticMesh->Get_Name();
+                if (meshName == kSimonPhase2MoonName)
+                {
+                    staticMesh->Set_MapVisible(false);
+                    return;
+                }
+
+                if (meshName.find(kSimonBackgroundSwordNamePrefix) == 0)
+                {
+                    staticMesh->Set_MapVisible(true);
+                }
+            }
+        });
+
+    _simonPhase2WorldVisualApplied = false;
 }
 
 Unique<BattleFollowupManager> BattleFollowupManager::Create()

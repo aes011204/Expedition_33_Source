@@ -5,6 +5,7 @@
 #include "ColliderCom.h"
 #include "Bounding_AABB.h"
 #include "ClientInstance.h"
+#include "ClientScreenFxManager.h"
 #include "Monster_WorldBase.h"
 #include "RuntimeRuleStateService.h"
 
@@ -77,6 +78,8 @@ void Trigger_Cinematic::OnBeginOverlap(Shared<ColliderCom> self, Shared<Collider
 		const wstring sequencePath = Constants::Cinematic::RuntimeJson_Dir + _sequenceFileId;
         const bool isBishopCinematic =
             _sequenceFileId == Constants::Cinematic::BishopCinematicFileId;
+        const bool isSimonIntroCinematic =
+            _sequenceFileId == Constants::Cinematic::SimonIntroFileId;
 
         if (isBishopCinematic)
         {
@@ -84,6 +87,11 @@ void Trigger_Cinematic::OnBeginOverlap(Shared<ColliderCom> self, Shared<Collider
                 battleController->Capture_PreBattleBGM();
 
             GAME->Play_BGM(Constants::SoundBGM::BishopBattleBossMain, 0.7f, true, 0.f);
+        }
+
+        if (isSimonIntroCinematic)
+        {
+            GAME->Play_BGM(Constants::SoundBGM::SimonIntroCinematic, 0.7f, true, 0.f);
         }
 
         CLIENT->Clear_CinematicCompletedCallbacks();
@@ -110,6 +118,9 @@ void Trigger_Cinematic::OnBeginOverlap(Shared<ColliderCom> self, Shared<Collider
                         RuntimeRuleStateService::Apply_ToCurrentRuntime(
                             RuntimeRuleStateService::Build_BishopStartUnlocks(), false);
                         CLIENT->Restore_CurrentHeroesHpToMax();
+
+                        if (const Shared<ClientScreenFxManager> screenFxManager = CLIENT->Get_ScreenFxManager())
+                            screenFxManager->Request_NextBattleTransitionBlackSource();
                     }
 
                     worldMonster->Begin_BattleFromCinematic(false); // 시네마틱 종료 진입은 월드액션 선공이 아니며, 내부에서 즉시 전투로 들어간다.

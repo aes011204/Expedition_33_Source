@@ -4,6 +4,7 @@
 #include "Character_WorldBase.h"
 #include "Delegate.h"
 
+#include <array>
 #include <utility>
 
 NS_BEGIN(Engine)
@@ -79,6 +80,8 @@ public:
     void  Set_BattleStartSpawnerId(int32 spawnerId) { _battleStartSpawnerId = spawnerId; }
     Vec3  Get_BattleStartOffset() const { return _battleStartOffset; }
     void  Set_BattleStartOffset(const Vec3& offset) { _battleStartOffset = offset; }
+    array<Vec3, kBattlePlayerSpawnOffsetCount>& Get_BattlePlayerSpawnOffsets_ForEdit() { return _battlePlayerSpawnOffsets; }
+    const array<Vec3, kBattlePlayerSpawnOffsetCount>& Get_BattlePlayerSpawnOffsets() const { return _battlePlayerSpawnOffsets; }
 
     uint32 Get_BattleFieldId() const { return static_cast<uint32>(_battleEncounterId > 0 ? _battleEncounterId : 1); }
     void   Set_BattleFieldId(uint32 fieldId) { _battleEncounterId = static_cast<int32>(fieldId); }
@@ -123,6 +126,7 @@ protected:
 
     int32 _battleStartSpawnerId = 0; // 배틀 시작 스포너 ID
     Vec3  _battleStartOffset = Vec3::Zero; // MW 프리팹에서 플레이어 기준 몬스터 시작 위치를 조절한다.
+    array<Vec3, kBattlePlayerSpawnOffsetCount> _battlePlayerSpawnOffsets{}; // MW 프리팹에서 플레이어 3명의 시작 위치를 개별 보정한다.
     bool  _startIdleUntilPlayerInRange = false; // authored 배치 몬스터가 맵 진입 직후 patrol로 튀지 않게, 플레이어가 가까워질 때까지 Idle을 유지한다.
     bool  _hasReleasedStartIdle = false; // 한번 해제되면 이후에는 원래 BT를 그대로 탄다.
     float _startIdleReleaseDistance = 0.f; // 0보다 크면 이 거리 안으로 플레이어가 들어왔을 때 시작 Idle 게이트를 해제한다.

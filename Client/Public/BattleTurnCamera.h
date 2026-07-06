@@ -83,6 +83,7 @@ public:
         const vector<BattleMonsterSpawnDesc>& enemySpawnDescs);
     void Set_BattlePlaneYaw(float yawDegrees) { _battlePlaneYawDegrees = yawDegrees; }
     void Reset_RuntimeState();
+    void Stop_BattleCameraShake();
     void Set_IsClipPreview(bool boolean) { _isClipPreview = boolean; }
     void Set_RuntimePausedByTutorial(bool paused) { _isRuntimePausedByTutorial = paused; }
     void Set_JumpCounterPoseOffsetActive(bool active);
@@ -299,7 +300,10 @@ private:
     // DOF_MODIFY 
     BattleDOFProfile     _playerFocusDOFProfile{};
     BattleDOFProfile     _enemyFocusDOFProfile{};
+    BattleDOFProfile     _enemyAttackDOFProfile{};
+    BattleDOFProfile     _playerAttackDOFProfile{};
     BattleDOFProfile     _selectItemDOFProfile{};
+    BattleDOFProfile     _selectPlayerDOFProfile{};
     BattleDOFProfile     _selectSkillDOFProfile{};
     Shared<TransformCom> _targetTransform{};
     Vec3                 _smoothedTargetPos = Vec3::Zero;
@@ -312,6 +316,7 @@ private:
     bool                 _hasEnemyGroupAnchor = false;
     bool                 _isFirstUpdate = true;
     bool                 _isRuntimePausedByTutorial = false;
+    bool                 _isBattleCameraShakeSuppressed = false;
     bool                 _isJumpCounterPoseOffsetActive = false;
     float                _jumpCounterPoseOffsetProgress = 0.f;
     float                _jumpCounterPoseOffsetWeight = 0.f;

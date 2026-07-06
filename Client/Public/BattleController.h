@@ -11,6 +11,8 @@
 #include "CameraPresetTypes.h"
 #include "Event_Struct.h"
 
+#include <array>
+
 NS_BEGIN(Engine)
 class Character;
 class Camera;
@@ -441,6 +443,7 @@ private:
     vector<BattleMonsterSpawnDesc> _pendingBattleMonsterSpawnDescs = {};
     int32   _pendingBattleStartSpawnerId = 0;
     Vec3    _pendingBattleStartOffset = Vec3::Zero;
+    array<Vec3, kBattlePlayerSpawnOffsetCount> _pendingBattlePlayerSpawnOffsets{};
     float   _pendingBattlePlaneYaw = 0.f;
 
     bool _isFreeAimShotPlaying = false;
