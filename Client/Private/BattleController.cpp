@@ -619,6 +619,7 @@ EBattleEndResult BattleController::OnExitBattleField(EBattleEndResult result)
             worldStat->Apply_BattleSyncSnapshot(battleStat->Create_BattleSyncSnapshot());
     }
 
+    Stop_BattleSpawnAttachedEffects(); // 승리 UI/후속 전투로 넘어가기 전에 이전 전투 캐릭터에 붙은 이펙트를 먼저 끊는다.
     Clear_TargetPreview();
     if (result == EBattleEndResult::Victory && _battleTurnCamera)
         _battleTurnCamera->Stop_BattleCameraShake();
@@ -3470,6 +3471,7 @@ void BattleController::Clear_BattleRuntimeState()
 {
     // 전투 종료/ F4로 게임 Stop할 때
     Restore_SkillPresentationHeroVisibility(); // 전투 종료/F4 Stop 정리 시 숨김 상태가 런타임 밖으로 새지 않게 먼저 복구한다.
+    Stop_BattleSpawnAttachedEffects(); // pending remove 이전에도 전투 부착 이펙트가 다음 전투로 남지 않게 즉시 정리한다.
 
     for (BattleChar& hero : _heroes)
     {
@@ -3532,6 +3534,38 @@ void BattleController::Clear_BattleRuntimeState()
         _battleTurnCamera->Reset_RuntimeState();
 }
 
+void BattleController::Stop_BattleSpawnAttachedEffects()
+{
+    if (_battleSpawnRegistry == nullptr)
+        return;
+
+    _battleSpawnRegistry->Visit_SpawnedObjects(
+        [](const BattleSpawnRegistry::BattleEntry& entry)
+        {
+            const Shared<GameObject>& actor = entry.object;
+            if (actor == nullptr)
+                return;
+
+            if (const Shared<EffectCom> effectCom = actor->Get_Component<EffectCom>())
+                effectCom->Stop_AllAttachedEffects();
+
+            const Shared<ContainerObject> container = dynamic_pointer_cast<ContainerObject>(actor);
+            if (container == nullptr)
+                return;
+
+            for (const auto& [partTag, partObject] : container->Get_PartObjects())
+            {
+                UNREFERENCED_PARAMETER(partTag);
+
+                if (partObject == nullptr)
+                    continue;
+
+                if (const Shared<EffectCom> partEffectCom = partObject->Get_Component<EffectCom>())
+                    partEffectCom->Stop_AllAttachedEffects();
+            }
+        });
+}
+
 void BattleController::Complete_BattleField()
 {
     if (_isBattleActive)
@@ -3584,6 +3618,10 @@ void BattleController::Complete_BattleField()
         if (battleFieldId == Constants::Value::potatoBagEncounterId)
         {
             GAME->Play_BGM(Constants::SoundBGM::PotatoBagBattleMain, 0.7f, true, 0.f);
+        }
+        else if (battleFieldId == BattleEncounterIds::LancelierTutorial)
+        {
+            GAME->Play_BGM(Constants::SoundBGM::LancelierBattleMain, 0.7f, true, 0.f);
         }
         else
         {
@@ -3722,6 +3760,14 @@ void BattleController::Restore_PreBattleBGM()
 {
     if (!_hasCapturedPreBattleBGM)
         return;
+
+    if (_activeBattleFieldID == BattleEncounterIds::LancelierTutorial)
+    {
+        GAME->Play_BGM(Constants::SoundBGM::SpringBGM, 0.7f, true, 0.f);
+        _preBattleBGM.clear();
+        _hasCapturedPreBattleBGM = false;
+        return;
+    }
 
     if (_preBattleBGM.empty())
         GAME->Stop_SoundChannel(SoundChannel::BGM, 0.f);

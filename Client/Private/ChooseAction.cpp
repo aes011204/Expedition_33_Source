@@ -68,13 +68,17 @@ void ChooseAction::Update(float timeDelta)
 
     if (GAME->KeyDown(KEY_TYPE::A))
     {
-        owner->Move_EnemyTargetPreview(-1);
+        if (owner->Move_EnemyTargetPreview(-1))
+            GAME->Play_SoundCue(Constants::SoundCue::UI_Battle_SelectEnemy);
+
         return;
     }
 
     if (GAME->KeyDown(KEY_TYPE::D))
     {
-        owner->Move_EnemyTargetPreview(+1);
+        if (owner->Move_EnemyTargetPreview(+1))
+            GAME->Play_SoundCue(Constants::SoundCue::UI_Battle_SelectEnemy);
+
         return;
     }
 

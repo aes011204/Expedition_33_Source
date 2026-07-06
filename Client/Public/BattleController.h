@@ -265,6 +265,7 @@ private:
     DOFTransitionDesc Build_BattleDOFRestoreTransition();
     void    Restore_WorldCamera();
     void    Clear_BattleRuntimeState();
+    void    Stop_BattleSpawnAttachedEffects();
     void    Push_TurnEntry(const BattleChar& actor, float nextTime);
     float   Resolve_PrefabGroundOffsetY(const Shared<GameObject>& actor) const;
     bool    Try_ResolveSimonBattleBGM(wstring& outIntroBGM, wstring& outMainBGM) const;
