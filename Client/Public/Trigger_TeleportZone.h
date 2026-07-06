@@ -27,7 +27,7 @@ private:
 private:
     Shared<ColliderCom> _colliderCom;
     Vec3 _teleportTargetPosition = Vec3(216.88f, -4000.38f, -2.66f);
-    Vec3 _teleportTargetRotation = Vec3(0.f, 27.6f, 0.f);
+    Vec3 _teleportTargetRotation = Vec3(0.f, -20.6f, 0.f);
     bool _hasTriggered = false;
 
 public:

@@ -88,7 +88,7 @@ void Trigger_TeleportZone::OnBeginOverlap(Shared<ColliderCom> self, Shared<Colli
             if (player)
             {
                 player->Get_Transform()->Set_WorldPosition(targetPosition);
-                //player->Get_Transform()->Set_WorldRotationEuler(_teleportTargetRotation);
+                player->Get_Transform()->Set_WorldRotationEuler(_teleportTargetRotation);
                 
 
                 if (const Shared<MovementCom> movement = player->Get_Component<MovementCom>())
@@ -104,7 +104,11 @@ void Trigger_TeleportZone::OnBeginOverlap(Shared<ColliderCom> self, Shared<Colli
     if (!requested)
     {
         _hasTriggered = false;
+
+        return;
     }
+
+    GAME->Stop_SoundChannel(SoundChannel::BGM, 0.3f);
 }
 
 void Trigger_TeleportZone::OnEndOverlap(Shared<ColliderCom> self, Shared<ColliderCom> other)

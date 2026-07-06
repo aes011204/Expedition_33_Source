@@ -3,7 +3,11 @@
 #include "Base.h"
 #include "Battle_Enum.h"
 
+#include <cstddef>
+
 NS_BEGIN(Client)
+
+constexpr size_t kBattlePlayerSpawnOffsetCount = 3;
 
 // MW, TW -> MB로 전달할 데이터
 struct BattleMonsterStatSnapshot

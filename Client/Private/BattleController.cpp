@@ -150,6 +150,22 @@ void BattleController::Update(float timeDelta)
     // 8번 누르면 AP 무한
     Handle_InfiniteAp();
 
+    // 7번 누르면 배틀 플레이어 공격력 9999
+    if (_isBattleActive && !_battleEnded && GAME->KeyDown(KEY_TYPE::KEY_7))
+    {
+        for (const BattleChar& hero : _heroes)
+        {
+            if (hero.statCom == nullptr || !hero.statCom->Is_Player())
+                continue;
+
+            hero.statCom->Get_StatInfo().physicalAttack = 9999.f;
+            hero.statCom->Get_RuntimeStat().physicalAttack = 9999.f;
+
+            if (const Shared<PlayerStatCom> playerStat = dynamic_pointer_cast<PlayerStatCom>(hero.statCom))
+                playerStat->Get_PlayerRuntimeStat().CurPhysicalAttack = 9999.f;
+        }
+    }
+
     if (GAME->KeyDown(KEY_TYPE::KEY_0))
     {
         Set_AutoParryEnabled(!Is_AutoParryEnabled());
@@ -439,12 +455,14 @@ void BattleController::OnEnterBattleField(
     _pendingBattleMonsterSpawnDescs = battleMonsterSpawnDescs;
     _pendingBattleStartSpawnerId = battleStartSpawnerId;
     _pendingBattleStartOffset = battleStartOffset;
+    _pendingBattlePlayerSpawnOffsets = {};
     _pendingBattlePlaneYaw = 0.f;
 
     if (Shared<Monster_WorldBase> worldMonster = dynamic_pointer_cast<Monster_WorldBase>(sourceObject))
     {
         _pendingBattleStartSpawnerId = worldMonster->Get_BattleStartSpawnerId();
         _pendingBattleStartOffset = worldMonster->Get_BattleStartOffset();
+        _pendingBattlePlayerSpawnOffsets = worldMonster->Get_BattlePlayerSpawnOffsets();
     }
 
     // 월드 캐릭터 입력 막기
@@ -498,6 +516,7 @@ EBattleEndResult BattleController::OnExitBattleField(EBattleEndResult result)
 {
     _lastVictoryRewardExp = 0;
     _lastVictoryRewardPictosIds.clear();
+    bool defeatedSimonPhase1 = false;
 
     if (result == EBattleEndResult::Victory && _battleSpawnRegistry)
     {
@@ -537,6 +556,10 @@ EBattleEndResult BattleController::OnExitBattleField(EBattleEndResult result)
                     kNpcSumoAfterPotatoBagDialogueKey);
             }
         }
+
+        defeatedSimonPhase1 =
+            find(defeatedEnemyKeys.begin(), defeatedEnemyKeys.end(), Constants::Prefab::MB_Simon) !=
+            defeatedEnemyKeys.end();
 
         vector<HeroId> victoryHeroIds{};
         victoryHeroIds.reserve(_heroes.size());
@@ -597,6 +620,9 @@ EBattleEndResult BattleController::OnExitBattleField(EBattleEndResult result)
     }
 
     Clear_TargetPreview();
+    if (result == EBattleEndResult::Victory && _battleTurnCamera)
+        _battleTurnCamera->Stop_BattleCameraShake();
+
     OnBattleEnded.Broadcast(result); // battle end UI 정리는 GameplayUI_Battle에서 처리
 
     if (result == EBattleEndResult::Victory)
@@ -604,7 +630,17 @@ EBattleEndResult BattleController::OnExitBattleField(EBattleEndResult result)
         const bool isBishopCinematicBGM =
             GAME->Get_CurrentBGM() == Constants::SoundBGM::BishopBattleBossMain;
 
-        if (Is_TutorialBattleEncounter(_activeBattleFieldID))
+        if (_activeBattleFieldID == Constants::Value::potatoBagEncounterId)
+        {
+            GAME->Stop_SoundChannel(SoundChannel::BGM, 0.f);
+            GAME->Play_Sound(Constants::SoundBGM::PotatoBagBattleTransition, SoundChannel::BGM, 0.7f);
+        }
+        else if (defeatedSimonPhase1)
+        {
+            GAME->Stop_SoundChannel(SoundChannel::BGM, 0.f);
+            GAME->Play_Sound(Constants::SoundBGM::SimonBattlePhase1Transition, SoundChannel::BGM, 0.7f);
+        }
+        else if (Is_TutorialBattleEncounter(_activeBattleFieldID))
         {
             GAME->Stop_SoundChannel(SoundChannel::BGM);
         }
@@ -1149,7 +1185,7 @@ void BattleController::SetCharInitPos()
 
     _pendingBattlePlaneYaw = XMConvertToDegrees(atan2f(forward.x, forward.z));
 
-    const Vec3 playerLocalPos[3] =
+    const Vec3 playerLocalPos[kBattlePlayerSpawnOffsetCount] =
     {
         { -2.5f, 0.f, 0.f },
         {  0.f, 0.1f, 0.f },
@@ -1166,21 +1202,23 @@ void BattleController::SetCharInitPos()
     Vec3 heroCenter = Vec3::Zero;
     uint32 heroCount = 0;
 
-    for (size_t i = 0; i < _heroes.size() && i < 3; ++i)
+    for (size_t i = 0; i < _heroes.size() && i < kBattlePlayerSpawnOffsetCount; ++i)
     {
         const auto& hero = _heroes[i];
         if (!hero.actor)
             continue;
 
+        const Vec3 playerOffset = _pendingBattlePlayerSpawnOffsets[i];
         const Vec3 placedPos =
             startPos +
-            right * playerLocalPos[i].x +
-            Vec3::Up * playerLocalPos[i].y +
-            forward * playerLocalPos[i].z;
+            right * (playerLocalPos[i].x + playerOffset.x) +
+            Vec3::Up * (playerLocalPos[i].y + playerOffset.y) +
+            forward * (playerLocalPos[i].z + playerOffset.z);
 
         Vec3 finalPos = placedPos;
         finalPos.y = battlePlaneY
             + playerLocalPos[i].y
+            + playerOffset.y
             + Resolve_PrefabGroundOffsetY(hero.actor);
 
         hero.actor->Get_Transform()->Set_Position(finalPos);
@@ -1255,7 +1293,7 @@ void BattleController::SetCharInitPos()
     {
         enemyCenter /= static_cast<float>(enemyCount);
 
-        for (size_t i = 0; i < _heroes.size() && i < 3; ++i)
+        for (size_t i = 0; i < _heroes.size() && i < kBattlePlayerSpawnOffsetCount; ++i)
         {
             const auto& hero = _heroes[i];
             if (!hero.actor)
@@ -1380,6 +1418,9 @@ void BattleController::Handle_EditorStopRuntime()
     GAME->Stop_WorldTimeSlow();
     GAME->Set_WorldTimeScale(1.f);
     GAME->Set_PlayerInputBlocked(false);
+
+    if (BattleFollowupManager* followManager = CLIENT->Get_BattleFollowupManager())
+        followManager->Restore_SimonPhase2WorldVisualChange();
 
     Clear_BattleRuntimeState();
 
@@ -2822,6 +2863,8 @@ void BattleController::Confirm_Victory()
     {
         Restore_PreBattleBGM();
         Restore_WorldCamera(); // 후속 전투가 없을 때만 월드 카메라로 복구한다.
+        if (BattleFollowupManager* followManager = CLIENT->Get_BattleFollowupManager())
+            followManager->Restore_SimonPhase2WorldVisualChange();
     }
 
     Clear_BattleRuntimeState();
@@ -3538,22 +3581,29 @@ void BattleController::Complete_BattleField()
 
     if (!isBishopCinematicBGM)
     {
-        wstring simonIntroBGM{};
-        wstring simonMainBGM{};
-        if (Try_ResolveSimonBattleBGM(simonIntroBGM, simonMainBGM))
+        if (battleFieldId == Constants::Value::potatoBagEncounterId)
         {
-            if (simonIntroBGM.empty())
-                GAME->Play_BGM(simonMainBGM, 0.7f, true, 0.f);
-            else
-                GAME->Play_BGMIntroThenLoop(simonIntroBGM, simonMainBGM, 0.7f, true, 0.f);
+            GAME->Play_BGM(Constants::SoundBGM::PotatoBagBattleMain, 0.7f, true, 0.f);
         }
         else
         {
-            GAME->Play_BGM(
-                hasBossEnemy ? Constants::SoundBGM::BattleBossBGM : Constants::SoundBGM::BattleNormalBGM,
-                0.7f,
-                true,
-                0.f);
+            wstring simonIntroBGM{};
+            wstring simonMainBGM{};
+            if (Try_ResolveSimonBattleBGM(simonIntroBGM, simonMainBGM))
+            {
+                if (simonIntroBGM.empty())
+                    GAME->Play_BGM(simonMainBGM, 0.7f, true, 0.f);
+                else
+                    GAME->Play_BGMIntroThenLoop(simonIntroBGM, simonMainBGM, 0.7f, true, 0.f);
+            }
+            else
+            {
+                GAME->Play_BGM(
+                    hasBossEnemy ? Constants::SoundBGM::BattleBossBGM : Constants::SoundBGM::BattleNormalBGM,
+                    0.7f,
+                    true,
+                    0.f);
+            }
         }
     }
 
@@ -3596,6 +3646,9 @@ void BattleController::Complete_BattleField()
 
     // 턴 시작
     // battle start event만 넘겨주고, 전환 연출은 GameplayUI_Battle이 처리한다.
+    if (battleFieldId == Constants::Value::potatoBagEncounterId)
+        GAME->Play_SoundCue(Constants::SoundCue::Gestral_Potato_Announce);
+
     OnBattleStarted.Broadcast(battleFieldId, isPlayerAdvantage);
     _isWaitingBattleTransition = true;
 }
@@ -3612,6 +3665,7 @@ void BattleController::Clear_BattleEnterPending()
     _pendingBattleMonsterSpawnDescs.clear();
     _pendingBattleStartSpawnerId = 0;
     _pendingBattleStartOffset = Vec3::Zero;
+    _pendingBattlePlayerSpawnOffsets = {};
     _pendingBattlePlaneYaw = 0.f;
 }
 

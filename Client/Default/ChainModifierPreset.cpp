@@ -7,6 +7,7 @@ namespace
 {
     const Vec3 kCommonGravity{ 0.f, -780.f, 0.f };
     const Vec3 kCommonWindDirection{ Vec3{1.f, 0.f, 1.f} };
+    const Vec3 kBackwardWindDirection{ Vec3{0.f, 0.f, -1.f} };
     constexpr float kScarfWindIntensity{ 0.45f };
     constexpr float kArmbandWindIntensity{ 0.12f };
     constexpr float kMonsterClothWindIntensity{ 0.00075f };
@@ -1249,7 +1250,7 @@ void ChainModifierPreset::BuildMaelleBackHairPhysicsDesc(
 
     desc.outputAlpha = 1.00f;
     desc.rotationOutputAlpha = 1.00f;
-    desc.outputSmoothAlpha = 0.055f;
+    desc.outputSmoothAlpha = 0.220f;
     desc.idleOutputSmoothAlpha = 0.74f;
     desc.idleMotionDeadzone = 0.055f;
     desc.maxOutputAngleDegree = 152.f;
@@ -1257,25 +1258,26 @@ void ChainModifierPreset::BuildMaelleBackHairPhysicsDesc(
     desc.contactRotationFollowAlpha = 0.14f;
     desc.freeRotationFollowAlpha = 0.22f;
     desc.rotationFollowDepthScale = 0.10f;
-    desc.poseRestoreAlpha = 0.125f;
-    desc.poseRestoreMaxSpeed = 7.5f;
-    desc.maxLocalOffset = Vec3(8.50f, 2.80f, 10.50f);
-    desc.movementInertiaScale = 2.40f;
-    desc.tipMovementInertiaScale = 30.00f;
-    desc.maxMovementInertiaSpeed = 88.0f;
-    desc.lateralInertiaScale = 5.00f;
-    desc.verticalInertiaScale = 0.45f;
-    desc.depthInertiaScale = 2.35f;
+    desc.poseRestoreAlpha = 0.400f;
+    desc.poseRestoreMaxSpeed = 30.0f;
+    desc.maxLocalOffset = Vec3(19.00f, 1.65f, 10.90f);
+    desc.movementInertiaScale = 3.40f;
+    desc.tipMovementInertiaScale = 68.00f;
+    desc.maxMovementInertiaSpeed = 140.0f;
+    desc.lateralInertiaScale = 16.25f;
+    desc.verticalInertiaScale = 0.22f;
+    desc.depthInertiaScale = 2.45f;
+    desc.includeDriverLateralInertia = true;
     desc.accelerationInertiaScale = 0.005f;
-    desc.inertiaVelocitySmoothAlpha = 0.020f;
-    desc.poseSpringStrength = 0.22f;
-    desc.poseSpringDamping = 0.560f;
+    desc.inertiaVelocitySmoothAlpha = 0.110f;
+    desc.poseSpringStrength = 0.90f;
+    desc.poseSpringDamping = 0.780f;
     desc.lengthConstraintAlpha = 0.055f;
     desc.bendConstraintAlpha = 0.006f;
     desc.projectionIterations = 3;
 
     desc.contactInertiaDamping = 0.120f;
-    desc.releaseInertiaDamping = 0.460f;
+    desc.releaseInertiaDamping = 0.820f;
 
     desc.enableCollision = false;
     desc.collisionSphereRadius = 0.18f;
@@ -1283,11 +1285,11 @@ void ChainModifierPreset::BuildMaelleBackHairPhysicsDesc(
     desc.collisionContactSkinWidth = 0.06f;
     desc.collisionProjectionIterations = 2;
 
-    desc.windDirection = kCommonWindDirection;
-    desc.windScale = 0.045f;
-    desc.windWaveScale = 0.18f;
-    desc.windWaveFrequency = 0.55f;
-    desc.windWaveDepthPhase = 0.50f;
+    desc.windDirection = kBackwardWindDirection;
+    desc.windScale = 0.078f;
+    desc.windWaveScale = 0.78f;
+    desc.windWaveFrequency = 0.78f;
+    desc.windWaveDepthPhase = 0.86f;
     desc.gravityScale = 0.42f;
     desc.teleportDistance = 300.f;
     desc.solverIterations = 8;
@@ -1349,10 +1351,10 @@ void ChainModifierPreset::BuildMaelleFrontHairPhysicsDesc(
     desc.collisionProjectionIterations = 1;
 
     desc.windDirection = kCommonWindDirection;
-    desc.windScale = 0.038f;
-    desc.windWaveScale = 0.42f;
-    desc.windWaveFrequency = 0.55f;
-    desc.windWaveDepthPhase = 0.60f;
+    desc.windScale = 0.050f;
+    desc.windWaveScale = 0.68f;
+    desc.windWaveFrequency = 0.68f;
+    desc.windWaveDepthPhase = 0.78f;
     desc.gravityScale = 0.18f;
     desc.teleportDistance = 300.f;
     desc.solverIterations = 8;

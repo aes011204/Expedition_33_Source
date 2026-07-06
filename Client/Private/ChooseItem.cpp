@@ -2,6 +2,7 @@
 #include "ChooseItem.h"
 #include <Battle_Event.h>
 #include "BattleAnimutils.h"
+#include "Client_Constants.h"
 #include "GameInstance.h"
 #include "ClientInstance.h"
 #include "BattleController.h"
@@ -79,7 +80,10 @@ void ChooseItem::Update(float timeDelta)
         event.subject = owner->Get_TurnActionRequest().actor.actor;
         GAME->Get_EventBus().Publish(event);
 
-        battleFSM->Change_State(BattleTurnState::ChooseAction);
+        if (!battleFSM->Change_State(BattleTurnState::ChooseAction))
+            return;
+
+        GAME->Play_SoundCue(Constants::SoundCue::UI_Battle_ItemMenuClose);
         return;
     }
 

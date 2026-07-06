@@ -77,6 +77,8 @@ void Trigger_Cinematic::OnBeginOverlap(Shared<ColliderCom> self, Shared<Collider
 		const wstring sequencePath = Constants::Cinematic::RuntimeJson_Dir + _sequenceFileId;
         const bool isBishopCinematic =
             _sequenceFileId == Constants::Cinematic::BishopCinematicFileId;
+        const bool isSimonIntroCinematic =
+            _sequenceFileId == Constants::Cinematic::SimonIntroFileId;
 
         if (isBishopCinematic)
         {
@@ -84,6 +86,11 @@ void Trigger_Cinematic::OnBeginOverlap(Shared<ColliderCom> self, Shared<Collider
                 battleController->Capture_PreBattleBGM();
 
             GAME->Play_BGM(Constants::SoundBGM::BishopBattleBossMain, 0.7f, true, 0.f);
+        }
+
+        if (isSimonIntroCinematic)
+        {
+            GAME->Play_BGM(Constants::SoundBGM::SimonIntroCinematic, 0.7f, true, 0.f);
         }
 
         CLIENT->Clear_CinematicCompletedCallbacks();

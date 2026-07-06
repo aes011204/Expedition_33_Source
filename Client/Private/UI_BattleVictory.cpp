@@ -146,6 +146,7 @@ void UI_BattleVictory::Open()
     }
 
     UI_RuntimePanelBase::Open();
+    GAME->Play_SoundCue(Constants::SoundCue::UI_ScoreBoard_Appear);
     Play_TargetAnimation(kBattleVictoryIntroAnimationName);
     Restart_RewardPictosAnimations();
 }
@@ -167,6 +168,7 @@ void UI_BattleVictory::Close()
     _isClosingWithOutro = true;
     _closeElapsed = 0.f;
 
+    GAME->Play_SoundCue(Constants::SoundCue::UI_ScoreBoard_Disappear);
     Play_TargetAnimation(kBattleVictoryOutroAnimationName);
 
     if (_outroDuration <= 0.f)

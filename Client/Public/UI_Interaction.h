@@ -34,7 +34,7 @@ private:
     Shared<UI_Base> Find_PromptPanel(InteractionPromptType type) const;
 
 private:
-    static constexpr size_t kPromptPanelCount = static_cast<size_t>(InteractionPromptType::Down) + 1;
+    static constexpr size_t kPromptPanelCount = static_cast<size_t>(InteractionPromptType::SavePoint) + 1;
 
     std::array<Shared<UI_Base>, kPromptPanelCount> _promptPanels{};
     InteractionPromptType _currentType = InteractionPromptType::None;
