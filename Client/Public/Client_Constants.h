@@ -626,6 +626,7 @@ namespace Client::Constants::SoundCue
 
     constexpr const wchar_t* UI_Global_GenericEnter = L"UI_Global_GenericEnter";
     constexpr const wchar_t* UI_Global_NavigateClick = L"UI_Global_NavigateClick";
+    constexpr const wchar_t* UI_Level_Announce = L"UI_Level_Announce";
     constexpr const wchar_t* UI_Battle_SelectAlly = L"UI_Battle_SelectAlly";
     constexpr const wchar_t* UI_Battle_Encounter = L"UI_Battle_Encounter";
     constexpr const wchar_t* UI_Battle_StateEnd = L"UI_Battle_StateEnd";

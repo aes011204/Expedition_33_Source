@@ -243,6 +243,8 @@ namespace Engine
         Voice,
         WorldEvent,
         System,
+        Cinematic,
+        NPC,
         END
     };
 
