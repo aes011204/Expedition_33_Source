@@ -368,7 +368,7 @@ void Base_Mon_Spawn::Execute(const Skill_Data& skill, const BattleAction& action
         const Shared<TransformCom> summonerTransform = summoner->Get_Transform();
         const Vec3 right = summonerTransform->Get_WorldRight();
         const Vec3 pos = summonerTransform->Get_Position();
-        const float yawDeg = summonerTransform->Get_RotationEuler().y;
+        const float yawDeg = summonerTransform->Get_RotationEuler().y ;
 
         CLIENT->Get_BattleController()->Spawn_BattleChar(false, "MB_Abbest", pos + right * 4.f, yawDeg);
         CLIENT->Get_BattleController()->Spawn_BattleChar(false, "MB_Abbest", pos - right * 4.f, yawDeg);
