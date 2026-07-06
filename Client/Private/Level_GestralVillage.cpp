@@ -45,6 +45,7 @@ namespace
     constexpr wchar_t kFlameEffectName[] = L"Effects/Assets/Map/FX_Brazier_Fire.effect.json";
     constexpr wchar_t kLeafEffectName[] = L"Effects/Assets/Map/FX_FallingLeaf.effect.json";
     constexpr wchar_t kFireEffectName[] = L"Effects/Assets/Map/FX_FallingFire.effect.json";
+    constexpr wchar_t kNpcDustEffectName[] = L"Effects/Assets/Map/NPCDust.effect.json";
 
     constexpr Vec3 kCasinoLightPositions[] = {
         Vec3(118.12f, -3.23f, 19.45f),
@@ -74,6 +75,16 @@ namespace
         Vec3(-7.37f, 8.9f, 91.5f),
         Vec3(-7.65f, 8.82f, 96.49f),
         Vec3(-6.46f, 8.9f, 101.09f)
+    };
+
+    constexpr Vec3 kNpcDustPositions[] = {
+        Vec3(2.95f, 10.31f, 89.00f),
+        Vec3(-27.43f, 5.73f, 138.21f),
+        Vec3(-61.84f, 6.46f, 124.89f),
+        Vec3(-44.50f, 8.78f, 97.49f),
+        Vec3(4.27f, -0.82f, 9.83f),
+        Vec3(-28.28f, -0.19f, 12.01f),
+        Vec3(8.05f, 4.68f, 143.42f),
     };
 
     constexpr Vec3 kWorldDialogueGestralVillagePosition = Vec3(-16.3f, 1.05f, 131.6f);
@@ -282,6 +293,16 @@ void Level_GestralVillage::BeginPlay()
     fireDesc.scale = Vec3(1.f, 1.f, 1.f);
 
     CLIENT->Play_Effect(fireDesc);
+
+    PlayEffectDesc npcDustDesc{};
+    npcDustDesc.effectName = kNpcDustEffectName;
+    npcDustDesc.scale = Vec3(1.f, 1.f, 1.f);
+
+    for (const auto& pos : kNpcDustPositions)
+    {
+        npcDustDesc.worldPosition = pos;
+        CLIENT->Play_Effect(npcDustDesc);
+    }
 }
 
 void Level_GestralVillage::Update(float fTimeDelta)
