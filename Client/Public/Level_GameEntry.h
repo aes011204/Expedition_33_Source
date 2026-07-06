@@ -20,6 +20,7 @@ public:
     virtual HRESULT Initialize() override;
     virtual void Update(float timeDelta) override;
     virtual HRESULT Render() override;
+    void Set_RevealedLevelOnEntry(LevelType levelType);
 
 private:
     WindowTitleFpsState _windowTitleFps = {};
@@ -29,6 +30,7 @@ private:
 
 private:
     HRESULT Ready_Layer_UI(const wstring& strLayerTag);
+    void    Apply_RevealedLevelVisibility();
 
 private:
     umap<wstring, Shared<UI_Base>> _uiByName{};
@@ -40,6 +42,7 @@ private:
     bool _wasSecondLevelHovered = false;
     bool _wasThirdLevelHovered = false;
     bool _wasTestLevelHovered = false;
+    LevelType _revealedLevelOnEntry = LevelType::END;
 
 public:
     static Shared<Level_GameEntry> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);

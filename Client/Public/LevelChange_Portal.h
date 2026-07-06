@@ -28,6 +28,7 @@ public:
     void    OnBeginOverlap(Shared<ColliderCom> self, Shared<ColliderCom> other) override;
     void    OnStayOverlap(Shared<ColliderCom> self, Shared<ColliderCom> other) override;
     void    OnEndOverlap(Shared<ColliderCom> self, Shared<ColliderCom> other) override;
+    void    Set_GameEntryRevealLevel(LevelType levelType);
 
 private:
     HRESULT Ready_Components();
@@ -39,6 +40,7 @@ private:
     Shared<EffectCom>   _effectCom{};
 
     LevelType _targetLevel = LevelType::GameEntry;
+    LevelType _gameEntryRevealLevel = LevelType::GestralVillage;
     float _effectScale = 2.0f;
     uset<ColliderCom*> _playerOverlapColliders{};
     bool _transitionRequested = false;
