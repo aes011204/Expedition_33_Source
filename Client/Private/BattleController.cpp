@@ -522,7 +522,6 @@ EBattleEndResult BattleController::OnExitBattleField(EBattleEndResult result)
     _lastVictoryRewardPictosIds.clear();
     bool defeatedSimonPhase1 = false;
     bool defeatedSimonFinal = false;
-    bool isSimonWorldBattle = false;
 
     if (result == EBattleEndResult::Victory && _battleSpawnRegistry)
     {
@@ -582,9 +581,6 @@ EBattleEndResult BattleController::OnExitBattleField(EBattleEndResult result)
         }
 
         Shared<GameObject> sourceWorldObject = _battleSpawnRegistry->Get_SourceWorldObject();
-        isSimonWorldBattle =
-            sourceWorldObject != nullptr &&
-            sourceWorldObject->Get_SourcePrefabName() == Constants::Prefab::MW_Simon;
 
         Vec3 rewardOrigin = Vec3::Zero;
         const Vec3* rewardOriginPtr = nullptr;
@@ -636,12 +632,6 @@ EBattleEndResult BattleController::OnExitBattleField(EBattleEndResult result)
     if (result == EBattleEndResult::Victory && _battleTurnCamera)
         _battleTurnCamera->Stop_BattleCameraShake();
 
-    if (result == EBattleEndResult::Victory &&
-        isSimonWorldBattle &&
-        defeatedSimonFinal &&
-        Try_RequestSimonFinalOutroCinematic())
-        return result;
-
     OnBattleEnded.Broadcast(result); // battle end UI 정리는 GameplayUI_Battle에서 처리
 
     if (result == EBattleEndResult::Victory)
@@ -658,6 +648,10 @@ EBattleEndResult BattleController::OnExitBattleField(EBattleEndResult result)
         {
             GAME->Stop_SoundChannel(SoundChannel::BGM, 0.f);
             GAME->Play_Sound(Constants::SoundBGM::SimonBattlePhase1Transition, SoundChannel::BGM, 0.7f);
+        }
+        else if (defeatedSimonFinal)
+        {
+            // Simon 2페이즈 최종 승리는 Victory UI 동안 기존 보스 BGM을 유지한다.
         }
         else if (Is_TutorialBattleEncounter(_activeBattleFieldID))
         {

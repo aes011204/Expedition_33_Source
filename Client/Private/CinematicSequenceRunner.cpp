@@ -1926,6 +1926,8 @@ void CinematicSequenceRunner::Apply_ActorTransformTracks(
         if (const auto container = dynamic_pointer_cast<ContainerObject>(actor))
         {
             const PerfClock::time_point refreshStart = PerfClock::now();
+            // TODO(Cinematic): socket/physics 기반 파트의 갱신 계약을 보존하는 refresh 경로로 교체해야 한다.
+            // Generic matrix refresh는 Simon hair의 headSocket 바인딩처럼 파트별 Update(0) 로직을 우회할 수 있다.
             container->Refresh_PartObjectWorldMatrices();
             if (perf != nullptr)
             {
@@ -2138,6 +2140,8 @@ void CinematicSequenceRunner::Apply_BoundActorAnimationPreview(float currentFram
         model->Set_AnimationPaused(true);
         model->Set_AnimNotifyExecutionEnabled(previousNotifyExecutionEnabled);
 
+        // TODO(Cinematic): preview/seek pose 평가에서도 container part update order가 보존되도록 재정리해야 한다.
+        // anim part 하나만 갱신하면 hair/weapon 같은 종속 파트가 다른 pose 경로를 탈 수 있다.
         if (PartObject* animPart = Find_TargetAnimPart(state.actor))
             animPart->Update(0.f);
 
@@ -2605,6 +2609,8 @@ void CinematicSequenceRunner::Apply_PreviewPlaybackOptimization(BindingRuntimeSt
 
         Track_PreviewShadowCasterRestore(state, partObject);
 
+        // TODO(Cinematic): Simon의 Mon_Simon_Hair에도 preview physics 정책이 필요한지 검토해야 한다.
+        // 현재 최적화는 Hair_Player만 처리하므로 monster hair simulation은 seek/rewind에서 여전히 틀어질 수 있다.
         const Shared<Hair_Player> hair = dynamic_pointer_cast<Hair_Player>(partObject);
         if (hair == nullptr)
             continue;
