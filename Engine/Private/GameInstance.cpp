@@ -1308,6 +1308,10 @@ void GameInstance::Try_FlushRuntimePerfLog()
     Reset_RuntimePerfWindowState(now);
 }
 
+#endif
+
+#if defined(_DEBUG) || defined(_EDITOR)
+
 void GameInstance::Log_RuntimeFrameDropIfNeeded(float presentMs)
 {
     constexpr float kFrameDropThresholdMs = 1000.f / 30.f;
@@ -1530,7 +1534,7 @@ HRESULT GameInstance::Present()
 #if defined(_DEBUG) || defined(_EDITOR)
     const float presentMs = static_cast<float>(chrono::duration<double, milli>(chrono::steady_clock::now() - presentBegin).count());
     _lastPresentMs = presentMs;
-#ifdef _DEBUG
+#if defined(_DEBUG) || defined(_EDITOR)
     Log_RuntimeFrameDropIfNeeded(presentMs);
 #endif
 #endif
