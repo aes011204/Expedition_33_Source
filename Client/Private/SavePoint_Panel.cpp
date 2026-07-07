@@ -1,10 +1,15 @@
 ﻿#include "SavePoint_Panel.h"
 
 #include "Client_Constants.h"
+#include "ClientInstance.h"
 #include "GameInstance.h"
+#include "Player_WorldBase.h"
+#include "PlayerStatCom.h"
 #include "UI_Base.h"
 #include "UI_Button.h"
+#include "UI_Image.h"
 #include "UI_RuntimeLoader.h"
+#include "UI_Text.h"
 #include "UI_Utils.h"
 
 HRESULT SavePoint_Panel::Initialize(uint32 levelIndex)
@@ -23,6 +28,8 @@ void SavePoint_Panel::Update(float timeDelta)
 {
     if (!_isOpen)
         return;
+
+    Refresh_PlayerHpStats();
 
     if (_isClosingWithOutro)
     {
@@ -51,6 +58,7 @@ void SavePoint_Panel::Open()
 
     Stop_TargetAnimations();
     UI_RuntimePanelBase::Open();
+    Refresh_PlayerHpStats();
     Play_TargetAnimation(L"SavePoint_Intro");
     GAME->Play_SoundCue(Constants::SoundCue::UI_SavePoint_Open);
 
@@ -137,6 +145,20 @@ HRESULT SavePoint_Panel::Bind_UI()
     CHECK_NULL(_upgradeStatButton, E_FAIL);
     CHECK_NULL(_upgradeSkillButton, E_FAIL);
 
+    Set_PlayerHp(HeroId::Gustave, L"Gustave", 0);
+    Set_PlayerHp(HeroId::Lune, L"Lune", 1);
+    Set_PlayerHp(HeroId::Maelle, L"Maelle", 2);
+
+    for (uint32 i = 0; i < kPlayerHpSlotCount; ++i)
+    {
+        CHECK_NULL(_playerHpSlots[i].hpGauge, E_FAIL);
+        CHECK_NULL(_playerHpSlots[i].currentHpText, E_FAIL);
+        CHECK_NULL(_playerHpSlots[i].maxHpText, E_FAIL);
+
+        _playerHpSlots[i].hpGauge->Set_UseFillRatio(true);
+        _playerHpSlots[i].hpGauge->Set_FillOrigin(UI_Image::FillOrigin::LeftToRight);
+    }
+
     return S_OK;
 }
 
@@ -216,6 +238,72 @@ void SavePoint_Panel::Handle_ButtonInput()
     }
 }
 
+void SavePoint_Panel::Refresh_PlayerHpStats()
+{
+    Set_PlayerHp(HeroId::Gustave, L"Gustave", 0);
+    Set_PlayerHp(HeroId::Lune, L"Lune", 1);
+    Set_PlayerHp(HeroId::Maelle, L"Maelle", 2);
+}
+
+void SavePoint_Panel::Set_PlayerHp(HeroId heroId, const wstring& uiName, uint32 slotIndex)
+{
+    if (slotIndex >= kPlayerHpSlotCount)
+        return;
+
+    if (_playerHpSlots[slotIndex].hpGauge == nullptr)
+    {
+        _playerHpSlots[slotIndex].hpGauge =
+            UI_Utils::Find_TypedUI<UI_Image>(_uiByName, L"Text_" + uiName + L"_HP_Gauge");
+    }
+
+    if (_playerHpSlots[slotIndex].currentHpText == nullptr)
+    {
+        _playerHpSlots[slotIndex].currentHpText =
+            UI_Utils::Find_TypedUI<UI_Text>(_uiByName, L"Text_" + uiName + L"_Current_HP");
+    }
+
+    if (_playerHpSlots[slotIndex].maxHpText == nullptr)
+    {
+        _playerHpSlots[slotIndex].maxHpText =
+            UI_Utils::Find_TypedUI<UI_Text>(_uiByName, L"Text_" + uiName + L"_Max_HP");
+    }
+
+    const Shared<Player_WorldBase> player = CLIENT->Find_Hero(heroId);
+    const Shared<PlayerStatCom> playerStat = player ? player->Get_Component<PlayerStatCom>() : nullptr;
+
+    if (playerStat == nullptr)
+    {
+        Apply_HpSlot(slotIndex, 0.f, 1.f);
+        return;
+    }
+
+    const PlayerStatCom::PRuntimeCombatStat& statInfo = playerStat->Get_PlayerRuntimeStat();
+    Apply_HpSlot(slotIndex, statInfo.CurHp, statInfo.CurMaxHp);
+}
+
+void SavePoint_Panel::Apply_HpSlot(uint32 slotIndex, float curHp, float maxHp)
+{
+    if (slotIndex >= kPlayerHpSlotCount)
+        return;
+
+    PlayerHpSlot& slot = _playerHpSlots[slotIndex];
+
+    maxHp = max(maxHp, 1.f);
+    curHp = clamp(curHp, 0.f, maxHp);
+
+    if (slot.hpGauge)
+        slot.hpGauge->Set_FillRatio(curHp / maxHp);
+
+    Set_Text(slot.currentHpText, to_wstring(static_cast<int32>(curHp)));
+    Set_Text(slot.maxHpText, to_wstring(static_cast<int32>(maxHp)));
+}
+
+void SavePoint_Panel::Set_Text(const Shared<UI_Text>& text, const wstring& value)
+{
+    if (text)
+        text->Set_Text(value);
+}
+
 Unique<SavePoint_Panel> SavePoint_Panel::Create(uint32 levelIndex)
 {
     auto instance = make_unique<SavePoint_Panel>();
@@ -238,6 +326,14 @@ void SavePoint_Panel::Free()
     _restButton.reset();
     _upgradeStatButton.reset();
     _upgradeSkillButton.reset();
+
+    for (uint32 i = 0; i < kPlayerHpSlotCount; ++i)
+    {
+        _playerHpSlots[i].hpGauge.reset();
+        _playerHpSlots[i].currentHpText.reset();
+        _playerHpSlots[i].maxHpText.reset();
+    }
+
     _root.reset();
     _uiByName.clear();
 
