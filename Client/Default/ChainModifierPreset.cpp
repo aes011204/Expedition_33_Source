@@ -733,9 +733,44 @@ void ChainModifierPreset::BuildSimonHairPhysicsDesc(
         return string(buffer);
     };
 
+    struct SimonHairChainTuning
+    {
+        float outputMultiplier;
+        float smoothMultiplier;
+        float maxAngleMul;
+        float dampingMul;
+        float restoreMul;
+    };
+
+    const SimonHairChainTuning chainTunings[15] = {
+        { 0.98f, 0.15f, 0.74f, 0.048f, 0.36f },
+        { 1.02f, 0.20f, 0.62f, 0.060f, 0.50f },
+        { 0.96f, 0.17f, 0.68f, 0.052f, 0.42f },
+        { 1.04f, 0.13f, 0.82f, 0.045f, 0.34f },
+        { 1.00f, 0.22f, 0.58f, 0.066f, 0.56f },
+        { 0.97f, 0.16f, 0.76f, 0.050f, 0.38f },
+        { 1.05f, 0.19f, 0.64f, 0.058f, 0.48f },
+        { 0.94f, 0.14f, 0.86f, 0.044f, 0.32f },
+        { 1.02f, 0.21f, 0.60f, 0.064f, 0.54f },
+        { 0.99f, 0.17f, 0.70f, 0.052f, 0.42f },
+        { 1.06f, 0.12f, 0.90f, 0.042f, 0.30f },
+        { 0.96f, 0.20f, 0.62f, 0.061f, 0.50f },
+        { 1.01f, 0.15f, 0.78f, 0.048f, 0.36f },
+        { 0.95f, 0.23f, 0.56f, 0.070f, 0.58f },
+        { 1.04f, 0.14f, 0.84f, 0.045f, 0.34f }
+    };
+
     for (int32 i = 1; i <= 15; ++i)
     {
-        addChain(makeRootName(i, 1), 1.00f, 0.18f, 0.65f, 1.00f, 0.055f, 0.44f);
+        const auto& tuning = chainTunings[i - 1];
+        addChain(
+            makeRootName(i, 1),
+            tuning.outputMultiplier,
+            tuning.smoothMultiplier,
+            tuning.maxAngleMul,
+            1.00f,
+            tuning.dampingMul,
+            tuning.restoreMul);
     }
 
     desc.outputAlpha = 1.00f;
@@ -846,10 +881,10 @@ void ChainModifierPreset::BuildSimonCoatPhysicsDesc(
     desc.collisionProjectionIterations = 2;
 
     desc.windDirection = Vec3(1.00f, 0.00f, 1.00f);
-    desc.windScale = 0.050f;
-    desc.windWaveScale = 0.620f;
-    desc.windWaveFrequency = 0.420f;
-    desc.windWaveDepthPhase = 0.620f;
+    desc.windScale = 0.f;
+    desc.windWaveScale = 0.f;
+    desc.windWaveFrequency = 0.f;
+    desc.windWaveDepthPhase = 0.f;
     desc.gravityScale = 0.42f;
     desc.teleportDistance = 300.f;
     desc.solverIterations = 8;
