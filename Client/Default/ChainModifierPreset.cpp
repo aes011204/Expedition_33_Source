@@ -869,7 +869,7 @@ void ChainModifierPreset::BuildSimonHairPhysicsDesc(
     desc.contactInertiaDamping = 0.30f;
     desc.releaseInertiaDamping = 0.50f;
 
-    desc.enableCollision = true;
+    desc.enableCollision = false;
     desc.collisionPrimitiveScale = 0.42f;
     desc.collisionSphereRadius = 0.24f;
     desc.collisionRadiusPadding = 0.10f;
@@ -879,7 +879,7 @@ void ChainModifierPreset::BuildSimonHairPhysicsDesc(
     desc.collisionCorrectionSmoothAlpha = 0.48f;
     desc.collisionNormalSmoothAlpha = 0.36f;
     desc.collisionProjectionIterations = 3;
-    desc.useHardCollisionProjection = true;
+    desc.useHardCollisionProjection = false;
     desc.hardCollisionProjectionIterations = 8;
     desc.hardCollisionLengthAlpha = 1.00f;
 
