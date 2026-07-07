@@ -419,7 +419,7 @@ bool DialogueManager::ExecuteLineAction(const string& action)
             spawned->Set_RuntimeAuthoringLoaded(true);
 
             if (const Shared<LevelChange_Portal> portal = dynamic_pointer_cast<LevelChange_Portal>(spawned))
-                portal->Set_GameEntryRevealLevel(LevelType::Stage01);
+                portal->Set_GameEntryRevealLevel(LevelType::GestralVillage); // 제스트랄 보상 포탈은 GameEntry에서 제스트랄 마을 카드가 선택된 상태로 돌아간다.
         }
 
         return true;
