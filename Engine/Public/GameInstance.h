@@ -142,6 +142,7 @@ public:
     float Get_WorldTimeScaleRestoreBase() const { return _isWorldTimeSlowActive ? _worldTimeScaleBeforeSlow : _worldTimeScale; }
     float Get_UnscaledTimeDelta() const { return _unscaledTimeDelta; }
     float Get_WorldTimeDelta() const { return _worldTimeDelta; }
+    bool Get_LastRuntimeFramePerfSnapshot(RuntimeFramePerfSnapshot& outSnapshot) const;
 
 public: /* For.Log_Manager */
     void Log_FileOnly(const spdlog::source_loc& sourceLoc, spdlog::level::level_enum level, const string& message) const;
@@ -787,7 +788,7 @@ private:
 
     DelegateHub _delegateHub = {};
 
-#ifdef _DEBUG
+#if defined(_DEBUG) || defined(_EDITOR)
 
 private: //## 디버그 성능 평가용
     static constexpr float runtimePerfSampleWindowSec{ DebugPerf::kRuntimePerfLogWindowSec }; // RuntimePerfDetail을 몇 초마다 출력할건지
@@ -834,6 +835,7 @@ private:
     float _lastUiRenderMs{ 0.f };
     float _lastPostDrawMs{ 0.f };
     float _lastPrintMs{ 0.f };
+    float _lastPresentMs{ 0.f };
     float _lastRuntimeFrameDeltaMs{ 0.f };
     float _lastEngineUpdateMs{ 0.f };
     float _lastClientUpdateMs{ 0.f };

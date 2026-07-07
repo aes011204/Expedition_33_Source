@@ -114,8 +114,10 @@ void Renderer::Draw()
     Change_ViewportDesc(_screenSize.width, _screenSize.height);
     Reset_RenderCall();
 
+#if defined(_DEBUG) || defined(_EDITOR)
 #ifdef _DEBUG
     DumpCurrentOMState(L"Renderer::Draw:Begin");
+#endif
 
 #pragma region DEBUG_VAR
     const auto renderBegin = chrono::steady_clock::now();
@@ -136,69 +138,95 @@ void Renderer::Draw()
     const auto priorityBegin = chrono::steady_clock::now();
 #pragma endregion
 
+#ifdef _DEBUG
     DumpCurrentOMState(L"Render_Priority:Before");
+#endif
 #endif
     // ========================================= //
     Render_Priority();
     // ========================================= //
+#if defined(_DEBUG) || defined(_EDITOR)
 #ifdef _DEBUG
     DumpCurrentOMState(L"Render_Priority:After");
+#endif
     priorityMs = chrono::duration<double, milli>(chrono::steady_clock::now() - priorityBegin).count();
     const auto shadowBegin = chrono::steady_clock::now();
+#ifdef _DEBUG
     DumpCurrentOMState(L"Render_Shadow:Before");
+#endif
 #endif
 
     // ========================================= //
      Render_Shadow();
     // ========================================= //
-#ifdef _DEBUG
+#if defined(_DEBUG) || defined(_EDITOR)
     shadowMs = chrono::duration<double, milli>(chrono::steady_clock::now() - shadowBegin).count();
     const auto nonBlendBegin = chrono::steady_clock::now();
+#ifdef _DEBUG
     DumpCurrentOMState(L"Render_NonBlend:Before");
+#endif
 #endif
 
     // ========================================= //
     Render_NonBlend();
     // ========================================= //
+#if defined(_DEBUG) || defined(_EDITOR)
 #ifdef _DEBUG
     DumpCurrentOMState(L"Render_NonBlend:After");
+#endif
     nonBlendMs = chrono::duration<double, milli>(chrono::steady_clock::now() - nonBlendBegin).count();
+#ifdef _DEBUG
     DumpCurrentOMState(L"Render_SSAO:Before");
+#endif
 #endif
 
     // ========================================= //
     Render_SSAO();
     // ========================================= //
+#if defined(_DEBUG) || defined(_EDITOR)
 #ifdef _DEBUG
     DumpCurrentOMState(L"Render_SSAO:After");
+#endif
     const auto lightsBegin = chrono::steady_clock::now();
+#ifdef _DEBUG
     DumpCurrentOMState(L"Render_Lights:Before");
+#endif
 #endif
 
     // ========================================= //
     Render_Lights();
     // ========================================= //
+#if defined(_DEBUG) || defined(_EDITOR)
 #ifdef _DEBUG
     DumpCurrentOMState(L"Render_Lights:After");
+#endif
     lightsMs = chrono::duration<double, milli>(chrono::steady_clock::now() - lightsBegin).count();
     const auto combinedHDRBegin = chrono::steady_clock::now();
+#ifdef _DEBUG
     DumpCurrentOMState(L"Render_AmbientVisibility:Before");
+#endif
 #endif
 
     // ========================================= //
     Render_AmbientVisibility();
     // ========================================= //
+#if defined(_DEBUG) || defined(_EDITOR)
 #ifdef _DEBUG
     DumpCurrentOMState(L"Render_AmbientVisibility:After");
     DumpCurrentOMState(L"Render_CombinedHDR:Before");
 #endif
+#endif
 
     Render_CombinedHDR();
+#if defined(_DEBUG) || defined(_EDITOR)
 #ifdef _DEBUG
     DumpCurrentOMState(L"Render_CombinedHDR:After");
+#endif
     combinedHDRMs = chrono::duration<double, milli>(chrono::steady_clock::now() - combinedHDRBegin).count();
     const auto nonlightBegin = chrono::steady_clock::now();
+#ifdef _DEBUG
     DumpCurrentOMState(L"Render_NonLight:Before");
+#endif
 #endif
 
     if (_renderEnvironment)
@@ -210,60 +238,84 @@ void Renderer::Draw()
     // ========================================= //
     Render_NonLight();
     // ========================================= //
+#if defined(_DEBUG) || defined(_EDITOR)
 #ifdef _DEBUG
     DumpCurrentOMState(L"Render_NonLight:After");
+#endif
     nonlightMs = chrono::duration<double, milli>(chrono::steady_clock::now() - nonlightBegin).count();
     const auto effectMaskedBegin = chrono::steady_clock::now();
+#ifdef _DEBUG
     DumpCurrentOMState(L"Render_EffectMasked:Before");
+#endif
 #endif
 
     // ========================================= //
     Render_EffectMasked();
     // ========================================= //
+#if defined(_DEBUG) || defined(_EDITOR)
 #ifdef _DEBUG
     DumpCurrentOMState(L"Render_EffectMasked:After");
+#endif
     effectMaskedMs = chrono::duration<double, milli>(chrono::steady_clock::now() - effectMaskedBegin).count();
     const auto blendBegin = chrono::steady_clock::now();
+#ifdef _DEBUG
     DumpCurrentOMState(L"Render_Blend:Before");
+#endif
 #endif
 
     // ========================================= //
     Render_Blend();
     // ========================================= //
+#if defined(_DEBUG) || defined(_EDITOR)
 #ifdef _DEBUG
     DumpCurrentOMState(L"Render_Blend:After");
+#endif
     blendMs = chrono::duration<double, milli>(chrono::steady_clock::now() - blendBegin).count();
     const auto glowBegin = chrono::steady_clock::now();
+#ifdef _DEBUG
     DumpCurrentOMState(L"Render_Glow:Before");
+#endif
 #endif
 
     Render_Glow();
 
+#if defined(_DEBUG) || defined(_EDITOR)
 #ifdef _DEBUG
     DumpCurrentOMState(L"Render_Glow:After");
+#endif
     glowMs = chrono::duration<double, milli>(chrono::steady_clock::now() - glowBegin).count();
     const auto distortionBegin = chrono::steady_clock::now();
+#ifdef _DEBUG
     DumpCurrentOMState(L"Render_Distortion:Before");
+#endif
 #endif
 
     // ========================================= //
     Render_Distortion();
     // ========================================= //
+#if defined(_DEBUG) || defined(_EDITOR)
 #ifdef _DEBUG
     DumpCurrentOMState(L"Render_Distortion:After");
+#endif
     distortionMs = chrono::duration<double, milli>(chrono::steady_clock::now() - distortionBegin).count();
     const auto postProcesBegin = chrono::steady_clock::now();
+#ifdef _DEBUG
     DumpCurrentOMState(L"Render_PostProcess:Before");
+#endif
 #endif
 
     // ========================================= //
     Render_PostProcess();
     // ========================================= //
+#if defined(_DEBUG) || defined(_EDITOR)
 #ifdef _DEBUG
     DumpCurrentOMState(L"Render_PostProcess:After");
+#endif
     postProcessMs = chrono::duration<double, milli>(chrono::steady_clock::now() - postProcesBegin).count();
     const auto uiBegin = chrono::steady_clock::now();
+#ifdef _DEBUG
     DumpCurrentOMState(L"Render_ScreenFX:Before");
+#endif
 #endif
 
     const ScreenFx_Manager* screenFxManager = GAME->Get_ScreenFxManager();
@@ -276,8 +328,10 @@ void Renderer::Draw()
         Render_ScreenFx();
     }
 
+#if defined(_DEBUG) || defined(_EDITOR)
 #ifdef _DEBUG
     DumpCurrentOMState(L"Render_ScreenFX:After");
+#endif
     uiMs = chrono::duration<double, milli>(chrono::steady_clock::now() - uiBegin).count();
     const auto debugBegin = chrono::steady_clock::now();
 #endif
@@ -290,8 +344,10 @@ void Renderer::Draw()
         const_cast<ScreenFx_Manager*>(screenFxManager)->Clear_CaptureRequested();
     }
 
+#if defined(_DEBUG) || defined(_EDITOR)
 #ifdef _DEBUG
     Render_Debug();
+#endif
 
     debugMs = chrono::duration<double, milli>(chrono::steady_clock::now() - debugBegin).count();
     const auto renderMs = chrono::duration<double, milli>(chrono::steady_clock::now() - renderBegin).count();
@@ -2691,6 +2747,10 @@ void Renderer::DumpCurrentOMState(const wchar_t* stageTag) const
 
     OutputDebugStringW(message.c_str());
 }
+
+#endif
+
+#if defined(_DEBUG) || defined(_EDITOR)
 
 bool Renderer::Try_ConsumePerfSummary(const float windowSec, RenderPerfSummary& outSummary)
 {

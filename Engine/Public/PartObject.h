@@ -28,6 +28,11 @@ public:
 
 public:
     const Matrix& Get_CombinedWorldMatrix() const { return _combinedWorldMatrix; }
+    void Refresh_CombinedWorldMatrix()
+    {
+        if (_transformCom)
+            Update_CombinedWorldMatrix(_transformCom->Get_WorldMatrix());
+    }
     virtual Matrix Get_GizmoWorldMatrix() const;
     virtual bool Apply_GizmoWorldMatrix(const Matrix& gizmoWorldMatrix);
 

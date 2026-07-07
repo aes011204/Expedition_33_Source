@@ -469,7 +469,7 @@ HRESULT GameInstance::Initialize_Engine(const ENGINE_DESC& engineDesc, ComPtr<De
         _threadPool = ThreadPool::Create(workerCount);
         CHECK_NULL(_threadPool, E_FAIL);
 
-        LOG_ERROR(
+        LOG_INFO(
             "[GameInstance::Initialize_Engine] ThreadPool created. workerCount={}",
             static_cast<int>(workerCount)
         );
@@ -490,6 +490,10 @@ void GameInstance::Update_Engine(float timeDelta)
 
 void GameInstance::Update_Engine(float timeDelta, const function<void(float)>& clientUpdate)
 {
+#if defined(_EDITOR) && !defined(_DEBUG)
+    const auto editorUpdateBegin = chrono::steady_clock::now();
+#endif
+
     _unscaledTimeDelta = timeDelta; // 배속 전
 
     if (_isWorldTimeSlowActive)
@@ -753,17 +757,32 @@ void GameInstance::Update_Engine(float timeDelta, const function<void(float)>& c
         );
     }
 #endif
+
+#if defined(_EDITOR) && !defined(_DEBUG)
+    _lastRuntimeFrameDeltaMs = timeDelta * 1000.f;
+    _lastEngineUpdateMs = static_cast<float>(
+        chrono::duration<double, milli>(chrono::steady_clock::now() - editorUpdateBegin).count());
+    _lastClientUpdateMs = 0.f;
+    _lastLevelUpdateMs = 0.f;
+    _lastPriorityObjectUpdateMs = 0.f;
+    _lastObjectUpdateMs = 0.f;
+    _lastLateObjectUpdateMs = 0.f;
+    _lastPhysXUpdateMs = 0.f;
+    _lastCollisionFromPhysXMs = 0.f;
+    _lastCameraUpdateMs = 0.f;
+    _lastUiUpdateMs = 0.f;
+#endif
 }
 
 HRESULT GameInstance::Draw()
 {
-#ifdef _DEBUG
+#if defined(_DEBUG) || defined(_EDITOR)
     const auto gameDrawBegin = chrono::steady_clock::now();
     auto stageBegin = gameDrawBegin;
 #endif
 
     _renderer->Draw();
-#ifdef _DEBUG
+#if defined(_DEBUG) || defined(_EDITOR)
     _lastRendererDrawMs = static_cast<float>(chrono::duration<double, milli>(chrono::steady_clock::now() - stageBegin).count());
     if (_renderer != nullptr)
         _renderer->Get_LastFramePerfSummary(_lastDrawRenderPerf);
@@ -772,7 +791,7 @@ HRESULT GameInstance::Draw()
 #endif
 
     _levelManager->Render();
-#ifdef _DEBUG
+#if defined(_DEBUG) || defined(_EDITOR)
     _lastLevelRenderMs = static_cast<float>(chrono::duration<double, milli>(chrono::steady_clock::now() - stageBegin).count());
 
     stageBegin = chrono::steady_clock::now();
@@ -800,7 +819,7 @@ HRESULT GameInstance::Draw()
     }
 
 #endif
-#ifdef _DEBUG
+#if defined(_DEBUG) || defined(_EDITOR)
     _lastDebugRenderMs = static_cast<float>(chrono::duration<double, milli>(chrono::steady_clock::now() - stageBegin).count());
 #endif
 
@@ -809,7 +828,7 @@ HRESULT GameInstance::Draw()
 #endif
 
 #pragma region UI Render
-#ifdef _DEBUG
+#if defined(_DEBUG) || defined(_EDITOR)
     stageBegin = chrono::steady_clock::now();
 #endif
     // Background UI는 3D 씬 이후, Foreground UI 이전에 그린다.
@@ -820,7 +839,7 @@ HRESULT GameInstance::Draw()
     if (FAILED(_uiManager->Render(UI_RenderGroup::Foreground)))
         return E_FAIL;
 #pragma endregion
-#ifdef _DEBUG
+#if defined(_DEBUG) || defined(_EDITOR)
     _lastUiRenderMs = static_cast<float>(chrono::duration<double, milli>(chrono::steady_clock::now() - stageBegin).count());
 
     stageBegin = chrono::steady_clock::now();
@@ -828,7 +847,7 @@ HRESULT GameInstance::Draw()
 
     // UI 이후의 모든 화면 효과(ScreenFx, 캡처, UIEffect)를 단일 함수로 캡슐화하여 렌더링
     _renderer->PostDraw();
-#ifdef _DEBUG
+#if defined(_DEBUG) || defined(_EDITOR)
     _lastPostDrawMs = static_cast<float>(chrono::duration<double, milli>(chrono::steady_clock::now() - stageBegin).count());
 
     stageBegin = chrono::steady_clock::now();
@@ -837,7 +856,7 @@ HRESULT GameInstance::Draw()
     // Overlay UI는 UIEffect 이후에 그려 전투 알림처럼 최우선으로 보여야 하는 UI를 보장한다.
     if (FAILED(_uiManager->Render(UI_RenderGroup::Overlay)))
         return E_FAIL;
-#ifdef _DEBUG
+#if defined(_DEBUG) || defined(_EDITOR)
     _lastUiRenderMs += static_cast<float>(chrono::duration<double, milli>(chrono::steady_clock::now() - stageBegin).count());
 #endif
 
@@ -845,6 +864,8 @@ HRESULT GameInstance::Draw()
     stageBegin = chrono::steady_clock::now();
     _printManager->Render();
     _lastPrintMs = static_cast<float>(chrono::duration<double, milli>(chrono::steady_clock::now() - stageBegin).count());
+#endif
+#if defined(_DEBUG) || defined(_EDITOR)
     _lastGameDrawMs = static_cast<float>(chrono::duration<double, milli>(chrono::steady_clock::now() - gameDrawBegin).count());
 #endif
 
@@ -1287,6 +1308,10 @@ void GameInstance::Try_FlushRuntimePerfLog()
     Reset_RuntimePerfWindowState(now);
 }
 
+#endif
+
+#if defined(_DEBUG) || defined(_EDITOR)
+
 void GameInstance::Log_RuntimeFrameDropIfNeeded(float presentMs)
 {
     constexpr float kFrameDropThresholdMs = 1000.f / 30.f;
@@ -1414,6 +1439,40 @@ void GameInstance::Stop_WorldTimeSlow()
     _worldTimeSlowDuration = 0.f;
 }
 
+bool GameInstance::Get_LastRuntimeFramePerfSnapshot(RuntimeFramePerfSnapshot& outSnapshot) const
+{
+    outSnapshot = {};
+
+#if defined(_DEBUG) || defined(_EDITOR)
+    outSnapshot.valid = true;
+    outSnapshot.runtimeFrameDeltaMs = _unscaledTimeDelta * 1000.f;
+    outSnapshot.worldTimeDeltaMs = _worldTimeDelta * 1000.f;
+    outSnapshot.worldTimeScale = _worldTimeScale;
+    outSnapshot.engineUpdateMs = _lastEngineUpdateMs;
+    outSnapshot.gameDrawMs = _lastGameDrawMs;
+    outSnapshot.rendererDrawMs = _lastRendererDrawMs;
+    outSnapshot.levelRenderMs = _lastLevelRenderMs;
+    outSnapshot.debugRenderMs = _lastDebugRenderMs;
+    outSnapshot.uiRenderMs = _lastUiRenderMs;
+    outSnapshot.postDrawMs = _lastPostDrawMs;
+    outSnapshot.printMs = _lastPrintMs;
+    outSnapshot.presentMs = _lastPresentMs;
+    outSnapshot.clientUpdateMs = _lastClientUpdateMs;
+    outSnapshot.levelUpdateMs = _lastLevelUpdateMs;
+    outSnapshot.priorityObjectUpdateMs = _lastPriorityObjectUpdateMs;
+    outSnapshot.objectUpdateMs = _lastObjectUpdateMs;
+    outSnapshot.lateObjectUpdateMs = _lastLateObjectUpdateMs;
+    outSnapshot.physXUpdateMs = _lastPhysXUpdateMs;
+    outSnapshot.collisionFromPhysXMs = _lastCollisionFromPhysXMs;
+    outSnapshot.cameraUpdateMs = _lastCameraUpdateMs;
+    outSnapshot.uiUpdateMs = _lastUiUpdateMs;
+    outSnapshot.render = _lastDrawRenderPerf;
+    return true;
+#else
+    return false;
+#endif
+}
+
 void GameInstance::Log_FileOnly(const spdlog::source_loc& sourceLoc, spdlog::level::level_enum level, const string& message) const
 {
     CHECK_NULL(_logManager);
@@ -1468,13 +1527,16 @@ HRESULT GameInstance::Clear_Buffers(const Vec4& clearColor)
 
 HRESULT GameInstance::Present()
 {
-#ifdef _DEBUG
+#if defined(_DEBUG) || defined(_EDITOR)
     const auto presentBegin = chrono::steady_clock::now();
 #endif
     const HRESULT result = _graphicDevice->Present();
-#ifdef _DEBUG
+#if defined(_DEBUG) || defined(_EDITOR)
     const float presentMs = static_cast<float>(chrono::duration<double, milli>(chrono::steady_clock::now() - presentBegin).count());
+    _lastPresentMs = presentMs;
+#if defined(_DEBUG) || defined(_EDITOR)
     Log_RuntimeFrameDropIfNeeded(presentMs);
+#endif
 #endif
     return result;
 }
