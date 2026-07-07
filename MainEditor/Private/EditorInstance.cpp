@@ -33,6 +33,9 @@
 #include "RuntimeRuleStateService.h"
 #include "TargetCamera.h"
 
+extern HWND g_hWnd;
+extern bool Is_MainEditorGameLauncherPreviewMode();
+
 IMPLEMENT_SINGLETON(EditorInstance)
 
 namespace
@@ -1765,8 +1768,13 @@ void EditorInstance::Apply_RuntimeInputPolicy()
         gameView && gameView->Is_Open() &&
         _runtimeGameFocusRecoveryFrames > 0;
 
+    const bool gameLauncherPreviewFocused =
+        Is_MainEditorGameLauncherPreviewMode() &&
+        g_hWnd == GetActiveWindow();
+
     const bool gameFocused =
         gameFocusedActual ||
+        gameLauncherPreviewFocused ||
         hasPendingGameFocus ||
         gameFocusRecoveryActive;
 
@@ -1828,7 +1836,8 @@ void EditorInstance::Apply_RuntimeInputPolicy()
         if (isFreeCamera)
         {
             const bool freeCameraControl =
-                (gameFocused || gameInteractive) && GAME->KeyPress(KEY_TYPE::RBUTTON);
+                (gameFocused || gameInteractive || gameLauncherPreviewFocused) &&
+                GAME->KeyPress(KEY_TYPE::RBUTTON);
 
             GAME->Set_PlayerInputBlocked(false); // Play 중 FreeCamera에 잠깐 남아 있어도 이전 blocked 상태를 끌고 가지 않게 바로 푼다.
             GAME->Set_FreeCameraInputEnabled(freeCameraControl);

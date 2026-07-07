@@ -122,6 +122,15 @@ void ContainerObject::Refresh_PartObjectTransforms()
     }
 }
 
+void ContainerObject::Refresh_PartObjectWorldMatrices()
+{
+    for (auto& partObject : _partObjectUpdateOrder)
+    {
+        if (partObject)
+            partObject->Refresh_CombinedWorldMatrix();
+    }
+}
+
 HRESULT ContainerObject::Render()
 {
 	return S_OK;

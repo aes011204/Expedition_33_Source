@@ -617,6 +617,7 @@
     <ClInclude Include="..\Public\UI_ChoiceTarget.h" />
     <ClInclude Include="..\Public\UI_CrossHair.h" />
     <ClInclude Include="..\Public\UI_DamageFont.h" />
+    <ClInclude Include="..\Public\UI_Mark.h" />
     <ClInclude Include="..\Public\UI_Burn.h" />
     <ClInclude Include="..\Public\UI_Slow.h" />
     <ClInclude Include="..\Public\UI_EscapeSkipTurnBack.h" />
@@ -1110,6 +1111,7 @@
     <ClCompile Include="..\Private\UI_ChoiceTarget.cpp" />
     <ClCompile Include="..\Private\UI_CrossHair.cpp" />
     <ClCompile Include="..\Private\UI_DamageFont.cpp" />
+    <ClCompile Include="..\Private\UI_Mark.cpp" />
     <ClCompile Include="..\Private\UI_Burn.cpp" />
     <ClCompile Include="..\Private\UI_Slow.cpp" />
     <ClCompile Include="..\Private\UI_EscapeSkipTurnBack.cpp" />
