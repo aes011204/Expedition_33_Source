@@ -460,7 +460,14 @@ void GameplayUI_World::Force_CloseAllMenus()
         _arenaCharacterSelectPanel->Close_Immediately();
 
     if (_merchantPanel && _merchantPanel->Is_Open())
+    {
         _merchantPanel->Close_Immediately();
+        if (_merchantShopKeepsDialogueFocus)
+        {
+            CLIENT->Set_DialogueFocusActive(false);
+            _merchantShopKeepsDialogueFocus = false;
+        }
+    }
 
     if (_replayPanel && _replayPanel->Is_Open())
         _replayPanel->Close_Immediately();
@@ -537,6 +544,10 @@ bool GameplayUI_World::Request_MerchantShop()
 
     if (GAME->Is_WorldGameplayInputBlocked() && !requestedFromDialogue)
         return false;
+
+    _merchantShopKeepsDialogueFocus = requestedFromDialogue;
+    if (_merchantShopKeepsDialogueFocus)
+        CLIENT->Set_DialogueFocusActive(true); // 대화 선택지에서 바로 상점으로 넘어가도 follower 정지 상태를 유지한다.
 
     Push_Menu(GameplayMenu::Merchant);
     return true;
@@ -1165,6 +1176,12 @@ void GameplayUI_World::Close_Menu(GameplayMenu menu, bool restoreWorldControl)
                 _pendingGetPictosIds.end(),
                 purchasedPictosIds.begin(),
                 purchasedPictosIds.end());
+
+            if (_merchantShopKeepsDialogueFocus)
+            {
+                CLIENT->Set_DialogueFocusActive(false);
+                _merchantShopKeepsDialogueFocus = false;
+            }
         }
         break;
 
@@ -1593,7 +1610,14 @@ void GameplayUI_World::Close_AllMenus(bool immediate)
         else if (immediate && menu == GameplayMenu::WeaponUpgrade && _upgradeWeaponPanel)
             _upgradeWeaponPanel->Close_Immediately();
         else if (immediate && menu == GameplayMenu::Merchant && _merchantPanel)
+        {
             _merchantPanel->Close_Immediately();
+            if (_merchantShopKeepsDialogueFocus)
+            {
+                CLIENT->Set_DialogueFocusActive(false);
+                _merchantShopKeepsDialogueFocus = false;
+            }
+        }
         else if (immediate && menu == GameplayMenu::ArenaCharacterSelect && _arenaCharacterSelectPanel)
             _arenaCharacterSelectPanel->Close_Immediately();
         else if (immediate && menu == GameplayMenu::Replay && _replayPanel)

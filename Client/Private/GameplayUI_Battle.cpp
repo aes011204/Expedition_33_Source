@@ -34,6 +34,7 @@
 #include "UI_PlayerHpBar.h"
 #include "UI_CrossHair.h"
 #include "UI_DamageFont.h"
+#include "UI_Mark.h"
 #include "UI_Burn.h"
 #include "UI_Slow.h"
 #include "UI_DestroyShield.h"
@@ -189,6 +190,12 @@ HRESULT GameplayUI_Battle::Initialize(uint32 levelIndex)
         CHECK_NULL(burn, E_FAIL);
     }
 
+    for (auto& mark : _marks)
+    {
+        mark = UI_Mark::Create(levelIndex);
+        CHECK_NULL(mark, E_FAIL);
+    }
+
     for (auto& slow : _slows)
     {
         slow = UI_Slow::Create(levelIndex);
@@ -266,6 +273,7 @@ void GameplayUI_Battle::Update(float timeDelta)
     Update_BattleMechanism(timeDelta);  // 플레이어 공격 액션 중 캐릭터별 메커니즘 UI
     Update_TurnOrder(timeDelta);        // 좌측상단 턴 UI
     Update_DamageFonts(timeDelta);      // 데미지 폰트
+    Update_Marks(timeDelta);            // 징표 소모 텍스트
     Update_Burns(timeDelta);            // 화상 부여 텍스트
     Update_Slows(timeDelta);            // 감속 부여 텍스트
     Update_DestroyShields(timeDelta);   // 쉴드 파괴 아이콘
@@ -349,6 +357,9 @@ vector<RuntimeUIEntry> GameplayUI_Battle::Get_RuntimeUIEntries() const
 
     for (uint32 i = 0; i < _burns.size(); ++i)
         Append_OpenedRuntimePanelEntry(entries, ("Burn_" + to_string(i)).c_str(), _burns[i].get());
+
+    for (uint32 i = 0; i < _marks.size(); ++i)
+        Append_OpenedRuntimePanelEntry(entries, ("Mark_" + to_string(i)).c_str(), _marks[i].get());
 
     for (uint32 i = 0; i < _slows.size(); ++i)
         Append_OpenedRuntimePanelEntry(entries, ("Slow_" + to_string(i)).c_str(), _slows[i].get());
@@ -1385,14 +1396,16 @@ void GameplayUI_Battle::Handle_BuffApplied(const BattleChar& target, Buffs buffI
 
 void GameplayUI_Battle::Handle_BuffConsumed(const BattleChar& target, Buffs buffId, float bonusDamage)
 {
-    UNREFERENCED_PARAMETER(target);
     UNREFERENCED_PARAMETER(bonusDamage);
 
     if (!_isBattleUiActive)
         return;
 
     if (buffId == Buffs::Mark)
+    {
         Clear_MarkEffect();
+        Play_MarkConsumed(target);
+    }
 }
 
 void GameplayUI_Battle::Play_MarkEffect(const BattleChar& target)
@@ -1452,6 +1465,61 @@ void GameplayUI_Battle::Clear_MarkEffect()
         EffectCom::EffectPlayTarget::PartSocket,
         kMarkWorldEffectPartTag,
         kMarkWorldEffectSocketName);
+}
+
+void GameplayUI_Battle::Play_MarkConsumed(const BattleChar& target)
+{
+    if (!_isBattleUiActive)
+        return;
+
+    UI_Mark* selectedSlot = nullptr;
+    UI_Mark* oldestSlot = nullptr;
+    float longestElapsed = -1.f;
+
+    for (auto& mark : _marks)
+    {
+        if (!mark)
+            continue;
+
+        if (mark->Is_Playing())
+        {
+            if (mark->Get_Elapsed() > longestElapsed)
+            {
+                longestElapsed = mark->Get_Elapsed();
+                oldestSlot = mark.get();
+            }
+
+            continue;
+        }
+
+        if (selectedSlot == nullptr)
+            selectedSlot = mark.get();
+    }
+
+    if (selectedSlot == nullptr)
+        selectedSlot = oldestSlot;
+
+    if (selectedSlot == nullptr)
+        return;
+
+    Character_BattleBase* targetActor = target.actor.get();
+    uint32 targetStackIndex = 0;
+    if (_lastDamageFontTargetActor == targetActor)
+    {
+        targetStackIndex = _damageFontTargetStackIndex++;
+    }
+    else
+    {
+        _lastDamageFontTargetActor = targetActor;
+        _damageFontTargetStackIndex = 1;
+    }
+
+    constexpr uint32 kDamageFontAlternationBandCount = (kDamageFontPoolSize - 1) / 2;
+    const uint32 verticalBand = min(targetStackIndex / 2, kDamageFontAlternationBandCount - 1);
+    const bool useLeftSide = (targetStackIndex % 2u) == 0u;
+    const uint32 visualStackIndex = verticalBand * 2u + (useLeftSide ? 1u : 2u);
+
+    selectedSlot->Show_Mark(target, visualStackIndex);
 }
 
 void GameplayUI_Battle::Play_BurnApplied(const BattleChar& target)
@@ -2287,6 +2355,15 @@ void GameplayUI_Battle::Update_DamageFonts(float timeDelta)
     {
         if (damageFont)
             damageFont->Update(timeDelta);
+    }
+}
+
+void GameplayUI_Battle::Update_Marks(float timeDelta)
+{
+    for (auto& mark : _marks)
+    {
+        if (mark)
+            mark->Update(timeDelta);
     }
 }
 
@@ -3254,6 +3331,12 @@ void GameplayUI_Battle::Reset_BattleUiRuntimeState(bool closeVictoryUi)
             burn->Close();
     }
 
+    for (auto& mark : _marks)
+    {
+        if (mark)
+            mark->Close();
+    }
+
     for (auto& slow : _slows)
     {
         if (slow)
@@ -3375,6 +3458,9 @@ void GameplayUI_Battle::Free()
 
     for (auto& burn : _burns)
         Release_UI(burn);
+
+    for (auto& mark : _marks)
+        Release_UI(mark);
 
     for (auto& slow : _slows)
         Release_UI(slow);
