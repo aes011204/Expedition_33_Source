@@ -1248,12 +1248,12 @@ void ChainModifierPreset::BuildMaelleBackHairPhysicsDesc(
     desc.rotationFollowDepthScale = 0.10f;
     desc.poseRestoreAlpha = 0.400f;
     desc.poseRestoreMaxSpeed = 30.0f;
-    desc.maxLocalOffset = Vec3(19.00f, 1.65f, 10.90f);
+    desc.maxLocalOffset = Vec3(19.00f, 0.82f, 10.90f);
     desc.movementInertiaScale = 3.40f;
     desc.tipMovementInertiaScale = 68.00f;
     desc.maxMovementInertiaSpeed = 140.0f;
     desc.lateralInertiaScale = 16.25f;
-    desc.verticalInertiaScale = 0.22f;
+    desc.verticalInertiaScale = 0.11f;
     desc.depthInertiaScale = 2.45f;
     desc.includeDriverLateralInertia = true;
     desc.accelerationInertiaScale = 0.005f;
