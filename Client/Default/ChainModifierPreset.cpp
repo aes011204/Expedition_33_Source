@@ -743,10 +743,10 @@ void ChainModifierPreset::BuildSimonHairPhysicsDesc(
     };
 
     const SimonHairChainTuning chainTunings[15] = {
-        { 0.98f, 0.15f, 0.74f, 0.048f, 0.36f },
-        { 1.02f, 0.20f, 0.62f, 0.060f, 0.50f },
-        { 0.96f, 0.17f, 0.68f, 0.052f, 0.42f },
-        { 1.04f, 0.13f, 0.82f, 0.045f, 0.34f },
+        { 0.84f, 0.36f, 0.70f, 0.44f, 0.86f },
+        { 0.86f, 0.36f, 0.70f, 0.44f, 0.86f },
+        { 0.88f, 0.34f, 0.78f, 0.40f, 0.78f },
+        { 0.88f, 0.34f, 0.78f, 0.40f, 0.78f },
         { 1.00f, 0.22f, 0.58f, 0.066f, 0.56f },
         { 0.97f, 0.16f, 0.76f, 0.050f, 0.38f },
         { 1.05f, 0.19f, 0.64f, 0.058f, 0.48f },
@@ -755,9 +755,9 @@ void ChainModifierPreset::BuildSimonHairPhysicsDesc(
         { 0.99f, 0.17f, 0.70f, 0.052f, 0.42f },
         { 1.06f, 0.12f, 0.90f, 0.042f, 0.30f },
         { 0.96f, 0.20f, 0.62f, 0.061f, 0.50f },
-        { 1.01f, 0.15f, 0.78f, 0.048f, 0.36f },
-        { 0.95f, 0.23f, 0.56f, 0.070f, 0.58f },
-        { 1.04f, 0.14f, 0.84f, 0.045f, 0.34f }
+        { 0.86f, 0.38f, 0.66f, 0.48f, 0.92f },
+        { 0.86f, 0.38f, 0.66f, 0.48f, 0.92f },
+        { 0.86f, 0.38f, 0.66f, 0.48f, 0.92f }
     };
 
     for (int32 i = 1; i <= 15; ++i)
@@ -775,13 +775,13 @@ void ChainModifierPreset::BuildSimonHairPhysicsDesc(
 
     desc.outputAlpha = 1.00f;
     desc.rotationOutputAlpha = 1.00f;
-    desc.outputSmoothAlpha = 0.010f;
+    desc.outputSmoothAlpha = 0.035f;
     desc.idleOutputSmoothAlpha = 0.48f;
     desc.idleMotionDeadzone = 0.055f;
     desc.maxOutputAngleDegree = 120.f;
 
-    desc.freeRotationFollowAlpha = 0.018f;
-    desc.rotationFollowDepthScale = 0.018f;
+    desc.freeRotationFollowAlpha = 0.055f;
+    desc.rotationFollowDepthScale = 0.024f;
     desc.poseRestoreAlpha = 0.070f;
     desc.poseRestoreMaxSpeed = 2.30f;
     desc.maxLocalOffset = Vec3(19.00f, 10.00f, 10.90f);
@@ -795,10 +795,10 @@ void ChainModifierPreset::BuildSimonHairPhysicsDesc(
     desc.accelerationInertiaScale = 0.009f;
     desc.inertiaVelocitySmoothAlpha = 0.115f;
     desc.poseSpringStrength = 0.46f;
-    desc.poseSpringDamping = 0.620f;
-    desc.lengthConstraintAlpha = 0.055f;
-    desc.bendConstraintAlpha = 0.006f;
-    desc.projectionIterations = 3;
+    desc.poseSpringDamping = 0.660f;
+    desc.lengthConstraintAlpha = 0.105f;
+    desc.bendConstraintAlpha = 0.014f;
+    desc.projectionIterations = 5;
 
     desc.releaseInertiaDamping = 0.780f;
 
@@ -808,17 +808,17 @@ void ChainModifierPreset::BuildSimonHairPhysicsDesc(
     desc.collisionRadiusPadding = 0.055f;
     desc.collisionContactSkinWidth = 0.045f;
     desc.collisionProjectionIterations = 4;
-    desc.useHardCollisionProjection = true;
+    desc.useHardCollisionProjection = false;
     desc.hardCollisionProjectionIterations = 10;
     desc.hardCollisionLengthAlpha = 1.00f;
 
     desc.windDirection = Vec3(1.00f, 1.00f, 1.00f);
-    desc.windScale = 0.075f;
-    desc.windWaveScale = 0.900f;
-    desc.windWaveFrequency = 0.420f;
-    desc.windWaveDepthPhase = 0.620f;
+    desc.windScale = 0.072f;
+    desc.windWaveScale = 0.520f;
+    desc.windWaveFrequency = 0.340f;
+    desc.windWaveDepthPhase = 0.460f;
     desc.gravityScale = 30.00f;
-    desc.useHierarchicalDepthRatio = false;
+    desc.useHierarchicalDepthRatio = true;
     desc.teleportDistance = 300.f;
     desc.solverIterations = 8;
     desc.writeBackEnabled = true;
