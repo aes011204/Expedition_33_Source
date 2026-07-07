@@ -990,7 +990,7 @@ void CinematicSequenceRunner::Update(float timeDelta, bool tickBoundAnimationsMa
     if (_applyEventTrack && _applyActorTransformTrack && !_suspendActorTransformTrackPreview)
     {
         stageStart = PerfClock::now();
-        Apply_AuthoredActorTracks(currentFrameExact, willTickBoundAnimations);
+        Apply_AuthoredActorTracks(currentFrameExact, willTickBoundAnimations, &perf);
         perf.actorTracksMs = ElapsedMs(stageStart);
     }
 
@@ -1868,12 +1868,18 @@ bool CinematicSequenceRunner::Execute_WorldTimeScaleEvent(const CinematicWorldTi
     return true;
 }
 
-void CinematicSequenceRunner::Apply_ActorTransformTracks(float currentFrameExact, bool deferActiveAnimPartRefresh)
+void CinematicSequenceRunner::Apply_ActorTransformTracks(
+    float currentFrameExact,
+    bool deferActiveAnimPartRefresh,
+    FramePerfBreakdown* perf)
 {
     for (const auto& track : _sequence.actorTransformTracks)
     {
         if (!track.enabled || track.targetId.empty())
             continue;
+
+        if (perf != nullptr)
+            ++perf->actorTrackCount;
 
         Shared<GameObject> actor = Get_BoundActor(track.targetId);
         if (actor == nullptr)
@@ -1895,6 +1901,8 @@ void CinematicSequenceRunner::Apply_ActorTransformTracks(float currentFrameExact
         transform->Set_WorldPosition(position);
         transform->Set_WorldRotationEuler(rotation);
         transform->Update_WorldMatrix();
+        if (perf != nullptr)
+            ++perf->actorTrackAppliedCount;
 
         bool deferPartRefresh = false;
         if (deferActiveAnimPartRefresh)
@@ -1909,16 +1917,31 @@ void CinematicSequenceRunner::Apply_ActorTransformTracks(float currentFrameExact
         }
 
         if (deferPartRefresh)
+        {
+            if (perf != nullptr)
+                ++perf->actorTrackDeferredRefreshCount;
             continue;
+        }
 
         if (const auto container = dynamic_pointer_cast<ContainerObject>(actor))
-            container->Refresh_PartObjectTransforms();
+        {
+            const PerfClock::time_point refreshStart = PerfClock::now();
+            container->Refresh_PartObjectWorldMatrices();
+            if (perf != nullptr)
+            {
+                perf->actorTrackRefreshMs += ElapsedMs(refreshStart);
+                ++perf->actorTrackRefreshCount;
+            }
+        }
     }
 }
 
-void CinematicSequenceRunner::Apply_AuthoredActorTracks(float currentFrameExact, bool deferActiveAnimPartRefresh)
+void CinematicSequenceRunner::Apply_AuthoredActorTracks(
+    float currentFrameExact,
+    bool deferActiveAnimPartRefresh,
+    FramePerfBreakdown* perf)
 {
-    Apply_ActorTransformTracks(currentFrameExact, deferActiveAnimPartRefresh);
+    Apply_ActorTransformTracks(currentFrameExact, deferActiveAnimPartRefresh, perf);
     Apply_PartRotationTracks(currentFrameExact);
 }
 
@@ -1951,7 +1974,7 @@ void CinematicSequenceRunner::Apply_PartRotationTracks(float currentFrameExact)
 
         transform->Set_RotationEuler(rotation);
         transform->Update_WorldMatrix();
-        part->Update(0.f);
+        part->Refresh_CombinedWorldMatrix();
     }
 }
 
@@ -2354,7 +2377,7 @@ void CinematicSequenceRunner::Log_PerfDropIfNeeded(
     );
 
     LOG_WARN(
-        "[CinematicPerf][Stage] seq='{}' frame={:.2f} dtMs={:.2f} runnerMs={:.2f} playerMs={:.2f} cameraMs={:.2f} eventsMs={:.2f} actorTracksMs={:.2f} animMs={:.2f} animPlayMs={:.2f} animPartMs={:.2f} animActors={} maxAnim={}:{:.2f} attachedMs={:.2f} attachedComs={}",
+        "[CinematicPerf][Stage] seq='{}' frame={:.2f} dtMs={:.2f} runnerMs={:.2f} playerMs={:.2f} cameraMs={:.2f} eventsMs={:.2f} actorTracksMs={:.2f} actorRefreshMs={:.2f} actorApplied={} actorRefresh={} actorDeferred={} animMs={:.2f} animPlayMs={:.2f} animPartMs={:.2f} animActors={} maxAnim={}:{:.2f} attachedMs={:.2f} attachedComs={}",
         _sequence.name,
         currentFrameExact,
         timeDelta * 1000.f,
@@ -2363,6 +2386,10 @@ void CinematicSequenceRunner::Log_PerfDropIfNeeded(
         perf.cameraMs,
         perf.eventsMs,
         perf.actorTracksMs,
+        perf.actorTrackRefreshMs,
+        perf.actorTrackAppliedCount,
+        perf.actorTrackRefreshCount,
+        perf.actorTrackDeferredRefreshCount,
         perf.animMs,
         perf.animPlayMs,
         perf.animPartMs,
