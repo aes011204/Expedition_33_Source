@@ -129,6 +129,8 @@ private:
         bool previousCinematicNotifyContext = false;
         bool hasAnimNotifyExecutionOverride = false;
         bool previousAnimNotifyExecutionEnabled = true;
+        bool hasAnimationPausedRestore = false;
+        bool previousAnimationPaused = false;
         vector<ShadowCasterRestoreState> previewShadowCasterRestores{};
         vector<HairPreviewRestoreState> previewHairRestores{};
     };
@@ -140,6 +142,17 @@ private:
         float cameraMs = 0.f;
         float eventsMs = 0.f;
         float actorTracksMs = 0.f;
+        float actorTrackEvalMs = 0.f;
+        float actorTrackCompareMs = 0.f;
+        float actorTrackApplyMs = 0.f;
+        float actorTrackRefreshMs = 0.f;
+        float partRotationMs = 0.f;
+        float maxActorTrackMs = 0.f;
+        string maxActorTrackId{};
+        uint32 actorTrackCount = 0;
+        uint32 actorTrackAppliedCount = 0;
+        uint32 actorTrackRefreshCount = 0;
+        uint32 actorTrackDeferredRefreshCount = 0;
         float animMs = 0.f;
         float animPlayMs = 0.f;
         float animPartMs = 0.f;
@@ -183,8 +196,14 @@ private:
         bool spawnedBySequence,
         CinematicCleanupPolicy cleanupPolicy);
 
-    void Apply_ActorTransformTracks(float currentFrameExact, bool deferActiveAnimPartRefresh = false);
-    void Apply_AuthoredActorTracks(float currentFrameExact, bool deferActiveAnimPartRefresh = false);
+    void Apply_ActorTransformTracks(
+        float currentFrameExact,
+        bool deferPartObjectRefresh = false,
+        FramePerfBreakdown* perf = nullptr);
+    void Apply_AuthoredActorTracks(
+        float currentFrameExact,
+        bool deferPartObjectRefresh = false,
+        FramePerfBreakdown* perf = nullptr);
     void Apply_PartRotationTracks(float currentFrameExact);
     bool Evaluate_ActorTransformTrack(
         const CINEMATIC_ACTOR_TRANSFORM_TRACK& track,
