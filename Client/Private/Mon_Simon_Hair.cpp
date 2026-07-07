@@ -83,6 +83,8 @@ void Mon_Simon_Hair::Priority_Update(float timeDelta)
 
 void Mon_Simon_Hair::Update(float timeDelta)
 {
+    // TODO(Cinematic): cinematic pose refresh 경로가 이 socket 기반 matrix 계약을 우회하지 않도록 해야 한다.
+    // Simon hair는 여기서 headSocket을 반드시 포함해야 하며, generic PartObject matrix refresh는 이 바인딩을 적용하지 않는다.
     if (_socketMatrix != nullptr)
         Update_CombinedWorldMatrix(_offsetMatrix * _transformCom->Get_WorldMatrix() * (*_socketMatrix));
     else
