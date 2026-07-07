@@ -45,6 +45,8 @@ public:
     void    Apply_Layout(const vector<PreviewSlotDesc>& layout);
     const vector<PreviewHeroEntry>& Get_PreviewHeroes() const { return _previewHeroes; }
     Shared<PreviewCamera> Get_PreviewCamera() const { return _previewCamera; }
+    bool    Is_Active() const { return _isActive; }
+    PreviewShotPanel Get_ActivePanel() const { return _activePanel; }
 
     // 미리 준비
     HRESULT Prepare_PreviewResources();

@@ -172,6 +172,7 @@ private:
 
 		Vec3 solvedPosition{ Vec3::Zero };
 		Vec3 prevSolvedPosition{ Vec3::Zero };
+		Vec3 collisionOutputPosition{ Vec3::Zero };
 		Vec3 prevPosePosition{ Vec3::Zero };
 		Vec3 poseMotionDelta{ Vec3::Zero };
 		Vec3 smoothedInertiaVelocity{ Vec3::Zero };
@@ -184,6 +185,7 @@ private:
 		bool hasSmoothedLocalTransform{ false };
 		bool hasSmoothedCollisionOffset{ false };
 		bool hasSmoothedContactNormal{ false };
+		bool hasCollisionOutputPosition{ false };
 		bool hadContactThisFrame{ false };
 		bool hadPushThisFrame{ false };
 		bool isKinematic{ false };
