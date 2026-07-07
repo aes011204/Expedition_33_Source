@@ -31,6 +31,8 @@ private:
 private:
     HRESULT Ready_Layer_UI(const wstring& strLayerTag);
     void    Apply_RevealedLevelVisibility();
+    void    Update_RevealedLevelPreview();
+    void    Apply_RevealedLevelPreview(LevelType levelType);
 
 private:
     umap<wstring, Shared<UI_Base>> _uiByName{};

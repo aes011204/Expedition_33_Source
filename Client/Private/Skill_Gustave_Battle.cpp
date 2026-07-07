@@ -156,6 +156,12 @@ void Skill_Gustave_Shatter::Execute(const Skill_Data& skill, const BattleAction&
 
     const float damage = DamageSystem::CalculatePlayerAttackDamage(attacker, skill.powerMultiplier);
     DamageSystem::ApplyDamage(damage, attacker, curTargets, attackType, true);
+
+    auto battle = CLIENT->Get_BattleController();
+    CHECK_NULL(battle);
+
+    for (const BattleChar& target : curTargets)
+        battle->Try_ApplySkillBuff(skill, target);
 }
 
 Shared<Skill_Gustave_Shatter> Skill_Gustave_Shatter::Create()
