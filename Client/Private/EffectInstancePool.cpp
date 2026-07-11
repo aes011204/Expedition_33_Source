@@ -240,9 +240,8 @@ string EffectInstancePool::Build_DebugActiveEffectBreakdown(uint32 maxItems) con
         if (!entry.inUse)
             continue;
 
-        auto found = std::find_if(
-            counts.begin(),
-            counts.end(),
+        auto found = ranges::find_if(
+            counts,
             [&entry](const EffectCount& effectCount)
             {
                 return effectCount.effectName == entry.effectName;
@@ -260,9 +259,8 @@ string EffectInstancePool::Build_DebugActiveEffectBreakdown(uint32 maxItems) con
     if (counts.empty())
         return "<none>";
 
-    std::sort(
-        counts.begin(),
-        counts.end(),
+    ranges::sort(
+        counts,
         [](const EffectCount& lhs, const EffectCount& rhs)
         {
             if (lhs.count != rhs.count)
@@ -271,8 +269,8 @@ string EffectInstancePool::Build_DebugActiveEffectBreakdown(uint32 maxItems) con
         });
 
     const uint32 outputCount = maxItems == 0
-        ? static_cast<uint32>(counts.size())
-        : std::min(maxItems, static_cast<uint32>(counts.size()));
+                               ? static_cast<uint32>(counts.size())
+                               : min(maxItems, static_cast<uint32>(counts.size()));
 
     string result{};
     for (uint32 i = 0; i < outputCount; ++i)
@@ -282,7 +280,7 @@ string EffectInstancePool::Build_DebugActiveEffectBreakdown(uint32 maxItems) con
 
         result += String::ToString(counts[i].effectName);
         result += ":";
-        result += std::to_string(counts[i].count);
+        result += to_string(counts[i].count);
     }
 
     if (outputCount < counts.size())

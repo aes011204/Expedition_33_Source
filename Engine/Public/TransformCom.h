@@ -56,8 +56,6 @@ public: //## Accessors
 
     // World 기준 축 또는 위치를 조회한다.
     Vec3 Get_State(State state);
-    [[deprecated("회전&스케일 오염 방지를 위해 사용 금지. 위치/스케일/회전 전용 API를 사용하세요.")]]
-    void Set_State(State state, const Vec3& value);
 
     //## Translation
     // Local 위치를 조회한다. parent가 있으면 World 위치와 다를 수 있다.

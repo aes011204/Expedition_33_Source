@@ -22,6 +22,18 @@
     <ClCompile Include="..\Private\Emitter_View.cpp">
       <Filter>02. View\Emitter View</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\Emitter_View_Action.cpp">
+      <Filter>02. View\Emitter View</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\Emitter_View_Clipboard.cpp">
+      <Filter>02. View\Emitter View</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\Emitter_View_Module.cpp">
+      <Filter>02. View\Emitter View</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\Emitter_View_Render.cpp">
+      <Filter>02. View\Emitter View</Filter>
+    </ClCompile>
     <ClCompile Include="..\Private\Editor_Window.cpp">
       <Filter>02. View</Filter>
     </ClCompile>
@@ -48,9 +60,6 @@
     </ClCompile>
     <ClCompile Include="..\Private\Content_Browser.cpp">
       <Filter>02. View\Content Browser</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Private\Game_View.cpp">
-      <Filter>02. View\Game View</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\Hierarchy_View.cpp">
       <Filter>02. View\Hierarchy View</Filter>
@@ -203,9 +212,6 @@
     </ClInclude>
     <ClInclude Include="..\Public\Content_Browser.h">
       <Filter>02. View\Content Browser</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\Game_View.h">
-      <Filter>02. View\Game View</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\Hierarchy_View.h">
       <Filter>02. View\Hierarchy View</Filter>

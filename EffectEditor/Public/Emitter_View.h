@@ -5,8 +5,6 @@
 
 NS_BEGIN(EffectEditor)
 
-// TODO : [Later] Emitter_View.cpp가 커지고 있으므로 ContextMenu/Clipboard/ModuleFactory/TypeData 단위 분리를 검토한다.
-
 // Cascade-style emitter stack authoring, selection, clipboard, and module actions을 관리한다.
 class Emitter_View final : public Editor_Window
 {

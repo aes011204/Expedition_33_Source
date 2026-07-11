@@ -191,30 +191,6 @@ Vec3 TransformCom::Get_State(State state)
     }
 }
 
-void TransformCom::Set_State(State state, const Vec3& value)
-{
-    LOG_WARN("TransformCom::Set_State() is deprecated.");
-
-    //if (State::Position == state)
-    //{
-    //    Set_Position(value);
-    //    return;
-    //}
-    //
-    //const Vec3 rotationAxis = Resolve_NormalizedAxis(state);
-    //Set_LocalState(state, value);
-    //
-    //if (value.LengthSquared() > Internal::transformEpsilon)
-    //{
-    //    Vec3 axis = value;
-    //    axis.Normalize();
-    //    const float axisSign = axis.Dot(rotationAxis) < 0.f ? -1.f : 1.f;
-    //    Set_SignedScale(state, value.Length() * axisSign);
-    //}
-    //
-    //Sanitize_LocalBasis();
-}
-
 Vec3 TransformCom::Get_Position() const
 {
     return Get_LocalState(State::Position);

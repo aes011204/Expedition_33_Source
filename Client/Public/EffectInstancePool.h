@@ -11,7 +11,6 @@ NS_END
 
 NS_BEGIN(Client)
 
-// TODO: 추가 병목이 확인되면 emitter별 Reset_ForEffectReplay 비용을 더 줄인다.
 // 자동 완료 반환은 fire-and-forget entry에만 허용하고, owner-tracked entry는 consumer의 명시 release를 정본으로 둔다.
 
 // EffectInstance root 단위 acquire/release/reuse를 관리하는 Client-local pool helper다.
@@ -31,7 +30,6 @@ public: //## Types::Public
         Vec3 scale{ Vec3::One };                                                                       // acquire된 EffectInstance root GameObject에 적용할 시작 스케일이다.
         Quat worldRotation{ Quat::Identity };                                                          // acquire된 EffectInstance root GameObject에 적용할 시작 월드 회전이다.
         float playbackSpeed{ 1.f };                                                                    // acquire된 EffectInstance의 emitter 시간 진행 배율이다.
-        [[deprecated("Use worldRotation quaternion instead.")]] Vec3 worldRotationEuler{ Vec3::Zero }; // 이전 Euler 입력 호환용 필드다. pool 준비 경로에서는 소비하지 않는다.
         Weak<IEffectTrailSampleProvider> trailSampleProvider{};                                        // trail emitter가 base/tip sample을 얻는 provider다. pool이 만들지 않고 attachment owner가 넘긴다.
         EffectHistorySourceGroupKey trailSampleGroupKey{};                                             // shared history 사용 시 trail provider를 구분하는 source group key다.
         Weak<IEffectSourcePointSampleProvider> sourcePointSampleProvider{};                            // source history emitter가 단일 source sample을 얻는 provider다.

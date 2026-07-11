@@ -28,62 +28,6 @@ namespace
     }
 }
 
-/**
- * @brief Visual Studio 출력 창에서 UTF-8(한글) 로그를 정상 표시하기 위한 커스텀 Sink
- *
- * spdlog의 기본 msvc_sink_mt는 OutputDebugStringA()를 사용하여 ANSI 코드 페이지 기반으로 동작하므로,
- * UTF-8로 인코딩된 한글 문자열이 깨져서 표시된다. 본 클래스는 UTF-8 문자열을 Wide String(UTF-16)으로
- * 변환한 후 OutputDebugStringW()를 호출하여 MSVC 출력 창에서 한글이 정상적으로 표시되도록 한다.
- *
- * @note 멀티스레드 안전성 :
- * - mutex를 템플릿 인자로 전달하여 base_sink가 내부적으로 sink_it_()를 mutex로 보호
- * - 메인 스레드와 로딩 스레드 등에서 동시 로그 호출 시에도 안전
- * - !! MSVC Output을 현재 사용 안함에 따라 이 클래스도 사용 안함 !!
- */
-class [[maybe_unused]] MsvcSinkUtf8 final : public spdlog::sinks::base_sink<mutex>
-{
-private:
-    void sink_it_(const spdlog::details::log_msg& msg) override
-    {
-        // 메세지 포맷팅
-        spdlog::memory_buf_t formatted;
-        formatter_->format(msg, formatted);
-
-        // UTF-8 문자열로 변환
-        const string utf8(formatted.data(), formatted.size());
-
-        // UTF-8 을 wstring 으로 변환
-        const int32 wideSize = MultiByteToWideChar(
-            CP_UTF8,
-            0,
-            utf8.c_str(),
-            -1,
-            nullptr,
-            0
-        );
-
-        if (wideSize > 0)
-        {
-            wstring wideMsg(wideSize, L'\0');
-            MultiByteToWideChar(
-                CP_UTF8,
-                0,
-                utf8.c_str(),
-                -1,
-                wideMsg.data(),
-                wideSize
-            );
-
-            // wstring을 MSVC 출력 창에 출력
-            OutputDebugStringW(wideMsg.c_str());
-        }
-    }
-
-    void flush_() override
-    {
-    };
-};
-
 // 에디터 Console 창에서 소비할 실시간 로그 버퍼를 관리하는 커스텀 Sink
 class ConsoleSink final : public spdlog::sinks::base_sink<mutex>
 {
@@ -220,13 +164,7 @@ HRESULT Log_Manager::Initialize(const string& projectName)
         sinks.push_back(_impl->consoleSink);
 
 #ifdef _DEBUG
-        // 2. MSVC Output Window Sink (실시간 디버깅용)
-        // 출력 창에서 한국어 대응을 위해 커스텀 싱크인 MsvcSinkUtf8 를 사용
-        // const auto spMsvcSink = make_shared<Internal::MsvcSinkUtf8>();
-        // spMsvcSink->set_level(spdlog::level::trace);
-        // sinks.push_back(spMsvcSink);
-
-        // 3. Rotating File Sink (개발 기록용: 5MB, 10개)
+        // 2. Rotating File Sink (개발 기록용: 5MB, 10개)
         const auto spFileSink = make_shared<spdlog::sinks::rotating_file_sink_mt>(
             logFileName,
             1024 * 1024 * 5,
