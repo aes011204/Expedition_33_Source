@@ -3,10 +3,10 @@
 
 namespace Engine::Internal
 {
-constexpr float transformEpsilon = 1e-6f;      // transform 연산에서 0 비교에 쓰는 허용 오차
-constexpr float minEditableScale = 1e-4f;      // basis 붕괴를 막기 위해 scale 0 근처를 피하는 최소값
-constexpr float minEditableSpeedPerSec = 0.f;  // 이동 속도 하한
-constexpr float minEditableDegreePerSec = 0.f; // 회전 속도 입력값(deg/s) 하한
+constexpr float transformEpsilon = 1e-6f;
+constexpr float minEditableScale = 1e-4f;
+constexpr float minEditableSpeedPerSec = 0.f;
+constexpr float minEditableDegreePerSec = 0.f;
 
 float Resolve_ScaleSign(float value, float fallback = 1.f)
 {
@@ -133,8 +133,7 @@ void TransformCom::From_Json(const json& data)
                 arr[2].get<float>()
             );
 
-            // 부모가 없는 프리팹/파츠는 저장된 Euler를 그대로 다시 넣어야
-            // 재오픈 후에도 인스펙터 표기가 쿼터니언 정규화값으로 바뀌지 않는다.
+            // Parent가 없으면 serialized Euler를 복원해 Inspector 표시값을 보존한다.
             if (hasTransformParent)
                 Set_WorldRotationEuler(serializedRotation);
             else
@@ -504,6 +503,51 @@ void TransformCom::Set_DegreePerSec(float degreePerSec)
     _radianPerSec = XMConvertToRadians(clampedDegreePerSec);
 }
 
+Vec3 TransformCom::Get_WorldForward()
+{
+    Vec3 forward = Get_State(State::Look);
+    if (forward.LengthSquared() > Internal::transformEpsilon)
+        forward.Normalize();
+
+    return forward;
+}
+
+Vec3 TransformCom::Get_WorldRight()
+{
+    Vec3 right = Get_State(State::Right);
+    if (right.LengthSquared() > Internal::transformEpsilon)
+        right.Normalize();
+
+    return right;
+}
+
+Vec3 TransformCom::Get_WorldUp()
+{
+    Vec3 up = Get_State(State::Up);
+    if (up.LengthSquared() > Internal::transformEpsilon)
+        up.Normalize();
+
+    return up;
+}
+
+Vec3 TransformCom::Get_LocalForward()
+{
+    Sync_RotationCache_FromLocalMatrix();
+    return Vec3::Transform(Vec3::Look, _localRotationCache);
+}
+
+Vec3 TransformCom::Get_LocalRight()
+{
+    Sync_RotationCache_FromLocalMatrix();
+    return Vec3::Transform(Vec3::Right, _localRotationCache);
+}
+
+Vec3 TransformCom::Get_LocalUp()
+{
+    Sync_RotationCache_FromLocalMatrix();
+    return Vec3::Transform(Vec3::Up, _localRotationCache);
+}
+
 void TransformCom::Set_Parent(const Shared<TransformCom>& parent)
 {
     Ensure_WorldMatrixUpToDate();
@@ -552,51 +596,6 @@ void TransformCom::Set_Parent(const Shared<TransformCom>& parent)
     _observedParentWorldRevision = 0;
     Sync_SignedScaleFromLocalMatrix(previousSignedScale);
     Sanitize_LocalBasis();
-}
-
-Vec3 TransformCom::Get_WorldForward()
-{
-    Vec3 forward = Get_State(State::Look);
-    if (forward.LengthSquared() > Internal::transformEpsilon)
-        forward.Normalize();
-
-    return forward;
-}
-
-Vec3 TransformCom::Get_WorldRight()
-{
-    Vec3 right = Get_State(State::Right);
-    if (right.LengthSquared() > Internal::transformEpsilon)
-        right.Normalize();
-
-    return right;
-}
-
-Vec3 TransformCom::Get_WorldUp()
-{
-    Vec3 up = Get_State(State::Up);
-    if (up.LengthSquared() > Internal::transformEpsilon)
-        up.Normalize();
-
-    return up;
-}
-
-Vec3 TransformCom::Get_LocalForward()
-{
-    Sync_RotationCache_FromLocalMatrix();
-    return Vec3::Transform(Vec3::Look, _localRotationCache);
-}
-
-Vec3 TransformCom::Get_LocalRight()
-{
-    Sync_RotationCache_FromLocalMatrix();
-    return Vec3::Transform(Vec3::Right, _localRotationCache);
-}
-
-Vec3 TransformCom::Get_LocalUp()
-{
-    Sync_RotationCache_FromLocalMatrix();
-    return Vec3::Transform(Vec3::Up, _localRotationCache);
 }
 
 void TransformCom::Scaling(float scaleX, float scaleY, float scaleZ)

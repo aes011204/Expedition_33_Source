@@ -28,7 +28,6 @@ namespace
     }
 }
 
-// 에디터 Console 창에서 소비할 실시간 로그 버퍼를 관리하는 커스텀 Sink
 class ConsoleSink final : public spdlog::sinks::base_sink<mutex>
 {
 public:
@@ -136,8 +135,6 @@ Log_Manager::~Log_Manager() = default;
 
 HRESULT Log_Manager::Initialize(const string& projectName)
 {
-    //!! spdlog는 내부적으로 string 기반이므로 strProjectName으로 wstring 대신 string 사용
-
     try
     {
         namespace fs = filesystem;
@@ -149,7 +146,6 @@ HRESULT Log_Manager::Initialize(const string& projectName)
         pathDir /= "Release/";
 #endif
 
-        // filesystem을 사용해서, 폴더가 없으면 생성
         if (!fs::exists(pathDir))
             fs::create_directories(pathDir);
 
@@ -158,13 +154,11 @@ HRESULT Log_Manager::Initialize(const string& projectName)
 
         vector<spdlog::sink_ptr> sinks;
 
-        // 1. Editor/Tool 실시간 Console sink
         _impl->consoleSink = make_shared<Internal::ConsoleSink>(5000u);
         _impl->consoleSink->set_level(spdlog::level::trace);
         sinks.push_back(_impl->consoleSink);
 
 #ifdef _DEBUG
-        // 2. Rotating File Sink (개발 기록용: 5MB, 10개)
         const auto spFileSink = make_shared<spdlog::sinks::rotating_file_sink_mt>(
             logFileName,
             1024 * 1024 * 5,
@@ -173,16 +167,13 @@ HRESULT Log_Manager::Initialize(const string& projectName)
         spFileSink->set_level(spdlog::level::trace);
         sinks.push_back(spFileSink);
 
-        // 로거 생성
         _impl->logger = make_shared<spdlog::logger>(projectName, begin(sinks), end(sinks));
         _impl->fileOnlyLogger = make_shared<spdlog::logger>(projectName + ".FileOnly", spFileSink);
         _impl->fileOnlyLogger->set_level(spdlog::level::trace);
 
-        // 전역 설정
         spdlog::set_default_logger(_impl->logger);
         spdlog::set_level(spdlog::level::trace);
 #else
-        // 1. Release: Rotating File Sink (5MB, 5개)
         const auto spFileSink = make_shared<spdlog::sinks::rotating_file_sink_mt>(
             logFileName,
             1024 * 1024 * 5,
@@ -195,12 +186,10 @@ HRESULT Log_Manager::Initialize(const string& projectName)
         _impl->fileOnlyLogger = make_shared<spdlog::logger>(projectName + ".FileOnly", spFileSink);
         _impl->fileOnlyLogger->set_level(spdlog::level::info);
 
-        // 전역 설정
         spdlog::set_default_logger(_impl->logger);
         spdlog::set_level(spdlog::level::info);
 #endif
 
-        // 패턴 설정: [시간] [로그레벨] [스레드ID] [소스 위치] 메시지
         constexpr auto logPattern = "[%m-%d %H:%M:%S.%e] [%^%l%$] [%t] [%!:%#] %v";
         spdlog::set_pattern(logPattern);
         _impl->fileOnlyLogger->set_pattern(logPattern);

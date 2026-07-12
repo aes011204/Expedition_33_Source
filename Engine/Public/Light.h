@@ -17,12 +17,12 @@ public:
 	const LIGHT_DESC* Get_LightDesc() const {
 		return &_desc;
 	}
-    HRESULT Bind_LightCB(Shared<ShaderCom> shader);
+    HRESULT Bind_LightCB(const Shared<ShaderCom>& shader);
 
 public:
 	HRESULT Initialize(const LIGHT_DESC& lightDesc);
     HRESULT Update_Desc(const LIGHT_DESC& lightDesc);
-    HRESULT Render(Shared<ShaderCom> shader, Shared<VIBuffer_Rect> viBuffer);
+    HRESULT Render(const Shared<ShaderCom>& shader, const Shared<VIBuffer_Rect>& viBuffer);
 
 private:
 	LIGHT_DESC					_desc{};

@@ -208,7 +208,7 @@ double Collision_Manager::Safe_Divide(const double numerator, const double denom
 }
 #endif
 
-void Collision_Manager::Add_Collider(Shared<ColliderCom> collider)
+void Collision_Manager::Add_Collider(const Shared<ColliderCom>& collider)
 {
     CHECK_NULL(collider);
 

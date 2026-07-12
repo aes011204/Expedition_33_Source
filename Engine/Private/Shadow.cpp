@@ -215,7 +215,7 @@ HRESULT Shadow::Update_FromCameraFrustum(
     return S_OK;
 }
 
-HRESULT Shadow::Bind_TransformStateMatrix(Shared<ShaderCom> shader, const char* viewName, const char* projName)
+HRESULT Shadow::Bind_TransformStateMatrix(const Shared<ShaderCom>& shader, const char* viewName, const char* projName)
 {
     CHECK_NULL(shader, E_FAIL);
     CHECK_FAILED(shader->Bind_Matrix(viewName, &_viewMatrix), E_FAIL);
@@ -224,7 +224,7 @@ HRESULT Shadow::Bind_TransformStateMatrix(Shared<ShaderCom> shader, const char* 
     return S_OK;
 }
 
-HRESULT Shadow::Bind_ShadowCB(Shared<ShaderCom> shader)
+HRESULT Shadow::Bind_ShadowCB(const Shared<ShaderCom>& shader)
 {
     CHECK_NULL(shader, E_FAIL);
 
@@ -295,7 +295,7 @@ bool Shadow::Consume_ForceRenderAllCascades()
     return forceRenderAll;
 }
 
-HRESULT Shadow::Bind_ShadowLightDesc(Shared<ShaderCom> shader, const char* lightFarName, const char* biasName, const char* intensityName)
+HRESULT Shadow::Bind_ShadowLightDesc(const Shared<ShaderCom>& shader, const char* lightFarName, const char* biasName, const char* intensityName)
 {
     if (lightFarName)   
         CHECK_FAILED(shader->Bind_RawValue(lightFarName, &_desc.zf, sizeof _desc.zf), E_FAIL);

@@ -75,7 +75,7 @@ public:
 #ifdef _DEBUG
 public:
     HRESULT Setup_Debug(float x, float y, float sizeX, float sizeY);
-    HRESULT Render_Debug(Shared<VIBuffer_Rect> viBuffer, Shared<ShaderCom> shader);
+    HRESULT Render_Debug(const Shared<VIBuffer_Rect>& viBuffer, const Shared<ShaderCom>& shader);
 private:
     Matrix _debugWorldMatrix = Matrix::Identity;
 

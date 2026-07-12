@@ -57,10 +57,10 @@ public:
         const Shared<Camera>& camera,
         const Vec3& lightDir);
 
-    HRESULT Bind_ShadowLightDesc(Shared<ShaderCom> shader, const char* lightFarName, const char* biasName, const char* intensityName);
-    HRESULT Bind_TransformStateMatrix(Shared<ShaderCom> shader, const char* viewName, const char* projName);
+    HRESULT Bind_ShadowLightDesc(const Shared<ShaderCom>& shader, const char* lightFarName, const char* biasName, const char* intensityName);
+    HRESULT Bind_TransformStateMatrix(const Shared<ShaderCom>& shader, const char* viewName, const char* projName);
 
-    HRESULT Bind_ShadowCB(Shared<ShaderCom> shader);
+    HRESULT Bind_ShadowCB(const Shared<ShaderCom>& shader);
     ShadowCB Build_ShadowCB() const;
     HRESULT Set_ActiveCascade(uint32 cascadeIndex);
     HRESULT Commit_RenderedCascade(uint32 cascadeIndex);

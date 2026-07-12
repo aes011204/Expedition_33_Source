@@ -20,11 +20,9 @@ public:
 public:
     HRESULT Initialize_Prototype() override;
     HRESULT Initialize(void* arg) override;
-    // desc의 drawMode에 따라 direct 또는 compute-authored indirect draw를 제출한다.
     HRESULT Render() override;
 
 public: //## Behavior::ComputeUpdate
-    // spawn/kill 요청을 반영한 뒤 instance payload를 갱신한다.
     void Dispatch_Compute(
         float timeDelta,
         uint32 spawnRequest,
@@ -32,21 +30,14 @@ public: //## Behavior::ComputeUpdate
         float lifetimeSamplePhase,
         float emitterElapsedTime,
         bool killActiveParticles);
-    // 같은 instance count 안에서 위치/크기 runtime payload를 갱신한다.
     void Update_RuntimeDesc(const ComputePointParticleDesc& desc);
-    // emitter/world transform 변화가 compute spawn center에 반영되도록 갱신한다.
     void Set_Center(const Vec3& center);
-    // emitter local 값을 world 방향으로 바꾸는 basis를 갱신한다.
     void Set_EmitterBasis(const Vec3& right, const Vec3& up, const Vec3& look);
-    // effect 재사용 전 particle lifecycle/draw state를 초기화한다.
     HRESULT Reset_ForEffectReplay();
-    // CPU가 아는 범위에서 활성 particle이 있었는지 확인한다.
     bool Has_ActiveParticles() const { return _hasActiveParticles; }
-    // compute output에서 follower ribbon 대표 particle 위치를 읽는다.
     bool Collect_FollowerSourcePoints(vector<EffectFollowerSourcePoint>& outPoints, uint32 maxPointCount) const;
 
 private: //## Types::IndirectDraw
-    // compute shader가 쓰고 indirect draw가 읽는 5-DWORD 공통 args payload.
     struct ComputeIndirectArgs
     {
         uint32 value0{};
@@ -56,7 +47,6 @@ private: //## Types::IndirectDraw
         uint32 startInstanceLocation{};
     };
 
-    // compute shader가 particle별 수명 상태를 프레임 사이에 유지하기 위한 최소 payload다.
     struct ParticleLifecycleState
     {
         float lifeAge{};
@@ -69,55 +59,53 @@ private: //## Types::IndirectDraw
         uint32 reserved1{};
     };
 
-private: //## Static::ComputeSmoke
-    // compute shader의 numthreads.x와 맞춘 dispatch 단위.
+private: //## Static::ComputeDispatch
     static constexpr uint32 kThreadCountX{ 64 };
 
 private: //## Data::ParticleDesc
-    // clone 생성 시 전달받는 compute particle 검증 규칙 저장.
     ComputePointParticleDesc _desc{};
 
 private: //## Data::Compute
-    Shared<ComputeShaderCom> _computeShader{};               // instance payload를 쓰는 compute shader.
-    Shared<ComputeStructuredBuffer> _computeOutput{};        // compute 결과를 보관하는 structured UAV buffer.
-    Shared<ComputeStructuredBuffer> _computeArgsOutput{};    // compute가 작성하는 indirect args source buffer.
-    Shared<ComputeStructuredBuffer> _lifecycleState{};       // particle별 age/lifetime을 유지하는 compute-only state buffer.
-    vector<ParticleLifecycleState> _initialLifecycleState{}; // replay reset 때 재사용하는 초기 lifecycle baseline이다.
-    vector<ParticleInstanceVertex> _emptyInstancePayload{};  // replay reset 때 재사용하는 zeroed instance payload다.
-    float _elapsedTime{};                                    // shader에 전달할 emitter loop-local 시간.
-    float _deltaTime{};                                      // 이번 dispatch의 frame delta time.
-    float _lifetimeSamplePhase{};                            // 이번 spawn request에 적용할 Lifetime curve phase다.
-    uint32 _spawnRequest{};                                  // 이번 dispatch에서 inactive slot을 활성화할 요청 수.
-    uint32 _spawnSerialBase{};                               // 이번 dispatch 첫 spawn의 replay-local 순번이다.
-    uint32 _killActiveParticles{};                           // 이번 dispatch에서 active particle을 모두 죽일지 나타낸다.
-    Vec3 _sourceMotionVelocity{};                            // 이번 dispatch에서 사용할 emitter center delta 기반 source velocity다.
-    Vec3 _previousSourceMotionCenter{};                      // 이전 dispatch의 emitter center다.
-    bool _hasPreviousSourceMotionCenter{ false };            // source velocity 계산에 사용할 이전 center가 있는지 나타낸다.
-    bool _sourceMotionVelocityValid{ false };                // 이번 dispatch source velocity가 유효한지 나타낸다.
-    bool _hasActiveParticles{ false };                       // readback 없이 비활성 emitter submit을 줄이기 위한 CPU-side latch다.
+    Shared<ComputeShaderCom> _computeShader{};
+    Shared<ComputeStructuredBuffer> _computeOutput{};
+    Shared<ComputeStructuredBuffer> _computeArgsOutput{};
+    Shared<ComputeStructuredBuffer> _lifecycleState{};
+    vector<ParticleLifecycleState> _initialLifecycleState{};
+    vector<ParticleInstanceVertex> _emptyInstancePayload{};
+    float _elapsedTime{};
+    float _deltaTime{};
+    float _lifetimeSamplePhase{};
+    uint32 _spawnRequest{};
+    uint32 _spawnSerialBase{};
+    uint32 _killActiveParticles{};
+    Vec3 _sourceMotionVelocity{};
+    Vec3 _previousSourceMotionCenter{};
+    bool _hasPreviousSourceMotionCenter{ false };
+    bool _sourceMotionVelocityValid{ false };
+    bool _hasActiveParticles{ false };
 
 private: //## Data::GPU
-    D3D11_BUFFER_DESC _instanceBufferDesc{}; // compute output 복사 대상 instance VB 생성 설정.
-    ComPtr<Buffer> _computeConstantBuffer{}; // 시간/개수 등 frame parameter 전달용 constant buffer.
-    ComPtr<Buffer> _indirectArgsBuffer{};    // Draw*InstancedIndirect가 읽는 args destination buffer.
+    D3D11_BUFFER_DESC _instanceBufferDesc{};
+    ComPtr<Buffer> _computeConstantBuffer{};
+    ComPtr<Buffer> _indirectArgsBuffer{};
 
 private: //## Helper::Setup
-    HRESULT Ready_VertexBuffer();        // prototype 공용 point vertex 1개를 만든다.
-    HRESULT Ready_ComputeShader();       // compute-only shader를 clone 전용 실행 컴포넌트로 준비한다.
-    HRESULT Ready_ComputeOutput();       // ParticleInstanceVertex 배열을 쓰는 UAV buffer를 만든다.
-    HRESULT Ready_LifecycleState();      // particle별 persistent lifetime state buffer를 만든다.
-    HRESULT Ready_InstanceBuffer();      // DrawInstanced가 소비할 default instance VB를 만든다.
-    HRESULT Ready_IndexedDrawBuffer();   // indexed indirect 검증용 1-index buffer를 만든다.
-    HRESULT Ready_IndirectArgsBuffers(); // compute args source와 draw args destination buffer를 준비한다.
-    HRESULT Ready_ConstantBuffer();      // compute shader frame parameter용 constant buffer를 만든다.
+    HRESULT Ready_VertexBuffer();
+    HRESULT Ready_ComputeShader();
+    HRESULT Ready_ComputeOutput();
+    HRESULT Ready_LifecycleState();
+    HRESULT Ready_InstanceBuffer();
+    HRESULT Ready_IndexedDrawBuffer();
+    HRESULT Ready_IndirectArgsBuffers();
+    HRESULT Ready_ConstantBuffer();
 
 private: //## Helper::Runtime
-    HRESULT Update_ConstantBuffer();                                       // 누적 시간과 instance count를 compute shader에 전달한다.
-    HRESULT Reset_IndirectArgs();                                          // compute dispatch 전에 active/activation counters를 0으로 초기화한다.
-    HRESULT Copy_OutputToInstanceVB();                                     // compute output buffer를 instance VB로 복사한다.
-    HRESULT Copy_OutputToIndirectArgs();                                   // compute args source를 indirect args destination으로 복사한다.
-    HRESULT Ready_ResetBaseline();                                         // replay reset 때 재할당 없이 다시 쓸 초기 lifecycle/instance payload를 준비한다.
-    ParticleLifecycleState Make_InitialLifecycleState(uint32 index) const; // 시작 시점의 particle별 수명 상태를 만든다.
+    HRESULT Update_ConstantBuffer();
+    HRESULT Reset_IndirectArgs();
+    HRESULT Copy_OutputToInstanceVB();
+    HRESULT Copy_OutputToIndirectArgs();
+    HRESULT Ready_ResetBaseline();
+    ParticleLifecycleState Make_InitialLifecycleState(uint32 index) const;
 
 public:
     static Shared<VIBufferCom_ComputePointParticle> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);
