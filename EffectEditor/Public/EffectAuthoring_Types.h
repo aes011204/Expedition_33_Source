@@ -6,6 +6,7 @@
 
 NS_BEGIN(EffectEditor)
 
+//## Types::AuthoringCore
 enum class AuthoringModuleType : uint8
 {
     Required,
@@ -66,6 +67,7 @@ enum class EmitterRenderLayerOverride : uint8
     UIEffect,
 };
 
+//## Types::HistoryBudget
 enum class HistoryBudgetPreset : uint8
 {
     Full,
@@ -130,6 +132,7 @@ struct EmitterHistoryBudgetData
     float lengthScale{ 1.f };
 };
 
+//## Types::EmitterRender
 enum class EmitterScreenAlignment : uint8
 {
     Square,
@@ -144,18 +147,16 @@ enum class EmitterScreenAlignment : uint8
     WorldUpFacingCamera,
 };
 
-// AwayFromCenter/Velocity가 기준 방향을 어떻게 사용할지 정한다.
 enum class EmitterDirectionalAlignmentMode : uint8
 {
-    LookDirection, // 기준 방향을 sprite 카드의 바라보는 방향으로 사용한다.
-    TextureAxis,   // camera-facing 평면은 유지하고 texture 축만 기준 방향에 맞춘다.
+    LookDirection,
+    TextureAxis,
 };
 
-// TextureAxis mode에서 기준 방향에 맞출 texture 축을 고른다.
 enum class EmitterSpriteTextureAxis : uint8
 {
-    X, // texture의 가로 축을 radial/velocity 방향에 맞춘다.
-    Y, // texture의 세로 축을 radial/velocity 방향에 맞춘다.
+    X,
+    Y,
 };
 
 enum class EmitterSortMode : uint8
@@ -173,6 +174,7 @@ enum class EmitterSortPolicy : uint8
     EmitterDepth,
 };
 
+//## Distribution::Core
 enum class DistributionValueKind : uint8
 {
     Float,
@@ -190,7 +192,6 @@ enum class DistributionMode : uint8
     ParticleParameter,
 };
 
-// 현재 authoring payload가 실제로 보유하는 분포 모드만 true로 둔다.
 constexpr bool Is_DistributionModeEditable(DistributionMode mode)
 {
     return mode == DistributionMode::Constant ||
@@ -204,7 +205,6 @@ enum class DistributionRandomSeedMode : uint8
     Manual,
 };
 
-// 분포/random consumer 모듈이 같은 범위 안에서 재현 가능한 다른 draw를 만들기 위한 seed 설정이다.
 struct DistributionRandomSeedData
 {
     DistributionRandomSeedMode mode{ DistributionRandomSeedMode::Default };
@@ -212,95 +212,82 @@ struct DistributionRandomSeedData
     bool useInstanceSeed{ false };
 };
 
-// 분포 플로트에서의 보간 모드 설정이다.
 enum class FloatCurveInterpolationMode : uint8
 {
-    Linear,           // key 사이를 직선으로 잇는 기본 모드다.
-    Constant,         // 다음 key 전까지 값을 유지하는 계단형 모드다.
-    CurveAuto,        // 후속 지원 예정인 자동 tangent curve 모드다.
-    CurveUser,        // 후속 지원 예정인 수동 tangent curve 모드다.
-    CurveBreak,       // 후속 지원 예정인 좌우 tangent 분리 모드다.
-    CurveAutoClamped, // 실제 지원할 안전한 자동 curve 모드다.
+    Linear,
+    Constant,
+    CurveAuto,
+    CurveUser,
+    CurveBreak,
+    CurveAutoClamped,
 };
 
-// 분포 플로트 상수 커브의 필요 값들이다.
 struct FloatCurveKeyData
 {
-    float time{ 0.f };                         // 0..1 공통축에서 이 key의 위치다.
-    float value{ 0.f };                        // 이 key 시점의 출력값이다.
-    float arriveTangent{ 0.f };                // key로 들어오는 곡선 기울기다.
-    float leaveTangent{ 0.f };                 // key에서 나가는 곡선 기울기다.
+    float time{ 0.f };
+    float value{ 0.f };
+    float arriveTangent{ 0.f };
+    float leaveTangent{ 0.f };
     FloatCurveInterpolationMode interpolationMode{
-        FloatCurveInterpolationMode::Linear }; // 이 key 이후 구간의 보간 방식을 결정한다.
+        FloatCurveInterpolationMode::Linear };
 };
 
-// 분포 플로트 상수 커브의 보간 key 목록을 보관한다.
 struct ConstantCurveFloatDistributionData
 {
-    // 분포 플로트 상수 커브의 authoring key 목록이다.
     vector<FloatCurveKeyData> keys{
         FloatCurveKeyData{ 0.f, 0.f, 0.f, 0.f, FloatCurveInterpolationMode::Linear },
         FloatCurveKeyData{ 1.f, 0.f, 0.f, 0.f, FloatCurveInterpolationMode::Linear }
     };
 };
 
-// 분포 Vec2 상수 커브의 필요 값들이다.
 struct Vector2CurveKeyData
 {
-    float time{ 0.f };                         // 0..1 공통축에서 이 key의 위치다.
-    Vec2 value{ 0.f, 0.f };                    // 이 key 시점의 X/Y 출력값이다.
-    Vec2 arriveTangent{};                      // key로 들어오는 X/Y 곡선 기울기다.
-    Vec2 leaveTangent{};                       // key에서 나가는 X/Y 곡선 기울기다.
+    float time{ 0.f };
+    Vec2 value{ 0.f, 0.f };
+    Vec2 arriveTangent{};
+    Vec2 leaveTangent{};
     FloatCurveInterpolationMode interpolationMode{
-        FloatCurveInterpolationMode::Linear }; // 이 key 이후 구간의 보간 방식을 결정한다.
+        FloatCurveInterpolationMode::Linear };
 };
 
-// 분포 Vec2 상수 커브의 보간 key 목록을 보관한다.
 struct ConstantCurveVector2DistributionData
 {
-    // 분포 Vec2 상수 커브의 authoring key 목록이다.
     vector<Vector2CurveKeyData> keys{
         Vector2CurveKeyData{ 0.f, Vec2{ 0.f, 0.f }, Vec2{}, Vec2{}, FloatCurveInterpolationMode::Linear },
         Vector2CurveKeyData{ 1.f, Vec2{ 0.f, 0.f }, Vec2{}, Vec2{}, FloatCurveInterpolationMode::Linear }
     };
 };
 
-// 분포 Vec3 상수 커브의 필요 값들이다.
 struct Vector3CurveKeyData
 {
-    float time{ 0.f };                         // 0..1 공통축에서 이 key의 위치다.
-    Vec3 value{ 0.f, 0.f, 0.f };               // 이 key 시점의 X/Y/Z 출력값이다.
-    Vec3 arriveTangent{};                      // key로 들어오는 X/Y/Z 곡선 기울기다.
-    Vec3 leaveTangent{};                       // key에서 나가는 X/Y/Z 곡선 기울기다.
+    float time{ 0.f };
+    Vec3 value{ 0.f, 0.f, 0.f };
+    Vec3 arriveTangent{};
+    Vec3 leaveTangent{};
     FloatCurveInterpolationMode interpolationMode{
-        FloatCurveInterpolationMode::Linear }; // 이 key 이후 구간의 보간 방식을 결정한다.
+        FloatCurveInterpolationMode::Linear };
 };
 
-// 분포 Vec3 상수 커브의 보간 key 목록을 보관한다.
 struct ConstantCurveVector3DistributionData
 {
-    // 분포 Vec3 상수 커브의 authoring key 목록이다.
     vector<Vector3CurveKeyData> keys{
         Vector3CurveKeyData{ 0.f, Vec3{ 0.f, 0.f, 0.f }, Vec3{}, Vec3{}, FloatCurveInterpolationMode::Linear },
         Vector3CurveKeyData{ 1.f, Vec3{ 0.f, 0.f, 0.f }, Vec3{}, Vec3{}, FloatCurveInterpolationMode::Linear }
     };
 };
 
-// Color 분포는 alpha를 별도 Float distribution에서 유지하므로 curve key의 w는 저장/편집하지 않는다.
 struct ColorCurveKeyData
 {
-    float time{ 0.f };                         // 0..1 공통축에서 이 key의 위치다.
-    Color value{ 1.f, 1.f, 1.f, 1.f };         // 이 key 시점의 RGB 출력값이다. alpha는 별도 분포가 정본이다.
-    Color arriveTangent{};                     // key로 들어오는 RGB 곡선 기울기다.
-    Color leaveTangent{};                      // key에서 나가는 RGB 곡선 기울기다.
+    float time{ 0.f };
+    Color value{ 1.f, 1.f, 1.f, 1.f };
+    Color arriveTangent{};
+    Color leaveTangent{};
     FloatCurveInterpolationMode interpolationMode{
-        FloatCurveInterpolationMode::Linear }; // 이 key 이후 구간의 보간 방식을 결정한다.
+        FloatCurveInterpolationMode::Linear };
 };
 
-// Color RGB 상수 커브의 보간 key 목록을 보관한다.
 struct ConstantCurveColorDistributionData
 {
-    // Color RGB 상수 커브의 authoring key 목록이다.
     vector<ColorCurveKeyData> keys{
         ColorCurveKeyData{ 0.f, Color{ 1.f, 1.f, 1.f, 1.f }, Color{}, Color{}, FloatCurveInterpolationMode::Linear },
         ColorCurveKeyData{ 1.f, Color{ 1.f, 1.f, 1.f, 1.f }, Color{}, Color{}, FloatCurveInterpolationMode::Linear }
@@ -567,11 +554,13 @@ struct ColorDistributionData
     }
 };
 
+//## Types::ParticleSystem
 struct ParticleSystemAuthoringData
 {
     bool autoDeactivate{ true };
 };
 
+//## Emitter::TypeData
 enum class AuthoringTypeDataKind : uint8
 {
     None,
@@ -582,7 +571,6 @@ enum class AuthoringTypeDataKind : uint8
     Beam,
 };
 
-// Beam path를 EffectEditor에서 어떤 방식으로 작성할지 결정한다.
 enum class BeamEndpointMode : uint8
 {
     StartEnd,
@@ -597,58 +585,57 @@ enum class BeamBranchPreset : uint8
     ShortCrack,
 };
 
-// AuthoredLocal single beam v0의 editor 저장 payload다.
 struct BeamTypeData
 {
-    BeamEndpointMode endpointMode{ BeamEndpointMode::StartEnd };  // local path 작성 방식이다.
-    Vec3 localStart{ 0.f, 2.f, 0.f };                             // effect/emitter local 기준 시작점이다.
-    Vec3 localEnd{ 0.f, -2.f, 0.f };                              // StartEnd 모드의 끝점이다.
-    Vec3 localDirection{ 0.f, -1.f, 0.f };                        // DirectionLength 모드의 방향이다.
-    float length{ 4.f };                                          // DirectionLength 모드의 길이다.
-    uint32 segmentCount{ 8 };                                     // generated polyline segment 수다.
-    float noiseAmplitude{ 0.f };                                  // deterministic path jitter 크기다.
-    uint32 seed{ 1 };                                             // deterministic path jitter seed다.
-    uint32 stripCount{ 1 };                                       // 같은 start에서 생성할 strip 수다.
-    float endSpreadRadius{ 0.f };                                 // clustered end가 기준 end 주변에 퍼지는 반경이다.
-    float lengthVariance{ 0.f };                                  // strip별 길이 차이를 만드는 deterministic 편차다.
-    BeamBranchPreset branchPreset{ BeamBranchPreset::EndGuided }; // branch path 생성 preset이다.
-    bool branchEnabled{ false };                                  // main strip에서 짧은 child branch를 생성할지 여부다.
-    uint32 branchCount{ 0 };                                      // strip별 최대 branch 수다.
-    float branchChance{ 1.f };                                    // branch 후보가 실제 생성될 확률이다.
-    uint32 branchSegmentCount{ 3 };                               // child branch polyline segment 수다.
-    float branchLength{ 0.75f };                                  // child branch 기본 길이다.
-    float branchLengthVariance{ 0.25f };                          // branch별 길이 deterministic 편차다.
-    float branchStartMin{ 0.2f };                                 // parent path에서 branch 시작 구간의 최소 비율이다.
-    float branchStartMax{ 0.85f };                                // parent path에서 branch 시작 구간의 최대 비율이다.
-    float branchSpreadRadius{ 0.5f };                             // branch end가 parent tangent에서 벗어나는 확산 반경이다.
-    float branchEndSpreadRadius{ 0.5f };                          // EndGuided branch target이 beam end 주변에 퍼지는 반경이다.
-    float branchOutwardAmount{ 0.25f };                           // EndGuided branch가 시작 직후 parent에서 벌어지는 정도다.
-    float branchCurveAmount{ 0.5f };                              // EndGuided branch가 target으로 수렴하는 휘어짐 정도다.
-    float branchDownLength{ 1.f };                                // DownStrike branch가 authored down axis로 뻗는 길이다.
-    float branchEntangleRadius{ 0.35f };                          // Entangle branch가 parent 주변을 감는 반경이다.
-    float branchEntangleAdvance{ 0.25f };                         // Entangle branch target이 parent path를 따라 이동하는 비율이다.
-    float branchCrackLength{ 0.5f };                              // ShortCrack branch가 start 주변으로 짧게 뻗는 길이다.
-    float branchCrackSpreadRadius{ 0.25f };                       // ShortCrack endpoint가 radial하게 퍼지는 반경이다.
-    float branchWidthScale{ 0.45f };                              // parent 폭 대비 branch 폭 배율이다.
-    uint32 branchSeedOffset{ 1009 };                              // parent seed와 섞어 branch 결과를 갈라놓는 salt다.
-    float baseWidth{ 0.25f };                                     // SizeByLife 전 기본 폭이다.
-    float tilingDistance{ 0.f };                                  // 0 이하면 전체 길이 stretch, 양수면 거리 기준 반복이다.
+    BeamEndpointMode endpointMode{ BeamEndpointMode::StartEnd };
+    Vec3 localStart{ 0.f, 2.f, 0.f };
+    Vec3 localEnd{ 0.f, -2.f, 0.f };
+    Vec3 localDirection{ 0.f, -1.f, 0.f };
+    float length{ 4.f };
+    uint32 segmentCount{ 8 };
+    float noiseAmplitude{ 0.f };
+    uint32 seed{ 1 };
+    uint32 stripCount{ 1 };
+    float endSpreadRadius{ 0.f };
+    float lengthVariance{ 0.f };
+    BeamBranchPreset branchPreset{ BeamBranchPreset::EndGuided };
+    bool branchEnabled{ false };
+    uint32 branchCount{ 0 };
+    float branchChance{ 1.f };
+    uint32 branchSegmentCount{ 3 };
+    float branchLength{ 0.75f };
+    float branchLengthVariance{ 0.25f };
+    float branchStartMin{ 0.2f };
+    float branchStartMax{ 0.85f };
+    float branchSpreadRadius{ 0.5f };
+    float branchEndSpreadRadius{ 0.5f };
+    float branchOutwardAmount{ 0.25f };
+    float branchCurveAmount{ 0.5f };
+    float branchDownLength{ 1.f };
+    float branchEntangleRadius{ 0.35f };
+    float branchEntangleAdvance{ 0.25f };
+    float branchCrackLength{ 0.5f };
+    float branchCrackSpreadRadius{ 0.25f };
+    float branchWidthScale{ 0.45f };
+    uint32 branchSeedOffset{ 1009 };
+    float baseWidth{ 0.25f };
+    float tilingDistance{ 0.f };
 };
 
 enum class TrailCurveQuality : uint8
 {
-    Basic,       // 기존 호환에 가까운 기본 trail 곡선 preset이다.
-    Smooth,      // 보간 밀도를 높여 swing arc를 부드럽게 만드는 preset이다.
-    HighQuality, // 더 촘촘한 sample로 곡선을 만드는 고품질 preset이다.
-    Custom,      // 세부 곡선 값을 직접 편집하는 모드다.
+    Basic,
+    Smooth,
+    HighQuality,
+    Custom,
 };
 
 enum class RibbonCurveQuality : uint8
 {
-    Basic,       // 낮은 보간 비용의 기본 source history sample preset이다.
-    Smooth,      // 더 촘촘한 sample로 follower ribbon 곡선을 부드럽게 만든다.
-    HighQuality, // 가장 촘촘한 sample preset이다.
-    Custom,      // 세부 sample 값을 직접 편집하는 모드다.
+    Basic,
+    Smooth,
+    HighQuality,
+    Custom,
 };
 
 struct EmptyTypeData
@@ -658,7 +645,7 @@ enum class SourceHistoryRibbonSourceMode : uint8
 {
     SelfRoot,
     ParticleEmitter,
-    SourceEmitter, // Legacy root follower token. Save/Open에서 ParticleEmitter 또는 SelfRoot로 정리한다.
+    SourceEmitter,
 };
 
 enum class SourceHistorySpriteTrailStampSpawnMode : uint8
@@ -674,33 +661,31 @@ enum class SourceHistorySpriteTrailDirectionMode : uint8
     VelocityTextureAxis,
 };
 
-// Source History Ribbon이 어떤 source position history를 따라갈지 결정하는 editor 저장 payload다.
 struct RibbonTypeData
 {
     SourceHistoryRibbonSourceMode sourceMode{
-        SourceHistoryRibbonSourceMode::SelfRoot };                // SelfRoot면 emitter root, ParticleEmitter면 다른 particle lane을 source로 쓴다.
-    uint32 sourceEmitterId{};                                     // ParticleEmitter mode에서 따라갈 source emitter id다.
-    uint32 followerLaneCount{ 1 };                                // ParticleEmitter mode에서 동시에 추적할 representative lane 상한이다.
-    RibbonCurveQuality curveQuality{ RibbonCurveQuality::Basic }; // sampleSpacing/sampleInterval preset 선택값이다.
-    uint32 maxSampleCount{ 64 };                                  // lane 하나가 보관할 source history sample 상한이다.
-    float sampleSpacing{ 0.08f };                                 // source가 이 거리 이상 움직이면 새 history sample을 추가한다.
-    uint32 curveSubdivision{ 4 };                                 // source history segment 하나에서 만들 최대 곡선 render sample 수다.
-    bool smoothTangent{ false };                                  // Custom에서 명시적으로 켤 때만 앞뒤 source sample 평균으로 path를 보정한다.
-    float sampleInterval{ 0.f };                                  // 0보다 크면 정지/저속 source도 시간 기준 sample을 보강한다.
-    float maxLength{ 0.f };                                       // head 기준 최대 표시 길이다. 목표 길이가 아니라 상한이다.
-    float tailFadeLength{ 0.f };                                  // maxLength 끝부분에서 거리 기반 alpha fade를 적용하는 길이다.
-    bool laneSpawnFadeInEnabled{ true };                          // 새 follower lane 시작 폭을 짧게 fade-in할지 결정한다.
-    float laneSpawnFadeInDuration{ 0.08f };                       // 새 follower lane 폭 fade-in 시간이다.
-    float baseWidth{ 0.3f };                                      // SizeByLife를 곱하기 전 source history strip 기본 폭이다.
-    float tilingDistance{ 0.f };                                  // 0 이하면 표시 길이에 stretch, 양수면 거리 기준 texture 반복이다.
-    bool autoLifeFade{ false };                                   // sample age 기준 alpha fade를 적용해 기존 tail이 사라지는 과정을 보이게 할지 결정한다.
-    bool tailCollapseOnIdle{ true };                              // source가 느리거나 멈췄을 때 history sample을 source 쪽으로 당길지 결정한다.
-    float tailCollapseSpeed{ 10.f };                              // idle tail collapse 보간 속도다.
-    bool useManualRoll{ false };                                  // true면 tangent 기준으로 ribbon 펼침 방향을 추가 회전한다.
-    float manualRollDegrees{ 0.f };                               // useManualRoll일 때 적용할 tangent 기준 펼침 각도다.
+        SourceHistoryRibbonSourceMode::SelfRoot };
+    uint32 sourceEmitterId{};
+    uint32 followerLaneCount{ 1 };
+    RibbonCurveQuality curveQuality{ RibbonCurveQuality::Basic };
+    uint32 maxSampleCount{ 64 };
+    float sampleSpacing{ 0.08f };
+    uint32 curveSubdivision{ 4 };
+    bool smoothTangent{ false };
+    float sampleInterval{ 0.f };
+    float maxLength{ 0.f };
+    float tailFadeLength{ 0.f };
+    bool laneSpawnFadeInEnabled{ true };
+    float laneSpawnFadeInDuration{ 0.08f };
+    float baseWidth{ 0.3f };
+    float tilingDistance{ 0.f };
+    bool autoLifeFade{ false };
+    bool tailCollapseOnIdle{ true };
+    float tailCollapseSpeed{ 10.f };
+    bool useManualRoll{ false };
+    float manualRollDegrees{ 0.f };
 };
 
-// Source history path 위에 짧은 sprite/card stamp를 찍는 editor 저장 payload다.
 struct SourceHistorySpriteTrailTypeData
 {
     SourceHistoryRibbonSourceMode sourceMode{ SourceHistoryRibbonSourceMode::SelfRoot };
@@ -731,16 +716,16 @@ struct TrailTypeData
     float width{ 1.f };
     float segmentLifetime{ 0.25f };
     uint32 historyCount{ 32 };
-    float uvTiling{ 1.f };          // body/mask가 아니라 noise/breakup 길이 방향 반복 밀도다.
-    float maxTrailLength{ 0.f };    // 0 이하면 head 기준 최대 표시 길이를 제한하지 않는다.
-    float tailFadeLength{ 0.1f };   // maxTrailLength 끝으로 갈수록 alpha를 줄이는 거리다.
-    bool autoLifeFade{ true };      // sample age 기준 자동 alpha fade를 적용할지 결정한다.
+    float uvTiling{ 1.f };
+    float maxTrailLength{ 0.f };
+    float tailFadeLength{ 0.1f };
+    bool autoLifeFade{ true };
     TrailCurveQuality curveQuality{
-        TrailCurveQuality::Basic }; // trail 곡선 품질 preset 선택값이다.
-    float sampleSpacing{ 0.08f };   // 이동 거리 기준 중간 sample 삽입 간격이다.
-    uint32 curveSubdivision{ 4 };   // 한 frame에서 보강할 최대 중간 sample 수다.
-    bool smoothTangent{ true };     // 앞뒤 sample 평균으로 곡선을 완만하게 보정할지 결정한다.
-    float sideFade{ 0.08f };        // 폭 방향 alpha edge 감소 강도다.
+        TrailCurveQuality::Basic };
+    float sampleSpacing{ 0.08f };
+    uint32 curveSubdivision{ 4 };
+    bool smoothTangent{ true };
+    float sideFade{ 0.08f };
 };
 
 struct MeshTypeData
@@ -769,6 +754,7 @@ struct AuthoringTypeData
     AuthoringTypeDataPayload payload{ EmptyTypeData{} };
 };
 
+//## Module::RequiredSpawnLifetime
 struct RequiredModuleData
 {
     string rendererType{ "Sprite" };
@@ -780,10 +766,10 @@ struct RequiredModuleData
     EmitterScreenAlignment screenAlignment{
         EmitterScreenAlignment::FacingCameraPosition };
     EmitterDirectionalAlignmentMode directionalAlignmentMode{
-        EmitterDirectionalAlignmentMode::TextureAxis }; // AwayFromCenter/Velocity에서 기준 방향을 look으로 쓸지 texture 축으로 쓸지 결정한다.
+        EmitterDirectionalAlignmentMode::TextureAxis };
     EmitterSpriteTextureAxis spriteTextureAxis{
-        EmitterSpriteTextureAxis::Y };                  // TextureAxis mode에서 기준 방향에 맞출 texture 축이다.
-    float spriteRollOffsetDegrees{ 0.f };               // texture authored orientation 보정용 정적 roll offset이다.
+        EmitterSpriteTextureAxis::Y };
+    float spriteRollOffsetDegrees{ 0.f };
 
     float minCameraBlendDistance{ 0.f };
     float maxCameraBlendDistance{ 0.f };
@@ -794,7 +780,7 @@ struct RequiredModuleData
     float sortBias{ 0.f };
     float cameraMotionBlurAmount{ 0.f };
     bool clearExistingParticlesOnInit{ false };
-    uint32 loopCount{ 0 };                              // Cascade: Emitter 루프 횟수. 0 은 무한 루프이다.
+    uint32 loopCount{ 0 };
     float duration{ 1.f };
     float durationLow{ 0.f };
     bool useDurationRange{ false };
@@ -831,6 +817,7 @@ struct LifetimeModuleData
     FloatDistributionData lifeTime{ FloatDistributionData::Make_Uniform(0.5f, 1.f) };
 };
 
+//## Module::LocationAndOrientation
 struct InitialLocationModuleData
 {
     Vector3DistributionData location{ Vector3DistributionData::Make_Constant(Vec3{ 0.f, 0.f, 0.f }) };
@@ -1012,6 +999,7 @@ struct SphereRadialOrientationModuleData
     float rollOffsetDegrees{ 0.f };
 };
 
+//## Module::SizeAndMotion
 struct InitialSizeModuleData
 {
     Vector2DistributionData size{ Vector2DistributionData::Make_Constant(Vec2{ 0.3f, 0.3f }) };
@@ -1118,6 +1106,7 @@ struct VelocityOverLifeModuleData
     uint32 applyChannelMask{ kVelocityOverLifeApplyChannelDefaultMask };
 };
 
+//## Module::OrbitAndRotation
 enum class EffectOrbitPivotMode : uint8
 {
     EmitterOrigin,
@@ -1232,16 +1221,15 @@ struct MeshRotationRateScaleByLifeModuleData
     Vector3DistributionData scaleOverLife{ Vector3DistributionData::Make_ConstantCurve(Vec3{ 1.f, 1.f, 1.f }) };
 };
 
+//## Module::ColorSubUVAndSize
 struct InitialColorModuleData
 {
-    // 색상 RGB와 별도로 생성 시점 alpha를 편집하기 위한 축이다.
     ColorDistributionData color{ ColorDistributionData::Make_Constant(Color{ 1.f, 1.f, 1.f, 1.f }) };
     FloatDistributionData alpha{ FloatDistributionData::Make_Constant(1.f) };
 };
 
 struct ColorOverLifeModuleData
 {
-    // 색상 변화와 독립적으로 fade in/out을 잡기 위한 수명 기준 alpha 축이다.
     ColorDistributionData colorOverLife{ ColorDistributionData::Make_Constant(Color{ 1.f, 1.f, 1.f, 1.f }) };
     FloatDistributionData alphaOverLife{ FloatDistributionData::Make_Constant(1.f) };
 };
@@ -1256,7 +1244,7 @@ struct SubUVFrameOverLifeModuleData
     float framesPerSecond{ 12.f };
     bool randomStartPhase{ false };
     DistributionRandomSeedData randomSeed{};
-    bool perStripSubUVVariation{ false }; // Legacy Beam multi-strip SubUV variation field다.
+    bool perStripSubUVVariation{ false };
 };
 
 struct SizeByLifeModuleData
@@ -1297,6 +1285,7 @@ struct SpawnPerUnitModuleData
     float maxFrameDistance{ 0.f };
 };
 
+//## Module::SourceHistoryMotion
 enum class SourceHistorySpriteTrailPathFollowDirection : uint8
 {
     TowardHead,
@@ -1340,6 +1329,7 @@ struct SourceHistorySpriteTrailPathReplayModuleData
     SourceHistorySpriteTrailArrivalMode arrivalMode{ SourceHistorySpriteTrailArrivalMode::KillOnArrive };
 };
 
+//## Module::MaterialModulation
 enum class MaterialScalarModulationTargetField : uint8
 {
     Intensity,
@@ -1452,6 +1442,7 @@ using AuthoringModuleData = variant<
     RibbonOrientationModuleData,
     MaterialScalarModulationModuleData>;
 
+//## Types::AuthoringAggregate
 struct AuthoringModule
 {
     uint32 id{};

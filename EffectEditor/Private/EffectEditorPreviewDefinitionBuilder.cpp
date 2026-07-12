@@ -13,7 +13,7 @@ namespace Internal
     constexpr float kRibbonAutoHistoryFrameStep{ 0.016f };
     constexpr uint32 kRibbonAutoHistoryMargin{ 8 };
 
-    //## Module Lookup
+    //## Module::Lookup
 
     template <typename TData>
     const TData* Find_ModuleData(const AuthoringEmitter& emitter, AuthoringModuleType type)
@@ -83,7 +83,7 @@ namespace Internal
         }
     }
 
-    //## Preview Policy
+    //## Preview::Policy
 
     Color Clamp_PreviewColor(Color value)
     {
@@ -605,7 +605,7 @@ namespace Internal
         }
     }
 
-    //## Float Curve Eval
+    //## Curve::FloatEvaluation
 
     float Evaluate_FloatCurveSegmentLinear(const FloatCurveKeyData& leftKey, const FloatCurveKeyData& rightKey, float x)
     {
@@ -724,7 +724,7 @@ namespace Internal
         return curve.keys.back().value;
     }
 
-    //## Distribution Eval
+    //## Distribution::Evaluation
 
     float Evaluate_FloatDistributionMin(const FloatDistributionData& data, float fallbackValue)
     {

@@ -18,7 +18,6 @@ struct EffectPreviewOrbitCameraFrame
     Matrix proj{ Matrix::Identity };
 };
 
-// preview orbit camera state를 pan/orbit/dolly frame으로 계산하는 stateless helper다.
 class EffectPreviewOrbitCamera final
 {
 public:

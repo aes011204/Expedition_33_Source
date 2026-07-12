@@ -6,7 +6,6 @@
 
 NS_BEGIN(EffectEditor)
 
-// EffectEditor frame/profile/memory counters를 수집하고 profile window로 표시한다.
 class Profile_View final : public Editor_Window
 {
 public:
@@ -48,7 +47,7 @@ public:
     static void Set_Frame_Time_External(double frameMs);
     static void Set_RenderCallCount_External(uint32 renderCallCount);
 
-private: //## Types
+private: //## Types::Profiling
     struct ScopeRow
     {
         const ScopeStats* stats{ nullptr };
@@ -72,10 +71,10 @@ private: //## Types
         bool hasData{ false };
     };
 
-private: //## Static Values
+private: //## Static::Profiling
     static Profile_View* activeView;
 
-private: //## Data
+private: //## Data::Profiling
     Unique<ProfilerRuntime> _runtime{ nullptr };
     clock::time_point _prevFrame{ clock::now() };
 
@@ -102,7 +101,7 @@ private: //## Data
     size_t _peakWorkingSetMb{ 0 };
     size_t _peakPrivateBytesMb{ 0 };
 
-private: //## Helpers
+private: //## Helper::Profiling
     void Draw_Toolbar();
     void Draw_Frame_Info();
     void Draw_Scopes();

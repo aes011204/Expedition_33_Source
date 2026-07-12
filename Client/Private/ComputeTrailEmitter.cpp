@@ -159,12 +159,9 @@ float Compute_TrailCenterDistance(const EffectTrailSample& from, const EffectTra
     return (Compute_TrailCenter(to) - Compute_TrailCenter(from)).Length();
 }
 
-// 회전처럼 base/tip이 반대 방향으로 움직여 center가 상쇄되는 경우를 커버하기 위해
-// base/tip/center 세 거리 중 최댓값을 반환한다.
-// movementTolerance 판정과 stepCount 계산에 사용하며,
-// 텔레포트 감지(maxFrameDistance)에는 center 기반을 별도로 사용한다.
 float Compute_TrailMotionDistance(const EffectTrailSample& from, const EffectTrailSample& to)
 {
+    // 회전 중 center 이동이 상쇄되어도 sample 생성을 유지하도록 base, tip, center 중 최대 이동량을 사용한다.
     const float baseDistance = (to.baseWorldPosition - from.baseWorldPosition).Length();
     const float tipDistance = (to.tipWorldPosition - from.tipWorldPosition).Length();
     const float centerDistance = Compute_TrailCenterDistance(from, to);
@@ -803,12 +800,11 @@ void ComputeTrailEmitter::Insert_TrailSamplesForFrame(const EffectTrailSample& t
     }
 
     const TrailHistorySample previousHead = _history.front();
-    // 회전 등 base/tip이 반대로 움직이는 경우를 커버하기 위해 최대 거리 기준으로 판정한다.
     const float motionDistance = EffectAssetRuntimeLoad::Compute_TrailMotionDistance(previousHead.sample, trailSample);
     if (motionDistance < _desc.spawnPerUnit.movementTolerance)
         return;
 
-    // 텔레포트 감지는 tip jitter 오감지를 막기 위해 center 기반을 별도로 사용한다.
+    // 순간이동 판정은 tip 흔들림을 배제하도록 center 이동량만 사용한다.
     const float centerDistance = EffectAssetRuntimeLoad::Compute_TrailCenterDistance(previousHead.sample, trailSample);
     if (_desc.spawnPerUnit.maxFrameDistance > 0.f &&
         centerDistance > _desc.spawnPerUnit.maxFrameDistance)

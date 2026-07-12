@@ -5,7 +5,6 @@
 
 NS_BEGIN(EffectEditor)
 
-// Detail row/table widgets와 distribution property drawer 상태를 묶어 제공한다.
 class DetailPropertyContext final
 {
 public:

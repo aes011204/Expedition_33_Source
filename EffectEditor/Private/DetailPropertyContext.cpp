@@ -188,7 +188,7 @@ namespace Internal
 
 class DetailPropertyContext::BasicDetailPropertyDrawer
 {
-public: //## Table / Basic Controls
+public: //## Behavior::BasicControls
     bool Begin_PropertyTable(const char* id)
     {
         constexpr ImGuiTableFlags tableFlags = ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_NoSavedSettings;
@@ -727,11 +727,11 @@ public: //## Table / Basic Controls
         return true;
     }
 
-private: //## Highlight State
+private: //## Data::Highlight
     vector<ImU32> _rowTintStack{};
     vector<ImU32> _labelTintStack{};
 
-private: //## Reset Helpers
+private: //## Helper::Reset
     static bool Is_DefaultValue(float value, float defaultValue) { return value == defaultValue; }
     static bool Is_DefaultValue(uint32 value, uint32 defaultValue) { return value == defaultValue; }
     static bool Is_DefaultValue(bool value, bool defaultValue) { return value == defaultValue; }
@@ -791,7 +791,7 @@ private: //## Reset Helpers
 
 class DetailPropertyContext::DistributionDetailPropertyDrawer
 {
-public: //## Distribution Controls
+public: //## Behavior::DistributionControls
     explicit DistributionDetailPropertyDrawer(BasicDetailPropertyDrawer& basicDrawer)
         : _basicDrawer{ basicDrawer }
     {
@@ -934,7 +934,7 @@ public: //## Distribution Controls
         return changed;
     }
 
-private: //## Distribution Types
+private: //## Types::Distribution
     static const char* Get_DistributionRandomSeedModeLabel(DistributionRandomSeedMode mode)
     {
         switch (mode)
@@ -1042,10 +1042,10 @@ private: //## Distribution Types
         Color,
     };
 
-private: //## Dependencies
+private: //## Data::Dependencies
     BasicDetailPropertyDrawer& _basicDrawer;
 
-private: //## Color Helpers
+private: //## Helper::Color
     static ImVec4 Lerp_Color(const ImVec4& lhs, const ImVec4& rhs, float t)
     {
         return ImVec4{
@@ -1085,7 +1085,7 @@ private: //## Color Helpers
         return ImGui::GetColorU32(tint);
     }
 
-private: //## Label Helpers
+private: //## Helper::Label
     static const char* Get_DistributionModeLabel(DistributionValueKind kind, DistributionMode mode)
     {
         switch (kind)

@@ -22,6 +22,8 @@
 #include "Monster_Part.h"
 #include "Weapon.h"
 
+NS_BEGIN(Client)
+
 namespace Internal
 {
 string Format_SourceKeyVec3(const Vec3& value)
@@ -270,7 +272,7 @@ HRESULT EffectCom::Initialize(void* arg)
 {
     CHECK_FAILED(__super::Initialize(arg), E_FAIL);
 
-    _switchDissolve = {}; // 디졸브 런타임은 clone마다 새 상태로 시작
+    _switchDissolve = {};
     _previewRim = {};
     _attachedEffects.clear();
     _vanishComplete = false;
@@ -294,7 +296,6 @@ void EffectCom::Update(float timeDelta)
 
     _switchDissolve.Update(timeDelta);
 
-    // 사라지면, Visible 끄기
     if (_vanishComplete &&
         wasDissolving &&
         wasVanish &&
@@ -364,7 +365,7 @@ void EffectCom::Capture_AttachedEffectPauseStates(vector<AttachedEffectPauseStat
         state.effect = effect;
         state.wasPaused = effect->Is_PlaybackPaused();
 
-        effect->Set_PlaybackPaused(true); // 튜토리얼 UI가 열린 동안 attached trail/effect 시간을 고정한다.
+        effect->Set_PlaybackPaused(true);
         outStates.push_back(state);
     }
 }
@@ -376,7 +377,7 @@ void EffectCom::Restore_AttachedEffectPauseStates(vector<AttachedEffectPauseStat
         if (state.effect == nullptr)
             continue;
 
-        state.effect->Set_PlaybackPaused(state.wasPaused); // 튜토리얼 시작 전 effect pause 상태로 되돌린다.
+        state.effect->Set_PlaybackPaused(state.wasPaused);
     }
 
     states.clear();
@@ -485,7 +486,6 @@ HRESULT EffectCom::Bind_DrawFeatures(ShaderCom* shader, uint32 supportFeatureMas
 
 HRESULT EffectCom::Bind_DrawFeatures(const Shared<GameObject>& owner, ShaderCom* shader, uint32 supportFeatureMask)
 {
-    // Render 쪽에 있던 owner->Get_Component<EffectCom>() 조회와 fallback reset을 여기로 이동
     CHECK_NULL_THROTTLED(shader, 60, E_FAIL);
 
     Shared<EffectCom> effectCom{};
@@ -865,7 +865,7 @@ bool EffectCom::Try_ResolveEffectWorldTransform(
         XMConvertToRadians(localRotation.z)
     );
 
-    // local offset/rotation은 선택된 위치/회전 상속 basis 기준으로 합성한다.
+    // Local offset과 rotation은 선택된 position/rotation 상속 basis를 기준으로 합성한다.
     const Matrix localMatrix =
         Matrix::CreateFromYawPitchRoll(localRotationRad.y, localRotationRad.x, localRotationRad.z) *
         Matrix::CreateTranslation(localOffset);
@@ -970,7 +970,7 @@ HRESULT EffectCom::Play_AttachedEffect(
     desc.localOffset = localOffset;
     desc.localRotation = localRotation;
     desc.scale = scale;
-    desc.followTarget = true; // attached effect는 EffectCom Update에서 계속 socket transform을 따라간다.
+    desc.followTarget = true;
     desc.trailSampleProvider = trailSampleProvider;
 
     return Play_Effect(desc);
@@ -996,7 +996,7 @@ HRESULT EffectCom::Play_AttachedPartEffect(
     desc.localOffset = localOffset;
     desc.localRotation = localRotation;
     desc.scale = scale;
-    desc.followTarget = true; // socketName이 비어 있으면 part root, 있으면 socket을 계속 따라간다.
+    desc.followTarget = true;
 
     return Play_Effect(desc);
 }
@@ -1036,7 +1036,8 @@ HRESULT EffectCom::Play_TrailEffect(
     CHECK_NULL(weaponModel, E_FAIL);
 
     AttachedEffect attached{};
-    attached.effectName = resolvedEffectName; // Stop에서도 같은 resolved 이름으로 찾아야 한다.
+    // Stop에서도 동일한 pool key를 사용하도록 해석이 끝난 effect 이름을 저장한다.
+    attached.effectName = resolvedEffectName;
     attached.partTag = partTag;
     attached.layerTag = layerTag;
     attached.role = AttachedEffectRole::Trail;
@@ -1594,8 +1595,9 @@ void EffectCom::Update_AttachedEffects(float timeDelta)
             continue;
         }
 
+        // 단발 effect는 시작 transform만 사용하고 이후 owner 이동을 추적하지 않는다.
         if (!attached.followTarget)
-            continue; // AN 단발 이펙트는 시작 위치만 맞추고 더 이상 이동시키지 않는다.
+            continue;
 
         Vec3 targetWorldPosition{};
         Quat targetWorldRotation{ Quat::Identity };
@@ -2010,3 +2012,5 @@ void EffectCom::Free()
 
     __super::Free();
 }
+
+NS_END

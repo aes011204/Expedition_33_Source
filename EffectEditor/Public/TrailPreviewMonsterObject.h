@@ -14,7 +14,6 @@ class TrailPreviewMonsterBodyObject;
 class TrailPreviewMonsterHairObject;
 class TrailPreviewMonsterWeaponObject;
 
-// Trail preview용 monster visual fixture와 weapon sample provider를 담당한다.
 class TrailPreviewMonsterObject final
     : public ContainerObject
       , public IEffectTrailSampleProvider
@@ -25,23 +24,23 @@ public:
     TrailPreviewMonsterObject(const TrailPreviewMonsterObject& prototype);
     ~TrailPreviewMonsterObject() override;
 
-public: //## Lifecycle
+public:
     HRESULT Initialize_Prototype() override { return S_OK; }
     HRESULT Initialize(void* arg) override;
     void BeginPlay() override;
     void Update(float timeDelta) override;
     void Late_Update(float timeDelta) override;
 
-public: //## Accessor::Preview
+public: //## Accessors::Preview
     Shared<ModelCom> Get_BodyModel() const;
     void Set_PreviewVisible(bool visible);
 
-public: //## Runtime::SampleProvider
+public: //## Behavior::SampleProvider
     bool Has_TrailSample() const;
     bool Try_GetTrailSample(EffectTrailSample& outSample) const override;
     bool Try_GetSourcePointSample(EffectSourcePointSample& outSample) const override;
 
-private: //## Static Values
+private: //## Static::PreviewFixture
     inline static const Vec3 kFallbackBaseLocalOffset{ 0.f, 0.f, 0.f };
     inline static const Vec3 kFallbackTipLocalOffset{ 0.f, 0.f, 4.f };
     inline static const Vec3 kFallbackSourceLocalOffset{ 0.f, 0.f, 4.f };

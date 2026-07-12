@@ -450,7 +450,7 @@ void ComputeSourceHistoryRibbonEmitter::Advance_Playback(float timeDelta)
         return;
     }
 
-    // Source-driven ribbons keep their active history alive across phase wraps.
+    // Source-driven ribbon은 phase가 순환해도 진행 중인 history를 유지한다.
     Wrap_PlaybackLoop();
     _playbackState = PlaybackState::Emitting;
 }

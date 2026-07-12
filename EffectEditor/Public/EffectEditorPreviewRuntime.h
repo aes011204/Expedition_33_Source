@@ -8,7 +8,6 @@ NS_BEGIN(EffectEditor)
 
 class TrailPreviewController;
 
-// authoring preview definition과 preview effect instance lifecycle을 관리한다.
 class EffectEditorPreviewRuntime final
 {
 public:
@@ -38,14 +37,6 @@ private: //## Types::TrailPreview
         float drainDuration{ 0.25f };
     };
 
-private: //## Helper::PreviewRuntime
-    HRESULT Restart_FromDefinition(const Shared<const EffectDefinition>& previewDefinition);
-    void Update_PreviewTrailStrokes(float timeDelta);
-    HRESULT Start_PreviewTrailStroke();
-    void Begin_PreviewTrailStrokeDrain(PreviewTrailStrokeRuntime& runtime);
-    void Drain_ActivePreviewTrailStrokes();
-    void Clear_PreviewTrailStrokes();
-
 private: //## Data::PreviewRuntime
     wstring _layerTag{};
     EffectInstancePool::AttachedHandle _previewPoolHandle{};
@@ -60,6 +51,14 @@ private: //## Data::PreviewRuntime
     Shared<IEffectSourcePointSampleProvider> _sourceHistoryPreviewSampleProvider{};
     Shared<IEffectSourcePointSampleProvider> _sourceHistorySpriteTrailPreviewSampleProvider{};
     Weak<TrailPreviewController> _trailPreviewController{};
+
+private: //## Helper::PreviewRuntime
+    HRESULT Restart_FromDefinition(const Shared<const EffectDefinition>& previewDefinition);
+    void Update_PreviewTrailStrokes(float timeDelta);
+    HRESULT Start_PreviewTrailStroke();
+    void Begin_PreviewTrailStrokeDrain(PreviewTrailStrokeRuntime& runtime);
+    void Drain_ActivePreviewTrailStrokes();
+    void Clear_PreviewTrailStrokes();
 };
 
 NS_END

@@ -24,7 +24,6 @@ enum class EffectMaterialPreviewMeshMode : uint8
     Sphere,
 };
 
-// material instance를 offscreen render target에 preview 렌더링한다.
 class EffectMaterialPreviewRenderer final : public Base
 {
 public:
@@ -32,9 +31,7 @@ public:
     ~EffectMaterialPreviewRenderer() override;
 
 public:
-    // 머티리얼 instance 값을 현재 preview render target에 반영할 때 호출한다.
     void Render_Material(const EffectMaterialInstanceData& material);
-    // emitter module의 material scalar modulation을 preview-local 시간으로 평가해 반영한다.
     void Render_Material(
         const EffectMaterialInstanceData& material,
         const EffectMaterialCoreColorRgbModulationRuntimeDesc& coreColorRgbModulation,
@@ -42,14 +39,12 @@ public:
         const EffectMaterialScalarModulationRuntimeDesc& modulation,
         float previewDuration,
         bool evaluateParticleLife);
-    // material preview의 UV scroll용 누적 시간을 외부 update tick에서 갱신한다.
     void Update_MaterialTime(float timeDelta);
-    // ImGui viewport와 입력을 함께 관리하는 원본 머티리얼 preview 패널 진입점이다.
     void Draw_Viewport(const char* id, const EffectMaterialInstanceData& material, const char* label, bool fillAvailableHeight = false);
     ShaderResourceView* Get_SRV() const;
     const string& Get_StatusMessage() const;
 
-private: //## Types
+private: //## Types::PreviewRuntime
     struct PreviewVertex
     {
         Vec3 position{};
@@ -64,7 +59,7 @@ private: //## Types
         uint32 indexCount{ 0 };
     };
 
-private: //## Static Values
+private: //## Static::Render
     static constexpr auto kEffectMaterialPreviewShaderId{ L"Shader_EffectMaterialPreview" };
     static constexpr auto kEffectMaterialPreviewDistortionShaderId{ L"Shader_EffectMaterialPreviewDistortion" };
     static constexpr float kHomeDistance{ 6.f };
@@ -73,7 +68,7 @@ private: //## Static Values
     static constexpr float kHomeTransitionSpeed{ 10.f };
     static constexpr float kPreviewOrbitSensor{ 0.105f };
 
-private: //## Data
+private: //## Data::PreviewRuntime
     uint32 _previewTextureWidth{ 512 };
     uint32 _previewTextureHeight{ 512 };
     Unique<EffectPreviewPostProcessRenderer> _sceneResolve{};
@@ -94,7 +89,6 @@ private: //## Data
     bool _hasRenderedPreview{ false };
     EffectMaterialPreviewMeshMode _meshMode{ EffectMaterialPreviewMeshMode::Plane };
     EffectPreviewOrbitCameraState _cameraState{};
-    // material preview UV scroll 계산에 사용할 preview-local 누적 시간이다.
     float _materialPreviewElapsedTime{};
     bool _isViewportDragging{ false };
     bool _hasPendingHome{ false };
@@ -120,13 +114,11 @@ private: //## Helper::Render
     void Resize_RenderTarget(uint32 width, uint32 height);
 
 private: //## Helper::ViewportInput
-    // preview canvas hover/drag/wheel 입력을 orbit camera 상태로 변환한다.
     void Handle_ViewportInput(bool isHovered, const ImVec2& canvasMin, const ImVec2& canvasMax);
     void Begin_ViewportDrag(const ImVec2& canvasMin, const ImVec2& canvasMax);
     void End_ViewportDrag();
 
 private: //## Helper::Camera
-    // 즉시 reset하지 않고 home 시점으로 부드럽게 복귀를 예약한다.
     void Start_HomeTransition();
     void Update_HomeTransition(float timeDelta);
     void Reset_View();

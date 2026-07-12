@@ -5,7 +5,6 @@
 
 NS_BEGIN(EffectEditor)
 
-// Cascade-style emitter stack authoring, selection, clipboard, and module actions을 관리한다.
 class Emitter_View final : public Editor_Window
 {
 public:
@@ -28,22 +27,15 @@ public:
     HRESULT Initialize() override;
     void Render() override;
 
-    // 현재 effect authoring document가 Save 대상임을 알린다.
     bool CanSave() const override;
-    // 기존 문서 경로가 있으면 바로 저장하고, 없으면 Save As로 저장한다.
     void Save() override;
-    // Save As dialog를 열어 emitter/module authoring json을 저장한다.
     void SaveAs();
-    // 현재 effect authoring document가 Open 대상으로 교체 가능함을 알린다.
     bool CanOpen() const;
-    // Open dialog로 .effect.json을 열어 authoring 상태를 복원한다.
     void Open();
-    // 다른 effect authoring document의 emitter들을 현재 문서에 추가할 수 있는지 알린다.
     bool CanAdd() const;
-    // Add dialog로 .effect.json의 emitter stack만 현재 문서 끝에 추가한다.
     void Add();
 
-public: //## Accessor::Authoring
+public: //## Accessors::Authoring
     ParticleSystemAuthoringData& Get_ParticleSystemData() { return _particleSystemData; }
     const ParticleSystemAuthoringData& Get_ParticleSystemData() const { return _particleSystemData; }
     HistoryBudgetData& Get_HistoryBudget() { return _historyBudget; }
@@ -126,7 +118,7 @@ private: //## Types::ModulePicker
         bool canAdd{ false };
     };
 
-private: //## Static Values
+private: //## Static::Authoring
     inline static const Color kEmitterAccentColor{ 1.0f, 0.55f, 0.20f, 1.0f };
     inline static const Color kEmitterColumnBackgroundColor{ 0.06f, 0.065f, 0.08f, 1.0f };
     inline static const Color kEmitterDividerColor{ 0.015f, 0.018f, 0.025f, 1.0f };
@@ -154,19 +146,13 @@ private: //## Static Values
 private: //## Data::Authoring
     ParticleSystemAuthoringData _particleSystemData{};
     HistoryBudgetData _historyBudget{};
-    // 현재 편집 중인 effect의 emitter 목록이다.
     vector<AuthoringEmitter> _emitters{};
-    // 현재 authoring 문서가 기존 effect 파일과 연결되어 있으면 그 경로를 보관한다.
     optional<fs::path> _currentDocumentPath{};
-    // 저장용 id가 아니라 editor 세션 안에서 emitter/module을 구분하기 위한 임시 id 발급값이다.
     uint32 _nextAuthoringId{ 1 };
 
 private: //## Data::Selection
-    // 현재 선택된 emitter index다. 값이 없으면 emitter 선택이 해제된 상태다.
     optional<size_t> _selectedEmitterIndex{};
-    // 현재 선택 대상이 emitter-level TypeData 슬롯인지 나타낸다.
     bool _selectedTypeData{ false };
-    // 현재 선택된 emitter 내부의 module index다. 값이 없으면 emitter header만 선택된 상태다.
     optional<size_t> _selectedModuleIndex{};
 
 private: //## Data::PreviewState
@@ -198,9 +184,7 @@ private: //## Helper::DocumentSave
     bool Save_ToPath(const fs::path& savePath, bool backupExistingFile);
 
 private: //## Helper::AuthoringFactory
-    // 새 emitter/module에 부여할 editor-local id를 발급한다.
     uint32 Issue_AuthoringId();
-    // Cascade의 기본 더미 emitter 하나를 만든다.
     AuthoringEmitter Make_DefaultSpriteEmitter();
     AuthoringEmitter Clone_Emitter(const AuthoringEmitter& sourceEmitter);
     AuthoringModule Clone_Module(const AuthoringModule& sourceModule);
@@ -249,13 +233,9 @@ private: //## Helper::AuthoringFactory
     AuthoringModule Make_MaterialScalarModulationModule();
 
 private: //## Helper::ModulePolicy
-    // 이미터가 특정 모듈 타입을 이미 가지고 있는지 확인한다.
     bool Has_ModuleType(const AuthoringEmitter& emitter, AuthoringModuleType type) const;
-    // 현재 emitter 타입이 모듈을 preview에 소비하는지 확인한다.
     bool Is_ModuleCompatibleWithEmitter(const AuthoringEmitter& emitter, AuthoringModuleType type) const;
-    // 중복 정책 기준으로 새 모듈 추가 가능 여부를 판단한다.
     bool Can_AddModuleType(const AuthoringEmitter& emitter, AuthoringModuleType type) const;
-    // 선택 이미터에 새 optional 모듈을 추가하고 선택 상태를 갱신한다.
     void Add_Module(size_t emitterIndex, AuthoringModuleType type);
 
 private: //## Helper::Clipboard
@@ -276,7 +256,6 @@ private: //## Helper::Clipboard
 
 private: //## Helper::Selection
     void Clear_Selection();
-    // 현재 선택 index가 emitter 목록 범위를 벗어나지 않도록 보정한다.
     void Clamp_Selection();
     void Select_Emitter(size_t emitterIndex);
     void Select_Module(size_t emitterIndex, size_t moduleIndex);
@@ -324,7 +303,6 @@ private: //## Helper::AuthoringHistory
     void Execute_AuthoringEdit(const string& description, const function<void()>& edit);
 
 private: //## Helper::Render
-    // hover tooltip은 설명 dump가 아니라 경고성 사유만 노출하는 채널로 유지한다.
     string Build_ModuleWarningTooltip(const AuthoringEmitter& emitter, const AuthoringModule& module) const;
     void Draw_EmitterContextMenu(size_t emitterIndex);
     void Draw_TypeDataContextMenu(size_t emitterIndex);

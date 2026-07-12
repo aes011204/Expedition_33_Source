@@ -105,7 +105,6 @@ HRESULT EffectEditorInstance::Initialize_Editor(const EffectEditorDesc& editorDe
     _notificationManager = Notification_Manager::Create();
     CHECK_NULL(_notificationManager, E_FAIL);
 
-    // Effect emitter 등록
     Register_ClientEffectEmitters();
 
     _runtimeState = EffectEditorRuntimeState::Edit;
@@ -1021,8 +1020,6 @@ bool EffectEditorInstance::Delete_SelectedObject()
 
 void EffectEditorInstance::Activate_TargetCamera()
 {
-    //GAME->Activate_CameraByType(ObjectType::TargetCamera);
-
     // preview level에는 TargetCamera가 없을 수 있으므로 preview camera로 안전하게 대체한다.
     if (!GAME->Activate_CameraByType(ObjectType::TargetCamera))
         Activate_PreviewCamera();

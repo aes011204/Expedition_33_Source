@@ -35,7 +35,6 @@ struct EffectMaterialRenderPolicyBinding
     const char* sourceLabel{ "Required" };
 };
 
-// selected emitter/module의 embedded material instance를 편집하고 preview한다.
 class EffectMaterialInstance_View final : public Editor_Window
 {
 public:
@@ -43,11 +42,9 @@ public:
     ~EffectMaterialInstance_View() override;
 
 public:
-    // material instance preview UV motion 시간을 갱신한다.
     void Update(float timeDelta) override;
     void Pre_Render() override;
     void Render() override;
-    // 현재 consumer가 지원하지 않는 distortion shape 편집을 막는다.
     static bool Draw_InstanceProperties(
         DetailPropertyContext& detailPropertyContext,
         map<string, Shared<Texture>>& textureThumbnailCache,
@@ -68,6 +65,12 @@ private: //## Data::Target
     Unique<EffectMaterialPreviewRenderer> _previewRenderer{};
     map<string, Shared<Texture>> _textureThumbnailCache{};
 
+private: //## Data::AuthoringHistory
+    bool _hasPendingAuthoringEdit{ false };
+    EffectAuthoringSelection _pendingAuthoringSelection{};
+    Emitter_View::AuthoringSnapshot _pendingAuthoringSnapshot{};
+    string _pendingAuthoringDescription{};
+
 private: //## Helper::MaterialInstance
     bool Resolve_Target(Shared<Emitter_View>& outEmitterView, AuthoringEmitter*& outEmitter, RequiredModuleData*& outRequiredData) const;
     void Apply_MaterialChanged(const Shared<Emitter_View>& emitterView, AuthoringEmitter& emitter, const RequiredModuleData& requiredData);
@@ -78,12 +81,6 @@ private: //## Helper::MaterialInstance
         const string& description);
     void Commit_PendingAuthoringEditIfIdle(const Shared<Emitter_View>& emitterView);
     void Commit_PendingAuthoringEdit(const Shared<Emitter_View>& emitterView);
-
-private: //## Data::AuthoringHistory
-    bool _hasPendingAuthoringEdit{ false };
-    EffectAuthoringSelection _pendingAuthoringSelection{};
-    Emitter_View::AuthoringSnapshot _pendingAuthoringSnapshot{};
-    string _pendingAuthoringDescription{};
 
 public:
     static Shared<EffectMaterialInstance_View> Create();

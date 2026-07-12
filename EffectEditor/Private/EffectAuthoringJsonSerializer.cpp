@@ -10,7 +10,7 @@ namespace Internal
     json To_Json(const EffectMaterialInstanceData& data);
     void From_Json(const json& root, EffectMaterialInstanceData& outData);
 
-    //## Common Codec Helpers
+    //## Codec::Common
 
     template <typename EnumType>
     string To_EnumToken(EnumType value)
@@ -347,7 +347,7 @@ namespace Internal
         ranges::replace(texturePath, '\\', '/');
     }
 
-    //## Primitive Value Codec
+    //## Codec::PrimitiveValue
 
     json To_Json(const Vec2& value)
     {
@@ -1542,7 +1542,7 @@ namespace Internal
         return Vec2{ lerp(left.x, right.x, t), lerp(left.y, right.y, t) };
     }
 
-    //## Distribution Codec
+    //## Codec::Distribution
 
     json To_Json(const FloatDistributionData& data)
     {
@@ -2920,7 +2920,7 @@ namespace Internal
         Read_BoolField(root, "perStripSubUVVariation", outData.perStripSubUVVariation);
     }
 
-    //## Module Data Codec
+    //## Codec::ModuleData
 
     json To_Json(const SizeByLifeModuleData& data)
     {

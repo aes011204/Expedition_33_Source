@@ -8,7 +8,6 @@ NS_BEGIN(EffectEditor)
 
 class Emitter_View;
 
-// 선택/pin된 module distribution curve들을 graph editor로 표시하고 편집한다.
 class CurveEditor_View final : public Editor_Window
 {
 public:

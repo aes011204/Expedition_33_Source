@@ -12,7 +12,6 @@ NS_END
 
 NS_BEGIN(Client)
 
-// Source point history를 ribbon strip payload로 낮춰 렌더링한다.
 class ComputeSourceHistoryRibbonEmitter final : public EffectEmitter
 {
     GENERATED_GAMEOBJECT(ComputeSourceHistoryRibbonEmitter, ObjectType::EffectEmitter);
@@ -67,8 +66,8 @@ private: //## Types::PlaybackRuntime
         Vec4 currentPosition{};
         Vec4 nextPosition{};
         Vec4 nextNextPosition{};
-        Vec4 currentSampleParams{}; // x: age, y: lifetime, z: distance, w: widthScale.
-        Vec4 nextSampleParams{};    // x: age, y: lifetime, z: distance, w: widthScale.
+        Vec4 currentSampleParams{};
+        Vec4 nextSampleParams{};
         Vec4 startColor{};
         Vec4 endColor{};
         Vec4 subUVRect{ 0.f, 0.f, 1.f, 1.f };
@@ -103,20 +102,20 @@ private: //## Types::PlaybackRuntime
         float tilingDistance{};
         float visibleLength{ 1.f };
         Vec4 axisFallback{};
-        Vec4 fadeParams{}; // x: auto life fade, y: max length, z: tail fade length, w: reserved.
+        Vec4 fadeParams{};
     };
 
     struct RibbonInstanceVertex
     {
-        Vec4 previousPosition{}; // xyz: segment 시작점 앞 render sample, w: hasPreviousSample flag다.
-        Vec4 currentPosition{};  // segment 시작 sample world position이다.
-        Vec4 nextPosition{};     // segment 끝 sample world position이다.
-        Vec4 nextNextPosition{}; // xyz: segment 끝점 다음 render sample, w: hasNextNextSample flag다.
+        Vec4 previousPosition{};
+        Vec4 currentPosition{};
+        Vec4 nextPosition{};
+        Vec4 nextNextPosition{};
         Vec2 lifeTime{};
         Vec4 startColor{};
         Vec4 endColor{};
         Vec4 subUVRect{};
-        Vec4 segmentParams{};    // x: lifeProgress, y: currentWidth, z: nextWidth, w: alphaScale.
+        Vec4 segmentParams{};
         Vec4 coreColorRgb{ 1.f, 0.85f, 0.45f, 0.f };
     };
 
@@ -129,7 +128,7 @@ private: //## Types::PlaybackRuntime
         uint32 startInstanceLocation{};
     };
 
-private: //## Static Values
+private: //## Static::Runtime
     static constexpr auto kRibbonShaderId{ L"Shader_EffectRibbon" };
     static constexpr auto kRibbonDistortionShaderId{ L"Shader_EffectRibbonDistortion" };
     static constexpr auto kRibbonComputeShaderId{ L"ComputeShader_RibbonStrip" };
