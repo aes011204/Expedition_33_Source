@@ -479,6 +479,7 @@ Engine/Bin/x86/
 
 # Project-local dependencies and generated docs
 vcpkg_installed/
+/Directory.Build.user.props
 !/EngineSDK/lib/
 !/EngineSDK/lib/Debug/
 !/EngineSDK/lib/Debug/**
@@ -486,6 +487,7 @@ vcpkg_installed/
 !/EngineSDK/lib/Release/**
 /EngineSDK/inc/Engine/
 .agent/
+.agents/
 .claude/
 .codex/
 .gemini/
