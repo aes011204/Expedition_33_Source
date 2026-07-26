@@ -1106,7 +1106,6 @@ HRESULT ComputeTrailEmitter::Bind_ShaderResources()
 
     if (Is_DistortionFamily())
     {
-        CHECK_FAILED(_shader->Bind_RawValue("g_Tint", &_desc.material.tint, sizeof(Vec4)), E_FAIL);
         CHECK_FAILED(Bind_DistortionResources(), E_FAIL);
         return S_OK;
     }
@@ -1271,6 +1270,13 @@ HRESULT ComputeTrailEmitter::Bind_DistortionResources()
     const EffectRequiredMaterialRuntimeDesc material =
         Resolve_EmitterTimeMaterialUniformParameterModulation(_desc.material, emitterPhase, _effectPlaybackSeed);
 
+    CHECK_FAILED(_mainTexture->Bind_ShaderResourceView(_shader.get(), "g_MainTexture", 0), E_FAIL);
+
+    if (nullptr != _maskTexture)
+        CHECK_FAILED(_maskTexture->Bind_ShaderResourceView(_shader.get(), "g_MaskTexture", 0), E_FAIL);
+    else
+        CHECK_FAILED(_shader->Bind_SRV("g_MaskTexture", nullptr), E_FAIL);
+
     if (nullptr != _flowTexture)
         CHECK_FAILED(_flowTexture->Bind_ShaderResourceView(_shader.get(), "g_FlowTexture", 0), E_FAIL);
     else
@@ -1286,15 +1292,83 @@ HRESULT ComputeTrailEmitter::Bind_DistortionResources()
         nullptr != _flowTexture ? 1.f : 0.f,
         _materialElapsedTime
     );
+    const Vec4 effectTrailParams(
+        0.f,
+        max(material.opacityPower, 0.0001f),
+        0.f,
+        0.f
+    );
+    const Vec4 effectTrailAlphaParams(
+        clamp(material.alphaCutoff, 0.f, 1.f),
+        clamp(material.alphaErosion, 0.f, 1.f),
+        nullptr != _maskTexture ? 1.f : 0.f,
+        clamp(material.alphaMultiplier, 0.f, 1.f)
+    );
+    const Vec4 effectTrailMainUVParams(
+        material.mainUVScale.x,
+        material.mainUVScale.y,
+        material.mainUVScrollSpeed.x,
+        material.mainUVScrollSpeed.y
+    );
+    const Vec4 effectTrailMaskUVParams(
+        material.maskUVScale.x,
+        material.maskUVScale.y,
+        material.maskUVScrollSpeed.x,
+        material.maskUVScrollSpeed.y
+    );
+    const Vec4 effectTrailUVOffsetParams(
+        material.mainUVOffset.x,
+        material.mainUVOffset.y,
+        material.maskUVOffset.x,
+        material.maskUVOffset.y
+    );
+    const Vec4 effectTrailUVPolicyParams(
+        _visibleTrailLength,
+        max(_desc.uvTiling, 0.0001f),
+        0.f,
+        0.f
+    );
+    const Vec4 effectTrailUVAxisPolicyParams(
+        static_cast<float>(static_cast<uint32>(material.mainUVPolicy.uPolicy)),
+        static_cast<float>(static_cast<uint32>(material.mainUVPolicy.vPolicy)),
+        static_cast<float>(static_cast<uint32>(material.maskUVPolicy.uPolicy)),
+        static_cast<float>(static_cast<uint32>(material.maskUVPolicy.vPolicy))
+    );
+    const Vec4 effectTrailUVRotationParams(
+        static_cast<float>(static_cast<uint32>(material.mainUVRotation)),
+        static_cast<float>(static_cast<uint32>(material.maskUVRotation)),
+        0.f,
+        0.f
+    );
+    const Vec4 effectTrailSourceParams(
+        static_cast<float>(EffectAssetRuntimeLoad::Resolve_MaterialSourceIndex(material.maskSource)),
+        material.maskInvert ? 1.f : 0.f,
+        0.f,
+        0.f
+    );
     const Vec4 distortionScreenSize(max(1.f, viewport.Width), max(1.f, viewport.Height), 0.f, 0.f);
     const float flowUVTilingMode = static_cast<float>(static_cast<uint32>(material.flowUVTilingMode));
     const float flowUVRotation = static_cast<float>(static_cast<uint32>(material.flowUVRotation));
+    const int opacitySourceIndex = Resolve_OpacitySourceIndex();
     const Vec2 flowUVPolicyParams(
         static_cast<float>(static_cast<uint32>(material.flowUVPolicy.uPolicy)),
         static_cast<float>(static_cast<uint32>(material.flowUVPolicy.vPolicy))
     );
 
+    CHECK_FAILED(_shader->Bind_RawValue("g_Tint", &material.tint, sizeof(material.tint)), E_FAIL);
     CHECK_FAILED(_shader->Bind_RawValue("g_EffectDistortionParams", &distortionParams, sizeof(distortionParams)), E_FAIL);
+    CHECK_FAILED(_shader->Bind_RawValue("g_EffectTrailParams", &effectTrailParams, sizeof(effectTrailParams)), E_FAIL);
+    CHECK_FAILED(_shader->Bind_RawValue("g_EffectTrailAlphaParams", &effectTrailAlphaParams, sizeof(effectTrailAlphaParams)), E_FAIL);
+    CHECK_FAILED(_shader->Bind_RawValue("g_EffectTrailMainUVParams", &effectTrailMainUVParams, sizeof(effectTrailMainUVParams)), E_FAIL);
+    CHECK_FAILED(_shader->Bind_RawValue("g_EffectTrailMaskUVParams", &effectTrailMaskUVParams, sizeof(effectTrailMaskUVParams)), E_FAIL);
+    CHECK_FAILED(_shader->Bind_RawValue("g_EffectTrailUVOffsetParams", &effectTrailUVOffsetParams, sizeof(effectTrailUVOffsetParams)), E_FAIL);
+    CHECK_FAILED(_shader->Bind_RawValue("g_EffectTrailUVPolicyParams", &effectTrailUVPolicyParams, sizeof(effectTrailUVPolicyParams)), E_FAIL);
+    CHECK_FAILED(
+        _shader->Bind_RawValue("g_EffectTrailUVAxisPolicyParams", &effectTrailUVAxisPolicyParams, sizeof(effectTrailUVAxisPolicyParams)),
+        E_FAIL
+    );
+    CHECK_FAILED(_shader->Bind_RawValue("g_EffectTrailUVRotationParams", &effectTrailUVRotationParams, sizeof(effectTrailUVRotationParams)), E_FAIL);
+    CHECK_FAILED(_shader->Bind_RawValue("g_EffectTrailSourceParams", &effectTrailSourceParams, sizeof(effectTrailSourceParams)), E_FAIL);
     CHECK_FAILED(_shader->Bind_RawValue("g_DistortionScreenSize", &distortionScreenSize, sizeof(distortionScreenSize)), E_FAIL);
     CHECK_FAILED(_shader->Bind_RawValue("g_FlowUVPolicyParams", &flowUVPolicyParams, sizeof(flowUVPolicyParams)), E_FAIL);
     CHECK_FAILED(_shader->Bind_RawValue("g_FlowUVScale", &material.flowUVScale, sizeof(material.flowUVScale)), E_FAIL);
@@ -1302,6 +1376,7 @@ HRESULT ComputeTrailEmitter::Bind_DistortionResources()
     CHECK_FAILED(_shader->Bind_RawValue("g_FlowUVScrollSpeed", &material.flowUVScrollSpeed, sizeof(material.flowUVScrollSpeed)), E_FAIL);
     CHECK_FAILED(_shader->Bind_RawValue("g_FlowUVTilingMode", &flowUVTilingMode, sizeof(flowUVTilingMode)), E_FAIL);
     CHECK_FAILED(_shader->Bind_RawValue("g_FlowUVRotation", &flowUVRotation, sizeof(flowUVRotation)), E_FAIL);
+    CHECK_FAILED(_shader->Bind_RawValue("g_OpacitySource", &opacitySourceIndex, sizeof(opacitySourceIndex)), E_FAIL);
     CHECK_FAILED(EffectAssetRuntimeLoad::Bind_MaterialScalarModulationPayload(_shader.get(), material.scalarModulation, emitterPhase), E_FAIL);
 
     return S_OK;

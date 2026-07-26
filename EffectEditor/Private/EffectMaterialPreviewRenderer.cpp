@@ -1108,17 +1108,17 @@ HRESULT EffectMaterialPreviewRenderer::Render_DistortionPreviewMesh(const Effect
         0.f,
         0.f
     );
-    const Vec4 uvModeParams = Vec4(
-        static_cast<float>(static_cast<uint32>(material.mainUVTilingMode)),
-        static_cast<float>(static_cast<uint32>(material.maskUVTilingMode)),
-        static_cast<float>(static_cast<uint32>(material.flowUVTilingMode)),
-        0.f
-    );
     const Vec4 uvPolicyParams = Vec4(
         static_cast<float>(static_cast<uint32>(material.flowUVPolicy.uPolicy)),
         static_cast<float>(static_cast<uint32>(material.flowUVPolicy.vPolicy)),
         0.f,
         0.f
+    );
+    const Vec4 materialUVPolicyParams = Vec4(
+        static_cast<float>(static_cast<uint32>(material.mainUVPolicy.uPolicy)),
+        static_cast<float>(static_cast<uint32>(material.mainUVPolicy.vPolicy)),
+        static_cast<float>(static_cast<uint32>(material.maskUVPolicy.uPolicy)),
+        static_cast<float>(static_cast<uint32>(material.maskUVPolicy.vPolicy))
     );
     const Vec4 uvRotationParams = Vec4(
         static_cast<float>(static_cast<uint32>(material.mainUVRotation)),
@@ -1146,7 +1146,7 @@ HRESULT EffectMaterialPreviewRenderer::Render_DistortionPreviewMesh(const Effect
     );
     const int opacitySource = Internal::Resolve_MaterialSourceIndex(material.opacitySource);
     const Vec4 sourceParams = Vec4(
-        1.f,
+        max(material.opacityPower, 0.0001f),
         static_cast<float>(Internal::Resolve_MaterialSourceIndex(material.maskSource)),
         0.f,
         material.maskInvert ? 1.f : 0.f
@@ -1174,7 +1174,14 @@ HRESULT EffectMaterialPreviewRenderer::Render_DistortionPreviewMesh(const Effect
     CHECK_FAILED(_distortionShader->Bind_RawValue("g_EffectMaterialPreviewFlowUVParams", &flowUVParams, sizeof(flowUVParams)), E_FAIL);
     CHECK_FAILED(_distortionShader->Bind_RawValue("g_EffectMaterialPreviewUVOffsetParams", &uvOffsetParams, sizeof(uvOffsetParams)), E_FAIL);
     CHECK_FAILED(_distortionShader->Bind_RawValue("g_EffectMaterialPreviewMaskUVOffsetParams", &maskUVOffsetParams, sizeof(maskUVOffsetParams)), E_FAIL);
-    CHECK_FAILED(_distortionShader->Bind_RawValue("g_EffectMaterialPreviewUVModeParams", &uvModeParams, sizeof(uvModeParams)), E_FAIL);
+    CHECK_FAILED(
+        _distortionShader->Bind_RawValue(
+            "g_EffectMaterialPreviewMaterialUVPolicyParams",
+            &materialUVPolicyParams,
+            sizeof(materialUVPolicyParams)
+        ),
+        E_FAIL
+    );
     CHECK_FAILED(_distortionShader->Bind_RawValue("g_EffectMaterialPreviewUVPolicyParams", &uvPolicyParams, sizeof(uvPolicyParams)), E_FAIL);
     CHECK_FAILED(_distortionShader->Bind_RawValue("g_EffectMaterialPreviewUVRotationParams", &uvRotationParams, sizeof(uvRotationParams)), E_FAIL);
     CHECK_FAILED(_distortionShader->Bind_RawValue("g_EffectMaterialPreviewSourceParams", &sourceParams, sizeof(sourceParams)), E_FAIL);
