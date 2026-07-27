@@ -818,7 +818,7 @@ HRESULT ComputeSpriteEmitter::Bind_ShaderResources()
     CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_UseInstanceLookDirectionBasis", &useInstanceLookDirectionBasis, sizeof(useInstanceLookDirectionBasis)), E_FAIL);
     CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_SpriteRollOffsetRadians", &spriteRollOffsetRadians, sizeof(spriteRollOffsetRadians)), E_FAIL);
     CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_EffectSpriteEmitterCenter", &emitterCenter, sizeof(emitterCenter)), E_FAIL);
-    // 현재 sprite effect 경로에서는 주 텍스처를 lit base color가 아니라 emissive-like color + opacity source로 해석한다.
+    // Sprite material은 main texture를 lit base color가 아니라 emissive-like color와 opacity source로 해석한다.
     CHECK_FAILED_ONCE(_texture->Bind_ShaderResourceView(_shader.get(), "g_Texture", 0), E_FAIL);
     CHECK_FAILED_ONCE(Bind_MaterialResources(), E_FAIL);
     if (Is_DistortionFamily())
@@ -1009,8 +1009,12 @@ HRESULT ComputeSpriteEmitter::Bind_DistortionResources()
         nullptr != _flowTexture ? 1.f : 0.f,
         _emitterElapsedTime
     );
+    const EffectDistortionShapeMode distortionShapeMode =
+        material.distortionShapeMode == EffectDistortionShapeMode::AirSheath
+        ? EffectDistortionShapeMode::None
+        : material.distortionShapeMode;
     const Vec4 distortionShapeParams(
-        static_cast<float>(static_cast<uint32>(material.distortionShapeMode)),
+        static_cast<float>(static_cast<uint32>(distortionShapeMode)),
         max(0.f, material.distortionShapeRadius),
         max(0.f, material.distortionShapeThickness),
         max(0.f, material.distortionShapeSoftness)

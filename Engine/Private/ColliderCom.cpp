@@ -11,6 +11,69 @@
 namespace
 {
     constexpr float kPhysXSyncMatrixEpsilon = 0.0001f;
+    constexpr float kCollisionDebugHighlightScale = 1.35f;
+
+    const Color kDefaultCollisionDebugColor = Color(0.f, 1.f, 0.f, 1.f);
+    const Color kInactiveCollisionDebugColor = Color(0.5f, 0.5f, 0.5f, 1.f);
+    const Color kPlayerBodyCollisionDebugColor = Color(0.21f, 0.73f, 1.f, 1.f);
+    const Color kMonsterBodyCollisionDebugColor = Color(1.f, 0.54f, 0.24f, 1.f);
+    const Color kPlayerAttackCollisionDebugColor = Color(0.f, 0.9f, 1.f, 1.f);
+    const Color kMonsterAttackCollisionDebugColor = Color(1.f, 0.25f, 0.35f, 1.f);
+    const Color kItemCollisionDebugColor = Color(0.31f, 0.88f, 0.71f, 1.f);
+    const Color kTriggerCollisionDebugColor = Color(0.46f, 0.4f, 1.f, 1.f);
+    const Color kWeakPointCollisionDebugColor = Color(1.f, 0.85f, 0.29f, 1.f);
+
+    Color Resolve_CollisionDebugColor(Collision_Preset preset)
+    {
+        switch (preset)
+        {
+        case Collision_Preset::Player:
+        case Collision_Preset::Player_Body:
+        case Collision_Preset::Player_WorldBody:
+        case Collision_Preset::Player_Target:
+        case Collision_Preset::Player_WeakPointTarget:
+        case Collision_Preset::SL_PlayerBody:
+        case Collision_Preset::SL_TargetSensor:
+        case Collision_Preset::Player_ParkourSensor:
+            return kPlayerBodyCollisionDebugColor;
+
+        case Collision_Preset::Player_Attack:
+        case Collision_Preset::SL_PlayerAttack:
+            return kPlayerAttackCollisionDebugColor;
+
+        case Collision_Preset::Monster:
+        case Collision_Preset::Monster_Body:
+        case Collision_Preset::Monster_WorldBody:
+        case Collision_Preset::SL_MonsterBody:
+            return kMonsterBodyCollisionDebugColor;
+
+        case Collision_Preset::Monster_Attack:
+        case Collision_Preset::SL_MonsterAttack:
+            return kMonsterAttackCollisionDebugColor;
+
+        case Collision_Preset::Item:
+            return kItemCollisionDebugColor;
+
+        case Collision_Preset::Trigger:
+        case Collision_Preset::WorldActionTrigger:
+            return kTriggerCollisionDebugColor;
+
+        case Collision_Preset::Monster_WeakPoint:
+            return kWeakPointCollisionDebugColor;
+
+        default:
+            return kDefaultCollisionDebugColor;
+        }
+    }
+
+    Color Brighten_CollisionDebugColor(const Color& color)
+    {
+        return Color(
+            min(1.f, color.x * kCollisionDebugHighlightScale),
+            min(1.f, color.y * kCollisionDebugHighlightScale),
+            min(1.f, color.z * kCollisionDebugHighlightScale),
+            color.w);
+    }
 
     bool NearlyEqual(float lhs, float rhs)
     {
@@ -773,12 +836,12 @@ HRESULT ColliderCom::Render_Debug()
 
     _batch->Begin();
 
-    Color color = Color(0.f, 1.f, 0.f, 1.f);
+    Color color = Resolve_CollisionDebugColor(_preset);
 
     if (_isActive == false)
-        color = Color(0.5f, 0.5f, 0.5f, 1.f);
+        color = kInactiveCollisionDebugColor;
     else if (_isColl)
-        color = Color(1.f, 0.f, 0.f, 1.f);
+        color = Brighten_CollisionDebugColor(color);
 
     _bounding->Render_Debug(_batch.get(), color);
 

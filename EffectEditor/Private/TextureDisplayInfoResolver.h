@@ -11,6 +11,7 @@
 
 namespace EffectEditor::TextureDisplayInfoResolver
 {
+    //## Types::DisplayInfo
     struct TextureDisplayInfo
     {
         string id{};
@@ -21,8 +22,7 @@ namespace EffectEditor::TextureDisplayInfoResolver
 
     namespace Internal
     {
-        constexpr const wchar_t* kTextureTablePath = L"../../../Client/Bin/Resources/Data/json/DT_Texture.json";
-
+        //## Types::Cache
         struct TextureTableCache
         {
             bool loaded = false;
@@ -31,8 +31,13 @@ namespace EffectEditor::TextureDisplayInfoResolver
             unordered_map<wstring, string> idByResolvedPath{};
         };
 
+        //## Static::TextureTable
+        constexpr const wchar_t* kTextureTablePath = L"../../../Client/Bin/Resources/Data/json/DT_Texture.json";
+
+        //## Data::Cache
         inline TextureTableCache cache{};
 
+        //## Helper::TextAndPath
         inline string ToUpperCopy(string value)
         {
             ranges::transform(
@@ -113,6 +118,7 @@ namespace EffectEditor::TextureDisplayInfoResolver
             return extension.empty() ? string{} : ToUpperCopy(extension);
         }
 
+        //## Helper::TextureTableCache
         inline bool RefreshTextureTableCache()
         {
             const fs::path tablePath = ResolveEditorPath(kTextureTablePath);
@@ -184,6 +190,7 @@ namespace EffectEditor::TextureDisplayInfoResolver
         }
     }
 
+    //## Lookup::TextureInfo
     inline const TextureDisplayInfo* FindTextureInfoById(const string& textureId)
     {
         if (textureId.empty() || !Internal::RefreshTextureTableCache())
@@ -209,6 +216,7 @@ namespace EffectEditor::TextureDisplayInfoResolver
         return true;
     }
 
+    //## Format::TextureInfo
     inline string FormatTextureId(const string& textureId)
     {
         if (textureId.empty())

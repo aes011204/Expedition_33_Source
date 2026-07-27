@@ -14,7 +14,7 @@ namespace EffectAssetRuntimeLoad
 {
     namespace Json
     {
-        //## JSON Primitive Read
+        //## JSON::PrimitiveRead
 
         inline constexpr uint32 kMaxSubUVFrameCurveKeys{ kEffectDistributionCurveMaxKeys };
 
@@ -41,7 +41,7 @@ namespace EffectAssetRuntimeLoad
                 outValue = parsed.value();
         }
 
-        //## JSON Policy Read
+        //## JSON::PolicyRead
 
         EffectTextureUVTilingMode Resolve_CompatibleUVTilingMode(const EffectMaterialUVAxisPolicy& policy);
         void Read_UVAxisPolicy(
@@ -58,7 +58,7 @@ namespace EffectAssetRuntimeLoad
 
     namespace Curves
     {
-        //## Curve Evaluation
+        //## Curve::Evaluation
 
         float Evaluate_FloatCurveSegmentLinear(const json& leftKey, const json& rightKey, float x);
         float Evaluate_FloatCurveSegmentAutoClamped(const json& leftKey, const json& rightKey, float x);
@@ -69,7 +69,7 @@ namespace EffectAssetRuntimeLoad
         Vec3 Evaluate_Vector3ConstantCurve(const json& keys, float x, const Vec3& fallbackValue);
         Vec4 Evaluate_ColorConstantCurve(const json& keys, float x, const Vec4& fallbackValue);
 
-        //## Distribution Evaluation
+        //## Distribution::Evaluation
 
         const json* Find_DistributionPayload(const json& distribution);
         float Evaluate_FloatDistributionMin(const json& distribution, float fallbackValue);
@@ -87,7 +87,7 @@ namespace EffectAssetRuntimeLoad
         float Evaluate_ColorOverLifeEndpointAlphaMax(const json& distribution, float fallbackValue);
         float Resolve_CurveInterpolationMode(const json& key);
 
-        //## Runtime Curve Payload Fill
+        //## Runtime::CurvePayloadFill
 
         void Fill_ColorOverLifeCurvePayload(PointParticleColorOverLifeCurveDesc& desc, const json& colorOverLife);
         void Set_SubUVFrameCurveComponent(Vec4& values, uint32 index, float value);
@@ -114,7 +114,7 @@ namespace EffectAssetRuntimeLoad
 
     namespace Material
     {
-        //## Material Payload Fill
+        //## Runtime::MaterialPayloadFill
 
         void Apply_MaterialPayload(const json& material, EffectRequiredMaterialRuntimeDesc& materialDesc);
         void Fill_MaterialScalarModulationPayload(EffectMaterialScalarModulationRuntimeDesc& desc, const json& materialScalarModulation);
@@ -124,11 +124,11 @@ namespace EffectAssetRuntimeLoad
 
     namespace Emitters
     {
-        //## Emitter JSON Query
+        //## Emitter::JSONQuery
 
         const json* Find_ModuleData(const json& emitter, const string& moduleType);
 
-        //## Emitter Module Lowering
+        //## Emitter::ModuleLowering
 
         string Resolve_RendererType(const json& emitter);
         void Apply_RequiredModule(const json& data, EffectEmitterDefinition& definition, ComputeSpriteEmitterDesc& desc);
@@ -140,7 +140,7 @@ namespace EffectAssetRuntimeLoad
         void Apply_SpawnModule(const json& data, ComputeSpriteEmitterDesc& desc);
         void Apply_SpawnModule(const json& data, MeshEmitterDesc& desc);
 
-        //## Emitter Definition Build
+        //## Emitter::DefinitionBuild
 
         bool Build_EmitterDefinition(const json& emitter, EffectEmitterDefinition& outDefinition);
         bool Build_TrailEmitterDefinition(const json& emitter, EffectEmitterDefinition& outDefinition);
@@ -153,7 +153,7 @@ namespace EffectAssetRuntimeLoad
 
     namespace Assets
     {
-        //## Asset Resolve / Root Load
+        //## Asset::ResolveAndRootLoad
 
         bool Try_MakeResourceRelativePath(const fs::path& fullPath, const char* logContext, const string& assetKey, wstring& outRelativePath);
         bool Resolve_EffectAssetPathByGuid(const string& effectAssetGuid, wstring& outEffectAssetPath);

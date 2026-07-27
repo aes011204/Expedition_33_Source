@@ -459,9 +459,7 @@ HRESULT GameInstance::Initialize_Engine(const ENGINE_DESC& engineDesc, ComPtr<De
     _eventBus = Event_Bus::Create();
     CHECK_NULL(_eventBus, E_FAIL);
 
-    // Thread Pool
     {
-        // PC가 동시에 돌릴 수 있는 하드웨어 스레드 수 가져오기
         const size_t hardwareThreadCount = thread::hardware_concurrency();
         // 메인 스레드도 게임 업데이트/렌더링을 해야하니까 CPU를 전부 worker한테 넘기는게 아니라 하나 뺴기
         const size_t workerCount = max<size_t>(1, hardwareThreadCount > 1 ? hardwareThreadCount - 1 : 1);
@@ -494,7 +492,7 @@ void GameInstance::Update_Engine(float timeDelta, const function<void(float)>& c
     const auto editorUpdateBegin = chrono::steady_clock::now();
 #endif
 
-    _unscaledTimeDelta = timeDelta; // 배속 전
+    _unscaledTimeDelta = timeDelta;
 
     if (_isWorldTimeSlowActive)
     {
@@ -592,7 +590,6 @@ void GameInstance::Update_Engine(float timeDelta, const function<void(float)>& c
         levelMs = chrono::duration<double, milli>(chrono::steady_clock::now() - levelBegin).count();
 #endif
 
-    // UI 키면서 게임 멈출 때 Update 안돌릴 애들
     if (!_isGameplayPaused)
     {
 #ifdef _DEBUG
@@ -797,10 +794,7 @@ HRESULT GameInstance::Draw()
     stageBegin = chrono::steady_clock::now();
 #endif
 
-    //CHECK_FAILED(Update_Picking(), E_FAIL);
-
 #if defined(_DEBUG) || defined(_EDITOR)
-    // Collision Manager
     if (_enableEditorRuntimeDebug)
     {
         _collisionManager->Render_Debug();
@@ -808,7 +802,6 @@ HRESULT GameInstance::Draw()
 #endif
 
 #if defined(_DEBUG) || defined(_EDITOR)
-    // Debug Manager
     if (_enableEditorRuntimeDebug)
     {
 #ifdef _DEBUG
@@ -1610,7 +1603,7 @@ float GameInstance::Compute_TimeDelta(const wstring& timerTag)
     return _timerManager->Compute_TimeDelta(timerTag);
 }
 
-HRESULT GameInstance::Change_Level(uint32 newLevelIndex, Shared<Level> newLevel, bool clearPreviousLevelPrototypes)
+HRESULT GameInstance::Change_Level(uint32 newLevelIndex, const Shared<Level>& newLevel, bool clearPreviousLevelPrototypes)
 {
     return _levelManager->Change_Level(newLevelIndex, newLevel, clearPreviousLevelPrototypes);
 }
@@ -1625,7 +1618,7 @@ Shared<Level> GameInstance::Current_LevelType() const
     return _levelManager->Get_CurrentLevelType();
 }
 
-HRESULT GameInstance::Add_Prototype(uint32 levelIndex, const wstring& prototypeTag, Shared<Base> prototype)
+HRESULT GameInstance::Add_Prototype(uint32 levelIndex, const wstring& prototypeTag, const Shared<Base>& prototype)
 {
     return _prototypeManager->Add_Prototype(levelIndex, prototypeTag, prototype);
 }
@@ -1740,7 +1733,7 @@ uint64 GameInstance::Get_CurrentLevelObjectRevision() const
     return _objectManager->Get_ObjectRevision();
 }
 
-void GameInstance::Add_RenderGroup(RenderGroup renderGroup, Shared<GameObject> gameObject)
+void GameInstance::Add_RenderGroup(RenderGroup renderGroup, const Shared<GameObject>& gameObject)
 {
     return _renderer->Add_RenderGroup(renderGroup, gameObject);
 }
@@ -1775,7 +1768,7 @@ bool GameInstance::Is_RenderViewHotspotCaptureEnabled() const
     return _renderer->Is_RenderViewHotspotCaptureEnabled();
 }
 
-const Shared<PostProcessPipeline> GameInstance::Get_PostProcessPipeline() const
+Shared<PostProcessPipeline> GameInstance::Get_PostProcessPipeline() const
 {
     return _renderer ? _renderer->Get_PostProcessPipeline() : nullptr;
 }
@@ -1815,7 +1808,7 @@ HRESULT GameInstance::End_DOFOverrideScope(const string& ownerTag, const DOFTran
     return _renderer->End_DOFOverrideScope(ownerTag, transition);
 }
 
-const Shared<LightingPipeline> GameInstance::Get_LightingPipeline() const
+Shared<LightingPipeline> GameInstance::Get_LightingPipeline() const
 {
     return _renderer->Get_LightingPipeline();
 }
@@ -1843,7 +1836,7 @@ HRESULT GameInstance::Reload_ShaderComs()
     return _shaderComController->Reload_VertexShaders();
 }
 
-ScreenFx_Manager* GameInstance::Get_ScreenFxManager() 
+ScreenFx_Manager* GameInstance::Get_ScreenFxManager()
 {
     return _screenFxManager.get();
 }
@@ -1879,7 +1872,7 @@ HRESULT GameInstance::Change_IBL(const wchar_t* irradiancePath, const wchar_t* p
     return _environmentManager->Change_IBL(irradiancePath, prefilterPath);
 }
 
-HRESULT GameInstance::Bind_IBLTextures(Shared<ShaderCom> shader) const
+HRESULT GameInstance::Bind_IBLTextures(const Shared<ShaderCom>& shader) const
 {
     CHECK_NULL(_environmentManager, E_FAIL);
     return _environmentManager->Bind_IBLTextures(shader.get());
@@ -2053,7 +2046,7 @@ void GameInstance::Set_Transform(D3DTS transformState, FXMMATRIX& transformState
     _pipeLine->Set_Transform(transformState, transformStateMatrix);
 }
 
-HRESULT GameInstance::Bind_CameraCB(Shared<ShaderCom> shader) const
+HRESULT GameInstance::Bind_CameraCB(const Shared<ShaderCom>& shader) const
 {
     CHECK_NULL(shader, E_FAIL);
     CHECK_NULL(_pipeLine, E_FAIL);
@@ -2186,7 +2179,7 @@ HRESULT GameInstance::Update_PrimaryShadowLightDesc(const LIGHT_DESC& lightDesc)
     return _lightManager->Update_PrimaryShadowLightDesc(lightDesc);
 }
 
-HRESULT GameInstance::Render_Lights(Shared<ShaderCom> shader, Shared<VIBuffer_Rect> viBuffer)
+HRESULT GameInstance::Render_Lights(const Shared<ShaderCom>& shader, const Shared<VIBuffer_Rect>& viBuffer)
 {
     return _lightManager->Render_Lights(shader, viBuffer);
 }
@@ -2206,7 +2199,7 @@ HRESULT GameInstance::Set_Lights(const vector<LIGHT_DESC>& lightDescs)
     return _lightManager ? _lightManager->Set_Lights(lightDescs) : S_OK;
 }
 
-HRESULT GameInstance::Bind_PrimaryShadowLightCB(Shared<ShaderCom> shader) const
+HRESULT GameInstance::Bind_PrimaryShadowLightCB(const Shared<ShaderCom>& shader) const
 {
     return _lightManager->Bind_PrimaryShadowLightCB(shader);
 }
@@ -2660,17 +2653,17 @@ HRESULT GameInstance::Bind_ByName(ShaderCom* shader, const char* shaderVariableN
     return _shaderResourceRegistry->Bind_ByName(shader, shaderVariableName, name);
 }
 
-HRESULT GameInstance::Add_Camera(Shared<Camera> camera) const
+HRESULT GameInstance::Add_Camera(const Shared<Camera>& camera) const
 {
     return _cameraManager->Add_Camera(camera);
 }
 
-bool GameInstance::Is_ActiveCamera(Shared<Camera> camera)
+bool GameInstance::Is_ActiveCamera(const Shared<Camera>& camera)
 {
     return _cameraManager->Is_ActiveCamera(camera);
 }
 
-void GameInstance::Change_ActiveCamera(Shared<Camera> camera) const
+void GameInstance::Change_ActiveCamera(const Shared<Camera>& camera) const
 {
     return _cameraManager->Change_ActiveCamera(camera);
 }
@@ -2715,7 +2708,7 @@ Shared<Camera> GameInstance::Get_CameraByType(ObjectType objectType)
     return _cameraManager->Get_CameraByType(objectType);
 }
 
-HRESULT GameInstance::Bind_CameraFar(Shared<ShaderCom> shader, const char* constantName)
+HRESULT GameInstance::Bind_CameraFar(const Shared<ShaderCom>& shader, const char* constantName)
 {
     return _cameraManager->Bind_CameraFar(shader, constantName);
 }
@@ -2840,7 +2833,7 @@ HRESULT GameInstance::Resize_MRTs(uint32 width, uint32 height)
     return _targetManager->Resize_MRTs(width, height);
 }
 
-HRESULT GameInstance::Bind_RT_ShaderResource(Shared<ShaderCom> shader, const char* constantName, const wstring& targetTag)
+HRESULT GameInstance::Bind_RT_ShaderResource(const Shared<ShaderCom>& shader, const char* constantName, const wstring& targetTag)
 {
     return _targetManager->Bind_ShaderResource(shader, constantName, targetTag);
 }
@@ -2975,19 +2968,19 @@ HRESULT GameInstance::Bind_UINoDepthStencilState()
     return S_OK;
 }
 
-HRESULT GameInstance::Bind_ShadowMatrices(Shared<ShaderCom> shader, const char* viewName, const char* projName)
+HRESULT GameInstance::Bind_ShadowMatrices(const Shared<ShaderCom>& shader, const char* viewName, const char* projName)
 {
     CHECK_NULL(_shadow, E_FAIL);
     return _shadow->Bind_TransformStateMatrix(shader, viewName, projName);
 }
 
-HRESULT GameInstance::Bind_ShadowLightDesc(Shared<ShaderCom> shader, const char* lightFarName, const char* biasName, const char* intensityName)
+HRESULT GameInstance::Bind_ShadowLightDesc(const Shared<ShaderCom>& shader, const char* lightFarName, const char* biasName, const char* intensityName)
 {
     CHECK_NULL(_shadow, E_FAIL);
     return _shadow->Bind_ShadowLightDesc(shader, lightFarName, biasName, intensityName);
 }
 
-HRESULT GameInstance::Bind_ShadowCB(Shared<ShaderCom> shader)
+HRESULT GameInstance::Bind_ShadowCB(const Shared<ShaderCom>& shader)
 {
     CHECK_NULL(_shadow, E_FAIL);
     ShadowCB cb = _shadow->Build_ShadowCB();
@@ -3129,7 +3122,7 @@ const Matrix& GameInstance::Get_CachedShadowViewProj() const
     return _renderer->Get_CachedShadowViewProj();
 }
 
-void GameInstance::Add_Collider(Shared<ColliderCom> collider)
+void GameInstance::Add_Collider(const Shared<ColliderCom>& collider)
 {
     CHECK_NULL(collider);
     CHECK_NULL(_collisionManager);
@@ -3144,7 +3137,7 @@ void GameInstance::Add_Collider(Shared<ColliderCom> collider)
     Add_Collider(collider, transform->Get_WorldMatrix());
 }
 
-void GameInstance::Add_Collider(Shared<ColliderCom> collider, const Matrix& worldMatrix)
+void GameInstance::Add_Collider(const Shared<ColliderCom>& collider, const Matrix& worldMatrix)
 {
     CHECK_NULL(collider);
     CHECK_NULL(_collisionManager);
@@ -3798,7 +3791,7 @@ HRESULT GameInstance::Display_AllRTs(bool render)
     return _targetManager->Display_AllRTs(render);
 }
 
-HRESULT GameInstance::Render_RT_Debug(Shared<VIBuffer_Rect> viBuffer, Shared<ShaderCom> shader)
+HRESULT GameInstance::Render_RT_Debug(const Shared<VIBuffer_Rect>& viBuffer, const Shared<ShaderCom>& shader)
 {
     return _targetManager->Render_Debug(shader, viBuffer);
 }

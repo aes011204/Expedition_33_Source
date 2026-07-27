@@ -6,7 +6,6 @@ NS_END
 
 NS_BEGIN(EffectEditor)
 
-// EffectEditor command undo/redo stack을 관리한다.
 class CommandHistory final
 {
 public:
@@ -24,10 +23,10 @@ public: //## Accessors
     bool CanUndo() const { return !_undoStack.empty(); }
     bool CanRedo() const { return !_redoStack.empty(); }
 
-private: //## Static Values
+private: //## Static::History
     static constexpr size_t kMaxHistory{ 100 };
 
-private: //## Data
+private: //## Data::History
     vector<Shared<ICommand>> _undoStack{};
     vector<Shared<ICommand>> _redoStack{};
 

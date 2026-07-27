@@ -4,17 +4,14 @@
 
 NS_BEGIN(Client)
 
-// MaterialScalarModulation은 legacy module/serialized/shader payload 이름이다.
-// shader scalar payload 호환성은 이 이름으로 유지하고, Vec2/Color/refraction 같은 확장 material parameter는
-// 아래 MaterialParameter/Uniform resolve helper가 처리한다.
 
 //## Types::ShaderPayload
 struct EffectMaterialScalarModulationShaderPayload
 {
     static constexpr uint32 maxModulators{ EffectMaterialScalarModulationRuntimeDesc::kMaxModulators };
 
-    Vec4 params{};                     // x: count, y: emitter phase, zw: reserved.
-    array<Vec4, maxModulators> meta{}; // x: enabled, y: target, z: time source, w: key count.
+    Vec4 params{};
+    array<Vec4, maxModulators> meta{};
     array<Vec4, maxModulators> keyTimes{};
     array<Vec4, maxModulators> keyTimesBlock1{};
     array<Vec4, maxModulators> keyValues{};
@@ -31,11 +28,11 @@ struct EffectMaterialCoreColorRgbModulationShaderPayload
 {
     static constexpr uint32 maxModulators{ EffectMaterialCoreColorRgbModulationRuntimeDesc::kMaxModulators };
 
-    Vec4 params{};                     // x: count, y: emitter phase, zw: reserved.
-    array<Vec4, maxModulators> meta{}; // x: enabled, y: time source, z: key count, w: uniform enabled.
+    Vec4 params{};
+    array<Vec4, maxModulators> meta{};
     array<Vec4, maxModulators> uniformMin{};
     array<Vec4, maxModulators> uniformMax{};
-    array<Vec4, maxModulators> uniformSeed{}; // x: seed salt after playback-seed resolution.
+    array<Vec4, maxModulators> uniformSeed{};
     array<Vec4, maxModulators> keyTimes{};
     array<Vec4, maxModulators> keyTimesBlock1{};
     array<Vec4, maxModulators> keyValuesR{};

@@ -102,6 +102,10 @@ void EffectEmitter::Bind_SourcePointSampleProvider(const Weak<IEffectSourcePoint
 {
 }
 
+void EffectEmitter::Bind_RibbonSourcePointSampleProvider(const Weak<IEffectSourcePointSampleProvider>&)
+{
+}
+
 bool EffectEmitter::Collect_FollowerSourcePoints(vector<EffectFollowerSourcePoint>&, uint32) const
 {
     return false;

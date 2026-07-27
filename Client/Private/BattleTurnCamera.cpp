@@ -174,6 +174,12 @@ float NormalizeAngleDegrees(float angle)
     return angle;
 }
 
+float ScaleNormalizedYawDegrees(float yawDegrees, float scale)
+{
+    // 0~360도로 저장된 yaw도 같은 방향을 유지하도록 부호 있는 각도로 정규화한 뒤 비율을 적용한다.
+    return NormalizeAngleDegrees(yawDegrees) * scale;
+}
+
 float Resolve_BattlePlaneSideSignDegrees(
     const Shared<Character>& actor,
     const Vec3& referenceCenter,
@@ -1311,14 +1317,17 @@ bool BattleTurnCamera::Evaluate_ShotRequestPose(
 
             Vec3 subjectPos = _playerAttackSubjectPos;
             Vec3 opponentPos = _playerAttackOpponentPos;
+            const BattleCameraPreset framingPreset = Build_PlayerAttackFramingPreset(request, preset);
+            const BattleCameraClipSample framingClipSample =
+                Build_PlayerAttackFramingClipSample(request, clipSample);
 
             const float yawBase = Resolve_YawBaseForPresetMode(request);
 
             return Evaluate_BattleTurnPlayerAttackBattlePlanePose(
                 subjectPos,
                 opponentPos,
-                preset,
-                clipSample,
+                framingPreset,
+                framingClipSample,
                 yawBase,
                 clipTime,
                 outPose);
@@ -1487,7 +1496,8 @@ BattleCameraPreset BattleTurnCamera::Build_PlayerAttackFramingPreset(
     if (Is_SimonPlayerAttackTarget(request))
     {
         adjustedPreset.sideOffset *= kSimonPlayerAttackSideOffsetScale;
-        adjustedPreset.yawOffset *= kSimonPlayerAttackYawOffsetScale;
+        adjustedPreset.yawOffset =
+            ScaleNormalizedYawDegrees(adjustedPreset.yawOffset, kSimonPlayerAttackYawOffsetScale);
     }
 
     return adjustedPreset;
@@ -1501,7 +1511,8 @@ BattleCameraClipSample BattleTurnCamera::Build_PlayerAttackFramingClipSample(
     if (Is_SimonPlayerAttackTarget(request))
     {
         adjustedSample.sideOffset *= kSimonPlayerAttackSideOffsetScale;
-        adjustedSample.yawOffset *= kSimonPlayerAttackYawOffsetScale;
+        adjustedSample.yawOffset =
+            ScaleNormalizedYawDegrees(adjustedSample.yawOffset, kSimonPlayerAttackYawOffsetScale);
     }
 
     return adjustedSample;
@@ -1528,6 +1539,9 @@ bool BattleTurnCamera::Start_PoseTransition(
     const Vec3& targetPrevTargetPos)
 {
     EvaluatedPose fromPose = Capture_CurrentPose();
+    const BattleCameraPreset framingPreset = Build_PlayerAttackFramingPreset(request, preset);
+    const BattleCameraClipSample framingClipSample =
+        Build_PlayerAttackFramingClipSample(request, BattleCameraClipSample{});
 
     _poseTransition.hasFrozenPos = false;
     if (request.freezeSubjectDuringTransition == true &&
@@ -1548,8 +1562,8 @@ bool BattleTurnCamera::Start_PoseTransition(
         const float yawBase = Resolve_YawBaseForPresetMode(request);
         if (!Evaluate_CurrentPresetPose(
             _poseTransition.frozenSubjectPos,
-            preset,
-            BattleCameraClipSample{},
+            framingPreset,
+            framingClipSample,
             yawBase,
             _pitch,
             &targetSmoothedTargetPos,
@@ -1583,8 +1597,8 @@ bool BattleTurnCamera::Start_PoseTransition(
         if (!Evaluate_BattleTurnPlayerAttackBattlePlanePose(
             subjectPos,
             opponentPos,
-            preset,
-            BattleCameraClipSample{},
+            framingPreset,
+            framingClipSample,
             yawBase,
             0.f,
             toPose))
@@ -1592,7 +1606,13 @@ bool BattleTurnCamera::Start_PoseTransition(
             return false;
         }
     }
-    else if (!Evaluate_ShotRequestPose(request, preset, &targetSmoothedTargetPos, BattleCameraClipSample{}, 0.f, toPose))
+    else if (!Evaluate_ShotRequestPose(
+        request,
+        framingPreset,
+        &targetSmoothedTargetPos,
+        framingClipSample,
+        0.f,
+        toPose))
     {
         return false;
     }
@@ -1623,6 +1643,10 @@ void BattleTurnCamera::Update_PoseTransition(float timeDelta)
 {
     const float clampedDelta = std::max(0.f, timeDelta);
     const BattleCameraClipSample clipSample = Advance_ActiveClip(clampedDelta, _poseTransition.targetRequest);
+    const BattleCameraPreset framingPreset =
+        Build_PlayerAttackFramingPreset(_poseTransition.targetRequest, _poseTransition.targetPreset);
+    const BattleCameraClipSample framingClipSample =
+        Build_PlayerAttackFramingClipSample(_poseTransition.targetRequest, clipSample);
     _poseTransition.elapsed += clampedDelta;
     const float duration = std::max(0.0001f, _poseTransition.duration);
     const float t = std::clamp(_poseTransition.elapsed / duration, 0.f, 1.f);
@@ -1636,8 +1660,8 @@ void BattleTurnCamera::Update_PoseTransition(float timeDelta)
         const float yawBase = Resolve_YawBaseForPresetMode(_poseTransition.targetRequest);
         hasClippedTargetPose = Evaluate_CurrentPresetPose(
             _poseTransition.frozenSubjectPos,
-            _poseTransition.targetPreset,
-            clipSample,
+            framingPreset,
+            framingClipSample,
             yawBase,
             _pitch,
             &_poseTransition.targetSmoothedTargetPos,
@@ -1660,8 +1684,8 @@ void BattleTurnCamera::Update_PoseTransition(float timeDelta)
             hasClippedTargetPose = Evaluate_BattleTurnPlayerAttackBattlePlanePose(
                 _poseTransition.targetPlayerAttackSubjectPos,
                 _poseTransition.targetPlayerAttackOpponentPos,
-                _poseTransition.targetPreset,
-                clipSample,
+                framingPreset,
+                framingClipSample,
                 yawBase,
                 _clipShakeTime,
                 clippedTargetPose);
@@ -1670,9 +1694,9 @@ void BattleTurnCamera::Update_PoseTransition(float timeDelta)
         {
             hasClippedTargetPose = Evaluate_ShotRequestPose(
                 _poseTransition.targetRequest,
-                _poseTransition.targetPreset,
+                framingPreset,
                 &_poseTransition.targetSmoothedTargetPos,
-                clipSample,
+                framingClipSample,
                 _clipShakeTime,
                 clippedTargetPose);
         }

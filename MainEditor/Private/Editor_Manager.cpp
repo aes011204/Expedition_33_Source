@@ -1140,12 +1140,6 @@ void Editor_Manager::Notify_ReloadDataResult(const char* dataName, HRESULT hr, c
 
 void Editor_Manager::Render_SoundCheck()
 {
-    if (!_soundVolumePercentInitialized)
-    {
-        _soundVolumePercent = GAME->Get_SoundChannelVolume(SoundChannel::BGM) * 100.f;
-        _soundVolumePercentInitialized = true;
-    }
-
     ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.13f, 0.42f, 0.72f, 1.f));
     ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.18f, 0.50f, 0.82f, 1.f));
     ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.09f, 0.32f, 0.58f, 1.f));
@@ -1156,25 +1150,45 @@ void Editor_Manager::Render_SoundCheck()
     if (ImGui::IsItemHovered())
     {
         ImGui::BeginTooltip();
-        ImGui::Text("사운드 차단과 전체 볼륨 Percent를 조절합니다.");
+        ImGui::Text("음소거와 Master, BGM, SFX 볼륨을 조절합니다.");
         ImGui::EndTooltip();
     }
 
     if (ImGui::BeginPopup("SoundSettingsPopup"))
     {
+        auto apply_volumes = [this]()
+        {
+            const float masterVolume = clamp(_masterVolumePercent / 100.f, 0.f, 1.f);
+            GAME->Set_SoundChannelVolume(
+                SoundChannel::BGM,
+                masterVolume * clamp(_bgmVolumePercent / 100.f, 0.f, 1.f));
+
+            const float sfxVolume = masterVolume * clamp(_sfxVolumePercent / 100.f, 0.f, 1.f);
+            for (uint32 i = 0; i < ETOI(SoundChannel::END); ++i)
+            {
+                const SoundChannel channel = static_cast<SoundChannel>(i);
+                if (channel != SoundChannel::BGM)
+                    GAME->Set_SoundChannelVolume(channel, sfxVolume);
+            }
+        };
+
         bool muted = GAME->Is_AllSoundMuted();
-        if (ImGui::Checkbox("사운드 차단", &muted))
+        if (ImGui::Checkbox("음소거", &muted))
             GAME->Set_AllSoundMuted(muted);
 
         ImGui::Separator();
 
         ImGui::SetNextItemWidth(180.f);
-        if (ImGui::SliderFloat("Percent", &_soundVolumePercent, 0.f, 100.f, "%.0f%%"))
-        {
-            const float volume = clamp(_soundVolumePercent / 100.f, 0.f, 1.f);
-            for (uint32 i = 0; i < ETOI(SoundChannel::END); ++i)
-                GAME->Set_SoundChannelVolume(static_cast<SoundChannel>(i), volume);
-        }
+        if (ImGui::SliderFloat("Master", &_masterVolumePercent, 0.f, 100.f, "%.0f%%"))
+            apply_volumes();
+
+        ImGui::SetNextItemWidth(180.f);
+        if (ImGui::SliderFloat("BGM", &_bgmVolumePercent, 0.f, 100.f, "%.0f%%"))
+            apply_volumes();
+
+        ImGui::SetNextItemWidth(180.f);
+        if (ImGui::SliderFloat("SFX", &_sfxVolumePercent, 0.f, 100.f, "%.0f%%"))
+            apply_volumes();
 
         ImGui::EndPopup();
     }

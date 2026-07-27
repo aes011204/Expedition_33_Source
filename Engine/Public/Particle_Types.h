@@ -771,24 +771,6 @@ struct InstanceSpawnDesc
     Vec2 scale{};           // 랜덤 스케일 범위.
 };
 
-// Deprecated: CPU particle backend는 legacy fallback으로만 유지한다. 신규 Sprite runtime은 ComputePointParticleDesc를 사용한다.
-struct [[deprecated("Use compute sprite particle path instead.")]] PointParticleDesc : public InstanceSpawnDesc
-{
-    Vec3 pivot{};                                                    // 퍼짐 기준점.
-    Vec2 speed{};                                                    // 랜덤 속도 범위.
-    Vec2 lifeTime{};                                                 // 랜덤 생존 시간 범위.
-    Vec4 startColorMin{ 1.f, 1.f, 1.f, 1.f };                        // Initial Color에서 샘플링할 시작 색상 하한.
-    Vec4 startColorMax{ 1.f, 1.f, 1.f, 1.f };                        // Initial Color에서 샘플링할 시작 색상 상한.
-    Vec4 endColorMin{ 1.f, 1.f, 1.f, 1.f };                          // Color Over Life에서 샘플링할 종료 색상 하한.
-    Vec4 endColorMax{ 1.f, 1.f, 1.f, 1.f };                          // Color Over Life에서 샘플링할 종료 색상 상한.
-    uint32 subUVRows{ 1 };                                           // atlas row 수다.
-    uint32 subUVCols{ 1 };                                           // atlas column 수다.
-    PointParticleSubUVFrameOverLifeDesc subUvFrameOverLife{};        // 수명 진행률 기준 frame 선택 규칙이다.
-    PointParticleSizeByLifeDesc sizeByLife{};                        // 수명 진행률 기준 크기 배율 규칙이다.
-    bool loop{};                                                     // true면 생존 시간이 끝난 인스턴스를 재생성한다.
-    PointParticleDrawMode drawMode{ PointParticleDrawMode::Direct }; // Stage2 indirect draw 검증용 제출 방식.
-};
-
 // compute shader가 instance payload를 갱신하는 compute-first sprite particle desc.
 struct ComputePointParticleDesc : public InstanceSpawnDesc
 {

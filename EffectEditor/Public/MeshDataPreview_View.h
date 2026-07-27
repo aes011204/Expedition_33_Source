@@ -11,7 +11,6 @@ NS_END
 
 NS_BEGIN(EffectEditor)
 
-// Mesh TypeData의 model/material/transform 값을 검사하고 preview한다.
 class MeshDataPreview_View final : public Editor_Window
 {
 public:
@@ -23,8 +22,18 @@ public:
     void Render() override;
     void Open_Target(uint32 emitterId);
 
-private: //## Types
+private: //## Types::PreviewTarget
     struct PreviewRenderer;
+
+private: //## Data::Preview
+    Unique<PreviewRenderer> _previewRenderer{};
+    DetailPropertyContext _detailPropertyContext{};
+    map<string, Shared<Texture>> _textureThumbnailCache{};
+    uint32 _targetEmitterId{};
+    float _timeDelta{};
+    bool _hasPendingAuthoringEdit{ false };
+    Emitter_View::AuthoringSnapshot _pendingAuthoringSnapshot{};
+    string _pendingAuthoringDescription{};
 
 private: //## Helper::Target
     Shared<Emitter_View> Resolve_EmitterView() const;
@@ -46,16 +55,6 @@ private: //## Helper::AuthoringHistory
         const string& description);
     void Commit_PendingAuthoringEditIfIdle(Emitter_View& emitterView);
     void Commit_PendingAuthoringEdit(Emitter_View& emitterView);
-
-private: //## Data::Preview
-    Unique<PreviewRenderer> _previewRenderer{};
-    DetailPropertyContext _detailPropertyContext{};
-    map<string, Shared<Texture>> _textureThumbnailCache{};
-    uint32 _targetEmitterId{};
-    float _timeDelta{};
-    bool _hasPendingAuthoringEdit{ false };
-    Emitter_View::AuthoringSnapshot _pendingAuthoringSnapshot{};
-    string _pendingAuthoringDescription{};
 
 public:
     static Shared<MeshDataPreview_View> Create();

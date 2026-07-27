@@ -31,7 +31,6 @@ HRESULT ComputeStructuredBuffer::Initialize(uint32 elementSize, uint32 elementCo
     bufferDesc.MiscFlags = D3D11_RESOURCE_MISC_BUFFER_STRUCTURED;
     bufferDesc.StructureByteStride = _elementSize;
 
-    // initialData가 있으면 CreateBuffer에 초기 데이터 desc를 넘기고, 없으면 빈 GPU buffer로 만든다.
     D3D11_SUBRESOURCE_DATA initialSubResource{};
     initialSubResource.pSysMem = initialData;
 

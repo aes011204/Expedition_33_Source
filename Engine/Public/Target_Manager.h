@@ -33,7 +33,7 @@ public :
         DXGI_FORMAT pixelFormat, const Color& clearColor, bool resizeWithViewport = true, bool useDSV = false, uint32 arraySize = 1);
     HRESULT Add_MRT(const wstring& mrtTag, const wstring& targetTag);
 
-    HRESULT Bind_ShaderResource(Shared<ShaderCom> shader, const char* constantName, const wstring& targetTag);
+    HRESULT Bind_ShaderResource(const Shared<ShaderCom>& shader, const char* constantName, const wstring& targetTag);
     HRESULT Begin_MRT(const wstring& mrtTag, bool useDSV, bool clearRTV, uint32 arraySlice = 0);
     HRESULT End_MRT();
 
@@ -80,7 +80,7 @@ public :
     HRESULT Resize_DrawArea(float sizeX, float sizeY);
     HRESULT Display_RT(const wstring& targetTag, bool render);
     HRESULT Display_AllRTs(bool render);
-    HRESULT Render_Debug(Shared<ShaderCom> shader, Shared<VIBuffer_Rect> viBuffer);
+    HRESULT Render_Debug(const Shared<ShaderCom>& shader, const Shared<VIBuffer_Rect>& viBuffer);
     const map<wstring, bool>&  Get_RTs() const;
     ComPtr<ID3D11Texture2D> Get_RT_Texture(const wstring& targetTag);
 

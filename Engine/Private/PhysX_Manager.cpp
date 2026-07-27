@@ -334,7 +334,7 @@ void PhysX_Manager::Begin_Frame()
     _frameEvents.clear();
 }
 
-void PhysX_Manager::Register_OrSync_Collider(Shared<ColliderCom> collider, const Matrix& worldMatrix)
+void PhysX_Manager::Register_OrSync_Collider(const Shared<ColliderCom>& collider, const Matrix& worldMatrix)
 {
     CHECK_NULL(collider);
     CHECK_NULL(_physics);

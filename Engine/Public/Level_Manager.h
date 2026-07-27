@@ -10,16 +10,16 @@ class Level_Manager final : public Base
 {
 public:
 	Level_Manager();
-	virtual ~Level_Manager() = default;
+    ~Level_Manager() override = default;
 
 public:
 	void    Update(float timeDelta);
 	HRESULT Render();
 
 public:
-	HRESULT Change_Level(uint32 newLevelIndex, Shared<Level> newLevel, bool clearPreviousLevelPrototypes = true);
+	HRESULT Change_Level(uint32 newLevelIndex, const Shared<Level>& newLevel, bool clearPreviousLevelPrototypes = true);
 
-    uint32  Get_CurrentLevelIndex() { return _currentLevelIndex; }
+    uint32 Get_CurrentLevelIndex() { return _currentLevelIndex; }
     Shared<Level> Get_CurrentLevelType() { return _currentLevel; }
 
 private:

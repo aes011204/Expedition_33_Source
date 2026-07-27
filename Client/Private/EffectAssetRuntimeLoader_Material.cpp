@@ -120,6 +120,12 @@ namespace EffectAssetRuntimeLoad::Material
         materialDesc.refractionIntensity = Read_Float(material, "refractionIntensity", materialDesc.refractionIntensity);
         materialDesc.refractionPresence = Read_Float(material, "refractionPresence", materialDesc.refractionPresence);
         Read_Enum(material, "distortionShapeMode", materialDesc.distortionShapeMode);
+        Read_Enum(material, "airSheathMapInterpretation", materialDesc.airSheathMapInterpretation);
+        Read_Enum(material, "airSheathMapXSource", materialDesc.airSheathMapXSource);
+        Read_Enum(material, "airSheathMapYSource", materialDesc.airSheathMapYSource);
+        Read_Enum(material, "airSheathMapVectorSpace", materialDesc.airSheathMapVectorSpace);
+        Read_Enum(material, "airSheathMapComposition", materialDesc.airSheathMapComposition);
+        materialDesc.airSheathMapInfluence = Read_Float(material, "airSheathMapInfluence", materialDesc.airSheathMapInfluence);
         materialDesc.distortionShapeRadius = Read_Float(material, "distortionShapeRadius", materialDesc.distortionShapeRadius);
         materialDesc.distortionShapeThickness = Read_Float(material, "distortionShapeThickness", materialDesc.distortionShapeThickness);
         materialDesc.distortionShapeSoftness = Read_Float(material, "distortionShapeSoftness", materialDesc.distortionShapeSoftness);

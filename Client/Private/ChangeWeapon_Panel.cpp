@@ -164,6 +164,11 @@ namespace
 
     constexpr Vec4 kWeaponFrameDefaultTint{ 1.f, 1.f, 1.f, 1.f };
     constexpr Vec4 kWeaponFrameEquippedTint{ 0.78f, 0.36f, 0.58f, 1.f };
+
+    bool Should_PlayWeaponIntroOnEquip(HeroId heroId)
+    {
+        return heroId == HeroId::Gustave || heroId == HeroId::Maelle;
+    }
 }
 
 HRESULT ChangeWeapon_Panel::Initialize(uint32 levelIndex)
@@ -441,6 +446,8 @@ void ChangeWeapon_Panel::Handle_WeaponSelectionInput()
 
         const auto hero = CLIENT->Find_Hero(heroId);
         const auto statCom = hero ? hero->Get_Component<PlayerStatCom>() : nullptr;
+        const bool weaponChanged = statCom &&
+            statCom->Get_PlayerRuntimeStat().CurEquippedWeaponId != selectedWeapon.weaponId;
         if (statCom)
         {
             statCom->Set_EquippedWeapon(
@@ -450,6 +457,9 @@ void ChangeWeapon_Panel::Handle_WeaponSelectionInput()
 
         CLIENT->Sync_PreviewHeroRuntimeData(heroId);
         Apply_ChangeWeaponPreviewWeapon(heroId);
+        if (weaponChanged && Should_PlayWeaponIntroOnEquip(heroId))
+            CLIENT->Play_PreviewAnimation(heroId, PreviewAnimState::Weapon_Intro, PreviewAnimState::Weapon_Idle);
+
         Refresh_WeaponUI(); // 장착 row 보라색 표시와 selected index를 새 장착값 기준으로 다시 맞춘다.
 
         GAME->Play_SoundCue(Constants::SoundCue::UI_Battle_SelectAlly);

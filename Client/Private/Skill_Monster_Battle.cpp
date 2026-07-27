@@ -13,7 +13,7 @@
 
 NS_BEGIN(Client)
 
-namespace Internal
+namespace
 {
     void Play_TargetHitEffect(const BattleChar& target, const BattleHitSequenceRunner::HitEffectDesc& hitEffect)
     {
@@ -166,7 +166,7 @@ void Base_Mon_Attack_Projectile::Execute(const Skill_Data& skill, const BattleAc
 
 void Base_Mon_Attack_Projectile::Play_GuardedHitEffect(const BattleAction& action)
 {
-    Internal::Play_FirstTargetHitEffect(action, L"Bishop_Projectile_Attack");
+    Play_FirstTargetHitEffect(action, L"Bishop_Projectile_Attack");
 }
 
 Shared<Base_Mon_Attack_Projectile> Base_Mon_Attack_Projectile::Create()
@@ -204,7 +204,7 @@ void Potato_Fire_Skill::Execute(const Skill_Data& skill, const BattleAction& act
 
 void Potato_Fire_Skill::Play_GuardedHitEffect(const BattleAction& action)
 {
-    Internal::Play_AllTargetHitEffect(action, L"PotatoBag_Fire_Attack");
+    Play_AllTargetHitEffect(action, L"PotatoBag_Fire_Attack");
 }
 
 void Potato_Fire_Skill::Collect_PrewarmEffects(const Skill_Data& skill, const BattleEffectPrewarmContext& context, vector<EffectPrewarmRequest>& outRequests) const
@@ -250,7 +250,7 @@ void Potato_Thunder_Skill::Execute(const Skill_Data& skill, const BattleAction& 
 
 void Potato_Thunder_Skill::Play_GuardedHitEffect(const BattleAction& action)
 {
-    Internal::Play_FirstTargetHitEffect(action, L"PotatoBag_Thunder_Attack");
+    Play_FirstTargetHitEffect(action, L"PotatoBag_Thunder_Attack");
 }
 
 void Potato_Thunder_Skill::Collect_PrewarmEffects(const Skill_Data& skill, const BattleEffectPrewarmContext&, vector<EffectPrewarmRequest>& outRequests) const
@@ -298,7 +298,7 @@ void Bishop_Spear::Execute(const Skill_Data& skill, const BattleAction& action, 
 
 void Bishop_Spear::Play_GuardedHitEffect(const BattleAction& action)
 {
-    Internal::Play_FirstTargetHitEffect(action, L"Bishop_Spear_Attack");
+    Play_FirstTargetHitEffect(action, L"Bishop_Spear_Attack");
 }
 
 Shared<Bishop_Spear> Bishop_Spear::Create()
@@ -379,10 +379,10 @@ void Base_Mon_Spawn::Execute(const Skill_Data& skill, const BattleAction& action
             if (spawnedEnemy.actor == nullptr)
                 continue;
 
-            if (Internal::Contains_Actor(enemiesBeforeSpawn, spawnedEnemy.actor))
+            if (Contains_Actor(enemiesBeforeSpawn, spawnedEnemy.actor))
                 continue;
 
-            Internal::Restore_SpawnedActorVisibility(spawnedEnemy.actor);
+            Restore_SpawnedActorVisibility(spawnedEnemy.actor);
         }
     }
 }
@@ -471,7 +471,7 @@ void Simon_Debuff::Play_GuardedHitEffect(const BattleAction& action)
     effectDesc.localOffset = Vec3(0.f, 1.f, 0.f);
     effectDesc.scale = Vec3(1.f, 1.f, 1.f);
 
-    Internal::Play_TargetHitEffect(curTargets.front(), effectDesc);
+    Play_TargetHitEffect(curTargets.front(), effectDesc);
 }
 
 void Simon_Debuff::Collect_PrewarmEffects(const Skill_Data& skill, const BattleEffectPrewarmContext& context, vector<EffectPrewarmRequest>& outRequests) const

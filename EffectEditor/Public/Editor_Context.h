@@ -9,7 +9,6 @@ NS_END
 
 NS_BEGIN(EffectEditor)
 
-// scene object 선택과 effect authoring 선택 상태를 editor 전역 context로 보관한다.
 class Editor_Context final : public Base
 {
 public:

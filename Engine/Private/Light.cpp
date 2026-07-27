@@ -22,7 +22,7 @@ HRESULT Light::Update_Desc(const LIGHT_DESC& lightDesc)
     return S_OK;
 }
 
-HRESULT Light::Render(Shared<ShaderCom> shader, Shared<VIBuffer_Rect> viBuffer)
+HRESULT Light::Render(const Shared<ShaderCom>& shader, const Shared<VIBuffer_Rect>& viBuffer)
 {
     CHECK_NULL(shader, E_FAIL);
     CHECK_NULL(viBuffer, E_FAIL);
@@ -53,7 +53,7 @@ HRESULT Light::Render(Shared<ShaderCom> shader, Shared<VIBuffer_Rect> viBuffer)
 }
 
 
-HRESULT Light::Bind_LightCB(Shared<ShaderCom> shader)
+HRESULT Light::Bind_LightCB(const Shared<ShaderCom>& shader)
 {
 
     LightCB lightCB{};

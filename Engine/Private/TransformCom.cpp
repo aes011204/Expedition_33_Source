@@ -1,12 +1,12 @@
 ﻿#include "TransformCom.h"
 #include "ShaderCom.h"
 
-namespace Engine::Internal
+namespace
 {
-constexpr float transformEpsilon = 1e-6f;      // transform 연산에서 0 비교에 쓰는 허용 오차
-constexpr float minEditableScale = 1e-4f;      // basis 붕괴를 막기 위해 scale 0 근처를 피하는 최소값
-constexpr float minEditableSpeedPerSec = 0.f;  // 이동 속도 하한
-constexpr float minEditableDegreePerSec = 0.f; // 회전 속도 입력값(deg/s) 하한
+constexpr float transformEpsilon = 1e-6f;
+constexpr float minEditableScale = 1e-4f;
+constexpr float minEditableSpeedPerSec = 0.f;
+constexpr float minEditableDegreePerSec = 0.f;
 
 float Resolve_ScaleSign(float value, float fallback = 1.f)
 {
@@ -133,8 +133,7 @@ void TransformCom::From_Json(const json& data)
                 arr[2].get<float>()
             );
 
-            // 부모가 없는 프리팹/파츠는 저장된 Euler를 그대로 다시 넣어야
-            // 재오픈 후에도 인스펙터 표기가 쿼터니언 정규화값으로 바뀌지 않는다.
+            // Parent가 없으면 serialized Euler를 복원해 Inspector 표시값을 보존한다.
             if (hasTransformParent)
                 Set_WorldRotationEuler(serializedRotation);
             else
@@ -191,30 +190,6 @@ Vec3 TransformCom::Get_State(State state)
     }
 }
 
-void TransformCom::Set_State(State state, const Vec3& value)
-{
-    LOG_WARN("TransformCom::Set_State() is deprecated.");
-
-    //if (State::Position == state)
-    //{
-    //    Set_Position(value);
-    //    return;
-    //}
-    //
-    //const Vec3 rotationAxis = Resolve_NormalizedAxis(state);
-    //Set_LocalState(state, value);
-    //
-    //if (value.LengthSquared() > Internal::transformEpsilon)
-    //{
-    //    Vec3 axis = value;
-    //    axis.Normalize();
-    //    const float axisSign = axis.Dot(rotationAxis) < 0.f ? -1.f : 1.f;
-    //    Set_SignedScale(state, value.Length() * axisSign);
-    //}
-    //
-    //Sanitize_LocalBasis();
-}
-
 Vec3 TransformCom::Get_Position() const
 {
     return Get_LocalState(State::Position);
@@ -249,7 +224,7 @@ void TransformCom::Set_WorldPosition(const Vec3& position)
 
     const Matrix parentWorld = parent->_worldMatrix;
     const float determinant = XMVectorGetX(XMMatrixDeterminant(parentWorld));
-    if (determinant > -Internal::transformEpsilon && determinant < Internal::transformEpsilon)
+    if (determinant > -transformEpsilon && determinant < transformEpsilon)
         return;
 
     const Matrix inverseParentWorld = parentWorld.Invert();
@@ -350,7 +325,7 @@ Vec3 TransformCom::Get_WorldRotationEuler()
     if (!worldMatrix.Decompose(scale, rotation, translation))
         return Vec3::Zero;
 
-    if (rotation.LengthSquared() <= Internal::transformEpsilon)
+    if (rotation.LengthSquared() <= transformEpsilon)
         rotation = Quat::Identity;
     else
         rotation.Normalize();
@@ -402,7 +377,7 @@ const Quat& TransformCom::Get_RotationQuaternion()
 
 void TransformCom::Set_RotationQuaternion(const Quat& rotation)
 {
-    if (rotation.LengthSquared() <= Internal::transformEpsilon)
+    if (rotation.LengthSquared() <= transformEpsilon)
         _localRotationCache = Quat::Identity;
     else
     {
@@ -424,7 +399,7 @@ void TransformCom::Add_LocalRotationQuaternion(const Quat& deltaRotation)
     Quat rotation = Get_RotationQuaternion();
     rotation = rotation * deltaRotation;
 
-    if (rotation.LengthSquared() <= Internal::transformEpsilon)
+    if (rotation.LengthSquared() <= transformEpsilon)
         return;
 
     rotation.Normalize();
@@ -442,7 +417,7 @@ Quat TransformCom::Get_WorldRotationQuaternion()
     if (!worldMatrix.Decompose(scale, rotation, translation))
         return Quat::Identity;
 
-    if (rotation.LengthSquared() <= Internal::transformEpsilon)
+    if (rotation.LengthSquared() <= transformEpsilon)
         return Quat::Identity;
 
     rotation.Normalize();
@@ -453,7 +428,7 @@ void TransformCom::Set_WorldRotationQuaternion(const Quat& rotation)
 {
     Quat desiredWorldRotation = rotation;
 
-    if (desiredWorldRotation.LengthSquared() <= Internal::transformEpsilon)
+    if (desiredWorldRotation.LengthSquared() <= transformEpsilon)
         desiredWorldRotation = Quat::Identity;
     else
         desiredWorldRotation.Normalize();
@@ -477,7 +452,7 @@ void TransformCom::Set_WorldRotationQuaternion(const Quat& rotation)
         return;
     }
 
-    if (parentWorldRotation.LengthSquared() <= Internal::transformEpsilon)
+    if (parentWorldRotation.LengthSquared() <= transformEpsilon)
         parentWorldRotation = Quat::Identity;
     else
         parentWorldRotation.Normalize();
@@ -487,7 +462,7 @@ void TransformCom::Set_WorldRotationQuaternion(const Quat& rotation)
     const Matrix localRotationMatrix = desiredWorldRotationMatrix * parentWorldRotationMatrix.Invert();
 
     Quat localRotation = Quat::CreateFromRotationMatrix(localRotationMatrix);
-    if (localRotation.LengthSquared() <= Internal::transformEpsilon)
+    if (localRotation.LengthSquared() <= transformEpsilon)
         localRotation = Quat::Identity;
     else
         localRotation.Normalize();
@@ -500,7 +475,7 @@ void TransformCom::Add_WorldRotationQuaternion(const Quat& deltaRotation)
     Quat worldRotation = Get_WorldRotationQuaternion();
     worldRotation = worldRotation * deltaRotation;
 
-    if (worldRotation.LengthSquared() <= Internal::transformEpsilon)
+    if (worldRotation.LengthSquared() <= transformEpsilon)
         return;
 
     worldRotation.Normalize();
@@ -514,7 +489,7 @@ float TransformCom::Get_SpeedPerSec() const
 
 void TransformCom::Set_SpeedPerSec(float speedPerSec)
 {
-    _speedPerSec = speedPerSec < Internal::minEditableSpeedPerSec ? Internal::minEditableSpeedPerSec : speedPerSec;
+    _speedPerSec = speedPerSec < minEditableSpeedPerSec ? minEditableSpeedPerSec : speedPerSec;
 }
 
 float TransformCom::Get_DegreePerSec() const
@@ -524,8 +499,53 @@ float TransformCom::Get_DegreePerSec() const
 
 void TransformCom::Set_DegreePerSec(float degreePerSec)
 {
-    const float clampedDegreePerSec = degreePerSec < Internal::minEditableDegreePerSec ? Internal::minEditableDegreePerSec : degreePerSec;
+    const float clampedDegreePerSec = degreePerSec < minEditableDegreePerSec ? minEditableDegreePerSec : degreePerSec;
     _radianPerSec = XMConvertToRadians(clampedDegreePerSec);
+}
+
+Vec3 TransformCom::Get_WorldForward()
+{
+    Vec3 forward = Get_State(State::Look);
+    if (forward.LengthSquared() > transformEpsilon)
+        forward.Normalize();
+
+    return forward;
+}
+
+Vec3 TransformCom::Get_WorldRight()
+{
+    Vec3 right = Get_State(State::Right);
+    if (right.LengthSquared() > transformEpsilon)
+        right.Normalize();
+
+    return right;
+}
+
+Vec3 TransformCom::Get_WorldUp()
+{
+    Vec3 up = Get_State(State::Up);
+    if (up.LengthSquared() > transformEpsilon)
+        up.Normalize();
+
+    return up;
+}
+
+Vec3 TransformCom::Get_LocalForward()
+{
+    Sync_RotationCache_FromLocalMatrix();
+    return Vec3::Transform(Vec3::Look, _localRotationCache);
+}
+
+Vec3 TransformCom::Get_LocalRight()
+{
+    Sync_RotationCache_FromLocalMatrix();
+    return Vec3::Transform(Vec3::Right, _localRotationCache);
+}
+
+Vec3 TransformCom::Get_LocalUp()
+{
+    Sync_RotationCache_FromLocalMatrix();
+    return Vec3::Transform(Vec3::Up, _localRotationCache);
 }
 
 void TransformCom::Set_Parent(const Shared<TransformCom>& parent)
@@ -556,7 +576,7 @@ void TransformCom::Set_Parent(const Shared<TransformCom>& parent)
 
         const Matrix parentWorld = parent->_worldMatrix;
         const float determinant = XMVectorGetX(XMMatrixDeterminant(parentWorld));
-        if (abs(determinant) <= Internal::transformEpsilon)
+        if (abs(determinant) <= transformEpsilon)
         {
             LOG_WARN("TransformCom::Set_Parent rejected non-invertible parent world matrix.");
             return;
@@ -576,51 +596,6 @@ void TransformCom::Set_Parent(const Shared<TransformCom>& parent)
     _observedParentWorldRevision = 0;
     Sync_SignedScaleFromLocalMatrix(previousSignedScale);
     Sanitize_LocalBasis();
-}
-
-Vec3 TransformCom::Get_WorldForward()
-{
-    Vec3 forward = Get_State(State::Look);
-    if (forward.LengthSquared() > Internal::transformEpsilon)
-        forward.Normalize();
-
-    return forward;
-}
-
-Vec3 TransformCom::Get_WorldRight()
-{
-    Vec3 right = Get_State(State::Right);
-    if (right.LengthSquared() > Internal::transformEpsilon)
-        right.Normalize();
-
-    return right;
-}
-
-Vec3 TransformCom::Get_WorldUp()
-{
-    Vec3 up = Get_State(State::Up);
-    if (up.LengthSquared() > Internal::transformEpsilon)
-        up.Normalize();
-
-    return up;
-}
-
-Vec3 TransformCom::Get_LocalForward()
-{
-    Sync_RotationCache_FromLocalMatrix();
-    return Vec3::Transform(Vec3::Look, _localRotationCache);
-}
-
-Vec3 TransformCom::Get_LocalRight()
-{
-    Sync_RotationCache_FromLocalMatrix();
-    return Vec3::Transform(Vec3::Right, _localRotationCache);
-}
-
-Vec3 TransformCom::Get_LocalUp()
-{
-    Sync_RotationCache_FromLocalMatrix();
-    return Vec3::Transform(Vec3::Up, _localRotationCache);
 }
 
 void TransformCom::Scaling(float scaleX, float scaleY, float scaleZ)
@@ -677,7 +652,7 @@ void TransformCom::Go_Down(float timeDelta)
 void TransformCom::Rotate(const Vec3& axis, float degree)
 {
     Vec3 axisValue = axis;
-    if (axisValue.LengthSquared() <= Internal::transformEpsilon)
+    if (axisValue.LengthSquared() <= transformEpsilon)
         return;
 
     axisValue.Normalize();
@@ -692,7 +667,7 @@ void TransformCom::LookAt(const Vec3& at)
 
     // SimpleMath::CreateWorld는 카메라 forward 관례를 써서 target 방향을 반대로 넣는다.
     Vec3 direction = worldPosition - at;
-    if (direction.LengthSquared() <= Internal::transformEpsilon)
+    if (direction.LengthSquared() <= transformEpsilon)
         return;
 
     direction.Normalize();
@@ -712,7 +687,7 @@ void TransformCom::LookAt(const Vec3& at)
 
         const Matrix parentWorld = parent->_worldMatrix;
         const float determinant = XMVectorGetX(XMMatrixDeterminant(parentWorld));
-        if (abs(determinant) <= Internal::transformEpsilon)
+        if (abs(determinant) <= transformEpsilon)
             return;
 
         _localMatrix = desiredWorld * parentWorld.Invert();
@@ -778,11 +753,11 @@ void TransformCom::Clear_Dirty(TRANSFORM_DIRTY_FLAG dirty)
 
 float TransformCom::Clamp_EditableScale(float scale)
 {
-    if (abs(scale) <= Internal::transformEpsilon)
-        return Internal::minEditableScale;
+    if (abs(scale) <= transformEpsilon)
+        return minEditableScale;
 
-    if (abs(scale) < Internal::minEditableScale)
-        return Internal::Resolve_ScaleSign(scale) * Internal::minEditableScale;
+    if (abs(scale) < minEditableScale)
+        return Resolve_ScaleSign(scale) * minEditableScale;
 
     return scale;
 }
@@ -839,9 +814,9 @@ void TransformCom::Sync_SignedScaleFromLocalMatrix(Vec3 fallbackScale)
     const Vec3 up = Get_LocalState(State::Up);
     const Vec3 look = Get_LocalState(State::Look);
 
-    Set_SignedScale(State::Right, right.Length() * Internal::Resolve_ScaleSign(fallbackScale.x));
-    Set_SignedScale(State::Up, up.Length() * Internal::Resolve_ScaleSign(fallbackScale.y));
-    Set_SignedScale(State::Look, look.Length() * Internal::Resolve_ScaleSign(fallbackScale.z));
+    Set_SignedScale(State::Right, right.Length() * Resolve_ScaleSign(fallbackScale.x));
+    Set_SignedScale(State::Up, up.Length() * Resolve_ScaleSign(fallbackScale.y));
+    Set_SignedScale(State::Look, look.Length() * Resolve_ScaleSign(fallbackScale.z));
 }
 
 Vec3 TransformCom::Get_LocalState(State state) const
@@ -895,11 +870,11 @@ Vec3 TransformCom::Resolve_NormalizedAxis(State state) const
     Vec3 axis = Get_LocalState(state);
     const float signedScale = Get_SignedScale(state);
 
-    if (abs(signedScale) > Internal::transformEpsilon && axis.LengthSquared() > Internal::transformEpsilon)
+    if (abs(signedScale) > transformEpsilon && axis.LengthSquared() > transformEpsilon)
     {
         axis /= signedScale;
 
-        if (axis.LengthSquared() > Internal::transformEpsilon)
+        if (axis.LengthSquared() > transformEpsilon)
         {
             axis.Normalize();
             return axis;
@@ -907,7 +882,7 @@ Vec3 TransformCom::Resolve_NormalizedAxis(State state) const
     }
 
     Quat rotation = _localRotationCache;
-    if (rotation.LengthSquared() <= Internal::transformEpsilon)
+    if (rotation.LengthSquared() <= transformEpsilon)
         rotation = Quat::Identity;
     else
         rotation.Normalize();
@@ -929,7 +904,7 @@ Vec3 TransformCom::Resolve_NormalizedAxis(State state) const
         return Vec3::Zero;
     }
 
-    if (axis.LengthSquared() <= Internal::transformEpsilon)
+    if (axis.LengthSquared() <= transformEpsilon)
     {
         switch (state)
         {
@@ -958,7 +933,7 @@ void TransformCom::Sanitize_LocalBasis()
     Vec3 look = Resolve_NormalizedAxis(State::Look);
 
     up -= right * up.Dot(right);
-    if (up.LengthSquared() <= Internal::transformEpsilon)
+    if (up.LengthSquared() <= transformEpsilon)
     {
         Vec3 fallbackUp = Vec3::Up;
         const float rightDotUp = right.Dot(fallbackUp);
@@ -968,13 +943,13 @@ void TransformCom::Sanitize_LocalBasis()
         up = fallbackUp - right * fallbackUp.Dot(right);
     }
 
-    if (up.LengthSquared() <= Internal::transformEpsilon)
+    if (up.LengthSquared() <= transformEpsilon)
         up = Vec3::Up;
     else
         up.Normalize();
 
     look = right.Cross(up);
-    if (look.LengthSquared() <= Internal::transformEpsilon)
+    if (look.LengthSquared() <= transformEpsilon)
     {
         Vec3 fallbackLook = Vec3::Look;
         const float rightDotLook = right.Dot(fallbackLook);
@@ -984,13 +959,13 @@ void TransformCom::Sanitize_LocalBasis()
         look = right.Cross(fallbackLook);
     }
 
-    if (look.LengthSquared() <= Internal::transformEpsilon)
+    if (look.LengthSquared() <= transformEpsilon)
         look = Vec3::Look;
     else
         look.Normalize();
 
     up = look.Cross(right);
-    if (up.LengthSquared() <= Internal::transformEpsilon)
+    if (up.LengthSquared() <= transformEpsilon)
         up = Vec3::Up;
     else
         up.Normalize();
@@ -1008,7 +983,7 @@ void TransformCom::Rebuild_LocalBasis_FromRotationCache()
     const Vec3 preservedScale = Clamp_EditableScale(Get_Scale());
     _localSignedScale = preservedScale;
 
-    if (_localRotationCache.LengthSquared() <= Internal::transformEpsilon)
+    if (_localRotationCache.LengthSquared() <= transformEpsilon)
         _localRotationCache = Quat::Identity;
     else
         _localRotationCache.Normalize();
@@ -1041,7 +1016,7 @@ void TransformCom::Sync_RotationCache_FromLocalMatrix()
     Vec3 look = Resolve_NormalizedAxis(State::Look);
 
     up -= right * up.Dot(right);
-    if (up.LengthSquared() <= Internal::transformEpsilon)
+    if (up.LengthSquared() <= transformEpsilon)
     {
         Vec3 fallbackUp = Vec3::Up;
         const float rightDotUp = right.Dot(fallbackUp);
@@ -1051,19 +1026,19 @@ void TransformCom::Sync_RotationCache_FromLocalMatrix()
         up = fallbackUp - right * fallbackUp.Dot(right);
     }
 
-    if (up.LengthSquared() <= Internal::transformEpsilon)
+    if (up.LengthSquared() <= transformEpsilon)
         up = Vec3::Up;
     else
         up.Normalize();
 
     look = right.Cross(up);
-    if (look.LengthSquared() <= Internal::transformEpsilon)
+    if (look.LengthSquared() <= transformEpsilon)
         look = Vec3::Look;
     else
         look.Normalize();
 
     up = look.Cross(right);
-    if (up.LengthSquared() <= Internal::transformEpsilon)
+    if (up.LengthSquared() <= transformEpsilon)
         up = Vec3::Up;
     else
         up.Normalize();
@@ -1080,7 +1055,7 @@ void TransformCom::Sync_RotationCache_FromLocalMatrix()
     rotationMatrix._33 = look.z;
 
     Quat rotation = Quat::CreateFromRotationMatrix(rotationMatrix);
-    if (rotation.LengthSquared() <= Internal::transformEpsilon)
+    if (rotation.LengthSquared() <= transformEpsilon)
         rotation = Quat::Identity;
     else
         rotation.Normalize();
@@ -1093,7 +1068,7 @@ void TransformCom::Sync_RotationCache_FromLocalMatrix()
 Vec3 TransformCom::Extract_EulerDegreeFromRotationMatrix(const Matrix& rotationMatrix)
 {
     Quat rotation = Quat::CreateFromRotationMatrix(rotationMatrix);
-    if (rotation.LengthSquared() <= Internal::transformEpsilon)
+    if (rotation.LengthSquared() <= transformEpsilon)
         rotation = Quat::Identity;
     else
         rotation.Normalize();

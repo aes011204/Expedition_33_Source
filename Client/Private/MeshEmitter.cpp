@@ -9,7 +9,9 @@
 #include "Texture.h"
 #include "TransformCom.h"
 
-namespace Internal
+NS_BEGIN(Client)
+
+namespace MeshEmitterDetail
 {
 constexpr double kMeshEmitterInitializeInfoThresholdMs = 8.0;
 constexpr double kMeshEmitterReloadReuseInfoThresholdMs = 4.0;
@@ -432,7 +434,6 @@ HRESULT MeshEmitter::Initialize(void* arg)
         _desc = *static_cast<MeshEmitterDesc*>(arg);
 
     CHECK_FAILED(__super::Initialize(&_desc), E_FAIL);
-    //Log_DescPayload("initialize");
     Reset_PlaybackRuntime();
 
     if (FAILED(Ready_Components()))
@@ -598,13 +599,6 @@ HRESULT MeshEmitter::Reload_Definition(const EffectEmitterDefinition& emitterDef
     CHECK_FAILED(Apply_DescForReload(*desc), E_FAIL);
     Sync_FromEffectOwner();
 
-    //LOG_INFO(
-    //    "MeshEmitter reused for definition reload. emitter='{}', modelGuid='{}', modelPath='{}', capacity={}",
-    //    _emitterName,
-    //    _desc.modelGuid,
-    //    _desc.modelPath,
-    //    _instanceCapacity
-    //);
     return S_OK;
 }
 
@@ -703,8 +697,8 @@ void MeshEmitter::Log_DescPayload(const char* context) const
         _desc.meshTransform.initialScaleEnabled,
         _desc.meshTransform.scaleByLife.enabled,
         _desc.motion.enabled,
-        Internal::Has_NonZeroVector(_desc.motion.accelerationMin) ||
-        Internal::Has_NonZeroVector(_desc.motion.accelerationMax),
+        MeshEmitterDetail::Has_NonZeroVector(_desc.motion.accelerationMin) ||
+        MeshEmitterDetail::Has_NonZeroVector(_desc.motion.accelerationMax),
         _desc.motion.drag.x,
         _desc.motion.drag.y,
         _desc.motion.velocityScaleByLife.x,
@@ -732,40 +726,14 @@ void MeshEmitter::Log_InitializeTiming(
 {
     const bool isReloadReuse = std::strcmp(context, "reload_reuse") == 0;
     const double infoThresholdMs = isReloadReuse
-                                   ? Internal::kMeshEmitterReloadReuseInfoThresholdMs
-                                   : Internal::kMeshEmitterInitializeInfoThresholdMs;
+                                   ? MeshEmitterDetail::kMeshEmitterReloadReuseInfoThresholdMs
+                                   : MeshEmitterDetail::kMeshEmitterInitializeInfoThresholdMs;
 
     if (totalMs >= infoThresholdMs)
     {
-        //LOG_INFO(
-        //    "MeshEmitter initialize timing. context={}, emitter='{}', shader_ms={:.3f}, resolve_model_ms={:.3f}, model_ms={:.3f}, material_ms={:.3f}, buffer_ms={:.3f}, total_ms={:.3f}, modelGuid='{}', modelPath='{}'",
-        //    context,
-        //    _emitterName,
-        //    shaderMs,
-        //    resolveModelMs,
-        //    modelMs,
-        //    materialMs,
-        //    bufferMs,
-        //    totalMs,
-        //    _desc.modelGuid,
-        //    _desc.modelPath
-        //);
     }
     else
     {
-        //LOG_DEBUG(
-        //    "MeshEmitter initialize timing. context={}, emitter='{}', shader_ms={:.3f}, resolve_model_ms={:.3f}, model_ms={:.3f}, material_ms={:.3f}, buffer_ms={:.3f}, total_ms={:.3f}, modelGuid='{}', modelPath='{}'",
-        //    context,
-        //    _emitterName,
-        //    shaderMs,
-        //    resolveModelMs,
-        //    modelMs,
-        //    materialMs,
-        //    bufferMs,
-        //    totalMs,
-        //    _desc.modelGuid,
-        //    _desc.modelPath
-        //);
     }
 }
 
@@ -830,12 +798,12 @@ HRESULT MeshEmitter::Apply_DescForReload(const MeshEmitterDesc& desc)
     const auto totalEnd = std::chrono::steady_clock::now();
     Log_InitializeTiming(
         "reload_reuse",
-        Internal::Elapsed_Milliseconds(shaderBegin, shaderEnd),
+        MeshEmitterDetail::Elapsed_Milliseconds(shaderBegin, shaderEnd),
         0.0,
         0.0,
-        Internal::Elapsed_Milliseconds(materialBegin, materialEnd),
-        Internal::Elapsed_Milliseconds(bufferBegin, bufferEnd),
-        Internal::Elapsed_Milliseconds(totalBegin, totalEnd)
+        MeshEmitterDetail::Elapsed_Milliseconds(materialBegin, materialEnd),
+        MeshEmitterDetail::Elapsed_Milliseconds(bufferBegin, bufferEnd),
+        MeshEmitterDetail::Elapsed_Milliseconds(totalBegin, totalEnd)
     );
     return _isReady ? S_OK : E_FAIL;
 }
@@ -894,12 +862,12 @@ HRESULT MeshEmitter::Ready_Components()
 
     Log_InitializeTiming(
         "initialize",
-        Internal::Elapsed_Milliseconds(shaderBegin, shaderEnd),
-        Internal::Elapsed_Milliseconds(resolveModelBegin, resolveModelEnd),
-        Internal::Elapsed_Milliseconds(modelBegin, modelEnd),
-        Internal::Elapsed_Milliseconds(materialBegin, materialEnd),
-        Internal::Elapsed_Milliseconds(bufferBegin, bufferEnd),
-        Internal::Elapsed_Milliseconds(totalBegin, totalEnd)
+        MeshEmitterDetail::Elapsed_Milliseconds(shaderBegin, shaderEnd),
+        MeshEmitterDetail::Elapsed_Milliseconds(resolveModelBegin, resolveModelEnd),
+        MeshEmitterDetail::Elapsed_Milliseconds(modelBegin, modelEnd),
+        MeshEmitterDetail::Elapsed_Milliseconds(materialBegin, materialEnd),
+        MeshEmitterDetail::Elapsed_Milliseconds(bufferBegin, bufferEnd),
+        MeshEmitterDetail::Elapsed_Milliseconds(totalBegin, totalEnd)
     );
     return S_OK;
 }
@@ -1081,8 +1049,8 @@ HRESULT MeshEmitter::Bind_EffectMaterialResources()
         0.f
     );
     const Vec4 effectMeshSourceParams = Vec4(
-        static_cast<float>(Internal::Resolve_MaterialSourceIndex(material.noiseSource)),
-        static_cast<float>(Internal::Resolve_MaterialSourceIndex(material.maskSource)),
+        static_cast<float>(MeshEmitterDetail::Resolve_MaterialSourceIndex(material.noiseSource)),
+        static_cast<float>(MeshEmitterDetail::Resolve_MaterialSourceIndex(material.maskSource)),
         material.noiseInvert ? 1.f : 0.f,
         material.maskInvert ? 1.f : 0.f
     );
@@ -1499,7 +1467,7 @@ void MeshEmitter::Advance_Playback(float timeDelta)
 
         const float loopPlaybackTime = max(0.f, _loopElapsedTime - delay);
         const float playbackTimeToEnd = duration - loopPlaybackTime;
-        if (playbackTimeToEnd > Internal::kPlaybackCompletionEpsilon)
+        if (playbackTimeToEnd > MeshEmitterDetail::kPlaybackCompletionEpsilon)
             break;
 
         if (playbackTimeToEnd > 0.f)
@@ -1597,12 +1565,12 @@ uint32 MeshEmitter::Consume_SpawnRequest(float timeDelta)
     if (_desc.spawn.particleSpawn.processSpawnRate)
     {
         const float loopPhase = clamp(_emitterElapsedTime / Resolve_Duration(), 0.f, 1.f);
-        const float spawnRateValue = Internal::Evaluate_FloatCurve(
+        const float spawnRateValue = MeshEmitterDetail::Evaluate_FloatCurve(
             _desc.spawn.particleSpawn.spawnRateCurve,
             loopPhase,
             _sampledSpawnRate
         );
-        const float spawnRateScale = Internal::Evaluate_FloatCurve(
+        const float spawnRateScale = MeshEmitterDetail::Evaluate_FloatCurve(
             _desc.spawn.particleSpawn.spawnRateScaleCurve,
             loopPhase,
             _sampledSpawnRateScale
@@ -1638,7 +1606,7 @@ uint32 MeshEmitter::Consume_SpawnRequest(float timeDelta)
                 static_cast<uint32>(0xB851u + index * 131u)
             );
             const float burstPhase = clamp(burst.time / Resolve_Duration(), 0.f, 1.f);
-            const float burstScale = Internal::Evaluate_FloatCurve(
+            const float burstScale = MeshEmitterDetail::Evaluate_FloatCurve(
                 _desc.spawn.particleSpawn.burstScaleCurve,
                 burstPhase,
                 sampledBurstScale
@@ -1662,8 +1630,8 @@ float MeshEmitter::Sample_SpawnDistribution(
     if (minValue == maxValue)
         return minValue;
 
-    const uint32 baseSeed = (_loopIndex + 1u) * 9781u + salt + Internal::Resolve_SeedSalt(seed, _effectPlaybackSeed);
-    return lerp(minValue, maxValue, Internal::Hash01(baseSeed));
+    const uint32 baseSeed = (_loopIndex + 1u) * 9781u + salt + MeshEmitterDetail::Resolve_SeedSalt(seed, _effectPlaybackSeed);
+    return lerp(minValue, maxValue, MeshEmitterDetail::Hash01(baseSeed));
 }
 
 void MeshEmitter::Resample_LoopSpawnDistributions()
@@ -1749,17 +1717,18 @@ void MeshEmitter::Activate_Particle(MeshParticleState& particle, uint32 seed, ui
     particle.active = true;
     particle.age = 0.f;
     const float spawnPhase = clamp(_emitterElapsedTime / Resolve_Duration(), 0.f, 1.f);
-    const uint32 lifetimeSeed = seed + Internal::Resolve_SeedSalt(_desc.lifetimeSeed, _effectPlaybackSeed);
+    const uint32 lifetimeSeed = seed + MeshEmitterDetail::Resolve_SeedSalt(_desc.lifetimeSeed, _effectPlaybackSeed);
     particle.lifeMax = _desc.lifetime.lifeTimeCurve.enabled
-                       ? max(0.0001f, Internal::Evaluate_FloatCurve(_desc.lifetime.lifeTimeCurve, spawnPhase, lifeMax))
+                       ? max(0.0001f, MeshEmitterDetail::Evaluate_FloatCurve(_desc.lifetime.lifeTimeCurve, spawnPhase, lifeMax))
                        : RandomRange(lifeMin, lifeMax, lifetimeSeed + 11u);
     particle.position = spawnPosition;
     particle.spawnOffset = spawnOffset;
     particle.spawnPosition = spawnPosition;
+    // World-space particle은 spawn 시점 root 회전을 고정하고 이후 root 회전을 다시 합성하지 않는다.
     particle.spawnTransformRotation =
         !_useLocalSpace && _transformCom != nullptr
         ? _transformCom->Get_WorldRotationQuaternion()
-        : Quat::Identity; // world-space particle은 spawn 당시 root 회전만 바깥 transform으로 고정한다.
+        : Quat::Identity;
     const SourceMotionVelocityContext sourceMotionContext{
         .sourceVelocity = _sourceMotionVelocity,
         .tangent = _sourceMotionTangent,
@@ -1869,7 +1838,7 @@ void MeshEmitter::Update_Particles(float timeDelta)
                 angularDelta = Resolve_WorldVectorToSimulation(angularDelta);
 
             const float angularDeltaLength = angularDelta.Length();
-            if (angularDeltaLength > Internal::kAngularDeltaEpsilon)
+            if (angularDeltaLength > MeshEmitterDetail::kAngularDeltaEpsilon)
             {
                 const Vec3 axis = angularDelta / angularDeltaLength;
                 Quat delta = Quat::CreateFromAxisAngle(axis, angularDeltaLength);
@@ -1957,10 +1926,11 @@ Matrix MeshEmitter::Build_InstanceMatrix(const MeshParticleState& particle) cons
     rotation.Normalize();
 
     const Matrix scaleMatrix = Matrix::CreateScale(scale);
+    // Radial orientation은 sampling 단계에서 root 회전을 이미 반영하므로 중복 합성을 피한다.
     const Matrix spawnTransformRotationMatrix =
         !_useLocalSpace && _transformCom != nullptr && !particle.spawnOrientationEnabled
         ? Matrix::CreateFromQuaternion(particle.spawnTransformRotation)
-        : Matrix::Identity; // radial orientation은 이미 Resolve_LocalVector 경로에서 root 회전을 반영한다.
+        : Matrix::Identity;
     const Vec3 orbitOffset = Evaluate_OrbitOffset(particle, lifeProgress);
     const Vec3 motionOffset = particle.position - particle.spawnPosition;
     Vec3 emitterPosition{};
@@ -1972,7 +1942,7 @@ Matrix MeshEmitter::Build_InstanceMatrix(const MeshParticleState& particle) cons
     const Matrix translationMatrix = Matrix::CreateTranslation(translation);
 
     const float directionAlignWeight = Evaluate_DirectionAlignWeight(lifeProgress, particle);
-    if (directionAlignWeight > Internal::kMeshDirectionAlignEpsilon)
+    if (directionAlignWeight > MeshEmitterDetail::kMeshDirectionAlignEpsilon)
     {
         bool directionAlignEnabled = false;
         const Quat targetOrientation = Build_MeshDirectionAlignTargetOrientation(particle, translation, directionAlignEnabled);
@@ -1984,7 +1954,7 @@ Matrix MeshEmitter::Build_InstanceMatrix(const MeshParticleState& particle) cons
             else
             {
                 Quat alignment = Quat::CreateFromRotationMatrix(
-                    Internal::Resolve_MeshPlaneAlignmentMatrix(_desc.meshTransform.alignment)
+                    MeshEmitterDetail::Resolve_MeshPlaneAlignmentMatrix(_desc.meshTransform.alignment)
                 );
                 alignment.Normalize();
                 candidateOrientation = rotation * alignment * particle.spawnTransformRotation;
@@ -2021,7 +1991,7 @@ Matrix MeshEmitter::Build_InstanceMatrix(const MeshParticleState& particle) cons
         localMatrix =
             scaleMatrix *
             rotationMatrix *
-            Internal::Resolve_MeshPlaneAlignmentMatrix(_desc.meshTransform.alignment) *
+            MeshEmitterDetail::Resolve_MeshPlaneAlignmentMatrix(_desc.meshTransform.alignment) *
             spawnTransformRotationMatrix *
             translationMatrix;
     }
@@ -2057,30 +2027,30 @@ Vec3 MeshEmitter::Sample_InitialOffset(
 
     if (!_useLocalSpace && _transformCom != nullptr)
     {
-        const Vec3 worldScale = Internal::Resolve_RuntimeWorldScale(_effectOwner, _transformCom);
+        const Vec3 worldScale = MeshEmitterDetail::Resolve_RuntimeWorldScale(_effectOwner, _transformCom);
         const float uniformLocationScale = max(worldScale.x, max(worldScale.y, worldScale.z));
-        const Vec2 planeScale = Internal::Resolve_PlaneScale(planeRadialLocation.plane, worldScale);
+        const Vec2 planeScale = MeshEmitterDetail::Resolve_PlaneScale(planeRadialLocation.plane, worldScale);
         const float uniformPlaneScale = max(planeScale.x, planeScale.y);
-        const Vec2 cylinderScale = Internal::Resolve_CylinderScale(cylinderLocation.axis, worldScale);
+        const Vec2 cylinderScale = MeshEmitterDetail::Resolve_CylinderScale(cylinderLocation.axis, worldScale);
 
-        initialLocation.minOffset = Internal::Scale_Vector3(initialLocation.minOffset, worldScale);
-        initialLocation.maxOffset = Internal::Scale_Vector3(initialLocation.maxOffset, worldScale);
-        sphereLocation.offset = Internal::Scale_Vector3(sphereLocation.offset, worldScale);
+        initialLocation.minOffset = MeshEmitterDetail::Scale_Vector3(initialLocation.minOffset, worldScale);
+        initialLocation.maxOffset = MeshEmitterDetail::Scale_Vector3(initialLocation.maxOffset, worldScale);
+        sphereLocation.offset = MeshEmitterDetail::Scale_Vector3(sphereLocation.offset, worldScale);
         sphereLocation.radius *= uniformLocationScale;
-        planeRadialLocation.offset = Internal::Scale_Vector3(planeRadialLocation.offset, worldScale);
+        planeRadialLocation.offset = MeshEmitterDetail::Scale_Vector3(planeRadialLocation.offset, worldScale);
         planeRadialLocation.thickness *= uniformLocationScale;
-        planeRadialLocation.uRange = Internal::Scale_Vector2(planeRadialLocation.uRange, Vec2{ planeScale.x, planeScale.x });
-        planeRadialLocation.vRange = Internal::Scale_Vector2(planeRadialLocation.vRange, Vec2{ planeScale.y, planeScale.y });
-        planeRadialLocation.radiusRange = Internal::Scale_Vector2(
+        planeRadialLocation.uRange = MeshEmitterDetail::Scale_Vector2(planeRadialLocation.uRange, Vec2{ planeScale.x, planeScale.x });
+        planeRadialLocation.vRange = MeshEmitterDetail::Scale_Vector2(planeRadialLocation.vRange, Vec2{ planeScale.y, planeScale.y });
+        planeRadialLocation.radiusRange = MeshEmitterDetail::Scale_Vector2(
             planeRadialLocation.radiusRange,
             Vec2{ uniformPlaneScale, uniformPlaneScale }
         );
-        cylinderLocation.offset = Internal::Scale_Vector3(cylinderLocation.offset, worldScale);
-        cylinderLocation.radiusRange = Internal::Scale_Vector2(
+        cylinderLocation.offset = MeshEmitterDetail::Scale_Vector3(cylinderLocation.offset, worldScale);
+        cylinderLocation.radiusRange = MeshEmitterDetail::Scale_Vector2(
             cylinderLocation.radiusRange,
             Vec2{ cylinderScale.x, cylinderScale.x }
         );
-        cylinderLocation.heightRange = Internal::Scale_Vector2(
+        cylinderLocation.heightRange = MeshEmitterDetail::Scale_Vector2(
             cylinderLocation.heightRange,
             Vec2{ cylinderScale.y, cylinderScale.y }
         );
@@ -2088,7 +2058,7 @@ Vec3 MeshEmitter::Sample_InitialOffset(
 
     if (initialLocation.enabled)
     {
-        const uint32 initialLocationSeed = seed + Internal::Resolve_SeedSalt(_desc.initialLocationSeed, _effectPlaybackSeed);
+        const uint32 initialLocationSeed = seed + MeshEmitterDetail::Resolve_SeedSalt(_desc.initialLocationSeed, _effectPlaybackSeed);
         offset += Vec3{
             RandomRange(initialLocation.minOffset.x, initialLocation.maxOffset.x, initialLocationSeed + 1u),
             RandomRange(initialLocation.minOffset.y, initialLocation.maxOffset.y, initialLocationSeed + 2u),
@@ -2098,13 +2068,13 @@ Vec3 MeshEmitter::Sample_InitialOffset(
 
     if (sphereLocation.enabled && sphereLocation.radius > 0.f)
     {
-        const uint32 sphereSeed = seed + Internal::Resolve_SeedSalt(_desc.sphereLocationSeed, _effectPlaybackSeed);
+        const uint32 sphereSeed = seed + MeshEmitterDetail::Resolve_SeedSalt(_desc.sphereLocationSeed, _effectPlaybackSeed);
         Vec3 direction{};
         const bool useEvenSurfacePlacement =
             sphereLocation.mode == PointParticleSphereLocationMode::Surface &&
             sphereLocation.placementMode == PointParticleSphereLocationPlacementMode::EvenByParticleIndex;
         if (useEvenSurfacePlacement)
-            direction = Internal::Resolve_EvenByParticleIndexSphereDirection(placementIndex, placementCount);
+            direction = MeshEmitterDetail::Resolve_EvenByParticleIndexSphereDirection(placementIndex, placementCount);
         else
         {
             const float z = RandomRange(-1.f, 1.f, sphereSeed + 5u);
@@ -2132,7 +2102,7 @@ Vec3 MeshEmitter::Sample_InitialOffset(
         Vec3 axisU{};
         Vec3 axisV{};
         Vec3 planeNormal{};
-        Internal::Resolve_PlaneRadialBasis(planeRadialLocation.plane, _transformCom, axisU, axisV, planeNormal);
+        MeshEmitterDetail::Resolve_PlaneRadialBasis(planeRadialLocation.plane, _transformCom, axisU, axisV, planeNormal);
 
         float u = 0.f;
         float v = 0.f;
@@ -2142,12 +2112,12 @@ Vec3 MeshEmitter::Sample_InitialOffset(
             u = RandomRange(
                 planeRadialLocation.uRange.x,
                 planeRadialLocation.uRange.y,
-                seed + Internal::Resolve_SeedSalt(planeRadialLocation.uSeed, _effectPlaybackSeed) + 1601u
+                seed + MeshEmitterDetail::Resolve_SeedSalt(planeRadialLocation.uSeed, _effectPlaybackSeed) + 1601u
             );
             v = RandomRange(
                 planeRadialLocation.vRange.x,
                 planeRadialLocation.vRange.y,
-                seed + Internal::Resolve_SeedSalt(planeRadialLocation.vSeed, _effectPlaybackSeed) + 1613u
+                seed + MeshEmitterDetail::Resolve_SeedSalt(planeRadialLocation.vSeed, _effectPlaybackSeed) + 1613u
             );
             sampleAngle = atan2f(v, u);
         }
@@ -2162,16 +2132,16 @@ Vec3 MeshEmitter::Sample_InitialOffset(
             const float radius = RandomRange(
                 radiusMin,
                 radiusMax,
-                seed + Internal::Resolve_SeedSalt(planeRadialLocation.radiusSeed, _effectPlaybackSeed) + 1601u
+                seed + MeshEmitterDetail::Resolve_SeedSalt(planeRadialLocation.radiusSeed, _effectPlaybackSeed) + 1601u
             );
             const float angleRatio = planeRadialLocation.placementMode == PointParticlePlaneRadialLocationPlacementMode::EvenByParticleIndex
-                                     ? Internal::Resolve_EvenByParticleIndexAngleRatio(
+                                     ? MeshEmitterDetail::Resolve_EvenByParticleIndexAngleRatio(
                                          placementIndex,
                                          placementCount,
                                          angleMinDegrees,
                                          angleMaxDegrees
                                      )
-                                     : Random01(seed + Internal::Resolve_SeedSalt(planeRadialLocation.angleDegreesSeed, _effectPlaybackSeed) + 1613u);
+                                     : Random01(seed + MeshEmitterDetail::Resolve_SeedSalt(planeRadialLocation.angleDegreesSeed, _effectPlaybackSeed) + 1613u);
             sampleAngle = lerp(angleMin, angleMax, angleRatio);
             u = cosf(sampleAngle) * radius;
             v = sinf(sampleAngle) * radius;
@@ -2180,11 +2150,11 @@ Vec3 MeshEmitter::Sample_InitialOffset(
         const float thickness = max(0.f, planeRadialLocation.thickness);
         const float normalOffset = thickness > 0.0001f ? (Random01(seed + 1621u) - 0.5f) * thickness : 0.f;
         const Vec3 radialVector = axisU * u + axisV * v;
-        const Vec3 fallbackRadial = Internal::Normalize_OrFallback(axisU * cosf(sampleAngle) + axisV * sinf(sampleAngle), axisU);
+        const Vec3 fallbackRadial = MeshEmitterDetail::Normalize_OrFallback(axisU * cosf(sampleAngle) + axisV * sinf(sampleAngle), axisU);
         outPlaneRadialSample.enabled = true;
         outPlaneRadialSample.localOffset = planeRadialLocation.offset + radialVector + planeNormal * normalOffset;
-        outPlaneRadialSample.radialDirection = Internal::Normalize_OrFallback(radialVector, fallbackRadial);
-        outPlaneRadialSample.tangentCW = Internal::Normalize_OrFallback(axisU * sinf(sampleAngle) - axisV * cosf(sampleAngle), -axisV);
+        outPlaneRadialSample.radialDirection = MeshEmitterDetail::Normalize_OrFallback(radialVector, fallbackRadial);
+        outPlaneRadialSample.tangentCW = MeshEmitterDetail::Normalize_OrFallback(axisU * sinf(sampleAngle) - axisV * cosf(sampleAngle), -axisV);
         outPlaneRadialSample.tangentCCW = -outPlaneRadialSample.tangentCW;
         outPlaneRadialSample.planeNormal = planeNormal;
         outPlaneRadialSample.sampleAngleRadians = sampleAngle;
@@ -2196,7 +2166,7 @@ Vec3 MeshEmitter::Sample_InitialOffset(
         Vec3 axisW{};
         Vec3 radialU{};
         Vec3 radialV{};
-        Internal::Resolve_CylinderLocationBasis(cylinderLocation.axis, axisW, radialU, radialV);
+        MeshEmitterDetail::Resolve_CylinderLocationBasis(cylinderLocation.axis, axisW, radialU, radialV);
 
         const float radiusMin = max(0.f, min(cylinderLocation.radiusRange.x, cylinderLocation.radiusRange.y));
         const float radiusMax = max(radiusMin, max(cylinderLocation.radiusRange.x, cylinderLocation.radiusRange.y));
@@ -2206,9 +2176,9 @@ Vec3 MeshEmitter::Sample_InitialOffset(
         const float angleMaxDegrees = cylinderLocation.angleDegreesRange.y;
         const float angleMin = XMConvertToRadians(angleMinDegrees);
         const float angleMax = XMConvertToRadians(angleMaxDegrees);
-        const uint32 radiusSeed = seed + Internal::Resolve_SeedSalt(cylinderLocation.radiusSeed, _effectPlaybackSeed) + 1801u;
-        const uint32 heightSeed = seed + Internal::Resolve_SeedSalt(cylinderLocation.heightSeed, _effectPlaybackSeed) + 1811u;
-        const uint32 angleSeed = seed + Internal::Resolve_SeedSalt(cylinderLocation.angleDegreesSeed, _effectPlaybackSeed) + 1823u;
+        const uint32 radiusSeed = seed + MeshEmitterDetail::Resolve_SeedSalt(cylinderLocation.radiusSeed, _effectPlaybackSeed) + 1801u;
+        const uint32 heightSeed = seed + MeshEmitterDetail::Resolve_SeedSalt(cylinderLocation.heightSeed, _effectPlaybackSeed) + 1811u;
+        const uint32 angleSeed = seed + MeshEmitterDetail::Resolve_SeedSalt(cylinderLocation.angleDegreesSeed, _effectPlaybackSeed) + 1823u;
 
         float radius = RandomRange(radiusMin, radiusMax, radiusSeed);
         if (cylinderLocation.mode == PointParticleCylinderLocationMode::Volume)
@@ -2220,7 +2190,7 @@ Vec3 MeshEmitter::Sample_InitialOffset(
 
         const float height = RandomRange(heightMin, heightMax, heightSeed);
         const float angleRatio = cylinderLocation.placementMode == PointParticleCylinderLocationPlacementMode::EvenByParticleIndex
-                                 ? Internal::Resolve_EvenByParticleIndexAngleRatio(
+                                 ? MeshEmitterDetail::Resolve_EvenByParticleIndexAngleRatio(
                                      placementIndex,
                                      placementCount,
                                      angleMinDegrees,
@@ -2232,9 +2202,9 @@ Vec3 MeshEmitter::Sample_InitialOffset(
         outCylinderRadialSample.enabled = true;
         outCylinderRadialSample.localOffset = cylinderLocation.offset + axisW * height + radialVector;
         outCylinderRadialSample.radialDirection =
-            Internal::Normalize_OrFallback(radialU * cosf(angle) + radialV * sinf(angle), radialU);
+            MeshEmitterDetail::Normalize_OrFallback(radialU * cosf(angle) + radialV * sinf(angle), radialU);
         outCylinderRadialSample.tangentCW =
-            Internal::Normalize_OrFallback(radialU * sinf(angle) - radialV * cosf(angle), -radialV);
+            MeshEmitterDetail::Normalize_OrFallback(radialU * sinf(angle) - radialV * cosf(angle), -radialV);
         outCylinderRadialSample.tangentCCW = -outCylinderRadialSample.tangentCW;
         outCylinderRadialSample.cylinderAxis = axisW;
         offset += outCylinderRadialSample.localOffset;
@@ -2256,17 +2226,17 @@ Quat MeshEmitter::Build_SphereRadialMeshOrientation(const SphereRadialSample& sa
     if (_desc.sphereRadialOrientation.orientationMode == PointParticleSphereRadialOrientationMode::FaceRadialIn)
         targetForward = -targetForward;
 
-    targetForward = Internal::Normalize_OrFallback(Resolve_LocalVector(targetForward), Vec3{ 0.f, 0.f, 1.f });
+    targetForward = MeshEmitterDetail::Normalize_OrFallback(Resolve_LocalVector(targetForward), Vec3{ 0.f, 0.f, 1.f });
     Vec3 preferredUp = Vec3{ 0.f, 1.f, 0.f };
     if (fabsf(targetForward.Dot(preferredUp)) > 1.f - 1e-3f)
         preferredUp = Vec3{ 0.f, 0.f, 1.f };
 
     Vec3 targetRight = preferredUp.Cross(targetForward);
-    targetRight = Internal::Normalize_OrFallback(targetRight, Vec3{ 1.f, 0.f, 0.f });
-    const Vec3 targetUp = Internal::Normalize_OrFallback(targetForward.Cross(targetRight), Vec3{ 0.f, 1.f, 0.f });
+    targetRight = MeshEmitterDetail::Normalize_OrFallback(targetRight, Vec3{ 1.f, 0.f, 0.f });
+    const Vec3 targetUp = MeshEmitterDetail::Normalize_OrFallback(targetForward.Cross(targetRight), Vec3{ 0.f, 1.f, 0.f });
 
-    const Vec3 sourceForward = Internal::Resolve_PlaneRadialOrientationAxis(_desc.sphereRadialOrientation.meshForwardAxis);
-    Vec3 sourceUp = Internal::Resolve_PlaneRadialOrientationAxis(_desc.sphereRadialOrientation.meshUpAxis);
+    const Vec3 sourceForward = MeshEmitterDetail::Resolve_PlaneRadialOrientationAxis(_desc.sphereRadialOrientation.meshForwardAxis);
+    Vec3 sourceUp = MeshEmitterDetail::Resolve_PlaneRadialOrientationAxis(_desc.sphereRadialOrientation.meshUpAxis);
     if (fabsf(sourceForward.Dot(sourceUp)) > 1.f - 1e-3f)
     {
         if (!_sphereRadialMeshOrientationFallbackLogged)
@@ -2285,8 +2255,8 @@ Quat MeshEmitter::Build_SphereRadialMeshOrientation(const SphereRadialSample& sa
     sourceUp = sourceForward.Cross(sourceRight);
     sourceUp.Normalize();
 
-    const Matrix sourceFrame = Internal::Build_FrameMatrix(sourceRight, sourceUp, sourceForward);
-    const Matrix targetFrame = Internal::Build_FrameMatrix(targetRight, targetUp, targetForward);
+    const Matrix sourceFrame = MeshEmitterDetail::Build_FrameMatrix(sourceRight, sourceUp, sourceForward);
+    const Matrix targetFrame = MeshEmitterDetail::Build_FrameMatrix(targetRight, targetUp, targetForward);
     Quat orientation = Quat::CreateFromRotationMatrix(sourceFrame.Invert() * targetFrame);
     orientation.Normalize();
 
@@ -2339,17 +2309,17 @@ Quat MeshEmitter::Build_PlaneRadialMeshOrientation(const PlaneRadialSample& samp
         break;
     }
 
-    targetForward = Internal::Normalize_OrFallback(Resolve_LocalVector(targetForward), Vec3{ 0.f, 0.f, 1.f });
-    Vec3 targetUp = Internal::Normalize_OrFallback(Resolve_LocalVector(sample.planeNormal), Vec3{ 0.f, 1.f, 0.f });
+    targetForward = MeshEmitterDetail::Normalize_OrFallback(Resolve_LocalVector(targetForward), Vec3{ 0.f, 0.f, 1.f });
+    Vec3 targetUp = MeshEmitterDetail::Normalize_OrFallback(Resolve_LocalVector(sample.planeNormal), Vec3{ 0.f, 1.f, 0.f });
     if (fabsf(targetForward.Dot(targetUp)) > 1.f - 1e-3f)
         targetUp = fabsf(targetForward.Dot(Vec3{ 0.f, 1.f, 0.f })) > 1.f - 1e-3f ? Vec3{ 0.f, 0.f, 1.f } : Vec3{ 0.f, 1.f, 0.f };
 
     Vec3 targetRight = targetUp.Cross(targetForward);
-    targetRight = Internal::Normalize_OrFallback(targetRight, Vec3{ 1.f, 0.f, 0.f });
-    targetUp = Internal::Normalize_OrFallback(targetForward.Cross(targetRight), Vec3{ 0.f, 1.f, 0.f });
+    targetRight = MeshEmitterDetail::Normalize_OrFallback(targetRight, Vec3{ 1.f, 0.f, 0.f });
+    targetUp = MeshEmitterDetail::Normalize_OrFallback(targetForward.Cross(targetRight), Vec3{ 0.f, 1.f, 0.f });
 
-    const Vec3 sourceForward = Internal::Resolve_PlaneRadialOrientationAxis(_desc.planeRadialOrientation.meshForwardAxis);
-    Vec3 sourceUp = Internal::Resolve_PlaneRadialOrientationAxis(_desc.planeRadialOrientation.meshUpAxis);
+    const Vec3 sourceForward = MeshEmitterDetail::Resolve_PlaneRadialOrientationAxis(_desc.planeRadialOrientation.meshForwardAxis);
+    Vec3 sourceUp = MeshEmitterDetail::Resolve_PlaneRadialOrientationAxis(_desc.planeRadialOrientation.meshUpAxis);
     if (fabsf(sourceForward.Dot(sourceUp)) > 1.f - 1e-3f)
     {
         if (!_planeRadialMeshOrientationFallbackLogged)
@@ -2368,8 +2338,8 @@ Quat MeshEmitter::Build_PlaneRadialMeshOrientation(const PlaneRadialSample& samp
     sourceUp = sourceForward.Cross(sourceRight);
     sourceUp.Normalize();
 
-    const Matrix sourceFrame = Internal::Build_FrameMatrix(sourceRight, sourceUp, sourceForward);
-    const Matrix targetFrame = Internal::Build_FrameMatrix(targetRight, targetUp, targetForward);
+    const Matrix sourceFrame = MeshEmitterDetail::Build_FrameMatrix(sourceRight, sourceUp, sourceForward);
+    const Matrix targetFrame = MeshEmitterDetail::Build_FrameMatrix(targetRight, targetUp, targetForward);
     Quat orientation = Quat::CreateFromRotationMatrix(sourceFrame.Invert() * targetFrame);
     orientation.Normalize();
 
@@ -2426,17 +2396,17 @@ Quat MeshEmitter::Build_CylinderMeshOrientation(const CylinderRadialSample& samp
         break;
     }
 
-    targetForward = Internal::Normalize_OrFallback(Resolve_LocalVector(targetForward), Vec3{ 0.f, 0.f, 1.f });
-    Vec3 targetUp = Internal::Normalize_OrFallback(Resolve_LocalVector(sample.cylinderAxis), Vec3{ 0.f, 1.f, 0.f });
+    targetForward = MeshEmitterDetail::Normalize_OrFallback(Resolve_LocalVector(targetForward), Vec3{ 0.f, 0.f, 1.f });
+    Vec3 targetUp = MeshEmitterDetail::Normalize_OrFallback(Resolve_LocalVector(sample.cylinderAxis), Vec3{ 0.f, 1.f, 0.f });
     if (fabsf(targetForward.Dot(targetUp)) > 1.f - 1e-3f)
         targetUp = fabsf(targetForward.Dot(Vec3{ 0.f, 1.f, 0.f })) > 1.f - 1e-3f ? Vec3{ 0.f, 0.f, 1.f } : Vec3{ 0.f, 1.f, 0.f };
 
     Vec3 targetRight = targetUp.Cross(targetForward);
-    targetRight = Internal::Normalize_OrFallback(targetRight, Vec3{ 1.f, 0.f, 0.f });
-    targetUp = Internal::Normalize_OrFallback(targetForward.Cross(targetRight), Vec3{ 0.f, 1.f, 0.f });
+    targetRight = MeshEmitterDetail::Normalize_OrFallback(targetRight, Vec3{ 1.f, 0.f, 0.f });
+    targetUp = MeshEmitterDetail::Normalize_OrFallback(targetForward.Cross(targetRight), Vec3{ 0.f, 1.f, 0.f });
 
-    const Vec3 sourceForward = Internal::Resolve_PlaneRadialOrientationAxis(_desc.cylinderOrientation.meshForwardAxis);
-    Vec3 sourceUp = Internal::Resolve_PlaneRadialOrientationAxis(_desc.cylinderOrientation.meshUpAxis);
+    const Vec3 sourceForward = MeshEmitterDetail::Resolve_PlaneRadialOrientationAxis(_desc.cylinderOrientation.meshForwardAxis);
+    Vec3 sourceUp = MeshEmitterDetail::Resolve_PlaneRadialOrientationAxis(_desc.cylinderOrientation.meshUpAxis);
     if (fabsf(sourceForward.Dot(sourceUp)) > 1.f - 1e-3f)
     {
         if (!_cylinderRadialMeshOrientationFallbackLogged)
@@ -2455,8 +2425,8 @@ Quat MeshEmitter::Build_CylinderMeshOrientation(const CylinderRadialSample& samp
     sourceUp = sourceForward.Cross(sourceRight);
     sourceUp.Normalize();
 
-    const Matrix sourceFrame = Internal::Build_FrameMatrix(sourceRight, sourceUp, sourceForward);
-    const Matrix targetFrame = Internal::Build_FrameMatrix(targetRight, targetUp, targetForward);
+    const Matrix sourceFrame = MeshEmitterDetail::Build_FrameMatrix(sourceRight, sourceUp, sourceForward);
+    const Matrix targetFrame = MeshEmitterDetail::Build_FrameMatrix(targetRight, targetUp, targetForward);
     Quat orientation = Quat::CreateFromRotationMatrix(sourceFrame.Invert() * targetFrame);
     orientation.Normalize();
 
@@ -2481,22 +2451,22 @@ Quat MeshEmitter::Build_CylinderMeshOrientation(const CylinderRadialSample& samp
 
 float MeshEmitter::Evaluate_DirectionAlignWeight(float lifeProgress, const MeshParticleState& particle) const
 {
-    if (!_desc.meshDirectionAlign.enabled || particle.directionAlignWeightScale <= Internal::kMeshDirectionAlignEpsilon)
+    if (!_desc.meshDirectionAlign.enabled || particle.directionAlignWeightScale <= MeshEmitterDetail::kMeshDirectionAlignEpsilon)
         return 0.f;
 
     const float randomDelay = clamp(particle.directionAlignRandomDelay, 0.f, 1.f);
     const float delayedLifeProgress = clamp(
-        (lifeProgress - randomDelay) / max(Internal::kMeshDirectionAlignEpsilon, 1.f - randomDelay),
+        (lifeProgress - randomDelay) / max(MeshEmitterDetail::kMeshDirectionAlignEpsilon, 1.f - randomDelay),
         0.f,
         1.f
     );
-    const float evaluatedWeight = Internal::Evaluate_FloatCurve(
+    const float evaluatedWeight = MeshEmitterDetail::Evaluate_FloatCurve(
         _desc.meshDirectionAlign.alignmentProgress,
         delayedLifeProgress,
         0.f
     );
     const float scaledWeight = evaluatedWeight * clamp(particle.directionAlignWeightScale, 0.f, 1.f);
-    return Internal::Apply_MeshDirectionAlignBlendMode(scaledWeight, _desc.meshDirectionAlign.blendMode);
+    return MeshEmitterDetail::Apply_MeshDirectionAlignBlendMode(scaledWeight, _desc.meshDirectionAlign.blendMode);
 }
 
 Quat MeshEmitter::Build_MeshDirectionAlignTargetOrientation(
@@ -2523,7 +2493,7 @@ Quat MeshEmitter::Build_MeshDirectionAlignTargetOrientation(
                           : Resolve_WorldVectorToSimulation(_desc.meshDirectionAlign.target);
     }
 
-    if (targetDirection.LengthSquared() <= Internal::kMeshDirectionAlignEpsilon * Internal::kMeshDirectionAlignEpsilon)
+    if (targetDirection.LengthSquared() <= MeshEmitterDetail::kMeshDirectionAlignEpsilon * MeshEmitterDetail::kMeshDirectionAlignEpsilon)
     {
         if (!_meshDirectionAlignFallbackLogged)
         {
@@ -2539,18 +2509,18 @@ Quat MeshEmitter::Build_MeshDirectionAlignTargetOrientation(
     Vec3 targetForward = targetDirection;
     targetForward.Normalize();
     Vec3 targetUp = Resolve_WorldVectorToSimulation(Vec3{ 0.f, 1.f, 0.f });
-    targetUp = Internal::Normalize_OrFallback(targetUp, Vec3{ 0.f, 1.f, 0.f });
+    targetUp = MeshEmitterDetail::Normalize_OrFallback(targetUp, Vec3{ 0.f, 1.f, 0.f });
     if (fabsf(targetForward.Dot(targetUp)) > 1.f - 1e-3f)
-        targetUp = Internal::Normalize_OrFallback(Resolve_WorldVectorToSimulation(Vec3{ 0.f, 0.f, 1.f }), Vec3{ 0.f, 0.f, 1.f });
+        targetUp = MeshEmitterDetail::Normalize_OrFallback(Resolve_WorldVectorToSimulation(Vec3{ 0.f, 0.f, 1.f }), Vec3{ 0.f, 0.f, 1.f });
     if (fabsf(targetForward.Dot(targetUp)) > 1.f - 1e-3f)
         targetUp = Vec3{ 1.f, 0.f, 0.f };
 
     Vec3 targetRight = targetUp.Cross(targetForward);
-    targetRight = Internal::Normalize_OrFallback(targetRight, Vec3{ 1.f, 0.f, 0.f });
-    targetUp = Internal::Normalize_OrFallback(targetForward.Cross(targetRight), Vec3{ 0.f, 1.f, 0.f });
+    targetRight = MeshEmitterDetail::Normalize_OrFallback(targetRight, Vec3{ 1.f, 0.f, 0.f });
+    targetUp = MeshEmitterDetail::Normalize_OrFallback(targetForward.Cross(targetRight), Vec3{ 0.f, 1.f, 0.f });
 
-    const Vec3 sourceForward = Internal::Resolve_PlaneRadialOrientationAxis(_desc.meshDirectionAlign.meshForwardAxis);
-    Vec3 sourceUp = Internal::Resolve_PlaneRadialOrientationAxis(_desc.meshDirectionAlign.meshUpAxis);
+    const Vec3 sourceForward = MeshEmitterDetail::Resolve_PlaneRadialOrientationAxis(_desc.meshDirectionAlign.meshForwardAxis);
+    Vec3 sourceUp = MeshEmitterDetail::Resolve_PlaneRadialOrientationAxis(_desc.meshDirectionAlign.meshUpAxis);
     if (fabsf(sourceForward.Dot(sourceUp)) > 1.f - 1e-3f)
     {
         if (!_meshDirectionAlignFallbackLogged)
@@ -2569,8 +2539,8 @@ Quat MeshEmitter::Build_MeshDirectionAlignTargetOrientation(
     sourceUp = sourceForward.Cross(sourceRight);
     sourceUp.Normalize();
 
-    const Matrix sourceFrame = Internal::Build_FrameMatrix(sourceRight, sourceUp, sourceForward);
-    const Matrix targetFrame = Internal::Build_FrameMatrix(targetRight, targetUp, targetForward);
+    const Matrix sourceFrame = MeshEmitterDetail::Build_FrameMatrix(sourceRight, sourceUp, sourceForward);
+    const Matrix targetFrame = MeshEmitterDetail::Build_FrameMatrix(targetRight, targetUp, targetForward);
     Quat orientation = Quat::CreateFromRotationMatrix(sourceFrame.Invert() * targetFrame);
     orientation.Normalize();
     outEnabled = true;
@@ -2591,9 +2561,9 @@ void MeshEmitter::Sample_InitialVelocityChannels(
     particle.sourceMotionVelocity = Vec3{};
     particle.accelerationIntegratedVelocity = Vec3{};
 
-    const uint32 initialVelocitySeed = seed + Internal::Resolve_SeedSalt(_desc.motion.initialVelocitySeed, _effectPlaybackSeed);
-    const uint32 initialRadialVelocitySeed = seed + Internal::Resolve_SeedSalt(_desc.motion.initialRadialVelocitySeed, _effectPlaybackSeed);
-    const uint32 velocityConeSeed = seed + Internal::Resolve_SeedSalt(_desc.motion.velocityConeSeed, _effectPlaybackSeed);
+    const uint32 initialVelocitySeed = seed + MeshEmitterDetail::Resolve_SeedSalt(_desc.motion.initialVelocitySeed, _effectPlaybackSeed);
+    const uint32 initialRadialVelocitySeed = seed + MeshEmitterDetail::Resolve_SeedSalt(_desc.motion.initialRadialVelocitySeed, _effectPlaybackSeed);
+    const uint32 velocityConeSeed = seed + MeshEmitterDetail::Resolve_SeedSalt(_desc.motion.velocityConeSeed, _effectPlaybackSeed);
 
     if (_desc.motion.initialVelocityEnabled)
     {
@@ -2646,7 +2616,7 @@ void MeshEmitter::Sample_InitialVelocityChannels(
 
     if (_desc.motion.velocityConeEnabled)
     {
-        const Vec3 axis = Internal::Normalize_OrFallback(_desc.motion.velocityConeAxis, Vec3{ 0.f, 1.f, 0.f });
+        const Vec3 axis = MeshEmitterDetail::Normalize_OrFallback(_desc.motion.velocityConeAxis, Vec3{ 0.f, 1.f, 0.f });
         Vec3 sampledDirection = axis;
         const float angleDegrees = clamp(_desc.motion.velocityConeAngleDegrees, 0.f, 180.f);
         if (angleDegrees > 0.0001f)
@@ -2675,7 +2645,7 @@ void MeshEmitter::Sample_InitialVelocityChannels(
 
     if (_desc.motion.sourceMotionVelocityEnabled)
     {
-        const uint32 sourceMotionSeed = seed + Internal::Resolve_SeedSalt(_desc.motion.sourceMotionVelocitySeed, _effectPlaybackSeed);
+        const uint32 sourceMotionSeed = seed + MeshEmitterDetail::Resolve_SeedSalt(_desc.motion.sourceMotionVelocitySeed, _effectPlaybackSeed);
         const bool requiresSourceVelocity =
             _desc.motion.sourceMotionVelocityDirectionMode == PointParticleSourceMotionVelocityDirectionMode::InheritSourceVelocity ||
             _desc.motion.sourceMotionVelocityDirectionMode == PointParticleSourceMotionVelocityDirectionMode::SourceVelocityDirection ||
@@ -2685,14 +2655,14 @@ void MeshEmitter::Sample_InitialVelocityChannels(
 
         const Vec3 fallbackForward = Resolve_LocalVector(Vec3{ 0.f, 0.f, 1.f });
         const Vec3 sourceDirection = sourceMotionContext.sourceVelocityValid
-                                     ? Internal::Normalize_OrFallback(sourceMotionContext.sourceVelocity, fallbackForward)
+                                     ? MeshEmitterDetail::Normalize_OrFallback(sourceMotionContext.sourceVelocity, fallbackForward)
                                      : fallbackForward;
-        const Vec3 tangent = Internal::Normalize_OrFallback(sourceMotionContext.tangent, sourceDirection);
+        const Vec3 tangent = MeshEmitterDetail::Normalize_OrFallback(sourceMotionContext.tangent, sourceDirection);
         const Vec3 worldUp = Resolve_WorldVectorToSimulation(Vec3{ 0.f, 1.f, 0.f });
         Vec3 side = tangent.Cross(worldUp);
-        if (side.LengthSquared() <= Internal::kPlaneRadialEpsilon * Internal::kPlaneRadialEpsilon)
+        if (side.LengthSquared() <= MeshEmitterDetail::kPlaneRadialEpsilon * MeshEmitterDetail::kPlaneRadialEpsilon)
             side = tangent.Cross(Resolve_WorldVectorToSimulation(Vec3{ 0.f, 0.f, 1.f }));
-        side = Internal::Normalize_OrFallback(side, Resolve_LocalVector(Vec3{ 1.f, 0.f, 0.f }));
+        side = MeshEmitterDetail::Normalize_OrFallback(side, Resolve_LocalVector(Vec3{ 1.f, 0.f, 0.f }));
 
         Vec3 resolvedDirection = tangent;
         switch (_desc.motion.sourceMotionVelocityDirectionMode)
@@ -2711,7 +2681,7 @@ void MeshEmitter::Sample_InitialVelocityChannels(
             resolvedDirection = side;
             break;
         case PointParticleSourceMotionVelocityDirectionMode::RandomSideFromTangent:
-            resolvedDirection = Internal::Hash01(sourceMotionSeed + 3119u) < 0.5f ? side : -side;
+            resolvedDirection = MeshEmitterDetail::Hash01(sourceMotionSeed + 3119u) < 0.5f ? side : -side;
             break;
         case PointParticleSourceMotionVelocityDirectionMode::TrailTangent:
         default:
@@ -2719,11 +2689,11 @@ void MeshEmitter::Sample_InitialVelocityChannels(
             break;
         }
 
-        resolvedDirection = Internal::Normalize_OrFallback(resolvedDirection, fallbackForward);
+        resolvedDirection = MeshEmitterDetail::Normalize_OrFallback(resolvedDirection, fallbackForward);
         if (_desc.motion.sourceMotionVelocityDirectionMode != PointParticleSourceMotionVelocityDirectionMode::InheritSourceVelocity &&
             _desc.motion.sourceMotionVelocitySpreadAngleDegrees > 0.f)
         {
-            resolvedDirection = Internal::Sample_ConeDirection(
+            resolvedDirection = MeshEmitterDetail::Sample_ConeDirection(
                 resolvedDirection,
                 _desc.motion.sourceMotionVelocitySpreadAngleDegrees,
                 sourceMotionSeed + 3251u
@@ -2769,7 +2739,7 @@ void MeshEmitter::Update_SourceMotionVelocity(float timeDelta)
         {
             const Vec3 worldVelocity = movement / max(timeDelta, 0.0001f);
             _sourceMotionVelocity = Resolve_WorldVectorToSimulation(worldVelocity);
-            _sourceMotionTangent = Internal::Normalize_OrFallback(
+            _sourceMotionTangent = MeshEmitterDetail::Normalize_OrFallback(
                 _sourceMotionVelocity,
                 Resolve_LocalVector(Vec3{ 0.f, 0.f, 1.f })
             );
@@ -2786,7 +2756,7 @@ void MeshEmitter::Update_SourceMotionVelocity(float timeDelta)
 
 Vec3 MeshEmitter::Sample_Acceleration(uint32 seed) const
 {
-    const uint32 accelerationSeed = seed + Internal::Resolve_SeedSalt(_desc.motion.accelerationSeed, _effectPlaybackSeed);
+    const uint32 accelerationSeed = seed + MeshEmitterDetail::Resolve_SeedSalt(_desc.motion.accelerationSeed, _effectPlaybackSeed);
     const Vec3 sampledAcceleration{
         RandomRange(_desc.motion.accelerationMin.x, _desc.motion.accelerationMax.x, accelerationSeed + 1u),
         RandomRange(_desc.motion.accelerationMin.y, _desc.motion.accelerationMax.y, accelerationSeed + 2u),
@@ -2801,7 +2771,7 @@ float MeshEmitter::Sample_Drag(uint32 seed) const
 {
     const float minDrag = min(_desc.motion.drag.x, _desc.motion.drag.y);
     const float maxDrag = max(_desc.motion.drag.x, _desc.motion.drag.y);
-    const uint32 dragSeed = seed + Internal::Resolve_SeedSalt(_desc.motion.dragSeed, _effectPlaybackSeed);
+    const uint32 dragSeed = seed + MeshEmitterDetail::Resolve_SeedSalt(_desc.motion.dragSeed, _effectPlaybackSeed);
     return max(0.f, RandomRange(minDrag, maxDrag, dragSeed));
 }
 
@@ -2812,8 +2782,8 @@ Vec4 MeshEmitter::Sample_Color(
     const PointParticleRandomSeedRuntimeDesc& alphaSeed,
     uint32 seed) const
 {
-    const uint32 rgbSeed = seed + Internal::Resolve_SeedSalt(colorSeed, _effectPlaybackSeed);
-    const uint32 resolvedAlphaSeed = seed + Internal::Resolve_SeedSalt(alphaSeed, _effectPlaybackSeed);
+    const uint32 rgbSeed = seed + MeshEmitterDetail::Resolve_SeedSalt(colorSeed, _effectPlaybackSeed);
+    const uint32 resolvedAlphaSeed = seed + MeshEmitterDetail::Resolve_SeedSalt(alphaSeed, _effectPlaybackSeed);
     return Vec4{
         RandomRange(min(minColor.x, maxColor.x), max(minColor.x, maxColor.x), rgbSeed + 1u),
         RandomRange(min(minColor.y, maxColor.y), max(minColor.y, maxColor.y), rgbSeed + 2u),
@@ -2827,7 +2797,7 @@ Vec3 MeshEmitter::Sample_InitialScale(uint32 seed) const
     if (!_desc.meshTransform.initialScaleEnabled)
         return Vec3{ 1.f, 1.f, 1.f };
 
-    const uint32 initialScaleSeed = seed + Internal::Resolve_SeedSalt(_desc.meshTransform.initialScaleSeed, _effectPlaybackSeed);
+    const uint32 initialScaleSeed = seed + MeshEmitterDetail::Resolve_SeedSalt(_desc.meshTransform.initialScaleSeed, _effectPlaybackSeed);
     return Vec3{
         max(0.0001f, RandomRange(_desc.meshTransform.initialScaleMin.x, _desc.meshTransform.initialScaleMax.x, initialScaleSeed + 1u)),
         max(0.0001f, RandomRange(_desc.meshTransform.initialScaleMin.y, _desc.meshTransform.initialScaleMax.y, initialScaleSeed + 2u)),
@@ -2840,7 +2810,7 @@ Vec3 MeshEmitter::Sample_InitialRotation(uint32 seed) const
     if (!_desc.meshTransform.rotationEnabled)
         return Vec3{};
 
-    const uint32 initialRotationSeed = seed + Internal::Resolve_SeedSalt(_desc.meshTransform.initialRotationSeed, _effectPlaybackSeed);
+    const uint32 initialRotationSeed = seed + MeshEmitterDetail::Resolve_SeedSalt(_desc.meshTransform.initialRotationSeed, _effectPlaybackSeed);
     return Vec3{
         XMConvertToRadians(
             RandomRange(_desc.meshTransform.initialRotationDegreesMin.x, _desc.meshTransform.initialRotationDegreesMax.x, initialRotationSeed + 1u)
@@ -2860,7 +2830,7 @@ Vec3 MeshEmitter::Sample_InitialAngularVelocity(uint32 seed) const
         return Vec3{};
 
     const uint32 initialAngularVelocitySeed =
-        seed + Internal::Resolve_SeedSalt(_desc.meshTransform.initialAngularVelocitySeed, _effectPlaybackSeed);
+        seed + MeshEmitterDetail::Resolve_SeedSalt(_desc.meshTransform.initialAngularVelocitySeed, _effectPlaybackSeed);
     return Vec3{
         XMConvertToRadians(
             RandomRange(
@@ -2888,7 +2858,7 @@ Vec3 MeshEmitter::Sample_InitialAngularVelocity(uint32 seed) const
 
 float MeshEmitter::Evaluate_VelocityScaleByLifeChannel(const PointParticleFloatCurveRuntimeDesc& curve, float lifeProgress) const
 {
-    return max(0.f, Internal::Evaluate_FloatCurve(curve, lifeProgress, 1.f));
+    return max(0.f, MeshEmitterDetail::Evaluate_FloatCurve(curve, lifeProgress, 1.f));
 }
 
 Vec3 MeshEmitter::Evaluate_ScaledVelocityChannels(const MeshParticleState& particle, float lifeProgress) const
@@ -3167,26 +3137,26 @@ float MeshEmitter::Evaluate_CompactCurve(
     float fallbackValue) const
 {
     const uint32 clampedKeyCount = max(1u, min(kEffectDistributionCurveMaxKeys, keyCount));
-    if (clampedKeyCount == 1u || lifeProgress <= Internal::Read_Vec4Component(times, timesBlock1, 0u))
-        return Internal::Read_Vec4Component(values, valuesBlock1, 0u);
+    if (clampedKeyCount == 1u || lifeProgress <= MeshEmitterDetail::Read_Vec4Component(times, timesBlock1, 0u))
+        return MeshEmitterDetail::Read_Vec4Component(values, valuesBlock1, 0u);
 
     for (uint32 index = 1u; index < clampedKeyCount; ++index)
     {
-        const float rightTime = Internal::Read_Vec4Component(times, timesBlock1, index);
+        const float rightTime = MeshEmitterDetail::Read_Vec4Component(times, timesBlock1, index);
         if (lifeProgress > rightTime)
             continue;
 
-        const float leftTime = Internal::Read_Vec4Component(times, timesBlock1, index - 1u);
+        const float leftTime = MeshEmitterDetail::Read_Vec4Component(times, timesBlock1, index - 1u);
         const float ratio = clamp((lifeProgress - leftTime) / max(0.0001f, rightTime - leftTime), 0.f, 1.f);
         return lerp(
-            Internal::Read_Vec4Component(values, valuesBlock1, index - 1u),
-            Internal::Read_Vec4Component(values, valuesBlock1, index),
+            MeshEmitterDetail::Read_Vec4Component(values, valuesBlock1, index - 1u),
+            MeshEmitterDetail::Read_Vec4Component(values, valuesBlock1, index),
             ratio
         );
     }
 
-    return lifeProgress > Internal::Read_Vec4Component(times, timesBlock1, clampedKeyCount - 1u)
-           ? Internal::Read_Vec4Component(values, valuesBlock1, clampedKeyCount - 1u)
+    return lifeProgress > MeshEmitterDetail::Read_Vec4Component(times, timesBlock1, clampedKeyCount - 1u)
+           ? MeshEmitterDetail::Read_Vec4Component(values, valuesBlock1, clampedKeyCount - 1u)
            : fallbackValue;
 }
 
@@ -3206,19 +3176,19 @@ float MeshEmitter::Evaluate_CompactCurve(
     float fallbackValue) const
 {
     const uint32 clampedKeyCount = max(1u, min(kEffectDistributionCurveMaxKeys, keyCount));
-    if (clampedKeyCount == 1u || lifeProgress <= Internal::Read_Vec4Component(times, timesBlock1, 0u))
-        return Internal::Read_Vec4Component(values, valuesBlock1, 0u);
+    if (clampedKeyCount == 1u || lifeProgress <= MeshEmitterDetail::Read_Vec4Component(times, timesBlock1, 0u))
+        return MeshEmitterDetail::Read_Vec4Component(values, valuesBlock1, 0u);
 
     for (uint32 index = 1u; index < clampedKeyCount; ++index)
     {
-        const float rightTime = Internal::Read_Vec4Component(times, timesBlock1, index);
+        const float rightTime = MeshEmitterDetail::Read_Vec4Component(times, timesBlock1, index);
         if (lifeProgress > rightTime)
             continue;
 
-        const float leftTime = Internal::Read_Vec4Component(times, timesBlock1, index - 1u);
-        const float leftValue = Internal::Read_Vec4Component(values, valuesBlock1, index - 1u);
-        const float rightValue = Internal::Read_Vec4Component(values, valuesBlock1, index);
-        const float mode = Internal::Read_Vec4Component(modes, modesBlock1, index - 1u);
+        const float leftTime = MeshEmitterDetail::Read_Vec4Component(times, timesBlock1, index - 1u);
+        const float leftValue = MeshEmitterDetail::Read_Vec4Component(values, valuesBlock1, index - 1u);
+        const float rightValue = MeshEmitterDetail::Read_Vec4Component(values, valuesBlock1, index);
+        const float mode = MeshEmitterDetail::Read_Vec4Component(modes, modesBlock1, index - 1u);
         const float width = max(0.0001f, rightTime - leftTime);
         const float ratio = clamp((lifeProgress - leftTime) / width, 0.f, 1.f);
 
@@ -3229,8 +3199,8 @@ float MeshEmitter::Evaluate_CompactCurve(
         {
             const float t2 = ratio * ratio;
             const float t3 = t2 * ratio;
-            const float leftLeave = Internal::Read_Vec4Component(leaveTangents, leaveTangentsBlock1, index - 1u) * width;
-            const float rightArrive = Internal::Read_Vec4Component(arriveTangents, arriveTangentsBlock1, index) * width;
+            const float leftLeave = MeshEmitterDetail::Read_Vec4Component(leaveTangents, leaveTangentsBlock1, index - 1u) * width;
+            const float rightArrive = MeshEmitterDetail::Read_Vec4Component(arriveTangents, arriveTangentsBlock1, index) * width;
             return
                 (2.f * t3 - 3.f * t2 + 1.f) * leftValue +
                 (t3 - 2.f * t2 + ratio) * leftLeave +
@@ -3241,8 +3211,8 @@ float MeshEmitter::Evaluate_CompactCurve(
         return lerp(leftValue, rightValue, ratio);
     }
 
-    return lifeProgress > Internal::Read_Vec4Component(times, timesBlock1, clampedKeyCount - 1u)
-           ? Internal::Read_Vec4Component(values, valuesBlock1, clampedKeyCount - 1u)
+    return lifeProgress > MeshEmitterDetail::Read_Vec4Component(times, timesBlock1, clampedKeyCount - 1u)
+           ? MeshEmitterDetail::Read_Vec4Component(values, valuesBlock1, clampedKeyCount - 1u)
            : fallbackValue;
 }
 
@@ -3453,3 +3423,5 @@ void MeshEmitter::Free()
 
     __super::Free();
 }
+
+NS_END

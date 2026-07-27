@@ -4,7 +4,6 @@
 
 NS_BEGIN(EffectEditor)
 
-// EffectEditor dockable window들의 공통 lifecycle과 open/focus/dirty 상태를 제공한다.
 class Editor_Window abstract : public Base
 {
 public:

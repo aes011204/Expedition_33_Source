@@ -22,7 +22,9 @@
 #include "Monster_Part.h"
 #include "Weapon.h"
 
-namespace Internal
+NS_BEGIN(Client)
+
+namespace
 {
 string Format_SourceKeyVec3(const Vec3& value)
 {
@@ -77,6 +79,46 @@ EffectHistorySourceGroupKey Build_SourcePointHistoryKey(
     );
     return key;
 }
+
+Quat Resolve_NormalizedWorldRotation(const Matrix& worldMatrix)
+{
+    Matrix decomposableWorldMatrix = worldMatrix;
+    Vec3 scale = Vec3::One;
+    Vec3 position = Vec3::Zero;
+    Quat rotation = Quat::Identity;
+    if (!decomposableWorldMatrix.Decompose(scale, rotation, position) || rotation.LengthSquared() <= 0.000001f)
+        return Quat::Identity;
+
+    rotation.Normalize();
+    return rotation;
+}
+
+class TrailTipSourcePointSampleProvider final : public IEffectSourcePointSampleProvider
+{
+public:
+    explicit TrailTipSourcePointSampleProvider(const Weak<IEffectTrailSampleProvider>& trailProvider)
+        : _trailProvider(trailProvider)
+    {
+    }
+
+    bool Try_GetSourcePointSample(EffectSourcePointSample& outSample) const override
+    {
+        const Shared<IEffectTrailSampleProvider> trailProvider = _trailProvider.lock();
+        if (trailProvider == nullptr)
+            return false;
+
+        EffectTrailSample trailSample{};
+        if (!trailProvider->Try_GetTrailSample(trailSample))
+            return false;
+
+        outSample.worldPosition = trailSample.tipWorldPosition;
+        outSample.worldRotation = trailSample.tipWorldRotation;
+        return true;
+    }
+
+private:
+    Weak<IEffectTrailSampleProvider> _trailProvider{};
+};
 
 Vec3 Resolve_CameraDirectionFromAnchor(const Vec3& anchorPosition, const Vec3& fallback)
 {
@@ -270,7 +312,7 @@ HRESULT EffectCom::Initialize(void* arg)
 {
     CHECK_FAILED(__super::Initialize(arg), E_FAIL);
 
-    _switchDissolve = {}; // 디졸브 런타임은 clone마다 새 상태로 시작
+    _switchDissolve = {};
     _previewRim = {};
     _attachedEffects.clear();
     _vanishComplete = false;
@@ -294,7 +336,6 @@ void EffectCom::Update(float timeDelta)
 
     _switchDissolve.Update(timeDelta);
 
-    // 사라지면, Visible 끄기
     if (_vanishComplete &&
         wasDissolving &&
         wasVanish &&
@@ -364,7 +405,7 @@ void EffectCom::Capture_AttachedEffectPauseStates(vector<AttachedEffectPauseStat
         state.effect = effect;
         state.wasPaused = effect->Is_PlaybackPaused();
 
-        effect->Set_PlaybackPaused(true); // 튜토리얼 UI가 열린 동안 attached trail/effect 시간을 고정한다.
+        effect->Set_PlaybackPaused(true);
         outStates.push_back(state);
     }
 }
@@ -376,7 +417,7 @@ void EffectCom::Restore_AttachedEffectPauseStates(vector<AttachedEffectPauseStat
         if (state.effect == nullptr)
             continue;
 
-        state.effect->Set_PlaybackPaused(state.wasPaused); // 튜토리얼 시작 전 effect pause 상태로 되돌린다.
+        state.effect->Set_PlaybackPaused(state.wasPaused);
     }
 
     states.clear();
@@ -485,7 +526,6 @@ HRESULT EffectCom::Bind_DrawFeatures(ShaderCom* shader, uint32 supportFeatureMas
 
 HRESULT EffectCom::Bind_DrawFeatures(const Shared<GameObject>& owner, ShaderCom* shader, uint32 supportFeatureMask)
 {
-    // Render 쪽에 있던 owner->Get_Component<EffectCom>() 조회와 fallback reset을 여기로 이동
     CHECK_NULL_THROTTLED(shader, 60, E_FAIL);
 
     Shared<EffectCom> effectCom{};
@@ -865,7 +905,7 @@ bool EffectCom::Try_ResolveEffectWorldTransform(
         XMConvertToRadians(localRotation.z)
     );
 
-    // local offset/rotation은 선택된 위치/회전 상속 basis 기준으로 합성한다.
+    // Local offset과 rotation은 선택된 position/rotation 상속 basis를 기준으로 합성한다.
     const Matrix localMatrix =
         Matrix::CreateFromYawPitchRoll(localRotationRad.y, localRotationRad.x, localRotationRad.z) *
         Matrix::CreateTranslation(localOffset);
@@ -914,7 +954,7 @@ bool EffectCom::Try_ResolveEffectWorldTransform(
     if (localOffsetZTowardCamera)
     {
         const Vec3 fallbackDirection = basisLook;
-        const Vec3 cameraDirection = Internal::Resolve_CameraDirectionFromAnchor(baseTranslation, fallbackDirection);
+        const Vec3 cameraDirection = Resolve_CameraDirectionFromAnchor(baseTranslation, fallbackDirection);
         const Vec3 origin = transformInheritance.inheritPosition ? baseTranslation : Vec3::Zero;
         const Vec3 customTranslation =
             origin +
@@ -970,7 +1010,7 @@ HRESULT EffectCom::Play_AttachedEffect(
     desc.localOffset = localOffset;
     desc.localRotation = localRotation;
     desc.scale = scale;
-    desc.followTarget = true; // attached effect는 EffectCom Update에서 계속 socket transform을 따라간다.
+    desc.followTarget = true;
     desc.trailSampleProvider = trailSampleProvider;
 
     return Play_Effect(desc);
@@ -996,7 +1036,7 @@ HRESULT EffectCom::Play_AttachedPartEffect(
     desc.localOffset = localOffset;
     desc.localRotation = localRotation;
     desc.scale = scale;
-    desc.followTarget = true; // socketName이 비어 있으면 part root, 있으면 socket을 계속 따라간다.
+    desc.followTarget = true;
 
     return Play_Effect(desc);
 }
@@ -1032,11 +1072,12 @@ HRESULT EffectCom::Play_TrailEffect(
     if (!Try_ResolveTrailEffectName(effectName, partTag, resolvedEffectName))
         return E_FAIL;
 
-    const Shared<ModelCom> weaponModel = Internal::Resolve_TrailPartModel(trailPart);
+    const Shared<ModelCom> weaponModel = Resolve_TrailPartModel(trailPart);
     CHECK_NULL(weaponModel, E_FAIL);
 
     AttachedEffect attached{};
-    attached.effectName = resolvedEffectName; // Stop에서도 같은 resolved 이름으로 찾아야 한다.
+    // Stop에서도 동일한 pool key를 사용하도록 해석이 끝난 effect 이름을 저장한다.
+    attached.effectName = resolvedEffectName;
     attached.partTag = partTag;
     attached.layerTag = layerTag;
     attached.role = AttachedEffectRole::Trail;
@@ -1083,6 +1124,8 @@ HRESULT EffectCom::Play_TrailEffect(
         attached.trailSampleEnabled
     );
     CHECK_NULL(attached.trailSampleProvider, E_FAIL);
+    attached.ribbonSourcePointSampleProvider = make_shared<TrailTipSourcePointSampleProvider>(attached.trailSampleProvider);
+    CHECK_NULL(attached.ribbonSourcePointSampleProvider, E_FAIL);
 
     EffectInstancePool* effectPool = CLIENT->Get_EffectInstancePool();
     CHECK_NULL(effectPool, E_FAIL);
@@ -1093,14 +1136,15 @@ HRESULT EffectCom::Play_TrailEffect(
     acquireDesc.layerTag = layerTag;
     acquireDesc.worldPosition = initialSample.tipWorldPosition;
     acquireDesc.trailSampleProvider = attached.trailSampleProvider;
-    acquireDesc.trailSampleGroupKey = Internal::Build_TrailPairHistoryKey(
+    acquireDesc.ribbonSourcePointSampleProvider = attached.ribbonSourcePointSampleProvider;
+    acquireDesc.trailSampleGroupKey = Build_TrailPairHistoryKey(
         attached.partTag,
         attached.trailAnchorAsset,
         attached.trailNotifyToken
     );
     acquireDesc.autoReleaseOnFinished = false;
 
-    attached.trailDrainDuration = Internal::Resolve_TrailDrainDuration(EffectAssetRuntimeLoader::Load_DefinitionByName(resolvedEffectName));
+    attached.trailDrainDuration = Resolve_TrailDrainDuration(EffectAssetRuntimeLoader::Load_DefinitionByName(resolvedEffectName));
 
     for (AttachedEffect& existing : _attachedEffects)
     {
@@ -1112,7 +1156,7 @@ HRESULT EffectCom::Play_TrailEffect(
             continue;
         if (existing.layerTag != attached.layerTag)
             continue;
-        if (!Internal::Is_SameTrailAnchor(existing.trailAnchorAsset, attached.trailAnchorAsset))
+        if (!Is_SameTrailAnchor(existing.trailAnchorAsset, attached.trailAnchorAsset))
             continue;
 
         Release_AttachedEffect(existing);
@@ -1301,7 +1345,7 @@ HRESULT EffectCom::Play_SourceHistoryEffect(
     if (static_cast<int32>(sourceBindingMode) == 3)
     {
         const PartObject* trailPart = ownerContainer->Get_PartObject(partTag);
-        if (Internal::Resolve_TrailPartModel(trailPart) == nullptr)
+        if (Resolve_TrailPartModel(trailPart) == nullptr)
         {
             LOG_WARN(
                 "[EffectCom] Play_SourceHistoryEffect failed: weapon part not found. effect={}, part={}, layer={}",
@@ -1312,7 +1356,7 @@ HRESULT EffectCom::Play_SourceHistoryEffect(
             return E_FAIL;
         }
 
-        const Shared<ModelCom> weaponModel = Internal::Resolve_TrailPartModel(trailPart);
+        const Shared<ModelCom> weaponModel = Resolve_TrailPartModel(trailPart);
         if (weaponModel == nullptr)
         {
             LOG_WARN(
@@ -1390,6 +1434,7 @@ HRESULT EffectCom::Play_SourceHistoryEffect(
         attached.sourcePointSampleEnabled
     );
     CHECK_NULL(attached.sourcePointSampleProvider, E_FAIL);
+    attached.ribbonSourcePointSampleProvider = attached.sourcePointSampleProvider;
 
     EffectInstancePool* effectPool = CLIENT->Get_EffectInstancePool();
     if (effectPool == nullptr)
@@ -1409,7 +1454,8 @@ HRESULT EffectCom::Play_SourceHistoryEffect(
     acquireDesc.layerTag = layerTag;
     acquireDesc.worldPosition = initialSample.worldPosition;
     acquireDesc.sourcePointSampleProvider = attached.sourcePointSampleProvider;
-    acquireDesc.sourcePointGroupKey = Internal::Build_SourcePointHistoryKey(
+    acquireDesc.ribbonSourcePointSampleProvider = attached.ribbonSourcePointSampleProvider;
+    acquireDesc.sourcePointGroupKey = Build_SourcePointHistoryKey(
         attached.partTag,
         attached.sourceHistorySourceBindingMode,
         attached.socketName,
@@ -1419,7 +1465,7 @@ HRESULT EffectCom::Play_SourceHistoryEffect(
     acquireDesc.autoReleaseOnFinished = false;
 
     attached.sourceHistoryDrainDuration =
-        Internal::Resolve_SourceHistoryDrainDuration(EffectAssetRuntimeLoader::Load_DefinitionByName(resolvedEffectName));
+        Resolve_SourceHistoryDrainDuration(EffectAssetRuntimeLoader::Load_DefinitionByName(resolvedEffectName));
 
     const HRESULT acquireResult = effectPool->Acquire(acquireDesc, attached.poolHandle);
     if (FAILED(acquireResult))
@@ -1535,7 +1581,7 @@ bool EffectCom::Try_ResolveTrailEffectName(
         return false;
 
     const PartObject* trailPart = ownerContainer->Get_PartObject(partTag);
-    outEffectName = Internal::Resolve_DefaultTrailEffectName(trailPart);
+    outEffectName = Resolve_DefaultTrailEffectName(trailPart);
     return !outEffectName.empty();
 }
 
@@ -1594,8 +1640,9 @@ void EffectCom::Update_AttachedEffects(float timeDelta)
             continue;
         }
 
+        // 단발 effect는 시작 transform만 사용하고 이후 owner 이동을 추적하지 않는다.
         if (!attached.followTarget)
-            continue; // AN 단발 이펙트는 시작 위치만 맞추고 더 이상 이동시키지 않는다.
+            continue;
 
         Vec3 targetWorldPosition{};
         Quat targetWorldRotation{ Quat::Identity };
@@ -1753,9 +1800,9 @@ bool EffectCom::Try_GetSocketWorldMatrix(
         return true;
     }
 
-    if (Internal::Resolve_TrailPartModel(partObject) != nullptr)
+    if (Resolve_TrailPartModel(partObject) != nullptr)
     {
-        const Matrix* socketMatrix = Internal::Resolve_TrailPartSocketMatrix(partObject, socketName);
+        const Matrix* socketMatrix = Resolve_TrailPartSocketMatrix(partObject, socketName);
         if (socketMatrix == nullptr)
             return false;
 
@@ -1794,7 +1841,7 @@ bool EffectCom::Try_BuildTrailSample(
         return false;
 
     const PartObject* trailPart = ownerContainer->Get_PartObject(partTag);
-    if (Internal::Resolve_TrailPartModel(trailPart) == nullptr)
+    if (Resolve_TrailPartModel(trailPart) == nullptr)
         return false;
 
     const TrailAnchorAsset sampleAnchorAsset =
@@ -1807,16 +1854,18 @@ bool EffectCom::Try_BuildTrailSample(
             offsetDesc->phase)
         : trailAnchorAsset;
 
-    Vec3 baseWorld{};
-    Vec3 tipWorld{};
+    Matrix baseWorldMatrix{};
+    Matrix tipWorldMatrix{};
 
-    if (!Try_ResolveTrailAnchorWorldPosition(*trailPart, sampleAnchorAsset.base, baseWorld))
+    if (!Try_ResolveTrailAnchorWorldMatrix(*trailPart, sampleAnchorAsset.base, baseWorldMatrix))
         return false;
-    if (!Try_ResolveTrailAnchorWorldPosition(*trailPart, sampleAnchorAsset.tip, tipWorld))
+    if (!Try_ResolveTrailAnchorWorldMatrix(*trailPart, sampleAnchorAsset.tip, tipWorldMatrix))
         return false;
 
-    outSample.baseWorldPosition = baseWorld;
-    outSample.tipWorldPosition = tipWorld;
+    outSample.baseWorldPosition = Vec3::Transform(sampleAnchorAsset.base.localPosition, baseWorldMatrix);
+    outSample.tipWorldPosition = Vec3::Transform(sampleAnchorAsset.tip.localPosition, tipWorldMatrix);
+    outSample.baseWorldRotation = Resolve_NormalizedWorldRotation(baseWorldMatrix);
+    outSample.tipWorldRotation = Resolve_NormalizedWorldRotation(tipWorldMatrix);
 
     return true;
 }
@@ -1850,6 +1899,7 @@ bool EffectCom::Try_BuildSourcePointSample(
             return false;
 
         outSample.worldPosition = Vec3::Transform(sourceHistoryLocalOffset, socketWorldMatrix);
+        outSample.worldRotation = Resolve_NormalizedWorldRotation(socketWorldMatrix);
         return true;
     }
 
@@ -1864,7 +1914,10 @@ bool EffectCom::Try_BuildSourcePointSample(
 
         if (sourceHistoryAnchorName == "Base")
         {
-            outSample.worldPosition = trailSample.baseWorldPosition + sourceHistoryLocalOffset;
+            outSample.worldPosition = trailSample.baseWorldPosition + Vec3::Transform(
+                sourceHistoryLocalOffset,
+                Matrix::CreateFromQuaternion(trailSample.baseWorldRotation));
+            outSample.worldRotation = trailSample.baseWorldRotation;
             return true;
         }
 
@@ -1872,11 +1925,18 @@ bool EffectCom::Try_BuildSourcePointSample(
         {
             outSample.worldPosition =
                 (trailSample.baseWorldPosition + trailSample.tipWorldPosition) * 0.5f +
-                sourceHistoryLocalOffset;
+                Vec3::Transform(sourceHistoryLocalOffset, Matrix::CreateFromQuaternion(Quat::Slerp(
+                    trailSample.baseWorldRotation,
+                    trailSample.tipWorldRotation,
+                    0.5f)));
+            outSample.worldRotation = Quat::Slerp(trailSample.baseWorldRotation, trailSample.tipWorldRotation, 0.5f);
             return true;
         }
 
-        outSample.worldPosition = trailSample.tipWorldPosition + sourceHistoryLocalOffset;
+        outSample.worldPosition = trailSample.tipWorldPosition + Vec3::Transform(
+            sourceHistoryLocalOffset,
+            Matrix::CreateFromQuaternion(trailSample.tipWorldRotation));
+        outSample.worldRotation = trailSample.tipWorldRotation;
         return true;
     }
 
@@ -1889,19 +1949,25 @@ bool EffectCom::Try_BuildSourcePointSample(
     if (weaponPart == nullptr)
         return false;
 
-    return Try_ResolveWeaponAnchorWorldPosition(
+    Matrix sourceWorldMatrix{};
+    if (!Try_ResolveWeaponAnchorWorldMatrix(
         *weaponPart,
         sourceHistoryAnchorName,
         sourceHistoryLocalOffset,
-        outSample.worldPosition);
+        sourceWorldMatrix))
+        return false;
+
+    outSample.worldPosition = Vec3::Transform(sourceHistoryLocalOffset, sourceWorldMatrix);
+    outSample.worldRotation = Resolve_NormalizedWorldRotation(sourceWorldMatrix);
+    return true;
 }
 
-bool EffectCom::Try_ResolveTrailAnchorWorldPosition(
+bool EffectCom::Try_ResolveTrailAnchorWorldMatrix(
     const PartObject& trailPart,
     const TrailAnchorPointDesc& anchor,
-    Vec3& outWorldPosition) const
+    Matrix& outWorldMatrix) const
 {
-    const Shared<ModelCom> weaponModel = Internal::Resolve_TrailPartModel(&trailPart);
+    const Shared<ModelCom> weaponModel = Resolve_TrailPartModel(&trailPart);
     if (weaponModel == nullptr || anchor.boneName.empty())
         return false;
 
@@ -1917,15 +1983,15 @@ bool EffectCom::Try_ResolveTrailAnchorWorldPosition(
                                      ? Matrix::Identity
                                      : *boneMatrix;
     const Matrix anchorWorldMatrix = anchorLocalMatrix * trailPart.Get_CombinedWorldMatrix();
-    outWorldPosition = Vec3::Transform(anchor.localPosition, anchorWorldMatrix);
+    outWorldMatrix = anchorWorldMatrix;
     return true;
 }
 
-bool EffectCom::Try_ResolveWeaponAnchorWorldPosition(
+bool EffectCom::Try_ResolveWeaponAnchorWorldMatrix(
     const PartObject& weaponPart,
     const string& anchorName,
     const Vec3& localOffset,
-    Vec3& outWorldPosition) const
+    Matrix& outWorldMatrix) const
 {
     const WeaponSourceHistoryAnchorDesc* anchor = nullptr;
     Shared<ModelCom> weaponModel = nullptr;
@@ -1974,7 +2040,7 @@ bool EffectCom::Try_ResolveWeaponAnchorWorldPosition(
                                      ? Matrix::Identity
                                      : *boneMatrix;
     const Matrix sourceWorldMatrix = sourceLocalMatrix * weaponPart.Get_CombinedWorldMatrix();
-    outWorldPosition = Vec3::Transform(anchor->localPosition + localOffset, sourceWorldMatrix);
+    outWorldMatrix = Matrix::CreateTranslation(anchor->localPosition) * sourceWorldMatrix;
     return true;
 }
 
@@ -2010,3 +2076,5 @@ void EffectCom::Free()
 
     __super::Free();
 }
+
+NS_END
