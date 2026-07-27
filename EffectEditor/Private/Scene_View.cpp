@@ -10,11 +10,11 @@
 
 NS_BEGIN(EffectEditor)
 
-namespace Internal
+namespace
 {
-    static constexpr float kAutoPreviewViewportScale = 1.5f;
+    constexpr float kAutoPreviewViewportScale = 1.5f;
 
-    static bool Should_BeginPreviewCameraDrag()
+    bool Should_BeginPreviewCameraDrag()
     {
         const bool altHeld =
             GAME->KeyPress(KEY_TYPE::ALT) || GAME->KeyDown(KEY_TYPE::ALT);
@@ -38,7 +38,7 @@ namespace Internal
         ImVec2 max;
     };
 
-    static ViewportImageRect Compute_AspectFitRect(const ImVec2& canvasMin, const ImVec2& canvasSize, float aspect)
+    ViewportImageRect Compute_AspectFitRect(const ImVec2& canvasMin, const ImVec2& canvasSize, float aspect)
     {
         if (aspect <= 0.f || canvasSize.x <= 1.f || canvasSize.y <= 1.f)
         {
@@ -68,7 +68,7 @@ namespace Internal
         };
     }
 
-    static OverlayRect Compute_GizmoOverlayRect(const ImVec2& viewportMin, const ImVec2& viewportMax)
+    OverlayRect Compute_GizmoOverlayRect(const ImVec2& viewportMin, const ImVec2& viewportMax)
     {
         const ImVec2 panelSize = ImVec2(370.f, 34.f);
         const ImVec2 panelMin = ImVec2(viewportMax.x - panelSize.x - 16.f, viewportMin.y + 16.f);
@@ -79,7 +79,7 @@ namespace Internal
         };
     }
 
-    static OverlayRect Compute_ToolbarHandleRect(const ImVec2& viewportMin, const ImVec2& viewportMax)
+    OverlayRect Compute_ToolbarHandleRect(const ImVec2& viewportMin, const ImVec2& viewportMax)
     {
         const ImVec2 panelSize = ImVec2(34.f, 30.f);
         const ImVec2 panelMin = ImVec2(viewportMax.x - panelSize.x - 16.f, viewportMin.y + 16.f);
@@ -90,7 +90,7 @@ namespace Internal
         };
     }
 
-    static OverlayRect Compute_ToolbarPinRect(const ImVec2& viewportMin, const ImVec2& viewportMax)
+    OverlayRect Compute_ToolbarPinRect(const ImVec2& viewportMin, const ImVec2& viewportMax)
     {
         const OverlayRect gizmoRect = Compute_GizmoOverlayRect(viewportMin, viewportMax);
         const ImVec2 panelSize = ImVec2(34.f, 30.f);
@@ -102,7 +102,7 @@ namespace Internal
         };
     }
 
-    static OverlayRect Compute_PreviewViewportOverlayRect(const ImVec2& viewportMin, const ImVec2& viewportMax)
+    OverlayRect Compute_PreviewViewportOverlayRect(const ImVec2& viewportMin, const ImVec2& viewportMax)
     {
         const ImVec2 panelSize = ImVec2(370.f, 34.f);
         const ImVec2 panelMin = ImVec2(viewportMax.x - panelSize.x - 16.f, viewportMin.y + 58.f);
@@ -113,7 +113,7 @@ namespace Internal
         };
     }
 
-    static OverlayRect Compute_DebugOptionOverlayRect(const ImVec2& viewportMin, const ImVec2& viewportMax)
+    OverlayRect Compute_DebugOptionOverlayRect(const ImVec2& viewportMin, const ImVec2& viewportMax)
     {
         const OverlayRect previewRect = Compute_PreviewViewportOverlayRect(viewportMin, viewportMax);
         const ImVec2 panelSize = ImVec2(370.f, 34.f);
@@ -125,23 +125,23 @@ namespace Internal
         };
     }
 
-    static bool Is_PointInRect(const ImVec2& point, const OverlayRect& rect)
+    bool Is_PointInRect(const ImVec2& point, const OverlayRect& rect)
     {
         return point.x >= rect.min.x && point.x <= rect.max.x &&
                point.y >= rect.min.y && point.y <= rect.max.y;
     }
 
-    static bool Should_OpenToolbarOverlay(const ImVec2& viewportMin, const ImVec2& viewportMax, const ImVec2& mousePos)
+    bool Should_OpenToolbarOverlay(const ImVec2& viewportMin, const ImVec2& viewportMax, const ImVec2& mousePos)
     {
         return Is_PointInRect(mousePos, Compute_ToolbarHandleRect(viewportMin, viewportMax));
     }
 
-    static bool Should_OpenToolbarOverlay(const ImVec2& viewportMin, const ImVec2& viewportMax)
+    bool Should_OpenToolbarOverlay(const ImVec2& viewportMin, const ImVec2& viewportMax)
     {
         return Should_OpenToolbarOverlay(viewportMin, viewportMax, ImGui::GetIO().MousePos);
     }
 
-    static OverlayRect Compute_ToolbarKeepAliveRect(const ImVec2& viewportMin, const ImVec2& viewportMax)
+    OverlayRect Compute_ToolbarKeepAliveRect(const ImVec2& viewportMin, const ImVec2& viewportMax)
     {
         const OverlayRect pinRect = Compute_ToolbarPinRect(viewportMin, viewportMax);
         const OverlayRect gizmoRect = Compute_GizmoOverlayRect(viewportMin, viewportMax);
@@ -160,17 +160,17 @@ namespace Internal
         };
     }
 
-    static bool Should_KeepToolbarOverlay(const ImVec2& viewportMin, const ImVec2& viewportMax, const ImVec2& mousePos)
+    bool Should_KeepToolbarOverlay(const ImVec2& viewportMin, const ImVec2& viewportMax, const ImVec2& mousePos)
     {
         return Is_PointInRect(mousePos, Compute_ToolbarKeepAliveRect(viewportMin, viewportMax));
     }
 
-    static bool Should_KeepToolbarOverlay(const ImVec2& viewportMin, const ImVec2& viewportMax)
+    bool Should_KeepToolbarOverlay(const ImVec2& viewportMin, const ImVec2& viewportMax)
     {
         return Should_KeepToolbarOverlay(viewportMin, viewportMax, ImGui::GetIO().MousePos);
     }
 
-    static bool Should_ShowToolbarOverlay(const ImVec2& viewportMin, const ImVec2& viewportMax, bool isPinned, bool isInteracting)
+    bool Should_ShowToolbarOverlay(const ImVec2& viewportMin, const ImVec2& viewportMax, bool isPinned, bool isInteracting)
     {
         if (isPinned || isInteracting)
             return true;
@@ -179,7 +179,7 @@ namespace Internal
         return Should_OpenToolbarOverlay(viewportMin, viewportMax, mousePos);
     }
 
-    static bool Is_MouseOverViewportOverlay(
+    bool Is_MouseOverViewportOverlay(
         const ImVec2& viewportMin,
         const ImVec2& viewportMax,
         bool isToolbarPinned,
@@ -195,7 +195,7 @@ namespace Internal
         return Should_OpenToolbarOverlay(viewportMin, viewportMax, mousePos);
     }
 
-    static const RequiredModuleData* Find_RequiredModuleData(const AuthoringEmitter& emitter)
+    const RequiredModuleData* Find_RequiredModuleData(const AuthoringEmitter& emitter)
     {
         for (const AuthoringModule& module : emitter.modules)
         {
@@ -208,7 +208,7 @@ namespace Internal
         return nullptr;
     }
 
-    static Matrix Build_LocalTransformMatrix(const Vec3& position, const Vec3& rotationDegrees)
+    Matrix Build_LocalTransformMatrix(const Vec3& position, const Vec3& rotationDegrees)
     {
         const Matrix rotation = Matrix::CreateFromYawPitchRoll(
             XMConvertToRadians(rotationDegrees.y),
@@ -264,7 +264,7 @@ void Scene_View::Render()
         Render_ViewportToolbarOverlay();
 
         const bool overlayBlocked =
-            Internal::Is_MouseOverViewportOverlay(
+            Is_MouseOverViewportOverlay(
                 _viewportMin,
                 _viewportMax,
                 _isViewportToolbarPinned,
@@ -274,7 +274,7 @@ void Scene_View::Render()
 
         if (!overlayBlocked &&
             _isViewportHovered &&
-            Internal::Should_BeginPreviewCameraDrag())
+            Should_BeginPreviewCameraDrag())
             EDITOR->Begin_PreviewCameraDrag();
 
         EDITOR->Set_SceneViewportInputState(_isViewportHovered, overlayBlocked);
@@ -389,7 +389,7 @@ void Scene_View::Render_ViewportToolbarOverlay()
         return;
 
     const bool showToolbar =
-        Internal::Should_ShowToolbarOverlay(
+        Should_ShowToolbarOverlay(
             _viewportMin,
             _viewportMax,
             _isViewportToolbarPinned,
@@ -400,7 +400,7 @@ void Scene_View::Render_ViewportToolbarOverlay()
     ImDrawList* drawList = ImGui::GetWindowDrawList();
     if (!showToolbar)
     {
-        const Internal::OverlayRect handleRect = Internal::Compute_ToolbarHandleRect(_viewportMin, _viewportMax);
+        const OverlayRect handleRect = Compute_ToolbarHandleRect(_viewportMin, _viewportMax);
 
         drawList->AddRectFilled(handleRect.min, handleRect.max, IM_COL32(36, 38, 42, 220), 6.f);
         drawList->AddRect(handleRect.min, handleRect.max, IM_COL32(92, 96, 104, 255), 6.f);
@@ -415,7 +415,7 @@ void Scene_View::Render_ViewportToolbarOverlay()
         return;
     }
 
-    const Internal::OverlayRect pinRect = Internal::Compute_ToolbarPinRect(_viewportMin, _viewportMax);
+    const OverlayRect pinRect = Compute_ToolbarPinRect(_viewportMin, _viewportMax);
 
     drawList->AddRectFilled(pinRect.min, pinRect.max, IM_COL32(36, 38, 42, 220), 6.f);
     drawList->AddRect(pinRect.min, pinRect.max, IM_COL32(92, 96, 104, 255), 6.f);
@@ -446,16 +446,16 @@ void Scene_View::Render_ViewportToolbarOverlay()
     _isViewportToolbarInteracting =
         _isViewportToolbarInteracting ||
         ImGui::IsAnyItemActive() ||
-        Internal::Should_OpenToolbarOverlay(_viewportMin, _viewportMax) ||
-        Internal::Should_KeepToolbarOverlay(_viewportMin, _viewportMax);
+        Should_OpenToolbarOverlay(_viewportMin, _viewportMax) ||
+        Should_KeepToolbarOverlay(_viewportMin, _viewportMax);
     Render_PreviewViewportOverlay();
     _isViewportToolbarInteracting =
         _isViewportToolbarInteracting ||
         ImGui::IsAnyItemActive() ||
-        Internal::Should_OpenToolbarOverlay(_viewportMin, _viewportMax) ||
-        Internal::Should_KeepToolbarOverlay(_viewportMin, _viewportMax);
+        Should_OpenToolbarOverlay(_viewportMin, _viewportMax) ||
+        Should_KeepToolbarOverlay(_viewportMin, _viewportMax);
 
-    const Internal::OverlayRect debugRect = Internal::Compute_DebugOptionOverlayRect(_viewportMin, _viewportMax);
+    const OverlayRect debugRect = Compute_DebugOptionOverlayRect(_viewportMin, _viewportMax);
     drawList->AddRectFilled(debugRect.min, debugRect.max, IM_COL32(36, 38, 42, 220), 6.f);
     drawList->AddRect(debugRect.min, debugRect.max, IM_COL32(92, 96, 104, 255), 6.f);
 
@@ -483,8 +483,8 @@ void Scene_View::Render_ViewportToolbarOverlay()
     _isViewportToolbarInteracting =
         _isViewportToolbarInteracting ||
         ImGui::IsAnyItemActive() ||
-        Internal::Should_OpenToolbarOverlay(_viewportMin, _viewportMax) ||
-        Internal::Should_KeepToolbarOverlay(_viewportMin, _viewportMax);
+        Should_OpenToolbarOverlay(_viewportMin, _viewportMax) ||
+        Should_KeepToolbarOverlay(_viewportMin, _viewportMax);
 }
 
 void Scene_View::Render_GizmoOverlay()
@@ -496,7 +496,7 @@ void Scene_View::Render_GizmoOverlay()
 
     ImDrawList* drawList = ImGui::GetWindowDrawList();
 
-    const Internal::OverlayRect panelRect = Internal::Compute_GizmoOverlayRect(_viewportMin, _viewportMax);
+    const OverlayRect panelRect = Compute_GizmoOverlayRect(_viewportMin, _viewportMax);
 
     drawList->AddRectFilled(panelRect.min, panelRect.max, IM_COL32(36, 38, 42, 220), 6.f);
     drawList->AddRect(panelRect.min, panelRect.max, IM_COL32(92, 96, 104, 255), 6.f);
@@ -634,7 +634,7 @@ void Scene_View::Render_PreviewViewportOverlay()
 
     ImDrawList* drawList = ImGui::GetWindowDrawList();
 
-    const Internal::OverlayRect panelRect = Internal::Compute_PreviewViewportOverlayRect(_viewportMin, _viewportMax);
+    const OverlayRect panelRect = Compute_PreviewViewportOverlayRect(_viewportMin, _viewportMax);
 
     drawList->AddRectFilled(panelRect.min, panelRect.max, IM_COL32(36, 38, 42, 220), 6.f);
     drawList->AddRect(panelRect.min, panelRect.max, IM_COL32(92, 96, 104, 255), 6.f);
@@ -667,8 +667,8 @@ void Scene_View::Render_PreviewViewportOverlay()
     {
         EDITOR->Enable_AutoPreviewViewport();
         EDITOR->Request_PreviewViewportSize(
-            static_cast<uint32>(max(1.f, _viewportSize.x * Internal::kAutoPreviewViewportScale)),
-            static_cast<uint32>(max(1.f, _viewportSize.y * Internal::kAutoPreviewViewportScale))
+            static_cast<uint32>(max(1.f, _viewportSize.x * kAutoPreviewViewportScale)),
+            static_cast<uint32>(max(1.f, _viewportSize.y * kAutoPreviewViewportScale))
         );
         Sync_PreviewViewportInput();
     }
@@ -745,13 +745,13 @@ void Scene_View::Render_ViewportCanvas()
     if (nullptr != viewportSrv)
     {
         const float aspect = EDITOR->Get_EffectiveViewportAspect();
-        const Internal::ViewportImageRect imageRect =
-            Internal::Compute_AspectFitRect(canvasMin, _viewportSize, aspect);
+        const ViewportImageRect imageRect =
+            Compute_AspectFitRect(canvasMin, _viewportSize, aspect);
 
         drawList->AddRectFilled(canvasMin, canvasMax, IM_COL32(18, 20, 24, 255));
         drawList->AddRect(canvasMin, canvasMax, IM_COL32(55, 60, 70, 255));
 
-        const bool mouseOverOverlay = Internal::Is_MouseOverViewportOverlay(
+        const bool mouseOverOverlay = Is_MouseOverViewportOverlay(
             imageRect.imageMin,
             imageRect.imageMax,
             _isViewportToolbarPinned,
@@ -775,7 +775,7 @@ void Scene_View::Render_ViewportCanvas()
         drawList->AddRectFilled(canvasMin, canvasMax, IM_COL32(18, 20, 24, 255));
         drawList->AddRect(canvasMin, canvasMax, IM_COL32(55, 60, 70, 255));
 
-        const bool mouseOverOverlay = Internal::Is_MouseOverViewportOverlay(
+        const bool mouseOverOverlay = Is_MouseOverViewportOverlay(
             canvasMin,
             canvasMax,
             _isViewportToolbarPinned,
@@ -804,8 +804,8 @@ void Scene_View::Render_ViewportCanvas()
     if (EDITOR->Get_PreviewViewportMode() == PreviewViewportMode::Auto)
     {
         EDITOR->Request_PreviewViewportSize(
-            static_cast<uint32>(max(1.f, _viewportSize.x * Internal::kAutoPreviewViewportScale)),
-            static_cast<uint32>(max(1.f, _viewportSize.y * Internal::kAutoPreviewViewportScale))
+            static_cast<uint32>(max(1.f, _viewportSize.x * kAutoPreviewViewportScale)),
+            static_cast<uint32>(max(1.f, _viewportSize.y * kAutoPreviewViewportScale))
         );
     }
 }
@@ -864,7 +864,7 @@ bool Scene_View::Render_SelectedEmitterPreviewGizmo()
     if (viewportWidth <= 1.f || viewportHeight <= 1.f)
         return true;
 
-    const RequiredModuleData* required = Internal::Find_RequiredModuleData(*emitter);
+    const RequiredModuleData* required = Find_RequiredModuleData(*emitter);
     const Vec3 authoredPosition = required != nullptr ? required->emitterOrigin : Vec3::Zero;
     const Vec3 authoredRotation = required != nullptr ? required->emitterRotationDegrees : Vec3::Zero;
     const PreviewEmitterTransformOverride* overrideState =
@@ -874,7 +874,7 @@ bool Scene_View::Render_SelectedEmitterPreviewGizmo()
 
     Matrix worldMatrix = Matrix::Identity;
     if (!EDITOR->Try_GetPreviewEmitterWorldMatrix(emitter->id, worldMatrix))
-        worldMatrix = Internal::Build_LocalTransformMatrix(authoredPosition + positionOffset, authoredRotation + rotationOffset);
+        worldMatrix = Build_LocalTransformMatrix(authoredPosition + positionOffset, authoredRotation + rotationOffset);
 
     ImGuizmo::SetOrthographic(false);
     ImGuizmo::SetRect(_viewportMin.x, _viewportMin.y, viewportWidth, viewportHeight);

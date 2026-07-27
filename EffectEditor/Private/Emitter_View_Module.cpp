@@ -1,26 +1,17 @@
 ﻿#include "Emitter_View.h"
 
-#include "Action_Command.h"
 #include "CurveEditor_View.h"
-#include "Editor_Context.h"
-#include "EffectAuthoringJsonSerializer.h"
 #include "EffectAuthoringModuleMetadata.h"
 #include "EffectAuthoring_Types.h"
-#include "EffectEditorInstance.h"
 #include "EffectMaterialPresetReader.h"
 #include "GameInstance.h"
-#include "Helper_EffectAuthoring.h"
 #include "Helper_ImGui.h"
 #include "Helper_String.h"
 #include "Notification_Manager.h"
 
-#include <ctime>
-#include <iomanip>
-#include <sstream>
-
 NS_BEGIN(EffectEditor)
 
-namespace Internal
+namespace
 {
     constexpr auto kDefaultEffectMaterialFileName = L"M_DefaultMaterial.effectmaterial.json";
     constexpr auto kDefaultEffectMaterialName = "M_DefaultMaterial";
@@ -59,25 +50,6 @@ namespace Internal
         }
 
         return candidatePath;
-    }
-
-    RequiredModuleData Make_DefaultRequiredModuleData()
-    {
-        RequiredModuleData data{};
-        const fs::path materialPath = Resolve_DefaultEffectMaterialPath();
-        if (materialPath.empty() || !EffectMaterialPresetReader::Read(materialPath, data.material))
-        {
-            data.material.sourcePresetName = kDefaultEffectMaterialName;
-            data.material.mainTexturePath = kDefaultEffectMaterialTexturePath;
-            data.material.mainTextureGuid = GAME != nullptr
-                                            ? GAME->Ensure_AssetGUID(
-                                                (fs::path(GAME->Get_AssetRoot()) / String::ToWString(kDefaultEffectMaterialTexturePath)).wstring(),
-                                                "Texture"
-                                            )
-                                            : string{};
-        }
-
-        return data;
     }
 }
 
@@ -133,6 +105,25 @@ AuthoringModule Emitter_View::Clone_Module(const AuthoringModule& sourceModule)
     clonedModule.id = Issue_AuthoringId();
     Apply_AuthoringModuleMetadata(clonedModule);
     return clonedModule;
+}
+
+RequiredModuleData Emitter_View::Make_DefaultRequiredModuleData()
+{
+    RequiredModuleData data{};
+    const fs::path materialPath = Resolve_DefaultEffectMaterialPath();
+    if (materialPath.empty() || !EffectMaterialPresetReader::Read(materialPath, data.material))
+    {
+        data.material.sourcePresetName = kDefaultEffectMaterialName;
+        data.material.mainTexturePath = kDefaultEffectMaterialTexturePath;
+        data.material.mainTextureGuid = GAME != nullptr
+                                        ? GAME->Ensure_AssetGUID(
+                                            (fs::path(GAME->Get_AssetRoot()) / String::ToWString(kDefaultEffectMaterialTexturePath)).wstring(),
+                                            "Texture"
+                                        )
+                                        : string{};
+    }
+
+    return data;
 }
 
 AuthoringModule Emitter_View::Make_DefaultModuleByType(AuthoringModuleType type)
@@ -235,7 +226,7 @@ AuthoringModule Emitter_View::Make_RequiredModule()
     module.type = AuthoringModuleType::Required;
     module.enabled = true;
     Apply_AuthoringModuleMetadata(module);
-    module.data = Internal::Make_DefaultRequiredModuleData();
+    module.data = Make_DefaultRequiredModuleData();
     return module;
 }
 
@@ -1510,4 +1501,5 @@ void Emitter_View::Open_ModulePicker(size_t emitterIndex)
     _modulePickerPendingOpen = true;
     _modulePickerSearchBuffer[0] = '\0';
 }
+
 NS_END

@@ -1009,8 +1009,12 @@ HRESULT ComputeSpriteEmitter::Bind_DistortionResources()
         nullptr != _flowTexture ? 1.f : 0.f,
         _emitterElapsedTime
     );
+    const EffectDistortionShapeMode distortionShapeMode =
+        material.distortionShapeMode == EffectDistortionShapeMode::AirSheath
+        ? EffectDistortionShapeMode::None
+        : material.distortionShapeMode;
     const Vec4 distortionShapeParams(
-        static_cast<float>(static_cast<uint32>(material.distortionShapeMode)),
+        static_cast<float>(static_cast<uint32>(distortionShapeMode)),
         max(0.f, material.distortionShapeRadius),
         max(0.f, material.distortionShapeThickness),
         max(0.f, material.distortionShapeSoftness)

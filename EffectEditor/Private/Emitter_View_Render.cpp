@@ -20,7 +20,7 @@
 
 NS_BEGIN(EffectEditor)
 
-namespace Internal
+namespace
 {
     constexpr auto kSoloPreviewIcon = ICON_FA_BULLSEYE;
     constexpr auto kPreviewTransformIcon = ICON_FA_UP_DOWN_LEFT_RIGHT;
@@ -423,7 +423,7 @@ void Emitter_View::Draw_EmitterColumn(size_t emitterIndex, AuthoringEmitter& emi
     }
     const ImVec2 soloBadgeMin = ImGui::GetItemRectMin();
     const ImVec2 soloBadgeMax = ImGui::GetItemRectMax();
-    const ImVec2 soloLabelSize = ImGui::CalcTextSize(Internal::kSoloPreviewIcon);
+    const ImVec2 soloLabelSize = ImGui::CalcTextSize(kSoloPreviewIcon);
     const ImVec2 soloLabelPos{
         soloBadgeMin.x + (soloBadgeMax.x - soloBadgeMin.x - soloLabelSize.x) * 0.5f,
         soloBadgeMin.y + (soloBadgeMax.y - soloBadgeMin.y - soloLabelSize.y) * 0.5f
@@ -435,7 +435,7 @@ void Emitter_View::Draw_EmitterColumn(size_t emitterIndex, AuthoringEmitter& emi
     ImGui::GetWindowDrawList()->AddText(
         soloLabelPos,
         ImGui::ColorConvertFloat4ToU32(soloLabelColor),
-        Internal::kSoloPreviewIcon
+        kSoloPreviewIcon
     );
     if (!canUseSoloPreview)
         ImGui::EndDisabled();
@@ -449,7 +449,7 @@ void Emitter_View::Draw_EmitterColumn(size_t emitterIndex, AuthoringEmitter& emi
         else
         {
             tooltip = soloPreviewEnabled ? "Solo preview enabled.\nOnly this emitter is sent to preview." : "Solo preview";
-            if (Internal::Uses_ParticleEmitterSource(emitter))
+            if (Uses_ParticleEmitterSource(emitter))
                 tooltip += "\nStrict solo excludes ParticleEmitter sources, so this emitter may preview empty or differently.";
         }
         ImGui::SetTooltip("%s", tooltip.c_str());
@@ -475,7 +475,7 @@ void Emitter_View::Draw_EmitterColumn(size_t emitterIndex, AuthoringEmitter& emi
     }
     const ImVec2 badgeMin = ImGui::GetItemRectMin();
     const ImVec2 badgeMax = ImGui::GetItemRectMax();
-    const ImVec2 iconSize = ImGui::CalcTextSize(Internal::kPreviewTransformIcon);
+    const ImVec2 iconSize = ImGui::CalcTextSize(kPreviewTransformIcon);
     const ImVec2 iconPos{
         badgeMin.x + (badgeMax.x - badgeMin.x - iconSize.x) * 0.5f,
         badgeMin.y + (badgeMax.y - badgeMin.y - iconSize.y) * 0.5f
@@ -487,14 +487,14 @@ void Emitter_View::Draw_EmitterColumn(size_t emitterIndex, AuthoringEmitter& emi
     ImGui::GetWindowDrawList()->AddText(
         iconPos,
         ImGui::ColorConvertFloat4ToU32(iconColor),
-        Internal::kPreviewTransformIcon
+        kPreviewTransformIcon
     );
     if (!canUsePreviewTransform)
         ImGui::EndDisabled();
     if (previewTransformEnabled)
         ImGui::PopStyleColor(3);
     if (ImGui::IsItemHovered(canUsePreviewTransform ? ImGuiHoveredFlags_None : ImGuiHoveredFlags_AllowWhenDisabled))
-        ImGui::SetTooltip("%s", Internal::Build_PreviewTransformTooltip(emitter, canUsePreviewTransform));
+        ImGui::SetTooltip("%s", Build_PreviewTransformTooltip(emitter, canUsePreviewTransform));
     ImGui::PopID();
 
     ImGui::SetCursorPos(moduleStackCursor);
@@ -673,7 +673,7 @@ void Emitter_View::Draw_ModuleRow(size_t emitterIndex, size_t moduleIndex, Autho
         drawList->AddRectFilled(
             rowMin,
             ImVec2{ rowMin.x + 6.f, rowMax.y },
-            Internal::kCurveEditorFocusBarColor
+            kCurveEditorFocusBarColor
         );
     }
     ImGui::PopStyleColor(4);

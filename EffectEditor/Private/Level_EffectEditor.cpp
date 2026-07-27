@@ -20,7 +20,7 @@
 
 NS_BEGIN(EffectEditor)
 
-namespace Internal
+namespace
 {
     bool Is_TrailPreviewModelResource(const wstring& prototypeTag)
     {
@@ -131,7 +131,7 @@ HRESULT Level_EffectEditor::Ensure_TrailPreviewFixture()
     for (const FLoadJob& loadJob : loadJobs)
     {
         if (loadJob.eType == ELoadJobType::Model &&
-            Internal::Is_TrailPreviewModelResource(loadJob.strPrototypeTag))
+            Is_TrailPreviewModelResource(loadJob.strPrototypeTag))
         {
             CHECK_FAILED(resourceLoader->Register_LoadJob(loadJob), E_FAIL);
             ++registeredModelCount;

@@ -22,6 +22,8 @@ cbuffer cbEffectMaterialPreviewDistortion : register(b2)
     float4 g_EffectMaterialPreviewDistortionParams = { 0.f, 1.f, 0.f, 0.f };            // x: intensity, y: presence, z: useFlow, w: time
     float4 g_EffectMaterialPreviewDistortionShapeParams = { 0.f, 0.45f, 0.10f, 0.15f }; // x: mode, y: radius, z: thickness, w: softness
     float4 g_EffectMaterialPreviewScreenSize = { 512.f, 512.f, 0.f, 0.f };
+    float4 g_EffectAirSheathMapParams = { 0.f, 0.f, 1.f, 0.f };
+    float2 g_EffectAirSheathMapSpaceInfluence = { 0.f, 0.f };
     int g_OpacitySource = 0;
     float3 g_EffectMaterialPreviewPadding;
 };
@@ -79,12 +81,12 @@ float4 Sample_PreviewMaskTexture(float2 uv, float2 policy)
     return g_MaskTexture.Sample(LinearClampSampler, Apply_PreviewAxisAddress(uv, policy));
 }
 
-float2 Sample_PreviewFlowTexture(float2 uv)
+float4 Sample_PreviewFlowTexture(float2 uv)
 {
     return g_FlowTexture.Sample(
         LinearWrapSampler,
         EffectDistortion_ApplyAxisSeparatedAddress(uv, g_EffectMaterialPreviewUVPolicyParams.xy)
-    ).rg;
+    );
 }
 
 struct VS_IN
@@ -182,9 +184,37 @@ PS_OUT PS_MAIN(PS_IN In)
         discard;
 
     const float previewCoverage = materialCoverage * saturate(g_Tint.a);
-    const float2 flow = g_EffectMaterialPreviewDistortionParams.z != 0
-                        ? Sample_PreviewFlowTexture(flowUV) * 2.f - 1.f
-                        : float2(0.f, 0.f);
+    const float4 flowTexel = g_EffectMaterialPreviewDistortionParams.z != 0
+                             ? Sample_PreviewFlowTexture(flowUV)
+                             : float4(0.5f, 0.5f, 0.5f, 1.f);
+    const float2 flow = flowTexel.rg * 2.f - 1.f;
+    const bool airSheath = EffectDistortion_IsAirSheathMode(g_EffectMaterialPreviewDistortionShapeParams.x);
+    const int interpretation = (int)(g_EffectAirSheathMapParams.x + 0.5f);
+    const float mapX = Effect_SelectScalarSource(flowTexel, (int)(g_EffectAirSheathMapParams.y + 0.5f));
+    const float mapY = Effect_SelectScalarSource(flowTexel, (int)(g_EffectAirSheathMapParams.z + 0.5f));
+    float2 mapField = interpretation == 0 ? float2(mapX, mapY) * 2.f - 1.f : float2(0.f, 0.f);
+    if (interpretation == 1)
+    {
+        uint mapWidth;
+        uint mapHeight;
+        g_FlowTexture.GetDimensions(mapWidth, mapHeight);
+        const float2 texelSize = 1.f / max(float2(mapWidth, mapHeight), float2(1.f, 1.f));
+        const int heightSource = (int)(g_EffectAirSheathMapParams.y + 0.5f);
+        const float heightXPlus = Effect_SelectScalarSource(Sample_PreviewFlowTexture(flowUV + float2(texelSize.x, 0.f)), heightSource);
+        const float heightXMinus = Effect_SelectScalarSource(Sample_PreviewFlowTexture(flowUV - float2(texelSize.x, 0.f)), heightSource);
+        const float heightYPlus = Effect_SelectScalarSource(Sample_PreviewFlowTexture(flowUV + float2(0.f, texelSize.y)), heightSource);
+        const float heightYMinus = Effect_SelectScalarSource(Sample_PreviewFlowTexture(flowUV - float2(0.f, texelSize.y)), heightSource);
+        mapField = float2(heightXPlus - heightXMinus, heightYPlus - heightYMinus);
+    }
+    if (g_EffectAirSheathMapSpaceInfluence.x != 0.f)
+        mapField = float2(mapField.x, mapField.y);
+    const float2 baseWake = EffectDistortion_ComputeAirSheathWakeField(In.texCoord.x, float2(1.f, 0.f)) * 24.f;
+    const float influence = saturate(g_EffectAirSheathMapSpaceInfluence.y);
+    const int composition = (int)(g_EffectAirSheathMapParams.w + 0.5f);
+    float2 airSheathField = interpretation == 2
+                             ? baseWake * lerp(1.f, mapX, influence)
+                             : composition == 0 ? lerp(baseWake, mapField * 24.f, influence) : baseWake + mapField * (24.f * influence);
+    const float2 distortionField = airSheath ? airSheathField / max(g_EffectMaterialPreviewScreenSize.xy, float2(1.f, 1.f)) : flow;
     const float2 screenUV = In.position.xy / max(g_EffectMaterialPreviewScreenSize.xy, float2(1.f, 1.f));
     const float shapeCoverage = EffectDistortion_ComputeShapeCoverage(
         g_EffectMaterialPreviewDistortionShapeParams,
@@ -196,7 +226,7 @@ PS_OUT PS_MAIN(PS_IN In)
         shapeCoverage,
         g_EffectMaterialPreviewDistortionParams.y
     );
-    const float2 offset = EffectDistortion_ComputeScreenOffset(flow, g_EffectMaterialPreviewDistortionParams.x);
+    const float2 offset = EffectDistortion_ComputeScreenOffset(distortionField, g_EffectMaterialPreviewDistortionParams.x);
     const float4 distortedColor = g_DistortionSourceTexture.Sample(LinearClampSampler, screenUV + offset);
     const float edgeAlpha = EffectDistortion_ComputeLensEdgeAlpha(lensCoverage);
 

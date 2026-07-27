@@ -1,6 +1,6 @@
 ﻿#include "EffectInstance.h"
 
-namespace Internal
+namespace
 {
 uint32 Generate_EffectPlaybackSeed()
 {
@@ -146,7 +146,7 @@ HRESULT EffectInstance::Initialize(void* arg)
         _desc = *static_cast<EffectInstanceDesc*>(arg);
 
     _definition = _desc.definition;
-    _effectPlaybackSeed = Internal::Generate_EffectPlaybackSeed();
+    _effectPlaybackSeed = Generate_EffectPlaybackSeed();
 
     CHECK_FAILED(__super::Initialize(&_desc), E_FAIL);
     CHECK_FAILED(Ready_Emitters(), E_FAIL);
@@ -264,7 +264,7 @@ void EffectInstance::Stop()
 
 HRESULT EffectInstance::Reset()
 {
-    _effectPlaybackSeed = Internal::Generate_EffectPlaybackSeed();
+    _effectPlaybackSeed = Generate_EffectPlaybackSeed();
     _playbackState = EffectPlaybackState::Stopped;
     _isPlaybackPaused = false; // Reset 이후 새 재생은 pause되지 않은 상태로 시작한다.
     Set_Visible(false);
@@ -353,7 +353,7 @@ void EffectInstance::Bind_TrailSampleProvider(
         sourceGroupKey.kind == EffectHistorySourceGroupKind::TrailPairHistory &&
         provider.lock() != nullptr)
     {
-        _sharedTrailSampleProvider = make_shared<Internal::SharedTrailSampleProvider>(
+        _sharedTrailSampleProvider = make_shared<SharedTrailSampleProvider>(
             provider,
             &_sharedHistoryFrameSerial,
             sourceGroupKey
@@ -382,7 +382,7 @@ void EffectInstance::Bind_SourcePointSampleProvider(
         sourceGroupKey.kind == EffectHistorySourceGroupKind::SourcePointHistory &&
         provider.lock() != nullptr)
     {
-        _sharedSourcePointSampleProvider = make_shared<Internal::SharedSourcePointSampleProvider>(
+        _sharedSourcePointSampleProvider = make_shared<SharedSourcePointSampleProvider>(
             provider,
             &_sharedHistoryFrameSerial,
             sourceGroupKey

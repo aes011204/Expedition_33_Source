@@ -24,6 +24,7 @@ enum class EffectMaterialTwoSidedDisplayMode : uint8
 enum class EffectMaterialDistortionShapeControlMode : uint8
 {
     Editable,
+    TrailEditable,
     MeshUnsupported,
     BeamUnsupported,
 };

@@ -66,6 +66,12 @@ inline void Copy_EffectMaterialInstanceToRuntimeDesc(
     outMaterial.refractionIntensity = material.refractionIntensity;
     outMaterial.refractionPresence = material.refractionPresence;
     outMaterial.distortionShapeMode = material.distortionShapeMode;
+    outMaterial.airSheathMapInterpretation = material.airSheathMapInterpretation;
+    outMaterial.airSheathMapXSource = material.airSheathMapXSource;
+    outMaterial.airSheathMapYSource = material.airSheathMapYSource;
+    outMaterial.airSheathMapVectorSpace = material.airSheathMapVectorSpace;
+    outMaterial.airSheathMapComposition = material.airSheathMapComposition;
+    outMaterial.airSheathMapInfluence = clamp(material.airSheathMapInfluence, 0.f, 1.f);
     outMaterial.distortionShapeRadius = material.distortionShapeRadius;
     outMaterial.distortionShapeThickness = material.distortionShapeThickness;
     outMaterial.distortionShapeSoftness = material.distortionShapeSoftness;

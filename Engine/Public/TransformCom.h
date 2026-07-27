@@ -141,23 +141,23 @@ private: //## Data
     uint8 _dirtyMask = static_cast<uint8>(TRANSFORM_DIRTY_FLAG::ROTATION) |
                        static_cast<uint8>(TRANSFORM_DIRTY_FLAG::WORLD);
 
-private: //## Internal::WorldSync
+private: //## WorldSync
     void Ensure_WorldMatrixUpToDate();
 
-private: //## Internal::DirtyTracking
+private: //## DirtyTracking
     void Mark_LocalChanged(LOCAL_CHANGE_KIND changeKind);
     bool Has_Dirty(TRANSFORM_DIRTY_FLAG dirty) const;
     void Set_Dirty(TRANSFORM_DIRTY_FLAG dirty);
     void Clear_Dirty(TRANSFORM_DIRTY_FLAG dirty);
 
-private: //## Internal::Scale
+private: //## Scale
     static float Clamp_EditableScale(float scale);
     static Vec3 Clamp_EditableScale(const Vec3& scale);
     float Get_SignedScale(State state) const;
     void Set_SignedScale(State state, float signedScale);
     void Sync_SignedScaleFromLocalMatrix(Vec3 fallbackScale);
 
-private: //## Internal::LocalState
+private: //## LocalState
     Vec3 Get_LocalState(State state) const;
     void Set_LocalState(State state, const Vec3& value);
     Vec3 Resolve_NormalizedAxis(State state) const;

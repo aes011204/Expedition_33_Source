@@ -4,7 +4,7 @@
 #include "ClientInstance.h"
 #include "EffectCom.h"
 
-namespace Internal
+namespace
 {
 struct TargetEffectDesc
 {
@@ -201,7 +201,7 @@ void Skill_Gustave_AnglesEye::Collect_PrewarmEffects(const Skill_Data&, const Ba
 {
     EffectPrewarmRequest request{};
     request.effectName = L"Gustave_AngelsEye_Slash";
-    request.targetCount = static_cast<uint32>(size(Internal::kAngelsEyeSlashEffects));
+    request.targetCount = static_cast<uint32>(size(kAngelsEyeSlashEffects));
     outRequests.push_back(request);
 }
 
@@ -219,11 +219,11 @@ void Skill_Gustave_AnglesEye::Execute(const Skill_Data& skill, const BattleActio
     const float damage = (DamageSystem::CalculatePlayerAttackDamage(attacker, skill.powerMultiplier)) / 8.f;
     DamageSystem::ApplyDamage(damage, attacker, target, attackType);
 
-    const uint32 slashEffectCount = static_cast<uint32>(size(Internal::kAngelsEyeSlashEffects));
+    const uint32 slashEffectCount = static_cast<uint32>(size(kAngelsEyeSlashEffects));
     const uint32 slashEffectIndex = min(action.GetCurStepIndex(), slashEffectCount - 1);
-    const Internal::TargetEffectDesc& slashEffect = Internal::kAngelsEyeSlashEffects[slashEffectIndex];
+    const TargetEffectDesc& slashEffect = kAngelsEyeSlashEffects[slashEffectIndex];
 
-    Internal::Play_TargetEffect(
+    Play_TargetEffect(
         target,
         slashEffect.effectName,
         slashEffect.localOffset,

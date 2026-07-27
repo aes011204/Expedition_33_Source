@@ -25,7 +25,7 @@ float EffectDistortion_ComputeShapeCoverage(float4 shapeParams, float2 cardUV, f
             const float ringDistance = abs(distanceFromCenter - radius);
             shapeCoverage = 1.f - smoothstep(thickness, thickness + softness, ringDistance);
         }
-        else
+        else if (mode < 3.5f)
         {
             const float pixelUvWidth = EffectDistortion_ComputeShockwavePixelUvWidth(cardUV);
             const float shockwaveThickness = max(thickness, 0.f) * pixelUvWidth;
@@ -38,6 +38,42 @@ float EffectDistortion_ComputeShapeCoverage(float4 shapeParams, float2 cardUV, f
     }
 
     return saturate(shapeCoverage);
+}
+
+bool EffectDistortion_IsAirSheathMode(float mode)
+{
+    return mode >= 3.5f && mode < 4.5f;
+}
+
+float2 EffectDistortion_ComputeAirSheathField(float widthCoordinate, float2 flow)
+{
+    const float signedWidthCoordinate = saturate(widthCoordinate) * 2.f - 1.f;
+    const float lensProfile =
+        4.f * signedWidthCoordinate * (1.f - abs(signedWidthCoordinate));
+    const float2 widthGradient = float2(
+        ddx(signedWidthCoordinate),
+        ddy(signedWidthCoordinate)
+    );
+    const float widthGradientLengthSquared = dot(widthGradient, widthGradient);
+    const float2 widthDirection =
+        widthGradientLengthSquared > EPSILON
+        ? widthGradient * rsqrt(widthGradientLengthSquared)
+        : float2(0.f, 0.f);
+    const float flowLengthSquared = dot(flow, flow);
+    const float2 boundedFlow =
+        flowLengthSquared > 1.f
+        ? flow * rsqrt(flowLengthSquared)
+        : flow;
+
+    return widthDirection * lensProfile +
+           boundedFlow * (0.25f * abs(lensProfile));
+}
+
+float2 EffectDistortion_ComputeAirSheathWakeField(float widthCoordinate, float2 trailDirection)
+{
+    const float centeredWidth = saturate(widthCoordinate) * 2.f - 1.f;
+    const float bell = saturate(1.f - centeredWidth * centeredWidth);
+    return trailDirection * bell;
 }
 
 float EffectDistortion_ComputeLensCoverage(float materialCoverage, float shapeCoverage, float presence)

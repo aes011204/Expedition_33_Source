@@ -20,7 +20,7 @@
 
 NS_BEGIN(EffectEditor)
 
-namespace Internal
+namespace
 {
     constexpr auto kEffectAuthoringSaveDefaultFolder = L"../../../Client/Bin/Resources/Effects/Assets";
     constexpr auto kEffectAuthoringSaveDefaultFileName = L"NewEffect.effect.json";
@@ -356,7 +356,7 @@ void Emitter_View::Save()
 void Emitter_View::SaveAs()
 {
     fs::path savePath{};
-    if (!Internal::Try_PickEffectSaveFileDialog(savePath))
+    if (!Try_PickEffectSaveFileDialog(savePath))
         return;
 
     Save_ToPath(savePath, false);
@@ -364,7 +364,7 @@ void Emitter_View::SaveAs()
 
 bool Emitter_View::Save_ToPath(const fs::path& savePath, bool backupExistingFile)
 {
-    const fs::path normalizedSavePath = Internal::Normalize_EffectSaveDialogPath(savePath);
+    const fs::path normalizedSavePath = Normalize_EffectSaveDialogPath(savePath);
     error_code errorCode{};
     if (backupExistingFile &&
         fs::exists(normalizedSavePath, errorCode) &&
@@ -373,7 +373,7 @@ bool Emitter_View::Save_ToPath(const fs::path& savePath, bool backupExistingFile
         !errorCode)
     {
         fs::path backupPath{};
-        if (!Internal::Try_BackupExistingEffectFile(normalizedSavePath, backupPath))
+        if (!Try_BackupExistingEffectFile(normalizedSavePath, backupPath))
         {
             if (EDITOR != nullptr && EDITOR->Get_Notification() != nullptr)
             {
@@ -452,11 +452,11 @@ bool Emitter_View::CanOpen() const
 
 void Emitter_View::Open()
 {
-    if (Is_Dirty() && !Internal::Confirm_DiscardDirtyAuthoringDocument())
+    if (Is_Dirty() && !Confirm_DiscardDirtyAuthoringDocument())
         return;
 
     fs::path openPath{};
-    if (!Internal::Try_PickEffectOpenFileDialog(openPath))
+    if (!Try_PickEffectOpenFileDialog(openPath))
         return;
 
     ifstream file(openPath);
@@ -504,7 +504,7 @@ void Emitter_View::Open()
         return;
     }
 
-    _currentDocumentPath = Internal::Normalize_EffectSaveDialogPath(openPath);
+    _currentDocumentPath = Normalize_EffectSaveDialogPath(openPath);
     ClearDirty();
 
     if (EDITOR != nullptr)
@@ -528,7 +528,7 @@ bool Emitter_View::CanAdd() const
 void Emitter_View::Add()
 {
     fs::path addPath{};
-    if (!Internal::Try_PickEffectOpenFileDialog(addPath, L"Add Effect Emitters"))
+    if (!Try_PickEffectOpenFileDialog(addPath, L"Add Effect Emitters"))
         return;
 
     ifstream file(addPath);

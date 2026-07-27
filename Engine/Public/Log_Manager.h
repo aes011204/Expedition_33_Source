@@ -11,11 +11,6 @@ struct ConsoleLogEntry
     std::string payload{};
 };
 
-namespace Internal
-{
-    class ConsoleSink;
-}
-
 struct Log_Manager_Impl;
 
 class Log_Manager final : public Base

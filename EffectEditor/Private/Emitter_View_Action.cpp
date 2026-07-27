@@ -1,29 +1,14 @@
 ﻿#include "Emitter_View.h"
 
-#include "Action_Command.h"
 #include "CurveEditor_View.h"
 #include "Editor_Context.h"
-#include "EffectAuthoringJsonSerializer.h"
-#include "EffectAuthoringModuleMetadata.h"
 #include "EffectAuthoring_Types.h"
 #include "EffectEditorInstance.h"
 #include "EffectMaterialPresetReader.h"
-#include "GameInstance.h"
 #include "Helper_EffectAuthoring.h"
-#include "Helper_ImGui.h"
-#include "Helper_String.h"
 #include "Notification_Manager.h"
 
-#include <ctime>
-#include <iomanip>
-#include <sstream>
-
 NS_BEGIN(EffectEditor)
-
-namespace Internal
-{
-    RequiredModuleData Make_DefaultRequiredModuleData();
-}
 
 void Emitter_View::Clear_Selection()
 {
@@ -352,7 +337,7 @@ void Emitter_View::Reset_ModuleData(size_t emitterIndex, size_t moduleIndex)
     {
     case AuthoringModuleType::Required:
     {
-        RequiredModuleData data = Internal::Make_DefaultRequiredModuleData();
+        RequiredModuleData data = Make_DefaultRequiredModuleData();
         module.data = data;
         emitter.textureId = data.material.mainTexturePath;
         emitter.resourceSummary = data.material.mainTexturePath;
@@ -494,24 +479,31 @@ void Emitter_View::Reset_ModuleData(size_t emitterIndex, size_t moduleIndex)
     case AuthoringModuleType::SizeByLife:
         module.data = SizeByLifeModuleData{};
         break;
+
     case AuthoringModuleType::BeamEnvelopeOverLife:
         module.data = BeamEnvelopeOverLifeModuleData{};
         break;
+
     case AuthoringModuleType::MeshSizeByLife:
         module.data = MeshSizeByLifeModuleData{};
         break;
+
     case AuthoringModuleType::SpawnPerUnit:
         module.data = SpawnPerUnitModuleData{};
         break;
+
     case AuthoringModuleType::SourceHistorySpriteTrailPathFollow:
         module.data = SourceHistorySpriteTrailPathFollowModuleData{};
         break;
+
     case AuthoringModuleType::SourceHistorySpriteTrailPathReplay:
         module.data = SourceHistorySpriteTrailPathReplayModuleData{};
         break;
+
     case AuthoringModuleType::RibbonOrientation:
         module.data = RibbonOrientationModuleData{};
         break;
+
     case AuthoringModuleType::MaterialScalarModulation:
         module.data = MaterialScalarModulationModuleData{};
         break;
@@ -785,4 +777,5 @@ void Emitter_View::Sanitize_PreviewTransformState()
     if (EDITOR != nullptr)
         EDITOR->Sanitize_PreviewEmitterTransforms(_emitters);
 }
+
 NS_END

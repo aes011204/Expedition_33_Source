@@ -12,7 +12,7 @@
 
 NS_BEGIN(EffectEditor)
 
-namespace Internal
+namespace
 {
     constexpr auto kEffectMaterialPayloadType = "CONTENT_BROWSER_EFFECT_MATERIAL";
     constexpr auto kMaterialDialogDefaultFolder = L"../../../Client/Bin/Resources/Effects/Materials";
@@ -75,12 +75,12 @@ namespace Internal
         return filePath.lexically_normal();
     }
 
-    static bool NearlyEqual(float lhs, float rhs)
+    bool NearlyEqual(float lhs, float rhs)
     {
         return abs(lhs - rhs) <= kMaterialFloatEpsilon;
     }
 
-    static bool Is_SameColor(const Color& lhs, const Color& rhs)
+    bool Is_SameColor(const Color& lhs, const Color& rhs)
     {
         return
             NearlyEqual(lhs.x, rhs.x) &&
@@ -89,7 +89,7 @@ namespace Internal
             NearlyEqual(lhs.w, rhs.w);
     }
 
-    static const char* Get_RibbonSpreadBasisLabel(RibbonSpreadBasis value)
+    const char* Get_RibbonSpreadBasisLabel(RibbonSpreadBasis value)
     {
         switch (value)
         {
@@ -108,7 +108,7 @@ namespace Internal
         }
     }
 
-    static bool Draw_RibbonSpreadBasisProperty(
+    bool Draw_RibbonSpreadBasisProperty(
         DetailPropertyContext& detailContext,
         RibbonSpreadBasis& value,
         RibbonSpreadBasis defaultValue)
@@ -154,7 +154,7 @@ namespace Internal
         return changed;
     }
 
-    static bool Is_SameAdditiveContribution(
+    bool Is_SameAdditiveContribution(
         const EffectMaterialAdditiveContributionData& lhs,
         const EffectMaterialAdditiveContributionData& rhs)
     {
@@ -168,12 +168,12 @@ namespace Internal
             Is_SameColor(lhs.constantColor, rhs.constantColor);
     }
 
-    static bool Is_SameVec2(const Vec2& lhs, const Vec2& rhs)
+    bool Is_SameVec2(const Vec2& lhs, const Vec2& rhs)
     {
         return NearlyEqual(lhs.x, rhs.x) && NearlyEqual(lhs.y, rhs.y);
     }
 
-    static const char* Get_SubUVFramePlaybackModeLabel(SubUVFramePlaybackMode mode)
+    const char* Get_SubUVFramePlaybackModeLabel(SubUVFramePlaybackMode mode)
     {
         switch (mode)
         {
@@ -190,7 +190,7 @@ namespace Internal
         }
     }
 
-    static const char* Get_DistributionRandomSeedModeLabel(DistributionRandomSeedMode mode)
+    const char* Get_DistributionRandomSeedModeLabel(DistributionRandomSeedMode mode)
     {
         switch (mode)
         {
@@ -203,7 +203,7 @@ namespace Internal
         }
     }
 
-    static const char* Get_AccelerationTimeBasisLabel(AccelerationTimeBasis basis)
+    const char* Get_AccelerationTimeBasisLabel(AccelerationTimeBasis basis)
     {
         switch (basis)
         {
@@ -216,7 +216,7 @@ namespace Internal
         }
     }
 
-    static uint32 Generate_RandomSeedValue()
+    uint32 Generate_RandomSeedValue()
     {
         static uint32 state{ 0xA341316Cu };
         state ^= state << 13;
@@ -225,7 +225,7 @@ namespace Internal
         return state != 0u ? state : 0x6D2B79F5u;
     }
 
-    static bool Draw_RandomSeedProperty(
+    bool Draw_RandomSeedProperty(
         DetailPropertyContext& detailContext,
         DistributionRandomSeedData& data)
     {
@@ -298,7 +298,7 @@ namespace Internal
         return changed;
     }
 
-    static const char* Get_SphereLocationSpawnModeLabel(SphereLocationSpawnMode mode)
+    const char* Get_SphereLocationSpawnModeLabel(SphereLocationSpawnMode mode)
     {
         switch (mode)
         {
@@ -311,7 +311,7 @@ namespace Internal
         }
     }
 
-    static const char* Get_SphereLocationPlacementModeLabel(SphereLocationPlacementMode mode)
+    const char* Get_SphereLocationPlacementModeLabel(SphereLocationPlacementMode mode)
     {
         switch (mode)
         {
@@ -324,7 +324,7 @@ namespace Internal
         }
     }
 
-    static const char* Get_PlaneRadialLocationPlaneLabel(PlaneRadialLocationPlane plane)
+    const char* Get_PlaneRadialLocationPlaneLabel(PlaneRadialLocationPlane plane)
     {
         switch (plane)
         {
@@ -341,7 +341,7 @@ namespace Internal
         }
     }
 
-    static const char* Get_PlaneRadialLocationShapeLabel(PlaneRadialLocationShape shape)
+    const char* Get_PlaneRadialLocationShapeLabel(PlaneRadialLocationShape shape)
     {
         switch (shape)
         {
@@ -358,7 +358,7 @@ namespace Internal
         }
     }
 
-    static const char* Get_PlaneRadialLocationPlacementModeLabel(PlaneRadialLocationPlacementMode mode)
+    const char* Get_PlaneRadialLocationPlacementModeLabel(PlaneRadialLocationPlacementMode mode)
     {
         switch (mode)
         {
@@ -371,7 +371,7 @@ namespace Internal
         }
     }
 
-    static const char* Get_CylinderLocationAxisLabel(CylinderLocationAxis axis)
+    const char* Get_CylinderLocationAxisLabel(CylinderLocationAxis axis)
     {
         switch (axis)
         {
@@ -385,7 +385,7 @@ namespace Internal
         }
     }
 
-    static const char* Get_CylinderLocationSpawnModeLabel(CylinderLocationSpawnMode mode)
+    const char* Get_CylinderLocationSpawnModeLabel(CylinderLocationSpawnMode mode)
     {
         switch (mode)
         {
@@ -397,7 +397,7 @@ namespace Internal
         }
     }
 
-    static const char* Get_CylinderLocationPlacementModeLabel(CylinderLocationPlacementMode mode)
+    const char* Get_CylinderLocationPlacementModeLabel(CylinderLocationPlacementMode mode)
     {
         switch (mode)
         {
@@ -409,7 +409,7 @@ namespace Internal
         }
     }
 
-    static const char* Get_InitialRadialVelocityCenterDirectionModeLabel(InitialRadialVelocityCenterDirectionMode mode)
+    const char* Get_InitialRadialVelocityCenterDirectionModeLabel(InitialRadialVelocityCenterDirectionMode mode)
     {
         switch (mode)
         {
@@ -421,7 +421,7 @@ namespace Internal
         }
     }
 
-    static const char* Get_PlaneRadialOrientationTargetKindLabel(PlaneRadialOrientationTargetKind targetKind)
+    const char* Get_PlaneRadialOrientationTargetKindLabel(PlaneRadialOrientationTargetKind targetKind)
     {
         switch (targetKind)
         {
@@ -436,24 +436,24 @@ namespace Internal
         }
     }
 
-    static PlaneRadialOrientationTargetKind Resolve_PlaneRadialOrientationTargetKind(const AuthoringEmitter& emitter)
+    PlaneRadialOrientationTargetKind Resolve_PlaneRadialOrientationTargetKind(const AuthoringEmitter& emitter)
     {
         return emitter.typeData.kind == AuthoringTypeDataKind::Mesh
                ? PlaneRadialOrientationTargetKind::Mesh3D
                : PlaneRadialOrientationTargetKind::Sprite2D;
     }
 
-    static bool Is_MeshEffectAuthoring(const AuthoringEmitter& emitter)
+    bool Is_MeshEffectAuthoring(const AuthoringEmitter& emitter)
     {
         return emitter.typeData.kind == AuthoringTypeDataKind::Mesh;
     }
 
-    static bool Is_PlaneRadialLocationAdvancedPlacementShape(PlaneRadialLocationShape shape)
+    bool Is_PlaneRadialLocationAdvancedPlacementShape(PlaneRadialLocationShape shape)
     {
         return shape != PlaneRadialLocationShape::Rectangle;
     }
 
-    static const char* Get_PlaneRadialOrientationModeLabel(PlaneRadialOrientationMode mode)
+    const char* Get_PlaneRadialOrientationModeLabel(PlaneRadialOrientationMode mode)
     {
         switch (mode)
         {
@@ -474,7 +474,7 @@ namespace Internal
         }
     }
 
-    static const char* Get_CylinderOrientationModeLabel(CylinderOrientationMode mode)
+    const char* Get_CylinderOrientationModeLabel(CylinderOrientationMode mode)
     {
         switch (mode)
         {
@@ -497,7 +497,7 @@ namespace Internal
         }
     }
 
-    static const char* Get_SphereRadialOrientationModeLabel(SphereRadialOrientationMode mode)
+    const char* Get_SphereRadialOrientationModeLabel(SphereRadialOrientationMode mode)
     {
         switch (mode)
         {
@@ -512,7 +512,7 @@ namespace Internal
         }
     }
 
-    static const char* Get_EffectOrbitPlaneLabel(EffectOrbitPlane plane)
+    const char* Get_EffectOrbitPlaneLabel(EffectOrbitPlane plane)
     {
         switch (plane)
         {
@@ -527,7 +527,7 @@ namespace Internal
         }
     }
 
-    static const char* Get_PlaneRadialOrientationAxisLabel(PlaneRadialOrientationAxis axis)
+    const char* Get_PlaneRadialOrientationAxisLabel(PlaneRadialOrientationAxis axis)
     {
         switch (axis)
         {
@@ -548,7 +548,7 @@ namespace Internal
         }
     }
 
-    static const char* Get_MeshDirectionAlignTargetModeLabel(MeshDirectionAlignTargetMode mode)
+    const char* Get_MeshDirectionAlignTargetModeLabel(MeshDirectionAlignTargetMode mode)
     {
         switch (mode)
         {
@@ -560,7 +560,7 @@ namespace Internal
         }
     }
 
-    static const char* Get_MeshDirectionAlignSpaceLabel(MeshDirectionAlignSpace space)
+    const char* Get_MeshDirectionAlignSpaceLabel(MeshDirectionAlignSpace space)
     {
         switch (space)
         {
@@ -572,7 +572,7 @@ namespace Internal
         }
     }
 
-    static const char* Get_MeshDirectionAlignBlendModeLabel(MeshDirectionAlignBlendMode mode)
+    const char* Get_MeshDirectionAlignBlendModeLabel(MeshDirectionAlignBlendMode mode)
     {
         switch (mode)
         {
@@ -588,7 +588,7 @@ namespace Internal
         }
     }
 
-    static const char* Get_MaterialScalarTargetLabel(MaterialScalarModulationTargetField target)
+    const char* Get_MaterialScalarTargetLabel(MaterialScalarModulationTargetField target)
     {
         switch (target)
         {
@@ -625,7 +625,7 @@ namespace Internal
         }
     }
 
-    static const char* Get_MaterialVec2TargetLabel(MaterialVec2ModulationTargetField target)
+    const char* Get_MaterialVec2TargetLabel(MaterialVec2ModulationTargetField target)
     {
         switch (target)
         {
@@ -655,7 +655,7 @@ namespace Internal
         MaterialVec2ModulationTargetField vec2Target{ MaterialVec2ModulationTargetField::MainUVOffset };
     };
 
-    static bool Is_MaterialScrollSpeedScaleTarget(MaterialScalarModulationTargetField target)
+    bool Is_MaterialScrollSpeedScaleTarget(MaterialScalarModulationTargetField target)
     {
         return target == MaterialScalarModulationTargetField::MainUVScrollSpeedScale ||
                target == MaterialScalarModulationTargetField::NoiseUVScrollSpeedScale ||
@@ -663,7 +663,7 @@ namespace Internal
                target == MaterialScalarModulationTargetField::FlowUVScrollSpeedScale;
     }
 
-    static const char* Get_MaterialModulationTargetLabel(const MaterialModulationTargetSelection& selection)
+    const char* Get_MaterialModulationTargetLabel(const MaterialModulationTargetSelection& selection)
     {
         if (selection.category == MaterialModulationTargetCategory::CoreColorRgb)
             return "Core Color RGB";
@@ -673,12 +673,12 @@ namespace Internal
         return Get_MaterialScalarTargetLabel(selection.scalarTarget);
     }
 
-    static const char* Get_MaterialModulationTargetLabel(bool isCoreColorRgb, MaterialScalarModulationTargetField target)
+    const char* Get_MaterialModulationTargetLabel(bool isCoreColorRgb, MaterialScalarModulationTargetField target)
     {
         return isCoreColorRgb ? "Core Color RGB" : Get_MaterialScalarTargetLabel(target);
     }
 
-    static const char* Get_MaterialScalarOperationLabel(MaterialScalarModulationOperation operation)
+    const char* Get_MaterialScalarOperationLabel(MaterialScalarModulationOperation operation)
     {
         switch (operation)
         {
@@ -689,7 +689,7 @@ namespace Internal
         }
     }
 
-    static const char* Get_MaterialScalarTimeSourceLabel(MaterialScalarModulationTimeSource timeSource)
+    const char* Get_MaterialScalarTimeSourceLabel(MaterialScalarModulationTimeSource timeSource)
     {
         switch (timeSource)
         {
@@ -702,7 +702,7 @@ namespace Internal
         }
     }
 
-    static bool Is_MaterialScalarParticleLifeSupported(const AuthoringEmitter& emitter)
+    bool Is_MaterialScalarParticleLifeSupported(const AuthoringEmitter& emitter)
     {
         return emitter.rendererType == "Sprite" ||
                emitter.rendererType == "Trail" ||
@@ -716,14 +716,14 @@ namespace Internal
                emitter.typeData.kind == AuthoringTypeDataKind::Mesh;
     }
 
-    static bool Is_MaterialScalarTimeSourceSelectable(
+    bool Is_MaterialScalarTimeSourceSelectable(
         MaterialScalarModulationTimeSource timeSource,
         bool allowParticleLife)
     {
         return timeSource != MaterialScalarModulationTimeSource::ParticleLife || allowParticleLife;
     }
 
-    static bool Draw_MaterialModulationTargetProperty(
+    bool Draw_MaterialModulationTargetProperty(
         DetailPropertyContext& detailContext,
         const char* label,
         const MaterialModulationTargetSelection& current,
@@ -821,7 +821,7 @@ namespace Internal
         return changed;
     }
 
-    static bool Draw_MaterialScalarTimeSourceProperty(
+    bool Draw_MaterialScalarTimeSourceProperty(
         DetailPropertyContext& detailContext,
         const char* label,
         MaterialScalarModulationTimeSource& value,
@@ -875,7 +875,7 @@ namespace Internal
         return changed;
     }
 
-    static bool Draw_SphereLocationSpawnModeProperty(
+    bool Draw_SphereLocationSpawnModeProperty(
         DetailPropertyContext& detailContext,
         const char* label,
         SphereLocationSpawnMode& value,
@@ -919,7 +919,7 @@ namespace Internal
         return changed;
     }
 
-    static bool Draw_SphereLocationPlacementModeProperty(
+    bool Draw_SphereLocationPlacementModeProperty(
         DetailPropertyContext& detailContext,
         const char* label,
         SphereLocationPlacementMode& value,
@@ -970,7 +970,7 @@ namespace Internal
         return changed;
     }
 
-    static bool Draw_PlaneRadialLocationPlaneProperty(
+    bool Draw_PlaneRadialLocationPlaneProperty(
         DetailPropertyContext& detailContext,
         const char* label,
         PlaneRadialLocationPlane& value,
@@ -1016,7 +1016,7 @@ namespace Internal
         return changed;
     }
 
-    static bool Draw_PlaneRadialLocationShapeProperty(
+    bool Draw_PlaneRadialLocationShapeProperty(
         DetailPropertyContext& detailContext,
         const char* label,
         PlaneRadialLocationShape& value,
@@ -1062,7 +1062,7 @@ namespace Internal
         return changed;
     }
 
-    static bool Draw_PlaneRadialLocationPlacementModeProperty(
+    bool Draw_PlaneRadialLocationPlacementModeProperty(
         DetailPropertyContext& detailContext,
         const char* label,
         PlaneRadialLocationPlacementMode& value,
@@ -1113,7 +1113,7 @@ namespace Internal
         return changed;
     }
 
-    static bool Draw_CylinderLocationAxisProperty(
+    bool Draw_CylinderLocationAxisProperty(
         DetailPropertyContext& detailContext,
         const char* label,
         CylinderLocationAxis& value,
@@ -1158,7 +1158,7 @@ namespace Internal
         return changed;
     }
 
-    static bool Draw_CylinderLocationSpawnModeProperty(
+    bool Draw_CylinderLocationSpawnModeProperty(
         DetailPropertyContext& detailContext,
         const char* label,
         CylinderLocationSpawnMode& value,
@@ -1202,7 +1202,7 @@ namespace Internal
         return changed;
     }
 
-    static bool Draw_CylinderLocationPlacementModeProperty(
+    bool Draw_CylinderLocationPlacementModeProperty(
         DetailPropertyContext& detailContext,
         const char* label,
         CylinderLocationPlacementMode& value,
@@ -1246,7 +1246,7 @@ namespace Internal
         return changed;
     }
 
-    static bool Draw_InitialRadialVelocityCenterDirectionModeProperty(
+    bool Draw_InitialRadialVelocityCenterDirectionModeProperty(
         DetailPropertyContext& detailContext,
         InitialRadialVelocityCenterDirectionMode& value,
         InitialRadialVelocityCenterDirectionMode defaultValue)
@@ -1291,7 +1291,7 @@ namespace Internal
         return changed;
     }
 
-    static bool Draw_AccelerationTimeBasisProperty(
+    bool Draw_AccelerationTimeBasisProperty(
         DetailPropertyContext& detailContext,
         AccelerationTimeBasis& value,
         AccelerationTimeBasis defaultValue)
@@ -1337,7 +1337,7 @@ namespace Internal
         return changed;
     }
 
-    static const char* Get_VelocityOverLifeApplyChannelLabel(VelocityOverLifeApplyChannel channel)
+    const char* Get_VelocityOverLifeApplyChannelLabel(VelocityOverLifeApplyChannel channel)
     {
         switch (channel)
         {
@@ -1356,7 +1356,7 @@ namespace Internal
         }
     }
 
-    static uint32 To_VelocityOverLifeApplyChannelMask(VelocityOverLifeApplyChannel channel)
+    uint32 To_VelocityOverLifeApplyChannelMask(VelocityOverLifeApplyChannel channel)
     {
         switch (channel)
         {
@@ -1375,7 +1375,7 @@ namespace Internal
         }
     }
 
-    static bool Has_VelocityOverLifeChannelConflict(
+    bool Has_VelocityOverLifeChannelConflict(
         const AuthoringEmitter& emitter,
         const AuthoringModule& currentModule,
         const VelocityOverLifeModuleData& currentData)
@@ -1405,7 +1405,7 @@ namespace Internal
         return false;
     }
 
-    static bool Draw_VelocityOverLifeApplyChannelMaskProperty(
+    bool Draw_VelocityOverLifeApplyChannelMaskProperty(
         DetailPropertyContext& detailContext,
         uint32& mask,
         uint32 defaultMask)
@@ -1452,7 +1452,7 @@ namespace Internal
         return changed;
     }
 
-    static bool Draw_PlaneRadialOrientationModeProperty(
+    bool Draw_PlaneRadialOrientationModeProperty(
         DetailPropertyContext& detailContext,
         const char* label,
         PlaneRadialOrientationMode& value,
@@ -1500,7 +1500,7 @@ namespace Internal
         return changed;
     }
 
-    static bool Draw_SphereRadialOrientationModeProperty(
+    bool Draw_SphereRadialOrientationModeProperty(
         DetailPropertyContext& detailContext,
         const char* label,
         SphereRadialOrientationMode& value,
@@ -1545,7 +1545,7 @@ namespace Internal
         return changed;
     }
 
-    static bool Draw_CylinderOrientationModeProperty(
+    bool Draw_CylinderOrientationModeProperty(
         DetailPropertyContext& detailContext,
         const char* label,
         CylinderOrientationMode& value,
@@ -1594,7 +1594,7 @@ namespace Internal
         return changed;
     }
 
-    static bool Draw_EffectOrbitPlaneProperty(
+    bool Draw_EffectOrbitPlaneProperty(
         DetailPropertyContext& detailContext,
         const char* label,
         EffectOrbitPlane& value,
@@ -1639,7 +1639,7 @@ namespace Internal
         return changed;
     }
 
-    static void Draw_ReadOnlyTextProperty(
+    void Draw_ReadOnlyTextProperty(
         DetailPropertyContext& detailContext,
         const char* label,
         const char* value,
@@ -1653,7 +1653,7 @@ namespace Internal
         ImGui::PopID();
     }
 
-    static void Draw_PlaneRadialOrientationResolvedTargetProperty(
+    void Draw_PlaneRadialOrientationResolvedTargetProperty(
         DetailPropertyContext& detailContext,
         const AuthoringEmitter& emitter)
     {
@@ -1665,7 +1665,7 @@ namespace Internal
         );
     }
 
-    static bool Draw_PlaneRadialOrientationAxisProperty(
+    bool Draw_PlaneRadialOrientationAxisProperty(
         DetailPropertyContext& detailContext,
         const char* label,
         PlaneRadialOrientationAxis& value,
@@ -1713,7 +1713,7 @@ namespace Internal
         return changed;
     }
 
-    static bool Draw_MeshDirectionAlignTargetModeProperty(
+    bool Draw_MeshDirectionAlignTargetModeProperty(
         DetailPropertyContext& detailContext,
         MeshDirectionAlignTargetMode& value,
         MeshDirectionAlignTargetMode defaultValue)
@@ -1751,7 +1751,7 @@ namespace Internal
         return changed;
     }
 
-    static bool Draw_MeshDirectionAlignSpaceProperty(
+    bool Draw_MeshDirectionAlignSpaceProperty(
         DetailPropertyContext& detailContext,
         MeshDirectionAlignSpace& value,
         MeshDirectionAlignSpace defaultValue)
@@ -1789,7 +1789,7 @@ namespace Internal
         return changed;
     }
 
-    static bool Draw_MeshDirectionAlignBlendModeProperty(
+    bool Draw_MeshDirectionAlignBlendModeProperty(
         DetailPropertyContext& detailContext,
         MeshDirectionAlignBlendMode& value,
         MeshDirectionAlignBlendMode defaultValue)
@@ -1829,7 +1829,7 @@ namespace Internal
         return changed;
     }
 
-    static bool Has_PlaneRadialLocationModule(const AuthoringEmitter& emitter)
+    bool Has_PlaneRadialLocationModule(const AuthoringEmitter& emitter)
     {
         for (const AuthoringModule& module : emitter.modules)
         {
@@ -1840,7 +1840,7 @@ namespace Internal
         return false;
     }
 
-    static bool Has_CylinderLocationModule(const AuthoringEmitter& emitter)
+    bool Has_CylinderLocationModule(const AuthoringEmitter& emitter)
     {
         for (const AuthoringModule& module : emitter.modules)
         {
@@ -1851,7 +1851,7 @@ namespace Internal
         return false;
     }
 
-    static bool Has_SphereLocationModule(const AuthoringEmitter& emitter)
+    bool Has_SphereLocationModule(const AuthoringEmitter& emitter)
     {
         for (const AuthoringModule& module : emitter.modules)
         {
@@ -1862,7 +1862,7 @@ namespace Internal
         return false;
     }
 
-    static bool Has_EnabledModule(const AuthoringEmitter& emitter, AuthoringModuleType type)
+    bool Has_EnabledModule(const AuthoringEmitter& emitter, AuthoringModuleType type)
     {
         for (const AuthoringModule& module : emitter.modules)
         {
@@ -1873,7 +1873,7 @@ namespace Internal
         return false;
     }
 
-    static bool Has_EnabledPlaneRadialOrientationModule(const AuthoringEmitter& emitter)
+    bool Has_EnabledPlaneRadialOrientationModule(const AuthoringEmitter& emitter)
     {
         for (const AuthoringModule& module : emitter.modules)
         {
@@ -1888,12 +1888,12 @@ namespace Internal
         return false;
     }
 
-    static bool Should_ShowPlaneRadialOrientationMeshFields(const AuthoringEmitter& emitter)
+    bool Should_ShowPlaneRadialOrientationMeshFields(const AuthoringEmitter& emitter)
     {
         return Resolve_PlaneRadialOrientationTargetKind(emitter) == PlaneRadialOrientationTargetKind::Mesh3D;
     }
 
-    static bool Draw_SubUVFramePlaybackModeProperty(
+    bool Draw_SubUVFramePlaybackModeProperty(
         DetailPropertyContext& detailContext,
         const char* label,
         SubUVFramePlaybackMode& value,
@@ -1939,7 +1939,7 @@ namespace Internal
         return changed;
     }
 
-    static bool Normalize_SubUVFrameIndexDistribution(FloatDistributionData& data, uint32 lastFrame)
+    bool Normalize_SubUVFrameIndexDistribution(FloatDistributionData& data, uint32 lastFrame)
     {
         bool changed = false;
         const float minFrame = 0.f;
@@ -1976,7 +1976,7 @@ namespace Internal
         return changed;
     }
 
-    static bool Is_SameMaterial(const EffectMaterialInstanceData& lhs, const EffectMaterialInstanceData& rhs)
+    bool Is_SameMaterial(const EffectMaterialInstanceData& lhs, const EffectMaterialInstanceData& rhs)
     {
         return
             lhs.mainTextureGuid == rhs.mainTextureGuid &&
@@ -2038,7 +2038,7 @@ namespace Internal
             lhs.subUVCols == rhs.subUVCols;
     }
 
-    static string Try_ResolvePresetNameFromMaterial(const EffectMaterialInstanceData& material)
+    string Try_ResolvePresetNameFromMaterial(const EffectMaterialInstanceData& material)
     {
         const fs::path presetFolder = Normalize_MaterialDialogPath(kMaterialDialogDefaultFolder);
         if (!fs::exists(presetFolder) || !fs::is_directory(presetFolder))
@@ -2064,7 +2064,7 @@ namespace Internal
         return {};
     }
 
-    static wstring Try_ResolvePresetPathFromMaterial(const EffectMaterialInstanceData& material)
+    wstring Try_ResolvePresetPathFromMaterial(const EffectMaterialInstanceData& material)
     {
         const fs::path presetFolder = Normalize_MaterialDialogPath(kMaterialDialogDefaultFolder);
         if (!fs::exists(presetFolder) || !fs::is_directory(presetFolder))
@@ -2098,7 +2098,7 @@ namespace Internal
         return {};
     }
 
-    static const string& Resolve_MaterialDisplayName(RequiredModuleData& data)
+    const string& Resolve_MaterialDisplayName(RequiredModuleData& data)
     {
         if (data.material.sourcePresetName.empty())
             data.material.sourcePresetName = Try_ResolvePresetNameFromMaterial(data.material);
@@ -2396,7 +2396,7 @@ namespace Internal
         return changed;
     }
 
-    static uint32 Resolve_SubUvFrameCount(const AuthoringEmitter& emitter)
+    uint32 Resolve_SubUvFrameCount(const AuthoringEmitter& emitter)
     {
         for (const AuthoringModule& module : emitter.modules)
         {
@@ -2415,7 +2415,7 @@ namespace Internal
         return 1;
     }
 
-    static bool Is_SameVec3(const Vec3& lhs, const Vec3& rhs)
+    bool Is_SameVec3(const Vec3& lhs, const Vec3& rhs)
     {
         return
             NearlyEqual(lhs.x, rhs.x) &&
@@ -2423,7 +2423,7 @@ namespace Internal
             NearlyEqual(lhs.z, rhs.z);
     }
 
-    static Vec3 Resolve_CoreColorRgbDefault(const AuthoringEmitter& emitter)
+    Vec3 Resolve_CoreColorRgbDefault(const AuthoringEmitter& emitter)
     {
         for (const AuthoringModule& module : emitter.modules)
         {
@@ -2444,14 +2444,14 @@ namespace Internal
         return Vec3{ 1.f, 0.85f, 0.45f };
     }
 
-    static MaterialCoreColorRgbModulatorData Make_CoreColorRgbModulator(const AuthoringEmitter& emitter)
+    MaterialCoreColorRgbModulatorData Make_CoreColorRgbModulator(const AuthoringEmitter& emitter)
     {
         MaterialCoreColorRgbModulatorData data{};
         data.distribution = Vector3DistributionData::Make_Constant(Resolve_CoreColorRgbDefault(emitter));
         return data;
     }
 
-    static bool Draw_RadialPivotProperty(
+    bool Draw_RadialPivotProperty(
         DetailPropertyContext& detailContext,
         Vec3& value,
         const Vec3& defaultValue)
@@ -2480,7 +2480,7 @@ namespace Internal
         return changed;
     }
 
-    static bool Draw_RadialWorldSpaceProperty(
+    bool Draw_RadialWorldSpaceProperty(
         DetailPropertyContext& detailContext,
         bool& value,
         bool defaultValue)
@@ -2508,7 +2508,7 @@ namespace Internal
         return changed;
     }
 
-    static const char* Get_BlendModeLabel(EffectMaterialBlendMode value)
+    const char* Get_BlendModeLabel(EffectMaterialBlendMode value)
     {
         switch (value)
         {
@@ -2525,7 +2525,7 @@ namespace Internal
         }
     }
 
-    static const char* Get_SortPolicyLabel(EmitterSortPolicy value)
+    const char* Get_SortPolicyLabel(EmitterSortPolicy value)
     {
         switch (value)
         {
@@ -2537,7 +2537,7 @@ namespace Internal
         }
     }
 
-    static bool Draw_BlendModeProperty(
+    bool Draw_BlendModeProperty(
         DetailPropertyContext& detailContext,
         const AuthoringEmitter& emitter,
         EffectMaterialBlendMode& value,
@@ -2591,7 +2591,7 @@ namespace Internal
         return changed;
     }
 
-    static bool Draw_SortPolicyProperty(
+    bool Draw_SortPolicyProperty(
         DetailPropertyContext& detailContext,
         EmitterSortPolicy& value,
         EmitterSortPolicy defaultValue)
@@ -2634,7 +2634,7 @@ namespace Internal
         return changed;
     }
 
-    static bool Draw_IntProperty(
+    bool Draw_IntProperty(
         DetailPropertyContext& detailContext,
         const char* label,
         int32& value,
@@ -2677,7 +2677,7 @@ bool RequiredModuleDetail::Draw(
     if (_materialSlotPreview == nullptr)
         _materialSlotPreview = EffectMaterialPreviewRenderer::Create(64);
 
-    const bool allowRequiredMaterialAuthoring = !Internal::Is_MeshEffectAuthoring(emitter);
+    const bool allowRequiredMaterialAuthoring = !Is_MeshEffectAuthoring(emitter);
 
     if (ImGui::CollapsingHeader("머티리얼", ImGuiTreeNodeFlags_DefaultOpen))
     {
@@ -2690,7 +2690,7 @@ bool RequiredModuleDetail::Draw(
                 ? "이 emitter의 기본 material instance입니다. Mesh 계열은 Mesh TypeData Assigned Material이 편집 정본입니다."
                 : "Mesh 계열 material은 Mesh TypeData의 Assigned Material에서 편집합니다."
             );
-            changed |= Internal::Draw_MaterialDropSlot(
+            changed |= Draw_MaterialDropSlot(
                 emitter,
                 data,
                 _materialSlotPreview.get(),
@@ -2711,7 +2711,7 @@ bool RequiredModuleDetail::Draw(
             if (!allowRequiredMaterialAuthoring)
                 ImGui::BeginDisabled();
             if (ImGui::Button("인스턴스 편집", ImVec2{ editButtonWidth, 24.f }))
-                Internal::Open_MaterialInstanceWindow(emitter.id, module.id);
+                Open_MaterialInstanceWindow(emitter.id, module.id);
             if (!allowRequiredMaterialAuthoring)
                 ImGui::EndDisabled();
             if (!allowRequiredMaterialAuthoring && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
@@ -2722,7 +2722,7 @@ bool RequiredModuleDetail::Draw(
             if (!allowRequiredMaterialAuthoring)
                 ImGui::BeginDisabled();
             if (ImGui::Button("원본 보기", ImVec2{ sourceButtonWidth, 24.f }))
-                Internal::Open_PresetBrowserWindow(data);
+                Open_PresetBrowserWindow(data);
             if (!allowRequiredMaterialAuthoring)
                 ImGui::EndDisabled();
 
@@ -2772,7 +2772,7 @@ bool RequiredModuleDetail::Draw(
             changed |= isSourceHistorySpriteTrail
                        ? detailContext.Draw_SourceHistorySpriteTrailScreenAlignmentProperty("화면 정렬", data.screenAlignment, defaultData.screenAlignment)
                        : detailContext.Draw_ScreenAlignmentProperty("화면 정렬", data.screenAlignment, defaultData.screenAlignment);
-            if (Internal::Uses_DirectionalAlignmentOptions(data.screenAlignment))
+            if (Uses_DirectionalAlignmentOptions(data.screenAlignment))
             {
                 const EmitterDirectionalAlignmentMode oldMode = data.directionalAlignmentMode;
 
@@ -2780,14 +2780,14 @@ bool RequiredModuleDetail::Draw(
                 {
                     changed = true;
                     if (oldMode != data.directionalAlignmentMode)
-                        Internal::Notify_DirectionalAlignmentModeChanged(data.screenAlignment, data.directionalAlignmentMode);
+                        Notify_DirectionalAlignmentModeChanged(data.screenAlignment, data.directionalAlignmentMode);
                 }
             }
 
             const bool showSpriteTextureAxis =
                 isSourceHistorySpriteTrail
-                ? Internal::Uses_SourceHistorySpriteTrailCardAxis(data.screenAlignment, data.directionalAlignmentMode)
-                : Internal::Uses_DirectionalAlignmentOptions(data.screenAlignment) &&
+                ? Uses_SourceHistorySpriteTrailCardAxis(data.screenAlignment, data.directionalAlignmentMode)
+                : Uses_DirectionalAlignmentOptions(data.screenAlignment) &&
                   data.directionalAlignmentMode == EmitterDirectionalAlignmentMode::TextureAxis;
             if (showSpriteTextureAxis)
             {
@@ -2804,14 +2804,14 @@ bool RequiredModuleDetail::Draw(
                     {
                         changed = true;
                         if (oldAxis != data.spriteTextureAxis)
-                            Internal::Notify_TextureAxisChanged(data.spriteTextureAxis);
+                            Notify_TextureAxisChanged(data.spriteTextureAxis);
                     }
                 }
                 else if (detailContext.Draw_SpriteTextureAxisProperty("정렬할 텍스처 축", data.spriteTextureAxis, defaultData.spriteTextureAxis))
                 {
                     changed = true;
                     if (oldAxis != data.spriteTextureAxis)
-                        Internal::Notify_TextureAxisChanged(data.spriteTextureAxis);
+                        Notify_TextureAxisChanged(data.spriteTextureAxis);
                 }
 
                 changed |= detailContext.Draw_FloatProperty(
@@ -2832,7 +2832,7 @@ bool RequiredModuleDetail::Draw(
             detailContext.End_PropertyTable();
         }
 
-        if (Internal::Uses_DirectionalAlignmentOptions(data.screenAlignment))
+        if (Uses_DirectionalAlignmentOptions(data.screenAlignment))
         {
             if (data.directionalAlignmentMode == EmitterDirectionalAlignmentMode::TextureAxis)
                 ImGui::TextDisabled("Texture Axis는 world X/Y/Z가 아니라 texture 가로/세로 축입니다. 나머지 축은 카메라 가시성을 유지합니다.");
@@ -2847,9 +2847,9 @@ bool RequiredModuleDetail::Draw(
     {
         if (detailContext.Begin_PropertyTable("RequiredRenderingSort"))
         {
-            changed |= Internal::Draw_BlendModeProperty(detailContext, emitter, data.material.blendMode, defaultData.material.blendMode);
-            changed |= Internal::Draw_SortPolicyProperty(detailContext, data.sortPolicy, defaultData.sortPolicy);
-            changed |= Internal::Draw_IntProperty(detailContext, "Sort Layer", data.sortLayer, defaultData.sortLayer);
+            changed |= Draw_BlendModeProperty(detailContext, emitter, data.material.blendMode, defaultData.material.blendMode);
+            changed |= Draw_SortPolicyProperty(detailContext, data.sortPolicy, defaultData.sortPolicy);
+            changed |= Draw_IntProperty(detailContext, "Sort Layer", data.sortLayer, defaultData.sortLayer);
             detailContext.End_PropertyTable();
         }
 
@@ -3147,7 +3147,7 @@ bool RibbonOrientationModuleDetail::Draw(AuthoringEmitter&, AuthoringModule&, Ri
     {
         if (detailContext.Begin_PropertyTable("RibbonOrientation"))
         {
-            changed |= Internal::Draw_RibbonSpreadBasisProperty(
+            changed |= Draw_RibbonSpreadBasisProperty(
                 detailContext,
                 data.spreadBasis,
                 defaultData.spreadBasis
@@ -3184,14 +3184,14 @@ bool SphereLocationModuleDetail::Draw(AuthoringEmitter&, const AuthoringModule& 
                 "구 분포의 반지름입니다. Surface/Volume 생성 방식의 기준 크기입니다.",
                 Find_AuthoringValueRange(module.type, "radius")
             );
-            changed |= Internal::Draw_SphereLocationSpawnModeProperty(
+            changed |= Draw_SphereLocationSpawnModeProperty(
                 detailContext,
                 "생성 방식",
                 data.spawnMode,
                 defaultData.spawnMode
             );
             const bool placementModeEnabled = data.spawnMode == SphereLocationSpawnMode::Surface;
-            changed |= Internal::Draw_SphereLocationPlacementModeProperty(
+            changed |= Draw_SphereLocationPlacementModeProperty(
                 detailContext,
                 "표면 배치",
                 data.placementMode,
@@ -3201,7 +3201,7 @@ bool SphereLocationModuleDetail::Draw(AuthoringEmitter&, const AuthoringModule& 
             detailContext.End_PropertyTable();
         }
 
-        changed |= Internal::Draw_RandomSeedProperty(detailContext, data.randomSeed);
+        changed |= Draw_RandomSeedProperty(detailContext, data.randomSeed);
     }
 
     data.radius = max(0.f, data.radius);
@@ -3221,13 +3221,13 @@ bool PlaneRadialLocationModuleDetail::Draw(
     {
         if (detailContext.Begin_PropertyTable("PlaneRadialLocation"))
         {
-            changed |= Internal::Draw_PlaneRadialLocationPlaneProperty(
+            changed |= Draw_PlaneRadialLocationPlaneProperty(
                 detailContext,
                 "기준 평면",
                 data.plane,
                 defaultData.plane
             );
-            changed |= Internal::Draw_PlaneRadialLocationShapeProperty(
+            changed |= Draw_PlaneRadialLocationShapeProperty(
                 detailContext,
                 "형태",
                 data.shape,
@@ -3297,10 +3297,10 @@ bool PlaneRadialLocationModuleDetail::Draw(
 
         if (ImGui::TreeNodeEx("고급", ImGuiTreeNodeFlags_SpanAvailWidth))
         {
-            const bool placementModeEnabled = Internal::Is_PlaneRadialLocationAdvancedPlacementShape(data.shape);
+            const bool placementModeEnabled = Is_PlaneRadialLocationAdvancedPlacementShape(data.shape);
             if (detailContext.Begin_PropertyTable("PlaneRadialLocationAdvanced"))
             {
-                changed |= Internal::Draw_PlaneRadialLocationPlacementModeProperty(
+                changed |= Draw_PlaneRadialLocationPlacementModeProperty(
                     detailContext,
                     "배치 방식",
                     data.placementMode,
@@ -3333,19 +3333,19 @@ bool CylinderLocationModuleDetail::Draw(
     {
         if (detailContext.Begin_PropertyTable("CylinderLocation"))
         {
-            changed |= Internal::Draw_CylinderLocationAxisProperty(
+            changed |= Draw_CylinderLocationAxisProperty(
                 detailContext,
                 "길이축",
                 data.axis,
                 defaultData.axis
             );
-            changed |= Internal::Draw_CylinderLocationSpawnModeProperty(
+            changed |= Draw_CylinderLocationSpawnModeProperty(
                 detailContext,
                 "생성 방식",
                 data.spawnMode,
                 defaultData.spawnMode
             );
-            changed |= Internal::Draw_CylinderLocationPlacementModeProperty(
+            changed |= Draw_CylinderLocationPlacementModeProperty(
                 detailContext,
                 "원주 배치",
                 data.placementMode,
@@ -3458,9 +3458,9 @@ bool InitialRadialVelocityModuleDetail::Draw(
     {
         if (detailContext.Begin_PropertyTable("InitialRadialVelocity"))
         {
-            changed |= Internal::Draw_RadialPivotProperty(detailContext, data.radialPivot, defaultData.radialPivot);
-            changed |= Internal::Draw_RadialWorldSpaceProperty(detailContext, data.inWorldSpace, defaultData.inWorldSpace);
-            changed |= Internal::Draw_InitialRadialVelocityCenterDirectionModeProperty(
+            changed |= Draw_RadialPivotProperty(detailContext, data.radialPivot, defaultData.radialPivot);
+            changed |= Draw_RadialWorldSpaceProperty(detailContext, data.inWorldSpace, defaultData.inWorldSpace);
+            changed |= Draw_InitialRadialVelocityCenterDirectionModeProperty(
                 detailContext,
                 data.centerDirectionMode,
                 defaultData.centerDirectionMode
@@ -3471,7 +3471,7 @@ bool InitialRadialVelocityModuleDetail::Draw(
         if (data.centerDirectionMode == InitialRadialVelocityCenterDirectionMode::PlaneRadial)
         {
             ImGui::TextDisabled("평면 방사는 같은 emitter의 평면/방사 위치 방향을 사용합니다.");
-            if (!Internal::Has_PlaneRadialLocationModule(emitter))
+            if (!Has_PlaneRadialLocationModule(emitter))
                 ImGui::TextDisabled("평면/방사 위치가 없으면 랜덤 상승 방향으로 처리됩니다.");
         }
 
@@ -3735,7 +3735,7 @@ bool AccelerationModuleDetail::Draw(const AuthoringEmitter& emitter, AuthoringMo
     {
         if (detailContext.Begin_PropertyTable("AccelerationSpace"))
         {
-            changed |= Internal::Draw_AccelerationTimeBasisProperty(
+            changed |= Draw_AccelerationTimeBasisProperty(
                 detailContext,
                 data.timeBasis,
                 defaultData.timeBasis
@@ -3810,7 +3810,7 @@ bool VelocityOverLifeModuleDetail::Draw(const AuthoringEmitter& emitter, const A
         {
             if (detailContext.Begin_PropertyTable("VelocityOverLifeApplyChannels"))
             {
-                changed |= Internal::Draw_VelocityOverLifeApplyChannelMaskProperty(
+                changed |= Draw_VelocityOverLifeApplyChannelMaskProperty(
                     detailContext,
                     data.applyChannelMask,
                     defaultData.applyChannelMask
@@ -3819,7 +3819,7 @@ bool VelocityOverLifeModuleDetail::Draw(const AuthoringEmitter& emitter, const A
             }
         }
 
-        if (Internal::Has_VelocityOverLifeChannelConflict(emitter, module, data))
+        if (Has_VelocityOverLifeChannelConflict(emitter, module, data))
         {
             ImGui::PushStyleColor(ImGuiCol_Text, ImVec4{ 1.f, 0.78f, 0.28f, 1.f });
             ImGui::TextWrapped("겹친 대상은 위쪽 VelocityOverLife가 우선 적용됩니다.");
@@ -3861,9 +3861,9 @@ bool OrbitOverLifeModuleDetail::Draw(AuthoringEmitter&, AuthoringModule&, OrbitO
     {
         if (detailContext.Begin_PropertyTable("OrbitOverLife"))
         {
-            Internal::Draw_ReadOnlyTextProperty(detailContext, "Pivot", "Emitter Origin", "v1 runtime은 EmitterOrigin만 소비합니다.");
-            changed |= Internal::Draw_EffectOrbitPlaneProperty(detailContext, "평면", data.plane, defaultData.plane);
-            Internal::Draw_ReadOnlyTextProperty(detailContext, "방향 추적", "Preserve", "v1 runtime은 orientation follow를 적용하지 않습니다.");
+            Draw_ReadOnlyTextProperty(detailContext, "Pivot", "Emitter Origin", "v1 runtime은 EmitterOrigin만 소비합니다.");
+            changed |= Draw_EffectOrbitPlaneProperty(detailContext, "평면", data.plane, defaultData.plane);
+            Draw_ReadOnlyTextProperty(detailContext, "방향 추적", "Preserve", "v1 runtime은 orientation follow를 적용하지 않습니다.");
             detailContext.End_PropertyTable();
         }
 
@@ -3905,23 +3905,23 @@ bool PlaneRadialOrientationModuleDetail::Draw(
     {
         if (detailContext.Begin_PropertyTable("PlaneRadialOrientation"))
         {
-            Internal::Draw_PlaneRadialOrientationResolvedTargetProperty(detailContext, emitter);
-            changed |= Internal::Draw_PlaneRadialOrientationModeProperty(
+            Draw_PlaneRadialOrientationResolvedTargetProperty(detailContext, emitter);
+            changed |= Draw_PlaneRadialOrientationModeProperty(
                 detailContext,
                 "방향",
                 data.orientationMode,
                 defaultData.orientationMode
             );
 
-            if (Internal::Should_ShowPlaneRadialOrientationMeshFields(emitter))
+            if (Should_ShowPlaneRadialOrientationMeshFields(emitter))
             {
-                changed |= Internal::Draw_PlaneRadialOrientationAxisProperty(
+                changed |= Draw_PlaneRadialOrientationAxisProperty(
                     detailContext,
                     "메시 앞축",
                     data.meshForwardAxis,
                     defaultData.meshForwardAxis
                 );
-                changed |= Internal::Draw_PlaneRadialOrientationAxisProperty(
+                changed |= Draw_PlaneRadialOrientationAxisProperty(
                     detailContext,
                     "메시 위축",
                     data.meshUpAxis,
@@ -3946,7 +3946,7 @@ bool PlaneRadialOrientationModuleDetail::Draw(
             detailContext.End_PropertyTable();
         }
 
-        if (!Internal::Has_PlaneRadialLocationModule(emitter))
+        if (!Has_PlaneRadialLocationModule(emitter))
             ImGui::TextDisabled("같은 emitter에 평면/방사 위치가 없으면 runtime radial frame을 만들 수 없습니다.");
     }
 
@@ -3966,20 +3966,20 @@ bool CylinderOrientationModuleDetail::Draw(
     {
         if (detailContext.Begin_PropertyTable("CylinderOrientation"))
         {
-            Internal::Draw_ReadOnlyTextProperty(
+            Draw_ReadOnlyTextProperty(
                 detailContext,
                 "대상",
-                Internal::Get_PlaneRadialOrientationTargetKindLabel(Internal::Resolve_PlaneRadialOrientationTargetKind(emitter)),
+                Get_PlaneRadialOrientationTargetKindLabel(Resolve_PlaneRadialOrientationTargetKind(emitter)),
                 "현재 emitter 타입 기준으로 자동 결정됩니다. targetKind 저장값은 유지하지만 이번 단계에서는 편집 UI를 숨깁니다."
             );
-            changed |= Internal::Draw_CylinderOrientationModeProperty(
+            changed |= Draw_CylinderOrientationModeProperty(
                 detailContext,
                 "방향",
                 data.orientationMode,
                 defaultData.orientationMode
             );
 
-            if (!Internal::Is_MeshEffectAuthoring(emitter))
+            if (!Is_MeshEffectAuthoring(emitter))
             {
                 changed |= detailContext.Draw_BoolProperty(
                     "공전 방향 따라 갱신",
@@ -3990,13 +3990,13 @@ bool CylinderOrientationModuleDetail::Draw(
             }
             else
             {
-                changed |= Internal::Draw_PlaneRadialOrientationAxisProperty(
+                changed |= Draw_PlaneRadialOrientationAxisProperty(
                     detailContext,
                     "메시 앞축",
                     data.meshForwardAxis,
                     defaultData.meshForwardAxis
                 );
-                changed |= Internal::Draw_PlaneRadialOrientationAxisProperty(
+                changed |= Draw_PlaneRadialOrientationAxisProperty(
                     detailContext,
                     "메시 위축",
                     data.meshUpAxis,
@@ -4021,10 +4021,10 @@ bool CylinderOrientationModuleDetail::Draw(
             detailContext.End_PropertyTable();
         }
 
-        if (!Internal::Has_CylinderLocationModule(emitter))
+        if (!Has_CylinderLocationModule(emitter))
             ImGui::TextDisabled("같은 emitter에 실린더 위치가 없으면 runtime cylinder frame을 만들 수 없습니다.");
         if (data.orientationMode != CylinderOrientationMode::None &&
-            Internal::Has_EnabledPlaneRadialOrientationModule(emitter))
+            Has_EnabledPlaneRadialOrientationModule(emitter))
             ImGui::TextDisabled("실린더 회전이 켜져 있으면 runtime은 평면/방사 회전보다 실린더 회전을 먼저 적용합니다.");
     }
 
@@ -4044,19 +4044,19 @@ bool SphereRadialOrientationModuleDetail::Draw(
     {
         if (detailContext.Begin_PropertyTable("SphereRadialOrientation"))
         {
-            changed |= Internal::Draw_SphereRadialOrientationModeProperty(
+            changed |= Draw_SphereRadialOrientationModeProperty(
                 detailContext,
                 "방향",
                 data.orientationMode,
                 defaultData.orientationMode
             );
-            changed |= Internal::Draw_PlaneRadialOrientationAxisProperty(
+            changed |= Draw_PlaneRadialOrientationAxisProperty(
                 detailContext,
                 "메시 앞축",
                 data.meshForwardAxis,
                 defaultData.meshForwardAxis
             );
-            changed |= Internal::Draw_PlaneRadialOrientationAxisProperty(
+            changed |= Draw_PlaneRadialOrientationAxisProperty(
                 detailContext,
                 "메시 위축",
                 data.meshUpAxis,
@@ -4080,10 +4080,10 @@ bool SphereRadialOrientationModuleDetail::Draw(
             detailContext.End_PropertyTable();
         }
 
-        if (!Internal::Has_SphereLocationModule(emitter))
+        if (!Has_SphereLocationModule(emitter))
             ImGui::TextDisabled("같은 emitter에 구 위치가 없으면 runtime sphere radial frame을 만들 수 없습니다.");
         if (data.orientationMode != SphereRadialOrientationMode::None &&
-            Internal::Has_EnabledPlaneRadialOrientationModule(emitter))
+            Has_EnabledPlaneRadialOrientationModule(emitter))
             ImGui::TextDisabled("평면/방사 회전도 켜져 있으면 runtime은 구/방사 회전을 먼저 적용합니다.");
     }
 
@@ -4267,8 +4267,8 @@ bool MeshDirectionAlignOverLifeModuleDetail::Draw(
     {
         if (detailContext.Begin_PropertyTable("MeshDirectionAlignOverLife"))
         {
-            changed |= Internal::Draw_MeshDirectionAlignTargetModeProperty(detailContext, data.targetMode, defaultData.targetMode);
-            changed |= Internal::Draw_MeshDirectionAlignSpaceProperty(detailContext, data.space, defaultData.space);
+            changed |= Draw_MeshDirectionAlignTargetModeProperty(detailContext, data.targetMode, defaultData.targetMode);
+            changed |= Draw_MeshDirectionAlignSpaceProperty(detailContext, data.space, defaultData.space);
             changed |= detailContext.Draw_Vec3Property(
                 data.targetMode == MeshDirectionAlignTargetMode::Point ? "대상 점" : "대상 방향",
                 data.target,
@@ -4279,19 +4279,19 @@ bool MeshDirectionAlignOverLifeModuleDetail::Draw(
                 ? "Point 방식에서는 이 값을 target 위치로 해석합니다."
                 : "Direction 방식에서는 이 값을 바라볼 방향 벡터로 해석합니다."
             );
-            changed |= Internal::Draw_PlaneRadialOrientationAxisProperty(
+            changed |= Draw_PlaneRadialOrientationAxisProperty(
                 detailContext,
                 "메시 앞축",
                 data.meshForwardAxis,
                 defaultData.meshForwardAxis
             );
-            changed |= Internal::Draw_PlaneRadialOrientationAxisProperty(
+            changed |= Draw_PlaneRadialOrientationAxisProperty(
                 detailContext,
                 "메시 위축",
                 data.meshUpAxis,
                 defaultData.meshUpAxis
             );
-            changed |= Internal::Draw_MeshDirectionAlignBlendModeProperty(detailContext, data.blendMode, defaultData.blendMode);
+            changed |= Draw_MeshDirectionAlignBlendModeProperty(detailContext, data.blendMode, defaultData.blendMode);
             detailContext.End_PropertyTable();
         }
 
@@ -4327,9 +4327,9 @@ bool MeshDirectionAlignOverLifeModuleDetail::Draw(
         );
 
         ImGui::TextDisabled("모든 메시 회전 계산 뒤에 적용됩니다. 최종 weight 1에서는 목표 방향이 최종 회전을 결정합니다.");
-        if (Internal::Has_EnabledModule(emitter, AuthoringModuleType::MeshRotationOverLife) ||
-            Internal::Has_EnabledModule(emitter, AuthoringModuleType::InitialMeshRotationRate) ||
-            Internal::Has_EnabledModule(emitter, AuthoringModuleType::MeshRotationRateScaleByLife))
+        if (Has_EnabledModule(emitter, AuthoringModuleType::MeshRotationOverLife) ||
+            Has_EnabledModule(emitter, AuthoringModuleType::InitialMeshRotationRate) ||
+            Has_EnabledModule(emitter, AuthoringModuleType::MeshRotationRateScaleByLife))
             ImGui::TextDisabled("기존 메시 회전 모듈은 weight가 낮은 구간에서 함께 보이고, weight가 높아질수록 target 방향에 흡수됩니다.");
     }
 
@@ -4458,7 +4458,7 @@ bool SubUVFrameOverLifeModuleDetail::Draw(
     {
         if (detailContext.Begin_PropertyTable("SubUVFrameOverLife"))
         {
-            changed |= Internal::Draw_SubUVFramePlaybackModeProperty(
+            changed |= Draw_SubUVFramePlaybackModeProperty(
                 detailContext,
                 "재생 방식",
                 data.playbackMode,
@@ -4509,14 +4509,14 @@ bool SubUVFrameOverLifeModuleDetail::Draw(
             (data.playbackMode == SubUVFramePlaybackMode::FramesPerSecond && data.randomStartPhase);
 
         if (usesRandomSeed)
-            changed |= Internal::Draw_RandomSeedProperty(detailContext, data.randomSeed);
+            changed |= Draw_RandomSeedProperty(detailContext, data.randomSeed);
 
-        const uint32 frameCount = Internal::Resolve_SubUvFrameCount(emitter);
+        const uint32 frameCount = Resolve_SubUvFrameCount(emitter);
         const uint32 lastFrame = frameCount > 0 ? frameCount - 1 : 0;
         data.startFrame = min(data.startFrame, lastFrame);
         data.endFrame = min(data.endFrame, lastFrame);
         data.framesPerSecond = max(0.f, data.framesPerSecond);
-        changed |= Internal::Normalize_SubUVFrameIndexDistribution(data.frameIndex, lastFrame);
+        changed |= Normalize_SubUVFrameIndexDistribution(data.frameIndex, lastFrame);
 
         ImGui::TextDisabled("현재 atlas frame 수: %u", frameCount);
     }
@@ -5017,7 +5017,7 @@ bool MaterialScalarModulationModuleDetail::Draw(
     DetailPropertyContext& detailContext)
 {
     bool changed = false;
-    const bool allowScalarParticleLife = Internal::Is_MaterialScalarParticleLifeSupported(emitter);
+    const bool allowScalarParticleLife = Is_MaterialScalarParticleLifeSupported(emitter);
 
     if (ImGui::CollapsingHeader("머티리얼 변조", ImGuiTreeNodeFlags_DefaultOpen))
     {
@@ -5077,8 +5077,8 @@ bool MaterialScalarModulationModuleDetail::Draw(
                   : data.modulators[row.index].timeSource;
             const string targetLabel =
                 row.kind == MaterialModulationUiRowKind::Vec2
-                ? Internal::Get_MaterialVec2TargetLabel(data.vec2Modulators[row.index].targetField)
-                : Internal::Get_MaterialModulationTargetLabel(
+                ? Get_MaterialVec2TargetLabel(data.vec2Modulators[row.index].targetField)
+                : Get_MaterialModulationTargetLabel(
                     row.kind == MaterialModulationUiRowKind::CoreColorRgb,
                     row.kind == MaterialModulationUiRowKind::CoreColorRgb
                     ? MaterialScalarModulationTargetField::CoreColor
@@ -5087,7 +5087,7 @@ bool MaterialScalarModulationModuleDetail::Draw(
             const string header =
                 string("#") + to_string(rowIndex + 1) + " " +
                 targetLabel + " / " +
-                Internal::Get_MaterialScalarTimeSourceLabel(timeSource);
+                Get_MaterialScalarTimeSourceLabel(timeSource);
             bool structureChanged = false;
 
             if (ImGui::CollapsingHeader(header.c_str(), ImGuiTreeNodeFlags_DefaultOpen))
@@ -5095,7 +5095,7 @@ bool MaterialScalarModulationModuleDetail::Draw(
                 if (row.kind == MaterialModulationUiRowKind::CoreColorRgb)
                 {
                     MaterialCoreColorRgbModulatorData& modulator = data.coreColorRgbModulators[row.index];
-                    MaterialCoreColorRgbModulatorData defaultData = Internal::Make_CoreColorRgbModulator(emitter);
+                    MaterialCoreColorRgbModulatorData defaultData = Make_CoreColorRgbModulator(emitter);
 
                     if (detailContext.Begin_PropertyTable("MaterialCoreColorRgbModulator"))
                     {
@@ -5106,11 +5106,11 @@ bool MaterialScalarModulationModuleDetail::Draw(
                             "이 변조 row를 runtime preview/export에 반영할지 정합니다."
                         );
 
-                        Internal::MaterialModulationTargetSelection currentSelection{};
-                        currentSelection.category = Internal::MaterialModulationTargetCategory::CoreColorRgb;
+                        MaterialModulationTargetSelection currentSelection{};
+                        currentSelection.category = MaterialModulationTargetCategory::CoreColorRgb;
                         currentSelection.scalarTarget = MaterialScalarModulationTargetField::CoreColor;
-                        Internal::MaterialModulationTargetSelection nextSelection = currentSelection;
-                        if (Internal::Draw_MaterialModulationTargetProperty(
+                        MaterialModulationTargetSelection nextSelection = currentSelection;
+                        if (Draw_MaterialModulationTargetProperty(
                             detailContext,
                             "대상",
                             currentSelection,
@@ -5118,20 +5118,20 @@ bool MaterialScalarModulationModuleDetail::Draw(
                         ))
                         {
                             changed = true;
-                            if (nextSelection.category == Internal::MaterialModulationTargetCategory::Scalar)
+                            if (nextSelection.category == MaterialModulationTargetCategory::Scalar)
                             {
                                 MaterialScalarModulatorData scalarModulator{};
                                 scalarModulator.enabled = modulator.enabled;
                                 scalarModulator.timeSource = modulator.timeSource;
                                 scalarModulator.targetField = nextSelection.scalarTarget;
-                                if (Internal::Is_MaterialScrollSpeedScaleTarget(scalarModulator.targetField))
+                                if (Is_MaterialScrollSpeedScaleTarget(scalarModulator.targetField))
                                     scalarModulator.timeSource = MaterialScalarModulationTimeSource::EmitterTime;
                                 scalarModulator.distribution = FloatDistributionData::Make_Constant(1.f);
                                 data.modulators.push_back(scalarModulator);
                                 data.coreColorRgbModulators.erase(data.coreColorRgbModulators.begin() + static_cast<ptrdiff_t>(row.index));
                                 structureChanged = true;
                             }
-                            else if (nextSelection.category == Internal::MaterialModulationTargetCategory::Vec2)
+                            else if (nextSelection.category == MaterialModulationTargetCategory::Vec2)
                             {
                                 MaterialVec2ModulatorData vec2Modulator{};
                                 vec2Modulator.enabled = modulator.enabled;
@@ -5146,7 +5146,7 @@ bool MaterialScalarModulationModuleDetail::Draw(
 
                         if (!structureChanged)
                         {
-                            changed |= Internal::Draw_MaterialScalarTimeSourceProperty(
+                            changed |= Draw_MaterialScalarTimeSourceProperty(
                                 detailContext,
                                 "시간 축",
                                 modulator.timeSource,
@@ -5191,11 +5191,11 @@ bool MaterialScalarModulationModuleDetail::Draw(
                             defaultData.enabled,
                             "이 Vec2 변조 row를 runtime preview/export에 반영할지 정합니다."
                         );
-                        Internal::MaterialModulationTargetSelection currentSelection{};
-                        currentSelection.category = Internal::MaterialModulationTargetCategory::Vec2;
+                        MaterialModulationTargetSelection currentSelection{};
+                        currentSelection.category = MaterialModulationTargetCategory::Vec2;
                         currentSelection.vec2Target = modulator.targetField;
-                        Internal::MaterialModulationTargetSelection nextSelection = currentSelection;
-                        if (Internal::Draw_MaterialModulationTargetProperty(
+                        MaterialModulationTargetSelection nextSelection = currentSelection;
+                        if (Draw_MaterialModulationTargetProperty(
                             detailContext,
                             "대상",
                             currentSelection,
@@ -5203,7 +5203,7 @@ bool MaterialScalarModulationModuleDetail::Draw(
                         ))
                         {
                             changed = true;
-                            if (nextSelection.category == Internal::MaterialModulationTargetCategory::Scalar)
+                            if (nextSelection.category == MaterialModulationTargetCategory::Scalar)
                             {
                                 MaterialScalarModulatorData scalarModulator{};
                                 scalarModulator.enabled = modulator.enabled;
@@ -5214,9 +5214,9 @@ bool MaterialScalarModulationModuleDetail::Draw(
                                 data.vec2Modulators.erase(data.vec2Modulators.begin() + static_cast<ptrdiff_t>(row.index));
                                 structureChanged = true;
                             }
-                            else if (nextSelection.category == Internal::MaterialModulationTargetCategory::CoreColorRgb)
+                            else if (nextSelection.category == MaterialModulationTargetCategory::CoreColorRgb)
                             {
-                                MaterialCoreColorRgbModulatorData coreColorRgbModulator = Internal::Make_CoreColorRgbModulator(emitter);
+                                MaterialCoreColorRgbModulatorData coreColorRgbModulator = Make_CoreColorRgbModulator(emitter);
                                 coreColorRgbModulator.enabled = modulator.enabled;
                                 coreColorRgbModulator.timeSource = modulator.timeSource;
                                 data.coreColorRgbModulators.push_back(coreColorRgbModulator);
@@ -5231,7 +5231,7 @@ bool MaterialScalarModulationModuleDetail::Draw(
                             detailContext.Draw_PropertyLabel("연산", "현재 Vec2 modulation은 대상 UV offset에 분포 값을 더하는 Add 연산입니다.");
                             ImGui::TextUnformatted("Add");
                             detailContext.Draw_PropertyLabel("시간 축", "Vec2 material modulation은 EmitterTime만 지원합니다.");
-                            ImGui::TextUnformatted(Internal::Get_MaterialScalarTimeSourceLabel(modulator.timeSource));
+                            ImGui::TextUnformatted(Get_MaterialScalarTimeSourceLabel(modulator.timeSource));
                             if (detailContext.Draw_ResetButton(modulator.timeSource != defaultData.timeSource))
                             {
                                 modulator.timeSource = defaultData.timeSource;
@@ -5275,11 +5275,11 @@ bool MaterialScalarModulationModuleDetail::Draw(
                             "이 변조 row를 runtime preview/export에 반영할지 정합니다."
                         );
 
-                        Internal::MaterialModulationTargetSelection currentSelection{};
-                        currentSelection.category = Internal::MaterialModulationTargetCategory::Scalar;
+                        MaterialModulationTargetSelection currentSelection{};
+                        currentSelection.category = MaterialModulationTargetCategory::Scalar;
                         currentSelection.scalarTarget = modulator.targetField;
-                        Internal::MaterialModulationTargetSelection nextSelection = currentSelection;
-                        if (Internal::Draw_MaterialModulationTargetProperty(
+                        MaterialModulationTargetSelection nextSelection = currentSelection;
+                        if (Draw_MaterialModulationTargetProperty(
                             detailContext,
                             "대상",
                             currentSelection,
@@ -5287,16 +5287,16 @@ bool MaterialScalarModulationModuleDetail::Draw(
                         ))
                         {
                             changed = true;
-                            if (nextSelection.category == Internal::MaterialModulationTargetCategory::CoreColorRgb)
+                            if (nextSelection.category == MaterialModulationTargetCategory::CoreColorRgb)
                             {
-                                MaterialCoreColorRgbModulatorData coreColorRgbModulator = Internal::Make_CoreColorRgbModulator(emitter);
+                                MaterialCoreColorRgbModulatorData coreColorRgbModulator = Make_CoreColorRgbModulator(emitter);
                                 coreColorRgbModulator.enabled = modulator.enabled;
                                 coreColorRgbModulator.timeSource = modulator.timeSource;
                                 data.coreColorRgbModulators.push_back(coreColorRgbModulator);
                                 data.modulators.erase(data.modulators.begin() + static_cast<ptrdiff_t>(row.index));
                                 structureChanged = true;
                             }
-                            else if (nextSelection.category == Internal::MaterialModulationTargetCategory::Vec2)
+                            else if (nextSelection.category == MaterialModulationTargetCategory::Vec2)
                             {
                                 MaterialVec2ModulatorData vec2Modulator{};
                                 vec2Modulator.enabled = modulator.enabled;
@@ -5310,7 +5310,7 @@ bool MaterialScalarModulationModuleDetail::Draw(
                             else
                             {
                                 modulator.targetField = nextSelection.scalarTarget;
-                                if (Internal::Is_MaterialScrollSpeedScaleTarget(modulator.targetField) &&
+                                if (Is_MaterialScrollSpeedScaleTarget(modulator.targetField) &&
                                     modulator.timeSource == MaterialScalarModulationTimeSource::ParticleLife)
                                     modulator.timeSource = MaterialScalarModulationTimeSource::EmitterTime;
                             }
@@ -5318,7 +5318,7 @@ bool MaterialScalarModulationModuleDetail::Draw(
 
                         if (!structureChanged)
                         {
-                            if (Internal::Is_MaterialScrollSpeedScaleTarget(modulator.targetField) &&
+                            if (Is_MaterialScrollSpeedScaleTarget(modulator.targetField) &&
                                 modulator.timeSource == MaterialScalarModulationTimeSource::ParticleLife)
                             {
                                 modulator.timeSource = MaterialScalarModulationTimeSource::EmitterTime;
@@ -5326,18 +5326,18 @@ bool MaterialScalarModulationModuleDetail::Draw(
                             }
 
                             detailContext.Draw_PropertyLabel("연산", "현재 scalar modulation은 대상 값에 분포 값을 곱하는 Multiply 연산입니다.");
-                            ImGui::TextUnformatted(Internal::Get_MaterialScalarOperationLabel(modulator.operation));
+                            ImGui::TextUnformatted(Get_MaterialScalarOperationLabel(modulator.operation));
                             if (detailContext.Draw_ResetButton(modulator.operation != defaultData.operation))
                             {
                                 modulator.operation = defaultData.operation;
                                 changed = true;
                             }
-                            changed |= Internal::Draw_MaterialScalarTimeSourceProperty(
+                            changed |= Draw_MaterialScalarTimeSourceProperty(
                                 detailContext,
                                 "시간 축",
                                 modulator.timeSource,
                                 defaultData.timeSource,
-                                allowScalarParticleLife && !Internal::Is_MaterialScrollSpeedScaleTarget(modulator.targetField)
+                                allowScalarParticleLife && !Is_MaterialScrollSpeedScaleTarget(modulator.targetField)
                             );
                         }
                         detailContext.End_PropertyTable();

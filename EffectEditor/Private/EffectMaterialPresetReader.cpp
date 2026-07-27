@@ -391,6 +391,40 @@ bool Read(const fs::path& filePath, EffectMaterialInstanceData& outMaterial)
     material.refractionIntensity = read_float("refractionIntensity", defaultMaterial.refractionIntensity);
     material.refractionPresence = read_float("refractionPresence", defaultMaterial.refractionPresence);
     material.distortionShapeMode = read_distortion_shape_mode("distortionShapeMode", defaultMaterial.distortionShapeMode);
+    const auto read_air_sheath_interpretation = [&](const char* key, EffectAirSheathMapInterpretation defaultValue)
+    {
+        const auto iter = root.find(key);
+        if (iter == root.end() || !iter->is_string())
+            return defaultValue;
+        return magic_enum::enum_cast<EffectAirSheathMapInterpretation>(iter->get<string>()).value_or(defaultValue);
+    };
+    const auto read_air_sheath_scalar_source = [&](const char* key, EffectAirSheathMapScalarSource defaultValue)
+    {
+        const auto iter = root.find(key);
+        if (iter == root.end() || !iter->is_string())
+            return defaultValue;
+        return magic_enum::enum_cast<EffectAirSheathMapScalarSource>(iter->get<string>()).value_or(defaultValue);
+    };
+    const auto read_air_sheath_vector_space = [&](const char* key, EffectAirSheathMapVectorSpace defaultValue)
+    {
+        const auto iter = root.find(key);
+        if (iter == root.end() || !iter->is_string())
+            return defaultValue;
+        return magic_enum::enum_cast<EffectAirSheathMapVectorSpace>(iter->get<string>()).value_or(defaultValue);
+    };
+    const auto read_air_sheath_composition = [&](const char* key, EffectAirSheathMapComposition defaultValue)
+    {
+        const auto iter = root.find(key);
+        if (iter == root.end() || !iter->is_string())
+            return defaultValue;
+        return magic_enum::enum_cast<EffectAirSheathMapComposition>(iter->get<string>()).value_or(defaultValue);
+    };
+    material.airSheathMapInterpretation = read_air_sheath_interpretation("airSheathMapInterpretation", defaultMaterial.airSheathMapInterpretation);
+    material.airSheathMapXSource = read_air_sheath_scalar_source("airSheathMapXSource", defaultMaterial.airSheathMapXSource);
+    material.airSheathMapYSource = read_air_sheath_scalar_source("airSheathMapYSource", defaultMaterial.airSheathMapYSource);
+    material.airSheathMapVectorSpace = read_air_sheath_vector_space("airSheathMapVectorSpace", defaultMaterial.airSheathMapVectorSpace);
+    material.airSheathMapComposition = read_air_sheath_composition("airSheathMapComposition", defaultMaterial.airSheathMapComposition);
+    material.airSheathMapInfluence = read_float("airSheathMapInfluence", defaultMaterial.airSheathMapInfluence);
     material.distortionShapeRadius = read_float("distortionShapeRadius", defaultMaterial.distortionShapeRadius);
     material.distortionShapeThickness = read_float("distortionShapeThickness", defaultMaterial.distortionShapeThickness);
     material.distortionShapeSoftness = read_float("distortionShapeSoftness", defaultMaterial.distortionShapeSoftness);

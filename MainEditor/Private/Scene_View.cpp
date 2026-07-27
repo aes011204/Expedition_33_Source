@@ -21,7 +21,7 @@
 //add
 #include "MapStaticMesh.h"
 
-namespace MainEditor::Internal
+namespace
 {
     static ImGuizmo::MODE Resolve_GizmoModeFromTransformSpace()
     {
@@ -374,7 +374,7 @@ void Scene_View::Handle_GizmoShortcut()
 
 void Scene_View::Render_GizmoOverlay()
 {
-    _gizmoMode = Internal::Resolve_GizmoModeFromTransformSpace();
+    _gizmoMode = Resolve_GizmoModeFromTransformSpace();
 
     const float viewportWidth = _viewportCanvasMax.x - _viewportCanvasMin.x;
     const float viewportHeight = _viewportCanvasMax.y - _viewportCanvasMin.y;
@@ -485,7 +485,7 @@ void Scene_View::Render_GizmoOverlay()
     if (ImGui::Button("Local", ImVec2(56.f, 22.f)))
     {
         _gizmoMode = ImGuizmo::LOCAL;
-        Internal::Sync_TransformSpaceFromGizmoMode(_gizmoMode);
+        Sync_TransformSpaceFromGizmoMode(_gizmoMode);
     }
     if (isLocal)
         ImGui::PopStyleColor(3);
@@ -501,7 +501,7 @@ void Scene_View::Render_GizmoOverlay()
     if (ImGui::Button("World", ImVec2(56.f, 22.f)))
     {
         _gizmoMode = ImGuizmo::WORLD;
-        Internal::Sync_TransformSpaceFromGizmoMode(_gizmoMode);
+        Sync_TransformSpaceFromGizmoMode(_gizmoMode);
     }
     if (isWorld)
         ImGui::PopStyleColor(3);
@@ -521,7 +521,7 @@ void Scene_View::Render_PreviewViewportOverlay()
 
     ImDrawList* drawList = ImGui::GetWindowDrawList();
 
-    const Internal::OverlayRect panelRect = Internal::Compute_PreviewViewportOverlayRect(_viewportCanvasMin, _viewportCanvasMax);
+    const OverlayRect panelRect = Compute_PreviewViewportOverlayRect(_viewportCanvasMin, _viewportCanvasMax);
 
     drawList->AddRectFilled(panelRect.min, panelRect.max, IM_COL32(36, 38, 42, 220), 6.f);
     drawList->AddRect(panelRect.min, panelRect.max, IM_COL32(92, 96, 104, 255), 6.f);
@@ -699,14 +699,14 @@ void Scene_View::Render_ViewportCanvas()
     if (nullptr != pSRV)
     {
         const float aspect = EDITOR->Get_EffectiveViewportAspect();
-        const Internal::ViewportImageRect imageRect =
-            Internal::Compute_AspectFitRect(canvasMin, _viewportSize, aspect);
+        const ViewportImageRect imageRect =
+            Compute_AspectFitRect(canvasMin, _viewportSize, aspect);
 
         drawList->AddRectFilled(canvasMin, canvasMax, IM_COL32(18, 20, 24, 255));
         drawList->AddRect(canvasMin, canvasMax, IM_COL32(55, 60, 70, 255));
 
         const bool isMouseOverOverlay =
-            Internal::Is_MouseOverViewportOverlay(_viewportCanvasMin, _viewportCanvasMax);
+            Is_MouseOverViewportOverlay(_viewportCanvasMin, _viewportCanvasMax);
         const ImGuiPayload* activePayload = ImGui::GetDragDropPayload();
         const bool isPrefabDragging =
             activePayload != nullptr &&
@@ -786,7 +786,7 @@ void Scene_View::Render_ViewportCanvas()
                 if (payload->IsDelivery())
                 {
                     Vec3 worldPos{};
-                    if (Internal::Try_PickEditorPlacementWorldPosition(pixelPos, worldPos))
+                    if (Try_PickEditorPlacementWorldPosition(pixelPos, worldPos))
                     {
                         worldPos.y += 0.1f;
 
@@ -873,11 +873,11 @@ void Scene_View::Render_ViewportCanvas()
                 if (payload->IsDelivery())
                 {
                     Vec3 worldPos{};
-                    if (Internal::Try_PickEditorPlacementWorldPosition(pixelPos, worldPos))
+                    if (Try_PickEditorPlacementWorldPosition(pixelPos, worldPos))
                     {
                         worldPos.y += 0.1f;
 
-                        Shared<GameObject> spawned = Internal::Spawn_EffectForEditorPlacement(
+                        Shared<GameObject> spawned = Spawn_EffectForEditorPlacement(
                             effectPathA,
                             GAME->Current_LevelIndex(),
                             worldPos);
@@ -897,7 +897,7 @@ void Scene_View::Render_ViewportCanvas()
         drawList->AddRect(canvasMin, canvasMax, IM_COL32(55, 60, 70, 255));
 
         const bool isMouseOverOverlay =
-            Internal::Is_MouseOverViewportOverlay(_viewportCanvasMin, _viewportCanvasMax);
+            Is_MouseOverViewportOverlay(_viewportCanvasMin, _viewportCanvasMax);
         const ImGuiPayload* activePayload = ImGui::GetDragDropPayload();
         const bool isPrefabDragging =
             activePayload != nullptr &&
@@ -940,7 +940,7 @@ void Scene_View::Handle_FocusRequest()
 
 void Scene_View::Render_SelectedObjectGizmo()
 {
-    _gizmoMode = Internal::Resolve_GizmoModeFromTransformSpace();
+    _gizmoMode = Resolve_GizmoModeFromTransformSpace();
 
     const Matrix* viewMatrix = GAME->Get_Transform(D3DTS::View);
     const Matrix* projMatrix = GAME->Get_Transform(D3DTS::Proj);
@@ -1110,7 +1110,7 @@ void Scene_View::Tick_DragPreview(float timeDelta)
     }
 
     Vec3 worldPos{};
-    if (!Internal::Try_PickEditorPlacementWorldPosition(_dragPreviewPixelPos, worldPos))
+    if (!Try_PickEditorPlacementWorldPosition(_dragPreviewPixelPos, worldPos))
     {
         _dragPreviewHasWorldPos = false;
         return;

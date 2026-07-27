@@ -24,7 +24,7 @@
 
 NS_BEGIN(Client)
 
-namespace Internal
+namespace
 {
 string Format_SourceKeyVec3(const Vec3& value)
 {
@@ -914,7 +914,7 @@ bool EffectCom::Try_ResolveEffectWorldTransform(
     if (localOffsetZTowardCamera)
     {
         const Vec3 fallbackDirection = basisLook;
-        const Vec3 cameraDirection = Internal::Resolve_CameraDirectionFromAnchor(baseTranslation, fallbackDirection);
+        const Vec3 cameraDirection = Resolve_CameraDirectionFromAnchor(baseTranslation, fallbackDirection);
         const Vec3 origin = transformInheritance.inheritPosition ? baseTranslation : Vec3::Zero;
         const Vec3 customTranslation =
             origin +
@@ -1032,7 +1032,7 @@ HRESULT EffectCom::Play_TrailEffect(
     if (!Try_ResolveTrailEffectName(effectName, partTag, resolvedEffectName))
         return E_FAIL;
 
-    const Shared<ModelCom> weaponModel = Internal::Resolve_TrailPartModel(trailPart);
+    const Shared<ModelCom> weaponModel = Resolve_TrailPartModel(trailPart);
     CHECK_NULL(weaponModel, E_FAIL);
 
     AttachedEffect attached{};
@@ -1094,14 +1094,14 @@ HRESULT EffectCom::Play_TrailEffect(
     acquireDesc.layerTag = layerTag;
     acquireDesc.worldPosition = initialSample.tipWorldPosition;
     acquireDesc.trailSampleProvider = attached.trailSampleProvider;
-    acquireDesc.trailSampleGroupKey = Internal::Build_TrailPairHistoryKey(
+    acquireDesc.trailSampleGroupKey = Build_TrailPairHistoryKey(
         attached.partTag,
         attached.trailAnchorAsset,
         attached.trailNotifyToken
     );
     acquireDesc.autoReleaseOnFinished = false;
 
-    attached.trailDrainDuration = Internal::Resolve_TrailDrainDuration(EffectAssetRuntimeLoader::Load_DefinitionByName(resolvedEffectName));
+    attached.trailDrainDuration = Resolve_TrailDrainDuration(EffectAssetRuntimeLoader::Load_DefinitionByName(resolvedEffectName));
 
     for (AttachedEffect& existing : _attachedEffects)
     {
@@ -1113,7 +1113,7 @@ HRESULT EffectCom::Play_TrailEffect(
             continue;
         if (existing.layerTag != attached.layerTag)
             continue;
-        if (!Internal::Is_SameTrailAnchor(existing.trailAnchorAsset, attached.trailAnchorAsset))
+        if (!Is_SameTrailAnchor(existing.trailAnchorAsset, attached.trailAnchorAsset))
             continue;
 
         Release_AttachedEffect(existing);
@@ -1302,7 +1302,7 @@ HRESULT EffectCom::Play_SourceHistoryEffect(
     if (static_cast<int32>(sourceBindingMode) == 3)
     {
         const PartObject* trailPart = ownerContainer->Get_PartObject(partTag);
-        if (Internal::Resolve_TrailPartModel(trailPart) == nullptr)
+        if (Resolve_TrailPartModel(trailPart) == nullptr)
         {
             LOG_WARN(
                 "[EffectCom] Play_SourceHistoryEffect failed: weapon part not found. effect={}, part={}, layer={}",
@@ -1313,7 +1313,7 @@ HRESULT EffectCom::Play_SourceHistoryEffect(
             return E_FAIL;
         }
 
-        const Shared<ModelCom> weaponModel = Internal::Resolve_TrailPartModel(trailPart);
+        const Shared<ModelCom> weaponModel = Resolve_TrailPartModel(trailPart);
         if (weaponModel == nullptr)
         {
             LOG_WARN(
@@ -1410,7 +1410,7 @@ HRESULT EffectCom::Play_SourceHistoryEffect(
     acquireDesc.layerTag = layerTag;
     acquireDesc.worldPosition = initialSample.worldPosition;
     acquireDesc.sourcePointSampleProvider = attached.sourcePointSampleProvider;
-    acquireDesc.sourcePointGroupKey = Internal::Build_SourcePointHistoryKey(
+    acquireDesc.sourcePointGroupKey = Build_SourcePointHistoryKey(
         attached.partTag,
         attached.sourceHistorySourceBindingMode,
         attached.socketName,
@@ -1420,7 +1420,7 @@ HRESULT EffectCom::Play_SourceHistoryEffect(
     acquireDesc.autoReleaseOnFinished = false;
 
     attached.sourceHistoryDrainDuration =
-        Internal::Resolve_SourceHistoryDrainDuration(EffectAssetRuntimeLoader::Load_DefinitionByName(resolvedEffectName));
+        Resolve_SourceHistoryDrainDuration(EffectAssetRuntimeLoader::Load_DefinitionByName(resolvedEffectName));
 
     const HRESULT acquireResult = effectPool->Acquire(acquireDesc, attached.poolHandle);
     if (FAILED(acquireResult))
@@ -1536,7 +1536,7 @@ bool EffectCom::Try_ResolveTrailEffectName(
         return false;
 
     const PartObject* trailPart = ownerContainer->Get_PartObject(partTag);
-    outEffectName = Internal::Resolve_DefaultTrailEffectName(trailPart);
+    outEffectName = Resolve_DefaultTrailEffectName(trailPart);
     return !outEffectName.empty();
 }
 
@@ -1755,9 +1755,9 @@ bool EffectCom::Try_GetSocketWorldMatrix(
         return true;
     }
 
-    if (Internal::Resolve_TrailPartModel(partObject) != nullptr)
+    if (Resolve_TrailPartModel(partObject) != nullptr)
     {
-        const Matrix* socketMatrix = Internal::Resolve_TrailPartSocketMatrix(partObject, socketName);
+        const Matrix* socketMatrix = Resolve_TrailPartSocketMatrix(partObject, socketName);
         if (socketMatrix == nullptr)
             return false;
 
@@ -1796,7 +1796,7 @@ bool EffectCom::Try_BuildTrailSample(
         return false;
 
     const PartObject* trailPart = ownerContainer->Get_PartObject(partTag);
-    if (Internal::Resolve_TrailPartModel(trailPart) == nullptr)
+    if (Resolve_TrailPartModel(trailPart) == nullptr)
         return false;
 
     const TrailAnchorAsset sampleAnchorAsset =
@@ -1903,7 +1903,7 @@ bool EffectCom::Try_ResolveTrailAnchorWorldPosition(
     const TrailAnchorPointDesc& anchor,
     Vec3& outWorldPosition) const
 {
-    const Shared<ModelCom> weaponModel = Internal::Resolve_TrailPartModel(&trailPart);
+    const Shared<ModelCom> weaponModel = Resolve_TrailPartModel(&trailPart);
     if (weaponModel == nullptr || anchor.boneName.empty())
         return false;
 

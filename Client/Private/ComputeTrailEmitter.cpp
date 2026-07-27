@@ -1293,7 +1293,7 @@ HRESULT ComputeTrailEmitter::Bind_DistortionResources()
         _materialElapsedTime
     );
     const Vec4 effectTrailParams(
-        0.f,
+        static_cast<float>(static_cast<uint32>(material.distortionShapeMode)),
         max(material.opacityPower, 0.0001f),
         0.f,
         0.f
@@ -1354,6 +1354,16 @@ HRESULT ComputeTrailEmitter::Bind_DistortionResources()
         static_cast<float>(static_cast<uint32>(material.flowUVPolicy.uPolicy)),
         static_cast<float>(static_cast<uint32>(material.flowUVPolicy.vPolicy))
     );
+    const Vec4 airSheathMapParams(
+        static_cast<float>(static_cast<uint32>(material.airSheathMapInterpretation)),
+        static_cast<float>(static_cast<uint32>(material.airSheathMapXSource)),
+        static_cast<float>(static_cast<uint32>(material.airSheathMapYSource)),
+        static_cast<float>(static_cast<uint32>(material.airSheathMapComposition))
+    );
+    const Vec2 airSheathMapSpaceInfluence(
+        static_cast<float>(static_cast<uint32>(material.airSheathMapVectorSpace)),
+        clamp(material.airSheathMapInfluence, 0.f, 1.f)
+    );
 
     CHECK_FAILED(_shader->Bind_RawValue("g_Tint", &material.tint, sizeof(material.tint)), E_FAIL);
     CHECK_FAILED(_shader->Bind_RawValue("g_EffectDistortionParams", &distortionParams, sizeof(distortionParams)), E_FAIL);
@@ -1374,6 +1384,8 @@ HRESULT ComputeTrailEmitter::Bind_DistortionResources()
     CHECK_FAILED(_shader->Bind_RawValue("g_FlowUVScale", &material.flowUVScale, sizeof(material.flowUVScale)), E_FAIL);
     CHECK_FAILED(_shader->Bind_RawValue("g_FlowUVOffset", &material.flowUVOffset, sizeof(material.flowUVOffset)), E_FAIL);
     CHECK_FAILED(_shader->Bind_RawValue("g_FlowUVScrollSpeed", &material.flowUVScrollSpeed, sizeof(material.flowUVScrollSpeed)), E_FAIL);
+    CHECK_FAILED(_shader->Bind_RawValue("g_EffectAirSheathMapParams", &airSheathMapParams, sizeof(airSheathMapParams)), E_FAIL);
+    CHECK_FAILED(_shader->Bind_RawValue("g_EffectAirSheathMapSpaceInfluence", &airSheathMapSpaceInfluence, sizeof(airSheathMapSpaceInfluence)), E_FAIL);
     CHECK_FAILED(_shader->Bind_RawValue("g_FlowUVTilingMode", &flowUVTilingMode, sizeof(flowUVTilingMode)), E_FAIL);
     CHECK_FAILED(_shader->Bind_RawValue("g_FlowUVRotation", &flowUVRotation, sizeof(flowUVRotation)), E_FAIL);
     CHECK_FAILED(_shader->Bind_RawValue("g_OpacitySource", &opacitySourceIndex, sizeof(opacitySourceIndex)), E_FAIL);

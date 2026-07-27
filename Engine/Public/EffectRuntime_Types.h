@@ -535,6 +535,17 @@ struct EffectRequiredMaterialRuntimeDesc
     float refractionPresence{ 1.f };
     EffectDistortionShapeMode distortionShapeMode{
         EffectDistortionShapeMode::None };
+    EffectAirSheathMapInterpretation airSheathMapInterpretation{
+        EffectAirSheathMapInterpretation::VectorField };
+    EffectAirSheathMapScalarSource airSheathMapXSource{
+        EffectAirSheathMapScalarSource::Red };
+    EffectAirSheathMapScalarSource airSheathMapYSource{
+        EffectAirSheathMapScalarSource::Green };
+    EffectAirSheathMapVectorSpace airSheathMapVectorSpace{
+        EffectAirSheathMapVectorSpace::Screen };
+    EffectAirSheathMapComposition airSheathMapComposition{
+        EffectAirSheathMapComposition::Replace };
+    float airSheathMapInfluence{ 0.f };
     float distortionShapeRadius{ 0.45f };
     float distortionShapeThickness{ 0.10f };
     float distortionShapeSoftness{ 0.15f };

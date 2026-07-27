@@ -24,6 +24,13 @@ enum class EffectMaterialPreviewMeshMode : uint8
     Sphere,
 };
 
+// Distortion material preview가 renderer 전용 shape를 해석할 문맥이다.
+enum class EffectMaterialPreviewDistortionContext : uint8
+{
+    Generic,
+    Trail,
+};
+
 class EffectMaterialPreviewRenderer final : public Base
 {
 public:
@@ -31,14 +38,17 @@ public:
     ~EffectMaterialPreviewRenderer() override;
 
 public:
-    void Render_Material(const EffectMaterialInstanceData& material);
+    void Render_Material(
+        const EffectMaterialInstanceData& material,
+        EffectMaterialPreviewDistortionContext distortionContext = EffectMaterialPreviewDistortionContext::Generic);
     void Render_Material(
         const EffectMaterialInstanceData& material,
         const EffectMaterialCoreColorRgbModulationRuntimeDesc& coreColorRgbModulation,
         const EffectMaterialVec2ModulationRuntimeDesc& vec2Modulation,
         const EffectMaterialScalarModulationRuntimeDesc& modulation,
         float previewDuration,
-        bool evaluateParticleLife);
+        bool evaluateParticleLife,
+        EffectMaterialPreviewDistortionContext distortionContext = EffectMaterialPreviewDistortionContext::Generic);
     void Update_MaterialTime(float timeDelta);
     void Draw_Viewport(const char* id, const EffectMaterialInstanceData& material, const char* label, bool fillAvailableHeight = false);
     ShaderResourceView* Get_SRV() const;
@@ -109,7 +119,10 @@ private: //## Helper::Resource
 private: //## Helper::Render
     HRESULT Render_PreviewMesh(const EffectMaterialInstanceData& material, float previewCycleTime) const;
     HRESULT Render_CheckerBackground(float previewCycleTime) const;
-    HRESULT Render_DistortionPreviewMesh(const EffectMaterialInstanceData& material, float previewCycleTime) const;
+    HRESULT Render_DistortionPreviewMesh(
+        const EffectMaterialInstanceData& material,
+        float previewCycleTime,
+        EffectMaterialPreviewDistortionContext distortionContext) const;
     HRESULT Render_Mesh(const PreviewMeshResource& mesh) const;
     void Resize_RenderTarget(uint32 width, uint32 height);
 

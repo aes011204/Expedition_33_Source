@@ -4,7 +4,7 @@
 #include "ClientInstance.h"
 #include "EffectCom.h"
 
-namespace Internal
+namespace
 {
     static void Play_TargetHitEffect(const BattleChar& target, const BattleHitSequenceRunner::HitEffectDesc& hitEffect)
     {
@@ -110,7 +110,7 @@ void Skill_Maelle_Percee::Execute(const Skill_Data& skill, const BattleAction& a
         effectDesc.effectName = L"Maelle_Procee";
         effectDesc.localOffset = Vec3(0.f, 0.f, 0.f);
 
-        Internal::Play_TargetHitEffect(target, effectDesc);
+        Play_TargetHitEffect(target, effectDesc);
     }
 
     if (attacker.mechanismCom != nullptr)

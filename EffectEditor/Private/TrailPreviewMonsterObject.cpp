@@ -1,4 +1,4 @@
-#include "TrailPreviewMonsterObject.h"
+﻿#include "TrailPreviewMonsterObject.h"
 
 #include "EffectEditorInstance.h"
 #include "GameInstance.h"
@@ -11,7 +11,7 @@
 
 NS_BEGIN(EffectEditor)
 
-namespace Internal
+namespace
 {
     constexpr auto kSourcePrefabName{ "MB_Simon" };
     constexpr auto kPartBody{ L"Part_Body" };
@@ -180,7 +180,7 @@ private:
     HRESULT Ready_Components()
     {
         CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Shader_VtxAnimMesh"), _shader), E_FAIL);
-        CHECK_FAILED(Add_Component(ETOI(LevelType::Static), Internal::kBodyModelTag, _model), E_FAIL);
+        CHECK_FAILED(Add_Component(ETOI(LevelType::Static), kBodyModelTag, _model), E_FAIL);
         if (_model != nullptr)
             _model->Set_Owner(GetSharedPtr<GameObject>());
         return S_OK;
@@ -306,7 +306,7 @@ private:
     HRESULT Ready_Components()
     {
         CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Shader_VtxAnimMesh"), _shader), E_FAIL);
-        CHECK_FAILED(Add_Component(ETOI(LevelType::Static), Internal::kHairModelTag, _model), E_FAIL);
+        CHECK_FAILED(Add_Component(ETOI(LevelType::Static), kHairModelTag, _model), E_FAIL);
         if (_model != nullptr)
             _model->Set_Owner(GetSharedPtr<GameObject>());
         return S_OK;
@@ -316,8 +316,8 @@ private:
     {
         const Shared<TrailPreviewMonsterBodyObject> body = _body.lock();
         const Matrix socketMatrix =
-            body != nullptr && body->Get_SocketBoneMatrixPtr(Internal::kHeadSocketName) != nullptr
-            ? *body->Get_SocketBoneMatrixPtr(Internal::kHeadSocketName)
+            body != nullptr && body->Get_SocketBoneMatrixPtr(kHeadSocketName) != nullptr
+            ? *body->Get_SocketBoneMatrixPtr(kHeadSocketName)
             : Matrix::Identity;
         const Matrix parentMatrix = body != nullptr ? body->Get_CombinedWorldMatrix() : Matrix::Identity;
         _combinedWorldMatrix = childMatrix * socketMatrix * parentMatrix;
@@ -438,7 +438,7 @@ private:
     HRESULT Ready_Components()
     {
         CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Shader_VtxMesh"), _shader), E_FAIL);
-        CHECK_FAILED(Add_Component(ETOI(LevelType::Static), Internal::kWeaponModelTag, _model), E_FAIL);
+        CHECK_FAILED(Add_Component(ETOI(LevelType::Static), kWeaponModelTag, _model), E_FAIL);
         if (_model != nullptr)
             _model->Set_Owner(GetSharedPtr<GameObject>());
         return S_OK;
@@ -448,13 +448,13 @@ private:
     {
         const Shared<TrailPreviewMonsterBodyObject> body = _body.lock();
         const Matrix socketMatrix =
-            body != nullptr && body->Get_SocketBoneMatrixPtr(Internal::kWeaponSocketName) != nullptr
-            ? *body->Get_SocketBoneMatrixPtr(Internal::kWeaponSocketName)
+            body != nullptr && body->Get_SocketBoneMatrixPtr(kWeaponSocketName) != nullptr
+            ? *body->Get_SocketBoneMatrixPtr(kWeaponSocketName)
             : Matrix::Identity;
         const Matrix parentMatrix = body != nullptr ? body->Get_CombinedWorldMatrix() : Matrix::Identity;
         const Matrix simonWeaponAttachMatrix =
-            Matrix::CreateScale(Internal::kSimonWeaponAttachScaleCompensation) *
-            Matrix::CreateRotationX(XMConvertToRadians(Internal::kSimonWeaponAttachOffsetDegreesX));
+            Matrix::CreateScale(kSimonWeaponAttachScaleCompensation) *
+            Matrix::CreateRotationX(XMConvertToRadians(kSimonWeaponAttachOffsetDegreesX));
 
         _combinedWorldMatrix = simonWeaponAttachMatrix * childMatrix * socketMatrix * parentMatrix;
     }
@@ -489,7 +489,7 @@ HRESULT TrailPreviewMonsterObject::Initialize(void* arg)
     CHECK_FAILED(Restore_VisualPartsFromPrefab(), E_FAIL);
 
     Set_Name(L"TrailPreview_Monster");
-    Set_SourcePrefabName(Internal::kSourcePrefabName);
+    Set_SourcePrefabName(kSourcePrefabName);
     Set_PreviewVisible(false);
 
     if (const Shared<ModelCom> model = Get_BodyModel())
@@ -576,7 +576,7 @@ HRESULT TrailPreviewMonsterObject::Ready_PreviewParts()
     CHECK_NULL(_body, E_FAIL);
     CHECK_FAILED(_body->Initialize(&partDesc), E_FAIL);
     _body->Set_Owner(GetSharedPtr<GameObject>());
-    _partObjects.emplace(Internal::kPartBody, _body);
+    _partObjects.emplace(kPartBody, _body);
     _partObjectUpdateOrder.push_back(_body);
 
     _hair = make_shared<TrailPreviewMonsterHairObject>(_device, _context);
@@ -584,7 +584,7 @@ HRESULT TrailPreviewMonsterObject::Ready_PreviewParts()
     CHECK_FAILED(_hair->Initialize(&partDesc), E_FAIL);
     _hair->Bind_Body(_body);
     _hair->Set_Owner(GetSharedPtr<GameObject>());
-    _partObjects.emplace(Internal::kPartHair, _hair);
+    _partObjects.emplace(kPartHair, _hair);
     _partObjectUpdateOrder.push_back(_hair);
 
     WeaponPrefabLoader::LoadedWeaponPrefab loadedPrefab{};
@@ -597,8 +597,8 @@ HRESULT TrailPreviewMonsterObject::Ready_PreviewParts()
     _weapon->Bind_Body(_body);
     _weapon->Set_Owner(GetSharedPtr<GameObject>());
     _weapon->From_Json(loadedPrefab.rootJson);
-    _weapon->Set_SourceHistoryAnchors(Internal::Read_SourceHistoryAnchors(loadedPrefab.rootJson));
-    _partObjects.emplace(Internal::kPartWeapon, _weapon);
+    _weapon->Set_SourceHistoryAnchors(Read_SourceHistoryAnchors(loadedPrefab.rootJson));
+    _partObjects.emplace(kPartWeapon, _weapon);
     _partObjectUpdateOrder.push_back(_weapon);
     Load_TrailAnchorAsset(loadedPrefab.modelGuid);
 
@@ -643,7 +643,7 @@ HRESULT TrailPreviewMonsterObject::Restore_VisualPartFromPrefab(const json& part
 
     const string partTagString = partNode.value("part_tag", string{});
     const wstring partTag = String::ToWString(partTagString);
-    if (!Internal::Is_RestorableMonsterVisualPart(partTag))
+    if (!Is_RestorableMonsterVisualPart(partTag))
         return E_FAIL;
 
     const auto objectIter = partNode.find("object");
@@ -676,8 +676,8 @@ void TrailPreviewMonsterObject::Load_TrailAnchorAsset(const string& modelGuid)
         return;
     }
 
-    if (!Internal::Is_ValidTrailAnchorPoint(_trailAnchorAsset.base) ||
-        !Internal::Is_ValidTrailAnchorPoint(_trailAnchorAsset.tip))
+    if (!Is_ValidTrailAnchorPoint(_trailAnchorAsset.base) ||
+        !Is_ValidTrailAnchorPoint(_trailAnchorAsset.tip))
     {
         LOG_WARN("[TrailPreview] monster weapon trail anchor is incomplete. modelGuid={}", modelGuid);
         _trailAnchorAsset = {};

@@ -823,21 +823,6 @@ struct InitialLocationModuleData
     Vector3DistributionData location{ Vector3DistributionData::Make_Constant(Vec3{ 0.f, 0.f, 0.f }) };
 };
 
-enum class RibbonSpreadBasis : uint8
-{
-    CameraFacing,
-    ViewUp,
-    WorldUp,
-    SourceUp,
-    SourceRight,
-};
-
-struct RibbonOrientationModuleData
-{
-    RibbonSpreadBasis spreadBasis{ RibbonSpreadBasis::CameraFacing };
-    float spreadAngleDegrees{ 0.f };
-};
-
 enum class SphereLocationSpawnMode : uint8
 {
     Volume,
@@ -997,6 +982,21 @@ struct SphereRadialOrientationModuleData
     PlaneRadialOrientationAxis meshUpAxis{ PlaneRadialOrientationAxis::PositiveY };
     float tiltDegrees{ 0.f };
     float rollOffsetDegrees{ 0.f };
+};
+
+enum class RibbonSpreadBasis : uint8
+{
+    CameraFacing,
+    ViewUp,
+    WorldUp,
+    SourceUp,
+    SourceRight,
+};
+
+struct RibbonOrientationModuleData
+{
+    RibbonSpreadBasis spreadBasis{ RibbonSpreadBasis::CameraFacing };
+    float spreadAngleDegrees{ 0.f };
 };
 
 //## Module::SizeAndMotion
@@ -1437,9 +1437,10 @@ using AuthoringModuleData = variant<
     BeamEnvelopeOverLifeModuleData,
     MeshSizeByLifeModuleData,
     SpawnPerUnitModuleData,
+    RibbonOrientationModuleData,
+    std::monostate, // Temporary ReSharper C++ workaround
     SourceHistorySpriteTrailPathFollowModuleData,
     SourceHistorySpriteTrailPathReplayModuleData,
-    RibbonOrientationModuleData,
     MaterialScalarModulationModuleData>;
 
 //## Types::AuthoringAggregate

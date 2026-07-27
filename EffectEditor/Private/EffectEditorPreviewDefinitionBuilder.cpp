@@ -7,7 +7,7 @@
 
 NS_BEGIN(EffectEditor::PreviewDefinition)
 
-namespace Internal
+namespace
 {
     constexpr uint32 kRibbonAutoHistoryMaxCount{ 4096 };
     constexpr float kRibbonAutoHistoryFrameStep{ 0.016f };
@@ -843,7 +843,7 @@ namespace Internal
         return desc;
     }
 
-    static void Set_SubUVFrameCurveComponent(Vec4& values, uint32 index, float value)
+    void Set_SubUVFrameCurveComponent(Vec4& values, uint32 index, float value)
     {
         switch (index)
         {
@@ -864,7 +864,7 @@ namespace Internal
         }
     }
 
-    static void Set_CurveComponent(Vec4& valuesBlock0, Vec4& valuesBlock1, uint32 index, float value)
+    void Set_CurveComponent(Vec4& valuesBlock0, Vec4& valuesBlock1, uint32 index, float value)
     {
         if (index < 4u)
         {
@@ -2427,23 +2427,23 @@ EffectEmitterDefinition Build_PreviewEmitterDefinition(const AuthoringEmitter& e
     definition.name = emitter.name;
     definition.kind = EffectEmitterKind::Sprite;
     definition.enabled = emitter.enabled;
-    definition.renderLayerOverride = Internal::Resolve_EffectRenderLayerOverride(emitter.renderLayerOverride);
+    definition.renderLayerOverride = Resolve_EffectRenderLayerOverride(emitter.renderLayerOverride);
 
     ComputeSpriteEmitterDesc desc{};
     desc.drawMode = PointParticleDrawMode::DrawIndexedInstancedIndirect;
     desc.renderLayerOverride = definition.renderLayerOverride;
 
-    if (const auto* required = Internal::Find_ModuleData<RequiredModuleData>(emitter, AuthoringModuleType::Required))
+    if (const auto* required = Find_ModuleData<RequiredModuleData>(emitter, AuthoringModuleType::Required))
     {
         EffectRuntime::Copy_EffectMaterialInstanceToRuntimeDesc(required->material, desc.required.material);
 
-        desc.required.sort.sortPolicy = Internal::Resolve_EffectSortPolicy(required->sortPolicy);
+        desc.required.sort.sortPolicy = Resolve_EffectSortPolicy(required->sortPolicy);
         desc.required.sort.sortLayer = required->sortLayer;
         desc.required.sort.artistSortBias = required->sortBias;
 
-        desc.required.spriteRender.screenAlignment = Internal::Resolve_EffectScreenAlignment(required->screenAlignment);
-        desc.required.spriteRender.directionalAlignmentMode = Internal::Resolve_EffectSpriteDirectionalAlignmentMode(required->directionalAlignmentMode);
-        desc.required.spriteRender.spriteTextureAxis = Internal::Resolve_EffectSpriteTextureAxis(required->spriteTextureAxis);
+        desc.required.spriteRender.screenAlignment = Resolve_EffectScreenAlignment(required->screenAlignment);
+        desc.required.spriteRender.directionalAlignmentMode = Resolve_EffectSpriteDirectionalAlignmentMode(required->directionalAlignmentMode);
+        desc.required.spriteRender.spriteTextureAxis = Resolve_EffectSpriteTextureAxis(required->spriteTextureAxis);
         desc.required.spriteRender.spriteRollOffsetDegrees = required->spriteRollOffsetDegrees;
 
         desc.required.playback.duration = max(0.0001f, required->duration);
@@ -2460,7 +2460,7 @@ EffectEmitterDefinition Build_PreviewEmitterDefinition(const AuthoringEmitter& e
         definition.useLocalSpace = required->useLocalSpace;
     }
 
-    if (const auto* materialScalarModulation = Internal::Find_ModuleData<MaterialScalarModulationModuleData>(
+    if (const auto* materialScalarModulation = Find_ModuleData<MaterialScalarModulationModuleData>(
         emitter,
         AuthoringModuleType::MaterialScalarModulation
     ))
@@ -2473,32 +2473,32 @@ EffectEmitterDefinition Build_PreviewEmitterDefinition(const AuthoringEmitter& e
             Build_MaterialVec2ModulationRuntimeDesc(*materialScalarModulation);
     }
 
-    if (const auto* spawn = Internal::Find_ModuleData<SpawnModuleData>(emitter, AuthoringModuleType::Spawn))
+    if (const auto* spawn = Find_ModuleData<SpawnModuleData>(emitter, AuthoringModuleType::Spawn))
     {
         desc.spawn.instanceCount = max(1u, spawn->maxParticleCount);
         desc.spawn.particleSpawn.processSpawnRate = spawn->processSpawnRate;
         desc.spawn.particleSpawn.spawnRateRange = Vec2{
-            max(0.f, Internal::Evaluate_FloatDistributionMin(spawn->spawnRate, desc.spawn.particleSpawn.spawnRate)),
-            max(0.f, Internal::Evaluate_FloatDistributionMax(spawn->spawnRate, desc.spawn.particleSpawn.spawnRate))
+            max(0.f, Evaluate_FloatDistributionMin(spawn->spawnRate, desc.spawn.particleSpawn.spawnRate)),
+            max(0.f, Evaluate_FloatDistributionMax(spawn->spawnRate, desc.spawn.particleSpawn.spawnRate))
         };
         desc.spawn.particleSpawn.spawnRate = desc.spawn.particleSpawn.spawnRateRange.y;
-        desc.spawn.particleSpawn.spawnRateSeed = Internal::Build_RandomSeedDesc(spawn->spawnRate);
-        Internal::Fill_FloatCurvePayload(desc.spawn.particleSpawn.spawnRateCurve, spawn->spawnRate, desc.spawn.particleSpawn.spawnRate);
+        desc.spawn.particleSpawn.spawnRateSeed = Build_RandomSeedDesc(spawn->spawnRate);
+        Fill_FloatCurvePayload(desc.spawn.particleSpawn.spawnRateCurve, spawn->spawnRate, desc.spawn.particleSpawn.spawnRate);
         desc.spawn.particleSpawn.spawnRateScaleRange = Vec2{
-            max(0.f, Internal::Evaluate_FloatDistributionMin(spawn->spawnRateScale, desc.spawn.particleSpawn.spawnRateScale)),
-            max(0.f, Internal::Evaluate_FloatDistributionMax(spawn->spawnRateScale, desc.spawn.particleSpawn.spawnRateScale))
+            max(0.f, Evaluate_FloatDistributionMin(spawn->spawnRateScale, desc.spawn.particleSpawn.spawnRateScale)),
+            max(0.f, Evaluate_FloatDistributionMax(spawn->spawnRateScale, desc.spawn.particleSpawn.spawnRateScale))
         };
         desc.spawn.particleSpawn.spawnRateScale = desc.spawn.particleSpawn.spawnRateScaleRange.y;
-        desc.spawn.particleSpawn.spawnRateScaleSeed = Internal::Build_RandomSeedDesc(spawn->spawnRateScale);
-        Internal::Fill_FloatCurvePayload(desc.spawn.particleSpawn.spawnRateScaleCurve, spawn->spawnRateScale, desc.spawn.particleSpawn.spawnRateScale);
+        desc.spawn.particleSpawn.spawnRateScaleSeed = Build_RandomSeedDesc(spawn->spawnRateScale);
+        Fill_FloatCurvePayload(desc.spawn.particleSpawn.spawnRateScaleCurve, spawn->spawnRateScale, desc.spawn.particleSpawn.spawnRateScale);
         desc.spawn.particleSpawn.processBurstList = spawn->processBurstList;
         desc.spawn.particleSpawn.burstScaleRange = Vec2{
-            max(0.f, Internal::Evaluate_FloatDistributionMin(spawn->burstScale, desc.spawn.particleSpawn.burstScale)),
-            max(0.f, Internal::Evaluate_FloatDistributionMax(spawn->burstScale, desc.spawn.particleSpawn.burstScale))
+            max(0.f, Evaluate_FloatDistributionMin(spawn->burstScale, desc.spawn.particleSpawn.burstScale)),
+            max(0.f, Evaluate_FloatDistributionMax(spawn->burstScale, desc.spawn.particleSpawn.burstScale))
         };
         desc.spawn.particleSpawn.burstScale = desc.spawn.particleSpawn.burstScaleRange.y;
-        desc.spawn.particleSpawn.burstScaleSeed = Internal::Build_RandomSeedDesc(spawn->burstScale);
-        Internal::Fill_FloatCurvePayload(desc.spawn.particleSpawn.burstScaleCurve, spawn->burstScale, desc.spawn.particleSpawn.burstScale);
+        desc.spawn.particleSpawn.burstScaleSeed = Build_RandomSeedDesc(spawn->burstScale);
+        Fill_FloatCurvePayload(desc.spawn.particleSpawn.burstScaleCurve, spawn->burstScale, desc.spawn.particleSpawn.burstScale);
         desc.spawn.particleSpawn.maxActiveCount = desc.spawn.instanceCount;
         desc.spawn.particleSpawn.bursts.clear();
         desc.spawn.particleSpawn.bursts.reserve(spawn->burstList.size());
@@ -2514,19 +2514,19 @@ EffectEmitterDefinition Build_PreviewEmitterDefinition(const AuthoringEmitter& e
         }
     }
 
-    if (const auto* initialSize = Internal::Find_ModuleData<InitialSizeModuleData>(emitter, AuthoringModuleType::InitialSize))
+    if (const auto* initialSize = Find_ModuleData<InitialSizeModuleData>(emitter, AuthoringModuleType::InitialSize))
     {
-        const Vec2 minSize = Internal::Evaluate_Vector2DistributionMin(initialSize->size, desc.initialSize.sizeMin);
-        const Vec2 maxSize = Internal::Evaluate_Vector2DistributionMax(initialSize->size, desc.initialSize.sizeMax);
+        const Vec2 minSize = Evaluate_Vector2DistributionMin(initialSize->size, desc.initialSize.sizeMin);
+        const Vec2 maxSize = Evaluate_Vector2DistributionMax(initialSize->size, desc.initialSize.sizeMax);
         desc.initialSize.sizeMin = Vec2{ min(minSize.x, maxSize.x), min(minSize.y, maxSize.y) };
         desc.initialSize.sizeMax = Vec2{ max(minSize.x, maxSize.x), max(minSize.y, maxSize.y) };
-        desc.initialSize.sizeSeed = Internal::Build_RandomSeedDesc(initialSize->size);
+        desc.initialSize.sizeSeed = Build_RandomSeedDesc(initialSize->size);
     }
 
-    if (const auto* initialLocation = Internal::Find_ModuleData<InitialLocationModuleData>(emitter, AuthoringModuleType::InitialLocation))
+    if (const auto* initialLocation = Find_ModuleData<InitialLocationModuleData>(emitter, AuthoringModuleType::InitialLocation))
     {
-        const Vec3 minOffset = Internal::Evaluate_Vector3DistributionMin(initialLocation->location, desc.initialLocation.minOffset);
-        const Vec3 maxOffset = Internal::Evaluate_Vector3DistributionMax(initialLocation->location, desc.initialLocation.maxOffset);
+        const Vec3 minOffset = Evaluate_Vector3DistributionMin(initialLocation->location, desc.initialLocation.minOffset);
+        const Vec3 maxOffset = Evaluate_Vector3DistributionMax(initialLocation->location, desc.initialLocation.maxOffset);
         desc.initialLocation.enabled = true;
         desc.initialLocation.minOffset = Vec3{
             min(minOffset.x, maxOffset.x),
@@ -2538,93 +2538,93 @@ EffectEmitterDefinition Build_PreviewEmitterDefinition(const AuthoringEmitter& e
             max(minOffset.y, maxOffset.y),
             max(minOffset.z, maxOffset.z)
         };
-        desc.initialLocationSeed = Internal::Build_RandomSeedDesc(initialLocation->location);
+        desc.initialLocationSeed = Build_RandomSeedDesc(initialLocation->location);
     }
 
-    if (const auto* sphereLocation = Internal::Find_ModuleData<SphereLocationModuleData>(emitter, AuthoringModuleType::SphereLocation))
+    if (const auto* sphereLocation = Find_ModuleData<SphereLocationModuleData>(emitter, AuthoringModuleType::SphereLocation))
     {
         desc.sphereLocation.enabled = true;
         desc.sphereLocation.offset = sphereLocation->offset;
         desc.sphereLocation.radius = max(0.f, sphereLocation->radius);
-        desc.sphereLocation.mode = Internal::Resolve_PointParticleSphereLocationMode(sphereLocation->spawnMode);
-        desc.sphereLocation.placementMode = Internal::Resolve_PointParticleSphereLocationPlacementMode(sphereLocation->placementMode);
-        desc.sphereLocationSeed = Internal::Build_RandomSeedDesc(sphereLocation->randomSeed);
+        desc.sphereLocation.mode = Resolve_PointParticleSphereLocationMode(sphereLocation->spawnMode);
+        desc.sphereLocation.placementMode = Resolve_PointParticleSphereLocationPlacementMode(sphereLocation->placementMode);
+        desc.sphereLocationSeed = Build_RandomSeedDesc(sphereLocation->randomSeed);
     }
 
-    if (const auto* planeRadialLocation = Internal::Find_ModuleData<PlaneRadialLocationModuleData>(emitter, AuthoringModuleType::PlaneRadialLocation))
-        desc.planeRadialLocation = Internal::Build_PointParticlePlaneRadialLocationDesc(*planeRadialLocation);
+    if (const auto* planeRadialLocation = Find_ModuleData<PlaneRadialLocationModuleData>(emitter, AuthoringModuleType::PlaneRadialLocation))
+        desc.planeRadialLocation = Build_PointParticlePlaneRadialLocationDesc(*planeRadialLocation);
 
-    if (const auto* cylinderLocation = Internal::Find_ModuleData<CylinderLocationModuleData>(emitter, AuthoringModuleType::CylinderLocation))
-        desc.cylinderLocation = Internal::Build_PointParticleCylinderLocationDesc(*cylinderLocation);
+    if (const auto* cylinderLocation = Find_ModuleData<CylinderLocationModuleData>(emitter, AuthoringModuleType::CylinderLocation))
+        desc.cylinderLocation = Build_PointParticleCylinderLocationDesc(*cylinderLocation);
 
-    if (const auto* lifetime = Internal::Find_ModuleData<LifetimeModuleData>(emitter, AuthoringModuleType::Lifetime))
+    if (const auto* lifetime = Find_ModuleData<LifetimeModuleData>(emitter, AuthoringModuleType::Lifetime))
     {
         desc.lifetime.lifeTime = Vec2{
-            Internal::Evaluate_FloatDistributionMin(lifetime->lifeTime, desc.lifetime.lifeTime.x),
-            Internal::Evaluate_FloatDistributionMax(lifetime->lifeTime, desc.lifetime.lifeTime.y)
+            Evaluate_FloatDistributionMin(lifetime->lifeTime, desc.lifetime.lifeTime.x),
+            Evaluate_FloatDistributionMax(lifetime->lifeTime, desc.lifetime.lifeTime.y)
         };
-        Internal::Fill_FloatCurvePayload(desc.lifetime.lifeTimeCurve, lifetime->lifeTime, desc.lifetime.lifeTime.y);
-        desc.lifetimeSeed = Internal::Build_RandomSeedDesc(lifetime->lifeTime);
+        Fill_FloatCurvePayload(desc.lifetime.lifeTimeCurve, lifetime->lifeTime, desc.lifetime.lifeTime.y);
+        desc.lifetimeSeed = Build_RandomSeedDesc(lifetime->lifeTime);
     }
 
-    if (const auto* initialColor = Internal::Find_ModuleData<InitialColorModuleData>(emitter, AuthoringModuleType::InitialColor))
+    if (const auto* initialColor = Find_ModuleData<InitialColorModuleData>(emitter, AuthoringModuleType::InitialColor))
     {
-        const Color minColor = Internal::Evaluate_ColorDistributionMin(
+        const Color minColor = Evaluate_ColorDistributionMin(
             initialColor->color,
             Color{ desc.initialColor.startColorMin.x, desc.initialColor.startColorMin.y, desc.initialColor.startColorMin.z, desc.initialColor.startColorMin.w }
         );
-        const Color maxColor = Internal::Evaluate_ColorDistributionMax(
+        const Color maxColor = Evaluate_ColorDistributionMax(
             initialColor->color,
             Color{ desc.initialColor.startColorMax.x, desc.initialColor.startColorMax.y, desc.initialColor.startColorMax.z, desc.initialColor.startColorMax.w }
         );
         const float minAlpha = clamp(
-            Internal::Evaluate_FloatDistributionMin(initialColor->alpha, desc.initialColor.startColorMin.w),
+            Evaluate_FloatDistributionMin(initialColor->alpha, desc.initialColor.startColorMin.w),
             0.f,
             1.f
         );
         const float maxAlpha = clamp(
-            Internal::Evaluate_FloatDistributionMax(initialColor->alpha, desc.initialColor.startColorMax.w),
+            Evaluate_FloatDistributionMax(initialColor->alpha, desc.initialColor.startColorMax.w),
             0.f,
             1.f
         );
 
         desc.initialColor.startColorMin = Vec4{ minColor.R(), minColor.G(), minColor.B(), minAlpha };
         desc.initialColor.startColorMax = Vec4{ maxColor.R(), maxColor.G(), maxColor.B(), maxAlpha };
-        desc.initialColor.colorSeed = Internal::Build_RandomSeedDesc(initialColor->color);
-        desc.initialColor.alphaSeed = Internal::Build_RandomSeedDesc(initialColor->alpha);
+        desc.initialColor.colorSeed = Build_RandomSeedDesc(initialColor->color);
+        desc.initialColor.alphaSeed = Build_RandomSeedDesc(initialColor->alpha);
         desc.colorOverLife.endColorMin = desc.initialColor.startColorMin;
         desc.colorOverLife.endColorMax = desc.initialColor.startColorMax;
     }
 
-    if (const auto* colorOverLife = Internal::Find_ModuleData<ColorOverLifeModuleData>(emitter, AuthoringModuleType::ColorOverLife))
+    if (const auto* colorOverLife = Find_ModuleData<ColorOverLifeModuleData>(emitter, AuthoringModuleType::ColorOverLife))
     {
-        const Color minEndColor = Internal::Evaluate_ColorOverLifeEndpointColorMin(
+        const Color minEndColor = Evaluate_ColorOverLifeEndpointColorMin(
             colorOverLife->colorOverLife,
             Color{ desc.colorOverLife.endColorMin.x, desc.colorOverLife.endColorMin.y, desc.colorOverLife.endColorMin.z, desc.colorOverLife.endColorMin.w }
         );
-        const Color maxEndColor = Internal::Evaluate_ColorOverLifeEndpointColorMax(
+        const Color maxEndColor = Evaluate_ColorOverLifeEndpointColorMax(
             colorOverLife->colorOverLife,
             Color{ desc.colorOverLife.endColorMax.x, desc.colorOverLife.endColorMax.y, desc.colorOverLife.endColorMax.z, desc.colorOverLife.endColorMax.w }
         );
         const float minEndAlpha = clamp(
-            Internal::Evaluate_ColorOverLifeEndpointAlphaMin(colorOverLife->alphaOverLife, desc.colorOverLife.endColorMin.w),
+            Evaluate_ColorOverLifeEndpointAlphaMin(colorOverLife->alphaOverLife, desc.colorOverLife.endColorMin.w),
             0.f,
             1.f
         );
         const float maxEndAlpha = clamp(
-            Internal::Evaluate_ColorOverLifeEndpointAlphaMax(colorOverLife->alphaOverLife, desc.colorOverLife.endColorMax.w),
+            Evaluate_ColorOverLifeEndpointAlphaMax(colorOverLife->alphaOverLife, desc.colorOverLife.endColorMax.w),
             0.f,
             1.f
         );
 
         desc.colorOverLife.endColorMin = Vec4{ minEndColor.R(), minEndColor.G(), minEndColor.B(), minEndAlpha };
         desc.colorOverLife.endColorMax = Vec4{ maxEndColor.R(), maxEndColor.G(), maxEndColor.B(), maxEndAlpha };
-        desc.colorOverLife.colorSeed = Internal::Build_RandomSeedDesc(colorOverLife->colorOverLife);
-        desc.colorOverLife.alphaSeed = Internal::Build_RandomSeedDesc(colorOverLife->alphaOverLife);
-        Internal::Fill_ColorOverLifeCurvePayload(desc.colorOverLife.curve, *colorOverLife);
+        desc.colorOverLife.colorSeed = Build_RandomSeedDesc(colorOverLife->colorOverLife);
+        desc.colorOverLife.alphaSeed = Build_RandomSeedDesc(colorOverLife->alphaOverLife);
+        Fill_ColorOverLifeCurvePayload(desc.colorOverLife.curve, *colorOverLife);
     }
 
-    if (const auto* subUvFrameOverLife = Internal::Find_ModuleData<SubUVFrameOverLifeModuleData>(emitter, AuthoringModuleType::SubUVFrameOverLife))
+    if (const auto* subUvFrameOverLife = Find_ModuleData<SubUVFrameOverLifeModuleData>(emitter, AuthoringModuleType::SubUVFrameOverLife))
     {
         desc.subUVFrameOverLife.enabled = true;
         desc.subUVFrameOverLife.startFrame = subUvFrameOverLife->startFrame;
@@ -2633,13 +2633,13 @@ EffectEmitterDefinition Build_PreviewEmitterDefinition(const AuthoringEmitter& e
         desc.subUVFrameOverLife.playbackMode = subUvFrameOverLife->playbackMode;
         desc.subUVFrameOverLife.framesPerSecond = max(0.f, subUvFrameOverLife->framesPerSecond);
         desc.subUVFrameOverLife.randomStartPhase = subUvFrameOverLife->randomStartPhase;
-        Internal::Fill_SubUVFrameCurvePayload(desc.subUVFrameOverLife, subUvFrameOverLife->frameIndex);
+        Fill_SubUVFrameCurvePayload(desc.subUVFrameOverLife, subUvFrameOverLife->frameIndex);
         if (subUvFrameOverLife->playbackMode == SubUVFramePlaybackMode::RandomFrame || subUvFrameOverLife->randomStartPhase)
-            desc.subUVRandomFrameSeed = Internal::Build_RandomSeedDesc(subUvFrameOverLife->randomSeed);
+            desc.subUVRandomFrameSeed = Build_RandomSeedDesc(subUvFrameOverLife->randomSeed);
 
-        if (const auto* required = Internal::Find_ModuleData<RequiredModuleData>(emitter, AuthoringModuleType::Required))
+        if (const auto* required = Find_ModuleData<RequiredModuleData>(emitter, AuthoringModuleType::Required))
         {
-            const uint32 frameCount = Internal::Resolve_SubUVFrameCount(*required);
+            const uint32 frameCount = Resolve_SubUVFrameCount(*required);
             const uint32 lastFrame = frameCount > 0 ? frameCount - 1 : 0;
             desc.subUVFrameOverLife.startFrame = min(desc.subUVFrameOverLife.startFrame, lastFrame);
             desc.subUVFrameOverLife.endFrame = min(desc.subUVFrameOverLife.endFrame, lastFrame);
@@ -2649,28 +2649,28 @@ EffectEmitterDefinition Build_PreviewEmitterDefinition(const AuthoringEmitter& e
         }
     }
 
-    if (const auto* sizeByLife = Internal::Find_ModuleData<SizeByLifeModuleData>(emitter, AuthoringModuleType::SizeByLife))
-        Internal::Fill_SizeByLifePayload(desc.sizeByLife, *sizeByLife);
+    if (const auto* sizeByLife = Find_ModuleData<SizeByLifeModuleData>(emitter, AuthoringModuleType::SizeByLife))
+        Fill_SizeByLifePayload(desc.sizeByLife, *sizeByLife);
 
-    Internal::Fill_SpriteTiltPayload(
+    Fill_SpriteTiltPayload(
         desc.spriteTilt,
-        Internal::Find_ModuleData<SpriteTiltModuleData>(emitter, AuthoringModuleType::SpriteTilt),
-        Internal::Find_ModuleData<SpriteTiltOverLifeModuleData>(emitter, AuthoringModuleType::SpriteTiltOverLife)
+        Find_ModuleData<SpriteTiltModuleData>(emitter, AuthoringModuleType::SpriteTilt),
+        Find_ModuleData<SpriteTiltOverLifeModuleData>(emitter, AuthoringModuleType::SpriteTiltOverLife)
     );
 
-    if (const auto* initialVelocity = Internal::Find_ModuleData<InitialVelocityModuleData>(emitter, AuthoringModuleType::InitialVelocity))
+    if (const auto* initialVelocity = Find_ModuleData<InitialVelocityModuleData>(emitter, AuthoringModuleType::InitialVelocity))
     {
         desc.motion.enabled = true;
         desc.motion.initialVelocityEnabled = true;
         desc.motion.initialVelocityInWorldSpace = initialVelocity->inWorldSpace;
         desc.motion.initialVelocityMin =
-            Internal::Evaluate_Vector3DistributionMin(initialVelocity->velocity, desc.motion.initialVelocityMin);
+            Evaluate_Vector3DistributionMin(initialVelocity->velocity, desc.motion.initialVelocityMin);
         desc.motion.initialVelocityMax =
-            Internal::Evaluate_Vector3DistributionMax(initialVelocity->velocity, desc.motion.initialVelocityMax);
-        desc.motion.initialVelocitySeed = Internal::Build_RandomSeedDesc(initialVelocity->velocity);
+            Evaluate_Vector3DistributionMax(initialVelocity->velocity, desc.motion.initialVelocityMax);
+        desc.motion.initialVelocitySeed = Build_RandomSeedDesc(initialVelocity->velocity);
     }
 
-    if (const auto* initialRadialVelocity = Internal::Find_ModuleData<InitialRadialVelocityModuleData>(
+    if (const auto* initialRadialVelocity = Find_ModuleData<InitialRadialVelocityModuleData>(
         emitter,
         AuthoringModuleType::InitialRadialVelocity
     ))
@@ -2680,91 +2680,91 @@ EffectEmitterDefinition Build_PreviewEmitterDefinition(const AuthoringEmitter& e
         desc.motion.initialRadialVelocityInWorldSpace = initialRadialVelocity->inWorldSpace;
         desc.motion.radialPivot = initialRadialVelocity->radialPivot;
         desc.motion.initialRadialVelocityCenterDirectionMode =
-            Internal::Resolve_PointParticleInitialRadialVelocityCenterDirectionMode(initialRadialVelocity->centerDirectionMode);
+            Resolve_PointParticleInitialRadialVelocityCenterDirectionMode(initialRadialVelocity->centerDirectionMode);
         desc.motion.radialSpeed = Vec2{
-            Internal::Evaluate_FloatDistributionMin(initialRadialVelocity->speed, desc.motion.radialSpeed.x),
-            Internal::Evaluate_FloatDistributionMax(initialRadialVelocity->speed, desc.motion.radialSpeed.y)
+            Evaluate_FloatDistributionMin(initialRadialVelocity->speed, desc.motion.radialSpeed.x),
+            Evaluate_FloatDistributionMax(initialRadialVelocity->speed, desc.motion.radialSpeed.y)
         };
-        desc.motion.initialRadialVelocitySeed = Internal::Build_RandomSeedDesc(initialRadialVelocity->speed);
+        desc.motion.initialRadialVelocitySeed = Build_RandomSeedDesc(initialRadialVelocity->speed);
     }
 
-    if (const auto* velocityCone = Internal::Find_ModuleData<VelocityConeModuleData>(emitter, AuthoringModuleType::VelocityCone))
+    if (const auto* velocityCone = Find_ModuleData<VelocityConeModuleData>(emitter, AuthoringModuleType::VelocityCone))
     {
-        Internal::Fill_VelocityConePayload(desc.motion, *velocityCone);
-        desc.motion.velocityConeSeed = Internal::Build_RandomSeedDesc(velocityCone->speed);
+        Fill_VelocityConePayload(desc.motion, *velocityCone);
+        desc.motion.velocityConeSeed = Build_RandomSeedDesc(velocityCone->speed);
     }
 
-    if (const auto* sourceMotionVelocity = Internal::Find_ModuleData<SourceMotionVelocityModuleData>(
+    if (const auto* sourceMotionVelocity = Find_ModuleData<SourceMotionVelocityModuleData>(
         emitter,
         AuthoringModuleType::SourceMotionVelocity
     ))
-        Internal::Fill_SourceMotionVelocityPayload(desc.motion, *sourceMotionVelocity);
+        Fill_SourceMotionVelocityPayload(desc.motion, *sourceMotionVelocity);
 
-    if (const auto* acceleration = Internal::Find_ModuleData<AccelerationModuleData>(emitter, AuthoringModuleType::Acceleration))
+    if (const auto* acceleration = Find_ModuleData<AccelerationModuleData>(emitter, AuthoringModuleType::Acceleration))
     {
         desc.motion.enabled = true;
         desc.motion.accelerationInWorldSpace = acceleration->inWorldSpace;
-        desc.motion.accelerationTimeBasis = Internal::To_RuntimeAccelerationTimeBasis(acceleration->timeBasis);
-        desc.motion.accelerationMin = Internal::Evaluate_Vector3DistributionMin(acceleration->acceleration, desc.motion.accelerationMin);
-        desc.motion.accelerationMax = Internal::Evaluate_Vector3DistributionMax(acceleration->acceleration, desc.motion.accelerationMax);
-        Internal::Fill_AccelerationCurvePayload(desc.motion, acceleration->acceleration);
-        desc.motion.accelerationSeed = Internal::Build_RandomSeedDesc(acceleration->acceleration);
+        desc.motion.accelerationTimeBasis = To_RuntimeAccelerationTimeBasis(acceleration->timeBasis);
+        desc.motion.accelerationMin = Evaluate_Vector3DistributionMin(acceleration->acceleration, desc.motion.accelerationMin);
+        desc.motion.accelerationMax = Evaluate_Vector3DistributionMax(acceleration->acceleration, desc.motion.accelerationMax);
+        Fill_AccelerationCurvePayload(desc.motion, acceleration->acceleration);
+        desc.motion.accelerationSeed = Build_RandomSeedDesc(acceleration->acceleration);
     }
 
-    if (const auto* drag = Internal::Find_ModuleData<DragModuleData>(emitter, AuthoringModuleType::Drag))
+    if (const auto* drag = Find_ModuleData<DragModuleData>(emitter, AuthoringModuleType::Drag))
     {
         desc.motion.enabled = true;
         desc.motion.drag = Vec2{
-            max(0.f, Internal::Evaluate_FloatDistributionMin(drag->drag, desc.motion.drag.x)),
-            max(0.f, Internal::Evaluate_FloatDistributionMax(drag->drag, desc.motion.drag.y))
+            max(0.f, Evaluate_FloatDistributionMin(drag->drag, desc.motion.drag.x)),
+            max(0.f, Evaluate_FloatDistributionMax(drag->drag, desc.motion.drag.y))
         };
-        desc.motion.dragSeed = Internal::Build_RandomSeedDesc(drag->drag);
+        desc.motion.dragSeed = Build_RandomSeedDesc(drag->drag);
     }
 
-    Internal::Apply_VelocityOverLifeOwnership(desc.motion, emitter);
+    Apply_VelocityOverLifeOwnership(desc.motion, emitter);
 
-    if (const auto* orbitOverLife = Internal::Find_ModuleData<OrbitOverLifeModuleData>(emitter, AuthoringModuleType::OrbitOverLife))
-        desc.orbitOverLife = Internal::Build_OrbitOverLifeDesc(*orbitOverLife);
+    if (const auto* orbitOverLife = Find_ModuleData<OrbitOverLifeModuleData>(emitter, AuthoringModuleType::OrbitOverLife))
+        desc.orbitOverLife = Build_OrbitOverLifeDesc(*orbitOverLife);
 
-    if (const auto* initialRotation = Internal::Find_ModuleData<InitialRotationModuleData>(emitter, AuthoringModuleType::InitialRotation))
+    if (const auto* initialRotation = Find_ModuleData<InitialRotationModuleData>(emitter, AuthoringModuleType::InitialRotation))
     {
         desc.rotation.enabled = true;
         desc.rotation.initialRotationDegrees = Vec2{
-            Internal::Evaluate_FloatDistributionMin(initialRotation->rotationDegrees, desc.rotation.initialRotationDegrees.x),
-            Internal::Evaluate_FloatDistributionMax(initialRotation->rotationDegrees, desc.rotation.initialRotationDegrees.y)
+            Evaluate_FloatDistributionMin(initialRotation->rotationDegrees, desc.rotation.initialRotationDegrees.x),
+            Evaluate_FloatDistributionMax(initialRotation->rotationDegrees, desc.rotation.initialRotationDegrees.y)
         };
-        desc.rotation.initialRotationSeed = Internal::Build_RandomSeedDesc(initialRotation->rotationDegrees);
+        desc.rotation.initialRotationSeed = Build_RandomSeedDesc(initialRotation->rotationDegrees);
     }
 
-    if (const auto* planeRadialOrientation = Internal::Find_ModuleData<PlaneRadialOrientationModuleData>(emitter, AuthoringModuleType::PlaneRadialOrientation))
-        desc.planeRadialOrientation = Internal::Build_PointParticlePlaneRadialOrientationDesc(*planeRadialOrientation);
+    if (const auto* planeRadialOrientation = Find_ModuleData<PlaneRadialOrientationModuleData>(emitter, AuthoringModuleType::PlaneRadialOrientation))
+        desc.planeRadialOrientation = Build_PointParticlePlaneRadialOrientationDesc(*planeRadialOrientation);
 
-    if (const auto* cylinderOrientation = Internal::Find_ModuleData<CylinderOrientationModuleData>(emitter, AuthoringModuleType::CylinderOrientation))
-        desc.cylinderOrientation = Internal::Build_PointParticleCylinderOrientationDesc(*cylinderOrientation);
+    if (const auto* cylinderOrientation = Find_ModuleData<CylinderOrientationModuleData>(emitter, AuthoringModuleType::CylinderOrientation))
+        desc.cylinderOrientation = Build_PointParticleCylinderOrientationDesc(*cylinderOrientation);
 
-    if (const auto* rotationOverLife = Internal::Find_ModuleData<RotationOverLifeModuleData>(emitter, AuthoringModuleType::RotationOverLife))
+    if (const auto* rotationOverLife = Find_ModuleData<RotationOverLifeModuleData>(emitter, AuthoringModuleType::RotationOverLife))
     {
         desc.rotation.enabled = true;
-        Internal::Fill_RotationOverLifePayload(desc.rotation, *rotationOverLife);
+        Fill_RotationOverLifePayload(desc.rotation, *rotationOverLife);
     }
 
-    if (const auto* initialRotationRate = Internal::Find_ModuleData<InitialRotationRateModuleData>(emitter, AuthoringModuleType::InitialRotationRate))
+    if (const auto* initialRotationRate = Find_ModuleData<InitialRotationRateModuleData>(emitter, AuthoringModuleType::InitialRotationRate))
     {
         desc.rotation.enabled = true;
         desc.rotation.initialRotationRateDegrees = Vec2{
-            Internal::Evaluate_FloatDistributionMin(initialRotationRate->rotationRateDegrees, desc.rotation.initialRotationRateDegrees.x),
-            Internal::Evaluate_FloatDistributionMax(initialRotationRate->rotationRateDegrees, desc.rotation.initialRotationRateDegrees.y)
+            Evaluate_FloatDistributionMin(initialRotationRate->rotationRateDegrees, desc.rotation.initialRotationRateDegrees.x),
+            Evaluate_FloatDistributionMax(initialRotationRate->rotationRateDegrees, desc.rotation.initialRotationRateDegrees.y)
         };
-        desc.rotation.initialRotationRateSeed = Internal::Build_RandomSeedDesc(initialRotationRate->rotationRateDegrees);
+        desc.rotation.initialRotationRateSeed = Build_RandomSeedDesc(initialRotationRate->rotationRateDegrees);
     }
 
-    if (const auto* rotationRateScaleByLife = Internal::Find_ModuleData<RotationRateScaleByLifeModuleData>(
+    if (const auto* rotationRateScaleByLife = Find_ModuleData<RotationRateScaleByLifeModuleData>(
         emitter,
         AuthoringModuleType::RotationRateScaleByLife
     ))
     {
         desc.rotation.enabled = true;
-        Internal::Fill_RotationRateScaleByLifePayload(desc.rotation, *rotationRateScaleByLife);
+        Fill_RotationRateScaleByLifePayload(desc.rotation, *rotationRateScaleByLife);
     }
 
     definition.concreteDesc = desc;
@@ -2781,7 +2781,7 @@ EffectEmitterDefinition Build_PreviewTrailEmitterDefinition(
     definition.name = emitter.name;
     definition.kind = EffectEmitterKind::Trail;
     definition.enabled = emitter.enabled;
-    definition.renderLayerOverride = Internal::Resolve_EffectRenderLayerOverride(emitter.renderLayerOverride);
+    definition.renderLayerOverride = Resolve_EffectRenderLayerOverride(emitter.renderLayerOverride);
     definition.historyBudget = Build_HistoryBudgetUsage(emitter.historyBudget);
 
     ComputeTrailEmitterDesc emitterDesc{};
@@ -2802,7 +2802,7 @@ EffectEmitterDefinition Build_PreviewTrailEmitterDefinition(
         emitterDesc.sideFade = clamp(trailData->sideFade, 0.001f, 0.49f);
     }
 
-    if (const auto* required = Internal::Find_ModuleData<RequiredModuleData>(emitter, AuthoringModuleType::Required))
+    if (const auto* required = Find_ModuleData<RequiredModuleData>(emitter, AuthoringModuleType::Required))
     {
         EffectRuntime::Copy_EffectMaterialInstanceToRuntimeDesc(required->material, emitterDesc.material);
         EffectRuntime::Apply_TrailMaterialRuntimePolicy(emitterDesc.material);
@@ -2816,7 +2816,7 @@ EffectEmitterDefinition Build_PreviewTrailEmitterDefinition(
         definition.useLocalSpace = required->useLocalSpace;
     }
 
-    if (const auto* materialScalarModulation = Internal::Find_ModuleData<MaterialScalarModulationModuleData>(
+    if (const auto* materialScalarModulation = Find_ModuleData<MaterialScalarModulationModuleData>(
         emitter,
         AuthoringModuleType::MaterialScalarModulation
     ))
@@ -2829,20 +2829,20 @@ EffectEmitterDefinition Build_PreviewTrailEmitterDefinition(
             Build_MaterialVec2ModulationRuntimeDesc(*materialScalarModulation);
     }
 
-    if (const auto* lifetime = Internal::Find_ModuleData<LifetimeModuleData>(emitter, AuthoringModuleType::Lifetime))
+    if (const auto* lifetime = Find_ModuleData<LifetimeModuleData>(emitter, AuthoringModuleType::Lifetime))
     {
         emitterDesc.useLifetimeSegmentLifetime = true;
         emitterDesc.lifetime.lifeTime = Vec2{
-            Internal::Evaluate_FloatDistributionMin(lifetime->lifeTime, emitterDesc.lifetime.lifeTime.x),
-            Internal::Evaluate_FloatDistributionMax(lifetime->lifeTime, emitterDesc.lifetime.lifeTime.y)
+            Evaluate_FloatDistributionMin(lifetime->lifeTime, emitterDesc.lifetime.lifeTime.x),
+            Evaluate_FloatDistributionMax(lifetime->lifeTime, emitterDesc.lifetime.lifeTime.y)
         };
-        emitterDesc.lifetimeSeed = Internal::Build_RandomSeedDesc(lifetime->lifeTime);
+        emitterDesc.lifetimeSeed = Build_RandomSeedDesc(lifetime->lifeTime);
         emitterDesc.segmentLifetime = max(0.001f, emitterDesc.lifetime.lifeTime.y);
     }
 
-    if (const auto* initialColor = Internal::Find_ModuleData<InitialColorModuleData>(emitter, AuthoringModuleType::InitialColor))
+    if (const auto* initialColor = Find_ModuleData<InitialColorModuleData>(emitter, AuthoringModuleType::InitialColor))
     {
-        const Color minColor = Internal::Evaluate_ColorDistributionMin(
+        const Color minColor = Evaluate_ColorDistributionMin(
             initialColor->color,
             Color{
                 emitterDesc.initialColor.startColorMin.x,
@@ -2851,7 +2851,7 @@ EffectEmitterDefinition Build_PreviewTrailEmitterDefinition(
                 emitterDesc.initialColor.startColorMin.w
             }
         );
-        const Color maxColor = Internal::Evaluate_ColorDistributionMax(
+        const Color maxColor = Evaluate_ColorDistributionMax(
             initialColor->color,
             Color{
                 emitterDesc.initialColor.startColorMax.x,
@@ -2861,12 +2861,12 @@ EffectEmitterDefinition Build_PreviewTrailEmitterDefinition(
             }
         );
         const float minAlpha = clamp(
-            Internal::Evaluate_FloatDistributionMin(initialColor->alpha, emitterDesc.initialColor.startColorMin.w),
+            Evaluate_FloatDistributionMin(initialColor->alpha, emitterDesc.initialColor.startColorMin.w),
             0.f,
             1.f
         );
         const float maxAlpha = clamp(
-            Internal::Evaluate_FloatDistributionMax(initialColor->alpha, emitterDesc.initialColor.startColorMax.w),
+            Evaluate_FloatDistributionMax(initialColor->alpha, emitterDesc.initialColor.startColorMax.w),
             0.f,
             1.f
         );
@@ -2877,9 +2877,9 @@ EffectEmitterDefinition Build_PreviewTrailEmitterDefinition(
         emitterDesc.colorOverLife.endColorMax = emitterDesc.initialColor.startColorMax;
     }
 
-    if (const auto* colorOverLife = Internal::Find_ModuleData<ColorOverLifeModuleData>(emitter, AuthoringModuleType::ColorOverLife))
+    if (const auto* colorOverLife = Find_ModuleData<ColorOverLifeModuleData>(emitter, AuthoringModuleType::ColorOverLife))
     {
-        const Color minEndColor = Internal::Evaluate_ColorOverLifeEndpointColorMin(
+        const Color minEndColor = Evaluate_ColorOverLifeEndpointColorMin(
             colorOverLife->colorOverLife,
             Color{
                 emitterDesc.colorOverLife.endColorMin.x,
@@ -2888,7 +2888,7 @@ EffectEmitterDefinition Build_PreviewTrailEmitterDefinition(
                 emitterDesc.colorOverLife.endColorMin.w
             }
         );
-        const Color maxEndColor = Internal::Evaluate_ColorOverLifeEndpointColorMax(
+        const Color maxEndColor = Evaluate_ColorOverLifeEndpointColorMax(
             colorOverLife->colorOverLife,
             Color{
                 emitterDesc.colorOverLife.endColorMax.x,
@@ -2898,29 +2898,29 @@ EffectEmitterDefinition Build_PreviewTrailEmitterDefinition(
             }
         );
         const float minEndAlpha = clamp(
-            Internal::Evaluate_ColorOverLifeEndpointAlphaMin(colorOverLife->alphaOverLife, emitterDesc.colorOverLife.endColorMin.w),
+            Evaluate_ColorOverLifeEndpointAlphaMin(colorOverLife->alphaOverLife, emitterDesc.colorOverLife.endColorMin.w),
             0.f,
             1.f
         );
         const float maxEndAlpha = clamp(
-            Internal::Evaluate_ColorOverLifeEndpointAlphaMax(colorOverLife->alphaOverLife, emitterDesc.colorOverLife.endColorMax.w),
+            Evaluate_ColorOverLifeEndpointAlphaMax(colorOverLife->alphaOverLife, emitterDesc.colorOverLife.endColorMax.w),
             0.f,
             1.f
         );
 
         emitterDesc.colorOverLife.endColorMin = Vec4{ minEndColor.R(), minEndColor.G(), minEndColor.B(), minEndAlpha };
         emitterDesc.colorOverLife.endColorMax = Vec4{ maxEndColor.R(), maxEndColor.G(), maxEndColor.B(), maxEndAlpha };
-        Internal::Fill_ColorOverLifeCurvePayload(emitterDesc.colorOverLife.curve, *colorOverLife);
+        Fill_ColorOverLifeCurvePayload(emitterDesc.colorOverLife.curve, *colorOverLife);
     }
 
-    if (const auto* sizeByLife = Internal::Find_ModuleData<SizeByLifeModuleData>(emitter, AuthoringModuleType::SizeByLife))
-        Internal::Fill_SizeByLifePayload(emitterDesc.sizeByLife, *sizeByLife);
+    if (const auto* sizeByLife = Find_ModuleData<SizeByLifeModuleData>(emitter, AuthoringModuleType::SizeByLife))
+        Fill_SizeByLifePayload(emitterDesc.sizeByLife, *sizeByLife);
 
-    if (const auto* spawnPerUnit = Internal::Find_ModuleData<SpawnPerUnitModuleData>(emitter, AuthoringModuleType::SpawnPerUnit))
+    if (const auto* spawnPerUnit = Find_ModuleData<SpawnPerUnitModuleData>(emitter, AuthoringModuleType::SpawnPerUnit))
     {
         emitterDesc.spawnPerUnit.enabled = true;
         emitterDesc.spawnPerUnit.spawnPerUnit =
-            max(0.f, Internal::Evaluate_FloatDistributionMax(spawnPerUnit->spawnPerUnit, emitterDesc.spawnPerUnit.spawnPerUnit));
+            max(0.f, Evaluate_FloatDistributionMax(spawnPerUnit->spawnPerUnit, emitterDesc.spawnPerUnit.spawnPerUnit));
         emitterDesc.spawnPerUnit.unitScalar = max(0.0001f, spawnPerUnit->unitScalar);
         emitterDesc.spawnPerUnit.movementTolerance = max(0.f, spawnPerUnit->movementTolerance);
         emitterDesc.spawnPerUnit.maxFrameDistance = max(0.f, spawnPerUnit->maxFrameDistance);
@@ -2951,7 +2951,7 @@ EffectEmitterDefinition Build_PreviewSourceHistoryRibbonEmitterDefinition(
     definition.name = emitter.name;
     definition.kind = EffectEmitterKind::Ribbon;
     definition.enabled = emitter.enabled;
-    definition.renderLayerOverride = Internal::Resolve_EffectRenderLayerOverride(emitter.renderLayerOverride);
+    definition.renderLayerOverride = Resolve_EffectRenderLayerOverride(emitter.renderLayerOverride);
     definition.historyBudget = Build_HistoryBudgetUsage(emitter.historyBudget);
 
     ComputeRibbonEmitterDesc emitterDesc{};
@@ -2986,18 +2986,18 @@ EffectEmitterDefinition Build_PreviewSourceHistoryRibbonEmitterDefinition(
     emitterDesc.tailCollapseSpeed = max(0.f, sourceHistoryPolicy.tailCollapseSpeed);
     emitterDesc.useManualRoll = sourceHistoryPolicy.useManualRoll;
     emitterDesc.manualRollDegrees = sourceHistoryPolicy.manualRollDegrees;
-    if (const auto* ribbonOrientation = Internal::Find_ModuleData<RibbonOrientationModuleData>(emitter, AuthoringModuleType::RibbonOrientation))
+    if (const auto* ribbonOrientation = Find_ModuleData<RibbonOrientationModuleData>(emitter, AuthoringModuleType::RibbonOrientation))
     {
-        emitterDesc.spreadBasis = Internal::Resolve_RibbonSpreadBasis(ribbonOrientation->spreadBasis);
+        emitterDesc.spreadBasis = Resolve_RibbonSpreadBasis(ribbonOrientation->spreadBasis);
         emitterDesc.spreadAngleDegrees = ribbonOrientation->spreadAngleDegrees;
         emitterDesc.useManualRoll = false;
         emitterDesc.manualRollDegrees = 0.f;
     }
-    if (const auto* required = Internal::Find_ModuleData<RequiredModuleData>(emitter, AuthoringModuleType::Required))
+    if (const auto* required = Find_ModuleData<RequiredModuleData>(emitter, AuthoringModuleType::Required))
     {
         EffectRuntime::Copy_EffectMaterialInstanceToRuntimeDesc(required->material, emitterDesc.material);
 
-        emitterDesc.sort.sortPolicy = Internal::Resolve_EffectSortPolicy(required->sortPolicy);
+        emitterDesc.sort.sortPolicy = Resolve_EffectSortPolicy(required->sortPolicy);
         emitterDesc.sort.sortLayer = required->sortLayer;
         emitterDesc.sort.artistSortBias = required->sortBias;
 
@@ -3012,10 +3012,10 @@ EffectEmitterDefinition Build_PreviewSourceHistoryRibbonEmitterDefinition(
         definition.useLocalSpace = required->useLocalSpace;
     }
 
-    if (const auto* initialLocation = Internal::Find_ModuleData<InitialLocationModuleData>(emitter, AuthoringModuleType::InitialLocation))
+    if (const auto* initialLocation = Find_ModuleData<InitialLocationModuleData>(emitter, AuthoringModuleType::InitialLocation))
     {
-        const Vec3 minOffset = Internal::Evaluate_Vector3DistributionMin(initialLocation->location, emitterDesc.headOffset.minOffset);
-        const Vec3 maxOffset = Internal::Evaluate_Vector3DistributionMax(initialLocation->location, emitterDesc.headOffset.maxOffset);
+        const Vec3 minOffset = Evaluate_Vector3DistributionMin(initialLocation->location, emitterDesc.headOffset.minOffset);
+        const Vec3 maxOffset = Evaluate_Vector3DistributionMax(initialLocation->location, emitterDesc.headOffset.maxOffset);
         emitterDesc.headOffset.enabled = true;
         emitterDesc.headOffset.minOffset = Vec3{
             min(minOffset.x, maxOffset.x),
@@ -3027,10 +3027,10 @@ EffectEmitterDefinition Build_PreviewSourceHistoryRibbonEmitterDefinition(
             max(minOffset.y, maxOffset.y),
             max(minOffset.z, maxOffset.z)
         };
-        emitterDesc.headOffsetSeed = Internal::Build_RandomSeedDesc(initialLocation->location);
+        emitterDesc.headOffsetSeed = Build_RandomSeedDesc(initialLocation->location);
     }
 
-    if (const auto* materialScalarModulation = Internal::Find_ModuleData<MaterialScalarModulationModuleData>(
+    if (const auto* materialScalarModulation = Find_ModuleData<MaterialScalarModulationModuleData>(
         emitter,
         AuthoringModuleType::MaterialScalarModulation
     ))
@@ -3043,20 +3043,20 @@ EffectEmitterDefinition Build_PreviewSourceHistoryRibbonEmitterDefinition(
             Build_MaterialVec2ModulationRuntimeDesc(*materialScalarModulation);
     }
 
-    if (const auto* lifetime = Internal::Find_ModuleData<LifetimeModuleData>(emitter, AuthoringModuleType::Lifetime))
+    if (const auto* lifetime = Find_ModuleData<LifetimeModuleData>(emitter, AuthoringModuleType::Lifetime))
     {
         emitterDesc.useLifetimeSampleLifetime = true;
         emitterDesc.lifetime.lifeTime = Vec2{
-            Internal::Evaluate_FloatDistributionMin(lifetime->lifeTime, emitterDesc.lifetime.lifeTime.x),
-            Internal::Evaluate_FloatDistributionMax(lifetime->lifeTime, emitterDesc.lifetime.lifeTime.y)
+            Evaluate_FloatDistributionMin(lifetime->lifeTime, emitterDesc.lifetime.lifeTime.x),
+            Evaluate_FloatDistributionMax(lifetime->lifeTime, emitterDesc.lifetime.lifeTime.y)
         };
-        emitterDesc.lifetimeSeed = Internal::Build_RandomSeedDesc(lifetime->lifeTime);
+        emitterDesc.lifetimeSeed = Build_RandomSeedDesc(lifetime->lifeTime);
         emitterDesc.sampleLifetime = max(0.0001f, emitterDesc.lifetime.lifeTime.y);
     }
 
-    if (const auto* initialColor = Internal::Find_ModuleData<InitialColorModuleData>(emitter, AuthoringModuleType::InitialColor))
+    if (const auto* initialColor = Find_ModuleData<InitialColorModuleData>(emitter, AuthoringModuleType::InitialColor))
     {
-        const Color minColor = Internal::Evaluate_ColorDistributionMin(
+        const Color minColor = Evaluate_ColorDistributionMin(
             initialColor->color,
             Color{
                 emitterDesc.initialColor.startColorMin.x,
@@ -3065,7 +3065,7 @@ EffectEmitterDefinition Build_PreviewSourceHistoryRibbonEmitterDefinition(
                 emitterDesc.initialColor.startColorMin.w
             }
         );
-        const Color maxColor = Internal::Evaluate_ColorDistributionMax(
+        const Color maxColor = Evaluate_ColorDistributionMax(
             initialColor->color,
             Color{
                 emitterDesc.initialColor.startColorMax.x,
@@ -3075,27 +3075,27 @@ EffectEmitterDefinition Build_PreviewSourceHistoryRibbonEmitterDefinition(
             }
         );
         const float minAlpha = clamp(
-            Internal::Evaluate_FloatDistributionMin(initialColor->alpha, emitterDesc.initialColor.startColorMin.w),
+            Evaluate_FloatDistributionMin(initialColor->alpha, emitterDesc.initialColor.startColorMin.w),
             0.f,
             1.f
         );
         const float maxAlpha = clamp(
-            Internal::Evaluate_FloatDistributionMax(initialColor->alpha, emitterDesc.initialColor.startColorMax.w),
+            Evaluate_FloatDistributionMax(initialColor->alpha, emitterDesc.initialColor.startColorMax.w),
             0.f,
             1.f
         );
 
         emitterDesc.initialColor.startColorMin = Vec4{ minColor.R(), minColor.G(), minColor.B(), minAlpha };
         emitterDesc.initialColor.startColorMax = Vec4{ maxColor.R(), maxColor.G(), maxColor.B(), maxAlpha };
-        emitterDesc.initialColor.colorSeed = Internal::Build_RandomSeedDesc(initialColor->color);
-        emitterDesc.initialColor.alphaSeed = Internal::Build_RandomSeedDesc(initialColor->alpha);
+        emitterDesc.initialColor.colorSeed = Build_RandomSeedDesc(initialColor->color);
+        emitterDesc.initialColor.alphaSeed = Build_RandomSeedDesc(initialColor->alpha);
         emitterDesc.colorOverLife.endColorMin = emitterDesc.initialColor.startColorMin;
         emitterDesc.colorOverLife.endColorMax = emitterDesc.initialColor.startColorMax;
     }
 
-    if (const auto* colorOverLife = Internal::Find_ModuleData<ColorOverLifeModuleData>(emitter, AuthoringModuleType::ColorOverLife))
+    if (const auto* colorOverLife = Find_ModuleData<ColorOverLifeModuleData>(emitter, AuthoringModuleType::ColorOverLife))
     {
-        const Color minEndColor = Internal::Evaluate_ColorOverLifeEndpointColorMin(
+        const Color minEndColor = Evaluate_ColorOverLifeEndpointColorMin(
             colorOverLife->colorOverLife,
             Color{
                 emitterDesc.colorOverLife.endColorMin.x,
@@ -3104,7 +3104,7 @@ EffectEmitterDefinition Build_PreviewSourceHistoryRibbonEmitterDefinition(
                 emitterDesc.colorOverLife.endColorMin.w
             }
         );
-        const Color maxEndColor = Internal::Evaluate_ColorOverLifeEndpointColorMax(
+        const Color maxEndColor = Evaluate_ColorOverLifeEndpointColorMax(
             colorOverLife->colorOverLife,
             Color{
                 emitterDesc.colorOverLife.endColorMax.x,
@@ -3114,24 +3114,24 @@ EffectEmitterDefinition Build_PreviewSourceHistoryRibbonEmitterDefinition(
             }
         );
         const float minEndAlpha = clamp(
-            Internal::Evaluate_ColorOverLifeEndpointAlphaMin(colorOverLife->alphaOverLife, emitterDesc.colorOverLife.endColorMin.w),
+            Evaluate_ColorOverLifeEndpointAlphaMin(colorOverLife->alphaOverLife, emitterDesc.colorOverLife.endColorMin.w),
             0.f,
             1.f
         );
         const float maxEndAlpha = clamp(
-            Internal::Evaluate_ColorOverLifeEndpointAlphaMax(colorOverLife->alphaOverLife, emitterDesc.colorOverLife.endColorMax.w),
+            Evaluate_ColorOverLifeEndpointAlphaMax(colorOverLife->alphaOverLife, emitterDesc.colorOverLife.endColorMax.w),
             0.f,
             1.f
         );
 
         emitterDesc.colorOverLife.endColorMin = Vec4{ minEndColor.R(), minEndColor.G(), minEndColor.B(), minEndAlpha };
         emitterDesc.colorOverLife.endColorMax = Vec4{ maxEndColor.R(), maxEndColor.G(), maxEndColor.B(), maxEndAlpha };
-        emitterDesc.colorOverLife.colorSeed = Internal::Build_RandomSeedDesc(colorOverLife->colorOverLife);
-        emitterDesc.colorOverLife.alphaSeed = Internal::Build_RandomSeedDesc(colorOverLife->alphaOverLife);
-        Internal::Fill_ColorOverLifeCurvePayload(emitterDesc.colorOverLife.curve, *colorOverLife);
+        emitterDesc.colorOverLife.colorSeed = Build_RandomSeedDesc(colorOverLife->colorOverLife);
+        emitterDesc.colorOverLife.alphaSeed = Build_RandomSeedDesc(colorOverLife->alphaOverLife);
+        Fill_ColorOverLifeCurvePayload(emitterDesc.colorOverLife.curve, *colorOverLife);
     }
 
-    if (const auto* subUvFrameOverLife = Internal::Find_ModuleData<SubUVFrameOverLifeModuleData>(emitter, AuthoringModuleType::SubUVFrameOverLife))
+    if (const auto* subUvFrameOverLife = Find_ModuleData<SubUVFrameOverLifeModuleData>(emitter, AuthoringModuleType::SubUVFrameOverLife))
     {
         emitterDesc.subUVFrameOverLife.enabled = true;
         emitterDesc.subUVFrameOverLife.startFrame = subUvFrameOverLife->startFrame;
@@ -3140,13 +3140,13 @@ EffectEmitterDefinition Build_PreviewSourceHistoryRibbonEmitterDefinition(
         emitterDesc.subUVFrameOverLife.playbackMode = subUvFrameOverLife->playbackMode;
         emitterDesc.subUVFrameOverLife.framesPerSecond = max(0.f, subUvFrameOverLife->framesPerSecond);
         emitterDesc.subUVFrameOverLife.randomStartPhase = subUvFrameOverLife->randomStartPhase;
-        Internal::Fill_SubUVFrameCurvePayload(emitterDesc.subUVFrameOverLife, subUvFrameOverLife->frameIndex);
+        Fill_SubUVFrameCurvePayload(emitterDesc.subUVFrameOverLife, subUvFrameOverLife->frameIndex);
         if (subUvFrameOverLife->playbackMode == SubUVFramePlaybackMode::RandomFrame || subUvFrameOverLife->randomStartPhase)
-            emitterDesc.subUVRandomFrameSeed = Internal::Build_RandomSeedDesc(subUvFrameOverLife->randomSeed);
+            emitterDesc.subUVRandomFrameSeed = Build_RandomSeedDesc(subUvFrameOverLife->randomSeed);
 
-        if (const auto* required = Internal::Find_ModuleData<RequiredModuleData>(emitter, AuthoringModuleType::Required))
+        if (const auto* required = Find_ModuleData<RequiredModuleData>(emitter, AuthoringModuleType::Required))
         {
-            const uint32 frameCount = Internal::Resolve_SubUVFrameCount(*required);
+            const uint32 frameCount = Resolve_SubUVFrameCount(*required);
             const uint32 lastFrame = frameCount > 0 ? frameCount - 1 : 0;
             emitterDesc.subUVFrameOverLife.startFrame = min(emitterDesc.subUVFrameOverLife.startFrame, lastFrame);
             emitterDesc.subUVFrameOverLife.endFrame = min(emitterDesc.subUVFrameOverLife.endFrame, lastFrame);
@@ -3156,8 +3156,8 @@ EffectEmitterDefinition Build_PreviewSourceHistoryRibbonEmitterDefinition(
         }
     }
 
-    if (const auto* sizeByLife = Internal::Find_ModuleData<SizeByLifeModuleData>(emitter, AuthoringModuleType::SizeByLife))
-        Internal::Fill_SizeByLifePayload(emitterDesc.sizeByLife, *sizeByLife);
+    if (const auto* sizeByLife = Find_ModuleData<SizeByLifeModuleData>(emitter, AuthoringModuleType::SizeByLife))
+        Fill_SizeByLifePayload(emitterDesc.sizeByLife, *sizeByLife);
 
     Apply_SourceGroupBudget(sourceGroups, emitterDesc);
     if (Find_EffectHistorySourceGroupBudget(
@@ -3165,7 +3165,7 @@ EffectEmitterDefinition Build_PreviewSourceHistoryRibbonEmitterDefinition(
             EffectHistorySourceGroupKind::SourcePointHistory,
             Resolve_SourcePointSourceGroupId(emitterDesc.sourceMode, emitterDesc.sourceEmitterId)) == nullptr)
     {
-        emitterDesc.maxSampleCount = Internal::Resolve_RibbonAutoHistoryCount(
+        emitterDesc.maxSampleCount = Resolve_RibbonAutoHistoryCount(
             emitterDesc.maxSampleCount,
             emitterDesc.sampleLifetime,
             emitterDesc.sampleSpacing,
@@ -3197,7 +3197,7 @@ EffectEmitterDefinition Build_PreviewSourceHistorySpriteTrailEmitterDefinition(
     definition.name = emitter.name;
     definition.kind = EffectEmitterKind::SourceHistorySpriteTrail;
     definition.enabled = emitter.enabled;
-    definition.renderLayerOverride = Internal::Resolve_EffectRenderLayerOverride(emitter.renderLayerOverride);
+    definition.renderLayerOverride = Resolve_EffectRenderLayerOverride(emitter.renderLayerOverride);
     definition.historyBudget = Build_HistoryBudgetUsage(emitter.historyBudget);
 
     ComputeSourceHistorySpriteTrailEmitterDesc emitterDesc{};
@@ -3233,15 +3233,15 @@ EffectEmitterDefinition Build_PreviewSourceHistorySpriteTrailEmitterDefinition(
     emitterDesc.flipV = policy.flipV;
     emitterDesc.rotationOffsetDegrees = policy.rotationOffsetDegrees;
     emitterDesc.spawnJitter = max(0.f, policy.spawnJitter);
-    if (const auto* required = Internal::Find_ModuleData<RequiredModuleData>(emitter, AuthoringModuleType::Required))
+    if (const auto* required = Find_ModuleData<RequiredModuleData>(emitter, AuthoringModuleType::Required))
     {
         EffectRuntime::Copy_EffectMaterialInstanceToRuntimeDesc(required->material, emitterDesc.material);
-        emitterDesc.spriteRender.screenAlignment = Internal::Resolve_EffectScreenAlignment(required->screenAlignment);
-        emitterDesc.spriteRender.directionalAlignmentMode = Internal::Resolve_EffectSpriteDirectionalAlignmentMode(required->directionalAlignmentMode);
-        emitterDesc.spriteRender.spriteTextureAxis = Internal::Resolve_EffectSpriteTextureAxis(required->spriteTextureAxis);
+        emitterDesc.spriteRender.screenAlignment = Resolve_EffectScreenAlignment(required->screenAlignment);
+        emitterDesc.spriteRender.directionalAlignmentMode = Resolve_EffectSpriteDirectionalAlignmentMode(required->directionalAlignmentMode);
+        emitterDesc.spriteRender.spriteTextureAxis = Resolve_EffectSpriteTextureAxis(required->spriteTextureAxis);
         emitterDesc.spriteRender.spriteRollOffsetDegrees = required->spriteRollOffsetDegrees;
 
-        emitterDesc.sort.sortPolicy = Internal::Resolve_EffectSortPolicy(required->sortPolicy);
+        emitterDesc.sort.sortPolicy = Resolve_EffectSortPolicy(required->sortPolicy);
         emitterDesc.sort.sortLayer = required->sortLayer;
         emitterDesc.sort.artistSortBias = required->sortBias;
 
@@ -3258,7 +3258,7 @@ EffectEmitterDefinition Build_PreviewSourceHistorySpriteTrailEmitterDefinition(
         definition.useLocalSpace = required->useLocalSpace;
     }
 
-    if (const auto* materialScalarModulation = Internal::Find_ModuleData<MaterialScalarModulationModuleData>(
+    if (const auto* materialScalarModulation = Find_ModuleData<MaterialScalarModulationModuleData>(
         emitter,
         AuthoringModuleType::MaterialScalarModulation
     ))
@@ -3271,30 +3271,30 @@ EffectEmitterDefinition Build_PreviewSourceHistorySpriteTrailEmitterDefinition(
             Build_MaterialVec2ModulationRuntimeDesc(*materialScalarModulation);
     }
 
-    if (const auto* initialSize = Internal::Find_ModuleData<InitialSizeModuleData>(emitter, AuthoringModuleType::InitialSize))
+    if (const auto* initialSize = Find_ModuleData<InitialSizeModuleData>(emitter, AuthoringModuleType::InitialSize))
     {
         emitterDesc.initialSize.enabled = true;
-        const Vec2 minSize = Internal::Evaluate_Vector2DistributionMin(initialSize->size, emitterDesc.initialSize.sizeMin);
-        const Vec2 maxSize = Internal::Evaluate_Vector2DistributionMax(initialSize->size, emitterDesc.initialSize.sizeMax);
+        const Vec2 minSize = Evaluate_Vector2DistributionMin(initialSize->size, emitterDesc.initialSize.sizeMin);
+        const Vec2 maxSize = Evaluate_Vector2DistributionMax(initialSize->size, emitterDesc.initialSize.sizeMax);
         emitterDesc.initialSize.sizeMin = Vec2{ min(minSize.x, maxSize.x), min(minSize.y, maxSize.y) };
         emitterDesc.initialSize.sizeMax = Vec2{ max(minSize.x, maxSize.x), max(minSize.y, maxSize.y) };
-        emitterDesc.initialSize.sizeSeed = Internal::Build_RandomSeedDesc(initialSize->size);
+        emitterDesc.initialSize.sizeSeed = Build_RandomSeedDesc(initialSize->size);
     }
 
-    if (const auto* lifetime = Internal::Find_ModuleData<LifetimeModuleData>(emitter, AuthoringModuleType::Lifetime))
+    if (const auto* lifetime = Find_ModuleData<LifetimeModuleData>(emitter, AuthoringModuleType::Lifetime))
     {
         emitterDesc.useLifetimeStampLifetime = true;
         emitterDesc.lifetime.lifeTime = Vec2{
-            Internal::Evaluate_FloatDistributionMin(lifetime->lifeTime, emitterDesc.lifetime.lifeTime.x),
-            Internal::Evaluate_FloatDistributionMax(lifetime->lifeTime, emitterDesc.lifetime.lifeTime.y)
+            Evaluate_FloatDistributionMin(lifetime->lifeTime, emitterDesc.lifetime.lifeTime.x),
+            Evaluate_FloatDistributionMax(lifetime->lifeTime, emitterDesc.lifetime.lifeTime.y)
         };
-        Internal::Fill_FloatCurvePayload(emitterDesc.lifetime.lifeTimeCurve, lifetime->lifeTime, emitterDesc.lifetime.lifeTime.y);
-        emitterDesc.lifetimeSeed = Internal::Build_RandomSeedDesc(lifetime->lifeTime);
+        Fill_FloatCurvePayload(emitterDesc.lifetime.lifeTimeCurve, lifetime->lifeTime, emitterDesc.lifetime.lifeTime.y);
+        emitterDesc.lifetimeSeed = Build_RandomSeedDesc(lifetime->lifeTime);
     }
 
-    if (const auto* initialColor = Internal::Find_ModuleData<InitialColorModuleData>(emitter, AuthoringModuleType::InitialColor))
+    if (const auto* initialColor = Find_ModuleData<InitialColorModuleData>(emitter, AuthoringModuleType::InitialColor))
     {
-        const Color minColor = Internal::Evaluate_ColorDistributionMin(
+        const Color minColor = Evaluate_ColorDistributionMin(
             initialColor->color,
             Color{
                 emitterDesc.initialColor.startColorMin.x,
@@ -3303,7 +3303,7 @@ EffectEmitterDefinition Build_PreviewSourceHistorySpriteTrailEmitterDefinition(
                 emitterDesc.initialColor.startColorMin.w
             }
         );
-        const Color maxColor = Internal::Evaluate_ColorDistributionMax(
+        const Color maxColor = Evaluate_ColorDistributionMax(
             initialColor->color,
             Color{
                 emitterDesc.initialColor.startColorMax.x,
@@ -3313,27 +3313,27 @@ EffectEmitterDefinition Build_PreviewSourceHistorySpriteTrailEmitterDefinition(
             }
         );
         const float minAlpha = clamp(
-            Internal::Evaluate_FloatDistributionMin(initialColor->alpha, emitterDesc.initialColor.startColorMin.w),
+            Evaluate_FloatDistributionMin(initialColor->alpha, emitterDesc.initialColor.startColorMin.w),
             0.f,
             1.f
         );
         const float maxAlpha = clamp(
-            Internal::Evaluate_FloatDistributionMax(initialColor->alpha, emitterDesc.initialColor.startColorMax.w),
+            Evaluate_FloatDistributionMax(initialColor->alpha, emitterDesc.initialColor.startColorMax.w),
             0.f,
             1.f
         );
 
         emitterDesc.initialColor.startColorMin = Vec4{ minColor.R(), minColor.G(), minColor.B(), minAlpha };
         emitterDesc.initialColor.startColorMax = Vec4{ maxColor.R(), maxColor.G(), maxColor.B(), maxAlpha };
-        emitterDesc.initialColor.colorSeed = Internal::Build_RandomSeedDesc(initialColor->color);
-        emitterDesc.initialColor.alphaSeed = Internal::Build_RandomSeedDesc(initialColor->alpha);
+        emitterDesc.initialColor.colorSeed = Build_RandomSeedDesc(initialColor->color);
+        emitterDesc.initialColor.alphaSeed = Build_RandomSeedDesc(initialColor->alpha);
         emitterDesc.colorOverLife.endColorMin = emitterDesc.initialColor.startColorMin;
         emitterDesc.colorOverLife.endColorMax = emitterDesc.initialColor.startColorMax;
     }
 
-    if (const auto* colorOverLife = Internal::Find_ModuleData<ColorOverLifeModuleData>(emitter, AuthoringModuleType::ColorOverLife))
+    if (const auto* colorOverLife = Find_ModuleData<ColorOverLifeModuleData>(emitter, AuthoringModuleType::ColorOverLife))
     {
-        const Color minEndColor = Internal::Evaluate_ColorOverLifeEndpointColorMin(
+        const Color minEndColor = Evaluate_ColorOverLifeEndpointColorMin(
             colorOverLife->colorOverLife,
             Color{
                 emitterDesc.colorOverLife.endColorMin.x,
@@ -3342,7 +3342,7 @@ EffectEmitterDefinition Build_PreviewSourceHistorySpriteTrailEmitterDefinition(
                 emitterDesc.colorOverLife.endColorMin.w
             }
         );
-        const Color maxEndColor = Internal::Evaluate_ColorOverLifeEndpointColorMax(
+        const Color maxEndColor = Evaluate_ColorOverLifeEndpointColorMax(
             colorOverLife->colorOverLife,
             Color{
                 emitterDesc.colorOverLife.endColorMax.x,
@@ -3352,24 +3352,24 @@ EffectEmitterDefinition Build_PreviewSourceHistorySpriteTrailEmitterDefinition(
             }
         );
         const float minEndAlpha = clamp(
-            Internal::Evaluate_ColorOverLifeEndpointAlphaMin(colorOverLife->alphaOverLife, emitterDesc.colorOverLife.endColorMin.w),
+            Evaluate_ColorOverLifeEndpointAlphaMin(colorOverLife->alphaOverLife, emitterDesc.colorOverLife.endColorMin.w),
             0.f,
             1.f
         );
         const float maxEndAlpha = clamp(
-            Internal::Evaluate_ColorOverLifeEndpointAlphaMax(colorOverLife->alphaOverLife, emitterDesc.colorOverLife.endColorMax.w),
+            Evaluate_ColorOverLifeEndpointAlphaMax(colorOverLife->alphaOverLife, emitterDesc.colorOverLife.endColorMax.w),
             0.f,
             1.f
         );
 
         emitterDesc.colorOverLife.endColorMin = Vec4{ minEndColor.R(), minEndColor.G(), minEndColor.B(), minEndAlpha };
         emitterDesc.colorOverLife.endColorMax = Vec4{ maxEndColor.R(), maxEndColor.G(), maxEndColor.B(), maxEndAlpha };
-        emitterDesc.colorOverLife.colorSeed = Internal::Build_RandomSeedDesc(colorOverLife->colorOverLife);
-        emitterDesc.colorOverLife.alphaSeed = Internal::Build_RandomSeedDesc(colorOverLife->alphaOverLife);
-        Internal::Fill_ColorOverLifeCurvePayload(emitterDesc.colorOverLife.curve, *colorOverLife);
+        emitterDesc.colorOverLife.colorSeed = Build_RandomSeedDesc(colorOverLife->colorOverLife);
+        emitterDesc.colorOverLife.alphaSeed = Build_RandomSeedDesc(colorOverLife->alphaOverLife);
+        Fill_ColorOverLifeCurvePayload(emitterDesc.colorOverLife.curve, *colorOverLife);
     }
 
-    if (const auto* subUvFrameOverLife = Internal::Find_ModuleData<SubUVFrameOverLifeModuleData>(emitter, AuthoringModuleType::SubUVFrameOverLife))
+    if (const auto* subUvFrameOverLife = Find_ModuleData<SubUVFrameOverLifeModuleData>(emitter, AuthoringModuleType::SubUVFrameOverLife))
     {
         emitterDesc.subUVFrameOverLife.enabled = true;
         emitterDesc.subUVFrameOverLife.startFrame = subUvFrameOverLife->startFrame;
@@ -3378,13 +3378,13 @@ EffectEmitterDefinition Build_PreviewSourceHistorySpriteTrailEmitterDefinition(
         emitterDesc.subUVFrameOverLife.playbackMode = subUvFrameOverLife->playbackMode;
         emitterDesc.subUVFrameOverLife.framesPerSecond = max(0.f, subUvFrameOverLife->framesPerSecond);
         emitterDesc.subUVFrameOverLife.randomStartPhase = subUvFrameOverLife->randomStartPhase;
-        Internal::Fill_SubUVFrameCurvePayload(emitterDesc.subUVFrameOverLife, subUvFrameOverLife->frameIndex);
+        Fill_SubUVFrameCurvePayload(emitterDesc.subUVFrameOverLife, subUvFrameOverLife->frameIndex);
         if (subUvFrameOverLife->playbackMode == SubUVFramePlaybackMode::RandomFrame || subUvFrameOverLife->randomStartPhase)
-            emitterDesc.subUVRandomFrameSeed = Internal::Build_RandomSeedDesc(subUvFrameOverLife->randomSeed);
+            emitterDesc.subUVRandomFrameSeed = Build_RandomSeedDesc(subUvFrameOverLife->randomSeed);
 
-        if (const auto* required = Internal::Find_ModuleData<RequiredModuleData>(emitter, AuthoringModuleType::Required))
+        if (const auto* required = Find_ModuleData<RequiredModuleData>(emitter, AuthoringModuleType::Required))
         {
-            const uint32 frameCount = Internal::Resolve_SubUVFrameCount(*required);
+            const uint32 frameCount = Resolve_SubUVFrameCount(*required);
             const uint32 lastFrame = frameCount > 0 ? frameCount - 1 : 0;
             emitterDesc.subUVFrameOverLife.startFrame = min(emitterDesc.subUVFrameOverLife.startFrame, lastFrame);
             emitterDesc.subUVFrameOverLife.endFrame = min(emitterDesc.subUVFrameOverLife.endFrame, lastFrame);
@@ -3394,16 +3394,16 @@ EffectEmitterDefinition Build_PreviewSourceHistorySpriteTrailEmitterDefinition(
         }
     }
 
-    if (const auto* sizeByLife = Internal::Find_ModuleData<SizeByLifeModuleData>(emitter, AuthoringModuleType::SizeByLife))
-        Internal::Fill_SizeByLifePayload(emitterDesc.sizeByLife, *sizeByLife);
+    if (const auto* sizeByLife = Find_ModuleData<SizeByLifeModuleData>(emitter, AuthoringModuleType::SizeByLife))
+        Fill_SizeByLifePayload(emitterDesc.sizeByLife, *sizeByLife);
 
-    Internal::Fill_SpriteTiltPayload(
+    Fill_SpriteTiltPayload(
         emitterDesc.spriteTilt,
-        Internal::Find_ModuleData<SpriteTiltModuleData>(emitter, AuthoringModuleType::SpriteTilt),
-        Internal::Find_ModuleData<SpriteTiltOverLifeModuleData>(emitter, AuthoringModuleType::SpriteTiltOverLife)
+        Find_ModuleData<SpriteTiltModuleData>(emitter, AuthoringModuleType::SpriteTilt),
+        Find_ModuleData<SpriteTiltOverLifeModuleData>(emitter, AuthoringModuleType::SpriteTiltOverLife)
     );
 
-    const auto* pathReplay = Internal::Find_ModuleData<SourceHistorySpriteTrailPathReplayModuleData>(
+    const auto* pathReplay = Find_ModuleData<SourceHistorySpriteTrailPathReplayModuleData>(
         emitter,
         AuthoringModuleType::SourceHistorySpriteTrailPathReplay
     );
@@ -3412,50 +3412,50 @@ EffectEmitterDefinition Build_PreviewSourceHistorySpriteTrailEmitterDefinition(
     {
         emitterDesc.pathReplay.enabled = true;
         emitterDesc.pathReplay.delayTime = max(0.f, pathReplay->delayTime);
-        emitterDesc.pathReplay.replayMode = Internal::Resolve_SourceHistorySpriteTrailPathReplayMode(pathReplay->replayMode);
+        emitterDesc.pathReplay.replayMode = Resolve_SourceHistorySpriteTrailPathReplayMode(pathReplay->replayMode);
         emitterDesc.pathReplay.speedScale = max(0.f, pathReplay->speedScale);
         emitterDesc.pathReplay.drainDuration = max(0.0001f, pathReplay->drainDuration);
-        Internal::Fill_FloatCurvePayload(emitterDesc.pathReplay.drainCurve, pathReplay->drainCurve, 1.f);
-        emitterDesc.pathReplay.startMode = Internal::Resolve_SourceHistorySpriteTrailPathReplayStartMode(pathReplay->startMode);
-        emitterDesc.pathReplay.arrivalMode = Internal::Resolve_SourceHistorySpriteTrailArrivalMode(pathReplay->arrivalMode);
+        Fill_FloatCurvePayload(emitterDesc.pathReplay.drainCurve, pathReplay->drainCurve, 1.f);
+        emitterDesc.pathReplay.startMode = Resolve_SourceHistorySpriteTrailPathReplayStartMode(pathReplay->startMode);
+        emitterDesc.pathReplay.arrivalMode = Resolve_SourceHistorySpriteTrailArrivalMode(pathReplay->arrivalMode);
     }
 
     if (nullptr == pathReplay)
     {
-        if (const auto* pathFollow = Internal::Find_ModuleData<SourceHistorySpriteTrailPathFollowModuleData>(
+        if (const auto* pathFollow = Find_ModuleData<SourceHistorySpriteTrailPathFollowModuleData>(
             emitter,
             AuthoringModuleType::SourceHistorySpriteTrailPathFollow
         ))
         {
             emitterDesc.pathFollow.enabled = true;
-            emitterDesc.pathFollow.direction = Internal::Resolve_SourceHistorySpriteTrailPathFollowDirection(pathFollow->direction);
+            emitterDesc.pathFollow.direction = Resolve_SourceHistorySpriteTrailPathFollowDirection(pathFollow->direction);
             emitterDesc.pathFollow.speed = Vec2{
-                max(0.f, Internal::Evaluate_FloatDistributionMin(pathFollow->speed, emitterDesc.pathFollow.speed.x)),
-                max(0.f, Internal::Evaluate_FloatDistributionMax(pathFollow->speed, emitterDesc.pathFollow.speed.y))
+                max(0.f, Evaluate_FloatDistributionMin(pathFollow->speed, emitterDesc.pathFollow.speed.x)),
+                max(0.f, Evaluate_FloatDistributionMax(pathFollow->speed, emitterDesc.pathFollow.speed.y))
             };
-            emitterDesc.pathFollow.speedSeed = Internal::Build_RandomSeedDesc(pathFollow->speed);
+            emitterDesc.pathFollow.speedSeed = Build_RandomSeedDesc(pathFollow->speed);
             emitterDesc.pathFollow.startDelay = Vec2{
-                max(0.f, Internal::Evaluate_FloatDistributionMin(pathFollow->startDelay, emitterDesc.pathFollow.startDelay.x)),
-                max(0.f, Internal::Evaluate_FloatDistributionMax(pathFollow->startDelay, emitterDesc.pathFollow.startDelay.y))
+                max(0.f, Evaluate_FloatDistributionMin(pathFollow->startDelay, emitterDesc.pathFollow.startDelay.x)),
+                max(0.f, Evaluate_FloatDistributionMax(pathFollow->startDelay, emitterDesc.pathFollow.startDelay.y))
             };
-            emitterDesc.pathFollow.startDelaySeed = Internal::Build_RandomSeedDesc(pathFollow->startDelay);
-            emitterDesc.pathFollow.arrivalMode = Internal::Resolve_SourceHistorySpriteTrailArrivalMode(pathFollow->arrivalMode);
+            emitterDesc.pathFollow.startDelaySeed = Build_RandomSeedDesc(pathFollow->startDelay);
+            emitterDesc.pathFollow.arrivalMode = Resolve_SourceHistorySpriteTrailArrivalMode(pathFollow->arrivalMode);
         }
     }
 
-    if (const auto* initialVelocity = Internal::Find_ModuleData<InitialVelocityModuleData>(emitter, AuthoringModuleType::InitialVelocity))
+    if (const auto* initialVelocity = Find_ModuleData<InitialVelocityModuleData>(emitter, AuthoringModuleType::InitialVelocity))
     {
         emitterDesc.motion.enabled = true;
         emitterDesc.motion.initialVelocityEnabled = true;
         emitterDesc.motion.initialVelocityInWorldSpace = initialVelocity->inWorldSpace;
         emitterDesc.motion.initialVelocityMin =
-            Internal::Evaluate_Vector3DistributionMin(initialVelocity->velocity, emitterDesc.motion.initialVelocityMin);
+            Evaluate_Vector3DistributionMin(initialVelocity->velocity, emitterDesc.motion.initialVelocityMin);
         emitterDesc.motion.initialVelocityMax =
-            Internal::Evaluate_Vector3DistributionMax(initialVelocity->velocity, emitterDesc.motion.initialVelocityMax);
-        emitterDesc.motion.initialVelocitySeed = Internal::Build_RandomSeedDesc(initialVelocity->velocity);
+            Evaluate_Vector3DistributionMax(initialVelocity->velocity, emitterDesc.motion.initialVelocityMax);
+        emitterDesc.motion.initialVelocitySeed = Build_RandomSeedDesc(initialVelocity->velocity);
     }
 
-    if (const auto* initialRadialVelocity = Internal::Find_ModuleData<InitialRadialVelocityModuleData>(
+    if (const auto* initialRadialVelocity = Find_ModuleData<InitialRadialVelocityModuleData>(
         emitter,
         AuthoringModuleType::InitialRadialVelocity
     ))
@@ -3465,82 +3465,82 @@ EffectEmitterDefinition Build_PreviewSourceHistorySpriteTrailEmitterDefinition(
         emitterDesc.motion.initialRadialVelocityInWorldSpace = initialRadialVelocity->inWorldSpace;
         emitterDesc.motion.radialPivot = initialRadialVelocity->radialPivot;
         emitterDesc.motion.initialRadialVelocityCenterDirectionMode =
-            Internal::Resolve_PointParticleInitialRadialVelocityCenterDirectionMode(initialRadialVelocity->centerDirectionMode);
+            Resolve_PointParticleInitialRadialVelocityCenterDirectionMode(initialRadialVelocity->centerDirectionMode);
         emitterDesc.motion.radialSpeed = Vec2{
-            Internal::Evaluate_FloatDistributionMin(initialRadialVelocity->speed, emitterDesc.motion.radialSpeed.x),
-            Internal::Evaluate_FloatDistributionMax(initialRadialVelocity->speed, emitterDesc.motion.radialSpeed.y)
+            Evaluate_FloatDistributionMin(initialRadialVelocity->speed, emitterDesc.motion.radialSpeed.x),
+            Evaluate_FloatDistributionMax(initialRadialVelocity->speed, emitterDesc.motion.radialSpeed.y)
         };
-        emitterDesc.motion.initialRadialVelocitySeed = Internal::Build_RandomSeedDesc(initialRadialVelocity->speed);
+        emitterDesc.motion.initialRadialVelocitySeed = Build_RandomSeedDesc(initialRadialVelocity->speed);
     }
 
-    if (const auto* velocityCone = Internal::Find_ModuleData<VelocityConeModuleData>(emitter, AuthoringModuleType::VelocityCone))
+    if (const auto* velocityCone = Find_ModuleData<VelocityConeModuleData>(emitter, AuthoringModuleType::VelocityCone))
     {
-        Internal::Fill_VelocityConePayload(emitterDesc.motion, *velocityCone);
-        emitterDesc.motion.velocityConeSeed = Internal::Build_RandomSeedDesc(velocityCone->speed);
+        Fill_VelocityConePayload(emitterDesc.motion, *velocityCone);
+        emitterDesc.motion.velocityConeSeed = Build_RandomSeedDesc(velocityCone->speed);
     }
 
-    if (const auto* sourceMotionVelocity = Internal::Find_ModuleData<SourceMotionVelocityModuleData>(
+    if (const auto* sourceMotionVelocity = Find_ModuleData<SourceMotionVelocityModuleData>(
         emitter,
         AuthoringModuleType::SourceMotionVelocity
     ))
-        Internal::Fill_SourceMotionVelocityPayload(emitterDesc.motion, *sourceMotionVelocity);
+        Fill_SourceMotionVelocityPayload(emitterDesc.motion, *sourceMotionVelocity);
 
-    if (const auto* acceleration = Internal::Find_ModuleData<AccelerationModuleData>(emitter, AuthoringModuleType::Acceleration))
+    if (const auto* acceleration = Find_ModuleData<AccelerationModuleData>(emitter, AuthoringModuleType::Acceleration))
     {
         emitterDesc.motion.enabled = true;
         emitterDesc.motion.accelerationInWorldSpace = acceleration->inWorldSpace;
-        emitterDesc.motion.accelerationTimeBasis = Internal::To_RuntimeAccelerationTimeBasis(acceleration->timeBasis);
-        emitterDesc.motion.accelerationMin = Internal::Evaluate_Vector3DistributionMin(acceleration->acceleration, emitterDesc.motion.accelerationMin);
-        emitterDesc.motion.accelerationMax = Internal::Evaluate_Vector3DistributionMax(acceleration->acceleration, emitterDesc.motion.accelerationMax);
-        Internal::Fill_AccelerationCurvePayload(emitterDesc.motion, acceleration->acceleration);
-        emitterDesc.motion.accelerationSeed = Internal::Build_RandomSeedDesc(acceleration->acceleration);
+        emitterDesc.motion.accelerationTimeBasis = To_RuntimeAccelerationTimeBasis(acceleration->timeBasis);
+        emitterDesc.motion.accelerationMin = Evaluate_Vector3DistributionMin(acceleration->acceleration, emitterDesc.motion.accelerationMin);
+        emitterDesc.motion.accelerationMax = Evaluate_Vector3DistributionMax(acceleration->acceleration, emitterDesc.motion.accelerationMax);
+        Fill_AccelerationCurvePayload(emitterDesc.motion, acceleration->acceleration);
+        emitterDesc.motion.accelerationSeed = Build_RandomSeedDesc(acceleration->acceleration);
     }
 
-    if (const auto* drag = Internal::Find_ModuleData<DragModuleData>(emitter, AuthoringModuleType::Drag))
+    if (const auto* drag = Find_ModuleData<DragModuleData>(emitter, AuthoringModuleType::Drag))
     {
         emitterDesc.motion.enabled = true;
         emitterDesc.motion.drag = Vec2{
-            max(0.f, Internal::Evaluate_FloatDistributionMin(drag->drag, emitterDesc.motion.drag.x)),
-            max(0.f, Internal::Evaluate_FloatDistributionMax(drag->drag, emitterDesc.motion.drag.y))
+            max(0.f, Evaluate_FloatDistributionMin(drag->drag, emitterDesc.motion.drag.x)),
+            max(0.f, Evaluate_FloatDistributionMax(drag->drag, emitterDesc.motion.drag.y))
         };
-        emitterDesc.motion.dragSeed = Internal::Build_RandomSeedDesc(drag->drag);
+        emitterDesc.motion.dragSeed = Build_RandomSeedDesc(drag->drag);
     }
 
-    Internal::Apply_VelocityOverLifeOwnership(emitterDesc.motion, emitter);
+    Apply_VelocityOverLifeOwnership(emitterDesc.motion, emitter);
 
-    if (const auto* initialRotation = Internal::Find_ModuleData<InitialRotationModuleData>(emitter, AuthoringModuleType::InitialRotation))
+    if (const auto* initialRotation = Find_ModuleData<InitialRotationModuleData>(emitter, AuthoringModuleType::InitialRotation))
     {
         emitterDesc.rotation.enabled = true;
         emitterDesc.rotation.initialRotationDegrees = Vec2{
-            Internal::Evaluate_FloatDistributionMin(initialRotation->rotationDegrees, emitterDesc.rotation.initialRotationDegrees.x),
-            Internal::Evaluate_FloatDistributionMax(initialRotation->rotationDegrees, emitterDesc.rotation.initialRotationDegrees.y)
+            Evaluate_FloatDistributionMin(initialRotation->rotationDegrees, emitterDesc.rotation.initialRotationDegrees.x),
+            Evaluate_FloatDistributionMax(initialRotation->rotationDegrees, emitterDesc.rotation.initialRotationDegrees.y)
         };
-        emitterDesc.rotation.initialRotationSeed = Internal::Build_RandomSeedDesc(initialRotation->rotationDegrees);
+        emitterDesc.rotation.initialRotationSeed = Build_RandomSeedDesc(initialRotation->rotationDegrees);
     }
 
-    if (const auto* rotationOverLife = Internal::Find_ModuleData<RotationOverLifeModuleData>(emitter, AuthoringModuleType::RotationOverLife))
+    if (const auto* rotationOverLife = Find_ModuleData<RotationOverLifeModuleData>(emitter, AuthoringModuleType::RotationOverLife))
     {
         emitterDesc.rotation.enabled = true;
-        Internal::Fill_RotationOverLifePayload(emitterDesc.rotation, *rotationOverLife);
+        Fill_RotationOverLifePayload(emitterDesc.rotation, *rotationOverLife);
     }
 
-    if (const auto* initialRotationRate = Internal::Find_ModuleData<InitialRotationRateModuleData>(emitter, AuthoringModuleType::InitialRotationRate))
+    if (const auto* initialRotationRate = Find_ModuleData<InitialRotationRateModuleData>(emitter, AuthoringModuleType::InitialRotationRate))
     {
         emitterDesc.rotation.enabled = true;
         emitterDesc.rotation.initialRotationRateDegrees = Vec2{
-            Internal::Evaluate_FloatDistributionMin(initialRotationRate->rotationRateDegrees, emitterDesc.rotation.initialRotationRateDegrees.x),
-            Internal::Evaluate_FloatDistributionMax(initialRotationRate->rotationRateDegrees, emitterDesc.rotation.initialRotationRateDegrees.y)
+            Evaluate_FloatDistributionMin(initialRotationRate->rotationRateDegrees, emitterDesc.rotation.initialRotationRateDegrees.x),
+            Evaluate_FloatDistributionMax(initialRotationRate->rotationRateDegrees, emitterDesc.rotation.initialRotationRateDegrees.y)
         };
-        emitterDesc.rotation.initialRotationRateSeed = Internal::Build_RandomSeedDesc(initialRotationRate->rotationRateDegrees);
+        emitterDesc.rotation.initialRotationRateSeed = Build_RandomSeedDesc(initialRotationRate->rotationRateDegrees);
     }
 
-    if (const auto* rotationRateScaleByLife = Internal::Find_ModuleData<RotationRateScaleByLifeModuleData>(
+    if (const auto* rotationRateScaleByLife = Find_ModuleData<RotationRateScaleByLifeModuleData>(
         emitter,
         AuthoringModuleType::RotationRateScaleByLife
     ))
     {
         emitterDesc.rotation.enabled = true;
-        Internal::Fill_RotationRateScaleByLifePayload(emitterDesc.rotation, *rotationRateScaleByLife);
+        Fill_RotationRateScaleByLifePayload(emitterDesc.rotation, *rotationRateScaleByLife);
     }
 
     Apply_SourceGroupBudget(sourceGroups, emitterDesc);
@@ -3567,7 +3567,7 @@ EffectEmitterDefinition Build_PreviewBeamEmitterDefinition(const AuthoringEmitte
     definition.name = emitter.name;
     definition.kind = EffectEmitterKind::Beam;
     definition.enabled = emitter.enabled;
-    definition.renderLayerOverride = Internal::Resolve_EffectRenderLayerOverride(emitter.renderLayerOverride);
+    definition.renderLayerOverride = Resolve_EffectRenderLayerOverride(emitter.renderLayerOverride);
 
     ComputeBeamEmitterDesc emitterDesc{};
     emitterDesc.renderLayerOverride = definition.renderLayerOverride;
@@ -3629,10 +3629,10 @@ EffectEmitterDefinition Build_PreviewBeamEmitterDefinition(const AuthoringEmitte
     emitterDesc.baseWidth = max(0.001f, beamPolicy.baseWidth);
     emitterDesc.tilingDistance = max(0.f, beamPolicy.tilingDistance);
 
-    if (const auto* required = Internal::Find_ModuleData<RequiredModuleData>(emitter, AuthoringModuleType::Required))
+    if (const auto* required = Find_ModuleData<RequiredModuleData>(emitter, AuthoringModuleType::Required))
     {
         EffectRuntime::Copy_EffectMaterialInstanceToRuntimeDesc(required->material, emitterDesc.material);
-        emitterDesc.sort.sortPolicy = Internal::Resolve_EffectSortPolicy(required->sortPolicy);
+        emitterDesc.sort.sortPolicy = Resolve_EffectSortPolicy(required->sortPolicy);
         emitterDesc.sort.sortLayer = required->sortLayer;
         emitterDesc.sort.artistSortBias = required->sortBias;
         emitterDesc.playback.duration = max(0.0001f, required->duration);
@@ -3646,7 +3646,7 @@ EffectEmitterDefinition Build_PreviewBeamEmitterDefinition(const AuthoringEmitte
         definition.useLocalSpace = required->useLocalSpace;
     }
 
-    if (const auto* materialScalarModulation = Internal::Find_ModuleData<MaterialScalarModulationModuleData>(
+    if (const auto* materialScalarModulation = Find_ModuleData<MaterialScalarModulationModuleData>(
         emitter,
         AuthoringModuleType::MaterialScalarModulation
     ))
@@ -3659,34 +3659,34 @@ EffectEmitterDefinition Build_PreviewBeamEmitterDefinition(const AuthoringEmitte
             Build_MaterialVec2ModulationRuntimeDesc(*materialScalarModulation);
     }
 
-    if (const auto* lifetime = Internal::Find_ModuleData<LifetimeModuleData>(emitter, AuthoringModuleType::Lifetime))
+    if (const auto* lifetime = Find_ModuleData<LifetimeModuleData>(emitter, AuthoringModuleType::Lifetime))
     {
         emitterDesc.useLifetimeVisualLife = true;
         emitterDesc.lifetime.lifeTime = Vec2{
-            Internal::Evaluate_FloatDistributionMin(lifetime->lifeTime, emitterDesc.lifetime.lifeTime.x),
-            Internal::Evaluate_FloatDistributionMax(lifetime->lifeTime, emitterDesc.lifetime.lifeTime.y)
+            Evaluate_FloatDistributionMin(lifetime->lifeTime, emitterDesc.lifetime.lifeTime.x),
+            Evaluate_FloatDistributionMax(lifetime->lifeTime, emitterDesc.lifetime.lifeTime.y)
         };
-        Internal::Fill_FloatCurvePayload(emitterDesc.lifetime.lifeTimeCurve, lifetime->lifeTime, emitterDesc.lifetime.lifeTime.y);
-        emitterDesc.lifetimeSeed = Internal::Build_RandomSeedDesc(lifetime->lifeTime);
+        Fill_FloatCurvePayload(emitterDesc.lifetime.lifeTimeCurve, lifetime->lifeTime, emitterDesc.lifetime.lifeTime.y);
+        emitterDesc.lifetimeSeed = Build_RandomSeedDesc(lifetime->lifeTime);
     }
 
-    if (const auto* initialColor = Internal::Find_ModuleData<InitialColorModuleData>(emitter, AuthoringModuleType::InitialColor))
+    if (const auto* initialColor = Find_ModuleData<InitialColorModuleData>(emitter, AuthoringModuleType::InitialColor))
     {
-        const Color minColor = Internal::Evaluate_ColorDistributionMin(initialColor->color, Color{ 1.f, 1.f, 1.f, 1.f });
-        const Color maxColor = Internal::Evaluate_ColorDistributionMax(initialColor->color, Color{ 1.f, 1.f, 1.f, 1.f });
-        const float minAlpha = clamp(Internal::Evaluate_FloatDistributionMin(initialColor->alpha, 1.f), 0.f, 1.f);
-        const float maxAlpha = clamp(Internal::Evaluate_FloatDistributionMax(initialColor->alpha, 1.f), 0.f, 1.f);
+        const Color minColor = Evaluate_ColorDistributionMin(initialColor->color, Color{ 1.f, 1.f, 1.f, 1.f });
+        const Color maxColor = Evaluate_ColorDistributionMax(initialColor->color, Color{ 1.f, 1.f, 1.f, 1.f });
+        const float minAlpha = clamp(Evaluate_FloatDistributionMin(initialColor->alpha, 1.f), 0.f, 1.f);
+        const float maxAlpha = clamp(Evaluate_FloatDistributionMax(initialColor->alpha, 1.f), 0.f, 1.f);
         emitterDesc.initialColor.startColorMin = Vec4{ minColor.R(), minColor.G(), minColor.B(), minAlpha };
         emitterDesc.initialColor.startColorMax = Vec4{ maxColor.R(), maxColor.G(), maxColor.B(), maxAlpha };
-        emitterDesc.initialColor.colorSeed = Internal::Build_RandomSeedDesc(initialColor->color);
-        emitterDesc.initialColor.alphaSeed = Internal::Build_RandomSeedDesc(initialColor->alpha);
+        emitterDesc.initialColor.colorSeed = Build_RandomSeedDesc(initialColor->color);
+        emitterDesc.initialColor.alphaSeed = Build_RandomSeedDesc(initialColor->alpha);
         emitterDesc.colorOverLife.endColorMin = emitterDesc.initialColor.startColorMin;
         emitterDesc.colorOverLife.endColorMax = emitterDesc.initialColor.startColorMax;
     }
 
-    if (const auto* colorOverLife = Internal::Find_ModuleData<ColorOverLifeModuleData>(emitter, AuthoringModuleType::ColorOverLife))
+    if (const auto* colorOverLife = Find_ModuleData<ColorOverLifeModuleData>(emitter, AuthoringModuleType::ColorOverLife))
     {
-        const Color minEndColor = Internal::Evaluate_ColorOverLifeEndpointColorMin(
+        const Color minEndColor = Evaluate_ColorOverLifeEndpointColorMin(
             colorOverLife->colorOverLife,
             Color{
                 emitterDesc.colorOverLife.endColorMin.x,
@@ -3695,7 +3695,7 @@ EffectEmitterDefinition Build_PreviewBeamEmitterDefinition(const AuthoringEmitte
                 emitterDesc.colorOverLife.endColorMin.w
             }
         );
-        const Color maxEndColor = Internal::Evaluate_ColorOverLifeEndpointColorMax(
+        const Color maxEndColor = Evaluate_ColorOverLifeEndpointColorMax(
             colorOverLife->colorOverLife,
             Color{
                 emitterDesc.colorOverLife.endColorMax.x,
@@ -3705,24 +3705,24 @@ EffectEmitterDefinition Build_PreviewBeamEmitterDefinition(const AuthoringEmitte
             }
         );
         const float minEndAlpha = clamp(
-            Internal::Evaluate_ColorOverLifeEndpointAlphaMin(colorOverLife->alphaOverLife, emitterDesc.colorOverLife.endColorMin.w),
+            Evaluate_ColorOverLifeEndpointAlphaMin(colorOverLife->alphaOverLife, emitterDesc.colorOverLife.endColorMin.w),
             0.f,
             1.f
         );
         const float maxEndAlpha = clamp(
-            Internal::Evaluate_ColorOverLifeEndpointAlphaMax(colorOverLife->alphaOverLife, emitterDesc.colorOverLife.endColorMax.w),
+            Evaluate_ColorOverLifeEndpointAlphaMax(colorOverLife->alphaOverLife, emitterDesc.colorOverLife.endColorMax.w),
             0.f,
             1.f
         );
 
         emitterDesc.colorOverLife.endColorMin = Vec4{ minEndColor.R(), minEndColor.G(), minEndColor.B(), minEndAlpha };
         emitterDesc.colorOverLife.endColorMax = Vec4{ maxEndColor.R(), maxEndColor.G(), maxEndColor.B(), maxEndAlpha };
-        emitterDesc.colorOverLife.colorSeed = Internal::Build_RandomSeedDesc(colorOverLife->colorOverLife);
-        emitterDesc.colorOverLife.alphaSeed = Internal::Build_RandomSeedDesc(colorOverLife->alphaOverLife);
-        Internal::Fill_ColorOverLifeCurvePayload(emitterDesc.colorOverLife.curve, *colorOverLife);
+        emitterDesc.colorOverLife.colorSeed = Build_RandomSeedDesc(colorOverLife->colorOverLife);
+        emitterDesc.colorOverLife.alphaSeed = Build_RandomSeedDesc(colorOverLife->alphaOverLife);
+        Fill_ColorOverLifeCurvePayload(emitterDesc.colorOverLife.curve, *colorOverLife);
     }
 
-    if (const auto* subUvFrameOverLife = Internal::Find_ModuleData<SubUVFrameOverLifeModuleData>(emitter, AuthoringModuleType::SubUVFrameOverLife))
+    if (const auto* subUvFrameOverLife = Find_ModuleData<SubUVFrameOverLifeModuleData>(emitter, AuthoringModuleType::SubUVFrameOverLife))
     {
         emitterDesc.subUVFrameOverLife.enabled = true;
         emitterDesc.subUVFrameOverLife.startFrame = subUvFrameOverLife->startFrame;
@@ -3733,13 +3733,13 @@ EffectEmitterDefinition Build_PreviewBeamEmitterDefinition(const AuthoringEmitte
         const bool randomStartPhase = subUvFrameOverLife->randomStartPhase || subUvFrameOverLife->perStripSubUVVariation;
         emitterDesc.subUVFrameOverLife.randomStartPhase = randomStartPhase;
         emitterDesc.usePerStripSubUVVariation = randomStartPhase;
-        Internal::Fill_SubUVFrameCurvePayload(emitterDesc.subUVFrameOverLife, subUvFrameOverLife->frameIndex);
+        Fill_SubUVFrameCurvePayload(emitterDesc.subUVFrameOverLife, subUvFrameOverLife->frameIndex);
         if (subUvFrameOverLife->playbackMode == SubUVFramePlaybackMode::RandomFrame || randomStartPhase)
-            emitterDesc.subUVRandomFrameSeed = Internal::Build_RandomSeedDesc(subUvFrameOverLife->randomSeed);
+            emitterDesc.subUVRandomFrameSeed = Build_RandomSeedDesc(subUvFrameOverLife->randomSeed);
 
-        if (const auto* required = Internal::Find_ModuleData<RequiredModuleData>(emitter, AuthoringModuleType::Required))
+        if (const auto* required = Find_ModuleData<RequiredModuleData>(emitter, AuthoringModuleType::Required))
         {
-            const uint32 frameCount = Internal::Resolve_SubUVFrameCount(*required);
+            const uint32 frameCount = Resolve_SubUVFrameCount(*required);
             const uint32 lastFrame = frameCount > 0 ? frameCount - 1 : 0;
             emitterDesc.subUVFrameOverLife.startFrame = min(emitterDesc.subUVFrameOverLife.startFrame, lastFrame);
             emitterDesc.subUVFrameOverLife.endFrame = min(emitterDesc.subUVFrameOverLife.endFrame, lastFrame);
@@ -3749,11 +3749,11 @@ EffectEmitterDefinition Build_PreviewBeamEmitterDefinition(const AuthoringEmitte
         }
     }
 
-    if (const auto* sizeByLife = Internal::Find_ModuleData<SizeByLifeModuleData>(emitter, AuthoringModuleType::SizeByLife))
-        Internal::Fill_SizeByLifePayload(emitterDesc.sizeByLife, *sizeByLife);
+    if (const auto* sizeByLife = Find_ModuleData<SizeByLifeModuleData>(emitter, AuthoringModuleType::SizeByLife))
+        Fill_SizeByLifePayload(emitterDesc.sizeByLife, *sizeByLife);
 
-    if (const auto* beamEnvelope = Internal::Find_ModuleData<BeamEnvelopeOverLifeModuleData>(emitter, AuthoringModuleType::BeamEnvelopeOverLife))
-        Internal::Fill_BeamEnvelopeOverLifePayload(emitterDesc.beamEnvelopeOverLife, *beamEnvelope);
+    if (const auto* beamEnvelope = Find_ModuleData<BeamEnvelopeOverLifeModuleData>(emitter, AuthoringModuleType::BeamEnvelopeOverLife))
+        Fill_BeamEnvelopeOverLifePayload(emitterDesc.beamEnvelopeOverLife, *beamEnvelope);
 
     definition.concreteDesc = emitterDesc;
     return definition;
@@ -3766,7 +3766,7 @@ EffectEmitterDefinition Build_PreviewMeshEmitterDefinition(const AuthoringEmitte
     definition.name = emitter.name;
     definition.kind = EffectEmitterKind::Mesh;
     definition.enabled = emitter.enabled;
-    definition.renderLayerOverride = Internal::Resolve_EffectRenderLayerOverride(emitter.renderLayerOverride);
+    definition.renderLayerOverride = Resolve_EffectRenderLayerOverride(emitter.renderLayerOverride);
 
     MeshEmitterDesc emitterDesc{};
     emitterDesc.renderLayerOverride = definition.renderLayerOverride;
@@ -3779,7 +3779,7 @@ EffectEmitterDefinition Build_PreviewMeshEmitterDefinition(const AuthoringEmitte
         emitterDesc.useModelMaterials = meshData->useModelMaterials;
     }
 
-    const auto* required = Internal::Find_ModuleData<RequiredModuleData>(emitter, AuthoringModuleType::Required);
+    const auto* required = Find_ModuleData<RequiredModuleData>(emitter, AuthoringModuleType::Required);
     if (nullptr != required)
     {
         EffectRuntime::Copy_EffectMaterialInstanceToRuntimeDesc(required->material, emitterDesc.material);
@@ -3793,8 +3793,8 @@ EffectEmitterDefinition Build_PreviewMeshEmitterDefinition(const AuthoringEmitte
 
         emitterDesc.drawLimit.useMaxDrawCount = required->useMaxDrawCount;
         emitterDesc.drawLimit.maxDrawCount = max(1u, required->maxDrawCount);
-        emitterDesc.meshTransform.alignment = Internal::Resolve_EffectScreenAlignment(required->screenAlignment);
-        emitterDesc.sort.sortPolicy = Internal::Resolve_EffectSortPolicy(required->sortPolicy);
+        emitterDesc.meshTransform.alignment = Resolve_EffectScreenAlignment(required->screenAlignment);
+        emitterDesc.sort.sortPolicy = Resolve_EffectSortPolicy(required->sortPolicy);
         emitterDesc.sort.sortLayer = required->sortLayer;
         emitterDesc.sort.artistSortBias = required->sortBias;
 
@@ -3803,7 +3803,7 @@ EffectEmitterDefinition Build_PreviewMeshEmitterDefinition(const AuthoringEmitte
         definition.useLocalSpace = required->useLocalSpace;
     }
 
-    if (const auto* materialScalarModulation = Internal::Find_ModuleData<MaterialScalarModulationModuleData>(
+    if (const auto* materialScalarModulation = Find_ModuleData<MaterialScalarModulationModuleData>(
         emitter,
         AuthoringModuleType::MaterialScalarModulation
     ))
@@ -3822,7 +3822,7 @@ EffectEmitterDefinition Build_PreviewMeshEmitterDefinition(const AuthoringEmitte
             EffectRuntime::Copy_EffectMaterialInstanceToRuntimeDesc(meshData->assignedMaterial, emitterDesc.material);
         else
         {
-            const fs::path assignedMaterialPath = Internal::Resolve_AuthoredAssetPath(
+            const fs::path assignedMaterialPath = Resolve_AuthoredAssetPath(
                 meshData->assignedEffectMaterialGuid,
                 meshData->assignedEffectMaterialPath
             );
@@ -3838,32 +3838,32 @@ EffectEmitterDefinition Build_PreviewMeshEmitterDefinition(const AuthoringEmitte
         emitterDesc.material.alphaCutoff = required->material.alphaCutoff;
     }
 
-    if (const auto* spawn = Internal::Find_ModuleData<SpawnModuleData>(emitter, AuthoringModuleType::Spawn))
+    if (const auto* spawn = Find_ModuleData<SpawnModuleData>(emitter, AuthoringModuleType::Spawn))
     {
         emitterDesc.spawn.instanceCount = max(1u, spawn->maxParticleCount);
         emitterDesc.spawn.particleSpawn.processSpawnRate = spawn->processSpawnRate;
         emitterDesc.spawn.particleSpawn.spawnRateRange = Vec2{
-            max(0.f, Internal::Evaluate_FloatDistributionMin(spawn->spawnRate, emitterDesc.spawn.particleSpawn.spawnRate)),
-            max(0.f, Internal::Evaluate_FloatDistributionMax(spawn->spawnRate, emitterDesc.spawn.particleSpawn.spawnRate))
+            max(0.f, Evaluate_FloatDistributionMin(spawn->spawnRate, emitterDesc.spawn.particleSpawn.spawnRate)),
+            max(0.f, Evaluate_FloatDistributionMax(spawn->spawnRate, emitterDesc.spawn.particleSpawn.spawnRate))
         };
         emitterDesc.spawn.particleSpawn.spawnRate = emitterDesc.spawn.particleSpawn.spawnRateRange.y;
-        emitterDesc.spawn.particleSpawn.spawnRateSeed = Internal::Build_RandomSeedDesc(spawn->spawnRate);
-        Internal::Fill_FloatCurvePayload(emitterDesc.spawn.particleSpawn.spawnRateCurve, spawn->spawnRate, emitterDesc.spawn.particleSpawn.spawnRate);
+        emitterDesc.spawn.particleSpawn.spawnRateSeed = Build_RandomSeedDesc(spawn->spawnRate);
+        Fill_FloatCurvePayload(emitterDesc.spawn.particleSpawn.spawnRateCurve, spawn->spawnRate, emitterDesc.spawn.particleSpawn.spawnRate);
         emitterDesc.spawn.particleSpawn.spawnRateScaleRange = Vec2{
-            max(0.f, Internal::Evaluate_FloatDistributionMin(spawn->spawnRateScale, emitterDesc.spawn.particleSpawn.spawnRateScale)),
-            max(0.f, Internal::Evaluate_FloatDistributionMax(spawn->spawnRateScale, emitterDesc.spawn.particleSpawn.spawnRateScale))
+            max(0.f, Evaluate_FloatDistributionMin(spawn->spawnRateScale, emitterDesc.spawn.particleSpawn.spawnRateScale)),
+            max(0.f, Evaluate_FloatDistributionMax(spawn->spawnRateScale, emitterDesc.spawn.particleSpawn.spawnRateScale))
         };
         emitterDesc.spawn.particleSpawn.spawnRateScale = emitterDesc.spawn.particleSpawn.spawnRateScaleRange.y;
-        emitterDesc.spawn.particleSpawn.spawnRateScaleSeed = Internal::Build_RandomSeedDesc(spawn->spawnRateScale);
-        Internal::Fill_FloatCurvePayload(emitterDesc.spawn.particleSpawn.spawnRateScaleCurve, spawn->spawnRateScale, emitterDesc.spawn.particleSpawn.spawnRateScale);
+        emitterDesc.spawn.particleSpawn.spawnRateScaleSeed = Build_RandomSeedDesc(spawn->spawnRateScale);
+        Fill_FloatCurvePayload(emitterDesc.spawn.particleSpawn.spawnRateScaleCurve, spawn->spawnRateScale, emitterDesc.spawn.particleSpawn.spawnRateScale);
         emitterDesc.spawn.particleSpawn.processBurstList = spawn->processBurstList;
         emitterDesc.spawn.particleSpawn.burstScaleRange = Vec2{
-            max(0.f, Internal::Evaluate_FloatDistributionMin(spawn->burstScale, emitterDesc.spawn.particleSpawn.burstScale)),
-            max(0.f, Internal::Evaluate_FloatDistributionMax(spawn->burstScale, emitterDesc.spawn.particleSpawn.burstScale))
+            max(0.f, Evaluate_FloatDistributionMin(spawn->burstScale, emitterDesc.spawn.particleSpawn.burstScale)),
+            max(0.f, Evaluate_FloatDistributionMax(spawn->burstScale, emitterDesc.spawn.particleSpawn.burstScale))
         };
         emitterDesc.spawn.particleSpawn.burstScale = emitterDesc.spawn.particleSpawn.burstScaleRange.y;
-        emitterDesc.spawn.particleSpawn.burstScaleSeed = Internal::Build_RandomSeedDesc(spawn->burstScale);
-        Internal::Fill_FloatCurvePayload(emitterDesc.spawn.particleSpawn.burstScaleCurve, spawn->burstScale, emitterDesc.spawn.particleSpawn.burstScale);
+        emitterDesc.spawn.particleSpawn.burstScaleSeed = Build_RandomSeedDesc(spawn->burstScale);
+        Fill_FloatCurvePayload(emitterDesc.spawn.particleSpawn.burstScaleCurve, spawn->burstScale, emitterDesc.spawn.particleSpawn.burstScale);
         emitterDesc.spawn.particleSpawn.maxActiveCount = emitterDesc.spawn.instanceCount;
         emitterDesc.spawn.particleSpawn.bursts.clear();
         emitterDesc.spawn.particleSpawn.bursts.reserve(spawn->burstList.size());
@@ -3879,11 +3879,11 @@ EffectEmitterDefinition Build_PreviewMeshEmitterDefinition(const AuthoringEmitte
         }
     }
 
-    if (const auto* initialMeshSize = Internal::Find_ModuleData<InitialMeshSizeModuleData>(emitter, AuthoringModuleType::InitialMeshSize))
+    if (const auto* initialMeshSize = Find_ModuleData<InitialMeshSizeModuleData>(emitter, AuthoringModuleType::InitialMeshSize))
     {
         emitterDesc.meshTransform.initialScaleEnabled = true;
-        const Vec3 meshMinSize = Internal::Evaluate_Vector3DistributionMin(initialMeshSize->size, emitterDesc.meshTransform.initialScaleMin);
-        const Vec3 meshMaxSize = Internal::Evaluate_Vector3DistributionMax(initialMeshSize->size, emitterDesc.meshTransform.initialScaleMax);
+        const Vec3 meshMinSize = Evaluate_Vector3DistributionMin(initialMeshSize->size, emitterDesc.meshTransform.initialScaleMin);
+        const Vec3 meshMaxSize = Evaluate_Vector3DistributionMax(initialMeshSize->size, emitterDesc.meshTransform.initialScaleMax);
         emitterDesc.meshTransform.initialScaleMin = Vec3{
             min(meshMinSize.x, meshMaxSize.x),
             min(meshMinSize.y, meshMaxSize.y),
@@ -3894,13 +3894,13 @@ EffectEmitterDefinition Build_PreviewMeshEmitterDefinition(const AuthoringEmitte
             max(meshMinSize.y, meshMaxSize.y),
             max(meshMinSize.z, meshMaxSize.z)
         };
-        emitterDesc.meshTransform.initialScaleSeed = Internal::Build_RandomSeedDesc(initialMeshSize->size);
+        emitterDesc.meshTransform.initialScaleSeed = Build_RandomSeedDesc(initialMeshSize->size);
     }
 
-    if (const auto* initialLocation = Internal::Find_ModuleData<InitialLocationModuleData>(emitter, AuthoringModuleType::InitialLocation))
+    if (const auto* initialLocation = Find_ModuleData<InitialLocationModuleData>(emitter, AuthoringModuleType::InitialLocation))
     {
-        const Vec3 minOffset = Internal::Evaluate_Vector3DistributionMin(initialLocation->location, emitterDesc.initialLocation.minOffset);
-        const Vec3 maxOffset = Internal::Evaluate_Vector3DistributionMax(initialLocation->location, emitterDesc.initialLocation.maxOffset);
+        const Vec3 minOffset = Evaluate_Vector3DistributionMin(initialLocation->location, emitterDesc.initialLocation.minOffset);
+        const Vec3 maxOffset = Evaluate_Vector3DistributionMax(initialLocation->location, emitterDesc.initialLocation.maxOffset);
         emitterDesc.initialLocation.enabled = true;
         emitterDesc.initialLocation.minOffset = Vec3{
             min(minOffset.x, maxOffset.x),
@@ -3912,10 +3912,10 @@ EffectEmitterDefinition Build_PreviewMeshEmitterDefinition(const AuthoringEmitte
             max(minOffset.y, maxOffset.y),
             max(minOffset.z, maxOffset.z)
         };
-        emitterDesc.initialLocationSeed = Internal::Build_RandomSeedDesc(initialLocation->location);
+        emitterDesc.initialLocationSeed = Build_RandomSeedDesc(initialLocation->location);
     }
 
-    if (const auto* sphereLocation = Internal::Find_ModuleData<SphereLocationModuleData>(emitter, AuthoringModuleType::SphereLocation))
+    if (const auto* sphereLocation = Find_ModuleData<SphereLocationModuleData>(emitter, AuthoringModuleType::SphereLocation))
     {
         emitterDesc.sphereLocation.enabled = true;
         emitterDesc.sphereLocation.offset = sphereLocation->offset;
@@ -3923,29 +3923,29 @@ EffectEmitterDefinition Build_PreviewMeshEmitterDefinition(const AuthoringEmitte
         emitterDesc.sphereLocation.mode = sphereLocation->spawnMode == SphereLocationSpawnMode::Surface
                                           ? PointParticleSphereLocationMode::Surface
                                           : PointParticleSphereLocationMode::Volume;
-        emitterDesc.sphereLocation.placementMode = Internal::Resolve_PointParticleSphereLocationPlacementMode(sphereLocation->placementMode);
-        emitterDesc.sphereLocationSeed = Internal::Build_RandomSeedDesc(sphereLocation->randomSeed);
+        emitterDesc.sphereLocation.placementMode = Resolve_PointParticleSphereLocationPlacementMode(sphereLocation->placementMode);
+        emitterDesc.sphereLocationSeed = Build_RandomSeedDesc(sphereLocation->randomSeed);
     }
 
-    if (const auto* planeRadialLocation = Internal::Find_ModuleData<PlaneRadialLocationModuleData>(emitter, AuthoringModuleType::PlaneRadialLocation))
-        emitterDesc.planeRadialLocation = Internal::Build_PointParticlePlaneRadialLocationDesc(*planeRadialLocation);
+    if (const auto* planeRadialLocation = Find_ModuleData<PlaneRadialLocationModuleData>(emitter, AuthoringModuleType::PlaneRadialLocation))
+        emitterDesc.planeRadialLocation = Build_PointParticlePlaneRadialLocationDesc(*planeRadialLocation);
 
-    if (const auto* cylinderLocation = Internal::Find_ModuleData<CylinderLocationModuleData>(emitter, AuthoringModuleType::CylinderLocation))
-        emitterDesc.cylinderLocation = Internal::Build_PointParticleCylinderLocationDesc(*cylinderLocation);
+    if (const auto* cylinderLocation = Find_ModuleData<CylinderLocationModuleData>(emitter, AuthoringModuleType::CylinderLocation))
+        emitterDesc.cylinderLocation = Build_PointParticleCylinderLocationDesc(*cylinderLocation);
 
-    if (const auto* lifetime = Internal::Find_ModuleData<LifetimeModuleData>(emitter, AuthoringModuleType::Lifetime))
+    if (const auto* lifetime = Find_ModuleData<LifetimeModuleData>(emitter, AuthoringModuleType::Lifetime))
     {
         emitterDesc.lifetime.lifeTime = Vec2{
-            Internal::Evaluate_FloatDistributionMin(lifetime->lifeTime, emitterDesc.lifetime.lifeTime.x),
-            Internal::Evaluate_FloatDistributionMax(lifetime->lifeTime, emitterDesc.lifetime.lifeTime.y)
+            Evaluate_FloatDistributionMin(lifetime->lifeTime, emitterDesc.lifetime.lifeTime.x),
+            Evaluate_FloatDistributionMax(lifetime->lifeTime, emitterDesc.lifetime.lifeTime.y)
         };
-        Internal::Fill_FloatCurvePayload(emitterDesc.lifetime.lifeTimeCurve, lifetime->lifeTime, emitterDesc.lifetime.lifeTime.y);
-        emitterDesc.lifetimeSeed = Internal::Build_RandomSeedDesc(lifetime->lifeTime);
+        Fill_FloatCurvePayload(emitterDesc.lifetime.lifeTimeCurve, lifetime->lifeTime, emitterDesc.lifetime.lifeTime.y);
+        emitterDesc.lifetimeSeed = Build_RandomSeedDesc(lifetime->lifeTime);
     }
 
-    if (const auto* initialColor = Internal::Find_ModuleData<InitialColorModuleData>(emitter, AuthoringModuleType::InitialColor))
+    if (const auto* initialColor = Find_ModuleData<InitialColorModuleData>(emitter, AuthoringModuleType::InitialColor))
     {
-        const Color minColor = Internal::Evaluate_ColorDistributionMin(
+        const Color minColor = Evaluate_ColorDistributionMin(
             initialColor->color,
             Color{
                 emitterDesc.initialColor.startColorMin.x,
@@ -3954,7 +3954,7 @@ EffectEmitterDefinition Build_PreviewMeshEmitterDefinition(const AuthoringEmitte
                 emitterDesc.initialColor.startColorMin.w
             }
         );
-        const Color maxColor = Internal::Evaluate_ColorDistributionMax(
+        const Color maxColor = Evaluate_ColorDistributionMax(
             initialColor->color,
             Color{
                 emitterDesc.initialColor.startColorMax.x,
@@ -3964,27 +3964,27 @@ EffectEmitterDefinition Build_PreviewMeshEmitterDefinition(const AuthoringEmitte
             }
         );
         const float minAlpha = clamp(
-            Internal::Evaluate_FloatDistributionMin(initialColor->alpha, emitterDesc.initialColor.startColorMin.w),
+            Evaluate_FloatDistributionMin(initialColor->alpha, emitterDesc.initialColor.startColorMin.w),
             0.f,
             1.f
         );
         const float maxAlpha = clamp(
-            Internal::Evaluate_FloatDistributionMax(initialColor->alpha, emitterDesc.initialColor.startColorMax.w),
+            Evaluate_FloatDistributionMax(initialColor->alpha, emitterDesc.initialColor.startColorMax.w),
             0.f,
             1.f
         );
 
         emitterDesc.initialColor.startColorMin = Vec4{ minColor.R(), minColor.G(), minColor.B(), minAlpha };
         emitterDesc.initialColor.startColorMax = Vec4{ maxColor.R(), maxColor.G(), maxColor.B(), maxAlpha };
-        emitterDesc.initialColor.colorSeed = Internal::Build_RandomSeedDesc(initialColor->color);
-        emitterDesc.initialColor.alphaSeed = Internal::Build_RandomSeedDesc(initialColor->alpha);
+        emitterDesc.initialColor.colorSeed = Build_RandomSeedDesc(initialColor->color);
+        emitterDesc.initialColor.alphaSeed = Build_RandomSeedDesc(initialColor->alpha);
         emitterDesc.colorOverLife.endColorMin = emitterDesc.initialColor.startColorMin;
         emitterDesc.colorOverLife.endColorMax = emitterDesc.initialColor.startColorMax;
     }
 
-    if (const auto* colorOverLife = Internal::Find_ModuleData<ColorOverLifeModuleData>(emitter, AuthoringModuleType::ColorOverLife))
+    if (const auto* colorOverLife = Find_ModuleData<ColorOverLifeModuleData>(emitter, AuthoringModuleType::ColorOverLife))
     {
-        const Color minEndColor = Internal::Evaluate_ColorOverLifeEndpointColorMin(
+        const Color minEndColor = Evaluate_ColorOverLifeEndpointColorMin(
             colorOverLife->colorOverLife,
             Color{
                 emitterDesc.colorOverLife.endColorMin.x,
@@ -3993,7 +3993,7 @@ EffectEmitterDefinition Build_PreviewMeshEmitterDefinition(const AuthoringEmitte
                 emitterDesc.colorOverLife.endColorMin.w
             }
         );
-        const Color maxEndColor = Internal::Evaluate_ColorOverLifeEndpointColorMax(
+        const Color maxEndColor = Evaluate_ColorOverLifeEndpointColorMax(
             colorOverLife->colorOverLife,
             Color{
                 emitterDesc.colorOverLife.endColorMax.x,
@@ -4003,26 +4003,26 @@ EffectEmitterDefinition Build_PreviewMeshEmitterDefinition(const AuthoringEmitte
             }
         );
         const float minEndAlpha = clamp(
-            Internal::Evaluate_ColorOverLifeEndpointAlphaMin(colorOverLife->alphaOverLife, emitterDesc.colorOverLife.endColorMin.w),
+            Evaluate_ColorOverLifeEndpointAlphaMin(colorOverLife->alphaOverLife, emitterDesc.colorOverLife.endColorMin.w),
             0.f,
             1.f
         );
         const float maxEndAlpha = clamp(
-            Internal::Evaluate_ColorOverLifeEndpointAlphaMax(colorOverLife->alphaOverLife, emitterDesc.colorOverLife.endColorMax.w),
+            Evaluate_ColorOverLifeEndpointAlphaMax(colorOverLife->alphaOverLife, emitterDesc.colorOverLife.endColorMax.w),
             0.f,
             1.f
         );
 
         emitterDesc.colorOverLife.endColorMin = Vec4{ minEndColor.R(), minEndColor.G(), minEndColor.B(), minEndAlpha };
         emitterDesc.colorOverLife.endColorMax = Vec4{ maxEndColor.R(), maxEndColor.G(), maxEndColor.B(), maxEndAlpha };
-        emitterDesc.colorOverLife.colorSeed = Internal::Build_RandomSeedDesc(colorOverLife->colorOverLife);
-        emitterDesc.colorOverLife.alphaSeed = Internal::Build_RandomSeedDesc(colorOverLife->alphaOverLife);
-        Internal::Fill_ColorOverLifeCurvePayload(emitterDesc.colorOverLife.curve, *colorOverLife);
+        emitterDesc.colorOverLife.colorSeed = Build_RandomSeedDesc(colorOverLife->colorOverLife);
+        emitterDesc.colorOverLife.alphaSeed = Build_RandomSeedDesc(colorOverLife->alphaOverLife);
+        Fill_ColorOverLifeCurvePayload(emitterDesc.colorOverLife.curve, *colorOverLife);
     }
 
-    if (const auto* meshSizeByLife = Internal::Find_ModuleData<MeshSizeByLifeModuleData>(emitter, AuthoringModuleType::MeshSizeByLife))
+    if (const auto* meshSizeByLife = Find_ModuleData<MeshSizeByLifeModuleData>(emitter, AuthoringModuleType::MeshSizeByLife))
     {
-        Internal::Fill_MeshVector3CurvePayload(
+        Fill_MeshVector3CurvePayload(
             emitterDesc.meshTransform.scaleByLife,
             meshSizeByLife->scaleOverLife,
             Vec3{ 1.f, 1.f, 1.f }
@@ -4062,19 +4062,19 @@ EffectEmitterDefinition Build_PreviewMeshEmitterDefinition(const AuthoringEmitte
         }
     }
 
-    if (const auto* initialVelocity = Internal::Find_ModuleData<InitialVelocityModuleData>(emitter, AuthoringModuleType::InitialVelocity))
+    if (const auto* initialVelocity = Find_ModuleData<InitialVelocityModuleData>(emitter, AuthoringModuleType::InitialVelocity))
     {
         emitterDesc.motion.enabled = true;
         emitterDesc.motion.initialVelocityEnabled = true;
         emitterDesc.motion.initialVelocityInWorldSpace = initialVelocity->inWorldSpace;
         emitterDesc.motion.initialVelocityMin =
-            Internal::Evaluate_Vector3DistributionMin(initialVelocity->velocity, emitterDesc.motion.initialVelocityMin);
+            Evaluate_Vector3DistributionMin(initialVelocity->velocity, emitterDesc.motion.initialVelocityMin);
         emitterDesc.motion.initialVelocityMax =
-            Internal::Evaluate_Vector3DistributionMax(initialVelocity->velocity, emitterDesc.motion.initialVelocityMax);
-        emitterDesc.motion.initialVelocitySeed = Internal::Build_RandomSeedDesc(initialVelocity->velocity);
+            Evaluate_Vector3DistributionMax(initialVelocity->velocity, emitterDesc.motion.initialVelocityMax);
+        emitterDesc.motion.initialVelocitySeed = Build_RandomSeedDesc(initialVelocity->velocity);
     }
 
-    if (const auto* initialRadialVelocity = Internal::Find_ModuleData<InitialRadialVelocityModuleData>(
+    if (const auto* initialRadialVelocity = Find_ModuleData<InitialRadialVelocityModuleData>(
         emitter,
         AuthoringModuleType::InitialRadialVelocity
     ))
@@ -4084,59 +4084,59 @@ EffectEmitterDefinition Build_PreviewMeshEmitterDefinition(const AuthoringEmitte
         emitterDesc.motion.initialRadialVelocityInWorldSpace = initialRadialVelocity->inWorldSpace;
         emitterDesc.motion.radialPivot = initialRadialVelocity->radialPivot;
         emitterDesc.motion.initialRadialVelocityCenterDirectionMode =
-            Internal::Resolve_PointParticleInitialRadialVelocityCenterDirectionMode(initialRadialVelocity->centerDirectionMode);
+            Resolve_PointParticleInitialRadialVelocityCenterDirectionMode(initialRadialVelocity->centerDirectionMode);
         emitterDesc.motion.radialSpeed = Vec2{
-            Internal::Evaluate_FloatDistributionMin(initialRadialVelocity->speed, emitterDesc.motion.radialSpeed.x),
-            Internal::Evaluate_FloatDistributionMax(initialRadialVelocity->speed, emitterDesc.motion.radialSpeed.y)
+            Evaluate_FloatDistributionMin(initialRadialVelocity->speed, emitterDesc.motion.radialSpeed.x),
+            Evaluate_FloatDistributionMax(initialRadialVelocity->speed, emitterDesc.motion.radialSpeed.y)
         };
-        emitterDesc.motion.initialRadialVelocitySeed = Internal::Build_RandomSeedDesc(initialRadialVelocity->speed);
+        emitterDesc.motion.initialRadialVelocitySeed = Build_RandomSeedDesc(initialRadialVelocity->speed);
     }
 
-    if (const auto* velocityCone = Internal::Find_ModuleData<VelocityConeModuleData>(emitter, AuthoringModuleType::VelocityCone))
+    if (const auto* velocityCone = Find_ModuleData<VelocityConeModuleData>(emitter, AuthoringModuleType::VelocityCone))
     {
-        Internal::Fill_VelocityConePayload(emitterDesc.motion, *velocityCone);
-        emitterDesc.motion.velocityConeSeed = Internal::Build_RandomSeedDesc(velocityCone->speed);
+        Fill_VelocityConePayload(emitterDesc.motion, *velocityCone);
+        emitterDesc.motion.velocityConeSeed = Build_RandomSeedDesc(velocityCone->speed);
     }
 
-    if (const auto* sourceMotionVelocity = Internal::Find_ModuleData<SourceMotionVelocityModuleData>(
+    if (const auto* sourceMotionVelocity = Find_ModuleData<SourceMotionVelocityModuleData>(
         emitter,
         AuthoringModuleType::SourceMotionVelocity
     ))
-        Internal::Fill_SourceMotionVelocityPayload(emitterDesc.motion, *sourceMotionVelocity);
+        Fill_SourceMotionVelocityPayload(emitterDesc.motion, *sourceMotionVelocity);
 
-    if (const auto* acceleration = Internal::Find_ModuleData<AccelerationModuleData>(emitter, AuthoringModuleType::Acceleration))
+    if (const auto* acceleration = Find_ModuleData<AccelerationModuleData>(emitter, AuthoringModuleType::Acceleration))
     {
         emitterDesc.motion.enabled = true;
         emitterDesc.motion.accelerationInWorldSpace = acceleration->inWorldSpace;
-        emitterDesc.motion.accelerationTimeBasis = Internal::To_RuntimeAccelerationTimeBasis(acceleration->timeBasis);
+        emitterDesc.motion.accelerationTimeBasis = To_RuntimeAccelerationTimeBasis(acceleration->timeBasis);
         emitterDesc.motion.accelerationMin =
-            Internal::Evaluate_Vector3DistributionMin(acceleration->acceleration, emitterDesc.motion.accelerationMin);
+            Evaluate_Vector3DistributionMin(acceleration->acceleration, emitterDesc.motion.accelerationMin);
         emitterDesc.motion.accelerationMax =
-            Internal::Evaluate_Vector3DistributionMax(acceleration->acceleration, emitterDesc.motion.accelerationMax);
-        Internal::Fill_AccelerationCurvePayload(emitterDesc.motion, acceleration->acceleration);
-        emitterDesc.motion.accelerationSeed = Internal::Build_RandomSeedDesc(acceleration->acceleration);
+            Evaluate_Vector3DistributionMax(acceleration->acceleration, emitterDesc.motion.accelerationMax);
+        Fill_AccelerationCurvePayload(emitterDesc.motion, acceleration->acceleration);
+        emitterDesc.motion.accelerationSeed = Build_RandomSeedDesc(acceleration->acceleration);
     }
 
-    if (const auto* drag = Internal::Find_ModuleData<DragModuleData>(emitter, AuthoringModuleType::Drag))
+    if (const auto* drag = Find_ModuleData<DragModuleData>(emitter, AuthoringModuleType::Drag))
     {
         emitterDesc.motion.enabled = true;
         emitterDesc.motion.drag = Vec2{
-            max(0.f, Internal::Evaluate_FloatDistributionMin(drag->drag, emitterDesc.motion.drag.x)),
-            max(0.f, Internal::Evaluate_FloatDistributionMax(drag->drag, emitterDesc.motion.drag.y))
+            max(0.f, Evaluate_FloatDistributionMin(drag->drag, emitterDesc.motion.drag.x)),
+            max(0.f, Evaluate_FloatDistributionMax(drag->drag, emitterDesc.motion.drag.y))
         };
-        emitterDesc.motion.dragSeed = Internal::Build_RandomSeedDesc(drag->drag);
+        emitterDesc.motion.dragSeed = Build_RandomSeedDesc(drag->drag);
     }
 
-    Internal::Apply_VelocityOverLifeOwnership(emitterDesc.motion, emitter);
+    Apply_VelocityOverLifeOwnership(emitterDesc.motion, emitter);
 
-    if (const auto* orbitOverLife = Internal::Find_ModuleData<OrbitOverLifeModuleData>(emitter, AuthoringModuleType::OrbitOverLife))
-        emitterDesc.orbitOverLife = Internal::Build_OrbitOverLifeDesc(*orbitOverLife);
+    if (const auto* orbitOverLife = Find_ModuleData<OrbitOverLifeModuleData>(emitter, AuthoringModuleType::OrbitOverLife))
+        emitterDesc.orbitOverLife = Build_OrbitOverLifeDesc(*orbitOverLife);
 
-    if (const auto* initialMeshRotation = Internal::Find_ModuleData<InitialMeshRotationModuleData>(emitter, AuthoringModuleType::InitialMeshRotation))
+    if (const auto* initialMeshRotation = Find_ModuleData<InitialMeshRotationModuleData>(emitter, AuthoringModuleType::InitialMeshRotation))
     {
         emitterDesc.meshTransform.rotationEnabled = true;
-        const Vec3 meshMinRotation = Internal::Evaluate_Vector3DistributionMin(initialMeshRotation->rotationDegrees, Vec3{});
-        const Vec3 meshMaxRotation = Internal::Evaluate_Vector3DistributionMax(initialMeshRotation->rotationDegrees, Vec3{});
+        const Vec3 meshMinRotation = Evaluate_Vector3DistributionMin(initialMeshRotation->rotationDegrees, Vec3{});
+        const Vec3 meshMaxRotation = Evaluate_Vector3DistributionMax(initialMeshRotation->rotationDegrees, Vec3{});
         emitterDesc.meshTransform.initialRotationDegreesMin = Vec3{
             min(meshMinRotation.x, meshMaxRotation.x),
             min(meshMinRotation.y, meshMaxRotation.y),
@@ -4147,39 +4147,39 @@ EffectEmitterDefinition Build_PreviewMeshEmitterDefinition(const AuthoringEmitte
             max(meshMinRotation.y, meshMaxRotation.y),
             max(meshMinRotation.z, meshMaxRotation.z)
         };
-        emitterDesc.meshTransform.initialRotationSeed = Internal::Build_RandomSeedDesc(initialMeshRotation->rotationDegrees);
+        emitterDesc.meshTransform.initialRotationSeed = Build_RandomSeedDesc(initialMeshRotation->rotationDegrees);
     }
 
-    if (const auto* sphereRadialOrientation = Internal::Find_ModuleData<SphereRadialOrientationModuleData>(
+    if (const auto* sphereRadialOrientation = Find_ModuleData<SphereRadialOrientationModuleData>(
         emitter,
         AuthoringModuleType::SphereRadialOrientation
     ))
-        emitterDesc.sphereRadialOrientation = Internal::Build_PointParticleSphereRadialOrientationDesc(*sphereRadialOrientation);
-    if (const auto* planeRadialOrientation = Internal::Find_ModuleData<PlaneRadialOrientationModuleData>(emitter, AuthoringModuleType::PlaneRadialOrientation))
-        emitterDesc.planeRadialOrientation = Internal::Build_PointParticlePlaneRadialOrientationDesc(*planeRadialOrientation);
-    if (const auto* cylinderOrientation = Internal::Find_ModuleData<CylinderOrientationModuleData>(emitter, AuthoringModuleType::CylinderOrientation))
-        emitterDesc.cylinderOrientation = Internal::Build_PointParticleCylinderOrientationDesc(*cylinderOrientation);
+        emitterDesc.sphereRadialOrientation = Build_PointParticleSphereRadialOrientationDesc(*sphereRadialOrientation);
+    if (const auto* planeRadialOrientation = Find_ModuleData<PlaneRadialOrientationModuleData>(emitter, AuthoringModuleType::PlaneRadialOrientation))
+        emitterDesc.planeRadialOrientation = Build_PointParticlePlaneRadialOrientationDesc(*planeRadialOrientation);
+    if (const auto* cylinderOrientation = Find_ModuleData<CylinderOrientationModuleData>(emitter, AuthoringModuleType::CylinderOrientation))
+        emitterDesc.cylinderOrientation = Build_PointParticleCylinderOrientationDesc(*cylinderOrientation);
 
-    if (const auto* meshRotationOverLife = Internal::Find_ModuleData<MeshRotationOverLifeModuleData>(emitter, AuthoringModuleType::MeshRotationOverLife))
+    if (const auto* meshRotationOverLife = Find_ModuleData<MeshRotationOverLifeModuleData>(emitter, AuthoringModuleType::MeshRotationOverLife))
     {
         emitterDesc.meshTransform.rotationEnabled = true;
-        Internal::Fill_MeshVector3CurvePayload(emitterDesc.meshTransform.rotationByLife, meshRotationOverLife->rotationOverLife, Vec3{});
+        Fill_MeshVector3CurvePayload(emitterDesc.meshTransform.rotationByLife, meshRotationOverLife->rotationOverLife, Vec3{});
     }
 
-    if (const auto* meshDirectionAlign = Internal::Find_ModuleData<MeshDirectionAlignOverLifeModuleData>(
+    if (const auto* meshDirectionAlign = Find_ModuleData<MeshDirectionAlignOverLifeModuleData>(
         emitter,
         AuthoringModuleType::MeshDirectionAlignOverLife
     ))
-        emitterDesc.meshDirectionAlign = Internal::Build_MeshDirectionAlignDesc(*meshDirectionAlign);
+        emitterDesc.meshDirectionAlign = Build_MeshDirectionAlignDesc(*meshDirectionAlign);
 
-    if (const auto* initialMeshRotationRate = Internal::Find_ModuleData<InitialMeshRotationRateModuleData>(
+    if (const auto* initialMeshRotationRate = Find_ModuleData<InitialMeshRotationRateModuleData>(
         emitter,
         AuthoringModuleType::InitialMeshRotationRate
     ))
     {
         emitterDesc.meshTransform.rotationEnabled = true;
-        const Vec3 meshMinRate = Internal::Evaluate_Vector3DistributionMin(initialMeshRotationRate->rotationRateDegrees, Vec3{});
-        const Vec3 meshMaxRate = Internal::Evaluate_Vector3DistributionMax(initialMeshRotationRate->rotationRateDegrees, Vec3{});
+        const Vec3 meshMinRate = Evaluate_Vector3DistributionMin(initialMeshRotationRate->rotationRateDegrees, Vec3{});
+        const Vec3 meshMaxRate = Evaluate_Vector3DistributionMax(initialMeshRotationRate->rotationRateDegrees, Vec3{});
         emitterDesc.meshTransform.initialAngularVelocityDegreesMin = Vec3{
             min(meshMinRate.x, meshMaxRate.x),
             min(meshMinRate.y, meshMaxRate.y),
@@ -4190,17 +4190,17 @@ EffectEmitterDefinition Build_PreviewMeshEmitterDefinition(const AuthoringEmitte
             max(meshMinRate.y, meshMaxRate.y),
             max(meshMinRate.z, meshMaxRate.z)
         };
-        emitterDesc.meshTransform.initialAngularVelocitySeed = Internal::Build_RandomSeedDesc(initialMeshRotationRate->rotationRateDegrees);
+        emitterDesc.meshTransform.initialAngularVelocitySeed = Build_RandomSeedDesc(initialMeshRotationRate->rotationRateDegrees);
         emitterDesc.meshTransform.initialAngularVelocityInWorldSpace = initialMeshRotationRate->inWorldSpace;
     }
 
-    if (const auto* meshRotationRateScaleByLife = Internal::Find_ModuleData<MeshRotationRateScaleByLifeModuleData>(
+    if (const auto* meshRotationRateScaleByLife = Find_ModuleData<MeshRotationRateScaleByLifeModuleData>(
         emitter,
         AuthoringModuleType::MeshRotationRateScaleByLife
     ))
     {
         emitterDesc.meshTransform.rotationEnabled = true;
-        Internal::Fill_MeshVector3CurvePayload(
+        Fill_MeshVector3CurvePayload(
             emitterDesc.meshTransform.angularVelocityScaleByLife,
             meshRotationRateScaleByLife->scaleOverLife,
             Vec3{ 1.f, 1.f, 1.f }

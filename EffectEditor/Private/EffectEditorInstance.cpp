@@ -19,7 +19,7 @@ NS_BEGIN(EffectEditor)
 
 IMPLEMENT_SINGLETON(EffectEditorInstance)
 
-namespace Internal
+namespace
 {
     bool Is_SamePostProcessCB(const PostProcessCB& lhs, const PostProcessCB& rhs)
     {
@@ -63,7 +63,7 @@ namespace Internal
                : sourceRatio >= startRatio || sourceRatio < endRatio;
     }
 
-    static bool Is_PreviewCameraDragInputHeld()
+    bool Is_PreviewCameraDragInputHeld()
     {
         const bool altHeld = GAME->KeyPress(KEY_TYPE::ALT) || GAME->KeyDown(KEY_TYPE::ALT);
 
@@ -318,7 +318,7 @@ bool EffectEditorInstance::Is_TrailPreviewGateOpen() const
 
 bool EffectEditorInstance::Is_TrailPreviewGateOpen(float sourceRatio) const
 {
-    return Internal::Is_PreviewGateOpen(
+    return Is_PreviewGateOpen(
         _trailPreviewGateMode,
         _trailPreviewGateStartRatio,
         _trailPreviewGateEndRatio,
@@ -328,7 +328,7 @@ bool EffectEditorInstance::Is_TrailPreviewGateOpen(float sourceRatio) const
 
 bool EffectEditorInstance::Is_SourceHistorySpriteTrailPreviewGateOpen(float sourceRatio) const
 {
-    return Internal::Is_PreviewGateOpen(
+    return Is_PreviewGateOpen(
         _sourceHistorySpriteTrailPreviewGateMode,
         _sourceHistorySpriteTrailPreviewGateStartRatio,
         _sourceHistorySpriteTrailPreviewGateEndRatio,
@@ -886,13 +886,13 @@ void EffectEditorInstance::Apply_PostProcessOptions(const EffectEditorPostProces
     _postProcessOptions = options;
     _postProcessOptions.params.featureMask = To_Underlying(_postProcessOptions.features);
 
-    if (_hasClientPostProcessSnapshot && Internal::Is_SamePostProcessOptions(_postProcessOptions, _clientPostProcessSnapshot))
+    if (_hasClientPostProcessSnapshot && Is_SamePostProcessOptions(_postProcessOptions, _clientPostProcessSnapshot))
     {
         _postProcessPreset = EffectEditorPostProcessPreset::ClientCurrent;
         return;
     }
 
-    if (Internal::Is_SamePostProcessOptions(_postProcessOptions, Get_DefaultPostProcessOptions()))
+    if (Is_SamePostProcessOptions(_postProcessOptions, Get_DefaultPostProcessOptions()))
     {
         _postProcessPreset = EffectEditorPostProcessPreset::PreviewFriendly;
         return;
@@ -1096,7 +1096,7 @@ void EffectEditorInstance::Apply_RuntimeInputPolicy()
     const Shared<Editor_Window> sceneView = Get_Window(L"Scene");
     const Shared<Editor_Window> gameView = Get_Window(L"Game");
 
-    if (_isPreviewCameraDragging && !Internal::Is_PreviewCameraDragInputHeld())
+    if (_isPreviewCameraDragging && !Is_PreviewCameraDragInputHeld())
         End_PreviewCameraDrag();
 
     if (_runtimeState != EffectEditorRuntimeState::Play &&

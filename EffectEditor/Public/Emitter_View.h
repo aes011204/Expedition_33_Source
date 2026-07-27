@@ -188,6 +188,7 @@ private: //## Helper::AuthoringFactory
     AuthoringEmitter Make_DefaultSpriteEmitter();
     AuthoringEmitter Clone_Emitter(const AuthoringEmitter& sourceEmitter);
     AuthoringModule Clone_Module(const AuthoringModule& sourceModule);
+    RequiredModuleData Make_DefaultRequiredModuleData();
     AuthoringModule Make_DefaultModuleByType(AuthoringModuleType type);
     AuthoringModule Make_RequiredModule();
     AuthoringModule Make_SpawnModule();

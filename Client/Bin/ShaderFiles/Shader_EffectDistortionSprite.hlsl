@@ -504,7 +504,7 @@ float Compute_DistortionInfluenceOutline(float2 cardUV, float lifeProgress)
         const float thickness = max(g_EffectDistortionShapeParams.z, 0.f);
         edgeDistance = abs(abs(distanceFromCenter - radius) - thickness);
     }
-    else if (mode >= 2.5f)
+    else if (mode >= 2.5f && mode < 3.5f)
     {
         const float pixelUvWidth = EffectDistortion_ComputeShockwavePixelUvWidth(cardUV);
         const float thickness = max(g_EffectDistortionShapeParams.z, 0.f) * pixelUvWidth;

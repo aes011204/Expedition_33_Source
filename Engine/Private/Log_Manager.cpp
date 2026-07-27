@@ -1,30 +1,27 @@
 ﻿#include "pch.h"
 #include "Log_Manager.h"
 
-namespace Engine::Internal
-{
 namespace
 {
-    LogLevel To_EngineLogLevel(const spdlog::level::level_enum level)
+LogLevel To_EngineLogLevel(const spdlog::level::level_enum level)
+{
+    switch (level)
     {
-        switch (level)
-        {
-        case spdlog::level::trace:
-            return LogLevel::Trace;
-        case spdlog::level::debug:
-            return LogLevel::Debug;
-        case spdlog::level::info:
-            return LogLevel::Info;
-        case spdlog::level::warn:
-            return LogLevel::Warn;
-        case spdlog::level::err:
-            return LogLevel::Error;
-        case spdlog::level::critical:
-            return LogLevel::Critical;
-        case spdlog::level::off:
-        default:
-            return LogLevel::Off;
-        }
+    case spdlog::level::trace:
+        return LogLevel::Trace;
+    case spdlog::level::debug:
+        return LogLevel::Debug;
+    case spdlog::level::info:
+        return LogLevel::Info;
+    case spdlog::level::warn:
+        return LogLevel::Warn;
+    case spdlog::level::err:
+        return LogLevel::Error;
+    case spdlog::level::critical:
+        return LogLevel::Critical;
+    case spdlog::level::off:
+    default:
+        return LogLevel::Off;
     }
 }
 
@@ -123,7 +120,7 @@ struct Engine::Log_Manager_Impl
 {
     Shared<spdlog::logger> logger{};
     Shared<spdlog::logger> fileOnlyLogger{};
-    Shared<Internal::ConsoleSink> consoleSink{};
+    Shared<ConsoleSink> consoleSink{};
 };
 
 Log_Manager::Log_Manager()
@@ -154,7 +151,7 @@ HRESULT Log_Manager::Initialize(const string& projectName)
 
         vector<spdlog::sink_ptr> sinks;
 
-        _impl->consoleSink = make_shared<Internal::ConsoleSink>(5000u);
+        _impl->consoleSink = make_shared<ConsoleSink>(5000u);
         _impl->consoleSink->set_level(spdlog::level::trace);
         sinks.push_back(_impl->consoleSink);
 

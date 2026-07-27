@@ -4,25 +4,25 @@
 
 NS_BEGIN(Engine)
 
-namespace Internal
+namespace
 {
-    EffectEmitterFactory::CreateEmitterFn createEmitterFn = nullptr;
+    EffectEmitterFactory::CreateEmitterFn gCreateEmitterFn = nullptr;
 }
 
 void EffectEmitterFactory::Register_CreateEmitterFn(CreateEmitterFn createEmitterFn)
 {
-    Internal::createEmitterFn = createEmitterFn;
+    gCreateEmitterFn = createEmitterFn;
 }
 
 Shared<EffectEmitter> EffectEmitterFactory::Create_EffectEmitter(const EffectEmitterDefinition& emitterDefinition)
 {
-    if (nullptr == Internal::createEmitterFn)
+    if (nullptr == gCreateEmitterFn)
     {
         LOG_ERROR("EffectEmitterFactory create hook is not registered.");
         return nullptr;
     }
 
-    return Internal::createEmitterFn(emitterDefinition);
+    return gCreateEmitterFn(emitterDefinition);
 }
 
 NS_END
