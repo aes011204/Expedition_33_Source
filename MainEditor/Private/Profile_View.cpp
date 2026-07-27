@@ -504,6 +504,8 @@ void Profile_View::Draw_Camera_Debug()
 
 void Profile_View::Draw_Toolbar()
 {
+    ImGui::TextUnformatted("Frame Capture");
+    ImGui::SameLine();
     if (ImGui::Checkbox("Capture", &_capture))
     {
         if (_runtime)
@@ -530,12 +532,34 @@ void Profile_View::Draw_Toolbar()
         _pendingViewHotspotVisibleCountLogFrames = 2;
     }
 
+#if ENGINE_ENABLE_RELEASE_UPDATE_PROFILE
+    ImGui::TextUnformatted("Release Update");
+    ImGui::SameLine();
+    bool releaseUpdateCaptureEnabled = GAME->Is_ReleaseUpdateProfileCaptureEnabled();
+    if (ImGui::Checkbox("Release Update Capture", &releaseUpdateCaptureEnabled))
+        GAME->Set_ReleaseUpdateProfileCaptureEnabled(releaseUpdateCaptureEnabled);
+
+    ImGui::SameLine();
+    if (ImGui::Button("Reset Release Update Capture"))
+        GAME->Reset_ReleaseUpdateProfileCapture();
+
+    ImGui::SameLine();
+    if (ImGui::Button("Log Release Update Summary"))
+        GAME->Log_ReleaseUpdateProfileSummary();
+#endif
+
+    ImGui::TextUnformatted("Scope Display");
     ImGui::SameLine();
     ImGui::Checkbox("Sort by cost", &_sortByCost);
 
     ImGui::SameLine();
     ImGui::Checkbox("Show disabled", &_showDisabled);
 
+    ImGui::SameLine();
+    ImGui::SetNextItemWidth(200.f);
+    ImGui::InputText("Filter", _filter, IM_ARRAYSIZE(_filter));
+
+    ImGui::TextUnformatted("Hitch Logging");
     ImGui::SameLine();
     ImGui::Checkbox("Auto Hitch Log", &_autoHitchLog);
 
@@ -558,10 +582,6 @@ void Profile_View::Draw_Toolbar()
     ImGui::SetNextItemWidth(120.f);
     ImGui::InputInt("AvgWindow", &_avgWindow);
     _avgWindow = max(1, min(_avgWindow, 1000));
-
-    ImGui::SameLine();
-    ImGui::SetNextItemWidth(200.f);
-    ImGui::InputText("Filter", _filter, IM_ARRAYSIZE(_filter));
 }
 
 void Profile_View::Draw_Frame_Info()

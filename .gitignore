@@ -470,10 +470,12 @@ ModelEditor/Bin/*
 
 Client/Bin/[Dd]ebug/
 Client/Bin/[Rr]elease/
+Client/Bin/ReleaseUpdateProfile/
 Client/Bin/x64/
 Client/Bin/x86/
 Engine/Bin/[Dd]ebug/
 Engine/Bin/[Rr]elease/
+Engine/Bin/ReleaseUpdateProfile/
 Engine/Bin/x64/
 Engine/Bin/x86/
 

@@ -15,4 +15,9 @@
   <PreprocessorDefinitions>FMT_DEPRECATED=;SPDLOG_ACTIVE_LEVEL=0;SPDLOG_COMPILED_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
   </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseUpdateProfile|x64'">
+    <ClCompile>
+      <PreprocessorDefinitions>ENGINE_ENABLE_RELEASE_UPDATE_PROFILE=1;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
+  </ItemDefinitionGroup>
 </Project>
