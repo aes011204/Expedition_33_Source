@@ -509,6 +509,27 @@ void GameInstance::Update_Engine(float timeDelta, const function<void(float)>& c
 
     _worldTimeDelta = timeDelta * _worldTimeScale;
 
+#if ENGINE_ENABLE_RELEASE_UPDATE_PROFILE
+    const bool sampleReleaseUpdateProfile =
+        _releaseUpdateProfileCaptureEnabled &&
+        Should_SampleRuntimePerf();
+    chrono::steady_clock::time_point releaseUpdateBegin{};
+    double releaseClientMs = 0.0;
+    double releaseLevelMs = 0.0;
+    double releasePriorityObjMs = 0.0;
+    double releaseObjMs = 0.0;
+    double releaseLateObjMs = 0.0;
+    double releasePhysxBeginMs = 0.0;
+    double releasePhysxUpdateMs = 0.0;
+    double releasePhysxGatherMs = 0.0;
+    double releaseCollFromPhysxMs = 0.0;
+    double releaseCameraMs = 0.0;
+    double releaseUiMs = 0.0;
+
+    if (sampleReleaseUpdateProfile)
+        releaseUpdateBegin = chrono::steady_clock::now();
+#endif
+
 #ifdef _DEBUG
     const bool periodicRuntimePerfSample = Should_SampleRuntimePerf();
     const bool forceRuntimeFrameDropSample = timeDelta >= (1.f / 30.f);
@@ -567,12 +588,19 @@ void GameInstance::Update_Engine(float timeDelta, const function<void(float)>& c
     // 입력 갱신 직후, 레벨/오브젝트/UI 업데이트 전에 클라이언트쪽 런타임 갱신을 위해
     if (clientUpdate)
     {
+#if ENGINE_ENABLE_RELEASE_UPDATE_PROFILE
+        const auto releaseClientBegin = sampleReleaseUpdateProfile ? chrono::steady_clock::now() : chrono::steady_clock::time_point{};
+#endif
 #ifdef _DEBUG
         chrono::steady_clock::time_point clientBegin{};
         if (sampleRuntimePerf)
             clientBegin = chrono::steady_clock::now();
 #endif
         clientUpdate(_worldTimeDelta);
+#if ENGINE_ENABLE_RELEASE_UPDATE_PROFILE
+        if (sampleReleaseUpdateProfile)
+            releaseClientMs = chrono::duration<double, milli>(chrono::steady_clock::now() - releaseClientBegin).count();
+#endif
 #ifdef _DEBUG
         if (sampleRuntimePerf)
             clientMs = chrono::duration<double, milli>(chrono::steady_clock::now() - clientBegin).count();
@@ -584,7 +612,14 @@ void GameInstance::Update_Engine(float timeDelta, const function<void(float)>& c
     if (sampleRuntimePerf)
         levelBegin = chrono::steady_clock::now();
 #endif
+#if ENGINE_ENABLE_RELEASE_UPDATE_PROFILE
+    const auto releaseLevelBegin = sampleReleaseUpdateProfile ? chrono::steady_clock::now() : chrono::steady_clock::time_point{};
+#endif
     _levelManager->Update(_worldTimeDelta);
+#if ENGINE_ENABLE_RELEASE_UPDATE_PROFILE
+    if (sampleReleaseUpdateProfile)
+        releaseLevelMs = chrono::duration<double, milli>(chrono::steady_clock::now() - releaseLevelBegin).count();
+#endif
 #ifdef _DEBUG
     if (sampleRuntimePerf)
         levelMs = chrono::duration<double, milli>(chrono::steady_clock::now() - levelBegin).count();
@@ -597,7 +632,14 @@ void GameInstance::Update_Engine(float timeDelta, const function<void(float)>& c
         if (sampleRuntimePerf)
             priorityObjBegin = chrono::steady_clock::now();
 #endif
+#if ENGINE_ENABLE_RELEASE_UPDATE_PROFILE
+        const auto releasePriorityObjBegin = sampleReleaseUpdateProfile ? chrono::steady_clock::now() : chrono::steady_clock::time_point{};
+#endif
         _objectManager->Priority_Update(_worldTimeDelta);
+#if ENGINE_ENABLE_RELEASE_UPDATE_PROFILE
+        if (sampleReleaseUpdateProfile)
+            releasePriorityObjMs = chrono::duration<double, milli>(chrono::steady_clock::now() - releasePriorityObjBegin).count();
+#endif
 #ifdef _DEBUG
         if (sampleRuntimePerf)
             priorityObjMs = chrono::duration<double, milli>(chrono::steady_clock::now() - priorityObjBegin).count();
@@ -617,7 +659,14 @@ void GameInstance::Update_Engine(float timeDelta, const function<void(float)>& c
             objBegin = chrono::steady_clock::now();
 #endif
 
+#if ENGINE_ENABLE_RELEASE_UPDATE_PROFILE
+        const auto releaseObjBegin = sampleReleaseUpdateProfile ? chrono::steady_clock::now() : chrono::steady_clock::time_point{};
+#endif
         _objectManager->Update(_worldTimeDelta);
+#if ENGINE_ENABLE_RELEASE_UPDATE_PROFILE
+        if (sampleReleaseUpdateProfile)
+            releaseObjMs = chrono::duration<double, milli>(chrono::steady_clock::now() - releaseObjBegin).count();
+#endif
 #ifdef _DEBUG
         if (sampleRuntimePerf)
             objMs = chrono::duration<double, milli>(chrono::steady_clock::now() - objBegin).count();
@@ -627,7 +676,14 @@ void GameInstance::Update_Engine(float timeDelta, const function<void(float)>& c
             physxBegin = chrono::steady_clock::now();
 #endif
 
+#if ENGINE_ENABLE_RELEASE_UPDATE_PROFILE
+        const auto releasePhysxBegin = sampleReleaseUpdateProfile ? chrono::steady_clock::now() : chrono::steady_clock::time_point{};
+#endif
         _physxManager->Begin_Frame();
+#if ENGINE_ENABLE_RELEASE_UPDATE_PROFILE
+        if (sampleReleaseUpdateProfile)
+            releasePhysxBeginMs = chrono::duration<double, milli>(chrono::steady_clock::now() - releasePhysxBegin).count();
+#endif
 #ifdef _DEBUG
         if (sampleRuntimePerf)
             physxBeginMs = chrono::duration<double, milli>(chrono::steady_clock::now() - physxBegin).count();
@@ -645,7 +701,14 @@ void GameInstance::Update_Engine(float timeDelta, const function<void(float)>& c
         if (sampleRuntimePerf)
             lateObjBegin = chrono::steady_clock::now();
 #endif
+#if ENGINE_ENABLE_RELEASE_UPDATE_PROFILE
+        const auto releaseLateObjBegin = sampleReleaseUpdateProfile ? chrono::steady_clock::now() : chrono::steady_clock::time_point{};
+#endif
         _objectManager->Late_Update(_worldTimeDelta);
+#if ENGINE_ENABLE_RELEASE_UPDATE_PROFILE
+        if (sampleReleaseUpdateProfile)
+            releaseLateObjMs = chrono::duration<double, milli>(chrono::steady_clock::now() - releaseLateObjBegin).count();
+#endif
 #ifdef _DEBUG
         if (sampleRuntimePerf)
             lateObjMs = chrono::duration<double, milli>(chrono::steady_clock::now() - lateObjBegin).count();
@@ -655,10 +718,17 @@ void GameInstance::Update_Engine(float timeDelta, const function<void(float)>& c
             physxUpdateBegin = chrono::steady_clock::now();
 #endif
 
+#if ENGINE_ENABLE_RELEASE_UPDATE_PROFILE
+        const auto releasePhysxUpdateBegin = sampleReleaseUpdateProfile ? chrono::steady_clock::now() : chrono::steady_clock::time_point{};
+#endif
         _objectManager->Flush_RemovedGameObjects();
 
         _physxManager->Update(_worldTimeDelta);
         _objectManager->Post_PhysX_Update(_worldTimeDelta);
+#if ENGINE_ENABLE_RELEASE_UPDATE_PROFILE
+        if (sampleReleaseUpdateProfile)
+            releasePhysxUpdateMs = chrono::duration<double, milli>(chrono::steady_clock::now() - releasePhysxUpdateBegin).count();
+#endif
 #ifdef _DEBUG
         if (sampleRuntimePerf)
             physxUpdateMs = chrono::duration<double, milli>(chrono::steady_clock::now() - physxUpdateBegin).count();
@@ -669,8 +739,15 @@ void GameInstance::Update_Engine(float timeDelta, const function<void(float)>& c
         if (sampleRuntimePerf)
             physxGatherBegin = chrono::steady_clock::now();
 #endif
+#if ENGINE_ENABLE_RELEASE_UPDATE_PROFILE
+        const auto releasePhysxGatherBegin = sampleReleaseUpdateProfile ? chrono::steady_clock::now() : chrono::steady_clock::time_point{};
+#endif
         vector<PhysXPairEvent> events;
         _physxManager->Gather_FrameEvents(events);
+#if ENGINE_ENABLE_RELEASE_UPDATE_PROFILE
+        if (sampleReleaseUpdateProfile)
+            releasePhysxGatherMs = chrono::duration<double, milli>(chrono::steady_clock::now() - releasePhysxGatherBegin).count();
+#endif
 #ifdef _DEBUG
         if (sampleRuntimePerf)
             physxGatherMs = chrono::duration<double, milli>(chrono::steady_clock::now() - physxGatherBegin).count();
@@ -679,7 +756,14 @@ void GameInstance::Update_Engine(float timeDelta, const function<void(float)>& c
         if (sampleRuntimePerf)
             collFromPhysxBegin = chrono::steady_clock::now();
 #endif
+#if ENGINE_ENABLE_RELEASE_UPDATE_PROFILE
+        const auto releaseCollFromPhysxBegin = sampleReleaseUpdateProfile ? chrono::steady_clock::now() : chrono::steady_clock::time_point{};
+#endif
         _collisionManager->Update_FromPhysX(events);
+#if ENGINE_ENABLE_RELEASE_UPDATE_PROFILE
+        if (sampleReleaseUpdateProfile)
+            releaseCollFromPhysxMs = chrono::duration<double, milli>(chrono::steady_clock::now() - releaseCollFromPhysxBegin).count();
+#endif
 #ifdef _DEBUG
         if (sampleRuntimePerf)
             collFromPhysxMs = chrono::duration<double, milli>(chrono::steady_clock::now() - collFromPhysxBegin).count();
@@ -689,8 +773,15 @@ void GameInstance::Update_Engine(float timeDelta, const function<void(float)>& c
             cameraBegin = chrono::steady_clock::now();
 #endif
 
+#if ENGINE_ENABLE_RELEASE_UPDATE_PROFILE
+        const auto releaseCameraBegin = sampleReleaseUpdateProfile ? chrono::steady_clock::now() : chrono::steady_clock::time_point{};
+#endif
         _cameraManager->Update(_worldTimeDelta);
         Update_SoundListenerFromActiveCamera();
+#if ENGINE_ENABLE_RELEASE_UPDATE_PROFILE
+        if (sampleReleaseUpdateProfile)
+            releaseCameraMs = chrono::duration<double, milli>(chrono::steady_clock::now() - releaseCameraBegin).count();
+#endif
 #ifdef _DEBUG
         if (sampleRuntimePerf)
             cameraMs = chrono::duration<double, milli>(chrono::steady_clock::now() - cameraBegin).count();
@@ -713,7 +804,38 @@ void GameInstance::Update_Engine(float timeDelta, const function<void(float)>& c
     if (sampleRuntimePerf)
         uiBegin = chrono::steady_clock::now();
 #endif
+#if ENGINE_ENABLE_RELEASE_UPDATE_PROFILE
+    const auto releaseUiBegin = sampleReleaseUpdateProfile ? chrono::steady_clock::now() : chrono::steady_clock::time_point{};
+#endif
     _uiManager->Update(timeDelta);
+#if ENGINE_ENABLE_RELEASE_UPDATE_PROFILE
+    if (sampleReleaseUpdateProfile)
+        releaseUiMs = chrono::duration<double, milli>(chrono::steady_clock::now() - releaseUiBegin).count();
+
+    if (sampleReleaseUpdateProfile)
+    {
+        const double releaseUpdateMs = chrono::duration<double, milli>(chrono::steady_clock::now() - releaseUpdateBegin).count();
+        Accumulate_UpdatePerf(
+            releaseUpdateMs,
+            0.0,
+            0.0,
+            0.0,
+            releaseClientMs,
+            releaseLevelMs,
+            releasePriorityObjMs,
+            0.0,
+            releaseObjMs,
+            releasePhysxBeginMs,
+            0.0,
+            releaseLateObjMs,
+            releasePhysxUpdateMs,
+            releasePhysxGatherMs,
+            releaseCollFromPhysxMs,
+            releaseCameraMs,
+            releaseUiMs
+        );
+    }
+#endif
 #ifdef _DEBUG
     if (sampleRuntimePerf)
         uiMs = chrono::duration<double, milli>(chrono::steady_clock::now() - uiBegin).count();
@@ -952,7 +1074,7 @@ void GameInstance::Restore_RenderGroup()
         _renderer->Restore_RenderGroups();
 }
 
-#ifdef _DEBUG
+#if defined(_DEBUG) || ENGINE_ENABLE_RELEASE_UPDATE_PROFILE
 
 void GameInstance::Accumulate_UpdatePerf(
     const double updateMs,
@@ -1088,6 +1210,7 @@ void GameInstance::Reset_RuntimePerfWindowState(chrono::steady_clock::time_point
     _runtimePerfObservedFrameCount = 0;
 }
 
+#ifdef _DEBUG
 void GameInstance::Try_FlushRuntimePerfLog()
 {
     const auto now = chrono::steady_clock::now();
@@ -1300,6 +1423,94 @@ void GameInstance::Try_FlushRuntimePerfLog()
 
     Reset_RuntimePerfWindowState(now);
 }
+#endif
+
+#if ENGINE_ENABLE_RELEASE_UPDATE_PROFILE
+void GameInstance::Set_ReleaseUpdateProfileCaptureEnabled(const bool enabled)
+{
+    if (_releaseUpdateProfileCaptureEnabled == enabled)
+        return;
+
+    _releaseUpdateProfileCaptureEnabled = enabled;
+    Reset_ReleaseUpdateProfileCapture();
+}
+
+bool GameInstance::Is_ReleaseUpdateProfileCaptureEnabled() const
+{
+    return _releaseUpdateProfileCaptureEnabled;
+}
+
+void GameInstance::Reset_ReleaseUpdateProfileCapture()
+{
+    LogUtils::Reset_UpdatePerfWindow(_updatePerfWindow);
+    Reset_RuntimePerfWindowState(chrono::steady_clock::now());
+    _hasRuntimePerfLastSampleTime = false;
+}
+
+void GameInstance::Log_ReleaseUpdateProfileSummary()
+{
+    if (!_releaseUpdateProfileCaptureEnabled)
+        return;
+
+    const auto now = chrono::steady_clock::now();
+    const float windowSec = _hasRuntimePerfWindowStartTime
+        ? static_cast<float>(chrono::duration<double>(now - _runtimePerfWindowStartTime).count())
+        : 0.f;
+
+    UpdatePerfSummary summary{};
+    const bool hasSummary = Try_ConsumeUpdatePerfSummary(windowSec, summary);
+
+    Log_FileOnly(
+        spdlog::source_loc{ __FILE__, __LINE__, SPDLOG_FUNCTION },
+        spdlog::level::info,
+        fmt::format(
+            "[ReleaseUpdateProfile] window_sec={:.2f} samples={} has_samples={} "
+            "update_ms(avg={:.2f} max={:.2f}) "
+            "client_ms(avg={:.2f} max={:.2f}) "
+            "level_ms(avg={:.2f} max={:.2f}) "
+            "priorityobj_ms(avg={:.2f} max={:.2f}) "
+            "obj_ms(avg={:.2f} max={:.2f}) "
+            "lateobj_ms(avg={:.2f} max={:.2f}) "
+            "physxbegin_ms(avg={:.2f} max={:.2f}) "
+            "physxupdate_ms(avg={:.2f} max={:.2f}) "
+            "physxgather_ms(avg={:.2f} max={:.2f}) "
+            "collfromphysx_ms(avg={:.2f} max={:.2f}) "
+            "camera_ms(avg={:.2f} max={:.2f}) "
+            "ui_ms(avg={:.2f} max={:.2f})",
+            windowSec,
+            summary.sampledFrameCount,
+            hasSummary,
+            summary.updateAvgMs,
+            summary.updateMaxMs,
+            summary.clientAvgMs,
+            summary.clientMaxMs,
+            summary.levelAvgMs,
+            summary.levelMaxMs,
+            summary.priorityObjAvgMs,
+            summary.priorityObjMaxMs,
+            summary.objAvgMs,
+            summary.objMaxMs,
+            summary.lateObjAvgMs,
+            summary.lateObjMaxMs,
+            summary.physxBeginAvgMs,
+            summary.physxBeginMaxMs,
+            summary.physxUpdateAvgMs,
+            summary.physxUpdateMaxMs,
+            summary.physxGatherAvgMs,
+            summary.physxGatherMaxMs,
+            summary.collFromPhysxAvgMs,
+            summary.collFromPhysxMaxMs,
+            summary.cameraAvgMs,
+            summary.cameraMaxMs,
+            summary.uiAvgMs,
+            summary.uiMaxMs
+        )
+    );
+
+    Reset_RuntimePerfWindowState(now);
+    _hasRuntimePerfLastSampleTime = false;
+}
+#endif
 
 #endif
 

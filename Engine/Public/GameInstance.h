@@ -413,6 +413,16 @@ public: /* For.Sound_Manager */
 public: /* For.Debug Profile */
     bool Build_DebugResourceMemorySummary(DebugResourceMemorySummary& outSummary) const;
 
+#if ENGINE_ENABLE_RELEASE_UPDATE_PROFILE
+    // 수동 Release Update 계측 window의 수집을 시작하거나 중지한다.
+    void Set_ReleaseUpdateProfileCaptureEnabled(bool enabled);
+    bool Is_ReleaseUpdateProfileCaptureEnabled() const;
+    // 현재 수동 Release Update 계측 window를 비운다.
+    void Reset_ReleaseUpdateProfileCapture();
+    // 현재 수동 Release Update 계측 window의 평균과 최대 시간을 파일 로그에 남긴다.
+    void Log_ReleaseUpdateProfileSummary();
+#endif
+
 public:
     uint32 Get_Handle(const string& name) const;
     ID3D11ShaderResourceView* Get_SRV(uint32 handle) const;
@@ -767,10 +777,12 @@ private:
 
     DelegateHub _delegateHub = {};
 
-#ifdef _DEBUG
+#if defined(_DEBUG) || ENGINE_ENABLE_RELEASE_UPDATE_PROFILE
 
 private: //## Static::DebugPerformance
+#ifdef _DEBUG
     static constexpr float runtimePerfSampleWindowSec{ DebugPerf::kRuntimePerfLogWindowSec };
+#endif
 
 private: //## Data::UpdatePerformance
     chrono::steady_clock::time_point _runtimePerfWindowStartTime{};
@@ -778,6 +790,10 @@ private: //## Data::UpdatePerformance
     bool _hasRuntimePerfWindowStartTime{ false };
     bool _hasRuntimePerfLastSampleTime{ false };
     uint32 _runtimePerfObservedFrameCount{ 0 };
+
+#if ENGINE_ENABLE_RELEASE_UPDATE_PROFILE
+    bool _releaseUpdateProfileCaptureEnabled{ false };
+#endif
 
     UpdatePerfWindow _updatePerfWindow{};
 
@@ -804,7 +820,9 @@ private: //## Helper::UpdatePerformance
     bool Try_ConsumeUpdatePerfSummary(float windowSec, UpdatePerfSummary& outSummary);
     bool Should_SampleRuntimePerf();
     void Reset_RuntimePerfWindowState(chrono::steady_clock::time_point now);
+#ifdef _DEBUG
     void Try_FlushRuntimePerfLog();
+#endif
 
 #endif
 
