@@ -48,6 +48,7 @@ public: //## Behavior::ProviderBinding
     void Bind_SourcePointSampleProvider(
         const Weak<IEffectSourcePointSampleProvider>& provider,
         const EffectHistorySourceGroupKey& sourceGroupKey = {});
+    void Bind_RibbonSourcePointSampleProvider(const Weak<IEffectSourcePointSampleProvider>& provider);
 
 public: //## Accessors::ChildEmitter
     Shared<EffectEmitter> Find_EmitterById(uint32 emitterId) const;
@@ -80,6 +81,7 @@ private: //## Data::SharedHistory
     EffectHistorySourceGroupKey _sourcePointGroupKey{};
     Shared<IEffectTrailSampleProvider> _sharedTrailSampleProvider{};
     Shared<IEffectSourcePointSampleProvider> _sharedSourcePointSampleProvider{};
+    Weak<IEffectSourcePointSampleProvider> _ribbonSourcePointSampleProvider{};
 
 private: //## Helper::Children
     HRESULT Ready_Emitters();

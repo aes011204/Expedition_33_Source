@@ -55,6 +55,9 @@ private: //## Data::TrailSample
     Vec3 _trailBaseWorldPosition{};
     Vec3 _trailTipWorldPosition{};
     Vec3 _sourcePointWorldPosition{};
+    Quat _trailBaseWorldRotation{ Quat::Identity };
+    Quat _trailTipWorldRotation{ Quat::Identity };
+    Quat _sourcePointWorldRotation{ Quat::Identity };
     bool _hasTrailSample{ false };
     Client::TrailAnchorAsset _trailAnchorAsset{};
     bool _hasTrailAnchorAsset{ false };
@@ -69,10 +72,10 @@ private: //## Helper::Setup
 private: //## Helper::TrailSample
     void Clear_TrailSample();
     void Update_TrailPoints();
-    bool Try_ResolveWeaponLocalPoint(const Vec3& localPosition, Vec3& outWorldPosition) const;
-    bool Try_ResolveTrailAnchorPoint(const Client::TrailAnchorPointDesc& anchor, const Vec3& localOffset, Vec3& outWorldPosition) const;
-    bool Try_ResolveSourceAnchorPoint(const Vec3& localOffset, Vec3& outWorldPosition) const;
-    bool Try_ResolveFallbackLocalPoint(const Vec3& localPosition, const Vec3& localOffset, Vec3& outWorldPosition) const;
+    bool Try_ResolveWeaponLocalPoint(const Vec3& localPosition, Vec3& outWorldPosition, Quat& outWorldRotation) const;
+    bool Try_ResolveTrailAnchorPoint(const Client::TrailAnchorPointDesc& anchor, const Vec3& localOffset, Vec3& outWorldPosition, Quat& outWorldRotation) const;
+    bool Try_ResolveSourceAnchorPoint(const Vec3& localOffset, Vec3& outWorldPosition, Quat& outWorldRotation) const;
+    bool Try_ResolveFallbackLocalPoint(const Vec3& localPosition, const Vec3& localOffset, Vec3& outWorldPosition, Quat& outWorldRotation) const;
 
 private: //## Helper::Render
     void Draw_TrailAnchorMarkers() const;

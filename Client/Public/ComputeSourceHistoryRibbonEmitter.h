@@ -32,6 +32,7 @@ public:
     HRESULT Reset_ForEffectReplay() override;
     bool Is_EffectFinished() const override;
     void Bind_SourcePointSampleProvider(const Weak<IEffectSourcePointSampleProvider>& provider) override;
+    void Bind_RibbonSourcePointSampleProvider(const Weak<IEffectSourcePointSampleProvider>& provider) override;
     bool Try_Get_BlendSortWorldPosition(Vec3& outWorldPosition) const override;
     EffectSortPolicy Get_BlendSortPolicy() const override;
     int32 Get_BlendSortLayer() const override;
@@ -153,6 +154,7 @@ private: //## Data::PlaybackRuntime
     Vec3 _selfRootSourcePosition{};
     Vec3 _selfRootPreviousSourcePosition{};
     Vec3 _selfRootHeadOffset{};
+    Weak<IEffectSourcePointSampleProvider> _ribbonSourcePointSampleProvider{};
     bool _hasSelfRootPreviousSourcePosition{};
     vector<HistoryLane> _sourceLanes{};
     vector<RetiredLoopStroke> _retiredLoopStrokes{};
@@ -244,8 +246,8 @@ private: //## Helper::Render
     uint32 Resolve_ShaderPassIndex() const;
     int Resolve_OpacitySourceIndex() const;
     Vec3 Sample_HeadOffset(uint32 seed) const;
-    Vec3 Resolve_HeadOffsetWorld(const Vec3& localOffset) const;
-    Vec3 Apply_HeadOffset(const Vec3& sourcePosition, const Vec3& localOffset) const;
+    Vec3 Resolve_HeadOffsetWorld(const Vec3& localOffset, const Quat* sourceRotation = nullptr) const;
+    Vec3 Apply_HeadOffset(const Vec3& sourcePosition, const Vec3& localOffset, const Quat* sourceRotation = nullptr) const;
     bool Try_Resolve_SourcePosition(Vec3& outPosition) const;
     Vec3 Resolve_SourcePosition() const;
     Vec4 Evaluate_ColorOverLife(float lifeProgress) const;

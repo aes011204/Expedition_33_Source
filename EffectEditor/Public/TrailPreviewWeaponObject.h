@@ -57,6 +57,7 @@ private: //## Data::TrailSample
     Vec3 _trailBaseWorldPosition{};
     Vec3 _trailTipWorldPosition{};
     Vec3 _sourcePointWorldPosition{};
+    Quat _weaponWorldRotation{ Quat::Identity };
     bool _hasTrailSample{ false };
     bool _isSocketAttached{ false };
     bool _socketWarningLogged{ false };

@@ -23,6 +23,19 @@ namespace
     constexpr auto kHeadSocketName{ "headSocket" };
     constexpr auto kWeaponSocketName{ "Weapon_R" };
     constexpr float kSimonWeaponAttachScaleCompensation{ 10.f };
+
+    Quat Resolve_NormalizedRotation(const Matrix& worldMatrix)
+    {
+        Matrix decomposableWorldMatrix = worldMatrix;
+        Vec3 scale = Vec3::One;
+        Vec3 position = Vec3::Zero;
+        Quat rotation = Quat::Identity;
+        if (!decomposableWorldMatrix.Decompose(scale, rotation, position) || rotation.LengthSquared() <= 0.000001f)
+            return Quat::Identity;
+
+        rotation.Normalize();
+        return rotation;
+    }
     constexpr float kSimonWeaponAttachOffsetDegreesX{ -90.f };
 
     bool Is_RestorableMonsterVisualPart(const wstring& partTag)
@@ -555,6 +568,8 @@ bool TrailPreviewMonsterObject::Try_GetTrailSample(EffectTrailSample& outSample)
 
     outSample.baseWorldPosition = _trailBaseWorldPosition;
     outSample.tipWorldPosition = _trailTipWorldPosition;
+    outSample.baseWorldRotation = _trailBaseWorldRotation;
+    outSample.tipWorldRotation = _trailTipWorldRotation;
     return true;
 }
 
@@ -564,6 +579,7 @@ bool TrailPreviewMonsterObject::Try_GetSourcePointSample(EffectSourcePointSample
         return false;
 
     outSample.worldPosition = _sourcePointWorldPosition;
+    outSample.worldRotation = _sourcePointWorldRotation;
     return true;
 }
 
@@ -692,6 +708,9 @@ void TrailPreviewMonsterObject::Clear_TrailSample()
     _trailBaseWorldPosition = {};
     _trailTipWorldPosition = {};
     _sourcePointWorldPosition = {};
+    _trailBaseWorldRotation = Quat::Identity;
+    _trailTipWorldRotation = Quat::Identity;
+    _sourcePointWorldRotation = Quat::Identity;
     _hasTrailSample = false;
 }
 
@@ -708,15 +727,15 @@ void TrailPreviewMonsterObject::Update_TrailPoints()
     const Vec3 sourceLocalOffset = EDITOR->Get_SourceHistorySpriteTrailPreviewSourceLocalOffset();
 
     const bool hasBase =
-        (_hasTrailAnchorAsset && Try_ResolveTrailAnchorPoint(_trailAnchorAsset.base, baseLocalOffset, _trailBaseWorldPosition)) ||
-        Try_ResolveFallbackLocalPoint(kFallbackBaseLocalOffset, baseLocalOffset, _trailBaseWorldPosition);
+        (_hasTrailAnchorAsset && Try_ResolveTrailAnchorPoint(_trailAnchorAsset.base, baseLocalOffset, _trailBaseWorldPosition, _trailBaseWorldRotation)) ||
+        Try_ResolveFallbackLocalPoint(kFallbackBaseLocalOffset, baseLocalOffset, _trailBaseWorldPosition, _trailBaseWorldRotation);
     const bool hasTip =
-        (_hasTrailAnchorAsset && Try_ResolveTrailAnchorPoint(_trailAnchorAsset.tip, tipLocalOffset, _trailTipWorldPosition)) ||
-        Try_ResolveFallbackLocalPoint(kFallbackTipLocalOffset, tipLocalOffset, _trailTipWorldPosition);
+        (_hasTrailAnchorAsset && Try_ResolveTrailAnchorPoint(_trailAnchorAsset.tip, tipLocalOffset, _trailTipWorldPosition, _trailTipWorldRotation)) ||
+        Try_ResolveFallbackLocalPoint(kFallbackTipLocalOffset, tipLocalOffset, _trailTipWorldPosition, _trailTipWorldRotation);
     const bool hasSource =
-        Try_ResolveSourceAnchorPoint(sourceLocalOffset, _sourcePointWorldPosition) ||
-        (_hasTrailAnchorAsset && Try_ResolveTrailAnchorPoint(_trailAnchorAsset.tip, sourceLocalOffset, _sourcePointWorldPosition)) ||
-        Try_ResolveFallbackLocalPoint(kFallbackSourceLocalOffset, sourceLocalOffset, _sourcePointWorldPosition);
+        Try_ResolveSourceAnchorPoint(sourceLocalOffset, _sourcePointWorldPosition, _sourcePointWorldRotation) ||
+        (_hasTrailAnchorAsset && Try_ResolveTrailAnchorPoint(_trailAnchorAsset.tip, sourceLocalOffset, _sourcePointWorldPosition, _sourcePointWorldRotation)) ||
+        Try_ResolveFallbackLocalPoint(kFallbackSourceLocalOffset, sourceLocalOffset, _sourcePointWorldPosition, _sourcePointWorldRotation);
 
     _hasTrailSample = hasBase && hasTip && hasSource;
 
@@ -727,19 +746,24 @@ void TrailPreviewMonsterObject::Update_TrailPoints()
     }
 }
 
-bool TrailPreviewMonsterObject::Try_ResolveWeaponLocalPoint(const Vec3& localPosition, Vec3& outWorldPosition) const
+bool TrailPreviewMonsterObject::Try_ResolveWeaponLocalPoint(
+    const Vec3& localPosition,
+    Vec3& outWorldPosition,
+    Quat& outWorldRotation) const
 {
     if (_weapon == nullptr)
         return false;
 
     outWorldPosition = Vec3::Transform(localPosition, _weapon->Get_CombinedWorldMatrix());
+    outWorldRotation = Resolve_NormalizedRotation(_weapon->Get_CombinedWorldMatrix());
     return true;
 }
 
 bool TrailPreviewMonsterObject::Try_ResolveTrailAnchorPoint(
     const TrailAnchorPointDesc& anchor,
     const Vec3& localOffset,
-    Vec3& outWorldPosition) const
+    Vec3& outWorldPosition,
+    Quat& outWorldRotation) const
 {
     if (_weapon == nullptr || anchor.boneName.empty())
         return false;
@@ -761,12 +785,14 @@ bool TrailPreviewMonsterObject::Try_ResolveTrailAnchorPoint(
                                      : *boneMatrix;
     const Matrix anchorWorldMatrix = anchorLocalMatrix * _weapon->Get_CombinedWorldMatrix();
     outWorldPosition = Vec3::Transform(anchor.localPosition + localOffset, anchorWorldMatrix);
+    outWorldRotation = Resolve_NormalizedRotation(anchorWorldMatrix);
     return true;
 }
 
 bool TrailPreviewMonsterObject::Try_ResolveSourceAnchorPoint(
     const Vec3& localOffset,
-    Vec3& outWorldPosition) const
+    Vec3& outWorldPosition,
+    Quat& outWorldRotation) const
 {
     if (_weapon == nullptr)
         return false;
@@ -779,15 +805,16 @@ bool TrailPreviewMonsterObject::Try_ResolveSourceAnchorPoint(
     TrailAnchorPointDesc sourceAnchor{};
     sourceAnchor.boneName = anchor.boneName;
     sourceAnchor.localPosition = anchor.localPosition;
-    return Try_ResolveTrailAnchorPoint(sourceAnchor, localOffset, outWorldPosition);
+    return Try_ResolveTrailAnchorPoint(sourceAnchor, localOffset, outWorldPosition, outWorldRotation);
 }
 
 bool TrailPreviewMonsterObject::Try_ResolveFallbackLocalPoint(
     const Vec3& localPosition,
     const Vec3& localOffset,
-    Vec3& outWorldPosition) const
+    Vec3& outWorldPosition,
+    Quat& outWorldRotation) const
 {
-    return Try_ResolveWeaponLocalPoint(localPosition + localOffset, outWorldPosition);
+    return Try_ResolveWeaponLocalPoint(localPosition + localOffset, outWorldPosition, outWorldRotation);
 }
 
 void TrailPreviewMonsterObject::Draw_TrailAnchorMarkers() const

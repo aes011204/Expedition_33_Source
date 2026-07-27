@@ -620,7 +620,16 @@ void EffectEditorInstance::Set_TrailPreviewVisible(bool visible)
 {
     if (!visible)
     {
+        if (!_isTrailPreviewVisible)
+            return;
+
         _isTrailPreviewVisible = false;
+        Reset_TrailPreviewGate();
+
+        const Shared<Level> currentLevel = GAME->Current_LevelType();
+        const Shared<Level_EffectEditor> effectEditorLevel = dynamic_pointer_cast<Level_EffectEditor>(currentLevel);
+        if (effectEditorLevel != nullptr && FAILED(effectEditorLevel->Reset_PreviewRuntime()))
+            LOG_ERROR("Failed to reset EffectEditor preview runtime after disabling trail preview.");
         return;
     }
 

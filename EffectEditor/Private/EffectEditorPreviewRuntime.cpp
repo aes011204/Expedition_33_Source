@@ -44,6 +44,33 @@ namespace
         Shared<bool> _sampleEnabled{};
     };
 
+    class TrailTipPreviewSampleProvider final : public IEffectSourcePointSampleProvider
+    {
+    public:
+        explicit TrailTipPreviewSampleProvider(const Weak<IEffectTrailSampleProvider>& trailProvider)
+            : _trailProvider(trailProvider)
+        {
+        }
+
+        bool Try_GetSourcePointSample(EffectSourcePointSample& outSample) const override
+        {
+            const Shared<IEffectTrailSampleProvider> trailProvider = _trailProvider.lock();
+            if (trailProvider == nullptr)
+                return false;
+
+            EffectTrailSample trailSample{};
+            if (!trailProvider->Try_GetTrailSample(trailSample))
+                return false;
+
+            outSample.worldPosition = trailSample.tipWorldPosition;
+            outSample.worldRotation = trailSample.tipWorldRotation;
+            return true;
+        }
+
+    private:
+        Weak<IEffectTrailSampleProvider> _trailProvider{};
+    };
+
     class SourceHistoryPreviewSampleProvider final : public IEffectSourcePointSampleProvider
     {
     public:
@@ -223,6 +250,7 @@ void EffectEditorPreviewRuntime::Bind_TrailPreviewSources(
 {
     _trailPreviewSampleProvider = trailSampleProvider;
     _trailPreviewController = trailPreviewController;
+    _ribbonPreviewSampleProvider = make_shared<TrailTipPreviewSampleProvider>(trailSampleProvider);
     _sourceHistoryPreviewSampleProvider =
         make_shared<SourceHistoryPreviewSampleProvider>(sourcePointSampleProvider, trailPreviewController, false);
     _sourceHistorySpriteTrailPreviewSampleProvider =
@@ -373,6 +401,8 @@ HRESULT EffectEditorPreviewRuntime::Restart_FromDefinition(const Shared<const Ef
         _sourceHistoryPreviewSampleProvider,
         _sourceHistorySpriteTrailPreviewSampleProvider
     );
+    if (EDITOR != nullptr && EDITOR->Is_TrailPreviewVisible())
+        acquireDesc.ribbonSourcePointSampleProvider = _ribbonPreviewSampleProvider;
     acquireDesc.sourcePointGroupKey = EffectHistorySourceGroupKey{
         EffectHistorySourceGroupKind::SourcePointHistory,
         "EffectEditorPreview|SourcePoint"

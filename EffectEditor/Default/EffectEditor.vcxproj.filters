@@ -130,9 +130,6 @@
     <ClCompile Include="..\Private\TrailPreviewSampleRouter.cpp">
       <Filter>05. EditorOnly Object\Trail Preview Object\Controller</Filter>
     </ClCompile>
-    <ClCompile Include="..\Private\TrailPreviewMonsterObject.cpp">
-      <Filter>05. EditorOnly Object\Trail Preview Object\Preview Player</Filter>
-    </ClCompile>
     <ClCompile Include="..\Private\MeshDataPreview_View.cpp">
       <Filter>02. View\Mesh Effect Preview</Filter>
     </ClCompile>
@@ -148,8 +145,9 @@
     <ClCompile Include="..\Private\EffectEditorPreviewRuntime.cpp">
       <Filter>01. Manager\06. Preview Runtime</Filter>
     </ClCompile>
-    <ClCompile Include="..\Private\HistoryBudget_View.cpp">
-      <Filter>02. View\History Budget View</Filter>
+    <ClCompile Include="..\Private\HistoryBudget_View.cpp" />
+    <ClCompile Include="..\Private\TrailPreviewMonsterObject.cpp">
+      <Filter>05. EditorOnly Object\Trail Preview Object\Preview Monster</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -215,9 +213,6 @@
     </ClInclude>
     <ClInclude Include="..\Public\Hierarchy_View.h">
       <Filter>02. View\Hierarchy View</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\HistoryBudget_View.h">
-      <Filter>02. View\History Budget View</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\Scene_View.h">
       <Filter>02. View\Scene View</Filter>
@@ -297,9 +292,6 @@
     <ClInclude Include="..\Public\TrailPreviewSampleRouter.h">
       <Filter>05. EditorOnly Object\Trail Preview Object\Controller</Filter>
     </ClInclude>
-    <ClInclude Include="..\Public\TrailPreviewMonsterObject.h">
-      <Filter>05. EditorOnly Object\Trail Preview Object\Preview Player</Filter>
-    </ClInclude>
     <ClInclude Include="..\Public\MeshDataPreview_View.h">
       <Filter>02. View\Mesh Effect Preview</Filter>
     </ClInclude>
@@ -317,6 +309,10 @@
     </ClInclude>
     <ClInclude Include="..\Public\EffectEditorPreviewRuntime.h">
       <Filter>01. Manager\06. Preview Runtime</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\HistoryBudget_View.h" />
+    <ClInclude Include="..\Public\TrailPreviewMonsterObject.h">
+      <Filter>05. EditorOnly Object\Trail Preview Object\Preview Monster</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -454,6 +450,9 @@
     </Filter>
     <Filter Include="01. Manager\06. Preview Runtime\Preview Definition Builder">
       <UniqueIdentifier>{7094ca24-1c81-43c9-8313-446c3cd00036}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="05. EditorOnly Object\Trail Preview Object\Preview Monster">
+      <UniqueIdentifier>{7a41e4df-6020-4070-ae36-3b2122c1f9bd}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
 </Project>

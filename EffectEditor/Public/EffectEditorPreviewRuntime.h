@@ -48,6 +48,7 @@ private: //## Data::PreviewRuntime
     float _lastTrailPreviewSourceRatio{ 0.f };
     bool _hasTrailPreviewSourceRatio{ false };
     Weak<IEffectTrailSampleProvider> _trailPreviewSampleProvider{};
+    Shared<IEffectSourcePointSampleProvider> _ribbonPreviewSampleProvider{};
     Shared<IEffectSourcePointSampleProvider> _sourceHistoryPreviewSampleProvider{};
     Shared<IEffectSourcePointSampleProvider> _sourceHistorySpriteTrailPreviewSampleProvider{};
     Weak<TrailPreviewController> _trailPreviewController{};

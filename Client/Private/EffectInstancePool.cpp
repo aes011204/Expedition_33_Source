@@ -492,6 +492,7 @@ HRESULT EffectInstancePool::Prepare_AcquiredInstance(
     CHECK_NULL(instance, E_FAIL);
     instance->Bind_TrailSampleProvider(desc.trailSampleProvider, desc.trailSampleGroupKey);
     instance->Bind_SourcePointSampleProvider(desc.sourcePointSampleProvider, desc.sourcePointGroupKey);
+    instance->Bind_RibbonSourcePointSampleProvider(desc.ribbonSourcePointSampleProvider);
     instance->Set_Name(Make_EffectInstanceDisplayName(desc, definition));
 
     const Shared<TransformCom> transform = instance->Get_Transform();

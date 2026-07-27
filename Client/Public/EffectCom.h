@@ -274,6 +274,7 @@ private: //## Types::AttachedEffect
         AttachedEffectRole role{ AttachedEffectRole::Normal };
         TrailAnchorAsset trailAnchorAsset{};
         Shared<IEffectTrailSampleProvider> trailSampleProvider{};
+        Shared<IEffectSourcePointSampleProvider> ribbonSourcePointSampleProvider{};
         uint64 trailNotifyToken = 0;
         TrailOffsetRuntimeDesc trailOffset{};
         bool trailEchoEligible = true;
@@ -374,10 +375,10 @@ private: //## Helper::AttachedEffects
         const TrailOffsetRuntimeDesc* offsetDesc,
         EffectTrailSample& outSample) const;
 
-    bool Try_ResolveTrailAnchorWorldPosition(
+    bool Try_ResolveTrailAnchorWorldMatrix(
         const PartObject& trailPart,
         const TrailAnchorPointDesc& anchor,
-        Vec3& outWorldPosition) const;
+        Matrix& outWorldMatrix) const;
 
     bool Try_ResolveSourceHistoryEffectName(
         const wstring& effectName,
@@ -392,11 +393,11 @@ private: //## Helper::AttachedEffects
         const TrailAnchorAsset* trailAnchorAsset,
         EffectSourcePointSample& outSample) const;
 
-    bool Try_ResolveWeaponAnchorWorldPosition(
+    bool Try_ResolveWeaponAnchorWorldMatrix(
         const PartObject& weaponPart,
         const string& anchorName,
         const Vec3& localOffset,
-        Vec3& outWorldPosition) const;
+        Matrix& outWorldMatrix) const;
 
 public:
     static Shared<EffectCom> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);

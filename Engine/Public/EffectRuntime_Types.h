@@ -245,11 +245,14 @@ struct EffectTrailSample
 {
     Vec3 baseWorldPosition{};
     Vec3 tipWorldPosition{};
+    Quat baseWorldRotation{ Quat::Identity };
+    Quat tipWorldRotation{ Quat::Identity };
 };
 
 struct EffectSourcePointSample
 {
     Vec3 worldPosition{};
+    Quat worldRotation{ Quat::Identity };
 };
 
 class ENGINE_DLL IEffectTrailSampleProvider

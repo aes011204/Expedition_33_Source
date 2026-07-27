@@ -256,6 +256,7 @@ void EffectInstance::Stop()
 {
     Bind_TrailSampleProvider({});
     Bind_SourcePointSampleProvider({});
+    Bind_RibbonSourcePointSampleProvider({});
     Clear_SharedHistoryCache();
     _isPlaybackPaused = false; // Stop은 완전 정지이므로 pause 상태도 같이 해제한다.
     _playbackState = EffectPlaybackState::Stopped;
@@ -396,6 +397,19 @@ void EffectInstance::Bind_SourcePointSampleProvider(
             continue;
 
         emitter->Bind_SourcePointSampleProvider(boundProvider);
+    }
+}
+
+void EffectInstance::Bind_RibbonSourcePointSampleProvider(const Weak<IEffectSourcePointSampleProvider>& provider)
+{
+    _ribbonSourcePointSampleProvider = provider;
+
+    for (const Shared<EffectEmitter>& emitter : _emitters)
+    {
+        if (nullptr == emitter)
+            continue;
+
+        emitter->Bind_RibbonSourcePointSampleProvider(provider);
     }
 }
 

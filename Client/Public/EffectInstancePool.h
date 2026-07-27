@@ -30,6 +30,7 @@ public: //## Types::Public
         EffectHistorySourceGroupKey trailSampleGroupKey{};
         Weak<IEffectSourcePointSampleProvider> sourcePointSampleProvider{};
         EffectHistorySourceGroupKey sourcePointGroupKey{};
+        Weak<IEffectSourcePointSampleProvider> ribbonSourcePointSampleProvider{};
         bool autoReleaseOnFinished{ true };
     };
 

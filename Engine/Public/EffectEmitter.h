@@ -39,6 +39,8 @@ public: //## Behavior::Lifecycle
 public: //## Behavior::ProviderBinding
     virtual void Bind_TrailSampleProvider(const Weak<IEffectTrailSampleProvider>& provider);
     virtual void Bind_SourcePointSampleProvider(const Weak<IEffectSourcePointSampleProvider>& provider);
+    // Ribbon SelfRoot emitters consume this independently from source-history sprite trails.
+    virtual void Bind_RibbonSourcePointSampleProvider(const Weak<IEffectSourcePointSampleProvider>& provider);
     virtual bool Collect_FollowerSourcePoints(vector<EffectFollowerSourcePoint>& outPoints, uint32 maxPointCount) const;
 
 public: //## Behavior::MaterialRuntime
