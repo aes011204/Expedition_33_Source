@@ -498,7 +498,7 @@ BattleReactionController::BattleReactionInputResult BattleReactionController::Su
             if (auto battle = CLIENT->Get_BattleController())
                 battle->Play_BattleHitStop(0.08f, 0.08f);
 
-			GAME->Play_SoundCue(Constants::SoundCue::Battle_Parry_Success);
+            GAME->Play_SoundCue(Constants::SoundCue::Battle_Parry_Success, nullptr, 0.75f, 1.f);
         }
 
         for (const BattleChar& target : inputTargets)
