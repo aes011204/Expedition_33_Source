@@ -44,18 +44,22 @@ public:
 
 		float outputAlpha{ 1.f };
 		float rotationOutputAlpha{ 0.25f };
+		bool enableTranslationOutput{ true };
+		float rootRotationOutputScale{ 1.f };
+		float rotationOutputDepthStart{ 0.f };
+		float rotationOutputDepthEnd{ 0.f };
 		float outputSmoothAlpha{ 0.35f };
 		float idleOutputSmoothAlpha{ 0.45f };
 		float idleMotionDeadzone{ 0.06f };
 		float maxOutputAngleDegree{ 150.f };
 
-		float contactRotationFollowAlpha{ 0.34f };
 		float freeRotationFollowAlpha{ 0.46f };
 		float rotationFollowDepthScale{ 0.10f };
 
 		float poseRestoreAlpha{ 0.08f };
 		float poseRestoreMaxSpeed{ 2.50f };
 		Vec3 maxLocalOffset{ Vec3::Zero };
+		bool enableJointLimit{ true };
 
 		float movementInertiaScale{ 0.f };
 		float tipMovementInertiaScale{ 1.f };
@@ -63,7 +67,11 @@ public:
 		float lateralInertiaScale{ 1.f };
 		float verticalInertiaScale{ 1.f };
 		float depthInertiaScale{ 1.f };
+		float ownerRotationInertiaScale{ 0.f };
 		bool includeDriverLateralInertia{ false };
+		bool useSteadyInertia{ true };
+		bool advectSimulationWithAnchor{ false };
+		float anchorAdvectionAlpha{ 1.f };
 		float accelerationInertiaScale{ 0.35f };
 		float inertiaVelocitySmoothAlpha{ 0.25f };
 
@@ -74,7 +82,6 @@ public:
 		float bendConstraintAlpha{ 0.f };
 		uint32 projectionIterations{ 1 };
 
-		float contactInertiaDamping{ 0.18f };
 		float releaseInertiaDamping{ 0.12f };
 
 		bool enableCollision{ true };
@@ -82,10 +89,6 @@ public:
 		float collisionRadiusPadding{ 0.12f };
 		float collisionContactSkinWidth{ 0.08f };
 		float collisionSphereRadius{ 0.24f };
-		float collisionPushOutScale{ 1.f };
-		float contactSnapAlpha{ 0.90f };
-		float collisionCorrectionSmoothAlpha{ 0.30f };
-		float collisionNormalSmoothAlpha{ 0.30f };
 		uint32 collisionProjectionIterations{ 3 };
 		bool useHardCollisionProjection{ false };
 		uint32 hardCollisionProjectionIterations{ 2 };
@@ -104,6 +107,7 @@ public:
 
 		bool writeBackEnabled{ true };
 		bool debugDrawCollisionCapsules{ false };
+		bool debugTraceBoneMotion{ false };
 
 		mutable int32 debugActiveChainCount{ 0 };
 		mutable int32 debugActiveNodeCount{ 0 };
@@ -116,6 +120,9 @@ public:
 		mutable int32 debugLocalClampYCount{ 0 };
 		mutable int32 debugLocalClampZCount{ 0 };
 		mutable float debugInertiaMagnitude{ 0.f };
+		mutable int32 debugTraceFrameCount{ 0 };
+		mutable float debugTraceMaxNodeMotion{ 0.f };
+		mutable float debugTraceMaxOutputAngle{ 0.f };
 	};
 
 	struct RuntimeDebugCapsule
@@ -176,15 +183,11 @@ private:
 		Vec3 prevPosePosition{ Vec3::Zero };
 		Vec3 poseMotionDelta{ Vec3::Zero };
 		Vec3 smoothedInertiaVelocity{ Vec3::Zero };
-		Vec3 smoothedCollisionOffset{ Vec3::Zero };
-		Vec3 smoothedContactNormal{ Vec3::Zero };
 
 		bool hasPrevPosePosition{ false };
 		bool hasSmoothedInertiaVelocity{ false };
 		bool hasSmoothedLocalDirection{ false };
 		bool hasSmoothedLocalTransform{ false };
-		bool hasSmoothedCollisionOffset{ false };
-		bool hasSmoothedContactNormal{ false };
 		bool hasCollisionOutputPosition{ false };
 		bool hadContactThisFrame{ false };
 		bool hadPushThisFrame{ false };
@@ -200,10 +203,12 @@ private:
 		int32 anchorBoneIndex{ -1 };
 		PxRigidDynamic* anchorActor{ nullptr };
 		Matrix anchorWorld{ Matrix::Identity };
+		Matrix prevAnchorWorld{ Matrix::Identity };
 		Vec3 prevDriverPosition{ Vec3::Zero };
 		Vec3 driverMotionDelta{ Vec3::Zero };
 		Vec3 prevDriverVelocity{ Vec3::Zero };
 		Vec3 smoothedLateralAxis{ Vec3::UnitX };
+		bool hasPrevAnchorWorld{ false };
 		bool hasPrevDriverPosition{ false };
 		bool hasPrevDriverVelocity{ false };
 		bool hasSmoothedLateralAxis{ false };
@@ -255,6 +260,7 @@ private:
 		const ModelCom* collisionModel,
 		const Matrix& ownerWorld,
 		const Matrix& collisionOwnerWorld);
+	void Apply_AnchorFrameAdvection();
 	void Update_SolvedPositionsFromActors();
 	void Apply_OwnerInertiaForce(const Vec3& ownerMotionDelta, float timeDelta, bool isOwnerIdle);
 	void Apply_PoseSpringForces(float timeDelta, bool isOwnerIdle);
@@ -263,6 +269,7 @@ private:
 	void Apply_PoseRestoreAndDamping(float timeDelta, bool isOwnerIdle);
 	void Apply_LocalOffsetConstraints(float timeDelta, bool isOwnerIdle);
 	void Write_BackToModel(ModelCom* model, const Matrix& ownerWorld, bool isOwnerIdle);
+	void Trace_BoneMotion(ModelCom* model, const Matrix& ownerWorld);
 	vector<WorldCapsule> Build_WorldCapsules(const ModelCom* collisionModel, const Matrix& collisionOwnerWorld) const;
 	void Build_DebugOutput(ModelCom* model, const Matrix& ownerWorld);
 	bool Validate_RootAlignment(ModelCom* model, const Matrix& ownerWorld);

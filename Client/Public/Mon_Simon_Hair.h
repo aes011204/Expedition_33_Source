@@ -11,11 +11,19 @@ class Mon_Simon_Hair final : public Monster_Part
     GENERATED_GAMEOBJECT(Mon_Simon_Hair, ObjectType::PartObject)
 
 public:
+    enum class PhysicsPreset : uint8
+    {
+        Current,
+        Dev
+    };
+
     struct HEAD_DESC : Monster_Part::MONSTER_PART_DESC
     {
         const Matrix* socketMatrix = nullptr;
         ModelCom* collisionModel = nullptr;
         const Matrix* collisionOwnerWorldMatrix = nullptr;
+        PhysicsPreset physicsPreset = PhysicsPreset::Current;
+        float windScaleOverride = -1.f;
     };
 
 public:
@@ -38,8 +46,10 @@ public:
     const Engine::ClassReflectionInfo* Get_RuntimeReflectionInfo() const;
     void* Get_RuntimeReflectionTarget();
     void On_RuntimeReflectionChanged();
+    void On_RuntimeReflectionChanged(const Engine::PropertyInfo& property);
     void RuntimeResetPose();
     void RuntimeRebuild();
+    void Set_PhysicsPreset(PhysicsPreset physicsPreset, float windScaleOverride = -1.f);
     void Build_RuntimeDebugCapsules(vector<PhysicsModifier::RuntimeDebugCapsule>& outCapsules) const;
     void Build_RuntimeDebugSpheres(vector<PhysicsModifier::RuntimeDebugSphere>& outSpheres) const;
     void Build_RuntimeDebugSegments(vector<PhysicsModifier::RuntimeDebugSegment>& outSegments) const;
@@ -54,8 +64,9 @@ private:
     const Matrix* _collisionOwnerWorldMatrix = nullptr;
     Matrix _offsetMatrix = {};
     Shared<PhysicsModifier> _hairPhysicsModifier = {};
+    PhysicsPreset _physicsPreset = PhysicsPreset::Current;
+    float _windScaleOverride = -1.f;
     bool _hairPhysicsReady = false;
-    bool _useHairAnimationPlayback = true;
 
 public:
     static Shared<Mon_Simon_Hair> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);

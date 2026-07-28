@@ -10,12 +10,6 @@ NS_BEGIN(Client)
 class ChainModifierPreset final : public Base
 {
 public:
-    static void BuildScarfDesc(
-        ChainModifier::ChainModifierDesc& outDesc,
-        TransformCom* ownerTransform,
-        PlayerCharacterType characterType,
-        const wstring& modifierTag = L"ClothPhysics_Scarf");
-
     static void BuildPoseFollowScarfDesc(
         PoseFollowChainModifier::PoseFollowChainModifierDesc& outDesc,
         TransformCom* ownerTransform,
@@ -58,14 +52,20 @@ public:
         PlayerCharacterType characterType,
         const wstring& modifierTag = L"ClothPhysics_PotatoBagHair");
 
-    
-
-    
-
     static void BuildSimonHairPhysicsDesc(
         PhysicsModifier::PhysicsModifierDesc& outDesc,
         TransformCom* ownerTransform,
         const wstring& modifierTag = L"PhysicsModifier_SimonHair");
+
+    static void BuildSimonHairPhysicsDevDesc(
+        PhysicsModifier::PhysicsModifierDesc& outDesc,
+        TransformCom* ownerTransform,
+        const wstring& modifierTag = L"PhysicsModifier_SimonHair");
+
+    static void BuildSimonCoatPhysicsDesc(
+        PhysicsModifier::PhysicsModifierDesc& outDesc,
+        TransformCom* ownerTransform,
+        const wstring& modifierTag = L"PhysicsModifier_SimonCoat");
 
     static void BuildDuallisteHairbandPhysicsDesc(
         PhysicsModifier::PhysicsModifierDesc& outDesc,
@@ -108,12 +108,6 @@ public:
         TransformCom* ownerTransform,
         PlayerCharacterType characterType,
         const wstring& modifierTag = L"ClothPhysics_BackpackBand");
-
-    static void BuildCoatDesc(
-        ChainModifier::ChainModifierDesc& outDesc,
-        TransformCom* ownerTransform,
-        PlayerCharacterType characterType,
-        const wstring& modifierTag = L"ClothPhysics_Coat");
 
     static void BuildPoseFollowCoatDesc(
         PoseFollowChainModifier::PoseFollowChainModifierDesc& outDesc,
