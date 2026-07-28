@@ -569,6 +569,8 @@ bool CinematicSequenceRunner::Play_Sequence(
     if (_player == nullptr)
         return false;
 
+    Reset_PreviewPlaybackState();
+
     if (!_bindingStates.empty())
         Cleanup_Context();
 
@@ -626,9 +628,6 @@ bool CinematicSequenceRunner::Play_Sequence(
     _applyCameraTrack = applyCameraTrack;
     _applyEventTrack = applyEventTrack;
     _applyActorTransformTrack = applyActorTransformTrack;
-    _suppressAnimNotifyExecutionForBoundActors = false;
-    _usePreviewPlaybackOptimizations = false;
-
     Set_GameplayUIHiddenForCinematic(true);
     const bool playerAppliesCameraTrack = applyCameraTrack && !Uses_CameraShots() && trackKind == CameraTrackKind::World;
     _player->Ready_CinematicPlayer(&_sequence, cinematicTrack, cinematicCamera, true, playerAppliesCameraTrack);
@@ -650,13 +649,16 @@ bool CinematicSequenceRunner::Play_Sequence(
     int trackIndex,
     bool applyCameraTrack,
     bool applyEventTrack,
-    bool applyActorTransformTrack)
+    bool applyActorTransformTrack,
+    const CinematicPreviewOptions& previewOptions)
 {
     if(_player == nullptr)
         _player = Cinematic_Player::Create();
 
     if(_player == nullptr)
         return false;
+
+    Reset_PreviewPlaybackState();
 
     if (!_bindingStates.empty())
         Cleanup_Context();
@@ -696,7 +698,13 @@ bool CinematicSequenceRunner::Play_Sequence(
     _applyCameraTrack = applyCameraTrack;
     _applyEventTrack = applyEventTrack;
     _applyActorTransformTrack = applyActorTransformTrack;
-    _suppressAnimNotifyExecutionForBoundActors = false;
+    _suppressAnimNotifyExecutionForBoundActors = !previewOptions.executeAnimNotifies;
+    _removeSpawnedActorsOnNaturalCompletion = previewOptions.removeSpawnedActorsOnNaturalCompletion;
+    for (const string& typeName : previewOptions.suppressedAnimNotifyTypeNames)
+    {
+        if (!typeName.empty())
+            _previewSuppressedAnimNotifyTypeNames.insert(typeName);
+    }
     _usePreviewPlaybackOptimizations = true;
 
     Set_GameplayUIHiddenForCinematic(true);
@@ -727,8 +735,7 @@ void CinematicSequenceRunner::Stop_Sequence(bool forceRemoveAllSpawned)
     _player->Stop();
     Clear_CompletedCallbacks();
     Cleanup_Context(forceRemoveAllSpawned);
-    _suppressAnimNotifyExecutionForBoundActors = false;
-    _usePreviewPlaybackOptimizations = false;
+    Reset_PreviewPlaybackState();
     CLIENT->Restore_PreviousCamera();
 
     Set_GameplayUIHiddenForCinematic(false);
@@ -1012,12 +1019,14 @@ void CinematicSequenceRunner::Update(float timeDelta, bool tickBoundAnimationsMa
 
     if (wasPlaying && !_player->Is_CinematicPlaying())
     {
+        const bool removeSpawnedActorsOnNaturalCompletion = _removeSpawnedActorsOnNaturalCompletion;
         CLIENT->Restore_PreviousCamera();   // 완료 콜백이 전투 카메라를 요청할 수 있으므로, 시네마틱 카메라 복원은 먼저 끝낸다.
         Set_GameplayUIHiddenForCinematic(false);
         _onNaturalCompleted.Broadcast();
         Clear_CompletedCallbacks();         // 완료 콜백
 
-        Cleanup_Context();
+        Cleanup_Context(removeSpawnedActorsOnNaturalCompletion);
+        Reset_PreviewPlaybackState();
 
         // 인수 : 이거 필요한지? 이 친구 때문에 시네마틱 끝나고나서 비숍이랑 전투 시작할 때, BattleCamera로 바인딩이 되지 않고있음
         //CLIENT->Restore_PreviousCamera(); 
@@ -1742,10 +1751,8 @@ bool CinematicSequenceRunner::Execute_PlaySoundEvent(
     return true;
 }
 
-bool CinematicSequenceRunner::Execute_DespawnEvent(const string& targetId, const CinematicDespawnEventData& payload)
+bool CinematicSequenceRunner::Execute_DespawnEvent(const string& targetId, const CinematicDespawnEventData&)
 {
-    UNREFERENCED_PARAMETER(payload);
-
     if (targetId.empty())
     {
         LOG_WARN("[CinematicSequenceRunner] DespawnEvent skipped: empty targetId. frame={}", Get_CurrentFrame());
@@ -1763,17 +1770,7 @@ bool CinematicSequenceRunner::Execute_DespawnEvent(const string& targetId, const
 
     Stop_ActorAttachedEffects(iter->second.actor);
 
-    if (iter->second.hasCinematicNotifyContextOverride)
-    {
-        if (Shared<ModelCom> model = Find_TargetModel(iter->second.actor))
-            model->Set_CinematicNotifyContext(iter->second.previousCinematicNotifyContext);
-    }
-
-    if (iter->second.hasAnimNotifyExecutionOverride)
-    {
-        if (Shared<ModelCom> model = Find_TargetModel(iter->second.actor))
-            model->Set_AnimNotifyExecutionEnabled(iter->second.previousAnimNotifyExecutionEnabled);
-    }
+    Restore_BoundActorAnimNotifySettings(iter->second);
 
     Restore_PreviewPlaybackOptimization(iter->second);
     Apply_CinematicDrivenState(iter->second.actor, false);
@@ -2414,24 +2411,14 @@ void CinematicSequenceRunner::Cleanup_Context(bool forceRemoveAllSpawned)
         _restoreWorldTimeScale = 1.f;
     }
 
-    for (const auto& [targetId, state] : _bindingStates)
+    for (const auto& binding : _bindingStates)
     {
-        UNREFERENCED_PARAMETER(targetId);
+        const BindingRuntimeState& state = binding.second;
 
         if (state.actor == nullptr)
             continue;
 
-        if (state.hasCinematicNotifyContextOverride)
-        {
-            if (Shared<ModelCom> model = Find_TargetModel(state.actor))
-                model->Set_CinematicNotifyContext(state.previousCinematicNotifyContext);
-        }
-
-        if (state.hasAnimNotifyExecutionOverride)
-        {
-            if (Shared<ModelCom> model = Find_TargetModel(state.actor))
-                model->Set_AnimNotifyExecutionEnabled(state.previousAnimNotifyExecutionEnabled);
-        }
+        Restore_BoundActorAnimNotifySettings(state);
 
         Stop_ActorAttachedEffects(state.actor);
         Restore_PreviewPlaybackOptimization(state);
@@ -2458,6 +2445,14 @@ void CinematicSequenceRunner::Cleanup_Context(bool forceRemoveAllSpawned)
 
     if (forceRemoveAllSpawned)
         Clear_CompletedCallbacks();
+}
+
+void CinematicSequenceRunner::Reset_PreviewPlaybackState()
+{
+    _suppressAnimNotifyExecutionForBoundActors = false;
+    _removeSpawnedActorsOnNaturalCompletion = false;
+    _previewSuppressedAnimNotifyTypeNames.clear();
+    _usePreviewPlaybackOptimizations = false;
 }
 
 void CinematicSequenceRunner::Set_GameplayUIHiddenForCinematic(bool hidden) const
@@ -2646,6 +2641,25 @@ void CinematicSequenceRunner::Restore_PreviewPlaybackOptimization(const BindingR
     }
 }
 
+void CinematicSequenceRunner::Restore_BoundActorAnimNotifySettings(const BindingRuntimeState& state) const
+{
+    if (state.actor == nullptr)
+        return;
+
+    Shared<ModelCom> model = Find_TargetModel(state.actor);
+    if (model == nullptr)
+        return;
+
+    if (state.hasCinematicNotifyContextOverride)
+        model->Set_CinematicNotifyContext(state.previousCinematicNotifyContext);
+
+    if (state.hasAnimNotifyExecutionOverride)
+        model->Set_AnimNotifyExecutionEnabled(state.previousAnimNotifyExecutionEnabled);
+
+    if (state.hasSuppressedAnimNotifyTypeNamesOverride)
+        model->Set_SuppressedAnimNotifyTypeNames(state.previousSuppressedAnimNotifyTypeNames);
+}
+
 void CinematicSequenceRunner::Bind_ActorToTarget(
     const string& targetId,
     const Shared<GameObject>& actor,
@@ -2662,6 +2676,14 @@ void CinematicSequenceRunner::Bind_ActorToTarget(
         state.hasCinematicNotifyContextOverride = true;
         state.previousCinematicNotifyContext = model->Is_CinematicNotifyContext();
         model->Set_CinematicNotifyContext(true);
+
+        if (!_previewSuppressedAnimNotifyTypeNames.empty())
+        {
+            state.hasSuppressedAnimNotifyTypeNamesOverride = true;
+            state.previousSuppressedAnimNotifyTypeNames = model->Get_SuppressedAnimNotifyTypeNames();
+            model->Set_SuppressedAnimNotifyTypeNames(
+                { _previewSuppressedAnimNotifyTypeNames.begin(), _previewSuppressedAnimNotifyTypeNames.end() });
+        }
 
         if (_suppressAnimNotifyExecutionForBoundActors)
         {

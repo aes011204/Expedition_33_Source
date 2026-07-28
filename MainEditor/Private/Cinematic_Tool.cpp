@@ -754,45 +754,7 @@ void Cinematic_Tool::Toggle_PreviewPlayback()
     const bool isPaused = CLIENT->Is_CinematicPaused();
     if (!isPlaying)
     {
-        if (_sequence.cinematicTracks.empty() && _sequence.actorRelativeCameraTracks.empty())
-            return;
-
-        int previewTrackIndex = 0;
-        if (_selectedTrackIndex >= 0 &&
-            _selectedTrackIndex < Get_ModifierTrackStartIndex(_sequence))
-        {
-            previewTrackIndex = _selectedTrackIndex;
-        }
-
-        Sort_AllActorTransformTrackKeyframes();
-        _isPreviewStoppedForEditing = false;
-        EDITOR->Set_CinematicPreviewFreeCameraOverride(false);
-        GAME->Set_PreviewLetterboxEnabled(true);
-        CLIENT->Play_Sequence(
-            _sequence,
-            previewTrackIndex,
-            _previewApplyCameraTrack,
-            _previewApplyEventTrack,
-            _previewApplyActorTransformTrack);
-
-        const float previewStartFrameExact = _useExactFramePreview
-            ? _currentFrameExact
-            : static_cast<float>(_currentFrame);
-        if (previewStartFrameExact > static_cast<float>(_sequence.startFrame))
-        {
-            CLIENT->Preview_CurrentSequenceFrameExact(
-                previewStartFrameExact,
-                _previewApplyCameraTrack,
-                _previewApplyEventTrack,
-                _previewApplyActorTransformTrack,
-                false);
-        }
-
-        if (!_previewApplyCameraTrack)
-        {
-            EDITOR->Set_CinematicPreviewFreeCameraOverride(true);
-            EDITOR->Activate_FreeCamera();
-        }
+        Start_PreviewPlayback();
     }
     else if (isPaused)
     {
@@ -825,6 +787,71 @@ void Cinematic_Tool::Toggle_PreviewPlayback()
         Enter_FreeCameraEditPreview();
     }
 
+    _isPreviewDirty = true;
+}
+
+void Cinematic_Tool::Start_PreviewPlayback()
+{
+    if (_sequence.cinematicTracks.empty() && _sequence.actorRelativeCameraTracks.empty())
+        return;
+
+    int previewTrackIndex = 0;
+    if (_selectedTrackIndex >= 0 &&
+        _selectedTrackIndex < Get_ModifierTrackStartIndex(_sequence))
+    {
+        previewTrackIndex = _selectedTrackIndex;
+    }
+
+    Sort_AllActorTransformTrackKeyframes();
+    _isPreviewStoppedForEditing = false;
+    EDITOR->Set_CinematicPreviewFreeCameraOverride(false);
+    GAME->Set_PreviewLetterboxEnabled(true);
+    CinematicPreviewOptions previewOptions{};
+    previewOptions.executeAnimNotifies = _previewApplyAnimNotifies;
+    previewOptions.removeSpawnedActorsOnNaturalCompletion = true;
+    if (!_previewApplyTrailNotify)
+        previewOptions.suppressedAnimNotifyTypeNames.push_back("ANS_Trail");
+    if (!_previewApplyWeaponEchoNotify)
+        previewOptions.suppressedAnimNotifyTypeNames.push_back("ANS_WeaponEcho");
+    CLIENT->Play_Sequence(
+        _sequence,
+        previewTrackIndex,
+        _previewApplyCameraTrack,
+        _previewApplyEventTrack,
+        _previewApplyActorTransformTrack,
+        previewOptions);
+
+    const float previewStartFrameExact = _useExactFramePreview
+        ? _currentFrameExact
+        : static_cast<float>(_currentFrame);
+    if (previewStartFrameExact > static_cast<float>(_sequence.startFrame))
+    {
+        CLIENT->Preview_CurrentSequenceFrameExact(
+            previewStartFrameExact,
+            _previewApplyCameraTrack,
+            _previewApplyEventTrack,
+            _previewApplyActorTransformTrack,
+            false);
+    }
+
+    if (!_previewApplyCameraTrack)
+    {
+        EDITOR->Set_CinematicPreviewFreeCameraOverride(true);
+        EDITOR->Activate_FreeCamera();
+    }
+}
+
+void Cinematic_Tool::Restart_PreviewPlayback()
+{
+    _isPreviewStoppedForEditing = false;
+    EDITOR->Set_CinematicPreviewFreeCameraOverride(false);
+    GAME->Set_PreviewLetterboxEnabled(false);
+    CLIENT->Stop_Sequence(true);
+
+    _currentFrame = _sequence.startFrame;
+    _currentFrameExact = static_cast<float>(_sequence.startFrame);
+    _useExactFramePreview = false;
+    Start_PreviewPlayback();
     _isPreviewDirty = true;
 }
 
@@ -4521,6 +4548,29 @@ void Cinematic_Tool::Render_PreviewState()
         Request_CinematicPreviewRefresh(true);
     }
 
+    ImGui::Separator();
+    Draw_SectionHeader("Animation Notify Preview");
+
+    const bool canEditAnimNotifyPreview = !isPlaying;
+    ImGui::BeginDisabled(!canEditAnimNotifyPreview);
+    ImGui::Checkbox("Animation Notifies", &_previewApplyAnimNotifies);
+
+    ImGui::BeginDisabled(!_previewApplyAnimNotifies);
+    ImGui::Checkbox("ANS_Trail          Weapon / Body Trail", &_previewApplyTrailNotify);
+    ImGui::Checkbox("ANS_WeaponEcho     Simon Weapon Afterimage", &_previewApplyWeaponEchoNotify);
+    ImGui::EndDisabled();
+
+    if (ImGui::Button("Reset"))
+    {
+        _previewApplyAnimNotifies = true;
+        _previewApplyTrailNotify = true;
+        _previewApplyWeaponEchoNotify = true;
+    }
+    ImGui::EndDisabled();
+
+    if (!canEditAnimNotifyPreview)
+        ImGui::TextDisabled("End Preview to edit notify filters.");
+
     ImGui::SetNextItemWidth(120.f);
     if (ImGui::DragInt("current frame", &_currentFrame, 1.f, _sequence.startFrame, _sequence.endFrame))
     {
@@ -4574,6 +4624,10 @@ void Cinematic_Tool::Render_PreviewState()
             CLIENT->Stop_Sequence(true);
         }
     }
+
+    ImGui::SameLine();
+    if (ImGui::Button("Restart Preview"))
+        Restart_PreviewPlayback();
 
     ImGui::SameLine();
     if (!isPlaying)

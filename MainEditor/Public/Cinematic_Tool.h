@@ -56,6 +56,8 @@ private:
     void Render_RemoveKeyframePopup();
     void Render_PreviewState();
     void Toggle_PreviewPlayback();
+    void Start_PreviewPlayback();
+    void Restart_PreviewPlayback();
     void Render_LoadSequencePopup();
     void Render_SequenceOverwriteWarningPopups();
     void Render_ImSequencer();
@@ -181,6 +183,9 @@ private:
     bool                                 _previewApplyCameraTrack = true;
     bool                                 _previewApplyEventTrack = true;
     bool                                 _previewApplyActorTransformTrack = true;
+    bool                                 _previewApplyAnimNotifies = true;
+    bool                                 _previewApplyTrailNotify = true;
+    bool                                 _previewApplyWeaponEchoNotify = true;
     vector<string>                       _battleClipSkillIds{};
     int                                  _selectedBattleClipSkillIndex = -1;
     bool                                 _useBattleClipSkillOverride = false;
