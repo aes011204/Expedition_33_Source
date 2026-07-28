@@ -13,6 +13,7 @@ using namespace physx;
 
 #include <algorithm>
 #include <cmath>
+#include <fstream>
 
 NS_BEGIN(Engine)
 
@@ -75,6 +76,21 @@ namespace
 	}
 
 	Vec3 Local_Get_Position(const Matrix& matrix) { return Vec3(matrix._41, matrix._42, matrix._43); }
+
+	string EscapeCsv(const string& value)
+	{
+		string escaped;
+		escaped.reserve(value.size() + 2);
+		escaped.push_back('"');
+		for (char ch : value)
+		{
+			if (ch == '"')
+				escaped.push_back('"');
+			escaped.push_back(ch);
+		}
+		escaped.push_back('"');
+		return escaped;
+	}
 
 	Matrix Local_With_Position(const Matrix& matrix, const Vec3& position)
 	{
@@ -470,6 +486,8 @@ void PhysicsModifier::Evaluate_Modifier(ModelCom* model, float timeDelta)
 	_desc.debugLocalClampYCount = 0;
 	_desc.debugLocalClampZCount = 0;
 	_desc.debugInertiaMagnitude = 0.f;
+	_desc.debugTraceMaxNodeMotion = 0.f;
+	_desc.debugTraceMaxOutputAngle = 0.f;
 
 	Matrix ownerWorld = Get_OwnerWorld(_desc);
 	Vec3 ownerPos = Get_Position(ownerWorld);
@@ -515,6 +533,7 @@ void PhysicsModifier::Evaluate_Modifier(ModelCom* model, float timeDelta)
 			Reset_PhysXStateToPose(model, collisionModel, ownerWorld, collisionOwnerWorld);
 		}
 
+		Apply_AnchorFrameAdvection();
 		Sync_KinematicActors(model, collisionModel, ownerWorld, collisionOwnerWorld);
 		
 		if (_desc.windScale > 0.001f && _desc.windDirection.LengthSquared() > 0.001f)
@@ -543,6 +562,7 @@ void PhysicsModifier::Evaluate_Modifier(ModelCom* model, float timeDelta)
 		if (_desc.writeBackEnabled)
 			Write_BackToModel(model, ownerWorld, isOwnerIdle);
 
+		Trace_BoneMotion(model, ownerWorld);
 		Build_DebugOutput(model, ownerWorld);
 	}
 
@@ -598,6 +618,8 @@ void PhysicsModifier::ResetPose(ModelCom* model)
 	_desc.debugLocalClampYCount = 0;
 	_desc.debugLocalClampZCount = 0;
 	_desc.debugInertiaMagnitude = 0.f;
+	_desc.debugTraceMaxNodeMotion = 0.f;
+	_desc.debugTraceMaxOutputAngle = 0.f;
 	Matrix ownerWorld = Get_OwnerWorld(_desc);
 	const ModelCom* collisionModel = _desc.collisionModel ? _desc.collisionModel : model;
 	const Matrix collisionOwnerWorld = _desc.collisionOwnerWorldMatrix ? *_desc.collisionOwnerWorldMatrix : ownerWorld;
@@ -805,12 +827,17 @@ void PhysicsModifier::Capture_CurrentPose(ModelCom* model, const Matrix& ownerWo
 
 	for (auto& chain : _chains)
 	{
+		const Matrix previousAnchorWorld = chain.anchorWorld;
+		const bool hadPrevAnchorWorld = chain.hasPrevAnchorWorld;
+
 		chain.anchorWorld = ownerWorld;
 		if (chain.anchorBoneIndex >= 0)
 		{
 			if (const Matrix* anchorCombined = model->Get_BoneMatrixPtr(static_cast<uint32>(chain.anchorBoneIndex)))
 				chain.anchorWorld = (*anchorCombined) * ownerWorld;
 		}
+		chain.prevAnchorWorld = hadPrevAnchorWorld ? previousAnchorWorld : chain.anchorWorld;
+		chain.hasPrevAnchorWorld = true;
 
 		for (auto& node : chain.nodes)
 		{
@@ -1000,17 +1027,20 @@ bool PhysicsModifier::Ensure_PhysXResources(ModelCom* model, const ModelCom* col
 					return false;
 				}
 				
-				float maxAngle = Compute_NodeAngleLimitDegree(chain, node.depthRatio);
-				float swingLimitDegree = std::clamp(maxAngle, 0.f, 180.f);
-				float swingLimit = XMConvertToRadians(swingLimitDegree);
-				
-				PxJointLimitCone limitCone(swingLimit, swingLimit);
-				limitCone.restitution = 0.f;
-				limitCone.stiffness = 0.f;
-				limitCone.damping = 0.f;
-				
-				static_cast<PxSphericalJoint*>(node.joint)->setLimitCone(limitCone);
-				static_cast<PxSphericalJoint*>(node.joint)->setSphericalJointFlag(PxSphericalJointFlag::eLIMIT_ENABLED, true);
+				if (_desc.enableJointLimit)
+				{
+					float maxAngle = Compute_NodeAngleLimitDegree(chain, node.depthRatio);
+					float swingLimitDegree = std::clamp(maxAngle, 0.f, 180.f);
+					float swingLimit = XMConvertToRadians(swingLimitDegree);
+
+					PxJointLimitCone limitCone(swingLimit, swingLimit);
+					limitCone.restitution = 0.f;
+					limitCone.stiffness = 0.f;
+					limitCone.damping = 0.f;
+
+					static_cast<PxSphericalJoint*>(node.joint)->setLimitCone(limitCone);
+					static_cast<PxSphericalJoint*>(node.joint)->setSphericalJointFlag(PxSphericalJointFlag::eLIMIT_ENABLED, true);
+				}
 				node.joint->setConstraintFlag(PxConstraintFlag::eCOLLISION_ENABLED, false);
 
 				const bool parentIsDynamicNode =
@@ -1091,6 +1121,8 @@ void PhysicsModifier::Reset_PhysXStateToPose(ModelCom* model, const ModelCom* co
 		chain.prevDriverVelocity = Vec3::Zero;
 		chain.hasPrevDriverPosition = true;
 		chain.hasPrevDriverVelocity = false;
+		chain.prevAnchorWorld = chain.anchorWorld;
+		chain.hasPrevAnchorWorld = true;
 		chain.smoothedLateralAxis = Vec3::UnitX;
 		chain.hasSmoothedLateralAxis = false;
 
@@ -1222,6 +1254,65 @@ void PhysicsModifier::Sync_KinematicActors(ModelCom* model, const ModelCom* coll
 	}
 }
 
+void PhysicsModifier::Apply_AnchorFrameAdvection()
+{
+	if (!_desc.advectSimulationWithAnchor)
+		return;
+
+	const float alpha = std::clamp(_desc.anchorAdvectionAlpha, 0.f, 1.f);
+	if (alpha <= 0.0001f)
+		return;
+
+	for (auto& chain : _chains)
+	{
+		if (!chain.hasPrevAnchorWorld)
+			continue;
+
+		const Vec3 prevAnchorPosition = Get_Position(chain.prevAnchorWorld);
+		const Vec3 anchorPosition = Get_Position(chain.anchorWorld);
+		const Vec3 anchorDelta = anchorPosition - prevAnchorPosition;
+		if (anchorDelta.LengthSquared() <= 0.000001f)
+		{
+			const Quat prevRotation = Extract_Rotation(chain.prevAnchorWorld);
+			const Quat currentRotation = Extract_Rotation(chain.anchorWorld);
+			if (fabsf(prevRotation.Dot(currentRotation)) > 0.99995f)
+				continue;
+		}
+
+		const Matrix prevAnchorInv = chain.prevAnchorWorld.Invert();
+		const Matrix frameDelta = prevAnchorInv * chain.anchorWorld;
+
+		for (auto& node : chain.nodes)
+		{
+			if (node.isKinematic || node.actor == nullptr)
+				continue;
+
+			PxTransform pose = node.actor->getGlobalPose();
+			const Vec3 currentPosition = From_PxVec3(pose.p);
+			const Vec3 anchorLocalPosition = Vec3::Transform(currentPosition, prevAnchorInv);
+			Vec3 advectedPosition = Vec3::Transform(anchorLocalPosition, chain.anchorWorld);
+			if (alpha < 0.999f)
+				advectedPosition = Vec3::Lerp(currentPosition, advectedPosition, alpha);
+
+			pose.p = To_PxVec3(advectedPosition);
+			node.actor->setGlobalPose(pose);
+
+			const Vec3 currentVelocity = From_PxVec3(node.actor->getLinearVelocity());
+			Vec3 advectedVelocity = Vec3::TransformNormal(currentVelocity, frameDelta);
+			if (alpha < 0.999f)
+				advectedVelocity = Vec3::Lerp(currentVelocity, advectedVelocity, alpha);
+			node.actor->setLinearVelocity(To_PxVec3(advectedVelocity));
+
+			const Vec3 currentAngularVelocity = From_PxVec3(node.actor->getAngularVelocity());
+			Vec3 advectedAngularVelocity = Vec3::TransformNormal(currentAngularVelocity, frameDelta);
+			if (alpha < 0.999f)
+				advectedAngularVelocity = Vec3::Lerp(currentAngularVelocity, advectedAngularVelocity, alpha);
+			node.actor->setAngularVelocity(To_PxVec3(advectedAngularVelocity));
+			node.actor->wakeUp();
+		}
+	}
+}
+
 void PhysicsModifier::Update_SolvedPositionsFromActors()
 {
 	for (auto& chain : _chains)
@@ -1267,7 +1358,9 @@ void PhysicsModifier::Apply_OwnerInertiaForce(const Vec3& ownerMotionDelta, floa
 	const float lateralScale = std::max(0.f, _desc.lateralInertiaScale);
 	const float verticalScale = std::max(0.f, _desc.verticalInertiaScale);
 	const float depthScale = std::max(0.f, _desc.depthInertiaScale);
+	const float ownerRotationInertiaScale = std::max(0.f, _desc.ownerRotationInertiaScale);
 	const bool includeDriverLateralInertia = _desc.includeDriverLateralInertia;
+	const bool useSteadyInertia = _desc.useSteadyInertia;
 	const float accelerationScale = std::max(0.f, _desc.accelerationInertiaScale);
 	const float velocitySmoothAlpha = std::clamp(_desc.inertiaVelocitySmoothAlpha, 0.f, 1.f);
 	const float releaseVelocityAlpha = std::clamp(_desc.releaseInertiaDamping, 0.f, 0.98f);
@@ -1396,7 +1489,21 @@ void PhysicsModifier::Apply_OwnerInertiaForce(const Vec3& ownerMotionDelta, floa
 			const Vec3 relativePoseDelta = node.poseMotionDelta - poseDriverDelta;
 			const Vec3 relativePoseVelocity = relativePoseDelta / timeDelta;
 			const Vec3 relativeTangentialVelocity = buildWeightedTangentialVelocity(relativePoseVelocity, true);
-			const Vec3 tangentialVelocity = driverTangentialVelocity + relativeTangentialVelocity;
+			Vec3 ownerRotationTangentialVelocity = Vec3::Zero;
+			if (ownerRotationInertiaScale > 0.0001f && chain.hasPrevAnchorWorld)
+			{
+				const Vec3 restPosition = Get_Position(node.originalWorld);
+				const Matrix anchorInv = chain.anchorWorld.Invert();
+				const Vec3 anchorLocalPosition = Vec3::Transform(restPosition, anchorInv);
+				const Vec3 previousAnchorDrivenPosition = Vec3::Transform(anchorLocalPosition, chain.prevAnchorWorld);
+				const Vec3 anchorDrivenDelta = restPosition - previousAnchorDrivenPosition;
+				const Vec3 rotationDelta = anchorDrivenDelta - poseDriverDelta;
+				ownerRotationTangentialVelocity = buildWeightedTangentialVelocity(rotationDelta / timeDelta, true) * ownerRotationInertiaScale;
+			}
+			const Vec3 steadyTangentialVelocity = useSteadyInertia
+				? driverTangentialVelocity + ownerRotationTangentialVelocity
+				: Vec3::Zero;
+			const Vec3 tangentialVelocity = steadyTangentialVelocity + relativeTangentialVelocity;
 			const Vec3 tangentialVelocityDelta = driverTangentialVelocityDelta;
 			const Vec3 inertiaVelocity = tangentialVelocity + tangentialVelocityDelta * accelerationScale;
 
@@ -1484,7 +1591,31 @@ void PhysicsModifier::Apply_PoseSpringForces(float timeDelta, bool isOwnerIdle)
 
 			const PxTransform actorPose = node.actor->getGlobalPose();
 			const Vec3 currentPosition = From_PxVec3(actorPose.p);
-			const Vec3 restPosition = Get_Position(node.originalWorld);
+			Matrix restParentWorld = chain.anchorWorld;
+			Vec3 parentPosition = chain.anchorActor != nullptr
+				? From_PxVec3(chain.anchorActor->getGlobalPose().p)
+				: Get_Position(chain.anchorWorld);
+			if (node.parentNodeIndex >= 0)
+			{
+				const Node& parentNode = chain.nodes[static_cast<size_t>(node.parentNodeIndex)];
+				restParentWorld = parentNode.originalWorld;
+				parentPosition = parentNode.actor != nullptr
+					? From_PxVec3(parentNode.actor->getGlobalPose().p)
+					: parentNode.solvedPosition;
+			}
+			Vec3 restWorldDir = Vec3::Zero;
+			const Vec3 restLocalDir = node.poseLocalDir.LengthSquared() > 0.0001f
+				? node.poseLocalDir
+				: node.bindLocalDir;
+			if (restLocalDir.LengthSquared() > 0.0001f)
+			{
+				restWorldDir = Vec3::TransformNormal(restLocalDir, restParentWorld);
+				if (restWorldDir.LengthSquared() > 0.0001f)
+					restWorldDir.Normalize();
+			}
+			const Vec3 restPosition = restWorldDir.LengthSquared() > 0.0001f
+				? parentPosition + restWorldDir * node.length
+				: Get_Position(node.originalWorld);
 			const Vec3 linearVelocity = From_PxVec3(node.actor->getLinearVelocity());
 
 			Vec3 velocityChange = Vec3::Zero;
@@ -1995,7 +2126,31 @@ void PhysicsModifier::Apply_PoseRestoreAndDamping(float timeDelta, bool isOwnerI
 
 			const PxTransform actorPose = node.actor->getGlobalPose();
 			const Vec3 currentPosition = From_PxVec3(actorPose.p);
-			const Vec3 restPosition = Get_Position(node.originalWorld);
+			Matrix restParentWorld = chain.anchorWorld;
+			Vec3 parentPosition = chain.anchorActor != nullptr
+				? From_PxVec3(chain.anchorActor->getGlobalPose().p)
+				: Get_Position(chain.anchorWorld);
+			if (node.parentNodeIndex >= 0)
+			{
+				const Node& parentNode = chain.nodes[static_cast<size_t>(node.parentNodeIndex)];
+				restParentWorld = parentNode.originalWorld;
+				parentPosition = parentNode.actor != nullptr
+					? From_PxVec3(parentNode.actor->getGlobalPose().p)
+					: parentNode.solvedPosition;
+			}
+			Vec3 restWorldDir = Vec3::Zero;
+			const Vec3 restLocalDir = node.poseLocalDir.LengthSquared() > 0.0001f
+				? node.poseLocalDir
+				: node.bindLocalDir;
+			if (restLocalDir.LengthSquared() > 0.0001f)
+			{
+				restWorldDir = Vec3::TransformNormal(restLocalDir, restParentWorld);
+				if (restWorldDir.LengthSquared() > 0.0001f)
+					restWorldDir.Normalize();
+			}
+			const Vec3 restPosition = restWorldDir.LengthSquared() > 0.0001f
+				? parentPosition + restWorldDir * node.length
+				: Get_Position(node.originalWorld);
 			Vec3 correctedPosition = currentPosition;
 
 			Vec3 linearVelocity = From_PxVec3(node.actor->getLinearVelocity());
@@ -2282,8 +2437,17 @@ void PhysicsModifier::Write_BackToModel(ModelCom* model, const Matrix& ownerWorl
 				std::lerp(std::clamp(chain.desc.smoothMultiplier, 0.f, 1.f), 1.f, depthSmoothWeight),
 				0.f,
 				1.f);
+			float rotationDepthGate = 1.f;
+			const float rotationDepthStart = std::clamp(_desc.rotationOutputDepthStart, 0.f, 1.f);
+			const float rotationDepthEnd = std::clamp(_desc.rotationOutputDepthEnd, 0.f, 1.f);
+			if (rotationDepthEnd > rotationDepthStart + 0.0001f)
+			{
+				const float depthT = std::clamp((clampedDepth - rotationDepthStart) / (rotationDepthEnd - rotationDepthStart), 0.f, 1.f);
+				rotationDepthGate = std::clamp(_desc.rootRotationOutputScale, 0.f, 1.f)
+					+ (1.f - std::clamp(_desc.rootRotationOutputScale, 0.f, 1.f)) * SmoothStep(depthT);
+			}
 			const float nodeRotationOutputAlpha = std::clamp(
-				overallOutputAlpha * chain.desc.outputMultiplier * _desc.rotationOutputAlpha * depthOutputAlpha,
+				overallOutputAlpha * chain.desc.outputMultiplier * _desc.rotationOutputAlpha * depthOutputAlpha * rotationDepthGate,
 				0.f,
 				1.f);
 			Quat blendedRotation = Quat::Slerp(poseRotation, solvedRotation, nodeRotationOutputAlpha);
@@ -2502,7 +2666,7 @@ void PhysicsModifier::Write_BackToModel(ModelCom* model, const Matrix& ownerWorl
 				restLocalDir,
 				simulatedLocalDir,
 				simulatedLocalTranslation,
-				true,
+				_desc.enableTranslationOutput,
 				node.depthRatio))
 			{
 				wroteAnyBone = true;
@@ -2528,6 +2692,131 @@ void PhysicsModifier::Write_BackToModel(ModelCom* model, const Matrix& ownerWorl
 
 	if (wroteAnyBone)
 		model->Rebuild_BoneCombinedMatrices();
+}
+
+void PhysicsModifier::Trace_BoneMotion(ModelCom* model, const Matrix& ownerWorld)
+{
+	if (!_desc.debugTraceBoneMotion || model == nullptr)
+		return;
+	if (_desc.modifierTag.find(L"MaelleBackHair") == wstring::npos)
+		return;
+
+	const int32 maxTraceFrames = 900;
+	if (_desc.debugTraceFrameCount >= maxTraceFrames)
+		return;
+
+	const int32 frame = _desc.debugTraceFrameCount++;
+	std::ofstream out("MaelleHairPhysicsTrace.csv", std::ios::app);
+	if (!out.is_open())
+		return;
+
+	if (frame == 0)
+	{
+		out << "frame,chainRoot,bone,parent,depth,poseDelta,solvedDelta,actorVelocity,outputAngleDeg,limitedAngleDeg,clampCount,projectCount,inertia,anchorAdvect\n";
+	}
+
+	_desc.debugTraceMaxNodeMotion = 0.f;
+	_desc.debugTraceMaxOutputAngle = 0.f;
+
+	const auto getNodePosition = [](const Node& node) -> Vec3
+		{
+			if (node.actor != nullptr)
+				return From_PxVec3(node.actor->getGlobalPose().p);
+			return node.solvedPosition;
+		};
+
+	const auto getNodeVelocity = [](const Node& node) -> float
+		{
+			if (node.actor == nullptr)
+				return 0.f;
+			return From_PxVec3(node.actor->getLinearVelocity()).Length();
+		};
+
+	for (const Chain& chain : _chains)
+	{
+		for (const Node& node : chain.nodes)
+		{
+			if (node.isKinematic && node.childNodeIndices.empty())
+				continue;
+
+			const Node* directionNode = &node;
+			const Node* parentNode = nullptr;
+			Matrix parentWorld = Matrix::Identity;
+			float outputDepthRatio = node.depthRatio;
+
+			if (node.parentNodeIndex >= 0)
+			{
+				parentNode = &chain.nodes[static_cast<size_t>(node.parentNodeIndex)];
+				const Matrix* parentCombined = model->Get_BoneMatrixPtr(parentNode->boneIndex);
+				parentWorld = parentCombined != nullptr
+					? (*parentCombined) * ownerWorld
+					: parentNode->originalWorld;
+			}
+			else if (!node.childNodeIndices.empty())
+			{
+				const int32 childNodeIndex = node.childNodeIndices.front();
+				if (childNodeIndex < 0 || static_cast<size_t>(childNodeIndex) >= chain.nodes.size())
+					continue;
+
+				directionNode = &chain.nodes[static_cast<size_t>(childNodeIndex)];
+				parentNode = &node;
+				parentWorld = node.originalWorld;
+				outputDepthRatio = directionNode->depthRatio;
+			}
+			else
+			{
+				continue;
+			}
+
+			Vec3 simulatedWorldDir = getNodePosition(*directionNode) - getNodePosition(*parentNode);
+			if (simulatedWorldDir.LengthSquared() <= 0.0001f)
+				continue;
+			simulatedWorldDir.Normalize();
+
+			Vec3 simulatedLocalDir = Get_LocalDirection(parentWorld, simulatedWorldDir);
+			if (simulatedLocalDir.LengthSquared() <= 0.0001f)
+				continue;
+			simulatedLocalDir.Normalize();
+
+			Vec3 restLocalDir = directionNode->poseLocalDir.LengthSquared() > 0.0001f
+				? directionNode->poseLocalDir
+				: directionNode->bindLocalDir;
+			if (restLocalDir.LengthSquared() <= 0.0001f)
+				continue;
+			restLocalDir.Normalize();
+
+			const float dot = std::clamp(restLocalDir.Dot(simulatedLocalDir), -1.f, 1.f);
+			const float outputAngleDeg = XMConvertToDegrees(acosf(dot));
+			const float limitedAngleDeg = Compute_NodeAngleLimitDegree(chain, std::clamp(outputDepthRatio, 0.f, 1.f));
+			const float solvedDelta = Vec3::Distance(node.solvedPosition, node.prevSolvedPosition);
+			const float poseDelta = node.poseMotionDelta.Length();
+
+			_desc.debugTraceMaxNodeMotion = std::max(_desc.debugTraceMaxNodeMotion, solvedDelta);
+			_desc.debugTraceMaxOutputAngle = std::max(_desc.debugTraceMaxOutputAngle, outputAngleDeg);
+
+			const string& boneName = model->Get_BoneName(node.boneIndex);
+			const string parentName = parentNode != nullptr
+				? model->Get_BoneName(parentNode->boneIndex)
+				: string{};
+
+			out
+				<< frame << ','
+				<< EscapeCsv(chain.desc.rootBoneName) << ','
+				<< EscapeCsv(boneName) << ','
+				<< EscapeCsv(parentName) << ','
+				<< node.depthRatio << ','
+				<< poseDelta << ','
+				<< solvedDelta << ','
+				<< getNodeVelocity(node) << ','
+				<< outputAngleDeg << ','
+				<< limitedAngleDeg << ','
+				<< _desc.debugLocalClampCount << ','
+				<< _desc.debugConstraintProjectionCount << ','
+				<< _desc.debugInertiaMagnitude << ','
+				<< (_desc.advectSimulationWithAnchor ? 1 : 0)
+				<< '\n';
+		}
+	}
 }
 
 vector<PhysicsModifier::WorldCapsule> PhysicsModifier::Build_WorldCapsules(const ModelCom* collisionModel, const Matrix& collisionOwnerWorld) const
@@ -2720,6 +3009,7 @@ const ClassReflectionInfo* PhysicsModifier::Get_RuntimeReflectionInfo() const
 			AddRuntimeProperty(result.properties, PropertyType::Bool, "writeBackEnabled", "Write Back", PhysicsOffset(&PhysicsModifierDesc::writeBackEnabled));
 			AddRuntimeProperty(result.properties, PropertyType::Bool, "enableCollision", "Collision", PhysicsOffset(&PhysicsModifierDesc::enableCollision));
 			AddRuntimeProperty(result.properties, PropertyType::Bool, "debugDrawCollisionCapsules", "Debug Col", PhysicsOffset(&PhysicsModifierDesc::debugDrawCollisionCapsules));
+			AddRuntimeProperty(result.properties, PropertyType::Bool, "debugTraceBoneMotion", "Trace Bone", PhysicsOffset(&PhysicsModifierDesc::debugTraceBoneMotion));
 			AddRuntimeProperty(result.properties, PropertyType::Int, "debugActiveChainCount", "Dbg Chain", PhysicsOffset(&PhysicsModifierDesc::debugActiveChainCount), 1.f, 0.f, 256.f);
 			AddRuntimeProperty(result.properties, PropertyType::Int, "debugActiveNodeCount", "Dbg Node", PhysicsOffset(&PhysicsModifierDesc::debugActiveNodeCount), 1.f, 0.f, 4096.f);
 			AddRuntimeProperty(result.properties, PropertyType::Int, "debugLoadedCapsuleCount", "Dbg Col Load", PhysicsOffset(&PhysicsModifierDesc::debugLoadedCapsuleCount), 1.f, 0.f, 4096.f);
@@ -2731,9 +3021,16 @@ const ClassReflectionInfo* PhysicsModifier::Get_RuntimeReflectionInfo() const
 			AddRuntimeProperty(result.properties, PropertyType::Int, "debugLocalClampYCount", "Dbg Clamp Y", PhysicsOffset(&PhysicsModifierDesc::debugLocalClampYCount), 1.f, 0.f, 4096.f);
 			AddRuntimeProperty(result.properties, PropertyType::Int, "debugLocalClampZCount", "Dbg Clamp Z", PhysicsOffset(&PhysicsModifierDesc::debugLocalClampZCount), 1.f, 0.f, 4096.f);
 			AddRuntimeProperty(result.properties, PropertyType::Float, "debugInertiaMagnitude", "Dbg Inertia", PhysicsOffset(&PhysicsModifierDesc::debugInertiaMagnitude), 0.001f, 0.f, 100.f);
+			AddRuntimeProperty(result.properties, PropertyType::Int, "debugTraceFrameCount", "Dbg Trace Frames", PhysicsOffset(&PhysicsModifierDesc::debugTraceFrameCount), 1.f, 0.f, 900.f);
+			AddRuntimeProperty(result.properties, PropertyType::Float, "debugTraceMaxNodeMotion", "Dbg Trace Move", PhysicsOffset(&PhysicsModifierDesc::debugTraceMaxNodeMotion), 0.001f, 0.f, 100.f);
+			AddRuntimeProperty(result.properties, PropertyType::Float, "debugTraceMaxOutputAngle", "Dbg Trace Angle", PhysicsOffset(&PhysicsModifierDesc::debugTraceMaxOutputAngle), 0.001f, 0.f, 180.f);
 
 			AddRuntimeProperty(result.properties, PropertyType::Float, "outputAlpha", "Output", PhysicsOffset(&PhysicsModifierDesc::outputAlpha), 0.005f, 0.f, 1.f);
 			AddRuntimeProperty(result.properties, PropertyType::Float, "rotationOutputAlpha", "Rot Out", PhysicsOffset(&PhysicsModifierDesc::rotationOutputAlpha), 0.005f, 0.f, 1.f);
+			AddRuntimeProperty(result.properties, PropertyType::Bool, "enableTranslationOutput", "Trans Out", PhysicsOffset(&PhysicsModifierDesc::enableTranslationOutput));
+			AddRuntimeProperty(result.properties, PropertyType::Float, "rootRotationOutputScale", "Root Rot Out", PhysicsOffset(&PhysicsModifierDesc::rootRotationOutputScale), 0.005f, 0.f, 1.f);
+			AddRuntimeProperty(result.properties, PropertyType::Float, "rotationOutputDepthStart", "Rot Depth Start", PhysicsOffset(&PhysicsModifierDesc::rotationOutputDepthStart), 0.005f, 0.f, 1.f);
+			AddRuntimeProperty(result.properties, PropertyType::Float, "rotationOutputDepthEnd", "Rot Depth End", PhysicsOffset(&PhysicsModifierDesc::rotationOutputDepthEnd), 0.005f, 0.f, 1.f);
 			AddRuntimeProperty(result.properties, PropertyType::Float, "outputSmoothAlpha", "Smooth", PhysicsOffset(&PhysicsModifierDesc::outputSmoothAlpha), 0.005f, 0.f, 1.f);
 			AddRuntimeProperty(result.properties, PropertyType::Float, "idleOutputSmoothAlpha", "Idle Smooth", PhysicsOffset(&PhysicsModifierDesc::idleOutputSmoothAlpha), 0.005f, 0.f, 1.f);
 			AddRuntimeProperty(result.properties, PropertyType::Float, "idleMotionDeadzone", "Idle Dead", PhysicsOffset(&PhysicsModifierDesc::idleMotionDeadzone), 0.001f, 0.f, 10.f);
@@ -2744,13 +3041,18 @@ const ClassReflectionInfo* PhysicsModifier::Get_RuntimeReflectionInfo() const
 			AddRuntimeProperty(result.properties, PropertyType::Float, "poseRestoreAlpha", "Restore", PhysicsOffset(&PhysicsModifierDesc::poseRestoreAlpha), 0.005f, 0.f, 1.f);
 			AddRuntimeProperty(result.properties, PropertyType::Float, "poseRestoreMaxSpeed", "Restore Speed", PhysicsOffset(&PhysicsModifierDesc::poseRestoreMaxSpeed), 0.05f, 0.f, 100.f);
 			AddRuntimeProperty(result.properties, PropertyType::Vec3, "maxLocalOffset", "Max Local", PhysicsOffset(&PhysicsModifierDesc::maxLocalOffset), 0.005f);
+			AddRuntimeProperty(result.properties, PropertyType::Bool, "enableJointLimit", "Joint Limit", PhysicsOffset(&PhysicsModifierDesc::enableJointLimit));
 			AddRuntimeProperty(result.properties, PropertyType::Float, "movementInertiaScale", "Move Inertia", PhysicsOffset(&PhysicsModifierDesc::movementInertiaScale), 0.005f, 0.f, 5.f);
 			AddRuntimeProperty(result.properties, PropertyType::Float, "tipMovementInertiaScale", "Tip Inertia", PhysicsOffset(&PhysicsModifierDesc::tipMovementInertiaScale), 0.01f, 0.f, 30.f);
 			AddRuntimeProperty(result.properties, PropertyType::Float, "maxMovementInertiaSpeed", "Max Inertia", PhysicsOffset(&PhysicsModifierDesc::maxMovementInertiaSpeed), 0.05f, 0.f, 80.f);
 			AddRuntimeProperty(result.properties, PropertyType::Float, "lateralInertiaScale", "Side Inertia", PhysicsOffset(&PhysicsModifierDesc::lateralInertiaScale), 0.01f, 0.f, 10.f);
 			AddRuntimeProperty(result.properties, PropertyType::Float, "verticalInertiaScale", "Up Inertia", PhysicsOffset(&PhysicsModifierDesc::verticalInertiaScale), 0.01f, 0.f, 10.f);
 			AddRuntimeProperty(result.properties, PropertyType::Float, "depthInertiaScale", "Depth Inertia", PhysicsOffset(&PhysicsModifierDesc::depthInertiaScale), 0.01f, 0.f, 10.f);
+			AddRuntimeProperty(result.properties, PropertyType::Float, "ownerRotationInertiaScale", "Turn Inertia", PhysicsOffset(&PhysicsModifierDesc::ownerRotationInertiaScale), 0.01f, 0.f, 10.f);
 			AddRuntimeProperty(result.properties, PropertyType::Bool, "includeDriverLateralInertia", "Driver Side", PhysicsOffset(&PhysicsModifierDesc::includeDriverLateralInertia));
+			AddRuntimeProperty(result.properties, PropertyType::Bool, "useSteadyInertia", "Steady Inertia", PhysicsOffset(&PhysicsModifierDesc::useSteadyInertia));
+			AddRuntimeProperty(result.properties, PropertyType::Bool, "advectSimulationWithAnchor", "Anchor Advect", PhysicsOffset(&PhysicsModifierDesc::advectSimulationWithAnchor));
+			AddRuntimeProperty(result.properties, PropertyType::Float, "anchorAdvectionAlpha", "Advect Alpha", PhysicsOffset(&PhysicsModifierDesc::anchorAdvectionAlpha), 0.005f, 0.f, 1.f);
 			AddRuntimeProperty(result.properties, PropertyType::Float, "accelerationInertiaScale", "Accel Inertia", PhysicsOffset(&PhysicsModifierDesc::accelerationInertiaScale), 0.01f, 0.f, 10.f);
 			AddRuntimeProperty(result.properties, PropertyType::Float, "inertiaVelocitySmoothAlpha", "Inertia Smooth", PhysicsOffset(&PhysicsModifierDesc::inertiaVelocitySmoothAlpha), 0.005f, 0.f, 1.f);
 			AddRuntimeProperty(result.properties, PropertyType::Float, "poseSpringStrength", "Spring", PhysicsOffset(&PhysicsModifierDesc::poseSpringStrength), 0.01f, 0.f, 20.f);
