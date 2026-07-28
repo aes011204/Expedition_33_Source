@@ -1,4 +1,4 @@
-#include "TrailPreviewMonsterObject.h"
+﻿#include "TrailPreviewMonsterObject.h"
 
 #include "EffectEditorInstance.h"
 #include "GameInstance.h"
@@ -11,7 +11,7 @@
 
 NS_BEGIN(EffectEditor)
 
-namespace Internal
+namespace
 {
     constexpr auto kSourcePrefabName{ "MB_Simon" };
     constexpr auto kPartBody{ L"Part_Body" };
@@ -23,6 +23,19 @@ namespace Internal
     constexpr auto kHeadSocketName{ "headSocket" };
     constexpr auto kWeaponSocketName{ "Weapon_R" };
     constexpr float kSimonWeaponAttachScaleCompensation{ 10.f };
+
+    Quat Resolve_NormalizedRotation(const Matrix& worldMatrix)
+    {
+        Matrix decomposableWorldMatrix = worldMatrix;
+        Vec3 scale = Vec3::One;
+        Vec3 position = Vec3::Zero;
+        Quat rotation = Quat::Identity;
+        if (!decomposableWorldMatrix.Decompose(scale, rotation, position) || rotation.LengthSquared() <= 0.000001f)
+            return Quat::Identity;
+
+        rotation.Normalize();
+        return rotation;
+    }
     constexpr float kSimonWeaponAttachOffsetDegreesX{ -90.f };
 
     bool Is_RestorableMonsterVisualPart(const wstring& partTag)
@@ -180,7 +193,7 @@ private:
     HRESULT Ready_Components()
     {
         CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Shader_VtxAnimMesh"), _shader), E_FAIL);
-        CHECK_FAILED(Add_Component(ETOI(LevelType::Static), Internal::kBodyModelTag, _model), E_FAIL);
+        CHECK_FAILED(Add_Component(ETOI(LevelType::Static), kBodyModelTag, _model), E_FAIL);
         if (_model != nullptr)
             _model->Set_Owner(GetSharedPtr<GameObject>());
         return S_OK;
@@ -306,7 +319,7 @@ private:
     HRESULT Ready_Components()
     {
         CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Shader_VtxAnimMesh"), _shader), E_FAIL);
-        CHECK_FAILED(Add_Component(ETOI(LevelType::Static), Internal::kHairModelTag, _model), E_FAIL);
+        CHECK_FAILED(Add_Component(ETOI(LevelType::Static), kHairModelTag, _model), E_FAIL);
         if (_model != nullptr)
             _model->Set_Owner(GetSharedPtr<GameObject>());
         return S_OK;
@@ -316,8 +329,8 @@ private:
     {
         const Shared<TrailPreviewMonsterBodyObject> body = _body.lock();
         const Matrix socketMatrix =
-            body != nullptr && body->Get_SocketBoneMatrixPtr(Internal::kHeadSocketName) != nullptr
-            ? *body->Get_SocketBoneMatrixPtr(Internal::kHeadSocketName)
+            body != nullptr && body->Get_SocketBoneMatrixPtr(kHeadSocketName) != nullptr
+            ? *body->Get_SocketBoneMatrixPtr(kHeadSocketName)
             : Matrix::Identity;
         const Matrix parentMatrix = body != nullptr ? body->Get_CombinedWorldMatrix() : Matrix::Identity;
         _combinedWorldMatrix = childMatrix * socketMatrix * parentMatrix;
@@ -438,7 +451,7 @@ private:
     HRESULT Ready_Components()
     {
         CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Shader_VtxMesh"), _shader), E_FAIL);
-        CHECK_FAILED(Add_Component(ETOI(LevelType::Static), Internal::kWeaponModelTag, _model), E_FAIL);
+        CHECK_FAILED(Add_Component(ETOI(LevelType::Static), kWeaponModelTag, _model), E_FAIL);
         if (_model != nullptr)
             _model->Set_Owner(GetSharedPtr<GameObject>());
         return S_OK;
@@ -448,13 +461,13 @@ private:
     {
         const Shared<TrailPreviewMonsterBodyObject> body = _body.lock();
         const Matrix socketMatrix =
-            body != nullptr && body->Get_SocketBoneMatrixPtr(Internal::kWeaponSocketName) != nullptr
-            ? *body->Get_SocketBoneMatrixPtr(Internal::kWeaponSocketName)
+            body != nullptr && body->Get_SocketBoneMatrixPtr(kWeaponSocketName) != nullptr
+            ? *body->Get_SocketBoneMatrixPtr(kWeaponSocketName)
             : Matrix::Identity;
         const Matrix parentMatrix = body != nullptr ? body->Get_CombinedWorldMatrix() : Matrix::Identity;
         const Matrix simonWeaponAttachMatrix =
-            Matrix::CreateScale(Internal::kSimonWeaponAttachScaleCompensation) *
-            Matrix::CreateRotationX(XMConvertToRadians(Internal::kSimonWeaponAttachOffsetDegreesX));
+            Matrix::CreateScale(kSimonWeaponAttachScaleCompensation) *
+            Matrix::CreateRotationX(XMConvertToRadians(kSimonWeaponAttachOffsetDegreesX));
 
         _combinedWorldMatrix = simonWeaponAttachMatrix * childMatrix * socketMatrix * parentMatrix;
     }
@@ -489,7 +502,7 @@ HRESULT TrailPreviewMonsterObject::Initialize(void* arg)
     CHECK_FAILED(Restore_VisualPartsFromPrefab(), E_FAIL);
 
     Set_Name(L"TrailPreview_Monster");
-    Set_SourcePrefabName(Internal::kSourcePrefabName);
+    Set_SourcePrefabName(kSourcePrefabName);
     Set_PreviewVisible(false);
 
     if (const Shared<ModelCom> model = Get_BodyModel())
@@ -555,6 +568,8 @@ bool TrailPreviewMonsterObject::Try_GetTrailSample(EffectTrailSample& outSample)
 
     outSample.baseWorldPosition = _trailBaseWorldPosition;
     outSample.tipWorldPosition = _trailTipWorldPosition;
+    outSample.baseWorldRotation = _trailBaseWorldRotation;
+    outSample.tipWorldRotation = _trailTipWorldRotation;
     return true;
 }
 
@@ -564,6 +579,7 @@ bool TrailPreviewMonsterObject::Try_GetSourcePointSample(EffectSourcePointSample
         return false;
 
     outSample.worldPosition = _sourcePointWorldPosition;
+    outSample.worldRotation = _sourcePointWorldRotation;
     return true;
 }
 
@@ -576,7 +592,7 @@ HRESULT TrailPreviewMonsterObject::Ready_PreviewParts()
     CHECK_NULL(_body, E_FAIL);
     CHECK_FAILED(_body->Initialize(&partDesc), E_FAIL);
     _body->Set_Owner(GetSharedPtr<GameObject>());
-    _partObjects.emplace(Internal::kPartBody, _body);
+    _partObjects.emplace(kPartBody, _body);
     _partObjectUpdateOrder.push_back(_body);
 
     _hair = make_shared<TrailPreviewMonsterHairObject>(_device, _context);
@@ -584,7 +600,7 @@ HRESULT TrailPreviewMonsterObject::Ready_PreviewParts()
     CHECK_FAILED(_hair->Initialize(&partDesc), E_FAIL);
     _hair->Bind_Body(_body);
     _hair->Set_Owner(GetSharedPtr<GameObject>());
-    _partObjects.emplace(Internal::kPartHair, _hair);
+    _partObjects.emplace(kPartHair, _hair);
     _partObjectUpdateOrder.push_back(_hair);
 
     WeaponPrefabLoader::LoadedWeaponPrefab loadedPrefab{};
@@ -597,8 +613,8 @@ HRESULT TrailPreviewMonsterObject::Ready_PreviewParts()
     _weapon->Bind_Body(_body);
     _weapon->Set_Owner(GetSharedPtr<GameObject>());
     _weapon->From_Json(loadedPrefab.rootJson);
-    _weapon->Set_SourceHistoryAnchors(Internal::Read_SourceHistoryAnchors(loadedPrefab.rootJson));
-    _partObjects.emplace(Internal::kPartWeapon, _weapon);
+    _weapon->Set_SourceHistoryAnchors(Read_SourceHistoryAnchors(loadedPrefab.rootJson));
+    _partObjects.emplace(kPartWeapon, _weapon);
     _partObjectUpdateOrder.push_back(_weapon);
     Load_TrailAnchorAsset(loadedPrefab.modelGuid);
 
@@ -643,7 +659,7 @@ HRESULT TrailPreviewMonsterObject::Restore_VisualPartFromPrefab(const json& part
 
     const string partTagString = partNode.value("part_tag", string{});
     const wstring partTag = String::ToWString(partTagString);
-    if (!Internal::Is_RestorableMonsterVisualPart(partTag))
+    if (!Is_RestorableMonsterVisualPart(partTag))
         return E_FAIL;
 
     const auto objectIter = partNode.find("object");
@@ -676,8 +692,8 @@ void TrailPreviewMonsterObject::Load_TrailAnchorAsset(const string& modelGuid)
         return;
     }
 
-    if (!Internal::Is_ValidTrailAnchorPoint(_trailAnchorAsset.base) ||
-        !Internal::Is_ValidTrailAnchorPoint(_trailAnchorAsset.tip))
+    if (!Is_ValidTrailAnchorPoint(_trailAnchorAsset.base) ||
+        !Is_ValidTrailAnchorPoint(_trailAnchorAsset.tip))
     {
         LOG_WARN("[TrailPreview] monster weapon trail anchor is incomplete. modelGuid={}", modelGuid);
         _trailAnchorAsset = {};
@@ -692,6 +708,9 @@ void TrailPreviewMonsterObject::Clear_TrailSample()
     _trailBaseWorldPosition = {};
     _trailTipWorldPosition = {};
     _sourcePointWorldPosition = {};
+    _trailBaseWorldRotation = Quat::Identity;
+    _trailTipWorldRotation = Quat::Identity;
+    _sourcePointWorldRotation = Quat::Identity;
     _hasTrailSample = false;
 }
 
@@ -708,15 +727,15 @@ void TrailPreviewMonsterObject::Update_TrailPoints()
     const Vec3 sourceLocalOffset = EDITOR->Get_SourceHistorySpriteTrailPreviewSourceLocalOffset();
 
     const bool hasBase =
-        (_hasTrailAnchorAsset && Try_ResolveTrailAnchorPoint(_trailAnchorAsset.base, baseLocalOffset, _trailBaseWorldPosition)) ||
-        Try_ResolveFallbackLocalPoint(kFallbackBaseLocalOffset, baseLocalOffset, _trailBaseWorldPosition);
+        (_hasTrailAnchorAsset && Try_ResolveTrailAnchorPoint(_trailAnchorAsset.base, baseLocalOffset, _trailBaseWorldPosition, _trailBaseWorldRotation)) ||
+        Try_ResolveFallbackLocalPoint(kFallbackBaseLocalOffset, baseLocalOffset, _trailBaseWorldPosition, _trailBaseWorldRotation);
     const bool hasTip =
-        (_hasTrailAnchorAsset && Try_ResolveTrailAnchorPoint(_trailAnchorAsset.tip, tipLocalOffset, _trailTipWorldPosition)) ||
-        Try_ResolveFallbackLocalPoint(kFallbackTipLocalOffset, tipLocalOffset, _trailTipWorldPosition);
+        (_hasTrailAnchorAsset && Try_ResolveTrailAnchorPoint(_trailAnchorAsset.tip, tipLocalOffset, _trailTipWorldPosition, _trailTipWorldRotation)) ||
+        Try_ResolveFallbackLocalPoint(kFallbackTipLocalOffset, tipLocalOffset, _trailTipWorldPosition, _trailTipWorldRotation);
     const bool hasSource =
-        Try_ResolveSourceAnchorPoint(sourceLocalOffset, _sourcePointWorldPosition) ||
-        (_hasTrailAnchorAsset && Try_ResolveTrailAnchorPoint(_trailAnchorAsset.tip, sourceLocalOffset, _sourcePointWorldPosition)) ||
-        Try_ResolveFallbackLocalPoint(kFallbackSourceLocalOffset, sourceLocalOffset, _sourcePointWorldPosition);
+        Try_ResolveSourceAnchorPoint(sourceLocalOffset, _sourcePointWorldPosition, _sourcePointWorldRotation) ||
+        (_hasTrailAnchorAsset && Try_ResolveTrailAnchorPoint(_trailAnchorAsset.tip, sourceLocalOffset, _sourcePointWorldPosition, _sourcePointWorldRotation)) ||
+        Try_ResolveFallbackLocalPoint(kFallbackSourceLocalOffset, sourceLocalOffset, _sourcePointWorldPosition, _sourcePointWorldRotation);
 
     _hasTrailSample = hasBase && hasTip && hasSource;
 
@@ -727,19 +746,24 @@ void TrailPreviewMonsterObject::Update_TrailPoints()
     }
 }
 
-bool TrailPreviewMonsterObject::Try_ResolveWeaponLocalPoint(const Vec3& localPosition, Vec3& outWorldPosition) const
+bool TrailPreviewMonsterObject::Try_ResolveWeaponLocalPoint(
+    const Vec3& localPosition,
+    Vec3& outWorldPosition,
+    Quat& outWorldRotation) const
 {
     if (_weapon == nullptr)
         return false;
 
     outWorldPosition = Vec3::Transform(localPosition, _weapon->Get_CombinedWorldMatrix());
+    outWorldRotation = Resolve_NormalizedRotation(_weapon->Get_CombinedWorldMatrix());
     return true;
 }
 
 bool TrailPreviewMonsterObject::Try_ResolveTrailAnchorPoint(
     const TrailAnchorPointDesc& anchor,
     const Vec3& localOffset,
-    Vec3& outWorldPosition) const
+    Vec3& outWorldPosition,
+    Quat& outWorldRotation) const
 {
     if (_weapon == nullptr || anchor.boneName.empty())
         return false;
@@ -761,12 +785,14 @@ bool TrailPreviewMonsterObject::Try_ResolveTrailAnchorPoint(
                                      : *boneMatrix;
     const Matrix anchorWorldMatrix = anchorLocalMatrix * _weapon->Get_CombinedWorldMatrix();
     outWorldPosition = Vec3::Transform(anchor.localPosition + localOffset, anchorWorldMatrix);
+    outWorldRotation = Resolve_NormalizedRotation(anchorWorldMatrix);
     return true;
 }
 
 bool TrailPreviewMonsterObject::Try_ResolveSourceAnchorPoint(
     const Vec3& localOffset,
-    Vec3& outWorldPosition) const
+    Vec3& outWorldPosition,
+    Quat& outWorldRotation) const
 {
     if (_weapon == nullptr)
         return false;
@@ -779,15 +805,16 @@ bool TrailPreviewMonsterObject::Try_ResolveSourceAnchorPoint(
     TrailAnchorPointDesc sourceAnchor{};
     sourceAnchor.boneName = anchor.boneName;
     sourceAnchor.localPosition = anchor.localPosition;
-    return Try_ResolveTrailAnchorPoint(sourceAnchor, localOffset, outWorldPosition);
+    return Try_ResolveTrailAnchorPoint(sourceAnchor, localOffset, outWorldPosition, outWorldRotation);
 }
 
 bool TrailPreviewMonsterObject::Try_ResolveFallbackLocalPoint(
     const Vec3& localPosition,
     const Vec3& localOffset,
-    Vec3& outWorldPosition) const
+    Vec3& outWorldPosition,
+    Quat& outWorldRotation) const
 {
-    return Try_ResolveWeaponLocalPoint(localPosition + localOffset, outWorldPosition);
+    return Try_ResolveWeaponLocalPoint(localPosition + localOffset, outWorldPosition, outWorldRotation);
 }
 
 void TrailPreviewMonsterObject::Draw_TrailAnchorMarkers() const

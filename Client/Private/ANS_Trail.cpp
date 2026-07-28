@@ -110,7 +110,6 @@ void ANS_Trail::On_Begin(const AnimNotifyContext& context)
     if (trailPart == nullptr)
         return;
 
-    // 숨겨진 파츠에서 들어온 trail notify는 실제 재생 대상이 없으니 조용히 무시한다.
     if (!trailPart->Is_Visible())
         return;
 
@@ -605,7 +604,6 @@ uint64 ANS_Trail::Generate_TrailNotifyToken()
 
 Shared<EffectCom> ANS_Trail::Resolve_EffectCom(const AnimNotifyContext& context) const
 {
-    // trail/source-history는 partTag를 owner container 기준으로 해석해야 하므로
-    // 가장 가까운 part EffectCom이 아니라 container owner의 EffectCom를 사용한다.
+    // Trail partTag는 container owner 기준이므로 가장 가까운 part가 아니라 owner root의 EffectCom을 사용한다.
     return EffectCom::Find_FromNotifyOwner(context.owner, EffectCom::EffectPlayTarget::PartRoot);
 }

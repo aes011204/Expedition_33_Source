@@ -7,7 +7,7 @@
 
 NS_BEGIN(EffectEditor)
 
-namespace Internal
+namespace
 {
     constexpr EmitterScreenAlignment kVisibleScreenAlignmentValues[] = {
         EmitterScreenAlignment::FacingCameraPosition,
@@ -188,7 +188,7 @@ namespace Internal
 
 class DetailPropertyContext::BasicDetailPropertyDrawer
 {
-public: //## Table / Basic Controls
+public: //## Behavior::BasicControls
     bool Begin_PropertyTable(const char* id)
     {
         constexpr ImGuiTableFlags tableFlags = ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_NoSavedSettings;
@@ -329,7 +329,7 @@ public: //## Table / Basic Controls
             changed = true;
         }
         if (changed)
-            value = Internal::Apply_Range(value, range);
+            value = Apply_Range(value, range);
         ImGui::PopID();
         return changed;
     }
@@ -423,7 +423,7 @@ public: //## Table / Basic Controls
             changed = true;
         }
         if (changed)
-            value = Internal::Apply_Range(value, range);
+            value = Apply_Range(value, range);
         ImGui::PopID();
         return changed;
     }
@@ -446,7 +446,7 @@ public: //## Table / Basic Controls
             changed = true;
         }
         if (changed)
-            value = Internal::Apply_Range(value, range);
+            value = Apply_Range(value, range);
         ImGui::PopID();
         return changed;
     }
@@ -532,8 +532,8 @@ public: //## Table / Basic Controls
 
     bool Draw_ScreenAlignmentProperty(const char* label, EmitterScreenAlignment& value, EmitterScreenAlignment defaultValue)
     {
-        const EmitterScreenAlignment fallbackValue = Internal::Resolve_ScreenAlignmentFallback(value);
-        int currentIndex = Internal::Find_ScreenAlignmentVisibleIndex(fallbackValue);
+        const EmitterScreenAlignment fallbackValue = Resolve_ScreenAlignmentFallback(value);
+        int currentIndex = Find_ScreenAlignmentVisibleIndex(fallbackValue);
         if (currentIndex < 0)
             currentIndex = 0;
 
@@ -541,19 +541,19 @@ public: //## Table / Basic Controls
         Draw_PropertyLabel(label);
         ImGui::SetNextItemWidth(-FLT_MIN);
         bool changed = false;
-        if (ImGui::BeginCombo("##Value", Internal::kVisibleScreenAlignmentLabels[currentIndex]))
+        if (ImGui::BeginCombo("##Value", kVisibleScreenAlignmentLabels[currentIndex]))
         {
-            for (int index = 0; index < IM_ARRAYSIZE(Internal::kVisibleScreenAlignmentValues); ++index)
+            for (int index = 0; index < IM_ARRAYSIZE(kVisibleScreenAlignmentValues); ++index)
             {
                 const bool isSelected = currentIndex == index;
-                if (ImGui::Selectable(Internal::kVisibleScreenAlignmentLabels[index], isSelected))
+                if (ImGui::Selectable(kVisibleScreenAlignmentLabels[index], isSelected))
                 {
                     currentIndex = index;
                     changed = true;
                 }
 
                 if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayShort))
-                    ImGui::SetTooltip("%s", Internal::Get_ScreenAlignmentTooltip(Internal::kVisibleScreenAlignmentValues[index]));
+                    ImGui::SetTooltip("%s", Get_ScreenAlignmentTooltip(kVisibleScreenAlignmentValues[index]));
 
                 if (isSelected)
                     ImGui::SetItemDefaultFocus();
@@ -573,18 +573,18 @@ public: //## Table / Basic Controls
         if (!changed)
             return false;
 
-        if (currentIndex < 0 || currentIndex >= IM_ARRAYSIZE(Internal::kVisibleScreenAlignmentValues))
+        if (currentIndex < 0 || currentIndex >= IM_ARRAYSIZE(kVisibleScreenAlignmentValues))
             value = EmitterScreenAlignment::FacingCameraPosition;
         else
-            value = Internal::kVisibleScreenAlignmentValues[currentIndex];
+            value = kVisibleScreenAlignmentValues[currentIndex];
 
         return true;
     }
 
     bool Draw_SourceHistorySpriteTrailScreenAlignmentProperty(const char* label, EmitterScreenAlignment& value, EmitterScreenAlignment defaultValue)
     {
-        const EmitterScreenAlignment fallbackValue = Internal::Resolve_SourceHistorySpriteTrailScreenAlignmentFallback(value);
-        int currentIndex = Internal::Find_ScreenAlignmentVisibleIndex(fallbackValue);
+        const EmitterScreenAlignment fallbackValue = Resolve_SourceHistorySpriteTrailScreenAlignmentFallback(value);
+        int currentIndex = Find_ScreenAlignmentVisibleIndex(fallbackValue);
         if (currentIndex < 0)
             currentIndex = 0;
 
@@ -599,17 +599,17 @@ public: //## Table / Basic Controls
         Draw_PropertyLabel(label);
         ImGui::SetNextItemWidth(-FLT_MIN);
         bool comboChanged = false;
-        if (ImGui::BeginCombo("##Value", Internal::kVisibleScreenAlignmentLabels[currentIndex]))
+        if (ImGui::BeginCombo("##Value", kVisibleScreenAlignmentLabels[currentIndex]))
         {
-            for (int index = 0; index < IM_ARRAYSIZE(Internal::kVisibleScreenAlignmentValues); ++index)
+            for (int index = 0; index < IM_ARRAYSIZE(kVisibleScreenAlignmentValues); ++index)
             {
-                const EmitterScreenAlignment candidate = Internal::kVisibleScreenAlignmentValues[index];
+                const EmitterScreenAlignment candidate = kVisibleScreenAlignmentValues[index];
                 const bool isSelected = currentIndex == index;
-                const bool supported = Internal::Is_SourceHistorySpriteTrailScreenAlignmentSupported(candidate);
+                const bool supported = Is_SourceHistorySpriteTrailScreenAlignmentSupported(candidate);
                 if (!supported)
                     ImGui::BeginDisabled();
 
-                if (ImGui::Selectable(Internal::kVisibleScreenAlignmentLabels[index], isSelected) && supported)
+                if (ImGui::Selectable(kVisibleScreenAlignmentLabels[index], isSelected) && supported)
                 {
                     currentIndex = index;
                     comboChanged = true;
@@ -624,7 +624,7 @@ public: //## Table / Basic Controls
                         supported
                         ? "%s"
                         : "SourceHistorySpriteTrail에서는 이 화면 정렬을 사용하지 않습니다.",
-                        Internal::Get_SourceHistorySpriteTrailScreenAlignmentTooltip(candidate)
+                        Get_SourceHistorySpriteTrailScreenAlignmentTooltip(candidate)
                     );
                 }
 
@@ -639,29 +639,29 @@ public: //## Table / Basic Controls
 
         if (resetClicked)
         {
-            value = Internal::Resolve_SourceHistorySpriteTrailScreenAlignmentFallback(defaultValue);
+            value = Resolve_SourceHistorySpriteTrailScreenAlignmentFallback(defaultValue);
             return true;
         }
 
         if (!comboChanged)
             return valueChanged;
 
-        if (currentIndex < 0 || currentIndex >= IM_ARRAYSIZE(Internal::kVisibleScreenAlignmentValues))
+        if (currentIndex < 0 || currentIndex >= IM_ARRAYSIZE(kVisibleScreenAlignmentValues))
             value = EmitterScreenAlignment::FacingCameraPosition;
         else
-            value = Internal::kVisibleScreenAlignmentValues[currentIndex];
+            value = kVisibleScreenAlignmentValues[currentIndex];
 
         return true;
     }
 
     void Draw_ScreenAlignmentImplementationNote(EmitterScreenAlignment value) const
     {
-        const int visibleIndex = Internal::Find_ScreenAlignmentVisibleIndex(value);
+        const int visibleIndex = Find_ScreenAlignmentVisibleIndex(value);
         if (visibleIndex >= 0)
             return;
 
-        const char* currentLabel = Internal::Get_ScreenAlignmentLabel(value);
-        const char* fallbackLabel = Internal::Get_ScreenAlignmentLabel(Internal::Resolve_ScreenAlignmentFallback(value));
+        const char* currentLabel = Get_ScreenAlignmentLabel(value);
+        const char* fallbackLabel = Get_ScreenAlignmentLabel(Resolve_ScreenAlignmentFallback(value));
         ImGui::TextDisabled("Current value '%s' is not implemented yet. Preview uses '%s'.", currentLabel, fallbackLabel);
     }
 
@@ -727,11 +727,11 @@ public: //## Table / Basic Controls
         return true;
     }
 
-private: //## Highlight State
+private: //## Data::Highlight
     vector<ImU32> _rowTintStack{};
     vector<ImU32> _labelTintStack{};
 
-private: //## Reset Helpers
+private: //## Helper::Reset
     static bool Is_DefaultValue(float value, float defaultValue) { return value == defaultValue; }
     static bool Is_DefaultValue(uint32 value, uint32 defaultValue) { return value == defaultValue; }
     static bool Is_DefaultValue(bool value, bool defaultValue) { return value == defaultValue; }
@@ -791,7 +791,7 @@ private: //## Reset Helpers
 
 class DetailPropertyContext::DistributionDetailPropertyDrawer
 {
-public: //## Distribution Controls
+public: //## Behavior::DistributionControls
     explicit DistributionDetailPropertyDrawer(BasicDetailPropertyDrawer& basicDrawer)
         : _basicDrawer{ basicDrawer }
     {
@@ -934,7 +934,7 @@ public: //## Distribution Controls
         return changed;
     }
 
-private: //## Distribution Types
+private: //## Types::Distribution
     static const char* Get_DistributionRandomSeedModeLabel(DistributionRandomSeedMode mode)
     {
         switch (mode)
@@ -1042,10 +1042,10 @@ private: //## Distribution Types
         Color,
     };
 
-private: //## Dependencies
+private: //## Data::Dependencies
     BasicDetailPropertyDrawer& _basicDrawer;
 
-private: //## Color Helpers
+private: //## Helper::Color
     static ImVec4 Lerp_Color(const ImVec4& lhs, const ImVec4& rhs, float t)
     {
         return ImVec4{
@@ -1085,7 +1085,7 @@ private: //## Color Helpers
         return ImGui::GetColorU32(tint);
     }
 
-private: //## Label Helpers
+private: //## Helper::Label
     static const char* Get_DistributionModeLabel(DistributionValueKind kind, DistributionMode mode)
     {
         switch (kind)
@@ -1563,16 +1563,16 @@ private: //## Label Helpers
         ImGui::PushID("PointsRow");
         _basicDrawer.Draw_PropertyLabel("포인트");
         ImGui::AlignTextToFramePadding();
-        ImGui::Text("키: %zu / %zu", value.keys.size(), Internal::kDistributionCurveMaxKeys);
+        ImGui::Text("키: %zu / %zu", value.keys.size(), kDistributionCurveMaxKeys);
         ImGui::SameLine();
-        const bool canAddKey = value.keys.size() < Internal::kDistributionCurveMaxKeys;
+        const bool canAddKey = value.keys.size() < kDistributionCurveMaxKeys;
         if (!canAddKey)
             ImGui::BeginDisabled();
         if (ImGui::Button(ICON_FA_PLUS "##AddFloatCurveKey"))
         {
             FloatCurveKeyData seed = value.keys.empty() ? FloatCurveKeyData{} : value.keys.back();
             seed.time = Compute_NewCurveKeyTime(value.keys);
-            seed.value = Internal::Apply_Range(seed.value, range);
+            seed.value = Apply_Range(seed.value, range);
             value.keys.push_back(seed);
             changed = true;
         }
@@ -1677,16 +1677,16 @@ private: //## Label Helpers
         ImGui::PushID("PointsRow");
         _basicDrawer.Draw_PropertyLabel("포인트");
         ImGui::AlignTextToFramePadding();
-        ImGui::Text("키: %zu / %zu", value.keys.size(), Internal::kDistributionCurveMaxKeys);
+        ImGui::Text("키: %zu / %zu", value.keys.size(), kDistributionCurveMaxKeys);
         ImGui::SameLine();
-        const bool canAddKey = value.keys.size() < Internal::kDistributionCurveMaxKeys;
+        const bool canAddKey = value.keys.size() < kDistributionCurveMaxKeys;
         if (!canAddKey)
             ImGui::BeginDisabled();
         if (ImGui::Button(ICON_FA_PLUS "##AddVector2CurveKey"))
         {
             Vector2CurveKeyData seed = value.keys.empty() ? Vector2CurveKeyData{} : value.keys.back();
             seed.time = Compute_NewCurveKeyTime(value.keys);
-            seed.value = Internal::Apply_Range(seed.value, range);
+            seed.value = Apply_Range(seed.value, range);
             value.keys.push_back(seed);
             changed = true;
         }
@@ -1781,16 +1781,16 @@ private: //## Label Helpers
         ImGui::PushID("PointsRow");
         _basicDrawer.Draw_PropertyLabel("포인트");
         ImGui::AlignTextToFramePadding();
-        ImGui::Text("키: %zu / %zu", value.keys.size(), Internal::kDistributionCurveMaxKeys);
+        ImGui::Text("키: %zu / %zu", value.keys.size(), kDistributionCurveMaxKeys);
         ImGui::SameLine();
-        const bool canAddKey = value.keys.size() < Internal::kDistributionCurveMaxKeys;
+        const bool canAddKey = value.keys.size() < kDistributionCurveMaxKeys;
         if (!canAddKey)
             ImGui::BeginDisabled();
         if (ImGui::Button(ICON_FA_PLUS "##AddVector3CurveKey"))
         {
             Vector3CurveKeyData seed = value.keys.empty() ? Vector3CurveKeyData{} : value.keys.back();
             seed.time = Compute_NewCurveKeyTime(value.keys);
-            seed.value = Internal::Apply_Range(seed.value, range);
+            seed.value = Apply_Range(seed.value, range);
             value.keys.push_back(seed);
             changed = true;
         }
@@ -1883,9 +1883,9 @@ private: //## Label Helpers
         ImGui::PushID("PointsRow");
         _basicDrawer.Draw_PropertyLabel("포인트");
         ImGui::AlignTextToFramePadding();
-        ImGui::Text("키: %zu / %zu", value.keys.size(), Internal::kDistributionCurveMaxKeys);
+        ImGui::Text("키: %zu / %zu", value.keys.size(), kDistributionCurveMaxKeys);
         ImGui::SameLine();
-        const bool canAddKey = value.keys.size() < Internal::kDistributionCurveMaxKeys;
+        const bool canAddKey = value.keys.size() < kDistributionCurveMaxKeys;
         if (!canAddKey)
             ImGui::BeginDisabled();
         if (ImGui::Button(ICON_FA_PLUS "##AddColorCurveKey"))

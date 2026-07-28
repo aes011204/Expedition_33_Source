@@ -11,20 +11,7 @@ class ANS_Trail : public AnimNotifyState
 {
     GENERATED_ANIM_NOTIFY_STATE(ANS_Trail)
 
-public:
-    ANS_Trail() = default;
-    ~ANS_Trail() override = default;
-
-public:
-    string Get_TypeName() const override { return "ANS_Trail"; }
-
-    void On_Begin(const AnimNotifyContext& context) override;
-    void On_Tick(const AnimNotifyContext& context) override;
-    void On_End(const AnimNotifyContext& context) override;
-    json To_Json() const override;
-    void From_Json(const json& data) override;
-
-public:
+public: //## Types::Public
     enum class TrailAnchorSource : uint8
     {
         ModelDefault,
@@ -64,6 +51,19 @@ public:
     };
 
 public:
+    ANS_Trail() = default;
+    ~ANS_Trail() override = default;
+
+public:
+    string Get_TypeName() const override { return "ANS_Trail"; }
+
+    void On_Begin(const AnimNotifyContext& context) override;
+    void On_Tick(const AnimNotifyContext& context) override;
+    void On_End(const AnimNotifyContext& context) override;
+    json To_Json() const override;
+    void From_Json(const json& data) override;
+
+public: //## Behavior::TrailConfiguration
     static const char* Get_TrailAnchorSourceName(TrailAnchorSource source);
     static const char* Get_TipExtendInterpolationName(TipExtendInterpolation interpolation);
     static float Evaluate_TipExtendCurve(const TipExtendCurve& curve, float phase);
@@ -99,22 +99,8 @@ public:
     void Set_TipLocalOffset(const Vec3& localOffset) { _tipLocalOffset = localOffset; }
     void Clear_NotifyBonePair();
 
-private:
-    static TrailAnchorSource Parse_TrailAnchorSource(const json& data);
-    static TipExtendInterpolation Parse_TipExtendInterpolation(const json& data);
-    static bool Has_TipExtendCurvePayload(const TipExtendCurve& curve);
-    static bool Has_LocalOffsetCurvePayload(const LocalOffsetCurve& curve);
-    static json TipExtendCurve_ToJson(const TipExtendCurve& curve);
-    static TipExtendCurve TipExtendCurve_FromJson(const json& data);
-    static json LocalOffsetCurve_ToJson(const LocalOffsetCurve& curve);
-    static LocalOffsetCurve LocalOffsetCurve_FromJson(const json& data);
-    static void Normalize_TipExtendCurve(TipExtendCurve& curve);
-    static void Normalize_LocalOffsetCurve(LocalOffsetCurve& curve);
-    static uint64 Generate_TrailNotifyToken();
-    Shared<EffectCom> Resolve_EffectCom(const AnimNotifyContext& context) const;
-
-private:
-    wstring _effectName = L""; // 비어 있으면 Weapon 프리펩 기본 Trail 사용
+private: //## Data::TrailBinding
+    wstring _effectName = L"";
     wstring _partTag = L"Part_Weapon";
     wstring _layerTag = L"Layer_Effect";
     TrailAnchorSource _trailAnchorSource = TrailAnchorSource::ModelDefault;
@@ -126,6 +112,22 @@ private:
     LocalOffsetCurve _baseLocalOffsetCurve{};
     LocalOffsetCurve _tipLocalOffsetCurve{};
     uint64 _trailNotifyToken = 0;
+
+private: //## Helper::Serialization
+    static TrailAnchorSource Parse_TrailAnchorSource(const json& data);
+    static TipExtendInterpolation Parse_TipExtendInterpolation(const json& data);
+    static bool Has_TipExtendCurvePayload(const TipExtendCurve& curve);
+    static bool Has_LocalOffsetCurvePayload(const LocalOffsetCurve& curve);
+    static json TipExtendCurve_ToJson(const TipExtendCurve& curve);
+    static TipExtendCurve TipExtendCurve_FromJson(const json& data);
+    static json LocalOffsetCurve_ToJson(const LocalOffsetCurve& curve);
+    static LocalOffsetCurve LocalOffsetCurve_FromJson(const json& data);
+    static void Normalize_TipExtendCurve(TipExtendCurve& curve);
+    static void Normalize_LocalOffsetCurve(LocalOffsetCurve& curve);
+
+private: //## Helper::Runtime
+    static uint64 Generate_TrailNotifyToken();
+    Shared<EffectCom> Resolve_EffectCom(const AnimNotifyContext& context) const;
 };
 
 NS_END

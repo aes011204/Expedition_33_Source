@@ -7,7 +7,6 @@
 
 NS_BEGIN(EffectEditor)
 
-// EffectEditor toast notification queue와 rendering을 관리한다.
 class Notification_Manager final : public Base
 {
 public:
@@ -45,10 +44,10 @@ public:
         Add_Internal(finalMessage, type);
     }
 
-private: //## Data
+private: //## Data::Notifications
     list<NotificationEntry> _notifications{};
 
-private: //## Helper
+private: //## Helper::Notifications
     void Add_Internal(const string& message, NotifyType type = NotifyType::Info);
 
 public:

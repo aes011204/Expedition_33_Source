@@ -17,12 +17,12 @@ public:
     HRESULT Render() override;
 
 protected: //## Data::GPU
-    ComPtr<Buffer> _instanceVB{}; // 인스턴스별 정점 버퍼.
+    ComPtr<Buffer> _instanceVB{};
 
 protected: //## Data::InstanceDraw
-    uint32 _instanceStride{};      // 인스턴스 데이터 1개의 바이트 크기.
-    uint32 _instanceCount{};       // 제출할 인스턴스 수.
-    uint32 _verticesPerInstance{}; // non-indexed instanced draw에서 인스턴스당 정점 수.
+    uint32 _instanceStride{};
+    uint32 _instanceCount{};
+    uint32 _verticesPerInstance{};
 
 public:
     Shared<Component> Clone(void* arg) override = 0;

@@ -4,7 +4,6 @@
 
 NS_BEGIN(EffectEditor)
 
-// 선택된 preview slot의 trail/source sample provider로 위임한다.
 class TrailPreviewSampleRouter final : public IEffectTrailSampleProvider, public IEffectSourcePointSampleProvider
 {
 public:

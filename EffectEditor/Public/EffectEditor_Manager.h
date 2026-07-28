@@ -8,7 +8,6 @@ NS_BEGIN(EffectEditor)
 class Editor_Window;
 class Emitter_View;
 
-// EffectEditor windows, dock layouts, toolbar actions, and shortcut routing을 관리한다.
 class EffectEditor_Manager final : public Base
 {
 public:
@@ -19,7 +18,6 @@ public:
     HRESULT Initialize();
     void Update(float timeDelta);
     void Render();
-    // 메뉴, toolbar, OS 창 닫기 요청이 공유하는 EffectEditor 종료 진입점이다.
     void Request_Exit();
 
     void Add_Window(const Shared<Editor_Window>& window);
@@ -48,7 +46,6 @@ private: //## Data::Windows
     string _sceneFocusIniFilenameSnapshot{};
 
 private: //## Helper::WindowLifecycle
-    // 등록된 editor window들의 초기화 hook을 한 번씩 실행한다.
     HRESULT Initialize_Windows();
 
 private: //## Helper::Layout
@@ -61,21 +58,13 @@ private: //## Helper::Layout
     void Render_ShortcutHelp();
 
 private: //## Helper::EffectDocument
-    // 현재 effect authoring document를 소유한 Emitter view를 찾는다.
     Shared<Emitter_View> Find_EffectAuthoringView() const;
-    // Save 메뉴/단축키/툴바의 활성화 가능 여부를 한 곳에서 판단한다.
     bool CanSave_EffectDocument() const;
-    // Save 메뉴/단축키/툴바가 공유하는 현재 effect document 저장 진입점이다.
     bool Save_EffectDocument();
-    // Save As 메뉴/단축키/툴바가 공유하는 현재 effect document 별도 저장 진입점이다.
     bool SaveAs_EffectDocument();
-    // Open 메뉴/단축키/툴바의 활성화 가능 여부를 한 곳에서 판단한다.
     bool CanOpen_EffectDocument() const;
-    // Open 메뉴/단축키/툴바가 공유하는 현재 effect document 열기 진입점이다.
     bool Open_EffectDocument();
-    // Add 툴바의 활성화 가능 여부를 한 곳에서 판단한다.
     bool CanAdd_EffectEmitters() const;
-    // Add 툴바가 공유하는 외부 effect emitter 추가 진입점이다.
     bool Add_EffectEmitters();
 
 private: //## Helper::SceneFocus

@@ -4,7 +4,7 @@
 
 NS_BEGIN(EffectEditor)
 
-namespace Internal
+namespace
 {
     string Strip_LogPrefix(const string& line)
     {
@@ -133,7 +133,7 @@ void Console_View::Render()
                     continue;
 
                 ImGui::PushStyleColor(ImGuiCol_Text, Get_LogColor(log));
-                const string displayLine = Internal::Strip_LogPrefix(log.formattedLine);
+                const string displayLine = Strip_LogPrefix(log.formattedLine);
                 ImGui::TextUnformatted(displayLine.c_str());
                 ImGui::PopStyleColor();
             }

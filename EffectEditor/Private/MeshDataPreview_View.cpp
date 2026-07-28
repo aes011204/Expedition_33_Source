@@ -18,7 +18,7 @@
 
 NS_BEGIN(EffectEditor)
 
-namespace Internal
+namespace
 {
     constexpr auto kWindowName = L"MeshData Preview";
     constexpr auto kMeshShaderId = L"Shader_EffectMeshPreview";
@@ -54,7 +54,7 @@ namespace Internal
         );
     }
 
-    static bool Has_DuplicateEmitterName(const vector<AuthoringEmitter>& emitters, const AuthoringEmitter& target)
+    bool Has_DuplicateEmitterName(const vector<AuthoringEmitter>& emitters, const AuthoringEmitter& target)
     {
         if (target.name.empty())
             return false;
@@ -69,7 +69,7 @@ namespace Internal
         return matchCount > 1;
     }
 
-    static string Build_EmitterPreviewLabel(const vector<AuthoringEmitter>& emitters, const AuthoringEmitter& emitter, const char* previewKind)
+    string Build_EmitterPreviewLabel(const vector<AuthoringEmitter>& emitters, const AuthoringEmitter& emitter, const char* previewKind)
     {
         string label = emitter.name.empty() ? "Emitter" : emitter.name;
         if (emitter.name.empty() || Has_DuplicateEmitterName(emitters, emitter))
@@ -241,7 +241,7 @@ namespace Internal
         material.alphaCutoff = required->material.alphaCutoff;
     }
 
-    static int Resolve_MaterialSourceIndex(const string& source)
+    int Resolve_MaterialSourceIndex(const string& source)
     {
         if (source == "Red" || source == "red")
             return kOpacitySourceRed;
@@ -419,7 +419,7 @@ struct MeshDataPreview_View::PreviewRenderer
         }
 
         EffectMaterialInstanceData effectMaterial{};
-        if (!Internal::Resolve_EffectiveMaterial(meshData, effectMaterial))
+        if (!Resolve_EffectiveMaterial(meshData, effectMaterial))
         {
             statusMessage = "Assigned effect material is missing.";
             return;
@@ -442,7 +442,7 @@ struct MeshDataPreview_View::PreviewRenderer
             effectMaterial = previewMaterial.material;
         }
 
-        Internal::Apply_RequiredRenderPolicy(Find_RequiredModuleData(emitter), effectMaterial);
+        Apply_RequiredRenderPolicy(Find_RequiredModuleData(emitter), effectMaterial);
         const MaterialPreviewTime previewTime = Resolve_MaterialPreviewTime(Find_RequiredModuleData(emitter));
 
         if (!Ready_RenderTargets() || !Ready_CheckerShader() || !Ready_CheckerQuad() || !Ready_Shader(effectMaterial) || !Ready_Model(modelPath))
@@ -589,7 +589,7 @@ struct MeshDataPreview_View::PreviewRenderer
         if (checkerShader != nullptr)
             return true;
 
-        checkerShader = Internal::Clone_Component<ShaderCom>(ETOI(LevelType::Static), Internal::kEffectMaterialPreviewShaderId);
+        checkerShader = Clone_Component<ShaderCom>(ETOI(LevelType::Static), kEffectMaterialPreviewShaderId);
         if (checkerShader == nullptr)
         {
             statusMessage = "Shader_EffectMaterialPreview prototype is missing.";
@@ -664,23 +664,23 @@ struct MeshDataPreview_View::PreviewRenderer
 
     bool Ready_Shader(const EffectMaterialInstanceData& material)
     {
-        wstring requestedShaderId = Internal::kMeshShaderId;
-        if (Internal::Is_MeshDistortionPreviewFamily(material))
-            requestedShaderId = Internal::kMeshDistortionShaderId;
-        else if (Internal::Is_MeshGlassPreviewFamily(material))
-            requestedShaderId = Internal::kMeshGlassShaderId;
+        wstring requestedShaderId = kMeshShaderId;
+        if (Is_MeshDistortionPreviewFamily(material))
+            requestedShaderId = kMeshDistortionShaderId;
+        else if (Is_MeshGlassPreviewFamily(material))
+            requestedShaderId = kMeshGlassShaderId;
         if (shader != nullptr && loadedShaderKey == requestedShaderId)
             return true;
 
         shader.reset();
         loadedShaderKey.clear();
 
-        shader = Internal::Clone_Component<ShaderCom>(ETOI(LevelType::Static), requestedShaderId);
+        shader = Clone_Component<ShaderCom>(ETOI(LevelType::Static), requestedShaderId);
         if (shader == nullptr)
         {
-            if (requestedShaderId == Internal::kMeshDistortionShaderId)
+            if (requestedShaderId == kMeshDistortionShaderId)
                 statusMessage = "Shader_EffectMeshPreviewDistortion prototype is missing.";
-            else if (requestedShaderId == Internal::kMeshGlassShaderId)
+            else if (requestedShaderId == kMeshGlassShaderId)
                 statusMessage = "Shader_EffectMeshPreviewGlass prototype is missing.";
             else
                 statusMessage = "Shader_EffectMeshPreview prototype is missing.";
@@ -735,7 +735,7 @@ struct MeshDataPreview_View::PreviewRenderer
             return !required;
         }
 
-        const fs::path texturePathResolved = Internal::Resolve_AssetPath(textureGuid, texturePath);
+        const fs::path texturePathResolved = Resolve_AssetPath(textureGuid, texturePath);
         if (texturePathResolved.empty() || !fs::exists(texturePathResolved))
         {
             outTexture.reset();
@@ -762,7 +762,7 @@ struct MeshDataPreview_View::PreviewRenderer
 
     bool Ready_EffectMaterialTextures(const EffectMaterialInstanceData& material)
     {
-        if (Internal::Is_MeshDistortionPreviewFamily(material))
+        if (Is_MeshDistortionPreviewFamily(material))
         {
             mainTexture.reset();
             noiseTexture.reset();
@@ -788,7 +788,7 @@ struct MeshDataPreview_View::PreviewRenderer
         if (!Ready_Texture(
             material.mainTextureGuid,
             material.mainTexturePath,
-            !Internal::Is_MeshGlassPreviewFamily(material),
+            !Is_MeshGlassPreviewFamily(material),
             mainTexture,
             loadedMainTextureKey,
             "Assigned effect material main texture is missing."
@@ -958,7 +958,7 @@ struct MeshDataPreview_View::PreviewRenderer
             coreEmissive.coreColor.z,
             coreEmissive.outerIntensity
         );
-        const int opacitySource = Internal::Resolve_MaterialSourceIndex(material.opacitySource);
+        const int opacitySource = Resolve_MaterialSourceIndex(material.opacitySource);
         const Vec4 effectMeshPreviewScreenSize(
             static_cast<float>(max(1u, width)),
             static_cast<float>(max(1u, height)),
@@ -966,8 +966,8 @@ struct MeshDataPreview_View::PreviewRenderer
             0.f
         );
         const Vec4 effectMeshSourceParams = Vec4(
-            static_cast<float>(Internal::Resolve_MaterialSourceIndex(material.noiseSource)),
-            static_cast<float>(Internal::Resolve_MaterialSourceIndex(material.maskSource)),
+            static_cast<float>(Resolve_MaterialSourceIndex(material.noiseSource)),
+            static_cast<float>(Resolve_MaterialSourceIndex(material.maskSource)),
             material.noiseInvert ? 1.f : 0.f,
             material.maskInvert ? 1.f : 0.f
         );
@@ -1001,7 +1001,7 @@ struct MeshDataPreview_View::PreviewRenderer
         CHECK_FAILED(shader->Bind_RawValue("g_EffectMeshAdditiveFlags", &effectMeshAdditiveFlags, sizeof(effectMeshAdditiveFlags)), E_FAIL);
         CHECK_FAILED(shader->Bind_RawValue("g_EffectMeshCoreEmissiveParams", &effectMeshCoreEmissiveParams, sizeof(effectMeshCoreEmissiveParams)), E_FAIL);
         CHECK_FAILED(shader->Bind_RawValue("g_EffectMeshCoreEmissiveColor", &effectMeshCoreEmissiveColor, sizeof(effectMeshCoreEmissiveColor)), E_FAIL);
-        if (Internal::Is_MeshGlassPreviewFamily(material))
+        if (Is_MeshGlassPreviewFamily(material))
         {
             const Vec4 glassSurfaceParams(
                 max(0.f, material.glassAlpha),
@@ -1046,7 +1046,7 @@ struct MeshDataPreview_View::PreviewRenderer
     HRESULT Bind_ModelMaterialResourcesForMesh(uint32 meshIndex, const EffectMaterialInstanceData& material, bool useModelMaterials)
     {
         Vec4 modelMaterialFlags = Vec4::Zero;
-        const bool supportsModelOrm = !Internal::Is_MeshGlassPreviewFamily(material);
+        const bool supportsModelOrm = !Is_MeshGlassPreviewFamily(material);
         if (!useModelMaterials || model == nullptr)
         {
             if (mainTexture != nullptr)
@@ -1131,9 +1131,9 @@ struct MeshDataPreview_View::PreviewRenderer
 
     uint32 Resolve_ShaderPassIndex(const EffectMaterialInstanceData& material) const
     {
-        if (Internal::Is_MeshDistortionPreviewFamily(material))
+        if (Is_MeshDistortionPreviewFamily(material))
             return 0u;
-        if (Internal::Is_MeshGlassPreviewFamily(material))
+        if (Is_MeshGlassPreviewFamily(material))
             return 0u;
 
         const bool additive = material.blendMode == EffectMaterialBlendMode::Additive;
@@ -1175,7 +1175,7 @@ struct MeshDataPreview_View::PreviewRenderer
 
         CHECK_FAILED(shader->Bind_ObjectCB(world), E_FAIL);
         CHECK_FAILED(shader->Bind_CBufferData(cameraCB), E_FAIL);
-        if (Internal::Is_MeshDistortionPreviewFamily(material))
+        if (Is_MeshDistortionPreviewFamily(material))
             CHECK_FAILED(Bind_DistortionPreviewResources(material, previewCycleTime), E_FAIL);
         else
             CHECK_FAILED(Bind_EffectMaterialResources(material, previewCycleTime), E_FAIL);
@@ -1184,7 +1184,7 @@ struct MeshDataPreview_View::PreviewRenderer
         const uint32 numMeshes = static_cast<uint32>(model->Get_NumMeshes());
         for (uint32 meshIndex = 0; meshIndex < numMeshes; ++meshIndex)
         {
-            if (!Internal::Is_MeshDistortionPreviewFamily(material))
+            if (!Is_MeshDistortionPreviewFamily(material))
                 CHECK_FAILED_THROTTLED(Bind_ModelMaterialResourcesForMesh(meshIndex, material, useModelMaterials), 60, E_FAIL);
 
             CHECK_FAILED_THROTTLED(shader->Begin(passIndex), 60, E_FAIL);
@@ -1242,7 +1242,7 @@ struct MeshDataPreview_View::PreviewRenderer
         {
             const Vec2 mouseDelta = GAME->Get_MouseDelta();
             if (ImGui::IsMouseDown(ImGuiMouseButton_Left))
-                EffectPreviewOrbitCamera::Orbit(cameraState, mouseDelta, Internal::kMeshPreviewOrbitSensor);
+                EffectPreviewOrbitCamera::Orbit(cameraState, mouseDelta, kMeshPreviewOrbitSensor);
             else if (ImGui::IsMouseDown(ImGuiMouseButton_Middle) || ImGui::IsMouseDown(ImGuiMouseButton_Right))
             {
                 const EffectPreviewOrbitCameraFrame cameraFrame = EffectPreviewOrbitCamera::Build_Frame(
@@ -1303,10 +1303,10 @@ struct MeshDataPreview_View::PreviewRenderer
 
         EffectPreviewOrbitCameraState target{};
         Build_HomeState(target);
-        cameraState.pivot = Math::Lerp_Damp(cameraState.pivot, target.pivot, Internal::kMeshPreviewHomeTransitionSpeed, timeDelta);
-        cameraState.distance = Math::Lerp_Damp(cameraState.distance, target.distance, Internal::kMeshPreviewHomeTransitionSpeed, timeDelta);
-        cameraState.yawDegrees = Math::Lerp_Damp(cameraState.yawDegrees, target.yawDegrees, Internal::kMeshPreviewHomeTransitionSpeed, timeDelta);
-        cameraState.pitchDegrees = Math::Lerp_Damp(cameraState.pitchDegrees, target.pitchDegrees, Internal::kMeshPreviewHomeTransitionSpeed, timeDelta);
+        cameraState.pivot = Math::Lerp_Damp(cameraState.pivot, target.pivot, kMeshPreviewHomeTransitionSpeed, timeDelta);
+        cameraState.distance = Math::Lerp_Damp(cameraState.distance, target.distance, kMeshPreviewHomeTransitionSpeed, timeDelta);
+        cameraState.yawDegrees = Math::Lerp_Damp(cameraState.yawDegrees, target.yawDegrees, kMeshPreviewHomeTransitionSpeed, timeDelta);
+        cameraState.pitchDegrees = Math::Lerp_Damp(cameraState.pitchDegrees, target.pitchDegrees, kMeshPreviewHomeTransitionSpeed, timeDelta);
 
         if ((cameraState.pivot - target.pivot).LengthSquared() <= 0.001f &&
             fabsf(cameraState.distance - target.distance) <= 0.01f &&
@@ -1321,7 +1321,7 @@ struct MeshDataPreview_View::PreviewRenderer
     void Build_HomeState(EffectPreviewOrbitCameraState& outState) const
     {
         Vec3 pivot = Vec3::Zero;
-        float distance = Internal::kMeshPreviewHomeDistance;
+        float distance = kMeshPreviewHomeDistance;
         if (model != nullptr)
         {
             Vec3 localMin{}, localMax{};
@@ -1338,8 +1338,8 @@ struct MeshDataPreview_View::PreviewRenderer
             outState,
             pivot,
             distance,
-            Internal::kMeshPreviewHomeYawDegrees,
-            Internal::kMeshPreviewHomePitchDegrees
+            kMeshPreviewHomeYawDegrees,
+            kMeshPreviewHomePitchDegrees
         );
     }
 
@@ -1348,9 +1348,9 @@ struct MeshDataPreview_View::PreviewRenderer
         EffectPreviewOrbitCamera::Reset(
             cameraState,
             Vec3::Zero,
-            Internal::kMeshPreviewHomeDistance,
-            Internal::kMeshPreviewHomeYawDegrees,
-            Internal::kMeshPreviewHomePitchDegrees
+            kMeshPreviewHomeDistance,
+            kMeshPreviewHomeYawDegrees,
+            kMeshPreviewHomePitchDegrees
         );
     }
 
@@ -1376,7 +1376,7 @@ struct MeshDataPreview_View::PreviewRenderer
 };
 
 MeshDataPreview_View::MeshDataPreview_View()
-    : Editor_Window{ Internal::kWindowName, ICON_FA_CUBES }
+    : Editor_Window{ kWindowName, ICON_FA_CUBES }
     , _previewRenderer{ make_unique<PreviewRenderer>() }
 {
 }
@@ -1415,9 +1415,9 @@ void MeshDataPreview_View::Render()
         else
         {
             const float contentWidth = ImGui::GetContentRegionAvail().x;
-            const bool useSideBySideLayout = contentWidth >= Internal::kSideBySideLayoutMinWidth;
+            const bool useSideBySideLayout = contentWidth >= kSideBySideLayoutMinWidth;
             const fs::path modelPath = Resolve_AuthoredAssetPath(meshData->modelGuid, meshData->modelPath);
-            const string previewLabel = Internal::Build_EmitterPreviewLabel(
+            const string previewLabel = Build_EmitterPreviewLabel(
                 emitterView->Get_Emitters(),
                 *emitter,
                 "Mesh Preview"
@@ -1427,9 +1427,9 @@ void MeshDataPreview_View::Render()
             {
                 const float spacing = ImGui::GetStyle().ItemSpacing.x;
                 const float previewPaneWidth = clamp(
-                    contentWidth * Internal::kPreviewPaneWidthRatio,
-                    Internal::kPreviewPaneMinWidth,
-                    Internal::kPreviewPaneMaxWidth
+                    contentWidth * kPreviewPaneWidthRatio,
+                    kPreviewPaneMinWidth,
+                    kPreviewPaneMaxWidth
                 );
                 ImGui::BeginChild("MeshDataPreviewViewportPane", ImVec2(previewPaneWidth, 0.f), false);
                 {
@@ -1490,7 +1490,7 @@ MeshTypeData* MeshDataPreview_View::Find_TargetMeshData(AuthoringEmitter* emitte
 
 fs::path MeshDataPreview_View::Resolve_AuthoredAssetPath(const string& guid, const string& path) const
 {
-    return Internal::Resolve_AssetPath(guid, path);
+    return Resolve_AssetPath(guid, path);
 }
 
 void MeshDataPreview_View::Render_Inspector(Emitter_View& emitterView, AuthoringEmitter& emitter, MeshTypeData& meshData)
@@ -1534,30 +1534,30 @@ bool MeshDataPreview_View::Render_ModelAssetSection(MeshTypeData& meshData)
                 "Model Asset",
                 "이 MeshData가 참조하는 model asset 정본입니다. preview와 runtime mesh emitter가 이 모델을 기준으로 그립니다."
             );
-            changed |= Internal::Draw_AssetDropSlot(
+            changed |= Draw_AssetDropSlot(
                 "MeshModelSlot",
                 "Model Asset",
-                Internal::kEffectModelPayloadType,
+                kEffectModelPayloadType,
                 meshData.modelPath,
                 "(drop .model here)",
                 "MeshData source model",
                 [&meshData](const wchar_t* payloadPath)
                 {
-                    return Internal::Apply_ModelFileToMeshData(payloadPath, meshData);
+                    return Apply_ModelFileToMeshData(payloadPath, meshData);
                 },
                 [&meshData]
                 {
                     wstring pickedFilePath{};
-                    if (!Internal::Try_PickAssetDialog(
+                    if (!Try_PickAssetDialog(
                         L"Select Mesh Model",
                         L"Model Assets",
                         L"*.model",
-                        Internal::kModelDialogDefaultFolder,
+                        kModelDialogDefaultFolder,
                         pickedFilePath
                     ))
                         return false;
 
-                    return Internal::Apply_ModelFileToMeshData(pickedFilePath.c_str(), meshData);
+                    return Apply_ModelFileToMeshData(pickedFilePath.c_str(), meshData);
                 }
             );
             _detailPropertyContext.Draw_ResetButton(false);
@@ -1578,30 +1578,30 @@ bool MeshDataPreview_View::Render_MaterialAssetSection(MeshTypeData& meshData)
                 "Source Material",
                 "Embedded material copy를 만들 때 읽어오는 .effectmaterial 원본 preset입니다. 이후 세부 편집은 MeshData 내부 copy에 저장됩니다."
             );
-            changed |= Internal::Draw_AssetDropSlot(
+            changed |= Draw_AssetDropSlot(
                 "MeshAssignedMaterialSlot",
                 "Source Material",
-                Internal::kEffectMaterialPayloadType,
+                kEffectMaterialPayloadType,
                 meshData.assignedEffectMaterialPath,
                 "(drop .effectmaterial.json here)",
                 "Material source preset",
                 [&meshData](const wchar_t* payloadPath)
                 {
-                    return Internal::Apply_EffectMaterialFileToMeshData(payloadPath, meshData);
+                    return Apply_EffectMaterialFileToMeshData(payloadPath, meshData);
                 },
                 [&meshData]
                 {
                     wstring pickedFilePath{};
-                    if (!Internal::Try_PickAssetDialog(
+                    if (!Try_PickAssetDialog(
                         L"Select Assigned Effect Material",
                         L"Effect Materials",
                         L"*.effectmaterial.json",
-                        Internal::kMaterialDialogDefaultFolder,
+                        kMaterialDialogDefaultFolder,
                         pickedFilePath
                     ))
                         return false;
 
-                    return Internal::Apply_EffectMaterialFileToMeshData(pickedFilePath.c_str(), meshData);
+                    return Apply_EffectMaterialFileToMeshData(pickedFilePath.c_str(), meshData);
                 }
             );
             _detailPropertyContext.Draw_ResetButton(false);
@@ -1694,7 +1694,7 @@ void MeshDataPreview_View::Render_ValidationSummary(const MeshTypeData& meshData
     if (meshData.modelGuid.empty() && meshData.modelPath.empty())
         ImGui::TextColored(ImVec4{ 1.f, 0.55f, 0.25f, 1.f }, "Model missing: no model asset is assigned.");
     else if (!fs::exists(modelPath))
-        ImGui::TextColored(ImVec4{ 1.f, 0.55f, 0.25f, 1.f }, "Model missing: %s", Internal::To_DisplayPath(modelPath).c_str());
+        ImGui::TextColored(ImVec4{ 1.f, 0.55f, 0.25f, 1.f }, "Model missing: %s", To_DisplayPath(modelPath).c_str());
     else if (String::ToLowerCopy(modelPath.extension().string()) != ".model")
         ImGui::TextColored(ImVec4{ 1.f, 0.35f, 0.35f, 1.f }, "Unsupported model extension.");
     else
@@ -1707,7 +1707,7 @@ void MeshDataPreview_View::Render_ValidationSummary(const MeshTypeData& meshData
     if (meshData.assignedEffectMaterialGuid.empty() && meshData.assignedEffectMaterialPath.empty())
         ImGui::TextDisabled("Material missing: assigned effect material source is not set.");
     else if (!fs::exists(materialPath))
-        ImGui::TextColored(ImVec4{ 1.f, 0.55f, 0.25f, 1.f }, "Material missing: %s", Internal::To_DisplayPath(materialPath).c_str());
+        ImGui::TextColored(ImVec4{ 1.f, 0.55f, 0.25f, 1.f }, "Material missing: %s", To_DisplayPath(materialPath).c_str());
     else
         ImGui::TextColored(ImVec4{ 0.45f, 0.9f, 0.55f, 1.f }, "Assigned effect material source is readable for copy/reset.");
 

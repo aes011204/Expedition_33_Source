@@ -18,7 +18,7 @@
 
 NS_BEGIN(EffectEditor)
 
-namespace Internal
+namespace
 {
     enum class ExitDirtyChoice
     {
@@ -118,11 +118,11 @@ void EffectEditor_Manager::Request_Exit()
     const Shared<Emitter_View> emitterView = Find_EffectAuthoringView();
     if (emitterView != nullptr && emitterView->Is_Dirty())
     {
-        const Internal::ExitDirtyChoice choice = Internal::Confirm_SaveDirtyAuthoringDocumentBeforeExit();
-        if (Internal::ExitDirtyChoice::Cancel == choice)
+        const ExitDirtyChoice choice = Confirm_SaveDirtyAuthoringDocumentBeforeExit();
+        if (ExitDirtyChoice::Cancel == choice)
             return;
 
-        if (Internal::ExitDirtyChoice::SaveAndExit == choice)
+        if (ExitDirtyChoice::SaveAndExit == choice)
         {
             Save_EffectDocument();
             if (emitterView->Is_Dirty())

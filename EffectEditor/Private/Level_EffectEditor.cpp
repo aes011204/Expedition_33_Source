@@ -20,7 +20,7 @@
 
 NS_BEGIN(EffectEditor)
 
-namespace Internal
+namespace
 {
     bool Is_TrailPreviewModelResource(const wstring& prototypeTag)
     {
@@ -131,7 +131,7 @@ HRESULT Level_EffectEditor::Ensure_TrailPreviewFixture()
     for (const FLoadJob& loadJob : loadJobs)
     {
         if (loadJob.eType == ELoadJobType::Model &&
-            Internal::Is_TrailPreviewModelResource(loadJob.strPrototypeTag))
+            Is_TrailPreviewModelResource(loadJob.strPrototypeTag))
         {
             CHECK_FAILED(resourceLoader->Register_LoadJob(loadJob), E_FAIL);
             ++registeredModelCount;
@@ -219,9 +219,9 @@ HRESULT Level_EffectEditor::Ready_Lights()
 HRESULT Level_EffectEditor::Ready_Layer_Camera(const wstring& layerTag)
 {
     EffectEditorCamera::EffectEditorCameraDesc cameraDesc{};
-    cameraDesc.speedPerSec = 5.f;                // 초기 카메라 속도
+    cameraDesc.speedPerSec = 5.f;
     cameraDesc.degreePerSec = 180.f;
-    cameraDesc.eye = Vec4(0.f, 3.f, -3.5f, 1.f); // 초기 카메라 거리
+    cameraDesc.eye = Vec4(0.f, 3.f, -3.5f, 1.f);
     cameraDesc.at = Vec4(0.f, 0.f, 0.f, 1.f);
     cameraDesc.fovy = XMConvertToRadians(60.f);
     cameraDesc.nearPlane = 0.1f;

@@ -565,12 +565,6 @@ const Matrix* ModelCom::Get_BoneMatrixPtr(uint32 boneIndex) const
         return &_leaderPoseCombinedMatrices[boneIndex];
     }
     
-    if (!_combinedBoneMatrixCache.empty())
-    {
-        if (boneIndex < _combinedBoneMatrixCache.size())
-            return &_combinedBoneMatrixCache[boneIndex];
-    }
-
     return _bones[boneIndex]->Get_CombinedTransformationMatrixPtr();
 }
 

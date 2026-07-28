@@ -11,7 +11,7 @@
 
 NS_BEGIN(EffectEditor)
 
-namespace Internal
+namespace
 {
     constexpr auto kEffectTexturePayloadType = "CONTENT_BROWSER_EFFECT_TEXTURE";
     constexpr auto kEffectModelPayloadType = "CONTENT_BROWSER_EFFECT_MODEL";
@@ -27,7 +27,7 @@ namespace Internal
         return String::ToLowerCopy(filePath.extension().string()) == ".model";
     }
 
-    static ImTextureID ToImTextureId(const Shared<Texture>& texture)
+    ImTextureID ToImTextureId(const Shared<Texture>& texture)
     {
         if (nullptr == texture)
             return static_cast<ImTextureID>(0);
@@ -524,7 +524,7 @@ void Content_Browser::Draw_AssetView()
             ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(0.f, 0.f));
             ImGui::ImageButton(
                 fileName.c_str(),
-                Internal::ToImTextureId(thumbnailTexture),
+                ToImTextureId(thumbnailTexture),
                 ImVec2(_thumbnailSize, _thumbnailSize)
             );
             ImGui::PopStyleVar();
@@ -560,13 +560,13 @@ void Content_Browser::Draw_AssetView()
                 ImGui::EndDragDropSource();
             }
         }
-        else if (Internal::Is_ModelPayloadFile(path))
+        else if (Is_ModelPayloadFile(path))
         {
             if (ImGui::BeginDragDropSource())
             {
                 const wstring payloadPath = fileEntry.filePath;
                 ImGui::SetDragDropPayload(
-                    Internal::kEffectModelPayloadType,
+                    kEffectModelPayloadType,
                     payloadPath.c_str(),
                     (payloadPath.size() + 1) * sizeof(wchar_t)
                 );
@@ -578,13 +578,13 @@ void Content_Browser::Draw_AssetView()
                 ImGui::EndDragDropSource();
             }
         }
-        else if (Internal::Is_TexturePayloadFile(path))
+        else if (Is_TexturePayloadFile(path))
         {
             if (ImGui::BeginDragDropSource())
             {
                 const wstring payloadPath = fileEntry.filePath;
                 ImGui::SetDragDropPayload(
-                    Internal::kEffectTexturePayloadType,
+                    kEffectTexturePayloadType,
                     payloadPath.c_str(),
                     (payloadPath.size() + 1) * sizeof(wchar_t)
                 );
@@ -618,9 +618,9 @@ void Content_Browser::Draw_AssetView()
 
         Draw_FileContextMenu(fileEntry.filePath, "FileItemContext");
 
-        const bool isTextureFile = Internal::Is_TexturePayloadFile(path);
+        const bool isTextureFile = Is_TexturePayloadFile(path);
         const string displayName = isTextureFile ? fileName : pureName;
-        Internal::DrawTileLabel(displayName, gridLayout.tileWidth - 8.f);
+        DrawTileLabel(displayName, gridLayout.tileWidth - 8.f);
         if (ImGui::IsItemHovered())
         {
             if (isTextureFile)
@@ -732,7 +732,7 @@ void Content_Browser::Draw_FolderTile(FolderNode& folder)
     Draw_FolderContextMenu(folder, "FolderTileContext");
 
     const string folderName = String::ToString(folder.name);
-    Internal::DrawTileLabel(folderName, _thumbnailSize + 32.f);
+    DrawTileLabel(folderName, _thumbnailSize + 32.f);
 
     ImGui::PopID();
 }
@@ -936,7 +936,7 @@ ImTextureID Content_Browser::Get_IconTextureId(IconType iconType) const
     if (iconIndex >= _iconFiles.size())
         return static_cast<ImTextureID>(0);
 
-    return Internal::ToImTextureId(_iconFiles[iconIndex]);
+    return ToImTextureId(_iconFiles[iconIndex]);
 }
 
 bool Content_Browser::Can_GoParentFolder() const

@@ -44,7 +44,7 @@ const LIGHT_DESC* Light_Manager::Get_PrimaryShadowLightDesc() const
     return nullptr;
 }
 
-HRESULT Light_Manager::Bind_PrimaryShadowLightCB(Shared<ShaderCom> shader) const
+HRESULT Light_Manager::Bind_PrimaryShadowLightCB(const Shared<ShaderCom>& shader) const
 {
     // 아직 사용 안 한다. 이후 환경 요소 설정 관련해서 필요해지면 연결
     if (_lights.empty())
@@ -270,7 +270,7 @@ HRESULT Light_Manager::Set_PointLightAttenuationPower(uint32 pointIndex, float a
     return Update_PointLightDesc(pointIndex, desc);
 }
 
-HRESULT Light_Manager::Render_Lights(Shared<ShaderCom> shader, Shared<VIBuffer_Rect> viBuffer)
+HRESULT Light_Manager::Render_Lights(const Shared<ShaderCom>& shader, const Shared<VIBuffer_Rect>& viBuffer)
 {
     for (auto& pLight : _lights)
     {

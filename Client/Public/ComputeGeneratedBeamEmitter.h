@@ -12,7 +12,6 @@ NS_END
 
 NS_BEGIN(Client)
 
-// Beam desc 기반 path sample을 strip payload로 낮춰 beam을 그린다.
 class ComputeGeneratedBeamEmitter final : public EffectEmitter
 {
     GENERATED_GAMEOBJECT(ComputeGeneratedBeamEmitter, ObjectType::EffectEmitter);
@@ -30,17 +29,11 @@ public:
     HRESULT Render() override;
 
 public:
-    // effect replay 시 generated path와 재생 상태를 초기화한다.
     HRESULT Reset_ForEffectReplay() override;
-    // playback loop 완료 여부를 반환한다.
     bool Is_EffectFinished() const override;
-    // beam 중간점을 blend sort 기준점으로 제공한다.
     bool Try_Get_BlendSortWorldPosition(Vec3& outWorldPosition) const override;
-    // Required sort policy를 반환한다.
     EffectSortPolicy Get_BlendSortPolicy() const override;
-    // Required sort layer를 반환한다.
     int32 Get_BlendSortLayer() const override;
-    // Required sort bias를 반환한다.
     float Get_BlendSortBias() const override;
 
 private: //## Types::PlaybackRuntime
@@ -53,35 +46,35 @@ private: //## Types::PlaybackRuntime
 
     struct PathSample
     {
-        Vec3 position{};  // generated beam path의 world position sample이다.
-        float age{};      // presentation life 평가용 sample age다.
-        float distance{}; // beam 시작점 기준 누적 거리다.
+        Vec3 position{};
+        float age{};
+        float distance{};
     };
 
     struct PathEntry
     {
-        vector<PathSample> samples{}; // draw payload로 낮출 generated path sample이다.
-        uint32 stripIndex{};          // SubUV variation seed에 사용할 parent strip index다.
-        float widthScale{ 1.f };      // parent 폭 대비 path 폭 배율이다.
+        vector<PathSample> samples{};
+        uint32 stripIndex{};
+        float widthScale{ 1.f };
     };
 
     struct SegmentPayload
     {
-        Vec4 previousPosition{};              // compute strip tangent용 이전 sample이다.
-        Vec4 currentPosition{};               // segment 시작 sample이다.
-        Vec4 nextPosition{};                  // segment 끝 sample이다.
-        Vec4 nextNextPosition{};              // compute strip tangent용 다음다음 sample이다.
-        Vec4 currentSampleParams{};           // x age, y lifetime, z distance, w widthScale.
-        Vec4 nextSampleParams{};              // x age, y lifetime, z distance, w widthScale.
-        Vec4 startColor{};                    // segment 시작 색이다.
-        Vec4 endColor{};                      // segment 끝 색이다.
-        Vec4 subUVRect{ 0.f, 0.f, 1.f, 1.f }; // 현재 SubUV rect다.
+        Vec4 previousPosition{};
+        Vec4 currentPosition{};
+        Vec4 nextPosition{};
+        Vec4 nextNextPosition{};
+        Vec4 currentSampleParams{};
+        Vec4 nextSampleParams{};
+        Vec4 startColor{};
+        Vec4 endColor{};
+        Vec4 subUVRect{ 0.f, 0.f, 1.f, 1.f };
         Vec4 coreColorRgb{ 1.f, 0.85f, 0.45f, 0.f };
     };
 
     struct BeamInstanceVertex
     {
-        Vec4 previousPosition{}; // ribbon shader와 동일한 instance layout이다.
+        Vec4 previousPosition{};
         Vec4 currentPosition{};
         Vec4 nextPosition{};
         Vec4 nextNextPosition{};
@@ -95,12 +88,12 @@ private: //## Types::PlaybackRuntime
 
     struct BeamComputeParams
     {
-        uint32 segmentCount{};      // compute로 낮출 segment 수다.
-        uint32 renderAxis{};        // ribbon strip shader의 axis mode다.
-        float tilingDistance{};     // texture V tiling 기준 거리다.
-        float visibleLength{ 1.f }; // 전체 beam visible length다.
-        Vec4 axisFallback{};        // axis fallback 값이다.
-        Vec4 fadeParams{};          // x auto life fade, y max length, z tail fade length, w reserved.
+        uint32 segmentCount{};
+        uint32 renderAxis{};
+        float tilingDistance{};
+        float visibleLength{ 1.f };
+        Vec4 axisFallback{};
+        Vec4 fadeParams{};
     };
 
     struct DrawIndexedInstancedIndirectArgs
@@ -112,20 +105,15 @@ private: //## Types::PlaybackRuntime
         uint32 startInstanceLocation{};
     };
 
-private: //## Static Values
-    // beam 전용 좌우 UV 보정 shader다.
+private: //## Static::Runtime
     static constexpr auto kBeamShaderId{ L"Shader_EffectBeam" };
-    // distortion beam 전용 shader다
     static constexpr auto kBeamDistortionShaderId{ L"Shader_EffectBeamDistortion" };
-    // segment payload를 instance로 낮추는 compute shader다.
     static constexpr auto kBeamComputeShaderId{ L"ComputeShader_RibbonStrip" };
     static constexpr auto kFallbackTexturePath{ "Effects/Textures/Shared/DefaultTexture.dds" };
     static constexpr auto kNeutralFlowTexturePath{ "Effects/Textures/Shared/DefaultFlowMap.dds" };
-    // compute dispatch thread group 크기다.
     static constexpr uint32 kThreadCountX{ 64 };
 
-private: //## Data::Desc
-    // clone 시점에 받은 Beam runtime 설정이다.
+private: //## Data::RuntimeDesc
     ComputeBeamEmitterDesc _desc{};
 
 private: //## Data::PlaybackRuntime
@@ -137,7 +125,6 @@ private: //## Data::PlaybackRuntime
     float _visibleBeamLength{ 1.f };
     uint32 _drawSegmentCount{};
     uint32 _randomSubUVFrameIndex{};
-    // 이번 replay에서 생성된 parent/branch path 목록이다.
     vector<PathEntry> _pathEntries{};
 
 private: //## Data::Components
@@ -157,24 +144,22 @@ private: //## Data::Components
     Shared<ComputeStructuredBuffer> _computeArgsOutput{};
 
 private: //## Helper::PlaybackRuntime
-    // playback 시간/loop 상태를 초기화한다.
     void Reset_PlaybackRuntime();
-    // delay/play/completed 상태를 전진시킨다.
     void Advance_Playback(float timeDelta);
-    // desc의 local start/end 또는 direction/length로 world sample을 다시 만든다.
     void Rebuild_PathSamples();
-    // endpoint mode와 strip index에 따라 local end를 계산한다.
     Vec3 Resolve_LocalEnd(uint32 stripIndex) const;
-    // emitter local point를 world point로 변환한다.
     Vec3 Transform_LocalPoint(const Vec3& localPoint) const;
-    // seed 기반 jitter offset을 만든다.
     Vec3 Evaluate_NoiseOffset(uint32 stripIndex, uint32 sampleIndex, const Vec3& tangent) const;
-    // parent path에서 branch path를 생성한다.
     void Append_BranchPathEntries(const PathEntry& parentPath, uint32 stripIndex, float activeElapsedTime);
-    // path sample을 compute input payload로 낮춘다.
     HRESULT Append_SegmentPayloads(vector<SegmentPayload>& outPayloads);
-    // 렌더 가능한 path segment가 있는지 확인한다.
     bool Has_RenderablePath() const;
+    void Start_NextLoop();
+    void Resample_VisualLife();
+    float Resolve_CurrentLoopDelay() const;
+    float Resolve_Duration() const;
+    float Resolve_VisualLife() const;
+    float Resolve_ActiveElapsedTime(float duration) const;
+    bool Has_NextLoop() const;
 
 private: //## Helper::Setup
     HRESULT Ready_Components();
@@ -196,19 +181,6 @@ private: //## Helper::Render
     HRESULT Bind_DistortionResources();
     bool Can_SubmitRender() const;
     uint32 Compute_MaxRenderSegmentCount() const;
-
-private: //## Helper::PlaybackRuntime
-    void Start_NextLoop();
-    void Resample_VisualLife();
-    float Resolve_CurrentLoopDelay() const;
-    float Resolve_Duration() const;
-    // 한 loop 안에서 Beam이 실제로 보이는 시간을 반환한다.
-    float Resolve_VisualLife() const;
-    // delay 이후 현재 loop 진행 시간을 duration 안으로 제한한다.
-    float Resolve_ActiveElapsedTime(float duration) const;
-    bool Has_NextLoop() const;
-
-private: //## Helper::Render
     bool Is_DistortionFamily() const;
     RenderGroup Resolve_RenderGroup() const;
     const wchar_t* Resolve_ShaderId() const;

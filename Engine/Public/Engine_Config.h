@@ -11,6 +11,11 @@
 #define ENGINE_PROFILE_LEVEL_BASIC 1
 #define ENGINE_PROFILE_LEVEL_DETAIL 2
 
+// 기본 Release 경로를 오염시키지 않고 수동 Update 계측 binary에서만 켠다.
+#ifndef ENGINE_ENABLE_RELEASE_UPDATE_PROFILE
+#define ENGINE_ENABLE_RELEASE_UPDATE_PROFILE 0
+#endif
+
 // Debug는 큰 단위 profile을 기본으로 켜고, Release는 성능 오염을 피하기 위해 기본으로 끈다.
 #ifndef ENGINE_PROFILE_LEVEL
 #ifdef _DEBUG

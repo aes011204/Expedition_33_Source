@@ -10,7 +10,6 @@ NS_END
 
 NS_BEGIN(Client)
 
-// Source point history를 sprite stamp trail로 누적하고 렌더링한다.
 class ComputeSourceHistorySpriteTrailEmitter final : public EffectEmitter
 {
     GENERATED_GAMEOBJECT(ComputeSourceHistorySpriteTrailEmitter, ObjectType::EffectEmitter);
@@ -131,7 +130,7 @@ private: //## Types::PlaybackRuntime
         Vec4 coreColorRgb{ 1.f, 0.85f, 0.45f, 0.f };
     };
 
-private: //## Static Values
+private: //## Static::Runtime
     static constexpr auto kShaderId{ L"Shader_EffectSourceHistorySpriteTrail" };
     static constexpr auto kFallbackTexturePath{ "Effects/Textures/Shared/DefaultTexture.dds" };
     static constexpr uint32 kPointVertexCount{ 1 };

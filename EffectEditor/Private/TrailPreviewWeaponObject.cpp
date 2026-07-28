@@ -12,6 +12,22 @@
 
 NS_BEGIN(EffectEditor)
 
+namespace
+{
+Quat Resolve_NormalizedRotation(const Matrix& worldMatrix)
+{
+    Matrix decomposableWorldMatrix = worldMatrix;
+    Vec3 scale = Vec3::One;
+    Vec3 position = Vec3::Zero;
+    Quat rotation = Quat::Identity;
+    if (!decomposableWorldMatrix.Decompose(scale, rotation, position) || rotation.LengthSquared() <= 0.000001f)
+        return Quat::Identity;
+
+    rotation.Normalize();
+    return rotation;
+}
+}
+
 TrailPreviewWeaponObject::TrailPreviewWeaponObject(const ComPtr<Device>& device, const ComPtr<Context>& context)
     : PartObject{ device, context }
 {
@@ -90,6 +106,8 @@ bool TrailPreviewWeaponObject::Try_GetTrailSample(EffectTrailSample& outSample) 
 
     outSample.baseWorldPosition = _trailBaseWorldPosition;
     outSample.tipWorldPosition = _trailTipWorldPosition;
+    outSample.baseWorldRotation = _weaponWorldRotation;
+    outSample.tipWorldRotation = _weaponWorldRotation;
     return true;
 }
 
@@ -99,6 +117,7 @@ bool TrailPreviewWeaponObject::Try_GetSourcePointSample(EffectSourcePointSample&
         return false;
 
     outSample.worldPosition = _sourcePointWorldPosition;
+    outSample.worldRotation = _weaponWorldRotation;
     return true;
 }
 
@@ -261,6 +280,7 @@ void TrailPreviewWeaponObject::Update_TrailPoints()
     _trailBaseWorldPosition = Vec3::Transform(baseLocal, _weaponWorldMatrix);
     _trailTipWorldPosition = Vec3::Transform(tipLocal, _weaponWorldMatrix);
     _sourcePointWorldPosition = Vec3::Transform(sourceLocal, _weaponWorldMatrix);
+    _weaponWorldRotation = Resolve_NormalizedRotation(_weaponWorldMatrix);
     _hasTrailSample = true;
 }
 

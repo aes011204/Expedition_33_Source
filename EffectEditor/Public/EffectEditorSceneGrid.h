@@ -4,7 +4,6 @@
 
 NS_BEGIN(EffectEditor)
 
-// EffectEditor scene 기준 grid GameObject다.
 class EffectEditorSceneGrid final : public GameObject
 {
 public:

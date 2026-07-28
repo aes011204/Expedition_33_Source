@@ -17,12 +17,12 @@ public:
     void    Update(float timeDelta);
 
 public:
-    void                 Change_ActiveCamera(Shared<Camera> camera);
+    void                 Change_ActiveCamera(const Shared<Camera>& camera);
     void                 SwitchTo_NextCamera();
-    HRESULT              Add_Camera(Shared<Camera> camera);
+    HRESULT              Add_Camera(const Shared<Camera>& camera);
     void                 Remove_Camera(Shared<Camera> camera);
-    Shared<Camera>       Find_Camera(Shared<Camera> camera);
-    bool                 Is_ActiveCamera(Shared<Camera> camera);
+    Shared<Camera>       Find_Camera(const Shared<Camera>& camera);
+    bool                 Is_ActiveCamera(const Shared<Camera>& camera);
     
     int                  Get_CameraCount();
     Shared<TransformCom> Get_CameraTransform(int index);
@@ -35,7 +35,7 @@ public:
     bool                 Is_ActiveCameraType(ObjectType objectType) const;
     bool                 Focus_FreeCameraOnPosition(const Vec3& position);
 
-    HRESULT              Bind_CameraFar(Shared<ShaderCom> shader, const char* constantName);
+    HRESULT              Bind_CameraFar(const Shared<ShaderCom>& shader, const char* constantName);
 
 private:
     vector<Shared<Camera>> m_cameras;

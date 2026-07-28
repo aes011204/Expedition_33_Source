@@ -5,7 +5,7 @@
 #include "EffectCom.h"
 #include "GameInstance.h"
 
-namespace Internal
+namespace
 {
     static void Play_TargetHitEffect(const BattleChar& target, const BattleHitSequenceRunner::HitEffectDesc& hitEffect)
     {
@@ -103,7 +103,7 @@ void Skill_Lune_Immolation::Execute(const Skill_Data& skill, const BattleAction&
         effectDesc.effectName = L"Lune_Immolation_Hit";
         effectDesc.localOffset = Vec3(0.f, 0.7f, 0.f);
 
-        Internal::Play_TargetHitEffect(target, effectDesc);
+        Play_TargetHitEffect(target, effectDesc);
     }
 }
 
@@ -117,7 +117,7 @@ void Skill_Lune_Immolation::Collect_PrewarmEffects(const Skill_Data& skill, cons
     UNREFERENCED_PARAMETER(skill);
     UNREFERENCED_PARAMETER(context);
 
-    Internal::Add_PrewarmRequest(outRequests, L"Lune_Immolation_Hit", 2);
+    Add_PrewarmRequest(outRequests, L"Lune_Immolation_Hit", 2);
 }
 
 /* 얼음 창 */
@@ -210,7 +210,7 @@ void Skill_Lune_Thunderfall::Collect_PrewarmEffects(const Skill_Data& skill, con
     UNREFERENCED_PARAMETER(context);
 
     const uint32 hitCount = skill.AttackCount > 0 ? static_cast<uint32>(skill.AttackCount) : 6u;
-    Internal::Add_PrewarmRequest(outRequests, L"Lune_ThunderFall_Attack", hitCount + 2u);
+    Add_PrewarmRequest(outRequests, L"Lune_ThunderFall_Attack", hitCount + 2u);
 }
 
 /* 대지 전율 */
@@ -259,9 +259,9 @@ void Skill_Lune_TerraQuake::Execute(const Skill_Data& skill, const BattleAction&
     battle->Get_HitSequenceRunner().Begin_RepeatedHitWithImmediateFirstHit(
         attacker,
         curTargets,
-        Internal::kTerraQuakeHitCount,
-        Internal::kTerraQuakeHitInterval,
-        damage / static_cast<float>(Internal::kTerraQuakeHitCount),
+        kTerraQuakeHitCount,
+        kTerraQuakeHitInterval,
+        damage / static_cast<float>(kTerraQuakeHitCount),
         attackType,
         effectDesc,
         true
@@ -278,9 +278,9 @@ void Skill_Lune_TerraQuake::Collect_PrewarmEffects(const Skill_Data& skill, cons
     UNREFERENCED_PARAMETER(skill);
 
     const uint32 prewarmTargetCount =
-        static_cast<uint32>(context.currentEnemyCount) * static_cast<uint32>(Internal::kTerraQuakeHitCount);
+        static_cast<uint32>(context.currentEnemyCount) * static_cast<uint32>(kTerraQuakeHitCount);
 
-    Internal::Add_PrewarmRequest(
+    Add_PrewarmRequest(
         outRequests,
         L"Lune_TerraQuake_Attack",
         max(2u, prewarmTargetCount));
@@ -349,7 +349,7 @@ void Skill_Lune_SkyBreak::Execute(const Skill_Data& skill, const BattleAction& a
         for (uint32 i = 0; i < stainCountToConsume; ++i)
         {
             if (attacker.mechanismCom->Consume_LuneStain(stainsToConsume[i]))
-                damage *= Internal::kSkyBreakDamageMultiplierPerStain;
+                damage *= kSkyBreakDamageMultiplierPerStain;
         }
     }
 

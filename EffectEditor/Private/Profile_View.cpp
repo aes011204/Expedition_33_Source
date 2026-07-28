@@ -42,11 +42,11 @@ struct Profile_View::ProfilerRuntime
     double frameWindowSum = 0.0;
 };
 
-namespace Internal
+namespace
 {
     constexpr auto kProfileSnapshotTag = "EffectEditorProfileSnapshot";
 
-    static const char* Get_Profile_Level_Name()
+    const char* Get_Profile_Level_Name()
     {
 #if ENGINE_PROFILE_LEVEL == ENGINE_PROFILE_LEVEL_OFF
         return "Off";
@@ -59,7 +59,7 @@ namespace Internal
 #endif
     }
 
-    static bool Str_IContains(const string& haystack, const char* needle)
+    bool Str_IContains(const string& haystack, const char* needle)
     {
         if (nullptr == needle || '\0' == needle[0])
             return true;
@@ -79,7 +79,7 @@ namespace Internal
         return string::npos != lowerHaystack.find(lowerNeedle);
     }
 
-    static bool Should_Refresh_Sample(
+    bool Should_Refresh_Sample(
         const Profile_View::clock::time_point now,
         const Profile_View::clock::time_point lastSampleTime,
         const bool hasSample,
@@ -96,12 +96,12 @@ namespace Internal
         return elapsedSec >= intervalSec;
     }
 
-    static double Bytes_To_Mb(const size_t bytes)
+    double Bytes_To_Mb(const size_t bytes)
     {
         return static_cast<double>(bytes) / (1024.0 * 1024.0);
     }
 
-    static void Log_Profile_Snapshot_Line(const spdlog::source_loc& sourceLoc, const string& message)
+    void Log_Profile_Snapshot_Line(const spdlog::source_loc& sourceLoc, const string& message)
     {
         GAME->Log_FileOnly(
             sourceLoc,
@@ -184,7 +184,7 @@ void Profile_View::Frame_Begin()
     const clock::time_point now = clock::now();
     runtime.frameIndex++;
     runtime.avgWindow = max(1, activeView->_avgWindow);
-    runtime.timingSampleFrame = Internal::Should_Refresh_Sample(
+    runtime.timingSampleFrame = Should_Refresh_Sample(
         now,
         activeView->_lastTimingSampleTime,
         activeView->_hasTimingSample,
@@ -374,7 +374,7 @@ void Profile_View::Draw_Toolbar()
 
 void Profile_View::Draw_Frame_Info()
 {
-    ImGui::Text("Profile Level: %s (%d)", Internal::Get_Profile_Level_Name(), ENGINE_PROFILE_LEVEL);
+    ImGui::Text("Profile Level: %s (%d)", Get_Profile_Level_Name(), ENGINE_PROFILE_LEVEL);
     ImGui::Text("FPS (Last / Avg): %d / %d", static_cast<int>(_fpsLast), static_cast<int>(_fpsAvg));
     ImGui::Text("Frame ms (Last / Avg): %.2f / %.2f", static_cast<float>(_frameMsLast), static_cast<float>(_frameMsAvg));
     ImGui::Text("Render Calls: %u", _renderCallCount);
@@ -504,14 +504,14 @@ void Profile_View::Draw_Resource_Memory()
         drawRow(
             "Textures",
             fmt::format("{} prototypes", summary.texturePrototypeCount),
-            fmt::format("{:.1f} MB", Internal::Bytes_To_Mb(summary.textureEstimatedBytes)),
+            fmt::format("{:.1f} MB", Bytes_To_Mb(summary.textureEstimatedBytes)),
             fmt::format("{} SRVs incl. materials", summary.textureSrvCount)
         );
 
         drawRow(
             "Models",
             fmt::format("{} prototypes", summary.modelPrototypeCount),
-            fmt::format("{:.1f} MB", Internal::Bytes_To_Mb(summary.modelEstimatedBytes)),
+            fmt::format("{:.1f} MB", Bytes_To_Mb(summary.modelEstimatedBytes)),
             fmt::format(
                 "{} meshes / {} materials / {} bones / {} anims",
                 summary.modelMeshCount,
@@ -524,7 +524,7 @@ void Profile_View::Draw_Resource_Memory()
         drawRow(
             "Standalone Buffers",
             fmt::format("{} prototypes", summary.standaloneBufferPrototypeCount),
-            fmt::format("{:.1f} MB", Internal::Bytes_To_Mb(summary.standaloneBufferEstimatedBytes)),
+            fmt::format("{:.1f} MB", Bytes_To_Mb(summary.standaloneBufferEstimatedBytes)),
             "VIBuffer prototypes"
         );
 
@@ -616,7 +616,7 @@ vector<Profile_View::ScopeRow> Profile_View::Build_Scope_Rows() const
         if (!_showDisabled && !stats.isEnabled)
             continue;
 
-        if (!Internal::Str_IContains(stats.name, _filter))
+        if (!Str_IContains(stats.name, _filter))
             continue;
 
         ScopeRow row = {};
@@ -658,12 +658,12 @@ void Profile_View::Log_Snapshot() const
     const vector<ScopeRow> rows = Build_Scope_Rows();
     const string filterText = '\0' == _filter[0] ? string("<none>") : string(_filter);
 
-    Internal::Log_Profile_Snapshot_Line(sourceLoc, "----- begin -----");
-    Internal::Log_Profile_Snapshot_Line(
+    Log_Profile_Snapshot_Line(sourceLoc, "----- begin -----");
+    Log_Profile_Snapshot_Line(
         sourceLoc,
         fmt::format(
             "frame profile_level={}({}) fps_last={} fps_avg={} frame_ms_last={:.2f} frame_ms_avg={:.2f} render_calls={}",
-            Internal::Get_Profile_Level_Name(),
+            Get_Profile_Level_Name(),
             ENGINE_PROFILE_LEVEL,
             static_cast<int>(_fpsLast),
             static_cast<int>(_fpsAvg),
@@ -672,7 +672,7 @@ void Profile_View::Log_Snapshot() const
             _renderCallCount
         )
     );
-    Internal::Log_Profile_Snapshot_Line(
+    Log_Profile_Snapshot_Line(
         sourceLoc,
         fmt::format(
             "toolbar capture={} sort_by_cost={} show_disabled={} avg_window={} filter=\"{}\" row_limit={}",
@@ -686,14 +686,14 @@ void Profile_View::Log_Snapshot() const
     );
 
     if (rows.empty())
-        Internal::Log_Profile_Snapshot_Line(sourceLoc, "scopes empty_under_current_filters=true");
+        Log_Profile_Snapshot_Line(sourceLoc, "scopes empty_under_current_filters=true");
     else
     {
-        Internal::Log_Profile_Snapshot_Line(sourceLoc, fmt::format("scopes visible_count={}", rows.size()));
+        Log_Profile_Snapshot_Line(sourceLoc, fmt::format("scopes visible_count={}", rows.size()));
         for (size_t index = 0; index < rows.size(); ++index)
         {
             const ScopeStats& stats = *rows[index].stats;
-            Internal::Log_Profile_Snapshot_Line(
+            Log_Profile_Snapshot_Line(
                 sourceLoc,
                 fmt::format(
                     "scope[{}] name=\"{}\" enabled={} last_ms={:.3f} avg_ms={:.3f} min_ms={:.3f} max_ms={:.3f} samples={}",
@@ -712,7 +712,7 @@ void Profile_View::Log_Snapshot() const
 
     if (_hasProcessMemorySample)
     {
-        Internal::Log_Profile_Snapshot_Line(
+        Log_Profile_Snapshot_Line(
             sourceLoc,
             fmt::format(
                 "memory working_set_mb={} peak_working_set_mb={} private_mb={} peak_private_mb={}",
@@ -724,12 +724,12 @@ void Profile_View::Log_Snapshot() const
         );
     }
     else
-        Internal::Log_Profile_Snapshot_Line(sourceLoc, "memory pending=true");
+        Log_Profile_Snapshot_Line(sourceLoc, "memory pending=true");
 
     if (_hasResourceMemorySample && _resourceMemory.hasData)
     {
         const DebugResourceMemorySummary& summary = _resourceMemory.engine;
-        Internal::Log_Profile_Snapshot_Line(
+        Log_Profile_Snapshot_Line(
             sourceLoc,
             fmt::format(
                 "resource textures={} textures_mb={:.1f} texture_srvs={} "
@@ -737,16 +737,16 @@ void Profile_View::Log_Snapshot() const
                 "standalone_buffers={} standalone_buffers_mb={:.1f} objects={} components={} "
                 "effect_pool_entries={} effect_pool_active={} effect_pool_idle={}",
                 summary.texturePrototypeCount,
-                Internal::Bytes_To_Mb(summary.textureEstimatedBytes),
+                Bytes_To_Mb(summary.textureEstimatedBytes),
                 summary.textureSrvCount,
                 summary.modelPrototypeCount,
-                Internal::Bytes_To_Mb(summary.modelEstimatedBytes),
+                Bytes_To_Mb(summary.modelEstimatedBytes),
                 summary.modelMeshCount,
                 summary.modelMaterialCount,
                 summary.modelBoneCount,
                 summary.modelAnimationCount,
                 summary.standaloneBufferPrototypeCount,
-                Internal::Bytes_To_Mb(summary.standaloneBufferEstimatedBytes),
+                Bytes_To_Mb(summary.standaloneBufferEstimatedBytes),
                 summary.currentLevelObjectCount,
                 summary.currentLevelComponentCount,
                 _resourceMemory.effectPoolEntryCount,
@@ -756,11 +756,11 @@ void Profile_View::Log_Snapshot() const
         );
     }
     else if (_hasResourceMemorySample)
-        Internal::Log_Profile_Snapshot_Line(sourceLoc, "resource pending=false has_data=false");
+        Log_Profile_Snapshot_Line(sourceLoc, "resource pending=false has_data=false");
     else
-        Internal::Log_Profile_Snapshot_Line(sourceLoc, "resource pending=true");
+        Log_Profile_Snapshot_Line(sourceLoc, "resource pending=true");
 
-    Internal::Log_Profile_Snapshot_Line(sourceLoc, "----- end -----");
+    Log_Profile_Snapshot_Line(sourceLoc, "----- end -----");
 }
 
 void Profile_View::Record_Scope_Sample(const string& scopeName, double elapsedMs)
@@ -812,7 +812,7 @@ void Profile_View::Refresh_Memory_Samples()
 {
     const clock::time_point now = clock::now();
 
-    if (Internal::Should_Refresh_Sample(
+    if (Should_Refresh_Sample(
         now,
         _lastProcessMemorySampleTime,
         _hasProcessMemorySample,
@@ -826,7 +826,7 @@ void Profile_View::Refresh_Memory_Samples()
         _hasProcessMemorySample = true;
     }
 
-    if (Internal::Should_Refresh_Sample(
+    if (Should_Refresh_Sample(
         now,
         _lastResourceMemorySampleTime,
         _hasResourceMemorySample,

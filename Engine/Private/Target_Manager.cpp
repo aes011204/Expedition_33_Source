@@ -258,7 +258,7 @@ HRESULT Target_Manager::Add_MRT(const wstring& mrtTag, const wstring& targetTag)
     return S_OK;
 }
 
-HRESULT Target_Manager::Bind_ShaderResource(Shared<ShaderCom> shader, const char* constantName, const wstring& targetTag)
+HRESULT Target_Manager::Bind_ShaderResource(const Shared<ShaderCom>& shader, const char* constantName, const wstring& targetTag)
 {
     auto renderTarget = Find_RenderTarget(targetTag);
     CHECK_NULL(renderTarget, E_FAIL);
@@ -751,7 +751,7 @@ HRESULT Target_Manager::Apply_DebugLayout(const wstring& targetTag, const DebugL
     return S_OK;
 }
 
-HRESULT Target_Manager::Render_Debug(Shared<ShaderCom> shader, Shared<VIBuffer_Rect> viBuffer)
+HRESULT Target_Manager::Render_Debug(const Shared<ShaderCom>& shader, const Shared<VIBuffer_Rect>& viBuffer)
 {
     if (_debugLayoutDirty)
         CHECK_FAILED(Reconstruct_DrawArea(), E_FAIL);

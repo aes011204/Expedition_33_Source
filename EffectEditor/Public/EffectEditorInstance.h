@@ -68,7 +68,6 @@ enum class TrailPreviewMotion
     Manual,
 };
 
-// EffectEditor singleton으로 editor subsystem, preview viewport, runtime state, and session options를 조율한다.
 class EffectEditorInstance final : public Base
 {
     DECLARE_SINGLETON(EffectEditorInstance)
@@ -85,29 +84,29 @@ public:
     void Render_Editor(EffectEditorRenderPerfSample* outPerfSample = nullptr);
     void Request_Exit();
 
-public: //## Accessor::Graphics
+public: //## Accessors::Graphics
     ComPtr<Device> Get_Device() const { return _device; }
     ComPtr<Context> Get_Context() const { return _context; }
 
-public: //## Accessor::Window
+public: //## Accessors::Window
     Shared<Editor_Window> Get_Window(const wstring& windowName) const;
     HWND Get_WindowHandle() const;
     Editor_Context* Get_EditorContext() const { return _editorContext.get(); }
     bool Is_SceneFocusModeActive() const;
     uint32 Get_ActiveDockSpaceId() const;
 
-public: //## Accessor::Notification
+public: //## Accessors::Notification
     Notification_Manager* Get_Notification() { return _notificationManager.get(); }
 
-public: //## Accessor::Camera
+public: //## Accessors::Camera
     Shared<EffectEditorCamera> Get_PreviewCamera() const { return _previewCamera; }
 
-public: //## Accessor::Runtime
+public: //## Accessors::Runtime
     bool IsPlaying() const;
     bool IsPaused() const;
     float Get_RuntimeTimeScale() const;
 
-public: //## Accessor::PreviewOption
+public: //## Accessors::PreviewOption
     bool Is_AutoReplayPreviewEnabled() const { return _autoReplayPreviewEnabled; }
     bool Is_DefaultSkyboxEnabled() const { return _isDefaultSkyboxEnabled; }
     bool Is_TrailPreviewVisible() const { return _isTrailPreviewVisible; }
@@ -115,52 +114,30 @@ public: //## Accessor::PreviewOption
     TrailPreviewGateMode Get_TrailPreviewGateMode() const { return _trailPreviewGateMode; }
     float Get_TrailPreviewGateStartRatio() const { return _trailPreviewGateStartRatio; }
     float Get_TrailPreviewGateEndRatio() const { return _trailPreviewGateEndRatio; }
-    // SourceHistorySpriteTrail preview source sample 공급 구간의 editor-session mode다.
     TrailPreviewGateMode Get_SourceHistorySpriteTrailPreviewGateMode() const { return _sourceHistorySpriteTrailPreviewGateMode; }
-    // SourceHistorySpriteTrail preview source sample 공급 시작 ratio다.
     float Get_SourceHistorySpriteTrailPreviewGateStartRatio() const { return _sourceHistorySpriteTrailPreviewGateStartRatio; }
-    // SourceHistorySpriteTrail preview source sample 공급 종료 ratio다.
     float Get_SourceHistorySpriteTrailPreviewGateEndRatio() const { return _sourceHistorySpriteTrailPreviewGateEndRatio; }
     bool Is_TrailPreviewGateOpen() const;
-    // 실제 attack animation ratio 기준으로 Trail preview gate를 판정한다.
     bool Is_TrailPreviewGateOpen(float sourceRatio) const;
-    // 실제 attack animation ratio 기준으로 SourceHistorySpriteTrail preview gate를 판정한다.
     bool Is_SourceHistorySpriteTrailPreviewGateOpen(float sourceRatio) const;
-    // Trail preview anchor marker/line 표시 여부다.
     bool Is_TrailPreviewDebugRenderEnabled() const { return _isTrailPreviewDebugRenderEnabled; }
-    // Trail preview player animation의 editor-session 배속이다.
     float Get_TrailPreviewAnimationSpeed() const { return _trailPreviewAnimationSpeed; }
-    // Trail preview fixture slot의 editor-session 선택값이다.
     TrailPreviewCharacterSlot Get_TrailPreviewCharacterSlot() const { return _trailPreviewCharacterSlot; }
-    // Trail preview motion mode의 editor-session 선택값이다.
     TrailPreviewMotion Get_TrailPreviewMotion() const { return _trailPreviewMotion; }
-    // Trail preview manual mode에서 재생할 animation name이다.
     const string& Get_TrailPreviewManualAnimationName() const { return _trailPreviewManualAnimationName; }
-    // Trail preview player animation 배속 reset 기준값이다.
     float Get_DefaultTrailPreviewAnimationSpeed() const { return kDefaultTrailPreviewAnimationSpeed; }
-    // Effect shader 기준 influence 범위 외곽선 표시 여부다.
     bool Is_EffectInfluenceOutlineEnabled() const { return _isEffectInfluenceOutlineEnabled; }
-    // Trail preview weapon-local base marker의 editor-session offset이다.
     Vec3 Get_TrailPreviewBaseLocalOffset() const;
-    // Trail preview weapon-local tip marker의 editor-session offset이다.
     Vec3 Get_TrailPreviewTipLocalOffset() const;
-    // SourceHistory preview weapon-local source marker의 editor-session offset이다.
     Vec3 Get_TrailPreviewSourceLocalOffset() const;
-    // SourceHistorySpriteTrail preview weapon-local source marker의 editor-session offset이다.
     Vec3 Get_SourceHistorySpriteTrailPreviewSourceLocalOffset() const;
-    // Trail preview base offset reset 기준값이다.
     Vec3 Get_DefaultTrailPreviewBaseLocalOffset() const;
-    // Trail preview tip offset reset 기준값이다.
     Vec3 Get_DefaultTrailPreviewTipLocalOffset() const;
-    // SourceHistory preview source offset reset 기준값이다.
     Vec3 Get_DefaultTrailPreviewSourceLocalOffset() const;
-    // SourceHistorySpriteTrail preview source offset reset 기준값이다.
     Vec3 Get_DefaultSourceHistorySpriteTrailPreviewSourceLocalOffset() const;
     float Get_DefaultTrailPreviewGateStartRatio() const { return kDefaultTrailPreviewGateStartRatio; }
     float Get_DefaultTrailPreviewGateEndRatio() const { return kDefaultTrailPreviewGateEndRatio; }
-    // SourceHistorySpriteTrail preview gate 시작 ratio reset 기준값이다.
     float Get_DefaultSourceHistorySpriteTrailPreviewGateStartRatio() const { return kDefaultSourceHistorySpriteTrailPreviewGateStartRatio; }
-    // SourceHistorySpriteTrail preview gate 종료 ratio reset 기준값이다.
     float Get_DefaultSourceHistorySpriteTrailPreviewGateEndRatio() const { return kDefaultSourceHistorySpriteTrailPreviewGateEndRatio; }
     const EffectEditorPostProcessOptions& Get_PostProcessOptions() const { return _postProcessOptions; }
     EffectEditorPostProcessOptions Get_DefaultPostProcessOptions() const;
@@ -172,11 +149,11 @@ public: //## Accessor::PreviewOption
     bool Is_PreviewEmitterTransformEnabled(uint32 emitterId) const;
     bool Try_GetPreviewEmitterWorldMatrix(uint32 emitterId, Matrix& outWorldMatrix) const;
 
-public: //## Accessor::InputPolicy
+public: //## Accessors::InputPolicy
     bool Is_PreviewCameraControlEnabled() const { return _isPreviewCameraControlEnabled; }
     bool Is_PreviewCameraDragging() const { return _isPreviewCameraDragging; }
 
-public: //## Accessor::Viewport
+public: //## Accessors::Viewport
     ShaderResourceView* Get_SharedViewportSRV() const;
     PreviewViewportMode Get_PreviewViewportMode() const { return _previewViewportMode; }
     bool Is_ManualPreviewViewportEnabled() const { return _previewViewportMode == PreviewViewportMode::Manual; }
@@ -206,28 +183,17 @@ public: //## Behavior::PreviewOption
     void Set_TrailPreviewGateMode(TrailPreviewGateMode mode);
     void Set_TrailPreviewGateWindow(float startRatio, float endRatio);
     void Set_TrailPreviewGateDuration(float duration);
-    // SourceHistorySpriteTrail preview source sample 공급 mode를 바꾼다.
     void Set_SourceHistorySpriteTrailPreviewGateMode(TrailPreviewGateMode mode);
-    // SourceHistorySpriteTrail preview source sample 공급 ratio 구간을 바꾼다.
     void Set_SourceHistorySpriteTrailPreviewGateWindow(float startRatio, float endRatio);
-    // Trail preview anchor marker/line 표시 여부만 바꾼다.
     void Set_TrailPreviewDebugRenderEnabled(bool enabled);
-    // Trail preview player animation 배속을 현재 editor session에만 반영한다.
     void Set_TrailPreviewAnimationSpeed(float speed);
-    // Trail preview fixture slot을 현재 editor session에만 반영한다.
     void Set_TrailPreviewCharacterSlot(TrailPreviewCharacterSlot slot);
-    // Trail preview motion mode를 현재 editor session에만 반영한다.
     void Set_TrailPreviewMotion(TrailPreviewMotion motion);
-    // Trail preview manual animation name을 현재 editor session에만 반영한다.
     void Set_TrailPreviewManualAnimationName(string animationName);
-    // EffectEditor 세션 전용 influence outline debug 표시를 켜고 끈다.
     void Set_EffectInfluenceOutlineEnabled(bool enabled);
-    // Detail_View의 Trail Preview 조정값을 현재 editor session에만 반영한다.
     void Set_TrailPreviewLocalOffsets(const Vec3& baseLocalOffset, const Vec3& tipLocalOffset);
     void Set_TrailPreviewLocalOffsets(const Vec3& baseLocalOffset, const Vec3& tipLocalOffset, const Vec3& sourceLocalOffset);
-    // Detail_View의 SourceHistorySpriteTrail source marker 조정값을 현재 editor session에만 반영한다.
     void Set_SourceHistorySpriteTrailPreviewSourceLocalOffset(const Vec3& sourceLocalOffset);
-    // Trail Preview 조정값을 기본 weapon-local marker 위치로 되돌린다.
     void Reset_TrailPreviewLocalOffsets();
     void Set_PreviewEmitterTransformEnabled(uint32 emitterId, bool enabled);
     void Set_PreviewEmitterTransformOffsets(uint32 emitterId, const Vec3& localPositionOffset, const Vec3& localRotationOffsetDegrees);
@@ -263,24 +229,18 @@ public: //## Behavior::CameraControl
     bool Is_PreviewCameraActive() const;
 
 public: //## Behavior::InputPolicy
-    // scene viewport가 preview camera 입력을 받아도 되는지와 overlay 차단 상태를 함께 반영한다.
     void Set_SceneViewportInputState(bool canInteract, bool blocked);
-    // game viewport가 runtime 입력을 받을 수 있는 상태만 반영한다.
     void Set_GameViewportInputState(bool canInteract);
     void Set_PreviewCameraLockScreenRect(const RECT& lockRectScreen);
     void Clear_PreviewCameraLockScreenRect();
     void Begin_PreviewCameraDrag();
     void End_PreviewCameraDrag();
 
-    // 현재 scene/game viewport 상태를 보고 editor/runtime 입력 정책을 한 번에 동기화한다.
     void Apply_RuntimeInputPolicy();
 
 public: //## Behavior::Viewport
-    // Scene_View가 공유 preview SRV를 그리기 전에 target 크기를 맞출 때 사용한다.
     Shared<RenderTarget> Prepare_SharedViewportRenderTarget(uint32 width, uint32 height);
-    // runtime back buffer 결과를 editor 공유 viewport target으로 복사한다.
     void Capture_BackBuffer_ToViewport();
-    // EffectEditor scene grid를 현재 바인딩된 world render target에 그린다.
     void Render_SceneGrid();
 
     void Request_PreviewViewportSize(uint32 width, uint32 height);
@@ -288,10 +248,9 @@ public: //## Behavior::Viewport
     void Enable_AutoPreviewViewport();
     void Enable_ManualPreviewViewport();
     void Set_ManualPreviewViewportSize(uint32 width, uint32 height);
-    // queued viewport 요청과 현재 모드를 맞춰 preview target 적용 상태를 동기화한다.
     void Sync_PreviewViewportMode();
 
-private: //## Static Values
+private: //## Static::PreviewDefaults
     static constexpr uint32 kDefaultPreviewViewportWidth{ 900 };
     static constexpr uint32 kDefaultPreviewViewportHeight{ 900 };
     static constexpr int kSceneGridDivisions{ 40 };
