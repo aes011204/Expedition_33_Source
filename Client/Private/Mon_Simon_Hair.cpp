@@ -30,6 +30,8 @@ HRESULT Mon_Simon_Hair::Initialize(void* arg)
     _socketMatrix = desc->socketMatrix;
     _collisionModel = desc->collisionModel;
     _collisionOwnerWorldMatrix = desc->collisionOwnerWorldMatrix;
+    _physicsPreset = desc->physicsPreset;
+    _windScaleOverride = desc->windScaleOverride;
 
     if (FAILED(Monster_Part::Initialize(desc)))
         return E_FAIL;
@@ -49,9 +51,21 @@ HRESULT Mon_Simon_Hair::Ready_PhysicsModifier()
     CHECK_NULL(_model, E_FAIL);
 
     PhysicsModifier::PhysicsModifierDesc hairDesc{};
-    ChainModifierPreset::BuildSimonHairPhysicsDesc(
-        hairDesc,
-        _transformCom.get());
+    if (_physicsPreset == PhysicsPreset::Dev)
+    {
+        ChainModifierPreset::BuildSimonHairPhysicsDevDesc(
+            hairDesc,
+            _transformCom.get());
+    }
+    else
+    {
+        ChainModifierPreset::BuildSimonHairPhysicsDesc(
+            hairDesc,
+            _transformCom.get());
+    }
+
+    if (_windScaleOverride >= 0.f)
+        hairDesc.windScale = _windScaleOverride;
 
     if (hairDesc.chains.empty())
         return E_FAIL;
@@ -177,6 +191,14 @@ void Mon_Simon_Hair::On_RuntimeReflectionChanged()
     _hairPhysicsModifier->RuntimeRebuild(_model.get());
 }
 
+void Mon_Simon_Hair::On_RuntimeReflectionChanged(const Engine::PropertyInfo& property)
+{
+    if (!_hairPhysicsReady || !_model || !_hairPhysicsModifier)
+        return;
+
+    _hairPhysicsModifier->On_RuntimeReflectionChanged(_model.get(), property);
+}
+
 void Mon_Simon_Hair::RuntimeResetPose()
 {
     if (!_hairPhysicsReady || !_model || !_hairPhysicsModifier)
@@ -192,6 +214,15 @@ void Mon_Simon_Hair::RuntimeRebuild()
 
     _hairPhysicsModifier->RuntimeRebuild(_model.get());
     _hairPhysicsReady = true;
+}
+
+void Mon_Simon_Hair::Set_PhysicsPreset(PhysicsPreset physicsPreset, float windScaleOverride)
+{
+    _physicsPreset = physicsPreset;
+    _windScaleOverride = windScaleOverride;
+    _hairPhysicsReady = false;
+    _hairPhysicsModifier.reset();
+    Ready_PhysicsModifier();
 }
 
 void Mon_Simon_Hair::Build_RuntimeDebugCapsules(vector<PhysicsModifier::RuntimeDebugCapsule>& outCapsules) const

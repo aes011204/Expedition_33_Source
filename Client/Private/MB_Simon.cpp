@@ -180,7 +180,11 @@ void MB_Simon::From_Json(const json& data)
     Apply_WeaponScaleMultiplier();
 
     if (Is_SimonPhase2PrefabJson(data))
+    {
+        if (_hair)
+            _hair->Set_PhysicsPreset(Mon_Simon_Hair::PhysicsPreset::Dev);
         Apply_SimonPhase2HairTint(_hair);
+    }
 }
 
 void MB_Simon::Set_PlayEffect(bool playEffect)

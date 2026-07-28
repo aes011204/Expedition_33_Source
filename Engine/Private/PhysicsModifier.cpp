@@ -2698,7 +2698,10 @@ void PhysicsModifier::Trace_BoneMotion(ModelCom* model, const Matrix& ownerWorld
 {
 	if (!_desc.debugTraceBoneMotion || model == nullptr)
 		return;
-	if (_desc.modifierTag.find(L"MaelleBackHair") == wstring::npos)
+
+	const bool traceMaelleBackHair = _desc.modifierTag.find(L"MaelleBackHair") != wstring::npos;
+	const bool traceSimonHair = _desc.modifierTag.find(L"SimonHair") != wstring::npos;
+	if (!traceMaelleBackHair && !traceSimonHair)
 		return;
 
 	const int32 maxTraceFrames = 900;
@@ -2706,7 +2709,7 @@ void PhysicsModifier::Trace_BoneMotion(ModelCom* model, const Matrix& ownerWorld
 		return;
 
 	const int32 frame = _desc.debugTraceFrameCount++;
-	std::ofstream out("MaelleHairPhysicsTrace.csv", std::ios::app);
+	std::ofstream out(traceSimonHair ? "SimonHairPhysicsTrace.csv" : "MaelleHairPhysicsTrace.csv", std::ios::app);
 	if (!out.is_open())
 		return;
 

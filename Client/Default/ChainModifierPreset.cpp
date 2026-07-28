@@ -812,13 +812,130 @@ void ChainModifierPreset::BuildSimonHairPhysicsDesc(
     desc.hardCollisionProjectionIterations = 10;
     desc.hardCollisionLengthAlpha = 1.00f;
 
-    desc.windDirection = Vec3(1.00f, 1.00f, 1.00f);
-    desc.windScale = 0.072f;
+    desc.windDirection = Vec3(1.00f, 0.50f, 1.00f);
+    desc.windScale = 0.036f;
     desc.windWaveScale = 0.520f;
     desc.windWaveFrequency = 0.220f;
     desc.windWaveDepthPhase = 0.460f;
     desc.gravityScale = 30.00f;
     desc.useHierarchicalDepthRatio = true;
+    desc.teleportDistance = 300.f;
+    desc.solverIterations = 8;
+    desc.writeBackEnabled = true;
+    desc.debugDrawCollisionCapsules = false;
+}
+
+void ChainModifierPreset::BuildSimonHairPhysicsDevDesc(
+    PhysicsModifier::PhysicsModifierDesc& outDesc,
+    TransformCom* ownerTransform,
+    const wstring& modifierTag)
+{
+    BuildSimonHairPhysicsDesc(outDesc, ownerTransform, modifierTag);
+
+    auto& desc = outDesc;
+    desc.chains.clear();
+    desc.physicsAssetPath = L"../Bin/Resources/ModelPhysics/SK_Simon_Physics.json";
+    desc.includedCollisionBones = {
+        "pelvis",
+        "spine_02",
+        "spine_04",
+        "head",
+        "upperarm_l",
+        "upperarm_r",
+        "lowerarm_r",
+        "thigh_l",
+        "thigh_r"
+    };
+
+    auto addChain = [&desc](
+        const string& rootBoneName,
+        float outputMultiplier,
+        float smoothMultiplier,
+        float maxAngleMul,
+        float radiusMul,
+        float dampingMul,
+        float restoreMul)
+    {
+        PhysicsModifier::ChainDesc chain{};
+        chain.rootBoneName = rootBoneName;
+        chain.outputMultiplier = outputMultiplier;
+        chain.smoothMultiplier = smoothMultiplier;
+        chain.maxAngleMul = maxAngleMul;
+        chain.radiusMul = radiusMul;
+        chain.dampingMul = dampingMul;
+        chain.restoreMul = restoreMul;
+        desc.chains.push_back(std::move(chain));
+    };
+
+    auto makeRootName = [](int32 strandIndex, int32 boneIndex)
+    {
+        char buffer[64]{};
+        sprintf_s(buffer, "Simon_Strand_Hair_%02d_%d", strandIndex, boneIndex);
+        return string(buffer);
+    };
+
+    for (int32 i = 1; i <= 15; ++i)
+    {
+        if (i >= 5 && i <= 12)
+        {
+            addChain(makeRootName(i, 1), 1.00f, 0.18f, 1.18f, 1.10f, 0.78f, 0.58f);
+        }
+        else if (i == 13 || i == 14 || i == 15)
+        {
+            addChain(makeRootName(i, 1), 0.92f, 0.26f, 0.72f, 1.22f, 1.04f, 1.04f);
+        }
+        else
+        {
+            addChain(makeRootName(i, 1), 0.96f, 0.22f, 0.86f, 1.12f, 0.94f, 0.82f);
+        }
+    }
+
+    desc.outputAlpha = 0.94f;
+    desc.rotationOutputAlpha = 1.00f;
+    desc.outputSmoothAlpha = 0.070f;
+    desc.idleOutputSmoothAlpha = 0.62f;
+    desc.idleMotionDeadzone = 0.060f;
+    desc.maxOutputAngleDegree = 112.f;
+
+    desc.freeRotationFollowAlpha = 0.24f;
+    desc.rotationFollowDepthScale = 0.08f;
+    desc.poseRestoreAlpha = 0.14f;
+    desc.poseRestoreMaxSpeed = 8.0f;
+    desc.maxLocalOffset = Vec3(4.80f, 3.20f, 5.60f);
+    desc.movementInertiaScale = 1.85f;
+    desc.tipMovementInertiaScale = 18.00f;
+    desc.maxMovementInertiaSpeed = 64.0f;
+    desc.lateralInertiaScale = 3.20f;
+    desc.verticalInertiaScale = 0.40f;
+    desc.depthInertiaScale = 3.20f;
+    desc.includeDriverLateralInertia = true;
+    desc.accelerationInertiaScale = 0.010f;
+    desc.inertiaVelocitySmoothAlpha = 0.030f;
+    desc.poseSpringStrength = 0.24f;
+    desc.poseSpringDamping = 0.58f;
+    desc.lengthConstraintAlpha = 0.34f;
+    desc.bendConstraintAlpha = 0.035f;
+    desc.projectionIterations = 5;
+
+    desc.releaseInertiaDamping = 0.50f;
+
+    desc.enableCollision = false;
+    desc.collisionPrimitiveScale = 0.42f;
+    desc.collisionSphereRadius = 0.24f;
+    desc.collisionRadiusPadding = 0.10f;
+    desc.collisionContactSkinWidth = 0.055f;
+    desc.collisionProjectionIterations = 3;
+    desc.useHardCollisionProjection = false;
+    desc.hardCollisionProjectionIterations = 8;
+    desc.hardCollisionLengthAlpha = 1.00f;
+
+    desc.windDirection = kCommonWindDirection;
+    desc.windScale = 0.f;
+    desc.windWaveScale = 0.f;
+    desc.windWaveFrequency = 0.45f;
+    desc.windWaveDepthPhase = 0.35f;
+    desc.gravityScale = 0.46f;
+    desc.useHierarchicalDepthRatio = false;
     desc.teleportDistance = 300.f;
     desc.solverIterations = 8;
     desc.writeBackEnabled = true;
