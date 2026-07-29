@@ -1923,9 +1923,9 @@ void CinematicSequenceRunner::Apply_ActorTransformTracks(
         if (const auto container = dynamic_pointer_cast<ContainerObject>(actor))
         {
             const PerfClock::time_point refreshStart = PerfClock::now();
-            // TODO(Cinematic): socket/physics 기반 파트의 갱신 계약을 보존하는 refresh 경로로 교체해야 한다.
-            // Generic matrix refresh는 Simon hair의 headSocket 바인딩처럼 파트별 Update(0) 로직을 우회할 수 있다.
-            container->Refresh_PartObjectWorldMatrices();
+            // Actor transform이 바뀐 프레임에도 socket/physics 기반 part의 자체 결합 계약을 적용한다.
+            // Active play_anim actor는 Update_BoundActorAnimations()에서 한 번만 갱신하도록 위에서 defer한다.
+            container->Refresh_PartObjectTransforms();
             if (perf != nullptr)
             {
                 perf->actorTrackRefreshMs += ElapsedMs(refreshStart);

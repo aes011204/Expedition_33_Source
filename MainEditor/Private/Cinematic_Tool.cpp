@@ -790,6 +790,21 @@ void Cinematic_Tool::Toggle_PreviewPlayback()
     _isPreviewDirty = true;
 }
 
+bool Cinematic_Tool::Try_TogglePreviewPlaybackFromGlobalShortcut()
+{
+    if (!Is_Open())
+        return false;
+
+    const bool hasPreviewableSequence =
+        !_sequence.cinematicTracks.empty() ||
+        !_sequence.actorRelativeCameraTracks.empty();
+    if (!CLIENT->Is_CinematicPlaying() && !hasPreviewableSequence)
+        return false;
+
+    Toggle_PreviewPlayback();
+    return true;
+}
+
 void Cinematic_Tool::Start_PreviewPlayback()
 {
     if (_sequence.cinematicTracks.empty() && _sequence.actorRelativeCameraTracks.empty())

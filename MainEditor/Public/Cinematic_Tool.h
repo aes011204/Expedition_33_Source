@@ -30,6 +30,9 @@ public:
     void         Update(float timeDelta) override;
     virtual void Render() override;
 
+    // Handles the global cinematic preview shortcut when this tool owns a previewable sequence.
+    bool Try_TogglePreviewPlaybackFromGlobalShortcut();
+
 private:
     void Render_CinematicTab();
     void Render_BattleClipTab();
