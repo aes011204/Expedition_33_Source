@@ -38,7 +38,8 @@ public:
         int trackIndex,
         bool applyCameraTrack = true,
         bool applyEventTrack = true,
-        bool applyActorTransformTrack = true);
+        bool applyActorTransformTrack = true,
+        const CinematicPreviewOptions& previewOptions = {});
 
     void Pause_Sequence();
     void Resume_Sequence(
@@ -129,6 +130,8 @@ private:
         bool previousCinematicNotifyContext = false;
         bool hasAnimNotifyExecutionOverride = false;
         bool previousAnimNotifyExecutionEnabled = true;
+        bool hasSuppressedAnimNotifyTypeNamesOverride = false;
+        vector<string> previousSuppressedAnimNotifyTypeNames{};
         bool hasAnimationPausedRestore = false;
         bool previousAnimationPaused = false;
         vector<ShadowCasterRestoreState> previewShadowCasterRestores{};
@@ -180,7 +183,7 @@ private:
         const CinematicPlayAnimEventData& payload);
     bool Execute_PlayEffectEvent(const string& targetId, const CinematicPlayEffectEventData& payload);
     bool Execute_PlaySoundEvent(const string& targetId, const CinematicPlaySoundEventData& payload);
-    bool Execute_DespawnEvent(const string& targetId, const CinematicDespawnEventData& payload);
+    bool Execute_DespawnEvent(const string& targetId, const CinematicDespawnEventData&);
     bool Execute_PartVisibilityEvent(const string& targetId, const CinematicPartVisibilityEventData& payload);
     bool Execute_WorldTimeScaleEvent(const CinematicWorldTimeScaleEventData& payload);
     Shared<GameObject> Find_ReusableActorByPrefabName(const string& prefabName) const;
@@ -190,6 +193,7 @@ private:
     void Track_PreviewShadowCasterRestore(BindingRuntimeState& state, const Shared<GameObject>& object) const;
     void Apply_PreviewPlaybackOptimization(BindingRuntimeState& state) const;
     void Restore_PreviewPlaybackOptimization(const BindingRuntimeState& state) const;
+    void Restore_BoundActorAnimNotifySettings(const BindingRuntimeState& state) const;
     void Bind_ActorToTarget(
         const string& targetId,
         const Shared<GameObject>& actor,
@@ -221,6 +225,7 @@ private:
     void Update_BoundActorAttachedEffects(float timeDelta, FramePerfBreakdown* perf = nullptr) const;
     void Log_PerfDropIfNeeded(float timeDelta, float currentFrameExact, const FramePerfBreakdown& perf);
     void Cleanup_Context(bool forceRemoveAllSpawned = false);
+    void Reset_PreviewPlaybackState();
     void Set_GameplayUIHiddenForCinematic(bool hidden) const;
 
 public:
@@ -275,6 +280,8 @@ private:
     bool _applyEventTrack = true;
     bool _applyActorTransformTrack = true;
     bool _suppressAnimNotifyExecutionForBoundActors = false;
+    bool _removeSpawnedActorsOnNaturalCompletion = false;
+    std::unordered_set<string> _previewSuppressedAnimNotifyTypeNames{};
     bool _usePreviewPlaybackOptimizations = false;
     bool _hasWorldTimeScaleOverride = false;
     float _restoreWorldTimeScale = 1.f;

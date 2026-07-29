@@ -118,6 +118,13 @@ enum class CinematicCleanupPolicy
     Keep,
 };
 
+struct CinematicPreviewOptions
+{
+    bool executeAnimNotifies = true;
+    bool removeSpawnedActorsOnNaturalCompletion = false;
+    vector<string> suppressedAnimNotifyTypeNames{};
+};
+
 struct CinematicSpawnEventData
 {
     string prefabName;

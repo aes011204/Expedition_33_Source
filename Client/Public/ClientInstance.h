@@ -270,7 +270,8 @@ public: /*CinematicSequenceRunner*/
         int trackIndex,
         bool applyCameraTrack = true,
         bool applyEventTrack = true,
-        bool applyActorTransformTrack = true);
+        bool applyActorTransformTrack = true,
+        const CinematicPreviewOptions& previewOptions = {});
     void Pause_Sequence();
     void Resume_Sequence(
         bool applyCameraTrack = true,

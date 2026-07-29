@@ -1,5 +1,7 @@
 ﻿#pragma once
 
+#include <unordered_set>
+
 #include "AnimNotify_Types.h"
 #include "AnimCompute_Types.h"
 #include "Component.h"
@@ -197,6 +199,9 @@ public: /* AnimNotify */
 
     void    Set_AnimNotifyExecutionEnabled(bool enabled) { _isAnimNotifyExecutionEnabled = enabled; }
     bool    Is_AnimNotifyExecutionEnabled() const { return _isAnimNotifyExecutionEnabled; }
+    // 지정한 notify type은 animation pose 갱신을 유지한 채 실행에서만 제외한다.
+    void    Set_SuppressedAnimNotifyTypeNames(const vector<string>& typeNames);
+    vector<string> Get_SuppressedAnimNotifyTypeNames() const;
     void    Set_CinematicNotifyContext(bool enabled) { _isCinematicNotifyContext = enabled; }
     bool    Is_CinematicNotifyContext() const { return _isCinematicNotifyContext; }
 
@@ -234,6 +239,7 @@ private:
         const vector<ActiveAnimNotifyState>& activeStates,
         const string& animationName,
         int32 stateIndex);
+    bool Is_AnimNotifyTypeSuppressed(const string& typeName) const;
 
 public:
     bool Ensure_AnimStateAssetLoaded(const string& sourceObjectGUID);
@@ -361,6 +367,7 @@ private: /* notify */
     bool                                _isAnimNotifyAssetLoaded = false;
     bool                                _isAnimNotifyExecutionEnabled = true;
     bool                                _isCinematicNotifyContext = false;
+    std::unordered_set<string>          _suppressedAnimNotifyTypeNames{};
 
     AnimNotifyAsset                     _animNotifyAsset{};
     vector<ActiveAnimNotifyState>       _activeNotifyStates{};
