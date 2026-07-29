@@ -98,7 +98,7 @@ HRESULT MW_Simon::Ready_PartObjects()
     headDesc.socketMatrix = _body->Get_SocketBoneMatrixPtr("headSocket");
     headDesc.collisionModel = _body->Get_Model().get();
     headDesc.collisionOwnerWorldMatrix = &_body->Get_CombinedWorldMatrix();
-    headDesc.windScaleOverride = 0.072f;
+    headDesc.windScaleOverride = 0.6f;
 
     CHECK_FAILED(Add_PartObject(ETOI(LevelType::Static), TEXT("GameObject_Simon_Hair"), TEXT("Part_Hair"), &headDesc), E_FAIL);
 
