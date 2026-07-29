@@ -30,6 +30,9 @@ public:
     void         Update(float timeDelta) override;
     virtual void Render() override;
 
+    // Handles the global cinematic preview shortcut when this tool owns a previewable sequence.
+    bool Try_TogglePreviewPlaybackFromGlobalShortcut();
+
 private:
     void Render_CinematicTab();
     void Render_BattleClipTab();
@@ -56,6 +59,8 @@ private:
     void Render_RemoveKeyframePopup();
     void Render_PreviewState();
     void Toggle_PreviewPlayback();
+    void Start_PreviewPlayback();
+    void Restart_PreviewPlayback();
     void Render_LoadSequencePopup();
     void Render_SequenceOverwriteWarningPopups();
     void Render_ImSequencer();
@@ -181,6 +186,9 @@ private:
     bool                                 _previewApplyCameraTrack = true;
     bool                                 _previewApplyEventTrack = true;
     bool                                 _previewApplyActorTransformTrack = true;
+    bool                                 _previewApplyAnimNotifies = true;
+    bool                                 _previewApplyTrailNotify = true;
+    bool                                 _previewApplyWeaponEchoNotify = true;
     vector<string>                       _battleClipSkillIds{};
     int                                  _selectedBattleClipSkillIndex = -1;
     bool                                 _useBattleClipSkillOverride = false;

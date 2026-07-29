@@ -404,6 +404,14 @@ void Editor_Manager::Handle_Shortcuts()
         return;
     }
 
+    // F6 : 시네마틱 툴의 Preview 재생/일시정지
+    if (ImGui::IsKeyPressed(ImGuiKey_F6, false))
+    {
+        Shared<Cinematic_Tool> cinematicTool = dynamic_pointer_cast<Cinematic_Tool>(Find_Window(L"Cinematic Tool"));
+        if (cinematicTool && cinematicTool->Try_TogglePreviewPlaybackFromGlobalShortcut())
+            return;
+    }
+
     // F5 : 게임 시작
     if (ImGui::IsKeyPressed(ImGuiKey_F5, false))
     {
@@ -541,6 +549,7 @@ void Editor_Manager::Render_ShortcutHelp()
 
             DrawShortcutRow("F1", "충돌체 렌더링");
             DrawShortcutRow("F5", "Play / Resume");
+            DrawShortcutRow("F6", "Cinematic Preview Play / Pause");
             DrawShortcutRow("F4", "Stop");
             DrawShortcutRow("F8", "카메라 전환");
             DrawShortcutRow("F9", "Pause + Free Camera");
