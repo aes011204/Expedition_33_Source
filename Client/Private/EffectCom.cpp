@@ -756,11 +756,13 @@ HRESULT EffectCom::Play_Effect(const EffectPlayDesc& desc, EffectInstancePool::A
     acquireDesc.scale = spawnWorldScale;
     acquireDesc.playbackSpeed = desc.playbackSpeed;
     acquireDesc.trailSampleProvider = desc.trailSampleProvider;
+    acquireDesc.sourcePointSampleProvider = desc.sourcePointSampleProvider;
     const bool shouldTrackAttached =
         outHandle != nullptr ||
         desc.followTarget ||
         desc.requiresManualRelease ||
-        !desc.trailSampleProvider.expired();
+        !desc.trailSampleProvider.expired() ||
+        !desc.sourcePointSampleProvider.expired();
     acquireDesc.autoReleaseOnFinished = !shouldTrackAttached;
 
     EffectInstancePool::AttachedHandle handle{};
@@ -802,6 +804,7 @@ HRESULT EffectCom::Play_Effect(const EffectPlayDesc& desc, EffectInstancePool::A
     attached.followTarget = desc.followTarget;
     attached.role = AttachedEffectRole::Normal;
     attached.trailSampleProvider = desc.trailSampleProvider.lock();
+    attached.sourcePointSampleProvider = desc.sourcePointSampleProvider.lock();
     _attachedEffects.push_back(attached);
 
     if (outHandle != nullptr)

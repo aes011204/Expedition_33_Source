@@ -13,6 +13,7 @@ NS_BEGIN(Engine)
 class GameObject;
 class EffectInstance;
 class IEffectTrailSampleProvider;
+class IEffectSourcePointSampleProvider;
 class ShaderCom;
 NS_END
 
@@ -59,6 +60,7 @@ public: //## Types::Public
         bool followTarget = false;
         bool requiresManualRelease = false;
         Weak<IEffectTrailSampleProvider> trailSampleProvider{};
+        Weak<IEffectSourcePointSampleProvider> sourcePointSampleProvider{};
     };
 
     struct InspectorEffectSettings

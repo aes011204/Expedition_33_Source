@@ -100,6 +100,7 @@ private:
 
         TrailAnchorAsset trailAnchorAsset{};
         Shared<IEffectTrailSampleProvider> trailSampleProvider{};
+        Shared<IEffectSourcePointSampleProvider> sourcePointSampleProvider{};
         EffectInstancePool::AttachedHandle trailHandle{};
         EffectCom::TrailOffsetRuntimeDesc trailOffset{};
         bool trailStarted = false;

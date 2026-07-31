@@ -16,7 +16,9 @@ namespace
     const Vec4 kSimonBladeGhostColor = Vec4(0.70f, 1.0f, 0.92f, 0.38f);
     constexpr float kSimonWeaponEchoScale = 0.95f;
 
-    class SimonWeaponEchoTrailSampleProvider final : public IEffectTrailSampleProvider
+    class SimonWeaponEchoTrailSampleProvider final
+        : public IEffectTrailSampleProvider
+        , public IEffectSourcePointSampleProvider
     {
     public:
         SimonWeaponEchoTrailSampleProvider(
@@ -36,6 +38,17 @@ namespace
                 return false;
 
             return weapon->Try_GetWeaponEchoTrailSample(_laneIndex, _trailAnchorAsset, outSample);
+        }
+
+        bool Try_GetSourcePointSample(EffectSourcePointSample& outSample) const override
+        {
+            EffectTrailSample trailSample{};
+            if (!Try_GetTrailSample(trailSample))
+                return false;
+
+            outSample.worldPosition = trailSample.tipWorldPosition;
+            outSample.worldRotation = trailSample.tipWorldRotation;
+            return true;
         }
 
     private:
@@ -531,6 +544,7 @@ void Mon_Simon_Weapon::Reset_WeaponEchoLane(WeaponEchoLane& lane)
     lane.endElapsedSec = 0.f;
     lane.trailAnchorAsset = {};
     lane.trailSampleProvider.reset();
+    lane.sourcePointSampleProvider.reset();
     lane.trailHandle = {};
     lane.trailOffset = {};
     lane.trailStarted = false;
@@ -754,10 +768,12 @@ void Mon_Simon_Weapon::Start_WeaponEchoTrail(
     if (!TrailAnchor_Parser::Load_FromFile(anchorPath.wstring(), lane.trailAnchorAsset))
         return;
 
-    lane.trailSampleProvider = make_shared<SimonWeaponEchoTrailSampleProvider>(
+    const Shared<SimonWeaponEchoTrailSampleProvider> sampleProvider = make_shared<SimonWeaponEchoTrailSampleProvider>(
         GetSharedPtr<Mon_Simon_Weapon>(),
         laneIndex,
         lane.trailAnchorAsset);
+    lane.trailSampleProvider = sampleProvider;
+    lane.sourcePointSampleProvider = sampleProvider;
 
     EffectCom::EffectPlayDesc desc{};
     desc.levelIndex = GAME->Current_LevelIndex();
@@ -766,10 +782,12 @@ void Mon_Simon_Weapon::Start_WeaponEchoTrail(
     desc.layerTag = layerTag;
     desc.requiresManualRelease = true;
     desc.trailSampleProvider = lane.trailSampleProvider;
+    desc.sourcePointSampleProvider = lane.sourcePointSampleProvider;
 
     if (FAILED(_partEffectCom->Play_Effect(desc, &lane.trailHandle)))
     {
         lane.trailSampleProvider.reset();
+        lane.sourcePointSampleProvider.reset();
         lane.trailHandle = {};
         return;
     }
@@ -802,6 +820,7 @@ void Mon_Simon_Weapon::Stop_WeaponEchoTrail(WeaponEchoLane& lane)
 
     lane.trailHandle = {};
     lane.trailSampleProvider.reset();
+    lane.sourcePointSampleProvider.reset();
     lane.trailAnchorAsset = {};
     lane.trailOffset = {};
     lane.trailStarted = false;

@@ -240,8 +240,6 @@ public:
             const int32 rootIndex = _model->Get_BoneIndex("Simon_Strand_Hair_root");
             if (rootIndex >= 0)
                 _model->Set_LocalRootNode(rootIndex);
-            if (_model->Get_NumAnimations() > 0)
-                _model->Set_Animation("Simon_Hair", true);
         }
 
         return S_OK;
@@ -252,13 +250,10 @@ public:
         _body = body;
     }
 
-    void Update(float timeDelta) override
+    void Update(float) override
     {
         if (!Is_Visible())
             return;
-
-        if (_model != nullptr)
-            _model->Play_Animation(timeDelta);
 
         Update_CombinedWorldMatrix(_transformCom->Get_WorldMatrix());
     }
