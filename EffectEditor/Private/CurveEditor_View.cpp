@@ -8,7 +8,7 @@
 
 NS_BEGIN(EffectEditor)
 
-namespace Internal
+namespace
 {
     constexpr float kDefaultTrackListWidth{ 230.f };
     constexpr float kTrackListMinWidth{ 170.f };
@@ -215,7 +215,7 @@ namespace Internal
 CurveEditor_View::CurveEditor_View()
     : Editor_Window{ L"Curve Editor", ICON_FA_CHART_LINE }
 {
-    _trackListWidth = Internal::kDefaultTrackListWidth;
+    _trackListWidth = kDefaultTrackListWidth;
 }
 
 void CurveEditor_View::Render()
@@ -241,16 +241,16 @@ void CurveEditor_View::Render()
         {
             const float contentWidth = ImGui::GetContentRegionAvail().x;
             const float maxTrackListWidth = max(
-                Internal::kTrackListMinWidth,
-                contentWidth - Internal::kTrackListSplitterWidth - Internal::kCurvePanelMinWidth
+                kTrackListMinWidth,
+                contentWidth - kTrackListSplitterWidth - kCurvePanelMinWidth
             );
-            _trackListWidth = clamp(_trackListWidth, Internal::kTrackListMinWidth, maxTrackListWidth);
+            _trackListWidth = clamp(_trackListWidth, kTrackListMinWidth, maxTrackListWidth);
 
             Draw_TrackList(targets);
             ImGui::SameLine(0.f, 0.f);
 
             const ImVec2 splitterSize{
-                Internal::kTrackListSplitterWidth,
+                kTrackListSplitterWidth,
                 max(ImGui::GetContentRegionAvail().y, ImGui::GetFrameHeight())
             };
             ImGui::InvisibleButton("##CurveTrackListSplitter", splitterSize);
@@ -273,7 +273,7 @@ void CurveEditor_View::Render()
             {
                 _trackListWidth = clamp(
                     _trackListWidth + ImGui::GetIO().MouseDelta.x,
-                    Internal::kTrackListMinWidth,
+                    kTrackListMinWidth,
                     maxTrackListWidth
                 );
             }
@@ -841,7 +841,7 @@ float CurveEditor_View::Evaluate_Curve(const ConstantCurveFloatDistributionData&
             return left.value;
 
         if (left.interpolationMode == FloatCurveInterpolationMode::CurveAutoClamped)
-            return Internal::Evaluate_CurveSegmentAutoClamped(left, right, x);
+            return Evaluate_CurveSegmentAutoClamped(left, right, x);
 
         const float span = max(right.time - left.time, 0.0001f);
         const float ratio = clamp((x - left.time) / span, 0.f, 1.f);
@@ -870,7 +870,7 @@ Vec2 CurveEditor_View::Evaluate_Curve(const ConstantCurveVector2DistributionData
             return left.value;
 
         if (left.interpolationMode == FloatCurveInterpolationMode::CurveAutoClamped)
-            return Internal::Evaluate_CurveSegmentAutoClamped(left, right, x);
+            return Evaluate_CurveSegmentAutoClamped(left, right, x);
 
         const float span = max(right.time - left.time, 0.0001f);
         const float ratio = clamp((x - left.time) / span, 0.f, 1.f);
@@ -902,7 +902,7 @@ Vec3 CurveEditor_View::Evaluate_Curve(const ConstantCurveVector3DistributionData
             return left.value;
 
         if (left.interpolationMode == FloatCurveInterpolationMode::CurveAutoClamped)
-            return Internal::Evaluate_CurveSegmentAutoClamped(left, right, x);
+            return Evaluate_CurveSegmentAutoClamped(left, right, x);
 
         const float span = max(right.time - left.time, 0.0001f);
         const float ratio = clamp((x - left.time) / span, 0.f, 1.f);
@@ -935,7 +935,7 @@ Color CurveEditor_View::Evaluate_Curve(const ConstantCurveColorDistributionData&
             return left.value;
 
         if (left.interpolationMode == FloatCurveInterpolationMode::CurveAutoClamped)
-            return Internal::Evaluate_CurveSegmentAutoClamped(left, right, x);
+            return Evaluate_CurveSegmentAutoClamped(left, right, x);
 
         const float span = max(right.time - left.time, 0.0001f);
         const float ratio = clamp((x - left.time) / span, 0.f, 1.f);
@@ -1934,7 +1934,7 @@ void CurveEditor_View::Draw_TargetHeader(CurveTarget& target)
     }
 
     ImGui::SameLine();
-    ImGui::TextDisabled("Keys: %zu / %zu", keyCount, Internal::kDistributionCurveMaxKeys);
+    ImGui::TextDisabled("Keys: %zu / %zu", keyCount, kDistributionCurveMaxKeys);
 
     if (!hasCurve)
     {
@@ -1957,22 +1957,22 @@ void CurveEditor_View::Draw_TargetHeader(CurveTarget& target)
         if (const auto* floatDistribution = get_if<FloatDistributionData*>(&target.distribution))
         {
             if (const ConstantCurveFloatDistributionData* curve = Resolve_CurvePayload(**floatDistribution))
-                return Internal::Get_CurveBulkInterpolationLabel(curve->keys);
+                return Get_CurveBulkInterpolationLabel(curve->keys);
         }
         else if (const auto* vector2Distribution = get_if<Vector2DistributionData*>(&target.distribution))
         {
             if (const ConstantCurveVector2DistributionData* curve = Resolve_CurvePayload(**vector2Distribution))
-                return Internal::Get_CurveBulkInterpolationLabel(curve->keys);
+                return Get_CurveBulkInterpolationLabel(curve->keys);
         }
         else if (const auto* vector3Distribution = get_if<Vector3DistributionData*>(&target.distribution))
         {
             if (const ConstantCurveVector3DistributionData* curve = Resolve_CurvePayload(**vector3Distribution))
-                return Internal::Get_CurveBulkInterpolationLabel(curve->keys);
+                return Get_CurveBulkInterpolationLabel(curve->keys);
         }
         else if (const auto* colorDistribution = get_if<ColorDistributionData*>(&target.distribution))
         {
             if (const ConstantCurveColorDistributionData* curve = Resolve_CurvePayload(**colorDistribution))
-                return Internal::Get_CurveBulkInterpolationLabel(curve->keys);
+                return Get_CurveBulkInterpolationLabel(curve->keys);
         }
 
         return "Linear";
@@ -1989,7 +1989,7 @@ void CurveEditor_View::Draw_TargetHeader(CurveTarget& target)
                 {
                     if (ConstantCurveFloatDistributionData* curve = Resolve_CurvePayload(**floatDistribution))
                     {
-                        if (!Internal::Apply_CurveBulkInterpolationMode(curve->keys, mode))
+                        if (!Apply_CurveBulkInterpolationMode(curve->keys, mode))
                             return false;
 
                         Normalize_CurveKeys(*curve);
@@ -2000,7 +2000,7 @@ void CurveEditor_View::Draw_TargetHeader(CurveTarget& target)
                 {
                     if (ConstantCurveVector2DistributionData* curve = Resolve_CurvePayload(**vector2Distribution))
                     {
-                        if (!Internal::Apply_CurveBulkInterpolationMode(curve->keys, mode))
+                        if (!Apply_CurveBulkInterpolationMode(curve->keys, mode))
                             return false;
 
                         Normalize_CurveKeys(*curve);
@@ -2011,7 +2011,7 @@ void CurveEditor_View::Draw_TargetHeader(CurveTarget& target)
                 {
                     if (ConstantCurveVector3DistributionData* curve = Resolve_CurvePayload(**vector3Distribution))
                     {
-                        if (!Internal::Apply_CurveBulkInterpolationMode(curve->keys, mode))
+                        if (!Apply_CurveBulkInterpolationMode(curve->keys, mode))
                             return false;
 
                         Normalize_CurveKeys(*curve);
@@ -2022,7 +2022,7 @@ void CurveEditor_View::Draw_TargetHeader(CurveTarget& target)
                 {
                     if (ConstantCurveColorDistributionData* curve = Resolve_CurvePayload(**colorDistribution))
                     {
-                        if (!Internal::Apply_CurveBulkInterpolationMode(curve->keys, mode))
+                        if (!Apply_CurveBulkInterpolationMode(curve->keys, mode))
                             return false;
 
                         Normalize_CurveKeys(*curve);
@@ -2035,7 +2035,7 @@ void CurveEditor_View::Draw_TargetHeader(CurveTarget& target)
         );
     };
 
-    const bool canAddKey = keyCount < Internal::kDistributionCurveMaxKeys;
+    const bool canAddKey = keyCount < kDistributionCurveMaxKeys;
     if (!canAddKey)
         ImGui::BeginDisabled();
     if (ImGui::Button("Add Key"))
@@ -2065,7 +2065,7 @@ void CurveEditor_View::Draw_TargetHeader(CurveTarget& target)
                     const float time = _selectedKeyIndex.has_value() && *_selectedKeyIndex < curve->keys.size()
                                        ? clamp(curve->keys[*_selectedKeyIndex].time + 0.1f, 0.f, 1.f)
                                        : 0.5f;
-                    const FloatCurveInterpolationMode interpolationMode = Internal::Get_SelectedKeyInterpolationMode(curve->keys, _selectedKeyIndex);
+                    const FloatCurveInterpolationMode interpolationMode = Get_SelectedKeyInterpolationMode(curve->keys, _selectedKeyIndex);
                     curve->keys.push_back(FloatCurveKeyData{ time, Evaluate_Curve(*curve, time), 0.f, 0.f, interpolationMode });
                     Normalize_CurveKeys(*curve);
                     select_added_key(curve->keys, time);
@@ -2080,7 +2080,7 @@ void CurveEditor_View::Draw_TargetHeader(CurveTarget& target)
                     const float time = _selectedKeyIndex.has_value() && *_selectedKeyIndex < curve->keys.size()
                                        ? clamp(curve->keys[*_selectedKeyIndex].time + 0.1f, 0.f, 1.f)
                                        : 0.5f;
-                    const FloatCurveInterpolationMode interpolationMode = Internal::Get_SelectedKeyInterpolationMode(curve->keys, _selectedKeyIndex);
+                    const FloatCurveInterpolationMode interpolationMode = Get_SelectedKeyInterpolationMode(curve->keys, _selectedKeyIndex);
                     curve->keys.push_back(Vector2CurveKeyData{ time, Evaluate_Curve(*curve, time), Vec2{}, Vec2{}, interpolationMode });
                     Normalize_CurveKeys(*curve);
                     select_added_key(curve->keys, time);
@@ -2095,7 +2095,7 @@ void CurveEditor_View::Draw_TargetHeader(CurveTarget& target)
                     const float time = _selectedKeyIndex.has_value() && *_selectedKeyIndex < curve->keys.size()
                                        ? clamp(curve->keys[*_selectedKeyIndex].time + 0.1f, 0.f, 1.f)
                                        : 0.5f;
-                    const FloatCurveInterpolationMode interpolationMode = Internal::Get_SelectedKeyInterpolationMode(curve->keys, _selectedKeyIndex);
+                    const FloatCurveInterpolationMode interpolationMode = Get_SelectedKeyInterpolationMode(curve->keys, _selectedKeyIndex);
                     curve->keys.push_back(Vector3CurveKeyData{ time, Evaluate_Curve(*curve, time), Vec3{}, Vec3{}, interpolationMode });
                     Normalize_CurveKeys(*curve);
                     select_added_key(curve->keys, time);
@@ -2110,7 +2110,7 @@ void CurveEditor_View::Draw_TargetHeader(CurveTarget& target)
                     const float time = _selectedKeyIndex.has_value() && *_selectedKeyIndex < curve->keys.size()
                                        ? clamp(curve->keys[*_selectedKeyIndex].time + 0.1f, 0.f, 1.f)
                                        : 0.5f;
-                    const FloatCurveInterpolationMode interpolationMode = Internal::Get_SelectedKeyInterpolationMode(curve->keys, _selectedKeyIndex);
+                    const FloatCurveInterpolationMode interpolationMode = Get_SelectedKeyInterpolationMode(curve->keys, _selectedKeyIndex);
                     curve->keys.push_back(ColorCurveKeyData{ time, Evaluate_Curve(*curve, time), Color{}, Color{}, interpolationMode });
                     Normalize_CurveKeys(*curve);
                     select_added_key(curve->keys, time);
@@ -2214,7 +2214,7 @@ void CurveEditor_View::Draw_TargetHeader(CurveTarget& target)
             if (!enabled)
                 ImGui::BeginDisabled();
 
-            if (ImGui::Selectable(Internal::Get_InterpolationLabel(mode), false) && enabled)
+            if (ImGui::Selectable(Get_InterpolationLabel(mode), false) && enabled)
                 apply_bulk_interpolation(mode);
 
             if (!enabled)
@@ -2235,7 +2235,7 @@ void CurveEditor_View::Draw_CurveGraph(const vector<CurveTarget>& targets, Curve
 {
     ImVec2 canvasPos = ImGui::GetCursorScreenPos();
     ImVec2 canvasSize = ImGui::GetContentRegionAvail();
-    canvasSize.y = Internal::kGraphHeight;
+    canvasSize.y = kGraphHeight;
     canvasSize.x = max(canvasSize.x, 260.f);
 
     ImGui::InvisibleButton("##CurveGraph", canvasSize, ImGuiButtonFlags_MouseButtonLeft | ImGuiButtonFlags_MouseButtonRight);
@@ -2246,8 +2246,8 @@ void CurveEditor_View::Draw_CurveGraph(const vector<CurveTarget>& targets, Curve
     drawList->AddRectFilled(canvasPos, ImVec2{ canvasPos.x + canvasSize.x, canvasPos.y + canvasSize.y }, IM_COL32(24, 26, 32, 255));
     drawList->AddRect(canvasPos, ImVec2{ canvasPos.x + canvasSize.x, canvasPos.y + canvasSize.y }, IM_COL32(75, 78, 88, 255));
 
-    const ImVec2 graphOrigin{ canvasPos.x + Internal::kGraphPadding, canvasPos.y + 12.f };
-    const ImVec2 graphSize{ canvasSize.x - Internal::kGraphPadding * 2.f, canvasSize.y - 36.f };
+    const ImVec2 graphOrigin{ canvasPos.x + kGraphPadding, canvasPos.y + 12.f };
+    const ImVec2 graphSize{ canvasSize.x - kGraphPadding * 2.f, canvasSize.y - 36.f };
 
     const GraphValueRange computedRange = Compute_GraphValueRange(targets);
     const float minValue = computedRange.minValue;
@@ -2278,11 +2278,11 @@ void CurveEditor_View::Draw_CurveGraph(const vector<CurveTarget>& targets, Curve
             if (nullptr == curve)
                 continue;
 
-            ImVec2 previousPoint = Internal::To_GraphPoint(graphOrigin, graphSize, 0.f, Evaluate_Curve(*curve, 0.f), minValue, maxValue);
+            ImVec2 previousPoint = To_GraphPoint(graphOrigin, graphSize, 0.f, Evaluate_Curve(*curve, 0.f), minValue, maxValue);
             for (int32 sample = 1; sample <= 64; ++sample)
             {
                 const float time = static_cast<float>(sample) / 64.f;
-                const ImVec2 point = Internal::To_GraphPoint(graphOrigin, graphSize, time, Evaluate_Curve(*curve, time), minValue, maxValue);
+                const ImVec2 point = To_GraphPoint(graphOrigin, graphSize, time, Evaluate_Curve(*curve, time), minValue, maxValue);
                 drawList->AddLine(previousPoint, point, lineColor, lineThickness);
                 previousPoint = point;
             }
@@ -2290,7 +2290,7 @@ void CurveEditor_View::Draw_CurveGraph(const vector<CurveTarget>& targets, Curve
             for (size_t index = 0; index < curve->keys.size(); ++index)
             {
                 const FloatCurveKeyData& key = curve->keys[index];
-                const ImVec2 point = Internal::To_GraphPoint(graphOrigin, graphSize, key.time, key.value, minValue, maxValue);
+                const ImVec2 point = To_GraphPoint(graphOrigin, graphSize, key.time, key.value, minValue, maxValue);
                 const bool selected = isActiveTarget && _selectedKeyIndex.has_value() && *_selectedKeyIndex == index;
                 drawList->AddCircleFilled(point, selected ? 5.f : 3.5f, selected ? IM_COL32(100, 190, 255, 255) : lineColor);
             }
@@ -2301,7 +2301,7 @@ void CurveEditor_View::Draw_CurveGraph(const vector<CurveTarget>& targets, Curve
             if (nullptr == curve)
                 continue;
 
-            ImVec2 previousPoint = Internal::To_GraphPoint(
+            ImVec2 previousPoint = To_GraphPoint(
                 graphOrigin,
                 graphSize,
                 0.f,
@@ -2312,7 +2312,7 @@ void CurveEditor_View::Draw_CurveGraph(const vector<CurveTarget>& targets, Curve
             for (int32 sample = 1; sample <= 64; ++sample)
             {
                 const float time = static_cast<float>(sample) / 64.f;
-                const ImVec2 point = Internal::To_GraphPoint(
+                const ImVec2 point = To_GraphPoint(
                     graphOrigin,
                     graphSize,
                     time,
@@ -2327,7 +2327,7 @@ void CurveEditor_View::Draw_CurveGraph(const vector<CurveTarget>& targets, Curve
             for (size_t index = 0; index < curve->keys.size(); ++index)
             {
                 const Vector2CurveKeyData& key = curve->keys[index];
-                const ImVec2 point = Internal::To_GraphPoint(graphOrigin, graphSize, key.time, Get_TargetValue(target, key), minValue, maxValue);
+                const ImVec2 point = To_GraphPoint(graphOrigin, graphSize, key.time, Get_TargetValue(target, key), minValue, maxValue);
                 const bool selected = isActiveTarget && _selectedKeyIndex.has_value() && *_selectedKeyIndex == index;
                 drawList->AddCircleFilled(point, selected ? 5.f : 3.5f, selected ? IM_COL32(100, 190, 255, 255) : lineColor);
             }
@@ -2338,7 +2338,7 @@ void CurveEditor_View::Draw_CurveGraph(const vector<CurveTarget>& targets, Curve
             if (nullptr == curve)
                 continue;
 
-            ImVec2 previousPoint = Internal::To_GraphPoint(
+            ImVec2 previousPoint = To_GraphPoint(
                 graphOrigin,
                 graphSize,
                 0.f,
@@ -2349,7 +2349,7 @@ void CurveEditor_View::Draw_CurveGraph(const vector<CurveTarget>& targets, Curve
             for (int32 sample = 1; sample <= 64; ++sample)
             {
                 const float time = static_cast<float>(sample) / 64.f;
-                const ImVec2 point = Internal::To_GraphPoint(
+                const ImVec2 point = To_GraphPoint(
                     graphOrigin,
                     graphSize,
                     time,
@@ -2364,7 +2364,7 @@ void CurveEditor_View::Draw_CurveGraph(const vector<CurveTarget>& targets, Curve
             for (size_t index = 0; index < curve->keys.size(); ++index)
             {
                 const Vector3CurveKeyData& key = curve->keys[index];
-                const ImVec2 point = Internal::To_GraphPoint(graphOrigin, graphSize, key.time, Get_TargetValue(target, key), minValue, maxValue);
+                const ImVec2 point = To_GraphPoint(graphOrigin, graphSize, key.time, Get_TargetValue(target, key), minValue, maxValue);
                 const bool selected = isActiveTarget && _selectedKeyIndex.has_value() && *_selectedKeyIndex == index;
                 drawList->AddCircleFilled(point, selected ? 5.f : 3.5f, selected ? IM_COL32(100, 190, 255, 255) : lineColor);
             }
@@ -2375,7 +2375,7 @@ void CurveEditor_View::Draw_CurveGraph(const vector<CurveTarget>& targets, Curve
             if (nullptr == curve)
                 continue;
 
-            ImVec2 previousPoint = Internal::To_GraphPoint(
+            ImVec2 previousPoint = To_GraphPoint(
                 graphOrigin,
                 graphSize,
                 0.f,
@@ -2386,7 +2386,7 @@ void CurveEditor_View::Draw_CurveGraph(const vector<CurveTarget>& targets, Curve
             for (int32 sample = 1; sample <= 64; ++sample)
             {
                 const float time = static_cast<float>(sample) / 64.f;
-                const ImVec2 point = Internal::To_GraphPoint(
+                const ImVec2 point = To_GraphPoint(
                     graphOrigin,
                     graphSize,
                     time,
@@ -2401,7 +2401,7 @@ void CurveEditor_View::Draw_CurveGraph(const vector<CurveTarget>& targets, Curve
             for (size_t index = 0; index < curve->keys.size(); ++index)
             {
                 const ColorCurveKeyData& key = curve->keys[index];
-                const ImVec2 point = Internal::To_GraphPoint(graphOrigin, graphSize, key.time, Get_TargetValue(target, key), minValue, maxValue);
+                const ImVec2 point = To_GraphPoint(graphOrigin, graphSize, key.time, Get_TargetValue(target, key), minValue, maxValue);
                 const bool selected = isActiveTarget && _selectedKeyIndex.has_value() && *_selectedKeyIndex == index;
                 drawList->AddCircleFilled(point, selected ? 5.f : 3.5f, selected ? IM_COL32(100, 190, 255, 255) : lineColor);
             }
@@ -2425,10 +2425,10 @@ void CurveEditor_View::Draw_CurveGraph(const vector<CurveTarget>& targets, Curve
                 for (size_t index = 0; index < curve->keys.size(); ++index)
                 {
                     const FloatCurveKeyData& key = curve->keys[index];
-                    const ImVec2 point = Internal::To_GraphPoint(graphOrigin, graphSize, key.time, key.value, minValue, maxValue);
+                    const ImVec2 point = To_GraphPoint(graphOrigin, graphSize, key.time, key.value, minValue, maxValue);
                     const float dx = point.x - mousePos.x;
                     const float dy = point.y - mousePos.y;
-                    if (sqrtf(dx * dx + dy * dy) <= Internal::kKeyHitRadius)
+                    if (sqrtf(dx * dx + dy * dy) <= kKeyHitRadius)
                     {
                         hitIndex = index;
                         hitTime = key.time;
@@ -2445,10 +2445,10 @@ void CurveEditor_View::Draw_CurveGraph(const vector<CurveTarget>& targets, Curve
                 for (size_t index = 0; index < curve->keys.size(); ++index)
                 {
                     const Vector2CurveKeyData& key = curve->keys[index];
-                    const ImVec2 point = Internal::To_GraphPoint(graphOrigin, graphSize, key.time, Get_TargetValue(activeTarget, key), minValue, maxValue);
+                    const ImVec2 point = To_GraphPoint(graphOrigin, graphSize, key.time, Get_TargetValue(activeTarget, key), minValue, maxValue);
                     const float dx = point.x - mousePos.x;
                     const float dy = point.y - mousePos.y;
-                    if (sqrtf(dx * dx + dy * dy) <= Internal::kKeyHitRadius)
+                    if (sqrtf(dx * dx + dy * dy) <= kKeyHitRadius)
                     {
                         hitIndex = index;
                         hitTime = key.time;
@@ -2465,10 +2465,10 @@ void CurveEditor_View::Draw_CurveGraph(const vector<CurveTarget>& targets, Curve
                 for (size_t index = 0; index < curve->keys.size(); ++index)
                 {
                     const Vector3CurveKeyData& key = curve->keys[index];
-                    const ImVec2 point = Internal::To_GraphPoint(graphOrigin, graphSize, key.time, Get_TargetValue(activeTarget, key), minValue, maxValue);
+                    const ImVec2 point = To_GraphPoint(graphOrigin, graphSize, key.time, Get_TargetValue(activeTarget, key), minValue, maxValue);
                     const float dx = point.x - mousePos.x;
                     const float dy = point.y - mousePos.y;
-                    if (sqrtf(dx * dx + dy * dy) <= Internal::kKeyHitRadius)
+                    if (sqrtf(dx * dx + dy * dy) <= kKeyHitRadius)
                     {
                         hitIndex = index;
                         hitTime = key.time;
@@ -2485,10 +2485,10 @@ void CurveEditor_View::Draw_CurveGraph(const vector<CurveTarget>& targets, Curve
                 for (size_t index = 0; index < curve->keys.size(); ++index)
                 {
                     const ColorCurveKeyData& key = curve->keys[index];
-                    const ImVec2 point = Internal::To_GraphPoint(graphOrigin, graphSize, key.time, Get_TargetValue(activeTarget, key), minValue, maxValue);
+                    const ImVec2 point = To_GraphPoint(graphOrigin, graphSize, key.time, Get_TargetValue(activeTarget, key), minValue, maxValue);
                     const float dx = point.x - mousePos.x;
                     const float dy = point.y - mousePos.y;
-                    if (sqrtf(dx * dx + dy * dy) <= Internal::kKeyHitRadius)
+                    if (sqrtf(dx * dx + dy * dy) <= kKeyHitRadius)
                     {
                         hitIndex = index;
                         hitTime = key.time;
@@ -2507,10 +2507,10 @@ void CurveEditor_View::Draw_CurveGraph(const vector<CurveTarget>& targets, Curve
 
     if (isHovered && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
     {
-        const float time = Internal::From_GraphTime(graphOrigin, graphSize, mousePos.x);
+        const float time = From_GraphTime(graphOrigin, graphSize, mousePos.x);
         const float value = Clamp_GraphEditedValue(
             activeTarget,
-            Internal::From_GraphValue(graphOrigin, graphSize, mousePos.y, minValue, maxValue)
+            From_GraphValue(graphOrigin, graphSize, mousePos.y, minValue, maxValue)
         );
 
         Execute_CurveAuthoringEdit(
@@ -2533,7 +2533,7 @@ void CurveEditor_View::Draw_CurveGraph(const vector<CurveTarget>& targets, Curve
                 {
                     if (ConstantCurveFloatDistributionData* curve = Resolve_CurvePayload(**floatDistribution))
                     {
-                        const FloatCurveInterpolationMode interpolationMode = Internal::Get_SelectedKeyInterpolationMode(curve->keys, _selectedKeyIndex);
+                        const FloatCurveInterpolationMode interpolationMode = Get_SelectedKeyInterpolationMode(curve->keys, _selectedKeyIndex);
                         curve->keys.push_back(FloatCurveKeyData{ time, value, 0.f, 0.f, interpolationMode });
                         Normalize_CurveKeys(*curve);
                         select_added_key(curve->keys, time);
@@ -2544,7 +2544,7 @@ void CurveEditor_View::Draw_CurveGraph(const vector<CurveTarget>& targets, Curve
                 {
                     if (ConstantCurveVector2DistributionData* curve = Resolve_CurvePayload(**vector2Distribution))
                     {
-                        const FloatCurveInterpolationMode interpolationMode = Internal::Get_SelectedKeyInterpolationMode(curve->keys, _selectedKeyIndex);
+                        const FloatCurveInterpolationMode interpolationMode = Get_SelectedKeyInterpolationMode(curve->keys, _selectedKeyIndex);
                         Vector2CurveKeyData key{ time, Evaluate_Curve(*curve, time), Vec2{}, Vec2{}, interpolationMode };
                         Set_TargetValue(activeTarget, key, value);
                         curve->keys.push_back(key);
@@ -2557,7 +2557,7 @@ void CurveEditor_View::Draw_CurveGraph(const vector<CurveTarget>& targets, Curve
                 {
                     if (ConstantCurveVector3DistributionData* curve = Resolve_CurvePayload(**vector3Distribution))
                     {
-                        const FloatCurveInterpolationMode interpolationMode = Internal::Get_SelectedKeyInterpolationMode(curve->keys, _selectedKeyIndex);
+                        const FloatCurveInterpolationMode interpolationMode = Get_SelectedKeyInterpolationMode(curve->keys, _selectedKeyIndex);
                         Vector3CurveKeyData key{ time, Evaluate_Curve(*curve, time), Vec3{}, Vec3{}, interpolationMode };
                         Set_TargetValue(activeTarget, key, value);
                         curve->keys.push_back(key);
@@ -2570,7 +2570,7 @@ void CurveEditor_View::Draw_CurveGraph(const vector<CurveTarget>& targets, Curve
                 {
                     if (ConstantCurveColorDistributionData* curve = Resolve_CurvePayload(**colorDistribution))
                     {
-                        const FloatCurveInterpolationMode interpolationMode = Internal::Get_SelectedKeyInterpolationMode(curve->keys, _selectedKeyIndex);
+                        const FloatCurveInterpolationMode interpolationMode = Get_SelectedKeyInterpolationMode(curve->keys, _selectedKeyIndex);
                         ColorCurveKeyData key{ time, Evaluate_Curve(*curve, time), Color{}, Color{}, interpolationMode };
                         Set_TargetValue(activeTarget, key, value);
                         curve->keys.push_back(key);
@@ -2590,8 +2590,8 @@ void CurveEditor_View::Draw_CurveGraph(const vector<CurveTarget>& targets, Curve
         const size_t index = *_selectedKeyIndex;
         if (!_graphDrag.active || !Is_GraphDragActiveFor(activeTarget, index))
         {
-            const float startTime = Internal::From_GraphTime(graphOrigin, graphSize, mousePos.x);
-            const float startValue = Internal::From_GraphValue(graphOrigin, graphSize, mousePos.y, minValue, maxValue);
+            const float startTime = From_GraphTime(graphOrigin, graphSize, mousePos.x);
+            const float startValue = From_GraphValue(graphOrigin, graphSize, mousePos.y, minValue, maxValue);
             Begin_GraphKeyDrag(activeTarget, index, mousePos, startTime, startValue, computedRange);
         }
 
@@ -2600,7 +2600,7 @@ void CurveEditor_View::Draw_CurveGraph(const vector<CurveTarget>& targets, Curve
             mousePos.y - _graphDrag.startMousePos.y
         };
         const float draggedTime = clamp(_graphDrag.startTime + mouseDelta.x / max(graphSize.x, 1.f), 0.f, 1.f);
-        const float valueUnitsPerPixel = Internal::Get_DragValueUnitsPerPixel(
+        const float valueUnitsPerPixel = Get_DragValueUnitsPerPixel(
             _graphDrag.startRange.minValue,
             _graphDrag.startRange.maxValue,
             graphSize.y
@@ -2683,14 +2683,14 @@ void CurveEditor_View::Draw_SelectedKeyInspector(const CurveTarget& target)
         changed |= ImGui::DragFloat("Time", &timeValue, 0.005f, 0.f, 1.f, "%.3f");
         changed |= ImGui::DragFloat("Value", &keyValue, 0.01f, editRange.minValue, editRange.maxValue, "%.3f");
 
-        if (ImGui::BeginCombo("Interpolation", Internal::Get_InterpolationLabel(key.interpolationMode)))
+        if (ImGui::BeginCombo("Interpolation", Get_InterpolationLabel(key.interpolationMode)))
         {
             const auto draw_item = [&](FloatCurveInterpolationMode mode, bool enabled)
             {
                 const bool selected = key.interpolationMode == mode;
                 if (!enabled)
                     ImGui::BeginDisabled();
-                if (ImGui::Selectable(Internal::Get_InterpolationLabel(mode), selected) && enabled)
+                if (ImGui::Selectable(Get_InterpolationLabel(mode), selected) && enabled)
                 {
                     Execute_CurveAuthoringEdit(
                         target,
@@ -2749,14 +2749,14 @@ void CurveEditor_View::Draw_SelectedKeyInspector(const CurveTarget& target)
         ImGui::DragFloat(Get_ChannelLabel(pairedChannel), &pairedValue, 0.01f, editRange.minValue, editRange.maxValue, "%.3f");
         ImGui::EndDisabled();
 
-        if (ImGui::BeginCombo("Interpolation", Internal::Get_InterpolationLabel(key.interpolationMode)))
+        if (ImGui::BeginCombo("Interpolation", Get_InterpolationLabel(key.interpolationMode)))
         {
             const auto draw_item = [&](FloatCurveInterpolationMode mode, bool enabled)
             {
                 const bool selected = key.interpolationMode == mode;
                 if (!enabled)
                     ImGui::BeginDisabled();
-                if (ImGui::Selectable(Internal::Get_InterpolationLabel(mode), selected) && enabled)
+                if (ImGui::Selectable(Get_InterpolationLabel(mode), selected) && enabled)
                 {
                     Execute_CurveAuthoringEdit(
                         target,
@@ -2820,14 +2820,14 @@ void CurveEditor_View::Draw_SelectedKeyInspector(const CurveTarget& target)
             ImGui::EndDisabled();
         }
 
-        if (ImGui::BeginCombo("Interpolation", Internal::Get_InterpolationLabel(key.interpolationMode)))
+        if (ImGui::BeginCombo("Interpolation", Get_InterpolationLabel(key.interpolationMode)))
         {
             const auto draw_item = [&](FloatCurveInterpolationMode mode, bool enabled)
             {
                 const bool selected = key.interpolationMode == mode;
                 if (!enabled)
                     ImGui::BeginDisabled();
-                if (ImGui::Selectable(Internal::Get_InterpolationLabel(mode), selected) && enabled)
+                if (ImGui::Selectable(Get_InterpolationLabel(mode), selected) && enabled)
                 {
                     Execute_CurveAuthoringEdit(
                         target,
@@ -2891,14 +2891,14 @@ void CurveEditor_View::Draw_SelectedKeyInspector(const CurveTarget& target)
             ImGui::EndDisabled();
         }
 
-        if (ImGui::BeginCombo("Interpolation", Internal::Get_InterpolationLabel(key.interpolationMode)))
+        if (ImGui::BeginCombo("Interpolation", Get_InterpolationLabel(key.interpolationMode)))
         {
             const auto draw_item = [&](FloatCurveInterpolationMode mode, bool enabled)
             {
                 const bool selected = key.interpolationMode == mode;
                 if (!enabled)
                     ImGui::BeginDisabled();
-                if (ImGui::Selectable(Internal::Get_InterpolationLabel(mode), selected) && enabled)
+                if (ImGui::Selectable(Get_InterpolationLabel(mode), selected) && enabled)
                 {
                     Execute_CurveAuthoringEdit(
                         target,

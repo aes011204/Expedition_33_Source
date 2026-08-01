@@ -83,6 +83,17 @@ namespace
 
         return cullDist;
     }
+
+    int Resolve_DirectRenderLodIndex(const Shared<ModelCom> (&lodModels)[3])
+    {
+        for (int lod = 0; lod < 3; ++lod)
+        {
+            if (lodModels[lod])
+                return lod;
+        }
+
+        return -1;
+    }
 }
 
 IMPLEMENT_REFLECTION(MapInstancedMesh)
@@ -309,10 +320,12 @@ void MapInstancedMesh::Late_Update(float timeDelta)
 
 HRESULT MapInstancedMesh::Render()
 {
-    if (_instanceCount == 0 || !_lodModels[0] || !_shader)
+    if (_instanceCount == 0 || !_shader)
     {
         return S_OK;
     }
+
+    const int directRenderLodIndex = Resolve_DirectRenderLodIndex(_lodModels);
 
     Buffer* instanceVB = _instanceVB.Get();
     uint32 renderInstanceCount = _instanceCount;
@@ -413,12 +426,13 @@ HRESULT MapInstancedMesh::Render()
     }
     else
     {
-        _debugLastDrawInstanceCounts = {};
-        for (uint32 lod = 0; lod < 3; ++lod)
+        if (directRenderLodIndex < 0)
         {
-            if (_lodModels[lod])
-                _debugLastDrawInstanceCounts[lod] = renderInstanceCount;
+            return S_OK;
         }
+
+        _debugLastDrawInstanceCounts = {};
+        _debugLastDrawInstanceCounts[directRenderLodIndex] = renderInstanceCount;
         _debugHasDrawInstanceCounts = true;
         _debugLastVisibleCountReadbackRequestId =
             ClientInstance::Get_DebugMapInstancedVisibleCountReadbackRequestId();
@@ -431,6 +445,11 @@ HRESULT MapInstancedMesh::Render()
 
     for (int lod = 0; lod < 3; ++lod)
     {
+        if (!useIndirect && lod != directRenderLodIndex)
+        {
+            continue;
+        }
+
         if (!_lodModels[lod])
         {
             continue;
@@ -611,6 +630,8 @@ bool MapInstancedMesh::Get_RenderHotspotInstancedMeshStats(RenderHotspotInstance
     outStats.lod1Dist = _lod1Dist;
     outStats.lod2Dist = _lod2Dist;
 
+    const int directRenderLodIndex = Resolve_DirectRenderLodIndex(_lodModels);
+
     for (uint32 lod = 0; lod < 3; ++lod)
     {
         const Shared<ModelCom>& model = _lodModels[lod];
@@ -621,7 +642,10 @@ bool MapInstancedMesh::Get_RenderHotspotInstancedMeshStats(RenderHotspotInstance
 
         const uint32 meshCount = static_cast<uint32>(model->Get_NumMeshes());
         outStats.lodMeshCounts[lod] = meshCount;
-        outStats.estimatedMainDrawCount += meshCount;
+        if (outStats.usesIndirectCull || static_cast<int>(lod) == directRenderLodIndex)
+        {
+            outStats.estimatedMainDrawCount += meshCount;
+        }
 
         uint32 indexCount = 0;
         for (uint32 meshIndex = 0; meshIndex < meshCount; ++meshIndex)
@@ -632,9 +656,16 @@ bool MapInstancedMesh::Get_RenderHotspotInstancedMeshStats(RenderHotspotInstance
 
     if (outStats.usesIndirectCull)
     {
-        outStats.estimatedCullCopyResourceCount = 3u;
         for (uint32 lod = 0; lod < 3; ++lod)
+        {
+            if (!_lodModels[lod])
+            {
+                continue;
+            }
+
+            ++outStats.estimatedCullCopyResourceCount;
             outStats.estimatedCullCopyCountCount += static_cast<uint32>(_indirectArgsBuffers[lod].size());
+        }
     }
 
     outStats.sourceIndexWorkLod0 =
@@ -650,10 +681,9 @@ bool MapInstancedMesh::Get_RenderHotspotInstancedMeshStats(RenderHotspotInstance
     else
     {
         outStats.hasDrawInstanceCounts = true;
-        for (uint32 lod = 0; lod < 3; ++lod)
+        if (directRenderLodIndex >= 0)
         {
-            if (_lodModels[lod])
-                outStats.drawInstanceCounts[lod] = _instanceCount;
+            outStats.drawInstanceCounts[directRenderLodIndex] = _instanceCount;
         }
         outStats.visibleCountReadbackRequestId =
             ClientInstance::Get_DebugMapInstancedVisibleCountReadbackRequestId();
@@ -1257,6 +1287,11 @@ void MapInstancedMesh::DispatchCull()
 
     for (int lod = 0; lod < 3; ++lod)
     {
+        if (!_lodModels[lod])
+        {
+            continue;
+        }
+
         _context->CopyResource(_visibleVB[lod].Get(), _visibleStructured[lod].Get());
         for (auto& buffer : _indirectArgsBuffers[lod])
         {

@@ -1,4 +1,4 @@
-#include "EffectEditorPreviewRuntime.h"
+﻿#include "EffectEditorPreviewRuntime.h"
 
 #include "ClientInstance.h"
 #include "EffectEditorInstance.h"
@@ -11,7 +11,7 @@
 
 NS_BEGIN(EffectEditor)
 
-namespace Internal
+namespace
 {
     constexpr auto kPreviewPoolKey = L"EffectEditorPreview";
     constexpr auto kPreviewTrailStrokePoolKey = L"EffectEditorPreviewTrailStroke";
@@ -42,6 +42,33 @@ namespace Internal
     private:
         Weak<IEffectTrailSampleProvider> _sourceProvider{};
         Shared<bool> _sampleEnabled{};
+    };
+
+    class TrailTipPreviewSampleProvider final : public IEffectSourcePointSampleProvider
+    {
+    public:
+        explicit TrailTipPreviewSampleProvider(const Weak<IEffectTrailSampleProvider>& trailProvider)
+            : _trailProvider(trailProvider)
+        {
+        }
+
+        bool Try_GetSourcePointSample(EffectSourcePointSample& outSample) const override
+        {
+            const Shared<IEffectTrailSampleProvider> trailProvider = _trailProvider.lock();
+            if (trailProvider == nullptr)
+                return false;
+
+            EffectTrailSample trailSample{};
+            if (!trailProvider->Try_GetTrailSample(trailSample))
+                return false;
+
+            outSample.worldPosition = trailSample.tipWorldPosition;
+            outSample.worldRotation = trailSample.tipWorldRotation;
+            return true;
+        }
+
+    private:
+        Weak<IEffectTrailSampleProvider> _trailProvider{};
     };
 
     class SourceHistoryPreviewSampleProvider final : public IEffectSourcePointSampleProvider
@@ -223,10 +250,11 @@ void EffectEditorPreviewRuntime::Bind_TrailPreviewSources(
 {
     _trailPreviewSampleProvider = trailSampleProvider;
     _trailPreviewController = trailPreviewController;
+    _ribbonPreviewSampleProvider = make_shared<TrailTipPreviewSampleProvider>(trailSampleProvider);
     _sourceHistoryPreviewSampleProvider =
-        make_shared<Internal::SourceHistoryPreviewSampleProvider>(sourcePointSampleProvider, trailPreviewController, false);
+        make_shared<SourceHistoryPreviewSampleProvider>(sourcePointSampleProvider, trailPreviewController, false);
     _sourceHistorySpriteTrailPreviewSampleProvider =
-        make_shared<Internal::SourceHistoryPreviewSampleProvider>(sourcePointSampleProvider, trailPreviewController, true);
+        make_shared<SourceHistoryPreviewSampleProvider>(sourcePointSampleProvider, trailPreviewController, true);
 }
 
 void EffectEditorPreviewRuntime::Update(float timeDelta)
@@ -257,7 +285,7 @@ HRESULT EffectEditorPreviewRuntime::Restart_FromAuthoring(const vector<Authoring
     _wasTrailPreviewGateOpen = false;
     _lastTrailPreviewSourceRatio = 0.f;
     _hasTrailPreviewSourceRatio = false;
-    EDITOR->Set_TrailPreviewGateDuration(Internal::Resolve_TrailPreviewGateDuration(emitters));
+    EDITOR->Set_TrailPreviewGateDuration(Resolve_TrailPreviewGateDuration(emitters));
     EDITOR->Reset_TrailPreviewGate();
 
     return S_OK;
@@ -299,7 +327,7 @@ void EffectEditorPreviewRuntime::Apply_PreviewEmitterTransformOverrides(const ve
         if (!emitter.enabled)
             continue;
 
-        const RequiredModuleData* required = Internal::Find_RequiredModuleData(emitter);
+        const RequiredModuleData* required = Find_RequiredModuleData(emitter);
         const Vec3 authoredPosition = required != nullptr ? required->emitterOrigin : Vec3::Zero;
         const Vec3 authoredRotation = required != nullptr ? required->emitterRotationDegrees : Vec3::Zero;
         const PreviewEmitterTransformOverride* overrideState =
@@ -347,8 +375,8 @@ void EffectEditorPreviewRuntime::Clear()
     effectPool->Release(_previewPoolHandle);
     _previewPoolHandle = {};
     _currentAuthoringEmitters.clear();
-    effectPool->Discard_Inactive(Internal::kPreviewPoolKey);
-    effectPool->Discard_Inactive(Internal::kPreviewTrailStrokePoolKey);
+    effectPool->Discard_Inactive(kPreviewPoolKey);
+    effectPool->Discard_Inactive(kPreviewTrailStrokePoolKey);
 }
 
 HRESULT EffectEditorPreviewRuntime::Restart_FromDefinition(const Shared<const EffectDefinition>& previewDefinition)
@@ -359,7 +387,7 @@ HRESULT EffectEditorPreviewRuntime::Restart_FromDefinition(const Shared<const Ef
     CHECK_NULL(effectPool, E_FAIL);
 
     EffectInstancePool::AcquireDesc acquireDesc{};
-    acquireDesc.effectName = Internal::kPreviewPoolKey;
+    acquireDesc.effectName = kPreviewPoolKey;
     acquireDesc.definition = previewDefinition;
     acquireDesc.layerLevelIndex = ETOI(LevelType::Static);
     acquireDesc.layerTag = _layerTag;
@@ -368,11 +396,13 @@ HRESULT EffectEditorPreviewRuntime::Restart_FromDefinition(const Shared<const Ef
         EffectHistorySourceGroupKind::TrailPairHistory,
         "EffectEditorPreview|TrailPair"
     };
-    acquireDesc.sourcePointSampleProvider = Internal::Resolve_PreviewSourcePointProvider(
+    acquireDesc.sourcePointSampleProvider = Resolve_PreviewSourcePointProvider(
         previewDefinition,
         _sourceHistoryPreviewSampleProvider,
         _sourceHistorySpriteTrailPreviewSampleProvider
     );
+    if (EDITOR != nullptr && EDITOR->Is_TrailPreviewVisible())
+        acquireDesc.ribbonSourcePointSampleProvider = _ribbonPreviewSampleProvider;
     acquireDesc.sourcePointGroupKey = EffectHistorySourceGroupKey{
         EffectHistorySourceGroupKind::SourcePointHistory,
         "EffectEditorPreview|SourcePoint"
@@ -470,15 +500,15 @@ HRESULT EffectEditorPreviewRuntime::Start_PreviewTrailStroke()
 
     PreviewTrailStrokeRuntime runtime{};
     runtime.sampleEnabled = make_shared<bool>(true);
-    runtime.sampleProvider = make_shared<Internal::TrailPreviewStrokeSampleProvider>(
+    runtime.sampleProvider = make_shared<TrailPreviewStrokeSampleProvider>(
         _trailPreviewSampleProvider,
         runtime.sampleEnabled
     );
     CHECK_NULL(runtime.sampleProvider, E_FAIL);
-    runtime.drainDuration = Internal::Resolve_TrailStrokeDrainDuration(_currentPreviewTrailDefinition);
+    runtime.drainDuration = Resolve_TrailStrokeDrainDuration(_currentPreviewTrailDefinition);
 
     EffectInstancePool::AcquireDesc acquireDesc{};
-    acquireDesc.effectName = Internal::kPreviewTrailStrokePoolKey;
+    acquireDesc.effectName = kPreviewTrailStrokePoolKey;
     acquireDesc.definition = _currentPreviewTrailDefinition;
     acquireDesc.layerLevelIndex = ETOI(LevelType::Static);
     acquireDesc.layerTag = _layerTag;

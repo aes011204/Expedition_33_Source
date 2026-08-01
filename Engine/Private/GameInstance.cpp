@@ -459,9 +459,7 @@ HRESULT GameInstance::Initialize_Engine(const ENGINE_DESC& engineDesc, ComPtr<De
     _eventBus = Event_Bus::Create();
     CHECK_NULL(_eventBus, E_FAIL);
 
-    // Thread Pool
     {
-        // PC가 동시에 돌릴 수 있는 하드웨어 스레드 수 가져오기
         const size_t hardwareThreadCount = thread::hardware_concurrency();
         // 메인 스레드도 게임 업데이트/렌더링을 해야하니까 CPU를 전부 worker한테 넘기는게 아니라 하나 뺴기
         const size_t workerCount = max<size_t>(1, hardwareThreadCount > 1 ? hardwareThreadCount - 1 : 1);
@@ -469,7 +467,7 @@ HRESULT GameInstance::Initialize_Engine(const ENGINE_DESC& engineDesc, ComPtr<De
         _threadPool = ThreadPool::Create(workerCount);
         CHECK_NULL(_threadPool, E_FAIL);
 
-        LOG_ERROR(
+        LOG_INFO(
             "[GameInstance::Initialize_Engine] ThreadPool created. workerCount={}",
             static_cast<int>(workerCount)
         );
@@ -490,7 +488,11 @@ void GameInstance::Update_Engine(float timeDelta)
 
 void GameInstance::Update_Engine(float timeDelta, const function<void(float)>& clientUpdate)
 {
-    _unscaledTimeDelta = timeDelta; // 배속 전
+#if defined(_EDITOR) && !defined(_DEBUG)
+    const auto editorUpdateBegin = chrono::steady_clock::now();
+#endif
+
+    _unscaledTimeDelta = timeDelta;
 
     if (_isWorldTimeSlowActive)
     {
@@ -506,6 +508,27 @@ void GameInstance::Update_Engine(float timeDelta, const function<void(float)>& c
     }
 
     _worldTimeDelta = timeDelta * _worldTimeScale;
+
+#if ENGINE_ENABLE_RELEASE_UPDATE_PROFILE
+    const bool sampleReleaseUpdateProfile =
+        _releaseUpdateProfileCaptureEnabled &&
+        Should_SampleRuntimePerf();
+    chrono::steady_clock::time_point releaseUpdateBegin{};
+    double releaseClientMs = 0.0;
+    double releaseLevelMs = 0.0;
+    double releasePriorityObjMs = 0.0;
+    double releaseObjMs = 0.0;
+    double releaseLateObjMs = 0.0;
+    double releasePhysxBeginMs = 0.0;
+    double releasePhysxUpdateMs = 0.0;
+    double releasePhysxGatherMs = 0.0;
+    double releaseCollFromPhysxMs = 0.0;
+    double releaseCameraMs = 0.0;
+    double releaseUiMs = 0.0;
+
+    if (sampleReleaseUpdateProfile)
+        releaseUpdateBegin = chrono::steady_clock::now();
+#endif
 
 #ifdef _DEBUG
     const bool periodicRuntimePerfSample = Should_SampleRuntimePerf();
@@ -565,12 +588,19 @@ void GameInstance::Update_Engine(float timeDelta, const function<void(float)>& c
     // 입력 갱신 직후, 레벨/오브젝트/UI 업데이트 전에 클라이언트쪽 런타임 갱신을 위해
     if (clientUpdate)
     {
+#if ENGINE_ENABLE_RELEASE_UPDATE_PROFILE
+        const auto releaseClientBegin = sampleReleaseUpdateProfile ? chrono::steady_clock::now() : chrono::steady_clock::time_point{};
+#endif
 #ifdef _DEBUG
         chrono::steady_clock::time_point clientBegin{};
         if (sampleRuntimePerf)
             clientBegin = chrono::steady_clock::now();
 #endif
         clientUpdate(_worldTimeDelta);
+#if ENGINE_ENABLE_RELEASE_UPDATE_PROFILE
+        if (sampleReleaseUpdateProfile)
+            releaseClientMs = chrono::duration<double, milli>(chrono::steady_clock::now() - releaseClientBegin).count();
+#endif
 #ifdef _DEBUG
         if (sampleRuntimePerf)
             clientMs = chrono::duration<double, milli>(chrono::steady_clock::now() - clientBegin).count();
@@ -582,13 +612,19 @@ void GameInstance::Update_Engine(float timeDelta, const function<void(float)>& c
     if (sampleRuntimePerf)
         levelBegin = chrono::steady_clock::now();
 #endif
+#if ENGINE_ENABLE_RELEASE_UPDATE_PROFILE
+    const auto releaseLevelBegin = sampleReleaseUpdateProfile ? chrono::steady_clock::now() : chrono::steady_clock::time_point{};
+#endif
     _levelManager->Update(_worldTimeDelta);
+#if ENGINE_ENABLE_RELEASE_UPDATE_PROFILE
+    if (sampleReleaseUpdateProfile)
+        releaseLevelMs = chrono::duration<double, milli>(chrono::steady_clock::now() - releaseLevelBegin).count();
+#endif
 #ifdef _DEBUG
     if (sampleRuntimePerf)
         levelMs = chrono::duration<double, milli>(chrono::steady_clock::now() - levelBegin).count();
 #endif
 
-    // UI 키면서 게임 멈출 때 Update 안돌릴 애들
     if (!_isGameplayPaused)
     {
 #ifdef _DEBUG
@@ -596,7 +632,14 @@ void GameInstance::Update_Engine(float timeDelta, const function<void(float)>& c
         if (sampleRuntimePerf)
             priorityObjBegin = chrono::steady_clock::now();
 #endif
+#if ENGINE_ENABLE_RELEASE_UPDATE_PROFILE
+        const auto releasePriorityObjBegin = sampleReleaseUpdateProfile ? chrono::steady_clock::now() : chrono::steady_clock::time_point{};
+#endif
         _objectManager->Priority_Update(_worldTimeDelta);
+#if ENGINE_ENABLE_RELEASE_UPDATE_PROFILE
+        if (sampleReleaseUpdateProfile)
+            releasePriorityObjMs = chrono::duration<double, milli>(chrono::steady_clock::now() - releasePriorityObjBegin).count();
+#endif
 #ifdef _DEBUG
         if (sampleRuntimePerf)
             priorityObjMs = chrono::duration<double, milli>(chrono::steady_clock::now() - priorityObjBegin).count();
@@ -616,7 +659,14 @@ void GameInstance::Update_Engine(float timeDelta, const function<void(float)>& c
             objBegin = chrono::steady_clock::now();
 #endif
 
+#if ENGINE_ENABLE_RELEASE_UPDATE_PROFILE
+        const auto releaseObjBegin = sampleReleaseUpdateProfile ? chrono::steady_clock::now() : chrono::steady_clock::time_point{};
+#endif
         _objectManager->Update(_worldTimeDelta);
+#if ENGINE_ENABLE_RELEASE_UPDATE_PROFILE
+        if (sampleReleaseUpdateProfile)
+            releaseObjMs = chrono::duration<double, milli>(chrono::steady_clock::now() - releaseObjBegin).count();
+#endif
 #ifdef _DEBUG
         if (sampleRuntimePerf)
             objMs = chrono::duration<double, milli>(chrono::steady_clock::now() - objBegin).count();
@@ -626,7 +676,14 @@ void GameInstance::Update_Engine(float timeDelta, const function<void(float)>& c
             physxBegin = chrono::steady_clock::now();
 #endif
 
+#if ENGINE_ENABLE_RELEASE_UPDATE_PROFILE
+        const auto releasePhysxBegin = sampleReleaseUpdateProfile ? chrono::steady_clock::now() : chrono::steady_clock::time_point{};
+#endif
         _physxManager->Begin_Frame();
+#if ENGINE_ENABLE_RELEASE_UPDATE_PROFILE
+        if (sampleReleaseUpdateProfile)
+            releasePhysxBeginMs = chrono::duration<double, milli>(chrono::steady_clock::now() - releasePhysxBegin).count();
+#endif
 #ifdef _DEBUG
         if (sampleRuntimePerf)
             physxBeginMs = chrono::duration<double, milli>(chrono::steady_clock::now() - physxBegin).count();
@@ -644,7 +701,14 @@ void GameInstance::Update_Engine(float timeDelta, const function<void(float)>& c
         if (sampleRuntimePerf)
             lateObjBegin = chrono::steady_clock::now();
 #endif
+#if ENGINE_ENABLE_RELEASE_UPDATE_PROFILE
+        const auto releaseLateObjBegin = sampleReleaseUpdateProfile ? chrono::steady_clock::now() : chrono::steady_clock::time_point{};
+#endif
         _objectManager->Late_Update(_worldTimeDelta);
+#if ENGINE_ENABLE_RELEASE_UPDATE_PROFILE
+        if (sampleReleaseUpdateProfile)
+            releaseLateObjMs = chrono::duration<double, milli>(chrono::steady_clock::now() - releaseLateObjBegin).count();
+#endif
 #ifdef _DEBUG
         if (sampleRuntimePerf)
             lateObjMs = chrono::duration<double, milli>(chrono::steady_clock::now() - lateObjBegin).count();
@@ -654,10 +718,17 @@ void GameInstance::Update_Engine(float timeDelta, const function<void(float)>& c
             physxUpdateBegin = chrono::steady_clock::now();
 #endif
 
+#if ENGINE_ENABLE_RELEASE_UPDATE_PROFILE
+        const auto releasePhysxUpdateBegin = sampleReleaseUpdateProfile ? chrono::steady_clock::now() : chrono::steady_clock::time_point{};
+#endif
         _objectManager->Flush_RemovedGameObjects();
 
         _physxManager->Update(_worldTimeDelta);
         _objectManager->Post_PhysX_Update(_worldTimeDelta);
+#if ENGINE_ENABLE_RELEASE_UPDATE_PROFILE
+        if (sampleReleaseUpdateProfile)
+            releasePhysxUpdateMs = chrono::duration<double, milli>(chrono::steady_clock::now() - releasePhysxUpdateBegin).count();
+#endif
 #ifdef _DEBUG
         if (sampleRuntimePerf)
             physxUpdateMs = chrono::duration<double, milli>(chrono::steady_clock::now() - physxUpdateBegin).count();
@@ -668,8 +739,15 @@ void GameInstance::Update_Engine(float timeDelta, const function<void(float)>& c
         if (sampleRuntimePerf)
             physxGatherBegin = chrono::steady_clock::now();
 #endif
+#if ENGINE_ENABLE_RELEASE_UPDATE_PROFILE
+        const auto releasePhysxGatherBegin = sampleReleaseUpdateProfile ? chrono::steady_clock::now() : chrono::steady_clock::time_point{};
+#endif
         vector<PhysXPairEvent> events;
         _physxManager->Gather_FrameEvents(events);
+#if ENGINE_ENABLE_RELEASE_UPDATE_PROFILE
+        if (sampleReleaseUpdateProfile)
+            releasePhysxGatherMs = chrono::duration<double, milli>(chrono::steady_clock::now() - releasePhysxGatherBegin).count();
+#endif
 #ifdef _DEBUG
         if (sampleRuntimePerf)
             physxGatherMs = chrono::duration<double, milli>(chrono::steady_clock::now() - physxGatherBegin).count();
@@ -678,7 +756,14 @@ void GameInstance::Update_Engine(float timeDelta, const function<void(float)>& c
         if (sampleRuntimePerf)
             collFromPhysxBegin = chrono::steady_clock::now();
 #endif
+#if ENGINE_ENABLE_RELEASE_UPDATE_PROFILE
+        const auto releaseCollFromPhysxBegin = sampleReleaseUpdateProfile ? chrono::steady_clock::now() : chrono::steady_clock::time_point{};
+#endif
         _collisionManager->Update_FromPhysX(events);
+#if ENGINE_ENABLE_RELEASE_UPDATE_PROFILE
+        if (sampleReleaseUpdateProfile)
+            releaseCollFromPhysxMs = chrono::duration<double, milli>(chrono::steady_clock::now() - releaseCollFromPhysxBegin).count();
+#endif
 #ifdef _DEBUG
         if (sampleRuntimePerf)
             collFromPhysxMs = chrono::duration<double, milli>(chrono::steady_clock::now() - collFromPhysxBegin).count();
@@ -688,8 +773,15 @@ void GameInstance::Update_Engine(float timeDelta, const function<void(float)>& c
             cameraBegin = chrono::steady_clock::now();
 #endif
 
+#if ENGINE_ENABLE_RELEASE_UPDATE_PROFILE
+        const auto releaseCameraBegin = sampleReleaseUpdateProfile ? chrono::steady_clock::now() : chrono::steady_clock::time_point{};
+#endif
         _cameraManager->Update(_worldTimeDelta);
         Update_SoundListenerFromActiveCamera();
+#if ENGINE_ENABLE_RELEASE_UPDATE_PROFILE
+        if (sampleReleaseUpdateProfile)
+            releaseCameraMs = chrono::duration<double, milli>(chrono::steady_clock::now() - releaseCameraBegin).count();
+#endif
 #ifdef _DEBUG
         if (sampleRuntimePerf)
             cameraMs = chrono::duration<double, milli>(chrono::steady_clock::now() - cameraBegin).count();
@@ -712,7 +804,38 @@ void GameInstance::Update_Engine(float timeDelta, const function<void(float)>& c
     if (sampleRuntimePerf)
         uiBegin = chrono::steady_clock::now();
 #endif
+#if ENGINE_ENABLE_RELEASE_UPDATE_PROFILE
+    const auto releaseUiBegin = sampleReleaseUpdateProfile ? chrono::steady_clock::now() : chrono::steady_clock::time_point{};
+#endif
     _uiManager->Update(timeDelta);
+#if ENGINE_ENABLE_RELEASE_UPDATE_PROFILE
+    if (sampleReleaseUpdateProfile)
+        releaseUiMs = chrono::duration<double, milli>(chrono::steady_clock::now() - releaseUiBegin).count();
+
+    if (sampleReleaseUpdateProfile)
+    {
+        const double releaseUpdateMs = chrono::duration<double, milli>(chrono::steady_clock::now() - releaseUpdateBegin).count();
+        Accumulate_UpdatePerf(
+            releaseUpdateMs,
+            0.0,
+            0.0,
+            0.0,
+            releaseClientMs,
+            releaseLevelMs,
+            releasePriorityObjMs,
+            0.0,
+            releaseObjMs,
+            releasePhysxBeginMs,
+            0.0,
+            releaseLateObjMs,
+            releasePhysxUpdateMs,
+            releasePhysxGatherMs,
+            releaseCollFromPhysxMs,
+            releaseCameraMs,
+            releaseUiMs
+        );
+    }
+#endif
 #ifdef _DEBUG
     if (sampleRuntimePerf)
         uiMs = chrono::duration<double, milli>(chrono::steady_clock::now() - uiBegin).count();
@@ -753,17 +876,32 @@ void GameInstance::Update_Engine(float timeDelta, const function<void(float)>& c
         );
     }
 #endif
+
+#if defined(_EDITOR) && !defined(_DEBUG)
+    _lastRuntimeFrameDeltaMs = timeDelta * 1000.f;
+    _lastEngineUpdateMs = static_cast<float>(
+        chrono::duration<double, milli>(chrono::steady_clock::now() - editorUpdateBegin).count());
+    _lastClientUpdateMs = 0.f;
+    _lastLevelUpdateMs = 0.f;
+    _lastPriorityObjectUpdateMs = 0.f;
+    _lastObjectUpdateMs = 0.f;
+    _lastLateObjectUpdateMs = 0.f;
+    _lastPhysXUpdateMs = 0.f;
+    _lastCollisionFromPhysXMs = 0.f;
+    _lastCameraUpdateMs = 0.f;
+    _lastUiUpdateMs = 0.f;
+#endif
 }
 
 HRESULT GameInstance::Draw()
 {
-#ifdef _DEBUG
+#if defined(_DEBUG) || defined(_EDITOR)
     const auto gameDrawBegin = chrono::steady_clock::now();
     auto stageBegin = gameDrawBegin;
 #endif
 
     _renderer->Draw();
-#ifdef _DEBUG
+#if defined(_DEBUG) || defined(_EDITOR)
     _lastRendererDrawMs = static_cast<float>(chrono::duration<double, milli>(chrono::steady_clock::now() - stageBegin).count());
     if (_renderer != nullptr)
         _renderer->Get_LastFramePerfSummary(_lastDrawRenderPerf);
@@ -772,16 +910,13 @@ HRESULT GameInstance::Draw()
 #endif
 
     _levelManager->Render();
-#ifdef _DEBUG
+#if defined(_DEBUG) || defined(_EDITOR)
     _lastLevelRenderMs = static_cast<float>(chrono::duration<double, milli>(chrono::steady_clock::now() - stageBegin).count());
 
     stageBegin = chrono::steady_clock::now();
 #endif
 
-    //CHECK_FAILED(Update_Picking(), E_FAIL);
-
 #if defined(_DEBUG) || defined(_EDITOR)
-    // Collision Manager
     if (_enableEditorRuntimeDebug)
     {
         _collisionManager->Render_Debug();
@@ -789,7 +924,6 @@ HRESULT GameInstance::Draw()
 #endif
 
 #if defined(_DEBUG) || defined(_EDITOR)
-    // Debug Manager
     if (_enableEditorRuntimeDebug)
     {
 #ifdef _DEBUG
@@ -800,7 +934,7 @@ HRESULT GameInstance::Draw()
     }
 
 #endif
-#ifdef _DEBUG
+#if defined(_DEBUG) || defined(_EDITOR)
     _lastDebugRenderMs = static_cast<float>(chrono::duration<double, milli>(chrono::steady_clock::now() - stageBegin).count());
 #endif
 
@@ -809,7 +943,7 @@ HRESULT GameInstance::Draw()
 #endif
 
 #pragma region UI Render
-#ifdef _DEBUG
+#if defined(_DEBUG) || defined(_EDITOR)
     stageBegin = chrono::steady_clock::now();
 #endif
     // Background UI는 3D 씬 이후, Foreground UI 이전에 그린다.
@@ -820,7 +954,7 @@ HRESULT GameInstance::Draw()
     if (FAILED(_uiManager->Render(UI_RenderGroup::Foreground)))
         return E_FAIL;
 #pragma endregion
-#ifdef _DEBUG
+#if defined(_DEBUG) || defined(_EDITOR)
     _lastUiRenderMs = static_cast<float>(chrono::duration<double, milli>(chrono::steady_clock::now() - stageBegin).count());
 
     stageBegin = chrono::steady_clock::now();
@@ -828,7 +962,7 @@ HRESULT GameInstance::Draw()
 
     // UI 이후의 모든 화면 효과(ScreenFx, 캡처, UIEffect)를 단일 함수로 캡슐화하여 렌더링
     _renderer->PostDraw();
-#ifdef _DEBUG
+#if defined(_DEBUG) || defined(_EDITOR)
     _lastPostDrawMs = static_cast<float>(chrono::duration<double, milli>(chrono::steady_clock::now() - stageBegin).count());
 
     stageBegin = chrono::steady_clock::now();
@@ -837,7 +971,7 @@ HRESULT GameInstance::Draw()
     // Overlay UI는 UIEffect 이후에 그려 전투 알림처럼 최우선으로 보여야 하는 UI를 보장한다.
     if (FAILED(_uiManager->Render(UI_RenderGroup::Overlay)))
         return E_FAIL;
-#ifdef _DEBUG
+#if defined(_DEBUG) || defined(_EDITOR)
     _lastUiRenderMs += static_cast<float>(chrono::duration<double, milli>(chrono::steady_clock::now() - stageBegin).count());
 #endif
 
@@ -845,6 +979,8 @@ HRESULT GameInstance::Draw()
     stageBegin = chrono::steady_clock::now();
     _printManager->Render();
     _lastPrintMs = static_cast<float>(chrono::duration<double, milli>(chrono::steady_clock::now() - stageBegin).count());
+#endif
+#if defined(_DEBUG) || defined(_EDITOR)
     _lastGameDrawMs = static_cast<float>(chrono::duration<double, milli>(chrono::steady_clock::now() - gameDrawBegin).count());
 #endif
 
@@ -938,7 +1074,7 @@ void GameInstance::Restore_RenderGroup()
         _renderer->Restore_RenderGroups();
 }
 
-#ifdef _DEBUG
+#if defined(_DEBUG) || ENGINE_ENABLE_RELEASE_UPDATE_PROFILE
 
 void GameInstance::Accumulate_UpdatePerf(
     const double updateMs,
@@ -1074,6 +1210,7 @@ void GameInstance::Reset_RuntimePerfWindowState(chrono::steady_clock::time_point
     _runtimePerfObservedFrameCount = 0;
 }
 
+#ifdef _DEBUG
 void GameInstance::Try_FlushRuntimePerfLog()
 {
     const auto now = chrono::steady_clock::now();
@@ -1286,6 +1423,98 @@ void GameInstance::Try_FlushRuntimePerfLog()
 
     Reset_RuntimePerfWindowState(now);
 }
+#endif
+
+#if ENGINE_ENABLE_RELEASE_UPDATE_PROFILE
+void GameInstance::Set_ReleaseUpdateProfileCaptureEnabled(const bool enabled)
+{
+    if (_releaseUpdateProfileCaptureEnabled == enabled)
+        return;
+
+    _releaseUpdateProfileCaptureEnabled = enabled;
+    Reset_ReleaseUpdateProfileCapture();
+}
+
+bool GameInstance::Is_ReleaseUpdateProfileCaptureEnabled() const
+{
+    return _releaseUpdateProfileCaptureEnabled;
+}
+
+void GameInstance::Reset_ReleaseUpdateProfileCapture()
+{
+    LogUtils::Reset_UpdatePerfWindow(_updatePerfWindow);
+    Reset_RuntimePerfWindowState(chrono::steady_clock::now());
+    _hasRuntimePerfLastSampleTime = false;
+}
+
+void GameInstance::Log_ReleaseUpdateProfileSummary()
+{
+    if (!_releaseUpdateProfileCaptureEnabled)
+        return;
+
+    const auto now = chrono::steady_clock::now();
+    const float windowSec = _hasRuntimePerfWindowStartTime
+        ? static_cast<float>(chrono::duration<double>(now - _runtimePerfWindowStartTime).count())
+        : 0.f;
+
+    UpdatePerfSummary summary{};
+    const bool hasSummary = Try_ConsumeUpdatePerfSummary(windowSec, summary);
+
+    Log_FileOnly(
+        spdlog::source_loc{ __FILE__, __LINE__, SPDLOG_FUNCTION },
+        spdlog::level::info,
+        fmt::format(
+            "[ReleaseUpdateProfile] window_sec={:.2f} samples={} has_samples={} "
+            "update_ms(avg={:.2f} max={:.2f}) "
+            "client_ms(avg={:.2f} max={:.2f}) "
+            "level_ms(avg={:.2f} max={:.2f}) "
+            "priorityobj_ms(avg={:.2f} max={:.2f}) "
+            "obj_ms(avg={:.2f} max={:.2f}) "
+            "lateobj_ms(avg={:.2f} max={:.2f}) "
+            "physxbegin_ms(avg={:.2f} max={:.2f}) "
+            "physxupdate_ms(avg={:.2f} max={:.2f}) "
+            "physxgather_ms(avg={:.2f} max={:.2f}) "
+            "collfromphysx_ms(avg={:.2f} max={:.2f}) "
+            "camera_ms(avg={:.2f} max={:.2f}) "
+            "ui_ms(avg={:.2f} max={:.2f})",
+            windowSec,
+            summary.sampledFrameCount,
+            hasSummary,
+            summary.updateAvgMs,
+            summary.updateMaxMs,
+            summary.clientAvgMs,
+            summary.clientMaxMs,
+            summary.levelAvgMs,
+            summary.levelMaxMs,
+            summary.priorityObjAvgMs,
+            summary.priorityObjMaxMs,
+            summary.objAvgMs,
+            summary.objMaxMs,
+            summary.lateObjAvgMs,
+            summary.lateObjMaxMs,
+            summary.physxBeginAvgMs,
+            summary.physxBeginMaxMs,
+            summary.physxUpdateAvgMs,
+            summary.physxUpdateMaxMs,
+            summary.physxGatherAvgMs,
+            summary.physxGatherMaxMs,
+            summary.collFromPhysxAvgMs,
+            summary.collFromPhysxMaxMs,
+            summary.cameraAvgMs,
+            summary.cameraMaxMs,
+            summary.uiAvgMs,
+            summary.uiMaxMs
+        )
+    );
+
+    Reset_RuntimePerfWindowState(now);
+    _hasRuntimePerfLastSampleTime = false;
+}
+#endif
+
+#endif
+
+#if defined(_DEBUG) || defined(_EDITOR)
 
 void GameInstance::Log_RuntimeFrameDropIfNeeded(float presentMs)
 {
@@ -1414,6 +1643,40 @@ void GameInstance::Stop_WorldTimeSlow()
     _worldTimeSlowDuration = 0.f;
 }
 
+bool GameInstance::Get_LastRuntimeFramePerfSnapshot(RuntimeFramePerfSnapshot& outSnapshot) const
+{
+    outSnapshot = {};
+
+#if defined(_DEBUG) || defined(_EDITOR)
+    outSnapshot.valid = true;
+    outSnapshot.runtimeFrameDeltaMs = _unscaledTimeDelta * 1000.f;
+    outSnapshot.worldTimeDeltaMs = _worldTimeDelta * 1000.f;
+    outSnapshot.worldTimeScale = _worldTimeScale;
+    outSnapshot.engineUpdateMs = _lastEngineUpdateMs;
+    outSnapshot.gameDrawMs = _lastGameDrawMs;
+    outSnapshot.rendererDrawMs = _lastRendererDrawMs;
+    outSnapshot.levelRenderMs = _lastLevelRenderMs;
+    outSnapshot.debugRenderMs = _lastDebugRenderMs;
+    outSnapshot.uiRenderMs = _lastUiRenderMs;
+    outSnapshot.postDrawMs = _lastPostDrawMs;
+    outSnapshot.printMs = _lastPrintMs;
+    outSnapshot.presentMs = _lastPresentMs;
+    outSnapshot.clientUpdateMs = _lastClientUpdateMs;
+    outSnapshot.levelUpdateMs = _lastLevelUpdateMs;
+    outSnapshot.priorityObjectUpdateMs = _lastPriorityObjectUpdateMs;
+    outSnapshot.objectUpdateMs = _lastObjectUpdateMs;
+    outSnapshot.lateObjectUpdateMs = _lastLateObjectUpdateMs;
+    outSnapshot.physXUpdateMs = _lastPhysXUpdateMs;
+    outSnapshot.collisionFromPhysXMs = _lastCollisionFromPhysXMs;
+    outSnapshot.cameraUpdateMs = _lastCameraUpdateMs;
+    outSnapshot.uiUpdateMs = _lastUiUpdateMs;
+    outSnapshot.render = _lastDrawRenderPerf;
+    return true;
+#else
+    return false;
+#endif
+}
+
 void GameInstance::Log_FileOnly(const spdlog::source_loc& sourceLoc, spdlog::level::level_enum level, const string& message) const
 {
     CHECK_NULL(_logManager);
@@ -1468,13 +1731,16 @@ HRESULT GameInstance::Clear_Buffers(const Vec4& clearColor)
 
 HRESULT GameInstance::Present()
 {
-#ifdef _DEBUG
+#if defined(_DEBUG) || defined(_EDITOR)
     const auto presentBegin = chrono::steady_clock::now();
 #endif
     const HRESULT result = _graphicDevice->Present();
-#ifdef _DEBUG
+#if defined(_DEBUG) || defined(_EDITOR)
     const float presentMs = static_cast<float>(chrono::duration<double, milli>(chrono::steady_clock::now() - presentBegin).count());
+    _lastPresentMs = presentMs;
+#if defined(_DEBUG) || defined(_EDITOR)
     Log_RuntimeFrameDropIfNeeded(presentMs);
+#endif
 #endif
     return result;
 }
@@ -1548,7 +1814,7 @@ float GameInstance::Compute_TimeDelta(const wstring& timerTag)
     return _timerManager->Compute_TimeDelta(timerTag);
 }
 
-HRESULT GameInstance::Change_Level(uint32 newLevelIndex, Shared<Level> newLevel, bool clearPreviousLevelPrototypes)
+HRESULT GameInstance::Change_Level(uint32 newLevelIndex, const Shared<Level>& newLevel, bool clearPreviousLevelPrototypes)
 {
     return _levelManager->Change_Level(newLevelIndex, newLevel, clearPreviousLevelPrototypes);
 }
@@ -1563,7 +1829,7 @@ Shared<Level> GameInstance::Current_LevelType() const
     return _levelManager->Get_CurrentLevelType();
 }
 
-HRESULT GameInstance::Add_Prototype(uint32 levelIndex, const wstring& prototypeTag, Shared<Base> prototype)
+HRESULT GameInstance::Add_Prototype(uint32 levelIndex, const wstring& prototypeTag, const Shared<Base>& prototype)
 {
     return _prototypeManager->Add_Prototype(levelIndex, prototypeTag, prototype);
 }
@@ -1678,7 +1944,7 @@ uint64 GameInstance::Get_CurrentLevelObjectRevision() const
     return _objectManager->Get_ObjectRevision();
 }
 
-void GameInstance::Add_RenderGroup(RenderGroup renderGroup, Shared<GameObject> gameObject)
+void GameInstance::Add_RenderGroup(RenderGroup renderGroup, const Shared<GameObject>& gameObject)
 {
     return _renderer->Add_RenderGroup(renderGroup, gameObject);
 }
@@ -1713,7 +1979,7 @@ bool GameInstance::Is_RenderViewHotspotCaptureEnabled() const
     return _renderer->Is_RenderViewHotspotCaptureEnabled();
 }
 
-const Shared<PostProcessPipeline> GameInstance::Get_PostProcessPipeline() const
+Shared<PostProcessPipeline> GameInstance::Get_PostProcessPipeline() const
 {
     return _renderer ? _renderer->Get_PostProcessPipeline() : nullptr;
 }
@@ -1753,7 +2019,7 @@ HRESULT GameInstance::End_DOFOverrideScope(const string& ownerTag, const DOFTran
     return _renderer->End_DOFOverrideScope(ownerTag, transition);
 }
 
-const Shared<LightingPipeline> GameInstance::Get_LightingPipeline() const
+Shared<LightingPipeline> GameInstance::Get_LightingPipeline() const
 {
     return _renderer->Get_LightingPipeline();
 }
@@ -1781,7 +2047,7 @@ HRESULT GameInstance::Reload_ShaderComs()
     return _shaderComController->Reload_VertexShaders();
 }
 
-ScreenFx_Manager* GameInstance::Get_ScreenFxManager() 
+ScreenFx_Manager* GameInstance::Get_ScreenFxManager()
 {
     return _screenFxManager.get();
 }
@@ -1817,7 +2083,7 @@ HRESULT GameInstance::Change_IBL(const wchar_t* irradiancePath, const wchar_t* p
     return _environmentManager->Change_IBL(irradiancePath, prefilterPath);
 }
 
-HRESULT GameInstance::Bind_IBLTextures(Shared<ShaderCom> shader) const
+HRESULT GameInstance::Bind_IBLTextures(const Shared<ShaderCom>& shader) const
 {
     CHECK_NULL(_environmentManager, E_FAIL);
     return _environmentManager->Bind_IBLTextures(shader.get());
@@ -1991,7 +2257,7 @@ void GameInstance::Set_Transform(D3DTS transformState, FXMMATRIX& transformState
     _pipeLine->Set_Transform(transformState, transformStateMatrix);
 }
 
-HRESULT GameInstance::Bind_CameraCB(Shared<ShaderCom> shader) const
+HRESULT GameInstance::Bind_CameraCB(const Shared<ShaderCom>& shader) const
 {
     CHECK_NULL(shader, E_FAIL);
     CHECK_NULL(_pipeLine, E_FAIL);
@@ -2124,7 +2390,7 @@ HRESULT GameInstance::Update_PrimaryShadowLightDesc(const LIGHT_DESC& lightDesc)
     return _lightManager->Update_PrimaryShadowLightDesc(lightDesc);
 }
 
-HRESULT GameInstance::Render_Lights(Shared<ShaderCom> shader, Shared<VIBuffer_Rect> viBuffer)
+HRESULT GameInstance::Render_Lights(const Shared<ShaderCom>& shader, const Shared<VIBuffer_Rect>& viBuffer)
 {
     return _lightManager->Render_Lights(shader, viBuffer);
 }
@@ -2144,7 +2410,7 @@ HRESULT GameInstance::Set_Lights(const vector<LIGHT_DESC>& lightDescs)
     return _lightManager ? _lightManager->Set_Lights(lightDescs) : S_OK;
 }
 
-HRESULT GameInstance::Bind_PrimaryShadowLightCB(Shared<ShaderCom> shader) const
+HRESULT GameInstance::Bind_PrimaryShadowLightCB(const Shared<ShaderCom>& shader) const
 {
     return _lightManager->Bind_PrimaryShadowLightCB(shader);
 }
@@ -2598,17 +2864,17 @@ HRESULT GameInstance::Bind_ByName(ShaderCom* shader, const char* shaderVariableN
     return _shaderResourceRegistry->Bind_ByName(shader, shaderVariableName, name);
 }
 
-HRESULT GameInstance::Add_Camera(Shared<Camera> camera) const
+HRESULT GameInstance::Add_Camera(const Shared<Camera>& camera) const
 {
     return _cameraManager->Add_Camera(camera);
 }
 
-bool GameInstance::Is_ActiveCamera(Shared<Camera> camera)
+bool GameInstance::Is_ActiveCamera(const Shared<Camera>& camera)
 {
     return _cameraManager->Is_ActiveCamera(camera);
 }
 
-void GameInstance::Change_ActiveCamera(Shared<Camera> camera) const
+void GameInstance::Change_ActiveCamera(const Shared<Camera>& camera) const
 {
     return _cameraManager->Change_ActiveCamera(camera);
 }
@@ -2653,7 +2919,7 @@ Shared<Camera> GameInstance::Get_CameraByType(ObjectType objectType)
     return _cameraManager->Get_CameraByType(objectType);
 }
 
-HRESULT GameInstance::Bind_CameraFar(Shared<ShaderCom> shader, const char* constantName)
+HRESULT GameInstance::Bind_CameraFar(const Shared<ShaderCom>& shader, const char* constantName)
 {
     return _cameraManager->Bind_CameraFar(shader, constantName);
 }
@@ -2778,7 +3044,7 @@ HRESULT GameInstance::Resize_MRTs(uint32 width, uint32 height)
     return _targetManager->Resize_MRTs(width, height);
 }
 
-HRESULT GameInstance::Bind_RT_ShaderResource(Shared<ShaderCom> shader, const char* constantName, const wstring& targetTag)
+HRESULT GameInstance::Bind_RT_ShaderResource(const Shared<ShaderCom>& shader, const char* constantName, const wstring& targetTag)
 {
     return _targetManager->Bind_ShaderResource(shader, constantName, targetTag);
 }
@@ -2913,19 +3179,19 @@ HRESULT GameInstance::Bind_UINoDepthStencilState()
     return S_OK;
 }
 
-HRESULT GameInstance::Bind_ShadowMatrices(Shared<ShaderCom> shader, const char* viewName, const char* projName)
+HRESULT GameInstance::Bind_ShadowMatrices(const Shared<ShaderCom>& shader, const char* viewName, const char* projName)
 {
     CHECK_NULL(_shadow, E_FAIL);
     return _shadow->Bind_TransformStateMatrix(shader, viewName, projName);
 }
 
-HRESULT GameInstance::Bind_ShadowLightDesc(Shared<ShaderCom> shader, const char* lightFarName, const char* biasName, const char* intensityName)
+HRESULT GameInstance::Bind_ShadowLightDesc(const Shared<ShaderCom>& shader, const char* lightFarName, const char* biasName, const char* intensityName)
 {
     CHECK_NULL(_shadow, E_FAIL);
     return _shadow->Bind_ShadowLightDesc(shader, lightFarName, biasName, intensityName);
 }
 
-HRESULT GameInstance::Bind_ShadowCB(Shared<ShaderCom> shader)
+HRESULT GameInstance::Bind_ShadowCB(const Shared<ShaderCom>& shader)
 {
     CHECK_NULL(_shadow, E_FAIL);
     ShadowCB cb = _shadow->Build_ShadowCB();
@@ -3067,7 +3333,7 @@ const Matrix& GameInstance::Get_CachedShadowViewProj() const
     return _renderer->Get_CachedShadowViewProj();
 }
 
-void GameInstance::Add_Collider(Shared<ColliderCom> collider)
+void GameInstance::Add_Collider(const Shared<ColliderCom>& collider)
 {
     CHECK_NULL(collider);
     CHECK_NULL(_collisionManager);
@@ -3082,7 +3348,7 @@ void GameInstance::Add_Collider(Shared<ColliderCom> collider)
     Add_Collider(collider, transform->Get_WorldMatrix());
 }
 
-void GameInstance::Add_Collider(Shared<ColliderCom> collider, const Matrix& worldMatrix)
+void GameInstance::Add_Collider(const Shared<ColliderCom>& collider, const Matrix& worldMatrix)
 {
     CHECK_NULL(collider);
     CHECK_NULL(_collisionManager);
@@ -3736,7 +4002,7 @@ HRESULT GameInstance::Display_AllRTs(bool render)
     return _targetManager->Display_AllRTs(render);
 }
 
-HRESULT GameInstance::Render_RT_Debug(Shared<VIBuffer_Rect> viBuffer, Shared<ShaderCom> shader)
+HRESULT GameInstance::Render_RT_Debug(const Shared<VIBuffer_Rect>& viBuffer, const Shared<ShaderCom>& shader)
 {
     return _targetManager->Render_Debug(shader, viBuffer);
 }

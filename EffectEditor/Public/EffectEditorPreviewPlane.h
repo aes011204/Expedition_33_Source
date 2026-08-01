@@ -9,7 +9,6 @@ NS_END
 
 NS_BEGIN(EffectEditor)
 
-// Effect preview 바닥 기준면을 mesh effect material로 렌더링한다.
 class EffectEditorPreviewPlane final : public GameObject
 {
 public:
@@ -17,13 +16,13 @@ public:
     EffectEditorPreviewPlane(const EffectEditorPreviewPlane& prototype);
     ~EffectEditorPreviewPlane() override = default;
 
-public: //## Lifecycle
+public:
     HRESULT Initialize_Prototype() override { return S_OK; }
     HRESULT Initialize(void* arg) override;
     void Late_Update(float timeDelta) override;
     HRESULT Render() override;
 
-private: //## Types
+private: //## Types::Render
     struct PreviewPlaneInstance
     {
         Matrix world{};
@@ -32,7 +31,7 @@ private: //## Types
         Vec2 padding{};
     };
 
-private: //## Static Values
+private: //## Static::Render
     static constexpr auto kModelPath{ L"Effects/Models/Plane.model" };
     static constexpr auto kTexturePath{ L"Effects/Textures/Shared/DefaultDiffuse.dds" };
     static constexpr auto kShaderId{ L"Shader_EffectMesh" };

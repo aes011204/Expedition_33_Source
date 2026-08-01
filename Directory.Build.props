@@ -3,6 +3,7 @@
     <VcpkgEnableManifest>true</VcpkgEnableManifest>
     <VcpkgInstalledDir>$(MSBuildThisFileDirectory)vcpkg_installed\</VcpkgInstalledDir>
     <VcpkgTriplet>x64-windows</VcpkgTriplet>
+    <ForceImportBeforeCppProps>$(MSBuildThisFileDirectory)Directory.Build.user.props</ForceImportBeforeCppProps>
     <VcpkgPhysXStaticLibraries>PhysX_64.lib;PhysXCommon_64.lib;PhysXFoundation_64.lib;PhysXCooking_64.lib;PhysXExtensions_static_64.lib;PhysXPvdSDK_static_64.lib;PhysXCharacterKinematic_static_64.lib;PhysXTask_static_64.lib;LowLevel_static_64.lib;LowLevelAABB_static_64.lib;LowLevelDynamics_static_64.lib;SceneQuery_static_64.lib;SimulationController_static_64.lib;PhysXVehicle_static_64.lib;PhysXVehicle2_static_64.lib</VcpkgPhysXStaticLibraries>
     <VcpkgCommonStaticLibraries>$(VcpkgPhysXStaticLibraries);DirectXTK.lib;Effects11.lib</VcpkgCommonStaticLibraries>
     <VcpkgDebugStaticLibraries>imguid.lib;implotd.lib;imguizmo.lib;imgui-node-editor.lib;fmtd.lib;spdlogd.lib;$(VcpkgCommonStaticLibraries)</VcpkgDebugStaticLibraries>
@@ -12,6 +13,11 @@
     <ClCompile>
       <LanguageStandard>stdcpp20</LanguageStandard>
   <PreprocessorDefinitions>FMT_DEPRECATED=;SPDLOG_ACTIVE_LEVEL=0;SPDLOG_COMPILED_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseUpdateProfile|x64'">
+    <ClCompile>
+      <PreprocessorDefinitions>ENGINE_ENABLE_RELEASE_UPDATE_PROFILE=1;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
   </ItemDefinitionGroup>
 </Project>

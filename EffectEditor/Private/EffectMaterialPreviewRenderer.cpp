@@ -14,7 +14,7 @@
 
 NS_BEGIN(EffectEditor)
 
-namespace Internal
+namespace
 {
     struct MaterialPreviewTime
     {
@@ -38,7 +38,7 @@ namespace Internal
         };
     }
 
-    static int Resolve_MaterialSourceIndex(const string& source)
+    int Resolve_MaterialSourceIndex(const string& source)
     {
         constexpr int32 sourceAlpha = 0;
         constexpr int32 sourceRed = 1;
@@ -167,7 +167,9 @@ EffectMaterialPreviewRenderer::~EffectMaterialPreviewRenderer()
     Cleanup();
 }
 
-void EffectMaterialPreviewRenderer::Render_Material(const EffectMaterialInstanceData& material)
+void EffectMaterialPreviewRenderer::Render_Material(
+    const EffectMaterialInstanceData& material,
+    EffectMaterialPreviewDistortionContext distortionContext)
 {
     Render_Material(
         material,
@@ -175,7 +177,8 @@ void EffectMaterialPreviewRenderer::Render_Material(const EffectMaterialInstance
         EffectMaterialVec2ModulationRuntimeDesc{},
         EffectMaterialScalarModulationRuntimeDesc{},
         1.f,
-        false
+        false,
+        distortionContext
     );
 }
 
@@ -185,12 +188,13 @@ void EffectMaterialPreviewRenderer::Render_Material(
     const EffectMaterialVec2ModulationRuntimeDesc& vec2Modulation,
     const EffectMaterialScalarModulationRuntimeDesc& modulation,
     float previewDuration,
-    bool evaluateParticleLife)
+    bool evaluateParticleLife,
+    EffectMaterialPreviewDistortionContext distortionContext)
 {
     _statusMessage.clear();
     _hasRenderedPreview = false;
-    const Internal::MaterialPreviewTime previewTime =
-        Internal::Resolve_MaterialPreviewTime(_materialPreviewElapsedTime, previewDuration);
+    const MaterialPreviewTime previewTime =
+        Resolve_MaterialPreviewTime(_materialPreviewElapsedTime, previewDuration);
     const MaterialScalarModulationPreviewResult modulationResult =
         Evaluate_MaterialScalarModulationPreview(
             material,
@@ -246,7 +250,7 @@ void EffectMaterialPreviewRenderer::Render_Material(
     if (SUCCEEDED(hr))
     {
         hr = isDistortionPreview
-             ? Render_DistortionPreviewMesh(previewMaterial, previewTime.cycleTime)
+             ? Render_DistortionPreviewMesh(previewMaterial, previewTime.cycleTime, distortionContext)
              : Render_PreviewMesh(previewMaterial, previewTime.cycleTime);
     }
 
@@ -339,7 +343,7 @@ bool EffectMaterialPreviewRenderer::Ready_DistortionSourceTarget()
     if (_distortionSourceTarget != nullptr)
         return true;
 
-    _distortionSourceTarget = Internal::Create_PreviewRenderTarget(
+    _distortionSourceTarget = Create_PreviewRenderTarget(
         L"EffectMaterialPreviewDistortionSource",
         _previewTextureWidth,
         _previewTextureHeight,
@@ -362,7 +366,7 @@ bool EffectMaterialPreviewRenderer::Ready_Shader()
     if (_shader != nullptr)
         return true;
 
-    _shader = Internal::Clone_Component<ShaderCom>(ETOI(LevelType::Static), kEffectMaterialPreviewShaderId);
+    _shader = Clone_Component<ShaderCom>(ETOI(LevelType::Static), kEffectMaterialPreviewShaderId);
     if (_shader == nullptr)
     {
         _statusMessage = "Shader_EffectMaterialPreview prototype is missing.";
@@ -377,7 +381,7 @@ bool EffectMaterialPreviewRenderer::Ready_DistortionShader()
     if (_distortionShader != nullptr)
         return true;
 
-    _distortionShader = Internal::Clone_Component<ShaderCom>(ETOI(LevelType::Static), kEffectMaterialPreviewDistortionShaderId);
+    _distortionShader = Clone_Component<ShaderCom>(ETOI(LevelType::Static), kEffectMaterialPreviewDistortionShaderId);
     if (_distortionShader == nullptr)
     {
         _statusMessage = "Shader_EffectMaterialPreviewDistortion prototype is missing.";
@@ -391,7 +395,7 @@ bool EffectMaterialPreviewRenderer::Ready_Texture(const string& textureGuid, con
 {
     bool usedPathFallback = false;
     bool guidPathMismatch = false;
-    const wstring resolvedPath = Internal::Resolve_PreviewTexturePath(textureGuid, texturePath, usedPathFallback, guidPathMismatch);
+    const wstring resolvedPath = Resolve_PreviewTexturePath(textureGuid, texturePath, usedPathFallback, guidPathMismatch);
     if (resolvedPath.empty())
     {
         _texture = nullptr;
@@ -458,7 +462,7 @@ bool EffectMaterialPreviewRenderer::Ready_NoiseTexture(const string& textureGuid
 
     bool usedPathFallback = false;
     bool guidPathMismatch = false;
-    const wstring resolvedPath = Internal::Resolve_PreviewTexturePath(textureGuid, texturePath, usedPathFallback, guidPathMismatch);
+    const wstring resolvedPath = Resolve_PreviewTexturePath(textureGuid, texturePath, usedPathFallback, guidPathMismatch);
 
     if (resolvedPath.empty())
     {
@@ -527,7 +531,7 @@ bool EffectMaterialPreviewRenderer::Ready_MaskTexture(const string& textureGuid,
 
     bool usedPathFallback = false;
     bool guidPathMismatch = false;
-    const wstring resolvedPath = Internal::Resolve_PreviewTexturePath(textureGuid, texturePath, usedPathFallback, guidPathMismatch);
+    const wstring resolvedPath = Resolve_PreviewTexturePath(textureGuid, texturePath, usedPathFallback, guidPathMismatch);
 
     if (resolvedPath.empty())
     {
@@ -596,7 +600,7 @@ bool EffectMaterialPreviewRenderer::Ready_FlowTexture(const string& textureGuid,
 
     bool usedPathFallback = false;
     bool guidPathMismatch = false;
-    const wstring resolvedPath = Internal::Resolve_PreviewTexturePath(textureGuid, texturePath, usedPathFallback, guidPathMismatch);
+    const wstring resolvedPath = Resolve_PreviewTexturePath(textureGuid, texturePath, usedPathFallback, guidPathMismatch);
 
     if (resolvedPath.empty())
     {
@@ -892,10 +896,10 @@ HRESULT EffectMaterialPreviewRenderer::Render_PreviewMesh(const EffectMaterialIn
         coreEmissive.coreColor.z,
         coreEmissive.outerIntensity
     );
-    const int opacitySource = Internal::Resolve_MaterialSourceIndex(material.opacitySource);
+    const int opacitySource = Resolve_MaterialSourceIndex(material.opacitySource);
     const Vec4 effectMaterialPreviewSourceParams = Vec4(
-        static_cast<float>(Internal::Resolve_MaterialSourceIndex(material.noiseSource)),
-        static_cast<float>(Internal::Resolve_MaterialSourceIndex(material.maskSource)),
+        static_cast<float>(Resolve_MaterialSourceIndex(material.noiseSource)),
+        static_cast<float>(Resolve_MaterialSourceIndex(material.maskSource)),
         material.noiseInvert ? 1.f : 0.f,
         material.maskInvert ? 1.f : 0.f
     );
@@ -1048,7 +1052,10 @@ HRESULT EffectMaterialPreviewRenderer::Render_CheckerBackground(float previewCyc
     return S_OK;
 }
 
-HRESULT EffectMaterialPreviewRenderer::Render_DistortionPreviewMesh(const EffectMaterialInstanceData& material, float previewCycleTime) const
+HRESULT EffectMaterialPreviewRenderer::Render_DistortionPreviewMesh(
+    const EffectMaterialInstanceData& material,
+    float previewCycleTime,
+    EffectMaterialPreviewDistortionContext distortionContext) const
 {
     CHECK_NULL(_distortionShader, E_FAIL);
     CHECK_NULL(_distortionSourceTarget, E_FAIL);
@@ -1108,17 +1115,17 @@ HRESULT EffectMaterialPreviewRenderer::Render_DistortionPreviewMesh(const Effect
         0.f,
         0.f
     );
-    const Vec4 uvModeParams = Vec4(
-        static_cast<float>(static_cast<uint32>(material.mainUVTilingMode)),
-        static_cast<float>(static_cast<uint32>(material.maskUVTilingMode)),
-        static_cast<float>(static_cast<uint32>(material.flowUVTilingMode)),
-        0.f
-    );
     const Vec4 uvPolicyParams = Vec4(
         static_cast<float>(static_cast<uint32>(material.flowUVPolicy.uPolicy)),
         static_cast<float>(static_cast<uint32>(material.flowUVPolicy.vPolicy)),
         0.f,
         0.f
+    );
+    const Vec4 materialUVPolicyParams = Vec4(
+        static_cast<float>(static_cast<uint32>(material.mainUVPolicy.uPolicy)),
+        static_cast<float>(static_cast<uint32>(material.mainUVPolicy.vPolicy)),
+        static_cast<float>(static_cast<uint32>(material.maskUVPolicy.uPolicy)),
+        static_cast<float>(static_cast<uint32>(material.maskUVPolicy.vPolicy))
     );
     const Vec4 uvRotationParams = Vec4(
         static_cast<float>(static_cast<uint32>(material.mainUVRotation)),
@@ -1132,8 +1139,17 @@ HRESULT EffectMaterialPreviewRenderer::Render_DistortionPreviewMesh(const Effect
         _flowTexture != nullptr ? 1.f : 0.f,
         previewCycleTime
     );
+    EffectDistortionShapeMode distortionShapeMode = material.distortionShapeMode;
+    if (distortionContext == EffectMaterialPreviewDistortionContext::Trail)
+    {
+        if (distortionShapeMode != EffectDistortionShapeMode::AirSheath)
+            distortionShapeMode = EffectDistortionShapeMode::None;
+    }
+    else if (distortionShapeMode == EffectDistortionShapeMode::AirSheath)
+        distortionShapeMode = EffectDistortionShapeMode::None;
+
     const Vec4 distortionShapeParams = Vec4(
-        static_cast<float>(static_cast<uint32>(material.distortionShapeMode)),
+        static_cast<float>(static_cast<uint32>(distortionShapeMode)),
         max(0.f, material.distortionShapeRadius),
         max(0.f, material.distortionShapeThickness),
         max(0.f, material.distortionShapeSoftness)
@@ -1144,10 +1160,10 @@ HRESULT EffectMaterialPreviewRenderer::Render_DistortionPreviewMesh(const Effect
         0.f,
         0.f
     );
-    const int opacitySource = Internal::Resolve_MaterialSourceIndex(material.opacitySource);
+    const int opacitySource = Resolve_MaterialSourceIndex(material.opacitySource);
     const Vec4 sourceParams = Vec4(
-        1.f,
-        static_cast<float>(Internal::Resolve_MaterialSourceIndex(material.maskSource)),
+        max(material.opacityPower, 0.0001f),
+        static_cast<float>(Resolve_MaterialSourceIndex(material.maskSource)),
         0.f,
         material.maskInvert ? 1.f : 0.f
     );
@@ -1174,7 +1190,24 @@ HRESULT EffectMaterialPreviewRenderer::Render_DistortionPreviewMesh(const Effect
     CHECK_FAILED(_distortionShader->Bind_RawValue("g_EffectMaterialPreviewFlowUVParams", &flowUVParams, sizeof(flowUVParams)), E_FAIL);
     CHECK_FAILED(_distortionShader->Bind_RawValue("g_EffectMaterialPreviewUVOffsetParams", &uvOffsetParams, sizeof(uvOffsetParams)), E_FAIL);
     CHECK_FAILED(_distortionShader->Bind_RawValue("g_EffectMaterialPreviewMaskUVOffsetParams", &maskUVOffsetParams, sizeof(maskUVOffsetParams)), E_FAIL);
-    CHECK_FAILED(_distortionShader->Bind_RawValue("g_EffectMaterialPreviewUVModeParams", &uvModeParams, sizeof(uvModeParams)), E_FAIL);
+    CHECK_FAILED(
+        _distortionShader->Bind_RawValue(
+            "g_EffectMaterialPreviewMaterialUVPolicyParams",
+            &materialUVPolicyParams,
+            sizeof(materialUVPolicyParams)
+        ),
+        E_FAIL
+    );
+    const Vec4 airSheathMapParams = Vec4(
+        static_cast<float>(static_cast<uint32>(material.airSheathMapInterpretation)),
+        static_cast<float>(static_cast<uint32>(material.airSheathMapXSource)),
+        static_cast<float>(static_cast<uint32>(material.airSheathMapYSource)),
+        static_cast<float>(static_cast<uint32>(material.airSheathMapComposition))
+    );
+    const Vec2 airSheathMapSpaceInfluence = Vec2(
+        static_cast<float>(static_cast<uint32>(material.airSheathMapVectorSpace)),
+        clamp(material.airSheathMapInfluence, 0.f, 1.f)
+    );
     CHECK_FAILED(_distortionShader->Bind_RawValue("g_EffectMaterialPreviewUVPolicyParams", &uvPolicyParams, sizeof(uvPolicyParams)), E_FAIL);
     CHECK_FAILED(_distortionShader->Bind_RawValue("g_EffectMaterialPreviewUVRotationParams", &uvRotationParams, sizeof(uvRotationParams)), E_FAIL);
     CHECK_FAILED(_distortionShader->Bind_RawValue("g_EffectMaterialPreviewSourceParams", &sourceParams, sizeof(sourceParams)), E_FAIL);
@@ -1183,6 +1216,8 @@ HRESULT EffectMaterialPreviewRenderer::Render_DistortionPreviewMesh(const Effect
         _distortionShader->Bind_RawValue("g_EffectMaterialPreviewDistortionShapeParams", &distortionShapeParams, sizeof(distortionShapeParams)),
         E_FAIL
     );
+    CHECK_FAILED(_distortionShader->Bind_RawValue("g_EffectAirSheathMapParams", &airSheathMapParams, sizeof(airSheathMapParams)), E_FAIL);
+    CHECK_FAILED(_distortionShader->Bind_RawValue("g_EffectAirSheathMapSpaceInfluence", &airSheathMapSpaceInfluence, sizeof(airSheathMapSpaceInfluence)), E_FAIL);
     CHECK_FAILED(_distortionShader->Bind_RawValue("g_EffectMaterialPreviewScreenSize", &screenSize, sizeof(screenSize)), E_FAIL);
     CHECK_FAILED(_distortionShader->Bind_RawValue("g_OpacitySource", &opacitySource, sizeof(opacitySource)), E_FAIL);
 

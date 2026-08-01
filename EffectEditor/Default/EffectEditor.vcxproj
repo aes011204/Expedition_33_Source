@@ -188,6 +188,10 @@ if exist "$(ProjectDir)..\..\EngineSDK\lib\$(Configuration)\fmod.dll" xcopy /y /
     <ClCompile Include="..\Private\CurveEditor_View.cpp" />
     <ClCompile Include="..\Private\Editor_Context.cpp" />
     <ClCompile Include="..\Private\Emitter_View.cpp" />
+    <ClCompile Include="..\Private\Emitter_View_Action.cpp" />
+    <ClCompile Include="..\Private\Emitter_View_Clipboard.cpp" />
+    <ClCompile Include="..\Private\Emitter_View_Module.cpp" />
+    <ClCompile Include="..\Private\Emitter_View_Render.cpp" />
     <ClCompile Include="..\Private\EffectAuthoringValueRange.cpp" />
     <ClCompile Include="..\Private\EffectAuthoringModuleMetadata.cpp" />
     <ClCompile Include="..\Private\EffectAuthoringJsonSerializer.cpp" />
@@ -218,7 +222,6 @@ if exist "$(ProjectDir)..\..\EngineSDK\lib\$(Configuration)\fmod.dll" xcopy /y /
     <ClCompile Include="..\Private\Editor_Window.cpp" />
     <ClCompile Include="..\Private\EffectEditor_Manager.cpp" />
     <ClCompile Include="..\Private\Scene_View.cpp" />
-    <ClCompile Include="..\Private\Game_View.cpp" />
     <ClCompile Include="..\Private\Hierarchy_View.cpp" />
     <ClCompile Include="..\Private\Content_Browser.cpp" />
     <ClCompile Include="..\Private\Detail_View.cpp" />
@@ -280,7 +283,6 @@ if exist "$(ProjectDir)..\..\EngineSDK\lib\$(Configuration)\fmod.dll" xcopy /y /
     <ClInclude Include="..\Public\EffectEditor_ImGuiInclude.h" />
     <ClInclude Include="..\Public\EffectEditor_Manager.h" />
     <ClInclude Include="..\Public\Scene_View.h" />
-    <ClInclude Include="..\Public\Game_View.h" />
     <ClInclude Include="..\Public\Hierarchy_View.h" />
     <ClInclude Include="..\Public\HistoryBudget_View.h" />
     <ClInclude Include="..\Public\Content_Browser.h" />

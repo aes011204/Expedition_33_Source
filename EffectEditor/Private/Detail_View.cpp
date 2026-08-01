@@ -11,7 +11,7 @@
 
 NS_BEGIN(EffectEditor)
 
-namespace Internal
+namespace
 {
     constexpr TrailCurveQuality kTrailCurveQualityValues[] = {
         TrailCurveQuality::Basic,
@@ -27,7 +27,7 @@ namespace Internal
         RibbonCurveQuality::Custom,
     };
 
-    static const char* Get_TrailCurveQualityLabel(TrailCurveQuality value)
+    const char* Get_TrailCurveQualityLabel(TrailCurveQuality value)
     {
         switch (value)
         {
@@ -44,7 +44,7 @@ namespace Internal
         }
     }
 
-    static const char* Get_TrailCurveQualityTooltip(TrailCurveQuality value)
+    const char* Get_TrailCurveQualityTooltip(TrailCurveQuality value)
     {
         switch (value)
         {
@@ -61,7 +61,7 @@ namespace Internal
         }
     }
 
-    static const char* Get_RibbonCurveQualityLabel(RibbonCurveQuality value)
+    const char* Get_RibbonCurveQualityLabel(RibbonCurveQuality value)
     {
         switch (value)
         {
@@ -78,7 +78,7 @@ namespace Internal
         }
     }
 
-    static const char* Get_RibbonCurveQualityTooltip(RibbonCurveQuality value)
+    const char* Get_RibbonCurveQualityTooltip(RibbonCurveQuality value)
     {
         switch (value)
         {
@@ -95,7 +95,7 @@ namespace Internal
         }
     }
 
-    static const char* Get_SourceHistorySpriteTrailStampSpawnModeLabel(SourceHistorySpriteTrailStampSpawnMode value)
+    const char* Get_SourceHistorySpriteTrailStampSpawnModeLabel(SourceHistorySpriteTrailStampSpawnMode value)
     {
         switch (value)
         {
@@ -108,7 +108,7 @@ namespace Internal
         }
     }
 
-    static bool Draw_SourceHistorySpriteTrailStampSpawnModeProperty(
+    bool Draw_SourceHistorySpriteTrailStampSpawnModeProperty(
         DetailPropertyContext& detailContext,
         SourceHistorySpriteTrailStampSpawnMode& value,
         SourceHistorySpriteTrailStampSpawnMode defaultValue)
@@ -144,7 +144,7 @@ namespace Internal
         return changed;
     }
 
-    static const char* Get_HistoryBudgetPresetLabel(HistoryBudgetPreset value)
+    const char* Get_HistoryBudgetPresetLabel(HistoryBudgetPreset value)
     {
         switch (value)
         {
@@ -162,7 +162,7 @@ namespace Internal
         }
     }
 
-    static const char* Get_HistoryBudgetPriorityLabel(HistoryBudgetPriority value)
+    const char* Get_HistoryBudgetPriorityLabel(HistoryBudgetPriority value)
     {
         switch (value)
         {
@@ -178,7 +178,7 @@ namespace Internal
         }
     }
 
-    static const char* Get_HistoryBudgetDensityBiasLabel(HistoryBudgetDensityBias value)
+    const char* Get_HistoryBudgetDensityBiasLabel(HistoryBudgetDensityBias value)
     {
         switch (value)
         {
@@ -192,7 +192,7 @@ namespace Internal
         }
     }
 
-    static void Draw_HistoryBudgetLink(const Shared<Emitter_View>& emitterView, const AuthoringEmitter& emitter)
+    void Draw_HistoryBudgetLink(const Shared<Emitter_View>& emitterView, const AuthoringEmitter& emitter)
     {
         if (emitterView == nullptr)
             return;
@@ -215,7 +215,7 @@ namespace Internal
         }
     }
 
-    static const char* Get_SourceHistoryRibbonSourceModeLabel(SourceHistoryRibbonSourceMode value)
+    const char* Get_SourceHistoryRibbonSourceModeLabel(SourceHistoryRibbonSourceMode value)
     {
         switch (value)
         {
@@ -230,7 +230,7 @@ namespace Internal
         }
     }
 
-    static const char* Get_BeamEndpointModeLabel(BeamEndpointMode value)
+    const char* Get_BeamEndpointModeLabel(BeamEndpointMode value)
     {
         switch (value)
         {
@@ -243,7 +243,7 @@ namespace Internal
         }
     }
 
-    static const char* Get_BeamBranchPresetLabel(BeamBranchPreset value)
+    const char* Get_BeamBranchPresetLabel(BeamBranchPreset value)
     {
         switch (value)
         {
@@ -260,7 +260,7 @@ namespace Internal
         }
     }
 
-    static bool Draw_BeamBranchPresetProperty(
+    bool Draw_BeamBranchPresetProperty(
         DetailPropertyContext& detailContext,
         BeamBranchPreset& value,
         BeamBranchPreset defaultValue)
@@ -303,7 +303,7 @@ namespace Internal
         return changed;
     }
 
-    static bool Draw_BeamEndpointModeProperty(
+    bool Draw_BeamEndpointModeProperty(
         DetailPropertyContext& detailContext,
         BeamEndpointMode& value,
         BeamEndpointMode defaultValue)
@@ -344,7 +344,7 @@ namespace Internal
         return changed;
     }
 
-    static const char* Get_RenderLayerOverrideLabel(EmitterRenderLayerOverride value)
+    const char* Get_RenderLayerOverrideLabel(EmitterRenderLayerOverride value)
     {
         switch (value)
         {
@@ -356,7 +356,7 @@ namespace Internal
         }
     }
 
-    static const char* Get_TrailPreviewGateModeLabel(TrailPreviewGateMode value)
+    const char* Get_TrailPreviewGateModeLabel(TrailPreviewGateMode value)
     {
         switch (value)
         {
@@ -369,7 +369,7 @@ namespace Internal
         }
     }
 
-    static const char* Get_TrailPreviewCharacterSlotLabel(TrailPreviewCharacterSlot value)
+    const char* Get_TrailPreviewCharacterSlotLabel(TrailPreviewCharacterSlot value)
     {
         switch (value)
         {
@@ -382,7 +382,7 @@ namespace Internal
         }
     }
 
-    static const char* Get_TrailPreviewMotionLabel(TrailPreviewMotion value)
+    const char* Get_TrailPreviewMotionLabel(TrailPreviewMotion value)
     {
         switch (value)
         {
@@ -395,7 +395,7 @@ namespace Internal
         }
     }
 
-    static void Get_TrailPreviewAnimationNames(vector<string>& outNames)
+    void Get_TrailPreviewAnimationNames(vector<string>& outNames)
     {
         outNames.clear();
 
@@ -407,7 +407,7 @@ namespace Internal
         effectEditorLevel->Get_TrailPreviewAnimationNames(outNames);
     }
 
-    static bool Draw_TrailPreviewCharacterSlotProperty(
+    bool Draw_TrailPreviewCharacterSlotProperty(
         DetailPropertyContext& detailContext,
         TrailPreviewCharacterSlot& value)
     {
@@ -451,7 +451,7 @@ namespace Internal
         return changed;
     }
 
-    static bool Draw_TrailPreviewMotionProperty(
+    bool Draw_TrailPreviewMotionProperty(
         DetailPropertyContext& detailContext,
         TrailPreviewMotion& value)
     {
@@ -495,7 +495,7 @@ namespace Internal
         return changed;
     }
 
-    static bool Draw_TrailPreviewManualAnimationProperty(
+    bool Draw_TrailPreviewManualAnimationProperty(
         DetailPropertyContext& detailContext,
         string& value)
     {
@@ -544,7 +544,7 @@ namespace Internal
         return changed;
     }
 
-    static bool Draw_TrailPreviewGateModeProperty(
+    bool Draw_TrailPreviewGateModeProperty(
         DetailPropertyContext& detailContext,
         TrailPreviewGateMode& value,
         TrailPreviewGateMode defaultValue,
@@ -590,7 +590,7 @@ namespace Internal
         return changed;
     }
 
-    static bool Draw_TrailPreviewGateRatioProperty(
+    bool Draw_TrailPreviewGateRatioProperty(
         DetailPropertyContext& detailContext,
         const char* id,
         const char* label,
@@ -617,7 +617,7 @@ namespace Internal
         return changed;
     }
 
-    static bool Draw_RenderLayerOverrideProperty(
+    bool Draw_RenderLayerOverrideProperty(
         DetailPropertyContext& detailContext,
         const char* label,
         EmitterRenderLayerOverride& value,
@@ -663,7 +663,7 @@ namespace Internal
         return changed;
     }
 
-    static bool Draw_SourceHistoryRibbonSourceModeProperty(
+    bool Draw_SourceHistoryRibbonSourceModeProperty(
         DetailPropertyContext& detailContext,
         SourceHistoryRibbonSourceMode& value,
         SourceHistoryRibbonSourceMode defaultValue)
@@ -711,13 +711,13 @@ namespace Internal
         return changed;
     }
 
-    static bool Can_UseAsSourceHistoryRibbonParticleSource(const AuthoringEmitter& emitter)
+    bool Can_UseAsSourceHistoryRibbonParticleSource(const AuthoringEmitter& emitter)
     {
         return emitter.typeData.kind == AuthoringTypeDataKind::None ||
                emitter.typeData.kind == AuthoringTypeDataKind::Mesh;
     }
 
-    static const char* Get_SourceHistoryRibbonParticleSourceTypeLabel(const AuthoringEmitter& emitter)
+    const char* Get_SourceHistoryRibbonParticleSourceTypeLabel(const AuthoringEmitter& emitter)
     {
         if (emitter.typeData.kind == AuthoringTypeDataKind::Mesh)
             return "Mesh";
@@ -725,7 +725,7 @@ namespace Internal
         return "Sprite";
     }
 
-    static string Build_SourceHistoryRibbonSourceEmitterLabel(const AuthoringEmitter& emitter)
+    string Build_SourceHistoryRibbonSourceEmitterLabel(const AuthoringEmitter& emitter)
     {
         string label = emitter.name.empty() ? "Emitter" : emitter.name;
         label += " (id: ";
@@ -738,7 +738,7 @@ namespace Internal
         return label;
     }
 
-    static string Resolve_SourceHistoryRibbonSourceEmitterPreviewLabel(
+    string Resolve_SourceHistoryRibbonSourceEmitterPreviewLabel(
         const vector<AuthoringEmitter>& emitters,
         uint32 currentEmitterId,
         uint32 sourceEmitterId)
@@ -759,7 +759,7 @@ namespace Internal
         return "Missing emitter (id: " + to_string(sourceEmitterId) + ")";
     }
 
-    static bool Draw_SourceHistoryRibbonSourceEmitterProperty(
+    bool Draw_SourceHistoryRibbonSourceEmitterProperty(
         DetailPropertyContext& detailContext,
         const vector<AuthoringEmitter>& emitters,
         const AuthoringEmitter& currentEmitter,
@@ -818,7 +818,7 @@ namespace Internal
         return changed;
     }
 
-    static TrailTypeData Build_TrailCurvePreset(TrailCurveQuality quality)
+    TrailTypeData Build_TrailCurvePreset(TrailCurveQuality quality)
     {
         TrailTypeData preset{};
 
@@ -849,7 +849,7 @@ namespace Internal
         return preset;
     }
 
-    static RibbonTypeData Build_RibbonCurvePreset(RibbonCurveQuality quality)
+    RibbonTypeData Build_RibbonCurvePreset(RibbonCurveQuality quality)
     {
         RibbonTypeData preset{};
 
@@ -880,7 +880,7 @@ namespace Internal
         return preset;
     }
 
-    static bool Apply_TrailCurvePreset(TrailTypeData& data)
+    bool Apply_TrailCurvePreset(TrailTypeData& data)
     {
         if (data.curveQuality == TrailCurveQuality::Custom)
             return false;
@@ -912,7 +912,7 @@ namespace Internal
         return changed;
     }
 
-    static bool Apply_RibbonCurvePreset(RibbonTypeData& data)
+    bool Apply_RibbonCurvePreset(RibbonTypeData& data)
     {
         if (data.curveQuality == RibbonCurveQuality::Custom)
             return false;
@@ -944,7 +944,7 @@ namespace Internal
         return changed;
     }
 
-    static SourceHistorySpriteTrailTypeData Build_SourceHistorySpriteTrailCurvePreset(RibbonCurveQuality quality)
+    SourceHistorySpriteTrailTypeData Build_SourceHistorySpriteTrailCurvePreset(RibbonCurveQuality quality)
     {
         SourceHistorySpriteTrailTypeData preset{};
 
@@ -972,7 +972,7 @@ namespace Internal
         return preset;
     }
 
-    static bool Apply_SourceHistorySpriteTrailCurvePreset(SourceHistorySpriteTrailTypeData& data)
+    bool Apply_SourceHistorySpriteTrailCurvePreset(SourceHistorySpriteTrailTypeData& data)
     {
         if (data.curveQuality == RibbonCurveQuality::Custom)
             return false;
@@ -999,7 +999,7 @@ namespace Internal
         return changed;
     }
 
-    static fs::path Resolve_AuthoredAssetPath(const string& guid, const string& path)
+    fs::path Resolve_AuthoredAssetPath(const string& guid, const string& path)
     {
         if (GAME == nullptr)
             return fs::path(String::ToWString(path));
@@ -1018,7 +1018,7 @@ namespace Internal
         return resolvedPath.lexically_normal();
     }
 
-    static string Build_MeshModelValidationMessage(const MeshTypeData& data, ImVec4& outColor)
+    string Build_MeshModelValidationMessage(const MeshTypeData& data, ImVec4& outColor)
     {
         outColor = ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled);
         if (data.modelGuid.empty() && data.modelPath.empty())
@@ -1064,7 +1064,7 @@ namespace Internal
         return "Model asset is valid for authoring.";
     }
 
-    static bool Draw_MeshDataEntryButton(const MeshTypeData& data)
+    bool Draw_MeshDataEntryButton(const MeshTypeData& data)
     {
         constexpr float kEntryHeight{ 52.f };
         const float width = max(180.f, ImGui::GetContentRegionAvail().x);
@@ -1122,12 +1122,12 @@ namespace Internal
         return clicked;
     }
 
-    static bool Has_PostProcessFeature(PostProcessFeature features, PostProcessFeature feature)
+    bool Has_PostProcessFeature(PostProcessFeature features, PostProcessFeature feature)
     {
         return Has_Flag(features, feature);
     }
 
-    static const char* Get_PostProcessPresetLabel(EffectEditorPostProcessPreset preset)
+    const char* Get_PostProcessPresetLabel(EffectEditorPostProcessPreset preset)
     {
         switch (preset)
         {
@@ -1141,7 +1141,7 @@ namespace Internal
         }
     }
 
-    static const char* Get_ToneMapModeLabel(uint32 toneMapMode)
+    const char* Get_ToneMapModeLabel(uint32 toneMapMode)
     {
         switch (toneMapMode)
         {
@@ -1155,7 +1155,7 @@ namespace Internal
         }
     }
 
-    static void Draw_PostProcessPresetProperty(DetailPropertyContext& detailContext)
+    void Draw_PostProcessPresetProperty(DetailPropertyContext& detailContext)
     {
         if (EDITOR == nullptr)
             return;
@@ -1191,7 +1191,7 @@ namespace Internal
         ImGui::PopID();
     }
 
-    static bool Draw_ToneMapModeProperty(DetailPropertyContext& detailContext, uint32& toneMapMode, uint32 defaultToneMapMode)
+    bool Draw_ToneMapModeProperty(DetailPropertyContext& detailContext, uint32& toneMapMode, uint32 defaultToneMapMode)
     {
         static constexpr uint32 toneMapModes[] = { 0u, 1u, 2u };
 
@@ -1230,7 +1230,7 @@ namespace Internal
         return changed;
     }
 
-    static bool Draw_TrailCurveQualityProperty(DetailPropertyContext& detailContext, TrailTypeData& data, const TrailTypeData& defaultData)
+    bool Draw_TrailCurveQualityProperty(DetailPropertyContext& detailContext, TrailTypeData& data, const TrailTypeData& defaultData)
     {
         bool changed = false;
 
@@ -1271,7 +1271,7 @@ namespace Internal
         return changed;
     }
 
-    static bool Draw_RibbonCurveQualityProperty(DetailPropertyContext& detailContext, RibbonTypeData& data, const RibbonTypeData& defaultData)
+    bool Draw_RibbonCurveQualityProperty(DetailPropertyContext& detailContext, RibbonTypeData& data, const RibbonTypeData& defaultData)
     {
         bool changed = false;
 
@@ -1312,7 +1312,7 @@ namespace Internal
         return changed;
     }
 
-    static bool Draw_SourceHistorySpriteTrailCurveQualityProperty(
+    bool Draw_SourceHistorySpriteTrailCurveQualityProperty(
         DetailPropertyContext& detailContext,
         SourceHistorySpriteTrailTypeData& data,
         const SourceHistorySpriteTrailTypeData& defaultData)
@@ -1527,12 +1527,12 @@ void Detail_View::Render_TrailPreviewDetail()
             EDITOR->Set_TrailPreviewVisible(visible);
         if (_detailPropertyContext.Draw_BoolProperty("디버그 렌더", debugRenderEnabled, true, "프리뷰 helper의 기준점과 샘플 흐름을 확인하기 위한 editor-only 표시입니다."))
             EDITOR->Set_TrailPreviewDebugRenderEnabled(debugRenderEnabled);
-        if (Internal::Draw_TrailPreviewCharacterSlotProperty(_detailPropertyContext, characterSlot))
+        if (Draw_TrailPreviewCharacterSlotProperty(_detailPropertyContext, characterSlot))
             EDITOR->Set_TrailPreviewCharacterSlot(characterSlot);
-        if (Internal::Draw_TrailPreviewMotionProperty(_detailPropertyContext, motion))
+        if (Draw_TrailPreviewMotionProperty(_detailPropertyContext, motion))
             EDITOR->Set_TrailPreviewMotion(motion);
         if (motion == TrailPreviewMotion::Manual &&
-            Internal::Draw_TrailPreviewManualAnimationProperty(_detailPropertyContext, manualAnimationName))
+            Draw_TrailPreviewManualAnimationProperty(_detailPropertyContext, manualAnimationName))
             EDITOR->Set_TrailPreviewManualAnimationName(manualAnimationName);
         static constexpr AuthoringValueRange kAnimationSpeedRange{ true, true, 0.f, 10.f };
         if (_detailPropertyContext.Draw_FloatProperty(
@@ -1568,12 +1568,12 @@ void Detail_View::Render_TrailPreviewDetail()
                 nullptr,
                 "Trail preview helper의 tip 기준점입니다. editor preview 전용 값입니다."
             );
-            if (Internal::Draw_TrailPreviewGateModeProperty(_detailPropertyContext, gateMode, TrailPreviewGateMode::Window, "TrailPreviewTrailGateMode"))
+            if (Draw_TrailPreviewGateModeProperty(_detailPropertyContext, gateMode, TrailPreviewGateMode::Window, "TrailPreviewTrailGateMode"))
                 EDITOR->Set_TrailPreviewGateMode(gateMode);
             if (gateMode == TrailPreviewGateMode::Window)
             {
                 bool gateWindowChanged = false;
-                gateWindowChanged |= Internal::Draw_TrailPreviewGateRatioProperty(
+                gateWindowChanged |= Draw_TrailPreviewGateRatioProperty(
                     _detailPropertyContext,
                     "TrailPreviewTrailGateStartRatio",
                     "시작 비율",
@@ -1581,7 +1581,7 @@ void Detail_View::Render_TrailPreviewDetail()
                     EDITOR->Get_DefaultTrailPreviewGateStartRatio(),
                     "현재 선택된 애니메이션의 normalized time 기준입니다. 타이밍이 맞지 않으면 항상으로 바꾸거나 시작/종료 비율을 조정하세요."
                 );
-                gateWindowChanged |= Internal::Draw_TrailPreviewGateRatioProperty(
+                gateWindowChanged |= Draw_TrailPreviewGateRatioProperty(
                     _detailPropertyContext,
                     "TrailPreviewTrailGateEndRatio",
                     "종료 비율",
@@ -1614,7 +1614,7 @@ void Detail_View::Render_TrailPreviewDetail()
                 nullptr,
                 "Ribbon/SourceHistorySpriteTrail preview source 위치입니다. editor preview 전용 값입니다."
             );
-            if (Internal::Draw_TrailPreviewGateModeProperty(
+            if (Draw_TrailPreviewGateModeProperty(
                 _detailPropertyContext,
                 spriteTrailGateMode,
                 TrailPreviewGateMode::Window,
@@ -1625,7 +1625,7 @@ void Detail_View::Render_TrailPreviewDetail()
             if (spriteTrailGateMode == TrailPreviewGateMode::Window)
             {
                 bool gateWindowChanged = false;
-                gateWindowChanged |= Internal::Draw_TrailPreviewGateRatioProperty(
+                gateWindowChanged |= Draw_TrailPreviewGateRatioProperty(
                     _detailPropertyContext,
                     "TrailPreviewSourceHistorySpriteTrailGateStartRatio",
                     "시작 비율",
@@ -1633,7 +1633,7 @@ void Detail_View::Render_TrailPreviewDetail()
                     EDITOR->Get_DefaultSourceHistorySpriteTrailPreviewGateStartRatio(),
                     "현재 선택된 애니메이션의 normalized time 기준입니다. 타이밍이 맞지 않으면 항상으로 바꾸거나 시작/종료 비율을 조정하세요."
                 );
-                gateWindowChanged |= Internal::Draw_TrailPreviewGateRatioProperty(
+                gateWindowChanged |= Draw_TrailPreviewGateRatioProperty(
                     _detailPropertyContext,
                     "TrailPreviewSourceHistorySpriteTrailGateEndRatio",
                     "종료 비율",
@@ -1666,21 +1666,21 @@ void Detail_View::Render_PostProcessShaderDetail()
     const EffectEditorPostProcessOptions options = EDITOR->Get_PostProcessOptions();
     const EffectEditorPostProcessOptions defaultOptions = EDITOR->Get_DefaultPostProcessOptions();
 
-    bool hdr = Internal::Has_PostProcessFeature(options.features, PostProcessFeature::HDR);
-    bool exposure = Internal::Has_PostProcessFeature(options.features, PostProcessFeature::Exposure);
-    bool toneMapping = Internal::Has_PostProcessFeature(options.features, PostProcessFeature::ToneMapping);
-    bool bloom = Internal::Has_PostProcessFeature(options.features, PostProcessFeature::Bloom);
-    bool gamma = Internal::Has_PostProcessFeature(options.features, PostProcessFeature::Gamma);
+    bool hdr = Has_PostProcessFeature(options.features, PostProcessFeature::HDR);
+    bool exposure = Has_PostProcessFeature(options.features, PostProcessFeature::Exposure);
+    bool toneMapping = Has_PostProcessFeature(options.features, PostProcessFeature::ToneMapping);
+    bool bloom = Has_PostProcessFeature(options.features, PostProcessFeature::Bloom);
+    bool gamma = Has_PostProcessFeature(options.features, PostProcessFeature::Gamma);
 
-    const bool defaultHdr = Internal::Has_PostProcessFeature(defaultOptions.features, PostProcessFeature::HDR);
-    const bool defaultExposure = Internal::Has_PostProcessFeature(defaultOptions.features, PostProcessFeature::Exposure);
-    const bool defaultToneMapping = Internal::Has_PostProcessFeature(defaultOptions.features, PostProcessFeature::ToneMapping);
-    const bool defaultBloom = Internal::Has_PostProcessFeature(defaultOptions.features, PostProcessFeature::Bloom);
-    const bool defaultGamma = Internal::Has_PostProcessFeature(defaultOptions.features, PostProcessFeature::Gamma);
+    const bool defaultHdr = Has_PostProcessFeature(defaultOptions.features, PostProcessFeature::HDR);
+    const bool defaultExposure = Has_PostProcessFeature(defaultOptions.features, PostProcessFeature::Exposure);
+    const bool defaultToneMapping = Has_PostProcessFeature(defaultOptions.features, PostProcessFeature::ToneMapping);
+    const bool defaultBloom = Has_PostProcessFeature(defaultOptions.features, PostProcessFeature::Bloom);
+    const bool defaultGamma = Has_PostProcessFeature(defaultOptions.features, PostProcessFeature::Gamma);
 
     if (_detailPropertyContext.Begin_PropertyTable("PostProcessPreset"))
     {
-        Internal::Draw_PostProcessPresetProperty(_detailPropertyContext);
+        Draw_PostProcessPresetProperty(_detailPropertyContext);
         _detailPropertyContext.End_PropertyTable();
     }
 
@@ -1753,7 +1753,7 @@ void Detail_View::Render_PostProcessShaderDetail()
             0.05f,
             "Bloom 입력 밝기의 상한을 제한합니다."
         );
-        paramsChanged |= Internal::Draw_ToneMapModeProperty(_detailPropertyContext, params.toneMapMode, defaultOptions.params.toneMapMode);
+        paramsChanged |= Draw_ToneMapModeProperty(_detailPropertyContext, params.toneMapMode, defaultOptions.params.toneMapMode);
         _detailPropertyContext.End_PropertyTable();
     }
 
@@ -1783,7 +1783,7 @@ void Detail_View::Render_EmitterDetail(
         _detailPropertyContext.Draw_ResetButton(false);
         ImGui::PopID();
 
-        changed |= Internal::Draw_RenderLayerOverrideProperty(
+        changed |= Draw_RenderLayerOverrideProperty(
             _detailPropertyContext,
             "렌더 레이어",
             emitter.renderLayerOverride,
@@ -1824,7 +1824,7 @@ void Detail_View::Render_TypeDataDetail(
         const TrailTypeData defaultData{};
         if (ImGui::CollapsingHeader("기본", ImGuiTreeNodeFlags_DefaultOpen))
         {
-            Internal::Draw_HistoryBudgetLink(emitterView, emitter);
+            Draw_HistoryBudgetLink(emitterView, emitter);
             if (_detailPropertyContext.Begin_PropertyTable("TrailTypeDataBase"))
             {
                 changed |= _detailPropertyContext.Draw_FloatProperty(
@@ -1891,7 +1891,7 @@ void Detail_View::Render_TypeDataDetail(
                     defaultData.historyCount,
                     "저장할 trail sample 개수입니다. 많을수록 긴 궤적을 유지할 수 있습니다."
                 );
-                Internal::Draw_TrailCurveQualityProperty(_detailPropertyContext, *data, defaultData);
+                Draw_TrailCurveQualityProperty(_detailPropertyContext, *data, defaultData);
                 _detailPropertyContext.Draw_FloatProperty(
                     "샘플 간격",
                     data->sampleSpacing,
@@ -1926,7 +1926,7 @@ void Detail_View::Render_TypeDataDetail(
             break;
         }
 
-        if (Internal::Draw_MeshDataEntryButton(*data))
+        if (Draw_MeshDataEntryButton(*data))
         {
             const Shared<Editor_Window> meshPreviewWindow = EDITOR != nullptr ? EDITOR->Get_Window(L"MeshData Preview") : nullptr;
             const Shared<MeshDataPreview_View> meshPreviewView = dynamic_pointer_cast<MeshDataPreview_View>(meshPreviewWindow);
@@ -1935,7 +1935,7 @@ void Detail_View::Render_TypeDataDetail(
         }
 
         ImVec4 validationColor{};
-        const string validationMessage = Internal::Build_MeshModelValidationMessage(*data, validationColor);
+        const string validationMessage = Build_MeshModelValidationMessage(*data, validationColor);
         if (validationMessage != "Model asset is valid for authoring.")
         {
             ImGui::PushStyleColor(ImGuiCol_Text, validationColor);
@@ -1957,10 +1957,10 @@ void Detail_View::Render_TypeDataDetail(
         const RibbonTypeData defaultData{};
         if (ImGui::CollapsingHeader("리본", ImGuiTreeNodeFlags_DefaultOpen))
         {
-            Internal::Draw_HistoryBudgetLink(emitterView, emitter);
+            Draw_HistoryBudgetLink(emitterView, emitter);
             if (_detailPropertyContext.Begin_PropertyTable("SourceHistoryRibbonSource"))
             {
-                changed |= Internal::Draw_SourceHistoryRibbonSourceModeProperty(
+                changed |= Draw_SourceHistoryRibbonSourceModeProperty(
                     _detailPropertyContext,
                     data->sourceMode,
                     defaultData.sourceMode
@@ -1987,7 +1987,7 @@ void Detail_View::Render_TypeDataDetail(
 
                 if (data->sourceMode == SourceHistoryRibbonSourceMode::ParticleEmitter)
                 {
-                    changed |= Internal::Draw_SourceHistoryRibbonSourceEmitterProperty(
+                    changed |= Draw_SourceHistoryRibbonSourceEmitterProperty(
                         _detailPropertyContext,
                         emitterView->Get_Emitters(),
                         emitter,
@@ -2050,7 +2050,7 @@ void Detail_View::Render_TypeDataDetail(
                 ImGui::BeginDisabled();
                 if (_detailPropertyContext.Begin_PropertyTable("RibbonTypeDataCurveQuality"))
                 {
-                    Internal::Draw_RibbonCurveQualityProperty(_detailPropertyContext, *data, defaultData);
+                    Draw_RibbonCurveQualityProperty(_detailPropertyContext, *data, defaultData);
                     _detailPropertyContext.Draw_UintProperty(
                         "히스토리 수",
                         data->maxSampleCount,
@@ -2145,7 +2145,7 @@ void Detail_View::Render_TypeDataDetail(
         {
             if (_detailPropertyContext.Begin_PropertyTable("SourceHistorySpriteTrailSource"))
             {
-                changed |= Internal::Draw_SourceHistoryRibbonSourceModeProperty(
+                changed |= Draw_SourceHistoryRibbonSourceModeProperty(
                     _detailPropertyContext,
                     data->sourceMode,
                     defaultData.sourceMode
@@ -2172,7 +2172,7 @@ void Detail_View::Render_TypeDataDetail(
 
                 if (data->sourceMode == SourceHistoryRibbonSourceMode::ParticleEmitter)
                 {
-                    changed |= Internal::Draw_SourceHistoryRibbonSourceEmitterProperty(
+                    changed |= Draw_SourceHistoryRibbonSourceEmitterProperty(
                         _detailPropertyContext,
                         emitterView->Get_Emitters(),
                         emitter,
@@ -2207,7 +2207,7 @@ void Detail_View::Render_TypeDataDetail(
 
         if (ImGui::CollapsingHeader("히스토리 진단"))
         {
-            Internal::Draw_HistoryBudgetLink(emitterView, emitter);
+            Draw_HistoryBudgetLink(emitterView, emitter);
             ImGui::TextDisabled("비용성 history 기준값은 History Budget View에서 source group 단위로 확정합니다.");
             ImGui::BeginDisabled();
             if (_detailPropertyContext.Begin_PropertyTable("SourceHistorySpriteTrailHistory"))
@@ -2230,7 +2230,7 @@ void Detail_View::Render_TypeDataDetail(
             ImGui::BeginDisabled();
             if (_detailPropertyContext.Begin_PropertyTable("SourceHistorySpriteTrailCurveQuality"))
             {
-                Internal::Draw_SourceHistorySpriteTrailCurveQualityProperty(_detailPropertyContext, *data, defaultData);
+                Draw_SourceHistorySpriteTrailCurveQualityProperty(_detailPropertyContext, *data, defaultData);
                 _detailPropertyContext.Draw_FloatProperty(
                     "샘플 간격",
                     data->sampleSpacing,
@@ -2259,7 +2259,7 @@ void Detail_View::Render_TypeDataDetail(
         {
             if (_detailPropertyContext.Begin_PropertyTable("SourceHistorySpriteTrailStamp"))
             {
-                changed |= Internal::Draw_SourceHistorySpriteTrailStampSpawnModeProperty(
+                changed |= Draw_SourceHistorySpriteTrailStampSpawnModeProperty(
                     _detailPropertyContext,
                     data->stampSpawnMode,
                     defaultData.stampSpawnMode
@@ -2362,7 +2362,7 @@ void Detail_View::Render_TypeDataDetail(
             {
                 if (_detailPropertyContext.Begin_PropertyTable("BeamTypeDataPath"))
                 {
-                    changed |= Internal::Draw_BeamEndpointModeProperty(_detailPropertyContext, data->endpointMode, defaultData.endpointMode);
+                    changed |= Draw_BeamEndpointModeProperty(_detailPropertyContext, data->endpointMode, defaultData.endpointMode);
                     changed |= _detailPropertyContext.Draw_Vec3Property(
                         "로컬 시작점",
                         data->localStart,
@@ -2475,7 +2475,7 @@ void Detail_View::Render_TypeDataDetail(
                         defaultData.branchEnabled,
                         "main strip 중간에서 짧은 child branch를 생성합니다."
                     );
-                    changed |= Internal::Draw_BeamBranchPresetProperty(
+                    changed |= Draw_BeamBranchPresetProperty(
                         _detailPropertyContext,
                         data->branchPreset,
                         defaultData.branchPreset

@@ -3767,7 +3767,7 @@ void Animation_View::Draw_ModifierRuntimePanel(const Shared<ModelCom>& playbackM
             for (const PropertyInfo& property : reflectionInfo->properties)
             {
                 if (Inspector::Draw_ReflectionProperty(reflectionInfo->className, reflectionTarget, property))
-                    simonHair->On_RuntimeReflectionChanged();
+                    simonHair->On_RuntimeReflectionChanged(property);
                 ImGui::Spacing();
             }
         }

@@ -21,7 +21,7 @@ public:
 
 public:
 	HRESULT Initialize(uint32 numLevels);
-	HRESULT Add_Prototype(uint32 levelIndex, const wstring& prototypeTag, Shared<Base> prototype);
+	HRESULT Add_Prototype(uint32 levelIndex, const wstring& prototypeTag, const Shared<Base>& prototype);
 	Shared<Base> Clone_Prototype(Prototype prototype, uint32 levelIndex, const wstring& prototypeTag, void* arg);
 	HRESULT Clear_Prototypes(uint32 levelIndex);
 

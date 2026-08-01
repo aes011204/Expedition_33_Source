@@ -14,7 +14,7 @@
 
 NS_BEGIN(EffectEditor)
 
-namespace Internal
+namespace
 {
     constexpr long long kStartupResourceInfoThresholdMs = 200;
 
@@ -639,7 +639,7 @@ void EffectEditorApp::Queue_EffectsAssetDeltaScan()
         [this, assetRootPath, effectsScanRoot]
         {
             const auto scanBegin = chrono::steady_clock::now();
-            AssetDeltaScanResult scanResult = Internal::Scan_EffectsAssetDelta(assetRootPath, effectsScanRoot);
+            AssetDeltaScanResult scanResult = Scan_EffectsAssetDelta(assetRootPath, effectsScanRoot);
             const auto elapsedMs = chrono::duration_cast<chrono::milliseconds>(
                 chrono::steady_clock::now() - scanBegin).count();
 
@@ -857,7 +857,7 @@ HRESULT EffectEditorApp::Render()
         if (FAILED(GAME->Clear_Buffers(kDefaultClearColor)))
             return E_FAIL;
 
-        const Internal::PostProcessFeatureScope postProcessFeatureScope{};
+        const PostProcessFeatureScope postProcessFeatureScope{};
 
         if (FAILED(GAME->Draw()))
             return E_FAIL;
@@ -963,7 +963,7 @@ HRESULT EffectEditorApp::Ready_Prototype_For_Static_Level()
 
     for (const FLoadJob& loadJob : loadJobs)
     {
-        const bool included = Internal::Is_EffectEditorStaticLoadJobAllowed(loadJob);
+        const bool included = Is_EffectEditorStaticLoadJobAllowed(loadJob);
 
         if (!included)
         {
@@ -979,7 +979,7 @@ HRESULT EffectEditorApp::Ready_Prototype_For_Static_Level()
             chrono::steady_clock::now() - jobStartTime
         ).count();
 
-        if (jobElapsedMs >= Internal::kStartupResourceInfoThresholdMs)
+        if (jobElapsedMs >= kStartupResourceInfoThresholdMs)
         {
             LOG_INFO(
                 "[StartupResourceTiming] scope=Static type={} tag={} elapsed_ms={} path={}",
@@ -1002,7 +1002,7 @@ HRESULT EffectEditorApp::Ready_Prototype_For_Static_Level()
         }
     }
 
-    Internal::Log_EffectEditorResourceFilterSummary("Static", loadJobs.size(), includedCount, excludedCount, failedCount);
+    Log_EffectEditorResourceFilterSummary("Static", loadJobs.size(), includedCount, excludedCount, failedCount);
 
     constexpr auto sourceHistoryRibbonTag = L"GameObject_Effect_ComputeSourceHistoryRibbonEmitter";
     if (!GAME->Has_Prototype(ETOI(LevelType::Static), sourceHistoryRibbonTag))

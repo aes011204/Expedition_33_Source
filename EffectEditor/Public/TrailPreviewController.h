@@ -12,7 +12,6 @@ class TrailPreviewMonsterObject;
 class TrailPreviewPlayerObject;
 enum class TrailPreviewCharacterSlot;
 
-// Trail preview player animation state와 source ratio를 제어한다.
 class TrailPreviewController final : public GameObject
 {
 public:
@@ -46,7 +45,7 @@ private: //## Types::Animation
         Manual,
     };
 
-private: //## Static Values
+private: //## Static::Animation
     static constexpr auto kAttackAnimationName{ "Gustave_Noah_Skill_Blitz" };
     static constexpr auto kRestAnimationName{ "Gustave_Anim_Noah_Idle_World_FeetFixed" };
 

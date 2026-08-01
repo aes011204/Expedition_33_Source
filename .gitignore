@@ -470,15 +470,18 @@ ModelEditor/Bin/*
 
 Client/Bin/[Dd]ebug/
 Client/Bin/[Rr]elease/
+Client/Bin/ReleaseUpdateProfile/
 Client/Bin/x64/
 Client/Bin/x86/
 Engine/Bin/[Dd]ebug/
 Engine/Bin/[Rr]elease/
+Engine/Bin/ReleaseUpdateProfile/
 Engine/Bin/x64/
 Engine/Bin/x86/
 
 # Project-local dependencies and generated docs
 vcpkg_installed/
+/Directory.Build.user.props
 !/EngineSDK/lib/
 !/EngineSDK/lib/Debug/
 !/EngineSDK/lib/Debug/**
@@ -486,6 +489,7 @@ vcpkg_installed/
 !/EngineSDK/lib/Release/**
 /EngineSDK/inc/Engine/
 .agent/
+.agents/
 .claude/
 .codex/
 .gemini/

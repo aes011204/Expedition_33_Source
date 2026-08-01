@@ -15,7 +15,7 @@ HRESULT Prototype_Manager::Initialize(uint32 numLevels)
 	return S_OK;
 }
 
-HRESULT Prototype_Manager::Add_Prototype(uint32 levelIndex, const wstring& prototypeTag, Shared<Base> prototype)
+HRESULT Prototype_Manager::Add_Prototype(uint32 levelIndex, const wstring& prototypeTag, const Shared<Base>& prototype)
 {
 	if (nullptr != Find_Prototype(levelIndex, prototypeTag))
 	{

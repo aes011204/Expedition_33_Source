@@ -27,7 +27,7 @@ public:
     void Render_Debug();
 
 public:
-    void    Add_Collider(Shared<ColliderCom> collider);
+    void    Add_Collider(const Shared<ColliderCom>& collider);
     void    Clear_Colliders();
 
 private:

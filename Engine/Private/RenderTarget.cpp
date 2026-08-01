@@ -268,7 +268,7 @@ HRESULT RenderTarget::Setup_Debug(float x, float y, float sizeX, float sizeY)
     return S_OK;
 }
 
-HRESULT RenderTarget::Render_Debug(Shared<VIBuffer_Rect> viBuffer, Shared<ShaderCom> shader)
+HRESULT RenderTarget::Render_Debug(const Shared<VIBuffer_Rect>& viBuffer, const Shared<ShaderCom>& shader)
 {
     CHECK_NULL(viBuffer, E_FAIL);
     CHECK_NULL(shader, E_FAIL);

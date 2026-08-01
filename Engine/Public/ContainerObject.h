@@ -38,6 +38,7 @@ public:
     PartObject* Get_PartObject(const wstring& partTag) const;
     const map<const wstring, Shared<PartObject>>& Get_PartObjects() const { return _partObjects; }
     void Refresh_PartObjectTransforms();
+    void Refresh_PartObjectWorldMatrices();
 
 protected:
     HRESULT Add_PartObject(uint32 prototypeLevelIndex, const wstring& prototypeTag,

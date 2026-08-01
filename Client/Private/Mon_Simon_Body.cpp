@@ -4,7 +4,7 @@
 #include "ChainModifierPreset.h"
 #include "ChainModifier.h"
 #include "OffsetAnimationModifier.h"
-#include "PoseFollowChainModifier.h"
+#include "PhysicsModifier.h"
 
 NS_BEGIN(Client)
 
@@ -71,15 +71,14 @@ HRESULT Mon_Simon_Body::Ready_Modifier()
         }
     }
 
-    PoseFollowChainModifier::PoseFollowChainModifierDesc coatDesc{};
-    ChainModifierPreset::BuildPoseFollowCoatDesc(
+    PhysicsModifier::PhysicsModifierDesc coatDesc{};
+    ChainModifierPreset::BuildSimonCoatPhysicsDesc(
         coatDesc,
-        _transformCom.get(),
-        PlayerCharacterType::None);
+        _transformCom.get());
 
-    if (!coatDesc.groups.empty())
+    if (!coatDesc.chains.empty())
     {
-        if (auto modifier = PoseFollowChainModifier::Create(&coatDesc))
+        if (auto modifier = PhysicsModifier::Create(&coatDesc))
         {
             _model->Add_AnimModifier(modifier);
         }

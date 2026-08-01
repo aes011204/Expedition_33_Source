@@ -1838,14 +1838,16 @@ bool ClientInstance::Play_Sequence(
     int trackIndex,
     bool applyCameraTrack,
     bool applyEventTrack,
-    bool applyActorTransformTrack)
+    bool applyActorTransformTrack,
+    const CinematicPreviewOptions& previewOptions)
 {
     return _cinematicSequenceRunner->Play_Sequence(
         sequence,
         trackIndex,
         applyCameraTrack,
         applyEventTrack,
-        applyActorTransformTrack);
+        applyActorTransformTrack,
+        previewOptions);
 }
 
 void ClientInstance::Stop_Sequence(bool forceRemoveAllSpawned)

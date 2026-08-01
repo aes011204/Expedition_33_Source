@@ -4,7 +4,6 @@
 
 NS_BEGIN(EffectEditor)
 
-// shared preview viewport canvas, gizmo, and viewport toolbar overlay를 그린다.
 class Scene_View final : public Editor_Window
 {
 public:

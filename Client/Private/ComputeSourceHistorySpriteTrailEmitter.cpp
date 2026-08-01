@@ -8,7 +8,7 @@
 
 NS_BEGIN(Client)
 
-namespace Internal
+namespace
 {
     Vec3 Normalize_OrFallback(Vec3 value, const Vec3& fallback)
     {
@@ -1104,12 +1104,12 @@ bool ComputeSourceHistorySpriteTrailEmitter::Try_ResolveSmoothedHistoryTangent(
         return false;
 
     const Vec3 averaged =
-        Internal::Normalize_OrFallback(newerDirection, Vec3{}) +
-        Internal::Normalize_OrFallback(olderDirection, Vec3{});
+        Normalize_OrFallback(newerDirection, Vec3{}) +
+        Normalize_OrFallback(olderDirection, Vec3{});
     if (averaged.LengthSquared() <= 0.0001f)
         return false;
 
-    outTangent = Internal::Normalize_OrFallback(averaged, Vec3{ 1.f, 0.f, 0.f });
+    outTangent = Normalize_OrFallback(averaged, Vec3{ 1.f, 0.f, 0.f });
     return true;
 }
 
@@ -1175,7 +1175,7 @@ bool ComputeSourceHistorySpriteTrailEmitter::Sample_HistoryAtDistance(
     if (history.size() == 1)
     {
         outPosition = history.front().position;
-        outTangent = Internal::Normalize_OrFallback(fallbackTangent, Vec3{ 1.f, 0.f, 0.f });
+        outTangent = Normalize_OrFallback(fallbackTangent, Vec3{ 1.f, 0.f, 0.f });
         return true;
     }
 
@@ -1198,7 +1198,7 @@ bool ComputeSourceHistorySpriteTrailEmitter::Sample_HistoryAtDistance(
             for (uint32 step = 1u; step <= stepCount; ++step)
             {
                 const float ratio = static_cast<float>(step) / static_cast<float>(stepCount);
-                const Vec3 position = Internal::Catmull_Rom(p0.position, p1.position, p2.position, p3.position, ratio);
+                const Vec3 position = Catmull_Rom(p0.position, p1.position, p2.position, p3.position, ratio);
                 const float stepDistance = (position - previousPosition).Length();
                 if (accumulatedDistance + stepDistance >= clampedTargetDistance)
                 {
@@ -1215,9 +1215,9 @@ bool ComputeSourceHistorySpriteTrailEmitter::Sample_HistoryAtDistance(
                 previousRatio = ratio;
             }
         }
-        outPosition = Internal::Catmull_Rom(p0.position, p1.position, p2.position, p3.position, clampedRatio);
-        const Vec3 rawTangent = Internal::Normalize_OrFallback(
-            Internal::Catmull_RomDerivative(p0.position, p1.position, p2.position, p3.position, clampedRatio) * -1.f,
+        outPosition = Catmull_Rom(p0.position, p1.position, p2.position, p3.position, clampedRatio);
+        const Vec3 rawTangent = Normalize_OrFallback(
+            Catmull_RomDerivative(p0.position, p1.position, p2.position, p3.position, clampedRatio) * -1.f,
             fallbackTangent
         );
         outTangent = rawTangent;
@@ -1229,7 +1229,7 @@ bool ComputeSourceHistorySpriteTrailEmitter::Sample_HistoryAtDistance(
                 Try_ResolveSmoothedHistoryTangent(history, tailIndex, tailTangent))
             {
                 const Vec3 blendedTangent = headTangent + (tailTangent - headTangent) * clampedRatio;
-                outTangent = Internal::Normalize_OrFallback(blendedTangent, rawTangent);
+                outTangent = Normalize_OrFallback(blendedTangent, rawTangent);
             }
         }
     };
@@ -1262,7 +1262,7 @@ bool ComputeSourceHistorySpriteTrailEmitter::Sample_HistoryAtDistance(
     }
 
     outPosition = history.back().position;
-    outTangent = Internal::Normalize_OrFallback(fallbackTangent, Vec3{ 1.f, 0.f, 0.f });
+    outTangent = Normalize_OrFallback(fallbackTangent, Vec3{ 1.f, 0.f, 0.f });
     return true;
 }
 
@@ -1296,7 +1296,7 @@ void ComputeSourceHistorySpriteTrailEmitter::Spawn_StampsForPath(
 {
     const Vec3 movement = currentPosition - previousPosition;
     const float distance = movement.Length();
-    const Vec3 tangent = Internal::Normalize_OrFallback(movement, lastValidTangent);
+    const Vec3 tangent = Normalize_OrFallback(movement, lastValidTangent);
     if (tangent.LengthSquared() > 0.0001f)
         lastValidTangent = tangent;
     const bool sourceVelocityValid = distance > 0.0001f && timeDelta > 0.f;
@@ -1326,7 +1326,7 @@ void ComputeSourceHistorySpriteTrailEmitter::Spawn_StampsForPath(
         SourceMotionVelocityContext context{};
         context.sourceVelocity = sourceVelocity;
         context.sourceVelocityValid = sourceVelocityValid;
-        context.tangent = Internal::Normalize_OrFallback(stampTangent, Vec3{ 1.f, 0.f, 0.f });
+        context.tangent = Normalize_OrFallback(stampTangent, Vec3{ 1.f, 0.f, 0.f });
         return context;
     };
 
@@ -1378,18 +1378,18 @@ void ComputeSourceHistorySpriteTrailEmitter::Push_Stamp(
     Vec3 jitteredCenter = center;
     if (_desc.spawnJitter > 0.f)
     {
-        const Vec3 normalizedTangent = Internal::Normalize_OrFallback(tangent, Vec3{ 1.f, 0.f, 0.f });
+        const Vec3 normalizedTangent = Normalize_OrFallback(tangent, Vec3{ 1.f, 0.f, 0.f });
         Vec3 side = normalizedTangent.Cross(Vec3{ 0.f, 1.f, 0.f });
         if (side.LengthSquared() <= 0.0001f)
             side = normalizedTangent.Cross(Vec3{ 0.f, 0.f, 1.f });
-        side = Internal::Normalize_OrFallback(side, Vec3{ 0.f, 0.f, 1.f });
-        const float offset = (Internal::Hash01(_effectPlaybackSeed + stampSerial * 977u) * 2.f - 1.f) * _desc.spawnJitter;
+        side = Normalize_OrFallback(side, Vec3{ 0.f, 0.f, 1.f });
+        const float offset = (Hash01(_effectPlaybackSeed + stampSerial * 977u) * 2.f - 1.f) * _desc.spawnJitter;
         jitteredCenter += side * offset;
     }
 
     Stamp stamp{};
     stamp.center = jitteredCenter;
-    stamp.tangent = Internal::Normalize_OrFallback(tangent, Vec3{ 1.f, 0.f, 0.f });
+    stamp.tangent = Normalize_OrFallback(tangent, Vec3{ 1.f, 0.f, 0.f });
     stamp.lifetime = Sample_Lifetime(stampSerial);
     stamp.serial = stampSerial;
     stamp.startColor = Sample_Color(_desc.initialColor.startColorMin, _desc.initialColor.startColorMax, _desc.initialColor.colorSeed, stampSerial, 37u);
@@ -1494,14 +1494,14 @@ HRESULT ComputeSourceHistorySpriteTrailEmitter::Ready_Texture()
 {
     bool usedPathFallback = false;
     bool guidPathMismatch = false;
-    wstring resolvedPath = Internal::Resolve_TexturePath(
+    wstring resolvedPath = Resolve_TexturePath(
         _desc.material.mainTextureGuid,
         _desc.material.mainTexturePath,
         usedPathFallback,
         guidPathMismatch
     );
     if (resolvedPath.empty())
-        resolvedPath = Internal::Resolve_TexturePathByPath(kFallbackTexturePath);
+        resolvedPath = Resolve_TexturePathByPath(kFallbackTexturePath);
 
     CHECK_FAILED(Add_Component(ETOI(LevelType::Static), L"Texture_Effect_DefaultTexture", _mainTexture), E_FAIL);
     if (!resolvedPath.empty())
@@ -1517,7 +1517,7 @@ HRESULT ComputeSourceHistorySpriteTrailEmitter::Ready_OptionalTexture(Shared<Tex
 {
     bool usedPathFallback = false;
     bool guidPathMismatch = false;
-    const wstring resolvedPath = Internal::Resolve_TexturePath(textureGuid, texturePath, usedPathFallback, guidPathMismatch);
+    const wstring resolvedPath = Resolve_TexturePath(textureGuid, texturePath, usedPathFallback, guidPathMismatch);
     if (resolvedPath.empty())
     {
         outTexture.reset();
@@ -1674,8 +1674,8 @@ HRESULT ComputeSourceHistorySpriteTrailEmitter::Bind_ShaderResources()
         0.f
     );
     const Vec4 effectSpriteSourceParams = Vec4(
-        static_cast<float>(Internal::Resolve_MaterialSourceIndex(material.noiseSource)),
-        static_cast<float>(Internal::Resolve_MaterialSourceIndex(material.maskSource)),
+        static_cast<float>(Resolve_MaterialSourceIndex(material.noiseSource)),
+        static_cast<float>(Resolve_MaterialSourceIndex(material.maskSource)),
         material.noiseInvert ? 1.f : 0.f,
         material.maskInvert ? 1.f : 0.f
     );
@@ -1727,7 +1727,7 @@ HRESULT ComputeSourceHistorySpriteTrailEmitter::Bind_ShaderResources()
     CHECK_FAILED(_shader->Bind_RawValue("g_EffectSpriteUVRotationParams", &effectSpriteUVRotationParams, sizeof(effectSpriteUVRotationParams)), E_FAIL);
     CHECK_FAILED(_shader->Bind_RawValue("g_EffectSpriteSourceParams", &effectSpriteSourceParams, sizeof(effectSpriteSourceParams)), E_FAIL);
     CHECK_FAILED(_shader->Bind_RawValue("g_EffectSpriteMaterialTime", &_materialElapsedTime, sizeof(_materialElapsedTime)), E_FAIL);
-    CHECK_FAILED(Internal::Bind_MaterialScalarModulationPayload(_shader.get(), material.scalarModulation, emitterPhase), E_FAIL);
+    CHECK_FAILED(Bind_MaterialScalarModulationPayload(_shader.get(), material.scalarModulation, emitterPhase), E_FAIL);
     CHECK_FAILED(
         Bind_CoreColorRgbModulationShaderPayload(
             _shader.get(),
@@ -1883,8 +1883,8 @@ float ComputeSourceHistorySpriteTrailEmitter::Sample_Lifetime(uint32 stampSerial
     if (lifeMin == lifeMax)
         return lifeMin;
 
-    const uint32 seed = Internal::Resolve_SeedSalt(_desc.lifetimeSeed, _effectPlaybackSeed) + stampSerial * 9781u + 1319u;
-    return lerp(lifeMin, lifeMax, Internal::Hash01(seed));
+    const uint32 seed = Resolve_SeedSalt(_desc.lifetimeSeed, _effectPlaybackSeed) + stampSerial * 9781u + 1319u;
+    return lerp(lifeMin, lifeMax, Hash01(seed));
 }
 
 Vec2 ComputeSourceHistorySpriteTrailEmitter::Sample_InitialSize(uint32 stampSerial) const
@@ -1984,7 +1984,7 @@ void ComputeSourceHistorySpriteTrailEmitter::Sample_InitialVelocityChannels(
                _transformCom->Get_WorldForward() * localVector.z;
     };
 
-    const Vec3 tangent = Internal::Normalize_OrFallback(sourceMotionContext.tangent, Vec3{ 1.f, 0.f, 0.f });
+    const Vec3 tangent = Normalize_OrFallback(sourceMotionContext.tangent, Vec3{ 1.f, 0.f, 0.f });
     if (_desc.motion.initialVelocityEnabled)
     {
         const Vec3 sampledVelocity = Sample_VectorRange(
@@ -2010,13 +2010,13 @@ void ComputeSourceHistorySpriteTrailEmitter::Sample_InitialVelocityChannels(
         {
             if (_desc.motion.initialRadialVelocityCenterDirectionMode == PointParticleInitialRadialVelocityCenterDirectionMode::PlaneRadial)
             {
-                const Vec3 normalizedTangent = Internal::Normalize_OrFallback(tangent, Vec3{ 1.f, 0.f, 0.f });
+                const Vec3 normalizedTangent = Normalize_OrFallback(tangent, Vec3{ 1.f, 0.f, 0.f });
                 Vec3 side{};
                 if (GAME != nullptr)
                 {
                     if (const Vec4* camPosition = GAME->Get_CamPosition())
                     {
-                        const Vec3 cameraLook = Internal::Normalize_OrFallback(
+                        const Vec3 cameraLook = Normalize_OrFallback(
                             Vec3{ camPosition->x, camPosition->y, camPosition->z } - spawnCenter,
                             Vec3{ 0.f, 0.f, -1.f }
                         );
@@ -2032,19 +2032,19 @@ void ComputeSourceHistorySpriteTrailEmitter::Sample_InitialVelocityChannels(
             else
             {
                 const uint32 fallbackSeed =
-                    Internal::Resolve_SeedSalt(_desc.motion.initialRadialVelocitySeed, _effectPlaybackSeed) +
+                    Resolve_SeedSalt(_desc.motion.initialRadialVelocitySeed, _effectPlaybackSeed) +
                     stampSerial * 3571u +
                     307u;
                 radialDirection = resolve_local_vector(
                     Vec3{
-                        Internal::Hash01(fallbackSeed) * 2.f - 1.f,
+                        Hash01(fallbackSeed) * 2.f - 1.f,
                         0.25f,
-                        Internal::Hash01(fallbackSeed + 94u) * 2.f - 1.f
+                        Hash01(fallbackSeed + 94u) * 2.f - 1.f
                     }
                 );
             }
         }
-        radialDirection = Internal::Normalize_OrFallback(radialDirection, Vec3{ 0.f, 1.f, 0.f });
+        radialDirection = Normalize_OrFallback(radialDirection, Vec3{ 0.f, 1.f, 0.f });
         const float radialSpeed = Sample_Range(
             _desc.motion.radialSpeed.x,
             _desc.motion.radialSpeed.y,
@@ -2058,10 +2058,10 @@ void ComputeSourceHistorySpriteTrailEmitter::Sample_InitialVelocityChannels(
     if (_desc.motion.velocityConeEnabled)
     {
         const uint32 coneSeed =
-            Internal::Resolve_SeedSalt(_desc.motion.velocityConeSeed, _effectPlaybackSeed) +
+            Resolve_SeedSalt(_desc.motion.velocityConeSeed, _effectPlaybackSeed) +
             stampSerial * 3571u +
             1703u;
-        const Vec3 sampledDirection = Internal::SampleConeDirection(
+        const Vec3 sampledDirection = SampleConeDirection(
             _desc.motion.velocityConeAxis,
             _desc.motion.velocityConeAngleDegrees,
             coneSeed
@@ -2093,9 +2093,9 @@ void ComputeSourceHistorySpriteTrailEmitter::Sample_InitialVelocityChannels(
                                      : Vec3{ 0.f, 0.f, 1.f };
         const Vec3 normalizedSourceVelocity =
             sourceMotionContext.sourceVelocityValid
-            ? Internal::Normalize_OrFallback(sourceMotionContext.sourceVelocity, fallbackForward)
-            : Internal::Normalize_OrFallback(fallbackForward, Vec3{ 0.f, 0.f, 1.f });
-        const Vec3 normalizedTangent = Internal::Normalize_OrFallback(tangent, normalizedSourceVelocity);
+            ? Normalize_OrFallback(sourceMotionContext.sourceVelocity, fallbackForward)
+            : Normalize_OrFallback(fallbackForward, Vec3{ 0.f, 0.f, 1.f });
+        const Vec3 normalizedTangent = Normalize_OrFallback(tangent, normalizedSourceVelocity);
 
         const auto resolve_side_from_tangent = [&normalizedTangent]
         {
@@ -2104,11 +2104,11 @@ void ComputeSourceHistorySpriteTrailEmitter::Sample_InitialVelocityChannels(
                 side = normalizedTangent.Cross(Vec3{ 0.f, 0.f, 1.f });
             if (side.LengthSquared() <= 0.0001f)
                 side = Vec3{ 1.f, 0.f, 0.f };
-            return Internal::Normalize_OrFallback(side, Vec3{ 1.f, 0.f, 0.f });
+            return Normalize_OrFallback(side, Vec3{ 1.f, 0.f, 0.f });
         };
 
         const uint32 sourceMotionSeed =
-            Internal::Resolve_SeedSalt(_desc.motion.sourceMotionVelocitySeed, _effectPlaybackSeed) +
+            Resolve_SeedSalt(_desc.motion.sourceMotionVelocitySeed, _effectPlaybackSeed) +
             stampSerial * 3571u +
             2309u;
         Vec3 resolvedDirection{};
@@ -2130,7 +2130,7 @@ void ComputeSourceHistorySpriteTrailEmitter::Sample_InitialVelocityChannels(
             break;
         case PointParticleSourceMotionVelocityDirectionMode::RandomSideFromTangent:
             resolvedDirection = resolve_side_from_tangent();
-            if (Internal::Hash01(sourceMotionSeed + 37u) < 0.5f)
+            if (Hash01(sourceMotionSeed + 37u) < 0.5f)
                 resolvedDirection = -resolvedDirection;
             break;
         case PointParticleSourceMotionVelocityDirectionMode::TrailTangent:
@@ -2142,7 +2142,7 @@ void ComputeSourceHistorySpriteTrailEmitter::Sample_InitialVelocityChannels(
         if (_desc.motion.sourceMotionVelocityDirectionMode != PointParticleSourceMotionVelocityDirectionMode::InheritSourceVelocity &&
             _desc.motion.sourceMotionVelocitySpreadAngleDegrees > 0.f)
         {
-            resolvedDirection = Internal::SampleConeDirection(
+            resolvedDirection = SampleConeDirection(
                 resolvedDirection,
                 _desc.motion.sourceMotionVelocitySpreadAngleDegrees,
                 sourceMotionSeed + 71u
@@ -2222,12 +2222,12 @@ Vec4 ComputeSourceHistorySpriteTrailEmitter::Sample_Color(
     uint32 stampSerial,
     uint32 salt) const
 {
-    const uint32 baseSeed = Internal::Resolve_SeedSalt(seed, _effectPlaybackSeed) + stampSerial * 3571u + salt;
+    const uint32 baseSeed = Resolve_SeedSalt(seed, _effectPlaybackSeed) + stampSerial * 3571u + salt;
     return Vec4{
-        lerp(minColor.x, maxColor.x, Internal::Hash01(baseSeed + 11u)),
-        lerp(minColor.y, maxColor.y, Internal::Hash01(baseSeed + 23u)),
-        lerp(minColor.z, maxColor.z, Internal::Hash01(baseSeed + 47u)),
-        lerp(minColor.w, maxColor.w, Internal::Hash01(baseSeed + 71u))
+        lerp(minColor.x, maxColor.x, Hash01(baseSeed + 11u)),
+        lerp(minColor.y, maxColor.y, Hash01(baseSeed + 23u)),
+        lerp(minColor.z, maxColor.z, Hash01(baseSeed + 47u)),
+        lerp(minColor.w, maxColor.w, Hash01(baseSeed + 71u))
     };
 }
 
@@ -2238,8 +2238,8 @@ float ComputeSourceHistorySpriteTrailEmitter::Sample_Range(
     uint32 stampSerial,
     uint32 salt) const
 {
-    const uint32 baseSeed = Internal::Resolve_SeedSalt(seed, _effectPlaybackSeed) + stampSerial * 3571u + salt;
-    return Internal::RandomRange(minValue, maxValue, baseSeed);
+    const uint32 baseSeed = Resolve_SeedSalt(seed, _effectPlaybackSeed) + stampSerial * 3571u + salt;
+    return RandomRange(minValue, maxValue, baseSeed);
 }
 
 Vec2 ComputeSourceHistorySpriteTrailEmitter::Sample_Vector2Range(
@@ -2249,10 +2249,10 @@ Vec2 ComputeSourceHistorySpriteTrailEmitter::Sample_Vector2Range(
     uint32 stampSerial,
     uint32 salt) const
 {
-    const uint32 baseSeed = Internal::Resolve_SeedSalt(seed, _effectPlaybackSeed) + stampSerial * 3571u + salt;
+    const uint32 baseSeed = Resolve_SeedSalt(seed, _effectPlaybackSeed) + stampSerial * 3571u + salt;
     return Vec2{
-        Internal::RandomRange(minValue.x, maxValue.x, baseSeed + 11u),
-        Internal::RandomRange(minValue.y, maxValue.y, baseSeed + 23u)
+        RandomRange(minValue.x, maxValue.x, baseSeed + 11u),
+        RandomRange(minValue.y, maxValue.y, baseSeed + 23u)
     };
 }
 
@@ -2263,11 +2263,11 @@ Vec3 ComputeSourceHistorySpriteTrailEmitter::Sample_VectorRange(
     uint32 stampSerial,
     uint32 salt) const
 {
-    const uint32 baseSeed = Internal::Resolve_SeedSalt(seed, _effectPlaybackSeed) + stampSerial * 3571u + salt;
+    const uint32 baseSeed = Resolve_SeedSalt(seed, _effectPlaybackSeed) + stampSerial * 3571u + salt;
     return Vec3{
-        Internal::RandomRange(minValue.x, maxValue.x, baseSeed + 11u),
-        Internal::RandomRange(minValue.y, maxValue.y, baseSeed + 23u),
-        Internal::RandomRange(minValue.z, maxValue.z, baseSeed + 47u)
+        RandomRange(minValue.x, maxValue.x, baseSeed + 11u),
+        RandomRange(minValue.y, maxValue.y, baseSeed + 23u),
+        RandomRange(minValue.z, maxValue.z, baseSeed + 47u)
     };
 }
 
@@ -2645,7 +2645,7 @@ uint32 ComputeSourceHistorySpriteTrailEmitter::Evaluate_SubUVFrameIndex(const St
     if (!_desc.subUVFrameOverLife.enabled)
         return 0u;
 
-    const Internal::SubUVFrameRange frameRange = Internal::Resolve_SubUVFrameRange(
+    const SubUVFrameRange frameRange = Resolve_SubUVFrameRange(
         _desc.subUVFrameOverLife.startFrame,
         _desc.subUVFrameOverLife.endFrame,
         frameCount
@@ -2657,7 +2657,7 @@ uint32 ComputeSourceHistorySpriteTrailEmitter::Evaluate_SubUVFrameIndex(const St
     {
         const uint32 frameOffset =
             min(static_cast<uint32>(floorf(stampLifeProgress * static_cast<float>(frameRange.rangeCount))), frameRange.rangeCount - 1u);
-        return Internal::Resolve_SubUVFrameInRange(frameRange, frameOffset);
+        return Resolve_SubUVFrameInRange(frameRange, frameOffset);
     }
     case SubUVFramePlaybackMode::FramesPerSecond:
     {
@@ -2666,9 +2666,9 @@ uint32 ComputeSourceHistorySpriteTrailEmitter::Evaluate_SubUVFrameIndex(const St
             _desc.subUVFrameOverLife.randomStartPhase
             ? Sample_RandomSubUVFrameIndex(stamp.serial, 0u, frameRange.rangeCount, frameRange.rangeCount)
             : 0u;
-        return Internal::Resolve_SubUVFrameInRange(
+        return Resolve_SubUVFrameInRange(
             frameRange,
-            Internal::Resolve_SubUVPlaybackOffset(frameRange, frameOffset, phaseOffset, _desc.subUVFrameOverLife.loop)
+            Resolve_SubUVPlaybackOffset(frameRange, frameOffset, phaseOffset, _desc.subUVFrameOverLife.loop)
         );
     }
     case SubUVFramePlaybackMode::RandomFrame:
@@ -2682,11 +2682,11 @@ uint32 ComputeSourceHistorySpriteTrailEmitter::Evaluate_SubUVFrameIndex(const St
 uint32 ComputeSourceHistorySpriteTrailEmitter::Sample_RandomSubUVFrameIndex(uint32 stampSerial, uint32 startFrame, uint32 frameCount, uint32 rangeCount) const
 {
     const uint32 seed =
-        Internal::Resolve_SeedSalt(_desc.subUVRandomFrameSeed, _effectPlaybackSeed) +
+        Resolve_SeedSalt(_desc.subUVRandomFrameSeed, _effectPlaybackSeed) +
         stampSerial * 7919u +
         1201u;
     const uint32 safeRangeCount = max(1u, rangeCount);
-    const uint32 frameOffset = min(static_cast<uint32>(floorf(Internal::Hash01(seed) * static_cast<float>(safeRangeCount))), safeRangeCount - 1u);
+    const uint32 frameOffset = min(static_cast<uint32>(floorf(Hash01(seed) * static_cast<float>(safeRangeCount))), safeRangeCount - 1u);
     return (startFrame + frameOffset) % max(1u, frameCount);
 }
 
@@ -2714,26 +2714,26 @@ float ComputeSourceHistorySpriteTrailEmitter::Evaluate_CompactCurve(
     float fallbackValue) const
 {
     const uint32 clampedKeyCount = max(1u, min(::Engine::kEffectDistributionCurveMaxKeys, keyCount));
-    if (clampedKeyCount == 1u || lifeProgress <= Internal::Read_Vec4Component(times, timesBlock1, 0u))
-        return Internal::Read_Vec4Component(values, valuesBlock1, 0u);
+    if (clampedKeyCount == 1u || lifeProgress <= Read_Vec4Component(times, timesBlock1, 0u))
+        return Read_Vec4Component(values, valuesBlock1, 0u);
 
     for (uint32 index = 1u; index < clampedKeyCount; ++index)
     {
-        const float rightTime = Internal::Read_Vec4Component(times, timesBlock1, index);
+        const float rightTime = Read_Vec4Component(times, timesBlock1, index);
         if (lifeProgress > rightTime)
             continue;
 
-        const float leftTime = Internal::Read_Vec4Component(times, timesBlock1, index - 1u);
+        const float leftTime = Read_Vec4Component(times, timesBlock1, index - 1u);
         const float ratio = clamp((lifeProgress - leftTime) / max(0.0001f, rightTime - leftTime), 0.f, 1.f);
         return lerp(
-            Internal::Read_Vec4Component(values, valuesBlock1, index - 1u),
-            Internal::Read_Vec4Component(values, valuesBlock1, index),
+            Read_Vec4Component(values, valuesBlock1, index - 1u),
+            Read_Vec4Component(values, valuesBlock1, index),
             ratio
         );
     }
 
-    return lifeProgress > Internal::Read_Vec4Component(times, timesBlock1, clampedKeyCount - 1u)
-           ? Internal::Read_Vec4Component(values, valuesBlock1, clampedKeyCount - 1u)
+    return lifeProgress > Read_Vec4Component(times, timesBlock1, clampedKeyCount - 1u)
+           ? Read_Vec4Component(values, valuesBlock1, clampedKeyCount - 1u)
            : fallbackValue;
 }
 
@@ -2753,19 +2753,19 @@ float ComputeSourceHistorySpriteTrailEmitter::Evaluate_CompactCurve(
     float fallbackValue) const
 {
     const uint32 clampedKeyCount = max(1u, min(::Engine::kEffectDistributionCurveMaxKeys, keyCount));
-    if (clampedKeyCount == 1u || lifeProgress <= Internal::Read_Vec4Component(times, timesBlock1, 0u))
-        return Internal::Read_Vec4Component(values, valuesBlock1, 0u);
+    if (clampedKeyCount == 1u || lifeProgress <= Read_Vec4Component(times, timesBlock1, 0u))
+        return Read_Vec4Component(values, valuesBlock1, 0u);
 
     for (uint32 index = 1u; index < clampedKeyCount; ++index)
     {
-        const float rightTime = Internal::Read_Vec4Component(times, timesBlock1, index);
+        const float rightTime = Read_Vec4Component(times, timesBlock1, index);
         if (lifeProgress > rightTime)
             continue;
 
-        const float leftTime = Internal::Read_Vec4Component(times, timesBlock1, index - 1u);
-        const float leftValue = Internal::Read_Vec4Component(values, valuesBlock1, index - 1u);
-        const float rightValue = Internal::Read_Vec4Component(values, valuesBlock1, index);
-        const float mode = Internal::Read_Vec4Component(modes, modesBlock1, index - 1u);
+        const float leftTime = Read_Vec4Component(times, timesBlock1, index - 1u);
+        const float leftValue = Read_Vec4Component(values, valuesBlock1, index - 1u);
+        const float rightValue = Read_Vec4Component(values, valuesBlock1, index);
+        const float mode = Read_Vec4Component(modes, modesBlock1, index - 1u);
         const float width = max(0.0001f, rightTime - leftTime);
         const float ratio = clamp((lifeProgress - leftTime) / width, 0.f, 1.f);
 
@@ -2776,8 +2776,8 @@ float ComputeSourceHistorySpriteTrailEmitter::Evaluate_CompactCurve(
         {
             const float t2 = ratio * ratio;
             const float t3 = t2 * ratio;
-            const float leftLeave = Internal::Read_Vec4Component(leaveTangents, leaveTangentsBlock1, index - 1u) * width;
-            const float rightArrive = Internal::Read_Vec4Component(arriveTangents, arriveTangentsBlock1, index) * width;
+            const float leftLeave = Read_Vec4Component(leaveTangents, leaveTangentsBlock1, index - 1u) * width;
+            const float rightArrive = Read_Vec4Component(arriveTangents, arriveTangentsBlock1, index) * width;
             return
                 (2.f * t3 - 3.f * t2 + 1.f) * leftValue +
                 (t3 - 2.f * t2 + ratio) * leftLeave +
@@ -2788,8 +2788,8 @@ float ComputeSourceHistorySpriteTrailEmitter::Evaluate_CompactCurve(
         return lerp(leftValue, rightValue, ratio);
     }
 
-    return lifeProgress > Internal::Read_Vec4Component(times, timesBlock1, clampedKeyCount - 1u)
-           ? Internal::Read_Vec4Component(values, valuesBlock1, clampedKeyCount - 1u)
+    return lifeProgress > Read_Vec4Component(times, timesBlock1, clampedKeyCount - 1u)
+           ? Read_Vec4Component(values, valuesBlock1, clampedKeyCount - 1u)
            : fallbackValue;
 }
 

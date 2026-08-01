@@ -13,7 +13,7 @@
 
 NS_BEGIN(EffectEditor)
 
-namespace Internal
+namespace
 {
     constexpr auto kEffectTexturePayloadType = "CONTENT_BROWSER_EFFECT_TEXTURE";
     constexpr auto kTextureDialogDefaultFolder = L"../../../Client/Bin/Resources/Effects/Textures";
@@ -29,7 +29,7 @@ namespace Internal
         return value;
     }
 
-    static bool Has_DuplicateEmitterName(const vector<AuthoringEmitter>& emitters, const AuthoringEmitter& target)
+    bool Has_DuplicateEmitterName(const vector<AuthoringEmitter>& emitters, const AuthoringEmitter& target)
     {
         if (target.name.empty())
             return false;
@@ -44,7 +44,7 @@ namespace Internal
         return matchCount > 1;
     }
 
-    static string Build_EmitterPreviewLabel(const vector<AuthoringEmitter>& emitters, const AuthoringEmitter& emitter, const char* previewKind)
+    string Build_EmitterPreviewLabel(const vector<AuthoringEmitter>& emitters, const AuthoringEmitter& emitter, const char* previewKind)
     {
         string label = emitter.name.empty() ? "Emitter" : emitter.name;
         if (emitter.name.empty() || Has_DuplicateEmitterName(emitters, emitter))
@@ -584,7 +584,7 @@ namespace Internal
         return changed;
     }
 
-    static const char* Get_BlendModeLabel(EffectMaterialBlendMode value)
+    const char* Get_BlendModeLabel(EffectMaterialBlendMode value)
     {
         switch (value)
         {
@@ -1101,30 +1101,97 @@ namespace Internal
             return "Ring";
         case EffectDistortionShapeMode::ShockwaveRing:
             return "ShockwaveRing";
+        case EffectDistortionShapeMode::AirSheath:
+            return "AirSheath";
         default:
             return "None";
+        }
+    }
+
+    const char* Get_AirSheathMapInterpretationLabel(EffectAirSheathMapInterpretation value)
+    {
+        switch (value)
+        {
+        case EffectAirSheathMapInterpretation::VectorField: return "Vector Field";
+        case EffectAirSheathMapInterpretation::HeightGradient: return "Height Gradient";
+        case EffectAirSheathMapInterpretation::ScalarModulation: return "Scalar Modulation";
+        default: return "Vector Field";
+        }
+    }
+
+    const char* Get_AirSheathMapScalarSourceLabel(EffectAirSheathMapScalarSource value)
+    {
+        switch (value)
+        {
+        case EffectAirSheathMapScalarSource::Red: return "R";
+        case EffectAirSheathMapScalarSource::Green: return "G";
+        case EffectAirSheathMapScalarSource::Blue: return "B";
+        case EffectAirSheathMapScalarSource::Alpha: return "A";
+        case EffectAirSheathMapScalarSource::Luminance: return "Luminance";
+        default: return "R";
+        }
+    }
+
+    const char* Get_AirSheathMapVectorSpaceLabel(EffectAirSheathMapVectorSpace value)
+    {
+        switch (value)
+        {
+        case EffectAirSheathMapVectorSpace::Screen: return "Screen";
+        case EffectAirSheathMapVectorSpace::TrailLocal: return "Trail Local";
+        case EffectAirSheathMapVectorSpace::BaseField: return "Base Field";
+        default: return "Screen";
+        }
+    }
+
+    const char* Get_AirSheathMapCompositionLabel(EffectAirSheathMapComposition value)
+    {
+        switch (value)
+        {
+        case EffectAirSheathMapComposition::Replace: return "Replace";
+        case EffectAirSheathMapComposition::Add: return "Add";
+        case EffectAirSheathMapComposition::Modulate: return "Modulate";
+        default: return "Replace";
         }
     }
 
     bool Draw_DistortionShapeModeProperty(
         DetailPropertyContext& detailContext,
         EffectDistortionShapeMode& value,
-        EffectDistortionShapeMode defaultValue)
+        EffectDistortionShapeMode defaultValue,
+        EffectMaterialDistortionShapeControlMode controlMode)
     {
-        static constexpr EffectDistortionShapeMode kModes[]{
+        static constexpr EffectDistortionShapeMode kSpriteModes[]{
             EffectDistortionShapeMode::None,
             EffectDistortionShapeMode::Radial,
             EffectDistortionShapeMode::Ring,
             EffectDistortionShapeMode::ShockwaveRing
         };
+        static constexpr EffectDistortionShapeMode kTrailModes[]{
+            EffectDistortionShapeMode::None,
+            EffectDistortionShapeMode::AirSheath
+        };
+
+        if (controlMode == EffectMaterialDistortionShapeControlMode::TrailEditable)
+        {
+            return Draw_EnumComboProperty(
+                detailContext,
+                "Shape Mode",
+                value,
+                defaultValue,
+                kTrailModes,
+                size(kTrailModes),
+                Get_DistortionShapeModeLabel,
+                "Trail distortion shape입니다. None은 Flow-only, AirSheath는 폭 방향의 분석적 공기막 굴절입니다."
+            );
+        }
 
         return Draw_EnumComboProperty(
             detailContext,
             "Shape Mode",
             value,
             defaultValue,
-            kModes,
-            size(kModes),
+            kSpriteModes,
+            size(kSpriteModes),
             Get_DistortionShapeModeLabel,
             "굴절이 적용될 화면상의 기본 shape mask입니다. None이면 texture/flow 입력 전체를 사용합니다."
         );
@@ -1188,6 +1255,11 @@ void EffectMaterialInstance_View::Pre_Render()
     if (!Resolve_Target(emitterView, emitter, requiredData))
         return;
 
+    const EffectMaterialPreviewDistortionContext distortionContext =
+        emitter->typeData.kind == AuthoringTypeDataKind::Trail
+        ? EffectMaterialPreviewDistortionContext::Trail
+        : EffectMaterialPreviewDistortionContext::Generic;
+
     if (const MaterialScalarModulationModuleData* modulation = Find_MaterialScalarModulationModuleData(*emitter))
     {
         const bool evaluateParticleLife =
@@ -1198,11 +1270,13 @@ void EffectMaterialInstance_View::Pre_Render()
             Build_MaterialVec2ModulationRuntimeDesc(*modulation),
             Build_MaterialScalarModulationRuntimeDesc(*modulation),
             requiredData->duration,
-            evaluateParticleLife
+            evaluateParticleLife,
+            distortionContext
         );
     }
+
     else
-        _previewRenderer->Render_Material(requiredData->material);
+        _previewRenderer->Render_Material(requiredData->material, distortionContext);
 }
 
 void EffectMaterialInstance_View::Render()
@@ -1256,10 +1330,12 @@ void EffectMaterialInstance_View::Render()
                       ? EffectMaterialTwoSidedDisplayMode::EditableUnimplemented
                       : EffectMaterialTwoSidedDisplayMode::EditableImplemented;
                 const EffectMaterialDistortionShapeControlMode distortionShapeControlMode =
-                    emitter->typeData.kind == AuthoringTypeDataKind::Beam
-                    ? EffectMaterialDistortionShapeControlMode::BeamUnsupported
-                    : EffectMaterialDistortionShapeControlMode::Editable;
-                const string previewLabel = Internal::Build_EmitterPreviewLabel(
+                    emitter->typeData.kind == AuthoringTypeDataKind::Trail
+                    ? EffectMaterialDistortionShapeControlMode::TrailEditable
+                    : emitter->typeData.kind == AuthoringTypeDataKind::Beam
+                      ? EffectMaterialDistortionShapeControlMode::BeamUnsupported
+                      : EffectMaterialDistortionShapeControlMode::Editable;
+                const string previewLabel = Build_EmitterPreviewLabel(
                     emitterView->Get_Emitters(),
                     *emitter,
                     "Material Instance"
@@ -1269,9 +1345,9 @@ void EffectMaterialInstance_View::Render()
                 {
                     const float spacing = ImGui::GetStyle().ItemSpacing.x;
                     const float previewPaneWidth = clamp(
-                        contentWidth * Internal::kPreviewPaneWidthRatio,
-                        Internal::kPreviewPaneMinWidth,
-                        Internal::kPreviewPaneMaxWidth
+                        contentWidth * kPreviewPaneWidthRatio,
+                        kPreviewPaneMinWidth,
+                        kPreviewPaneMaxWidth
                     );
 
                     ImGui::BeginChild("EffectMaterialInstancePreviewPane", ImVec2(previewPaneWidth, 0.f), false);
@@ -1365,7 +1441,7 @@ bool EffectMaterialInstance_View::Draw_InstanceProperties(
     {
         if (detailPropertyContext.Begin_PropertyTable("EffectMaterialInstanceMain"))
         {
-            changed |= Internal::Draw_TextureProperty(
+            changed |= Draw_TextureProperty(
                 textureThumbnailCache,
                 detailPropertyContext,
                 "Main Texture",
@@ -1376,7 +1452,7 @@ bool EffectMaterialInstance_View::Draw_InstanceProperties(
                 "최종 색과 opacity의 기본 texture입니다. 비워두면 material shader의 fallback 입력을 사용합니다.",
                 mainTextureSourceLockTooltip
             );
-            changed |= Internal::Draw_StringComboProperty(
+            changed |= Draw_StringComboProperty(
                 detailPropertyContext,
                 "Opacity Source",
                 material.opacitySource,
@@ -1399,7 +1475,7 @@ bool EffectMaterialInstance_View::Draw_InstanceProperties(
                 0.01f,
                 "선택한 opacity 채널에 적용하는 power 보정입니다. 값이 커질수록 낮은 alpha가 더 빨리 줄어듭니다."
             );
-            const bool mainModeChanged = Internal::Draw_UVTilingModeProperty(
+            const bool mainModeChanged = Draw_UVTilingModeProperty(
                 detailPropertyContext,
                 "Main UV Tiling Mode",
                 material.mainUVTilingMode,
@@ -1413,7 +1489,7 @@ bool EffectMaterialInstance_View::Draw_InstanceProperties(
                 material.mainUVPolicy.uPolicy = material.mainUVTilingMode;
                 material.mainUVPolicy.vPolicy = material.mainUVTilingMode;
             }
-            const bool mainAxisPolicyChanged = Internal::Draw_UVAxisPolicyProperties(
+            const bool mainAxisPolicyChanged = Draw_UVAxisPolicyProperties(
                 detailPropertyContext,
                 "Main U Policy",
                 "Main V Policy",
@@ -1425,7 +1501,7 @@ bool EffectMaterialInstance_View::Draw_InstanceProperties(
             );
             changed |= mainAxisPolicyChanged;
             restartPreview |= mainAxisPolicyChanged;
-            const bool mainRotationChanged = Internal::Draw_UVRotationProperty(
+            const bool mainRotationChanged = Draw_UVRotationProperty(
                 detailPropertyContext,
                 "Main UV Rotation",
                 material.mainUVRotation,
@@ -1461,15 +1537,15 @@ bool EffectMaterialInstance_View::Draw_InstanceProperties(
             detailPropertyContext.End_PropertyTable();
         }
 
-        if (!Internal::textureAssignStatus.empty())
-            ImGui::TextDisabled("%s", Internal::textureAssignStatus.c_str());
+        if (!textureAssignStatus.empty())
+            ImGui::TextDisabled("%s", textureAssignStatus.c_str());
     }
 
     if (ImGui::CollapsingHeader("Noise", ImGuiTreeNodeFlags_DefaultOpen))
     {
         if (detailPropertyContext.Begin_PropertyTable("EffectMaterialInstanceNoise"))
         {
-            changed |= Internal::Draw_TextureProperty(
+            changed |= Draw_TextureProperty(
                 textureThumbnailCache,
                 detailPropertyContext,
                 "Noise Texture",
@@ -1479,7 +1555,7 @@ bool EffectMaterialInstance_View::Draw_InstanceProperties(
                 defaultData.noiseTexturePath,
                 "opacity나 breakup에 섞을 noise texture입니다. Strength가 0이면 시각 영향이 거의 없습니다."
             );
-            changed |= Internal::Draw_StringComboProperty(
+            changed |= Draw_StringComboProperty(
                 detailPropertyContext,
                 "Noise Source",
                 material.noiseSource,
@@ -1501,7 +1577,7 @@ bool EffectMaterialInstance_View::Draw_InstanceProperties(
                 0.01f,
                 "Noise가 opacity/coverage에 주는 영향 강도입니다."
             );
-            const bool noiseModeChanged = Internal::Draw_UVTilingModeProperty(
+            const bool noiseModeChanged = Draw_UVTilingModeProperty(
                 detailPropertyContext,
                 "Noise UV Tiling Mode",
                 material.noiseUVTilingMode,
@@ -1515,7 +1591,7 @@ bool EffectMaterialInstance_View::Draw_InstanceProperties(
                 material.noiseUVPolicy.uPolicy = material.noiseUVTilingMode;
                 material.noiseUVPolicy.vPolicy = material.noiseUVTilingMode;
             }
-            const bool noiseAxisPolicyChanged = Internal::Draw_UVAxisPolicyProperties(
+            const bool noiseAxisPolicyChanged = Draw_UVAxisPolicyProperties(
                 detailPropertyContext,
                 "Noise U Policy",
                 "Noise V Policy",
@@ -1527,7 +1603,7 @@ bool EffectMaterialInstance_View::Draw_InstanceProperties(
             );
             changed |= noiseAxisPolicyChanged;
             restartPreview |= noiseAxisPolicyChanged;
-            const bool noiseRotationChanged = Internal::Draw_UVRotationProperty(
+            const bool noiseRotationChanged = Draw_UVRotationProperty(
                 detailPropertyContext,
                 "Noise UV Rotation",
                 material.noiseUVRotation,
@@ -1568,7 +1644,7 @@ bool EffectMaterialInstance_View::Draw_InstanceProperties(
     {
         if (detailPropertyContext.Begin_PropertyTable("EffectMaterialInstanceMask"))
         {
-            changed |= Internal::Draw_TextureProperty(
+            changed |= Draw_TextureProperty(
                 textureThumbnailCache,
                 detailPropertyContext,
                 "Mask Texture",
@@ -1578,7 +1654,7 @@ bool EffectMaterialInstance_View::Draw_InstanceProperties(
                 defaultData.maskTexturePath,
                 "coverage를 자르거나 erosion에 사용할 mask texture입니다."
             );
-            changed |= Internal::Draw_StringComboProperty(
+            changed |= Draw_StringComboProperty(
                 detailPropertyContext,
                 "Mask Source",
                 material.maskSource,
@@ -1590,7 +1666,7 @@ bool EffectMaterialInstance_View::Draw_InstanceProperties(
             changed |= detailPropertyContext.Draw_BoolProperty("Mask Invert", material.maskInvert, defaultData.maskInvert, "Mask 값을 뒤집어 남는 영역과 지워지는 영역을 바꿉니다.");
             if (renderPolicyBinding != nullptr)
             {
-                Internal::Draw_ReadOnlyFloatProperty(
+                Draw_ReadOnlyFloatProperty(
                     detailPropertyContext,
                     "Alpha Cutoff",
                     renderPolicyBinding->alphaCutoff,
@@ -1614,7 +1690,7 @@ bool EffectMaterialInstance_View::Draw_InstanceProperties(
                 0.01f,
                 "Mask/opacity coverage를 안쪽으로 깎아내는 erosion 강도입니다."
             );
-            const bool maskModeChanged = Internal::Draw_UVTilingModeProperty(
+            const bool maskModeChanged = Draw_UVTilingModeProperty(
                 detailPropertyContext,
                 "Mask UV Tiling Mode",
                 material.maskUVTilingMode,
@@ -1628,7 +1704,7 @@ bool EffectMaterialInstance_View::Draw_InstanceProperties(
                 material.maskUVPolicy.uPolicy = material.maskUVTilingMode;
                 material.maskUVPolicy.vPolicy = material.maskUVTilingMode;
             }
-            const bool maskAxisPolicyChanged = Internal::Draw_UVAxisPolicyProperties(
+            const bool maskAxisPolicyChanged = Draw_UVAxisPolicyProperties(
                 detailPropertyContext,
                 "Mask U Policy",
                 "Mask V Policy",
@@ -1640,7 +1716,7 @@ bool EffectMaterialInstance_View::Draw_InstanceProperties(
             );
             changed |= maskAxisPolicyChanged;
             restartPreview |= maskAxisPolicyChanged;
-            const bool maskRotationChanged = Internal::Draw_UVRotationProperty(
+            const bool maskRotationChanged = Draw_UVRotationProperty(
                 detailPropertyContext,
                 "Mask UV Rotation",
                 material.maskUVRotation,
@@ -1682,7 +1758,7 @@ bool EffectMaterialInstance_View::Draw_InstanceProperties(
     {
         if (detailPropertyContext.Begin_PropertyTable("EffectMaterialInstanceDistortion"))
         {
-            changed |= Internal::Draw_TextureProperty(
+            changed |= Draw_TextureProperty(
                 textureThumbnailCache,
                 detailPropertyContext,
                 "Flow Texture",
@@ -1692,7 +1768,7 @@ bool EffectMaterialInstance_View::Draw_InstanceProperties(
                 defaultData.flowTexturePath,
                 "SpriteDistortion에서 화면 굴절 방향과 세기를 읽는 flow texture입니다."
             );
-            const bool flowModeChanged = Internal::Draw_UVTilingModeProperty(
+            const bool flowModeChanged = Draw_UVTilingModeProperty(
                 detailPropertyContext,
                 "Flow UV Tiling Mode",
                 material.flowUVTilingMode,
@@ -1706,7 +1782,7 @@ bool EffectMaterialInstance_View::Draw_InstanceProperties(
                 material.flowUVPolicy.uPolicy = material.flowUVTilingMode;
                 material.flowUVPolicy.vPolicy = material.flowUVTilingMode;
             }
-            const bool flowAxisPolicyChanged = Internal::Draw_UVAxisPolicyProperties(
+            const bool flowAxisPolicyChanged = Draw_UVAxisPolicyProperties(
                 detailPropertyContext,
                 "Flow U Policy",
                 "Flow V Policy",
@@ -1718,7 +1794,7 @@ bool EffectMaterialInstance_View::Draw_InstanceProperties(
             );
             changed |= flowAxisPolicyChanged;
             restartPreview |= flowAxisPolicyChanged;
-            const bool flowRotationChanged = Internal::Draw_UVRotationProperty(
+            const bool flowRotationChanged = Draw_UVRotationProperty(
                 detailPropertyContext,
                 "Flow UV Rotation",
                 material.flowUVRotation,
@@ -1765,13 +1841,16 @@ bool EffectMaterialInstance_View::Draw_InstanceProperties(
                 0.01f,
                 "굴절 효과가 나타나는 기본 존재감/coverage입니다."
             );
-            if (distortionShapeControlMode != EffectMaterialDistortionShapeControlMode::Editable)
+            const bool shapeEditable =
+                distortionShapeControlMode == EffectMaterialDistortionShapeControlMode::Editable ||
+                distortionShapeControlMode == EffectMaterialDistortionShapeControlMode::TrailEditable;
+            if (!shapeEditable)
             {
                 const char* unsupportedLabel =
                     distortionShapeControlMode == EffectMaterialDistortionShapeControlMode::BeamUnsupported
                     ? "Beam Distortion에서는 Shape 미지원"
                     : "Mesh Distortion v0에서는 Shape 미지원";
-                Internal::Draw_ReadOnlyTextProperty(
+                Draw_ReadOnlyTextProperty(
                     detailPropertyContext,
                     "Shape Mode",
                     unsupportedLabel,
@@ -1782,12 +1861,38 @@ bool EffectMaterialInstance_View::Draw_InstanceProperties(
             else
             {
                 const EffectDistortionShapeMode previousShapeMode = material.distortionShapeMode;
-                const bool shapeModeChanged = Internal::Draw_DistortionShapeModeProperty(
+                EffectDistortionShapeMode displayedShapeMode = material.distortionShapeMode;
+                if (distortionShapeControlMode == EffectMaterialDistortionShapeControlMode::TrailEditable)
+                {
+                    if (displayedShapeMode != EffectDistortionShapeMode::AirSheath)
+                        displayedShapeMode = EffectDistortionShapeMode::None;
+                }
+                else if (displayedShapeMode == EffectDistortionShapeMode::AirSheath)
+                    displayedShapeMode = EffectDistortionShapeMode::None;
+
+                if (displayedShapeMode != material.distortionShapeMode)
+                {
+                    const char* compatibilityMessage =
+                        distortionShapeControlMode == EffectMaterialDistortionShapeControlMode::TrailEditable
+                        ? "저장된 Sprite shape는 Trail에서 None으로 처리됩니다."
+                        : "AirSheath는 Trail 전용이며 현재 renderer에서는 None으로 처리됩니다.";
+                    Draw_ReadOnlyTextProperty(
+                        detailPropertyContext,
+                        "Shape Compatibility",
+                        compatibilityMessage
+                    );
+                }
+
+                const bool shapeModeChanged = Draw_DistortionShapeModeProperty(
                     detailPropertyContext,
-                    material.distortionShapeMode,
-                    defaultData.distortionShapeMode
+                    displayedShapeMode,
+                    defaultData.distortionShapeMode,
+                    distortionShapeControlMode
                 );
                 changed |= shapeModeChanged;
+                if (shapeModeChanged)
+                    material.distortionShapeMode = displayedShapeMode;
+
                 if (shapeModeChanged &&
                     previousShapeMode != EffectDistortionShapeMode::ShockwaveRing &&
                     material.distortionShapeMode == EffectDistortionShapeMode::ShockwaveRing)
@@ -1795,8 +1900,8 @@ bool EffectMaterialInstance_View::Draw_InstanceProperties(
                     material.distortionShapeThickness = 14.f;
                     material.distortionShapeSoftness = 4.f;
                 }
-                if (material.distortionShapeMode == EffectDistortionShapeMode::Radial ||
-                    material.distortionShapeMode == EffectDistortionShapeMode::Ring)
+                if (displayedShapeMode == EffectDistortionShapeMode::Radial ||
+                    displayedShapeMode == EffectDistortionShapeMode::Ring)
                 {
                     changed |= detailPropertyContext.Draw_FloatProperty(
                         "Shape Radius",
@@ -1805,7 +1910,7 @@ bool EffectMaterialInstance_View::Draw_InstanceProperties(
                         0.01f,
                         "Radial/Ring shape가 영향을 주는 중심 반경입니다."
                     );
-                    if (material.distortionShapeMode == EffectDistortionShapeMode::Ring)
+                    if (displayedShapeMode == EffectDistortionShapeMode::Ring)
                     {
                         changed |= detailPropertyContext.Draw_FloatProperty(
                             "Shape Thickness",
@@ -1823,7 +1928,7 @@ bool EffectMaterialInstance_View::Draw_InstanceProperties(
                         "shape 경계가 부드럽게 사라지는 폭입니다."
                     );
                 }
-                else if (material.distortionShapeMode == EffectDistortionShapeMode::ShockwaveRing)
+                else if (displayedShapeMode == EffectDistortionShapeMode::ShockwaveRing)
                 {
                     changed |= detailPropertyContext.Draw_FloatProperty(
                         "Shape Thickness (px)",
@@ -1840,6 +1945,103 @@ bool EffectMaterialInstance_View::Draw_InstanceProperties(
                         "Shockwave ring 경계가 화면 픽셀 기준으로 부드러워지는 폭입니다."
                     );
                 }
+                else if (displayedShapeMode == EffectDistortionShapeMode::AirSheath)
+                {
+                    static constexpr EffectAirSheathMapInterpretation kInterpretations[]{
+                        EffectAirSheathMapInterpretation::VectorField,
+                        EffectAirSheathMapInterpretation::HeightGradient,
+                        EffectAirSheathMapInterpretation::ScalarModulation
+                    };
+                    static constexpr EffectAirSheathMapScalarSource kScalarSources[]{
+                        EffectAirSheathMapScalarSource::Red,
+                        EffectAirSheathMapScalarSource::Green,
+                        EffectAirSheathMapScalarSource::Blue,
+                        EffectAirSheathMapScalarSource::Alpha,
+                        EffectAirSheathMapScalarSource::Luminance
+                    };
+                    static constexpr EffectAirSheathMapVectorSpace kVectorSpaces[]{
+                        EffectAirSheathMapVectorSpace::Screen,
+                        EffectAirSheathMapVectorSpace::TrailLocal,
+                        EffectAirSheathMapVectorSpace::BaseField
+                    };
+                    static constexpr EffectAirSheathMapComposition kVectorCompositions[]{
+                        EffectAirSheathMapComposition::Replace,
+                        EffectAirSheathMapComposition::Add
+                    };
+                    static constexpr EffectAirSheathMapComposition kScalarCompositions[]{
+                        EffectAirSheathMapComposition::Modulate
+                    };
+
+                    changed |= Draw_EnumComboProperty(
+                        detailPropertyContext,
+                        "Interpretation",
+                        material.airSheathMapInterpretation,
+                        defaultData.airSheathMapInterpretation,
+                        kInterpretations,
+                        size(kInterpretations),
+                        Get_AirSheathMapInterpretationLabel,
+                        "Distortion Map을 vector, height gradient, 또는 base wake 강도 조절로 해석합니다.");
+                    const bool scalarModulation = material.airSheathMapInterpretation == EffectAirSheathMapInterpretation::ScalarModulation;
+                    if (scalarModulation)
+                    {
+                        material.airSheathMapComposition = EffectAirSheathMapComposition::Modulate;
+                        changed |= Draw_EnumComboProperty(
+                            detailPropertyContext,
+                            "Scalar Source",
+                            material.airSheathMapXSource,
+                            defaultData.airSheathMapXSource,
+                            kScalarSources,
+                            size(kScalarSources),
+                            Get_AirSheathMapScalarSourceLabel,
+                            "0~1 scalar가 base wake 강도를 조절합니다.");
+                    }
+                    else
+                    {
+                        if (material.airSheathMapComposition == EffectAirSheathMapComposition::Modulate)
+                            material.airSheathMapComposition = EffectAirSheathMapComposition::Replace;
+                        changed |= Draw_EnumComboProperty(
+                            detailPropertyContext,
+                            material.airSheathMapInterpretation == EffectAirSheathMapInterpretation::VectorField ? "X Source" : "Height Source",
+                            material.airSheathMapXSource,
+                            defaultData.airSheathMapXSource,
+                            kScalarSources,
+                            size(kScalarSources),
+                            Get_AirSheathMapScalarSourceLabel);
+                        if (material.airSheathMapInterpretation == EffectAirSheathMapInterpretation::VectorField)
+                            changed |= Draw_EnumComboProperty(
+                                detailPropertyContext,
+                                "Y Source",
+                                material.airSheathMapYSource,
+                                defaultData.airSheathMapYSource,
+                                kScalarSources,
+                                size(kScalarSources),
+                                Get_AirSheathMapScalarSourceLabel);
+                        changed |= Draw_EnumComboProperty(
+                            detailPropertyContext,
+                            "Vector Space",
+                            material.airSheathMapVectorSpace,
+                            defaultData.airSheathMapVectorSpace,
+                            kVectorSpaces,
+                            size(kVectorSpaces),
+                            Get_AirSheathMapVectorSpaceLabel,
+                            "Screen은 화면 축, Trail Local/Base Field는 투영된 진행/폭 축을 사용합니다.");
+                    }
+                    changed |= Draw_EnumComboProperty(
+                        detailPropertyContext,
+                        "Composition",
+                        material.airSheathMapComposition,
+                        defaultData.airSheathMapComposition,
+                        scalarModulation ? kScalarCompositions : kVectorCompositions,
+                        scalarModulation ? size(kScalarCompositions) : size(kVectorCompositions),
+                        Get_AirSheathMapCompositionLabel,
+                        "Vector/gradient는 Replace 또는 Add, scalar는 Modulate만 사용할 수 있습니다.");
+                    changed |= detailPropertyContext.Draw_FloatProperty(
+                        "Map Influence",
+                        material.airSheathMapInfluence,
+                        defaultData.airSheathMapInfluence,
+                        0.01f,
+                        "0이면 map 합성 없이 AirSheath base wake만 사용합니다.");
+                }
                 detailPropertyContext.End_PropertyTable();
             }
         }
@@ -1852,7 +2054,7 @@ bool EffectMaterialInstance_View::Draw_InstanceProperties(
     {
         if (detailPropertyContext.Begin_PropertyTable("EffectMaterialInstanceMeshGlassSurface"))
         {
-            Internal::Draw_ReadOnlyTextProperty(
+            Draw_ReadOnlyTextProperty(
                 detailPropertyContext,
                 "Mode",
                 "Mesh surface glass",
@@ -1978,7 +2180,7 @@ bool EffectMaterialInstance_View::Draw_InstanceProperties(
     {
         if (detailPropertyContext.Begin_PropertyTable("EffectMaterialInstanceBlendRender"))
         {
-            const bool familyChanged = Internal::Draw_MaterialFamilyProperty(
+            const bool familyChanged = Draw_MaterialFamilyProperty(
                 detailPropertyContext,
                 material.materialFamily,
                 defaultData.materialFamily
@@ -1987,16 +2189,16 @@ bool EffectMaterialInstance_View::Draw_InstanceProperties(
             restartPreview |= familyChanged;
             if (renderPolicyBinding != nullptr)
             {
-                Internal::Draw_ReadOnlyTextProperty(
+                Draw_ReadOnlyTextProperty(
                     detailPropertyContext,
                     "Render Policy Source",
                     renderPolicyBinding->sourceLabel,
                     "Blend Mode와 Alpha Cutoff의 현재 정본 위치입니다. MeshData에서는 Required가 override할 수 있습니다."
                 );
-                Internal::Draw_ReadOnlyTextProperty(
+                Draw_ReadOnlyTextProperty(
                     detailPropertyContext,
                     "Blend Mode",
-                    Internal::Get_BlendModeLabel(renderPolicyBinding->blendMode),
+                    Get_BlendModeLabel(renderPolicyBinding->blendMode),
                     "현재 blend mode는 Render Policy Source가 가리키는 값에서 옵니다."
                 );
             }
@@ -2004,7 +2206,7 @@ bool EffectMaterialInstance_View::Draw_InstanceProperties(
             {
                 if (material.materialFamily == EffectMaterialFamily::MeshGlass)
                 {
-                    Internal::Draw_ReadOnlyTextProperty(
+                    Draw_ReadOnlyTextProperty(
                         detailPropertyContext,
                         "Blend Mode",
                         "AlphaBlend (MeshGlass v0)",
@@ -2013,7 +2215,7 @@ bool EffectMaterialInstance_View::Draw_InstanceProperties(
                 }
                 else
                 {
-                    changed |= Internal::Draw_BlendModeProperty(
+                    changed |= Draw_BlendModeProperty(
                         detailPropertyContext,
                         material.blendMode,
                         defaultData.blendMode,
@@ -2028,7 +2230,7 @@ bool EffectMaterialInstance_View::Draw_InstanceProperties(
                 break;
 
             case EffectMaterialTwoSidedDisplayMode::ForcedEnabledReadOnly:
-                Internal::Draw_ReadOnlyCheckedBoolProperty(
+                Draw_ReadOnlyCheckedBoolProperty(
                     detailPropertyContext,
                     "Two Sided",
                     true,
@@ -2052,7 +2254,7 @@ bool EffectMaterialInstance_View::Draw_InstanceProperties(
         }
 
         if (effectiveBlendMode == EffectMaterialBlendMode::Additive)
-            changed |= Internal::Draw_AdditiveContributionPanel(detailPropertyContext, material.additive, defaultData.additive);
+            changed |= Draw_AdditiveContributionPanel(detailPropertyContext, material.additive, defaultData.additive);
 
         if (twoSidedDisplayMode == EffectMaterialTwoSidedDisplayMode::ForcedEnabledReadOnly)
             ImGui::TextDisabled("Sprite는 현재 항상 양면 렌더입니다.");

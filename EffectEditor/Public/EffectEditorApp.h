@@ -8,7 +8,6 @@ NS_END
 
 NS_BEGIN(EffectEditor)
 
-// EffectEditor 실행 앱의 engine 초기화, update, render loop를 소유한다.
 class EffectEditorApp final : public Base
 {
 public:
@@ -46,7 +45,7 @@ private: //## Types::RenderPerf
     };
 #endif
 
-private: //## Static Values
+private: //## Static::RenderPerformance
     inline static const Vec4 kDefaultClearColor{ 0.18f, 0.18f, 0.18f, 1.f };
 #ifdef _DEBUG
     static constexpr float kEffectEditorRenderPerfSampleIntervalSec{ 0.25f };

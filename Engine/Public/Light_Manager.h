@@ -19,7 +19,7 @@ public:
 public:
 	const LIGHT_DESC* Get_LightDesc(uint32 index);
     const LIGHT_DESC* Get_PrimaryShadowLightDesc() const;
-    HRESULT Bind_PrimaryShadowLightCB(Shared<ShaderCom> shader) const;
+    HRESULT Bind_PrimaryShadowLightCB(const Shared<ShaderCom>& shader) const;
     uint32 Get_LightCount() const;
     void Clear_Lights();
     void Get_LightDescs(vector<LIGHT_DESC>& outLightDescs) const;
@@ -42,7 +42,7 @@ public:
 
 public:
 	HRESULT Add_Light(const LIGHT_DESC& lightDesc);
-    HRESULT Render_Lights(Shared<ShaderCom> shader, Shared<VIBuffer_Rect> viBuffer);
+    HRESULT Render_Lights(const Shared<ShaderCom>& shader, const Shared<VIBuffer_Rect>& viBuffer);
 
 private:
     Shared<class Light> Find_PointLight(uint32 pointIndex) const;
