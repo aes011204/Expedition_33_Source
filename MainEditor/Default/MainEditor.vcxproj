@@ -255,6 +255,7 @@ if exist "$(ProjectDir)..\..\EngineSDK\lib\Release\fmod.dll" xcopy /y /d "$(Proj
     <ClCompile Include="..\Private\Collider_Inspector.cpp" />
     <ClCompile Include="..\Private\CombatStat_Inspector.cpp" />
     <ClCompile Include="..\Private\CommandHistory.cpp" />
+    <ClCompile Include="..\Private\Compare_Culling_View.cpp" />
     <ClCompile Include="..\Private\Component_Inspector.cpp" />
     <ClCompile Include="..\Private\Console_View.cpp" />
     <ClCompile Include="..\Private\EditorPickingSystem.cpp" />
@@ -300,6 +301,7 @@ if exist "$(ProjectDir)..\..\EngineSDK\lib\Release\fmod.dll" xcopy /y /d "$(Proj
     <ClInclude Include="..\Public\Animation_NameUtils.h" />
     <ClInclude Include="..\Public\Animation_View.h" />
     <ClInclude Include="..\Public\AnimSequencerAdapter.h" />
+    <ClInclude Include="..\Public\Compare_Culling_View.h" />
     <ClInclude Include="..\Public\ImSequencer.h" />
     <ClInclude Include="..\public\AIController_Inspector.h" />
     <ClInclude Include="..\Public\AnimState_View.h" />

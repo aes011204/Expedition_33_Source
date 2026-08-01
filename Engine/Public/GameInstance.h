@@ -610,6 +610,7 @@ public:
     bool IsVisible(const BoundingBox& worldAABB, const Matrix& view, const Matrix& proj) const;
     void BuildOctree(const vector<BoundingBox>& worldAABBs);
     void QueryVisible(vector<uint32>& outIndices) const;
+    void CollectOctreeDebugBoxes(vector<BoundingBox>& outBoxes) const;
 
 public:
     void Visit_BTNodeTypes(const function<void(const TypeRegistry::BTNodeTypeInfo&)>& visitor) const;

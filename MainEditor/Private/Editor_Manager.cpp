@@ -32,6 +32,7 @@
 #include "RenderCall_View.h"
 #include "SoulLikeCamera_Viewer.h"
 #include "BattleController.h"
+#include "Compare_Culling_View.h"
 
 namespace fs = std::filesystem;
 
@@ -147,6 +148,7 @@ HRESULT Editor_Manager::Initialize()
     Add_Window(PostProcess_View::Create());
     Add_Window(EnvironmentView::Create());
     Add_Window(ScreenFx_View::Create());
+    Add_Window(Compare_Culling_View::Create());
     Add_Window(SoulLike_Viewer::Create());
     Add_Window(PathTool::Create());
     Add_Window(SoulLikeCamera_Viewer::Create());

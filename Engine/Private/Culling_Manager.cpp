@@ -265,6 +265,29 @@ void Culling_Manager::ClearOctree()
     _octreeRoot.reset();
 }
 
+void Culling_Manager::CollectOctreeDebugBoxes(vector<BoundingBox>& outBoxes) const
+{
+    if (!_octreeRoot)
+    {
+        return;
+    }
+
+    function<void(const OctreeNode*)> traverse = [&](const OctreeNode* node)
+        {
+            outBoxes.push_back(node->bounds);
+
+            for (int i = 0; i < 8; ++i)
+            {
+                if (node->children[i])
+                {
+                    traverse(node->children[i].get());
+                }
+            }
+        };
+
+    traverse(_octreeRoot.get());
+}
+
 Unique<Culling_Manager> Culling_Manager::Create()
 {
     return make_unique<Culling_Manager>();
