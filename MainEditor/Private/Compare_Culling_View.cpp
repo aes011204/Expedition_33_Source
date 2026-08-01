@@ -15,6 +15,12 @@ Compare_Culling_View::Compare_Culling_View()
 
 void Compare_Culling_View::Update(float timeDelta)
 {
+    if (timeDelta > 0.f)
+    {
+        const float instantFps = 1.f / timeDelta;
+        _fps = (_fps <= 0.f) ? instantFps : (_fps * 0.9f + instantFps * 0.1f);
+    }
+
     if (_showStaticMeshCullBoxes)
         Draw_StaticMeshCullingBoxes();
 }
@@ -27,6 +33,10 @@ void Compare_Culling_View::Render()
     bool isOpen = Is_Open();
     if (ImGui::Begin("Compare Culling View", &isOpen))
     {
+        ImGui::Text("FPS: %.1f", _fps);
+
+        ImGui::Separator();
+
         ImGui::Text("Instance Mesh");
         bool disableComputeCull = ClientInstance::Is_DebugDisableInstanceComputeCull();
         if (ImGui::Checkbox("Disable Compute Shader Culling", &disableComputeCull))

@@ -21,6 +21,7 @@ private:
 
 private:
     bool _showStaticMeshCullBoxes = false;
+    float _fps = 0.f;
 };
 
 NS_END
