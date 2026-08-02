@@ -126,7 +126,26 @@ void DialogueCamera::Clear_Targets()
     _anchorTransformCom.reset();
     _speakerTransformCom.reset();
     _listenerTransformCom.reset();
+    _capturedAnchorPos = Vec3::Zero;
+    _capturedAnchorForward = Vec3::Look;
+    _hasCapturedAnchorPose = false;
     _cameraPresetId.clear();
+}
+
+void DialogueCamera::Set_AnchorTransform(const Shared<TransformCom>& transformCom)
+{
+    _anchorTransformCom = transformCom;
+    _hasCapturedAnchorPose = false;
+}
+
+void DialogueCamera::Set_SpeakerTransform(const Shared<TransformCom>& transformCom)
+{
+    _speakerTransformCom = transformCom;
+}
+
+void DialogueCamera::Set_ListenerTransform(const Shared<TransformCom>& transformCom)
+{
+    _listenerTransformCom = transformCom;
 }
 
 void DialogueCamera::Set_CameraPresetId(const string& cameraPresetId)
@@ -136,6 +155,33 @@ void DialogueCamera::Set_CameraPresetId(const string& cameraPresetId)
 
     _cameraPresetId = cameraPresetId;
     Load_PresetFromId();
+}
+
+void DialogueCamera::Capture_AnchorPose()
+{
+    Shared<TransformCom> anchorTransform = _anchorTransformCom.lock();
+    if (anchorTransform == nullptr)
+        anchorTransform = _speakerTransformCom.lock();
+
+    if (anchorTransform == nullptr)
+    {
+        _hasCapturedAnchorPose = false;
+        return;
+    }
+
+    _capturedAnchorPos = anchorTransform->Get_WorldPosition();
+    _capturedAnchorForward = anchorTransform->Get_WorldForward();
+
+    Shared<TransformCom> listenerTransform = _listenerTransformCom.lock();
+    if (listenerTransform != nullptr)
+    {
+        Vec3 toListener = listenerTransform->Get_WorldPosition() - _capturedAnchorPos;
+        toListener.y = 0.f;
+        if (toListener.LengthSquared() > 0.0001f)
+            _capturedAnchorForward = toListener;
+    }
+
+    _hasCapturedAnchorPose = true;
 }
 
 void DialogueCamera::Snap_ToDialogueTargets()
@@ -174,6 +220,16 @@ void DialogueCamera::Load_PresetFromId()
 
 bool DialogueCamera::Try_ResolveDialoguePose(Vec3& outEye, Vec3& outLookAt) const
 {
+    if (_hasCapturedAnchorPose)
+    {
+        return Evaluate_DialoguePresetPoseNpcAnchor(
+            _capturedAnchorPos,
+            _capturedAnchorForward,
+            _currentPreset,
+            outEye,
+            outLookAt);
+    }
+
     Shared<TransformCom> anchorTransform = _anchorTransformCom.lock();
     if (anchorTransform == nullptr)
         anchorTransform = _speakerTransformCom.lock();

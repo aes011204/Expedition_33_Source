@@ -52,6 +52,8 @@ private:
     float               _lastAnimationOffsetY = 0.f;
     string              _startAnimationKey;
     float               _startAnimationOffsetY = 0.f;
+    Vec3                _startNpcRotation = Vec3::Zero;
+    bool                _hasStartNpcRotation = false;
 
     umap<string, string> _dialogueOverrides{};
 
