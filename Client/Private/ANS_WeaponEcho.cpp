@@ -13,6 +13,8 @@ namespace
 {
     constexpr const wchar_t* kSimonEchoPhase2TrailEffectName = L"Simon_Trail_Phase2_Green";
     constexpr const wchar_t* kSimonEchoPhase3TrailEffectName = L"Simon_Trail_Phase3_Red";
+    constexpr const wchar_t* kSimonEchoTipGreenEffectName = L"Simon_Trail_TipGreen";
+    constexpr const wchar_t* kSimonEchoTipRedEffectName = L"Simon_Trail_TipRed";
 
     struct ActiveWeaponEchoWindow
     {
@@ -77,20 +79,33 @@ namespace
 
     }
 
-    wstring Resolve_SimonEchoTrailEffectName(const AnimNotifyContext& context, uint32 echoCount)
+    Mon_Simon_Weapon::WeaponEchoTrailProfile Resolve_SimonEchoTrailProfile(
+        const AnimNotifyContext& context,
+        uint32 echoCount)
     {
+        Mon_Simon_Weapon::WeaponEchoTrailProfile profile{};
+
         if (context.isPreview)
         {
             if (echoCount == 0)
-                return {};
+                return profile;
 
-            return echoCount >= 2
-                ? wstring(kSimonEchoPhase3TrailEffectName)
-                : wstring(kSimonEchoPhase2TrailEffectName);
+            if (echoCount >= 2)
+            {
+                profile.mainEffectName = kSimonEchoPhase3TrailEffectName;
+                profile.tipEffectName = kSimonEchoTipRedEffectName;
+            }
+            else
+            {
+                profile.mainEffectName = kSimonEchoPhase2TrailEffectName;
+                profile.tipEffectName = kSimonEchoTipGreenEffectName;
+            }
+
+            return profile;
         }
 
         if (context.owner == nullptr)
-            return {};
+            return profile;
 
         Shared<GameObject> current = context.owner->GetSharedPtr<GameObject>();
         while (current)
@@ -99,17 +114,26 @@ namespace
             if (battleMonster != nullptr)
             {
                 if (battleMonster->Get_SourcePrefabName() != Constants::Prefab::MB_Simon_V2)
-                    return {};
+                    return profile;
 
-                return battleMonster->Get_CurPhase() == Monster_BattleBase::BattlePhase::Critical
-                    ? wstring(kSimonEchoPhase3TrailEffectName)
-                    : wstring(kSimonEchoPhase2TrailEffectName);
+                if (battleMonster->Get_CurPhase() == Monster_BattleBase::BattlePhase::Critical)
+                {
+                    profile.mainEffectName = kSimonEchoPhase3TrailEffectName;
+                    profile.tipEffectName = kSimonEchoTipRedEffectName;
+                }
+                else
+                {
+                    profile.mainEffectName = kSimonEchoPhase2TrailEffectName;
+                    profile.tipEffectName = kSimonEchoTipGreenEffectName;
+                }
+
+                return profile;
             }
 
             current = current->Get_Owner();
         }
 
-        return {};
+        return profile;
     }
 }
 
@@ -136,6 +160,7 @@ void ANS_WeaponEcho::On_Begin(const AnimNotifyContext& context)
 {
     _lastSampleElapsedSec = -1.f;
     _stateStartTimeSec = context.currentTimeSec;
+    _stateAnimationName = context.animationName;
 
     g_activeWeaponEchoWindows.erase(
         remove_if(
@@ -202,8 +227,6 @@ void ANS_WeaponEcho::On_Begin(const AnimNotifyContext& context)
     {
         if (Mon_Simon_Weapon* simonWeapon = Resolve_TargetSimonWeapon(context))
         {
-            simonWeapon->Set_WeaponEchoTrailEffectOverride(Resolve_SimonEchoTrailEffectName(context, window.echoCount));
-
             Mon_Simon_Weapon::WeaponEchoMaterialOverrideDesc materialOverrides[2]{};
             uint32 materialOverrideCount = 0;
 
@@ -229,16 +252,8 @@ void ANS_WeaponEcho::On_Begin(const AnimNotifyContext& context)
                 context.animationName,
                 context.currentTimeSec,
                 materialOverrideCount > 0 ? materialOverrides : nullptr,
-                materialOverrideCount);
-
-            if (Shared<EffectCom> effectCom = EffectCom::Find_FromNotifyOwner(context.owner))
-            {
-                wstring activeTrailEffectName{};
-                wstring activeTrailLayerTag{};
-                EffectCom::TrailOffsetRuntimeDesc activeTrailOffset{};
-                if (effectCom->Try_GetActiveTrailEffect(_partTag, activeTrailEffectName, activeTrailLayerTag, activeTrailOffset))
-                    simonWeapon->Begin_WeaponEchoTrail(activeTrailEffectName, activeTrailLayerTag, activeTrailOffset);
-            }
+                materialOverrideCount,
+                Resolve_SimonEchoTrailProfile(context, window.echoCount));
         }
     }
 
@@ -252,7 +267,8 @@ void ANS_WeaponEcho::On_Tick(const AnimNotifyContext& context)
 
 void ANS_WeaponEcho::On_End(const AnimNotifyContext& context)
 {
-    Record_Sample(context, true);
+    if (context.animationName == _stateAnimationName)
+        Record_Sample(context, true);
 
     if (Mon_Simon_Weapon* simonWeapon = Resolve_TargetSimonWeapon(context))
         simonWeapon->End_WeaponEchoPlayback();
@@ -265,9 +281,11 @@ void ANS_WeaponEcho::On_End(const AnimNotifyContext& context)
             {
                 return window.notifyState == this &&
                     window.owner == context.owner &&
-                    window.animationName == context.animationName;
+                    window.animationName == _stateAnimationName;
             }),
         g_activeWeaponEchoWindows.end());
+
+    _stateAnimationName.clear();
 
     _lastSampleElapsedSec = -1.f;
 }

@@ -112,6 +112,10 @@ private: //## Data::TrailBinding
     LocalOffsetCurve _baseLocalOffsetCurve{};
     LocalOffsetCurve _tipLocalOffsetCurve{};
     uint64 _trailNotifyToken = 0;
+    string _trailNotifyAnimationName{};
+    float _trailNotifyStartSec = 0.f;
+    float _trailNotifyEndSec = 0.f;
+    float _trailNotifyLastTimeSec = 0.f;
 
 private: //## Helper::Serialization
     static TrailAnchorSource Parse_TrailAnchorSource(const json& data);

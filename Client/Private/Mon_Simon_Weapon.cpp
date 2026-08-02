@@ -24,10 +24,10 @@ namespace
         SimonWeaponEchoTrailSampleProvider(
             const Weak<Mon_Simon_Weapon>& weapon,
             uint32 laneIndex,
-            const TrailAnchorAsset& trailAnchorAsset)
+            uint64 notifyToken)
             : _weapon(weapon)
             , _laneIndex(laneIndex)
-            , _trailAnchorAsset(trailAnchorAsset)
+            , _notifyToken(notifyToken)
         {
         }
 
@@ -37,7 +37,7 @@ namespace
             if (weapon == nullptr)
                 return false;
 
-            return weapon->Try_GetWeaponEchoTrailSample(_laneIndex, _trailAnchorAsset, outSample);
+            return weapon->Try_GetWeaponEchoTrailSample(_laneIndex, _notifyToken, outSample);
         }
 
         bool Try_GetSourcePointSample(EffectSourcePointSample& outSample) const override
@@ -54,7 +54,7 @@ namespace
     private:
         Weak<Mon_Simon_Weapon> _weapon{};
         uint32 _laneIndex = 0;
-        TrailAnchorAsset _trailAnchorAsset{};
+        uint64 _notifyToken = 0;
     };
 }
 
@@ -350,14 +350,24 @@ void Mon_Simon_Weapon::Begin_WeaponEchoPlayback(
     const string& sourceAnimationName,
     float sourceTimeSec,
     const WeaponEchoMaterialOverrideDesc* materialOverrides,
-    uint32 materialOverrideCount)
+    uint32 materialOverrideCount,
+    const WeaponEchoTrailProfile& trailProfile)
 {
-    Stop_WeaponEchoTrail();
+    Stop_WeaponEchoTrailEvents();
 
     for (WeaponEchoLane& lane : _weaponEchoLanes)
         Reset_WeaponEchoLane(lane);
 
     Update_WeaponEchoSource(sourceModel, sourceAnimationName, sourceTimeSec);
+    _weaponEchoTrailProfile = trailProfile;
+
+    erase_if(
+        _weaponEchoTrailEvents,
+        [&sourceAnimationName, sourceTimeSec](const WeaponEchoTrailEvent& trailEvent)
+        {
+            const bool sourceTimeRestarted = trailEvent.lastSourceTimeSec > sourceTimeSec + 1e-4f;
+            return trailEvent.animationName != sourceAnimationName || trailEvent.sourceEnded || sourceTimeRestarted;
+        });
 
     const uint32 clampedEchoCount = std::clamp(echoCount, 0u, kMaxWeaponEchoLaneCount);
     for (uint32 laneIndex = 0; laneIndex < clampedEchoCount; ++laneIndex)
@@ -374,25 +384,6 @@ void Mon_Simon_Weapon::Begin_WeaponEchoPlayback(
             lane.materialOverride = materialOverrides[laneIndex];
     }
 
-    if (_weaponEchoPendingTrailValid)
-    {
-        const wstring& pendingTrailEffectName =
-            Resolve_WeaponEchoTrailEffectName(_weaponEchoPendingTrailEffectName);
-
-        for (uint32 laneIndex = 0; laneIndex < kMaxWeaponEchoLaneCount; ++laneIndex)
-        {
-            WeaponEchoLane& lane = _weaponEchoLanes[laneIndex];
-            if (!lane.active)
-                continue;
-
-            Start_WeaponEchoTrail(
-                lane,
-                laneIndex,
-                pendingTrailEffectName,
-                _weaponEchoPendingTrailLayerTag,
-                _weaponEchoPendingTrailOffset);
-        }
-    }
 }
 
 void Mon_Simon_Weapon::Record_WeaponEchoSample(float elapsedSec)
@@ -470,17 +461,11 @@ void Mon_Simon_Weapon::Queue_WeaponEchoRender()
 
 void Mon_Simon_Weapon::Update_WeaponEchoPlayback(float timeDelta)
 {
-    if (_weaponEchoPendingTrailValid)
+    const Shared<GameObject> owner = Get_Owner();
+    if (!Is_Visible() || (owner != nullptr && !owner->Is_Visible()))
     {
-        _weaponEchoPendingTrailAgeSec += max(0.f, timeDelta);
-        if (_weaponEchoPendingTrailAgeSec > 0.5f)
-        {
-            _weaponEchoPendingTrailValid = false;
-            _weaponEchoPendingTrailEffectName.clear();
-            _weaponEchoPendingTrailLayerTag.clear();
-            _weaponEchoPendingTrailOffset = {};
-            _weaponEchoPendingTrailAgeSec = 0.f;
-        }
+        Clear_WeaponEchoPlayback();
+        return;
     }
 
     bool sourceTimeUpdated = false;
@@ -516,7 +501,6 @@ void Mon_Simon_Weapon::Update_WeaponEchoPlayback(float timeDelta)
 
         if (lane.recordingEnded && lane.playbackSec > lane.delaySec + lane.endElapsedSec)
         {
-            Stop_WeaponEchoTrail(lane);
             Reset_WeaponEchoLane(lane);
             anyActiveLane = false;
             for (const WeaponEchoLane& otherLane : _weaponEchoLanes)
@@ -530,8 +514,19 @@ void Mon_Simon_Weapon::Update_WeaponEchoPlayback(float timeDelta)
         }
     }
 
+    Update_WeaponEchoTrailEvents();
+
     if (!anyActiveLane)
-        _weaponEchoTrailEffectOverride.clear();
+    {
+        Stop_WeaponEchoTrailEvents();
+        _weaponEchoTrailProfile = {};
+        erase_if(
+            _weaponEchoTrailEvents,
+            [](const WeaponEchoTrailEvent& trailEvent)
+            {
+                return trailEvent.sourceEnded;
+            });
+    }
 }
 
 void Mon_Simon_Weapon::Reset_WeaponEchoLane(WeaponEchoLane& lane)
@@ -542,12 +537,6 @@ void Mon_Simon_Weapon::Reset_WeaponEchoLane(WeaponEchoLane& lane)
     lane.delaySec = 0.2f;
     lane.playbackSec = 0.f;
     lane.endElapsedSec = 0.f;
-    lane.trailAnchorAsset = {};
-    lane.trailSampleProvider.reset();
-    lane.sourcePointSampleProvider.reset();
-    lane.trailHandle = {};
-    lane.trailOffset = {};
-    lane.trailStarted = false;
     lane.materialOverride = {};
     lane.materialOverrideCache.clear();
 }
@@ -634,7 +623,7 @@ bool Mon_Simon_Weapon::Try_SampleWeaponEchoMatrix(const WeaponEchoLane& lane, fl
 
 bool Mon_Simon_Weapon::Try_GetWeaponEchoTrailSample(
     uint32 laneIndex,
-    const TrailAnchorAsset& trailAnchorAsset,
+    uint64 notifyToken,
     EffectTrailSample& outSample) const
 {
     if (laneIndex >= kMaxWeaponEchoLaneCount)
@@ -651,17 +640,29 @@ bool Mon_Simon_Weapon::Try_GetWeaponEchoTrailSample(
     if (echoElapsedSec < 0.f)
         return false;
 
+    const WeaponEchoTrailEvent* trailEvent = Find_WeaponEchoTrailEvent(notifyToken);
+    if (trailEvent == nullptr || !trailEvent->trailAnchorLoaded)
+        return false;
+
+    if (echoElapsedSec + 1e-4f < trailEvent->startSec || echoElapsedSec > trailEvent->endSec + 1e-4f)
+        return false;
+
     Matrix echoWorldMatrix = Matrix::Identity;
     if (!Try_SampleWeaponEchoMatrix(lane, echoElapsedSec, echoWorldMatrix))
         return false;
 
+    const float durationSec = max(0.f, trailEvent->plannedEndSec - trailEvent->startSec);
+    const float phase = durationSec > 0.f
+        ? std::clamp((echoElapsedSec - trailEvent->startSec) / durationSec, 0.f, 1.f)
+        : 1.f;
+
     const TrailAnchorAsset sampleAnchorAsset =
         ANS_Trail::Make_OffsetTrailAnchorAsset(
-            trailAnchorAsset,
-            lane.trailOffset.tipExtendCurve,
-            lane.trailOffset.baseLocalOffsetCurve,
-            lane.trailOffset.tipLocalOffsetCurve,
-            lane.trailOffset.phase);
+            trailEvent->trailAnchorAsset,
+            trailEvent->offsetDesc.tipExtendCurve,
+            trailEvent->offsetDesc.baseLocalOffsetCurve,
+            trailEvent->offsetDesc.tipLocalOffsetCurve,
+            phase);
 
     auto resolveAnchor =
         [this, &echoWorldMatrix](const TrailAnchorPointDesc& anchor, Vec3& outWorldPosition) -> bool
@@ -687,73 +688,135 @@ bool Mon_Simon_Weapon::Try_GetWeaponEchoTrailSample(
         resolveAnchor(sampleAnchorAsset.tip, outSample.tipWorldPosition);
 }
 
-void Mon_Simon_Weapon::Begin_WeaponEchoTrail(
-    const wstring& effectName,
-    const wstring& layerTag,
-    const EffectCom::TrailOffsetRuntimeDesc& offsetDesc)
+void Mon_Simon_Weapon::Register_WeaponEchoTrailEvent(const WeaponEchoTrailEventDesc& desc)
 {
-    const wstring& resolvedEffectName = Resolve_WeaponEchoTrailEffectName(effectName);
-
-    _weaponEchoPendingTrailValid = true;
-    _weaponEchoPendingTrailEffectName = resolvedEffectName;
-    _weaponEchoPendingTrailLayerTag = layerTag;
-    _weaponEchoPendingTrailOffset = offsetDesc;
-    _weaponEchoPendingTrailOffset.phase = std::clamp(_weaponEchoPendingTrailOffset.phase, 0.f, 1.f);
-    _weaponEchoPendingTrailAgeSec = 0.f;
-
-    for (uint32 laneIndex = 0; laneIndex < kMaxWeaponEchoLaneCount; ++laneIndex)
-    {
-        WeaponEchoLane& lane = _weaponEchoLanes[laneIndex];
-        if (!lane.active)
-            continue;
-
-        if (lane.trailStarted)
-        {
-            lane.trailOffset = offsetDesc;
-            lane.trailOffset.phase = std::clamp(lane.trailOffset.phase, 0.f, 1.f);
-            continue;
-        }
-
-        Start_WeaponEchoTrail(lane, laneIndex, resolvedEffectName, layerTag, offsetDesc);
-    }
-}
-
-void Mon_Simon_Weapon::Update_WeaponEchoTrailOffset(const EffectCom::TrailOffsetRuntimeDesc& offsetDesc)
-{
-    if (_weaponEchoPendingTrailValid)
-    {
-        _weaponEchoPendingTrailOffset = offsetDesc;
-        _weaponEchoPendingTrailOffset.phase = std::clamp(_weaponEchoPendingTrailOffset.phase, 0.f, 1.f);
-    }
-
-    for (WeaponEchoLane& lane : _weaponEchoLanes)
-    {
-        if (!lane.active)
-            continue;
-
-        lane.trailOffset = offsetDesc;
-        lane.trailOffset.phase = std::clamp(lane.trailOffset.phase, 0.f, 1.f);
-    }
-}
-
-void Mon_Simon_Weapon::Start_WeaponEchoTrail(
-    WeaponEchoLane& lane,
-    uint32 laneIndex,
-    const wstring& effectName,
-    const wstring& layerTag,
-    const EffectCom::TrailOffsetRuntimeDesc& offsetDesc)
-{
-    if (lane.trailStarted)
+    if (desc.notifyToken == 0 || desc.animationName.empty() || desc.layerTag.empty())
         return;
 
-    if (effectName.empty() || layerTag.empty())
+    if (Find_WeaponEchoTrailEvent(desc.notifyToken) != nullptr)
+        return;
+
+    WeaponEchoTrailEvent trailEvent{};
+    trailEvent.notifyToken = desc.notifyToken;
+    trailEvent.animationName = desc.animationName;
+    trailEvent.startSec = max(0.f, desc.startSec);
+    trailEvent.plannedEndSec = trailEvent.startSec + max(0.f, desc.durationSec);
+    trailEvent.endSec = trailEvent.plannedEndSec;
+    trailEvent.lastSourceTimeSec = trailEvent.startSec;
+    trailEvent.role = desc.sourceEffectName == L"Simon_Trail_TipYellow"
+        ? WeaponEchoTrailRole::Tip
+        : WeaponEchoTrailRole::Main;
+    trailEvent.layerTag = desc.layerTag;
+    trailEvent.offsetDesc = desc.offsetDesc;
+    trailEvent.offsetDesc.phase = std::clamp(trailEvent.offsetDesc.phase, 0.f, 1.f);
+    _weaponEchoTrailEvents.push_back(std::move(trailEvent));
+}
+
+void Mon_Simon_Weapon::Update_WeaponEchoTrailEvent(
+    uint64 notifyToken,
+    float sourceTimeSec,
+    const EffectCom::TrailOffsetRuntimeDesc& offsetDesc)
+{
+    WeaponEchoTrailEvent* trailEvent = Find_WeaponEchoTrailEvent(notifyToken);
+    if (trailEvent == nullptr)
+        return;
+
+    trailEvent->lastSourceTimeSec = max(trailEvent->startSec, sourceTimeSec);
+    trailEvent->offsetDesc = offsetDesc;
+    trailEvent->offsetDesc.phase = std::clamp(trailEvent->offsetDesc.phase, 0.f, 1.f);
+}
+
+void Mon_Simon_Weapon::End_WeaponEchoTrailEvent(uint64 notifyToken, float sourceEndSec)
+{
+    WeaponEchoTrailEvent* trailEvent = Find_WeaponEchoTrailEvent(notifyToken);
+    if (trailEvent == nullptr)
+        return;
+
+    trailEvent->sourceEnded = true;
+    trailEvent->endSec = std::clamp(sourceEndSec, trailEvent->startSec, trailEvent->endSec);
+    trailEvent->lastSourceTimeSec = trailEvent->endSec;
+
+    bool anyActiveLane = false;
+    for (const WeaponEchoLane& lane : _weaponEchoLanes)
+        anyActiveLane |= lane.active;
+
+    if (!anyActiveLane)
+        erase_if(
+            _weaponEchoTrailEvents,
+            [notifyToken](const WeaponEchoTrailEvent& event)
+            {
+                return event.notifyToken == notifyToken;
+            });
+}
+
+void Mon_Simon_Weapon::Update_WeaponEchoTrailEvents()
+{
+    for (WeaponEchoTrailEvent& trailEvent : _weaponEchoTrailEvents)
+    {
+        const wstring& effectName = trailEvent.role == WeaponEchoTrailRole::Tip
+            ? _weaponEchoTrailProfile.tipEffectName
+            : _weaponEchoTrailProfile.mainEffectName;
+
+        for (uint32 laneIndex = 0; laneIndex < kMaxWeaponEchoLaneCount; ++laneIndex)
+        {
+            const WeaponEchoLane& lane = _weaponEchoLanes[laneIndex];
+            WeaponEchoTrailLaneState& laneState = trailEvent.laneStates[laneIndex];
+
+            if (!lane.active || trailEvent.animationName != _weaponEchoSourceAnimationName)
+            {
+                Stop_WeaponEchoTrailEvent(laneState);
+                continue;
+            }
+
+            const float echoSourceTimeSec = lane.playbackSec - lane.delaySec;
+            const bool isActive =
+                echoSourceTimeSec + 1e-4f >= trailEvent.startSec &&
+                echoSourceTimeSec <= trailEvent.endSec + 1e-4f;
+
+            if (isActive)
+            {
+                if (!laneState.started)
+                    Start_WeaponEchoTrailEvent(trailEvent, laneIndex, effectName);
+            }
+            else if (laneState.started)
+            {
+                Stop_WeaponEchoTrailEvent(laneState);
+            }
+        }
+    }
+
+    erase_if(
+        _weaponEchoTrailEvents,
+        [this](const WeaponEchoTrailEvent& trailEvent)
+        {
+            if (!trailEvent.sourceEnded)
+                return false;
+
+            for (uint32 laneIndex = 0; laneIndex < kMaxWeaponEchoLaneCount; ++laneIndex)
+            {
+                const WeaponEchoLane& lane = _weaponEchoLanes[laneIndex];
+                if (lane.active && lane.playbackSec - lane.delaySec <= trailEvent.endSec + 1e-4f)
+                    return false;
+            }
+
+            return true;
+        });
+}
+
+void Mon_Simon_Weapon::Start_WeaponEchoTrailEvent(
+    WeaponEchoTrailEvent& trailEvent,
+    uint32 laneIndex,
+    const wstring& effectName)
+{
+    WeaponEchoTrailLaneState& laneState = trailEvent.laneStates[laneIndex];
+    if (laneState.started)
+        return;
+
+    if (effectName.empty() || trailEvent.layerTag.empty())
         return;
 
     if (_partEffectCom == nullptr || _model == nullptr)
         return;
-
-    lane.trailOffset = offsetDesc;
-    lane.trailOffset.phase = std::clamp(lane.trailOffset.phase, 0.f, 1.f);
 
     const wstring& sourceModelPath = _model->Get_SourceModelPath();
     if (sourceModelPath.empty())
@@ -763,67 +826,99 @@ void Mon_Simon_Weapon::Start_WeaponEchoTrail(
     if (modelGuid.empty())
         return;
 
-    lane.trailAnchorAsset = {};
-    const fs::path anchorPath = TrailAnchor_Parser::Get_ModelTrailAnchorFilePath(modelGuid);
-    if (!TrailAnchor_Parser::Load_FromFile(anchorPath.wstring(), lane.trailAnchorAsset))
-        return;
+    if (!trailEvent.trailAnchorLoaded)
+    {
+        trailEvent.trailAnchorAsset = {};
+        const fs::path anchorPath = TrailAnchor_Parser::Get_ModelTrailAnchorFilePath(modelGuid);
+        if (!TrailAnchor_Parser::Load_FromFile(anchorPath.wstring(), trailEvent.trailAnchorAsset))
+            return;
+
+        trailEvent.trailAnchorLoaded = true;
+    }
 
     const Shared<SimonWeaponEchoTrailSampleProvider> sampleProvider = make_shared<SimonWeaponEchoTrailSampleProvider>(
         GetSharedPtr<Mon_Simon_Weapon>(),
         laneIndex,
-        lane.trailAnchorAsset);
-    lane.trailSampleProvider = sampleProvider;
-    lane.sourcePointSampleProvider = sampleProvider;
+        trailEvent.notifyToken);
+    laneState.trailSampleProvider = sampleProvider;
+    laneState.sourcePointSampleProvider = sampleProvider;
 
     EffectCom::EffectPlayDesc desc{};
     desc.levelIndex = GAME->Current_LevelIndex();
     desc.effectName = effectName;
     desc.target = EffectCom::EffectPlayTarget::OwnerRoot;
-    desc.layerTag = layerTag;
+    desc.layerTag = trailEvent.layerTag;
     desc.requiresManualRelease = true;
-    desc.trailSampleProvider = lane.trailSampleProvider;
-    desc.sourcePointSampleProvider = lane.sourcePointSampleProvider;
+    desc.trailSampleProvider = laneState.trailSampleProvider;
+    desc.sourcePointSampleProvider = laneState.sourcePointSampleProvider;
 
-    if (FAILED(_partEffectCom->Play_Effect(desc, &lane.trailHandle)))
+    if (FAILED(_partEffectCom->Play_Effect(desc, &laneState.handle)))
     {
-        lane.trailSampleProvider.reset();
-        lane.sourcePointSampleProvider.reset();
-        lane.trailHandle = {};
+        laneState.trailSampleProvider.reset();
+        laneState.sourcePointSampleProvider.reset();
+        laneState.handle = {};
         return;
     }
 
-    lane.trailStarted = true;
+    laneState.started = true;
 }
 
-const wstring& Mon_Simon_Weapon::Resolve_WeaponEchoTrailEffectName(const wstring& effectName) const
+void Mon_Simon_Weapon::Stop_WeaponEchoTrailEvents()
 {
-    return _weaponEchoTrailEffectOverride.empty()
-        ? effectName
-        : _weaponEchoTrailEffectOverride;
+    for (WeaponEchoTrailEvent& trailEvent : _weaponEchoTrailEvents)
+    {
+        for (WeaponEchoTrailLaneState& laneState : trailEvent.laneStates)
+            Stop_WeaponEchoTrailEvent(laneState);
+    }
 }
 
-void Mon_Simon_Weapon::Set_WeaponEchoTrailEffectOverride(const wstring& effectName)
+void Mon_Simon_Weapon::Stop_WeaponEchoTrailEvent(WeaponEchoTrailLaneState& laneState)
 {
-    _weaponEchoTrailEffectOverride = effectName;
+    if (_partEffectCom != nullptr && laneState.handle.effectObject != nullptr)
+        _partEffectCom->Stop_Effect(laneState.handle);
+
+    laneState.handle = {};
+    laneState.trailSampleProvider.reset();
+    laneState.sourcePointSampleProvider.reset();
+    laneState.started = false;
 }
 
-void Mon_Simon_Weapon::Stop_WeaponEchoTrail()
+void Mon_Simon_Weapon::Clear_WeaponEchoPlayback()
 {
+    Stop_WeaponEchoTrailEvents();
     for (WeaponEchoLane& lane : _weaponEchoLanes)
-        Stop_WeaponEchoTrail(lane);
+        Reset_WeaponEchoLane(lane);
+
+    _weaponEchoTrailEvents.clear();
+    _weaponEchoTrailProfile = {};
+    _weaponEchoSourceModel = nullptr;
+    _weaponEchoSourceAnimationName.clear();
+    _weaponEchoLastKnownSourceTimeSec = 0.f;
+    _weaponEchoHasSourceTime = false;
 }
 
-void Mon_Simon_Weapon::Stop_WeaponEchoTrail(WeaponEchoLane& lane)
+Mon_Simon_Weapon::WeaponEchoTrailEvent* Mon_Simon_Weapon::Find_WeaponEchoTrailEvent(uint64 notifyToken)
 {
-    if (_partEffectCom != nullptr && lane.trailHandle.effectObject != nullptr)
-        _partEffectCom->Stop_Effect(lane.trailHandle);
+    const auto iter = ranges::find_if(
+        _weaponEchoTrailEvents,
+        [notifyToken](const WeaponEchoTrailEvent& trailEvent)
+        {
+            return trailEvent.notifyToken == notifyToken;
+        });
 
-    lane.trailHandle = {};
-    lane.trailSampleProvider.reset();
-    lane.sourcePointSampleProvider.reset();
-    lane.trailAnchorAsset = {};
-    lane.trailOffset = {};
-    lane.trailStarted = false;
+    return iter != _weaponEchoTrailEvents.end() ? &*iter : nullptr;
+}
+
+const Mon_Simon_Weapon::WeaponEchoTrailEvent* Mon_Simon_Weapon::Find_WeaponEchoTrailEvent(uint64 notifyToken) const
+{
+    const auto iter = ranges::find_if(
+        _weaponEchoTrailEvents,
+        [notifyToken](const WeaponEchoTrailEvent& trailEvent)
+        {
+            return trailEvent.notifyToken == notifyToken;
+        });
+
+    return iter != _weaponEchoTrailEvents.end() ? &*iter : nullptr;
 }
 
 Shared<Material> Mon_Simon_Weapon::Resolve_WeaponEchoRenderMaterial(
@@ -966,8 +1061,7 @@ Shared<GameObject> Mon_Simon_Weapon::Clone(void* arg)
 
 void Mon_Simon_Weapon::Free()
 {
-    Stop_WeaponEchoTrail();
-    _weaponEchoTrailEffectOverride.clear();
+    Clear_WeaponEchoPlayback();
 
     Monster_Part::Free();
 }

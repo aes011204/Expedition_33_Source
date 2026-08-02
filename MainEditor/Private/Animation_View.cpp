@@ -52,6 +52,8 @@
 
 namespace
 {
+constexpr uint64 kPreviewWeaponEchoTrailTokenMask = uint64{ 1 } << 63;
+
 Shared<ModelCom> Resolve_PreviewTrailPartModel(const PartObject* partObject)
 {
     if (partObject == nullptr)
@@ -4324,14 +4326,23 @@ void Animation_View::Update_PreviewWeaponEchoStates(float timeDelta)
                     continue;
                 if (trailEntry.notifyState->Get_TypeName() != "ANS_Trail")
                     continue;
-                if (sourceTimeSec < trailEntry.startSec)
-                    continue;
-                if (sourceTimeSec > trailEntry.startSec + trailEntry.durationSec)
-                    continue;
 
                 const json trailPayload = trailEntry.notifyState->To_Json();
                 const string trailPartTagString = trailPayload.value("_partTag", string{ "Part_Weapon" });
                 if (trailPartTagString != echoPartTagString)
+                    continue;
+
+                const uint64 notifyToken =
+                    kPreviewWeaponEchoTrailTokenMask |
+                    static_cast<uint64>(static_cast<uint32>(trailEntry.id));
+                const float trailEndSec = trailEntry.startSec + max(0.f, trailEntry.durationSec);
+                if (sourceTimeSec > trailEndSec)
+                {
+                    simonWeapon->End_WeaponEchoTrailEvent(notifyToken, trailEndSec);
+                    continue;
+                }
+
+                if (sourceTimeSec < trailEntry.startSec)
                     continue;
 
                 wstring resolvedEffectName{};
@@ -4351,8 +4362,16 @@ void Animation_View::Update_PreviewWeaponEchoStates(float timeDelta)
                 offsetDesc.baseLocalOffsetCurve = trailNotifyState->Get_BaseLocalOffsetCurve();
                 offsetDesc.tipLocalOffsetCurve = trailNotifyState->Get_TipLocalOffsetCurve();
 
-                simonWeapon->Begin_WeaponEchoTrail(resolvedEffectName, L"Layer_Effect", offsetDesc);
-                return;
+                Mon_Simon_Weapon::WeaponEchoTrailEventDesc trailEventDesc{};
+                trailEventDesc.notifyToken = notifyToken;
+                trailEventDesc.animationName = _currentAnimationName;
+                trailEventDesc.startSec = trailEntry.startSec;
+                trailEventDesc.durationSec = max(0.f, trailEntry.durationSec);
+                trailEventDesc.sourceEffectName = resolvedEffectName;
+                trailEventDesc.layerTag = L"Layer_Effect";
+                trailEventDesc.offsetDesc = offsetDesc;
+                simonWeapon->Register_WeaponEchoTrailEvent(trailEventDesc);
+                simonWeapon->Update_WeaponEchoTrailEvent(notifyToken, sourceTimeSec, offsetDesc);
             }
         };
 
