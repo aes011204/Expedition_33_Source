@@ -34,11 +34,12 @@ public:
     void Set_CameraPresetId(const string& cameraPresetId);
     const string& Get_CameraPresetId() const { return _cameraPresetId; }
 
-    void Set_AnchorTransform(const Shared<TransformCom>& transformCom) { _anchorTransformCom = transformCom; }
-    void Set_SpeakerTransform(const Shared<TransformCom>& transformCom) { _speakerTransformCom = transformCom; }
-    void Set_ListenerTransform(const Shared<TransformCom>& transformCom) { _listenerTransformCom = transformCom; }
+    void Set_AnchorTransform(const Shared<TransformCom>& transformCom);
+    void Set_SpeakerTransform(const Shared<TransformCom>& transformCom);
+    void Set_ListenerTransform(const Shared<TransformCom>& transformCom);
     void Clear_Targets();
 
+    void Capture_AnchorPose();
     void Snap_ToDialogueTargets();
     void Apply_ImmediatePose(const Vec3& eye, const Vec3& lookAt);
 
@@ -51,6 +52,9 @@ private:
     Weak<TransformCom> _anchorTransformCom;
     Weak<TransformCom> _speakerTransformCom;
     Weak<TransformCom> _listenerTransformCom;
+    Vec3 _capturedAnchorPos = Vec3::Zero;
+    Vec3 _capturedAnchorForward = Vec3::Look;
+    bool _hasCapturedAnchorPose = false;
 
     string _cameraPresetId;
     float _blendSpeed = 6.f;
