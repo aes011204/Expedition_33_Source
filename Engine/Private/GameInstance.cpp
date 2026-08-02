@@ -3476,6 +3476,12 @@ void GameInstance::QueryVisible(vector<uint32>& outIndices) const
         _cullingManager->QueryVisible(outIndices);
 }
 
+void GameInstance::CollectOctreeDebugBoxes(vector<BoundingBox>& outBoxes) const
+{
+    if (_cullingManager)
+        _cullingManager->CollectOctreeDebugBoxes(outBoxes);
+}
+
 void GameInstance::Visit_BTNodeTypes(const function<void(const TypeRegistry::BTNodeTypeInfo&)>& visitor) const
 {
     if (_typeRegistry == nullptr)

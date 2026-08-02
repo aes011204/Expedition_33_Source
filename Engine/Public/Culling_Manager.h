@@ -52,6 +52,7 @@ public:
     void BuildOctree(const vector<BoundingBox>& worldAABBs);
     void QueryVisible(vector<uint32>& outIndices) const;
     void ClearOctree();
+    void CollectOctreeDebugBoxes(vector<BoundingBox>& outBoxes) const;
 
 public:
     static Unique<Culling_Manager> Create();
