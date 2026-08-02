@@ -416,7 +416,8 @@ HRESULT MapInstancedMesh::Render()
     const bool forceGestralPalisadeCull =
         ClientInstance::Is_DebugForceGestralPalisadeInstancedCull() &&
         Is_GestralPalisadeModelPath(_modelPath);
-    const bool useCullPath = !usePotatoBagArenaInstances && (_cullEnabled || forceGestralPalisadeCull);
+    const bool useCullPath = !usePotatoBagArenaInstances && (_cullEnabled || forceGestralPalisadeCull)
+        && !ClientInstance::Is_DebugDisableInstanceComputeCull();
 
     bool useIndirect = false;
     if (useCullPath && _cullShader && _instanceSrcBuffer && _sphereBuffer && _visibleVB[0] && !_indirectArgsBuffers[0].empty())
