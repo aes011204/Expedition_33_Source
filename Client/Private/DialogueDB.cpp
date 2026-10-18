@@ -1,0 +1,102 @@
+﻿#include "DialogueDB.h"
+#include "DialogueTypes.h"
+#include "Helper_String.h"
+#include <fstream>
+#include "magic_enum/magic_enum.hpp"
+#include <nlohmann/json.hpp>
+
+using json = nlohmann::json;
+
+NS_BEGIN(Client)
+
+const DialogueData* DialogueDB::FindDialogueData(const string& dialogueKey) const
+{
+    const auto iter = _dialogueMap.find(dialogueKey);
+
+    if (iter == _dialogueMap.end())
+        return nullptr;
+
+    return &iter->second;
+}
+
+void DialogueDB::LoadFromFile(const string& filePath)
+{
+    ifstream file(filePath);
+    if (!file.is_open())
+        return;
+
+    json jsonData{};
+    file >> jsonData;
+
+    _dialogueMap.clear();
+
+    if (!jsonData.contains("dialogues") || !jsonData["dialogues"].is_array())
+        return;
+
+    for (const auto& dialogueJson : jsonData["dialogues"])
+    {
+        DialogueData dialogueData{};
+        dialogueData.dialogueKey = dialogueJson.value("dialogueKey", "");
+        dialogueData.displayName = dialogueJson.value("displayName", "");
+        const string restoreToStartAnimation = dialogueJson.value("restoreToStartAnimation", string("false"));
+        dialogueData.restoreToStartAnimation = (restoreToStartAnimation == "true");
+        if (dialogueData.dialogueKey.empty())
+            continue;
+
+        if (dialogueJson.contains("lines") && dialogueJson["lines"].is_array())
+        {
+            for (const auto& lineJson : dialogueJson["lines"])
+            {
+                DialogueLine line{};
+                line.lineIndex = lineJson.value("lineIndex", 0);
+                line.text = String::ToWString(lineJson.value("text", ""));
+                line.cameraPresetId = lineJson.value("cameraPresetId", "");
+                line.soundCueId = lineJson.value("soundCueId", "");
+                line.action = lineJson.value("action", "");
+                line.nextLineIndex = lineJson.value("nextLineIndex", -1);
+                line.speakerAnimationKey = lineJson.value("speakerAnimationKey", "");
+                line.speakerOffsetY = lineJson.value("speakerOffsetY", 0.f);
+                if (const string speakerRoleName = lineJson.value("speakerRole", string{}); !speakerRoleName.empty())
+                {
+                    if (const auto parsedSpeakerRole = magic_enum::enum_cast<DialogueActorRole>(speakerRoleName); parsedSpeakerRole.has_value())
+                        line.speakerRole = parsedSpeakerRole.value();
+                }
+
+                if (lineJson.contains("choices") && lineJson["choices"].is_array())
+                {
+                    for (const auto& choiceJson : lineJson["choices"])
+                    {
+                        DialogueChoice choice{};
+                        choice.text = choiceJson.value("text", "");
+                        choice.action = choiceJson.value("action", "");
+                        choice.nextLineIndex = choiceJson.value("nextLineIndex", -1);
+                        choice.resumeDialogueKey = choiceJson.value("resumeDialogueKey", "");
+                        line.choices.push_back(move(choice));
+                    }
+                }
+
+                dialogueData.lines.push_back(move(line));
+            }
+        }
+
+        _dialogueMap[dialogueData.dialogueKey] = move(dialogueData);
+    }
+}
+
+void DialogueDB::Clear()
+{
+    _dialogueMap.clear();
+}
+
+Unique<DialogueDB> DialogueDB::Create()
+{
+    return make_unique<DialogueDB>();
+}
+
+void DialogueDB::Free()
+{
+    Clear();
+    Base::Free();
+}
+
+NS_END

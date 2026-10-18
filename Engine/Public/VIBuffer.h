@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #include "Component.h"
 
@@ -9,19 +9,23 @@ NS_BEGIN(Engine)
 class ENGINE_DLL VIBuffer abstract : public Component
 {
 public:
-	VIBuffer(ComPtr<Device> device, ComPtr<Context> context);
-	VIBuffer(const VIBuffer& Prototype);
+	VIBuffer(const ComPtr<Device>& device, const ComPtr<Context>& context);
+	VIBuffer(const VIBuffer& prototype);
 	virtual ~VIBuffer() = default;
 
 public:
 	virtual HRESULT Initialize_Prototype();
-	virtual HRESULT Initialize(void* pArg);
+	virtual HRESULT Initialize(void* arg);
 	virtual HRESULT Bind_Resources();
 	virtual HRESULT Render();
 
+	uint32 Get_NumIndices() const { return _numIndices; }
+    // Profile View의 리소스 요약에서 vertex/index buffer의 대략적인 GPU byte를 추정할 때 사용한다.
+    size_t Get_DebugEstimatedBufferBytes() const;
+
 protected:
-	ID3D11Buffer*				_vb = { nullptr };
-	ID3D11Buffer*				_ib = { nullptr };
+	ComPtr<ID3D11Buffer>		_vb = nullptr;
+	ComPtr<ID3D11Buffer>		_ib = nullptr;
 
 protected:
 	uint32						_numVertexBuffers = {};
@@ -34,7 +38,7 @@ protected:
 
 
 public:
-	virtual Shared<Component> Clone(void* pArg) = 0;
+	virtual Shared<Component> Clone(void* arg) = 0;
 	virtual void Free() override;
 };
 

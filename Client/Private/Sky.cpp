@@ -1,13 +1,25 @@
-#include "Sky.h"
+﻿#include "Sky.h"
 #include "GameInstance.h"
+#include "Camera.h"
 
-Sky::Sky(ComPtr<Device> device, ComPtr<Context> context)
+IMPLEMENT_REFLECTION(Sky)
+{
+    auto& info = GetStaticReflectionInfo();
+    info.properties.clear();
+
+    info.displayName = "Sky";
+    info.category = "World";
+
+    return true;
+}
+
+Sky::Sky(const ComPtr<Device>& device, const ComPtr<Context>& context)
 	: GameObject { device, context }
 {
 }
 
-Sky::Sky(const Sky& Prototype)
-	: GameObject { Prototype }
+Sky::Sky(const Sky& prototype)
+	: GameObject { prototype }
 
 {
 }
@@ -25,6 +37,8 @@ HRESULT Sky::Initialize(void* pArg)
 	if (FAILED(Ready_Components()))
 		return E_FAIL;
 
+    _transformCom->Set_Scale(Vec3(100.f, 100.f, 100.f));
+
 	return S_OK;
 }
 
@@ -34,13 +48,11 @@ void Sky::Priority_Update(float fTimeDelta)
 
 void Sky::Update(float fTimeDelta)
 {
-	_transformCom->Set_State(State::POSITION,
-		XMLoadFloat4(GAME->Get_CamPosition()));
 }
 
 void Sky::Late_Update(float fTimeDelta)
 {
- 	GAME->Add_RenderGroup(RenderGroup::PRIORITY, this);
+	GAME->Add_RenderGroup(RenderGroup::Priority, GetSharedPtr<GameObject>());
 }
 
 HRESULT Sky::Render()
@@ -63,13 +75,13 @@ HRESULT Sky::Render()
 
 HRESULT Sky::Ready_Components()
 {
-	if (FAILED(__super::Add_Component(ETOI(LevelType::GamePlay), TEXT("Texture_Sky"), _texture)))
+	if (FAILED(__super::Add_Component(ETOI(LevelType::Static), TEXT("Texture_Sky"), _texture)))
 		return E_FAIL;
 
-	if (FAILED(__super::Add_Component(ETOI(LevelType::GamePlay), TEXT("Shader_VtxCube"), _shader)))
+	if (FAILED(__super::Add_Component(ETOI(LevelType::Static), TEXT("Shader_VtxCube"), _shader)))
 		return E_FAIL;
 
-	if (FAILED(__super::Add_Component(ETOI(LevelType::GamePlay), TEXT("VIBuffer_Cube"), _vibuffer)))
+	if (FAILED(__super::Add_Component(ETOI(LevelType::Static), TEXT("VIBuffer_Cube"), _vibuffer)))
 		return E_FAIL;
 
 	return S_OK;
@@ -77,13 +89,23 @@ HRESULT Sky::Ready_Components()
 
 HRESULT Sky::Bind_ShaderResources()
 {
+    Shared<Camera> activeCamera = GAME->Get_ActiveCamera();
+    if (activeCamera != nullptr)
+    {
+        Shared<TransformCom> cameraTransform = activeCamera->Get_Transform();
+        if (cameraTransform != nullptr)
+        {
+            _transformCom->Set_WorldPosition(cameraTransform->Get_WorldPosition());
+        }
+    }
+
 	if (FAILED(_transformCom->Bind_ShaderResource(_shader.get(), "g_WorldMatrix")))
 		return E_FAIL;
 
-	if (FAILED(GAME->Bind_TransformMatrix(D3DTS::VIEW, _shader.get(), "g_ViewMatrix")))
+	if (FAILED(GAME->Bind_TransformMatrix(D3DTS::View, _shader.get(), "g_ViewMatrix")))
 		return E_FAIL;
 
-	if (FAILED(GAME->Bind_TransformMatrix(D3DTS::PROJ, _shader.get(), "g_ProjMatrix")))
+	if (FAILED(GAME->Bind_TransformMatrix(D3DTS::Proj, _shader.get(), "g_ProjMatrix")))
 		return E_FAIL;
 
 	if (FAILED(_texture->Bind_ShaderResourceView(_shader.get(), "g_Texture", 2)))
@@ -92,7 +114,7 @@ HRESULT Sky::Bind_ShaderResources()
 	return S_OK;
 }
 
-Shared<Sky> Sky::Create(ComPtr<Device> device, ComPtr<Context> context)
+Shared<Sky> Sky::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)
 {
 	auto pInstance = make_shared<Sky>(device, context);
 
@@ -120,11 +142,6 @@ Shared<GameObject> Sky::Clone(void* pArg)
 void Sky::Free()
 {
 	__super::Free();
-
-	
-	Safe_Release(_shader);
-	Safe_Release(_texture);
-	Safe_Release(_vibuffer);
 }
 
 

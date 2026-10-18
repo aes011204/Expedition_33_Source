@@ -2,70 +2,99 @@
 #define Engine_Define_h__
 
 #include <d3d11.h>
-#include <DirectXMath.h>
 #include <d3dcompiler.h>
 #include <DirectXCollision.h>
+#include <DirectXMath.h>
 
-#include "DirectXTK/DDSTextureLoader.h"
-#include "DirectXTK/WICTextureLoader.h"
-#include "DirectXTK/SpriteBatch.h"
-#include "DirectXTK/SpriteFont.h"
-#include "DirectXTK/ScreenGrab.h"
-
-#include "Fx11/d3dx11effect.h"
-
-#include "Assimp/scene.h"
-#include "Assimp/Importer.hpp"
-#include "Assimp/postprocess.h"
-
-
-using namespace DirectX;
-
-#include <vector>
-#include <list>
-#include <map>
 #include <algorithm>
-#include <functional>
-#include <string>
-#include <unordered_map>
+#include <array>
+#include <chrono>
+#include <cstddef>
 #include <ctime>
+#include <cwctype>
+#include <deque>
+#include <exception>
 #include <filesystem>
 #include <fstream>
-#include <sstream>
+#include <functional>
 #include <iomanip>
+#include <list>
+#include <map>
+#include <memory>
+#include <mutex>
+#include <optional>
 #include <random>
-#include <cwctype>
+#include <sstream>
+#include <stdint.h>
+#include <string>
+#include <tuple>
+#include <unordered_map>
+#include <unordered_set>
+#include <vector>
+#include <set>
+#include <atomic>
+#include <queue>
+#include <system_error>
+#include <type_traits>
 
+#pragma warning(disable : 4251 4275)
+
+#include "Engine_Config.h"
+
+#include <directxtk/DDSTextureLoader.h>
+#include <directxtk/Effects.h>
+#include <directxtk/PrimitiveBatch.h>
+#include <directxtk/ScreenGrab.h>
+#include <directxtk/SimpleMath.h>
+#include <directxtk/SpriteBatch.h>
+#include <directxtk/SpriteFont.h>
+#include <directxtk/VertexTypes.h>
+#include <directxtk/WICTextureLoader.h>
+#include <Effects11/d3dx11effect.h>
+#include <magic_enum/magic_enum.hpp>
 #include <nlohmann/json.hpp>
+
+#include <spdlog/spdlog.h>
+#include <spdlog/sinks/msvc_sink.h>
+#include <spdlog/sinks/rotating_file_sink.h>
+//#include <fmod.hpp>
+
+// phiscx
+#include "PxPhysicsAPI.h"
+
+#include "Engine_Typedef.h"
+#include "Engine_Enum.h"
+#include "Engine_Macro.h"
+#include "Engine_Struct.h"
+#include "Engine_Function.h"
+#include "Vertex_Types.h"
+#include "Engine_Model_Struct.h"
+#include "Engine_Constants.h"
+#include "Engine_Static.h"
+
+// height map
+#include <wincodec.h>
+
+//## Windows SDK 라이브러리 링커
+#pragma comment(lib, "d3d11.lib")
+#pragma comment(lib, "d3dcompiler.lib")
+#pragma comment(lib, "dxgi.lib")
+#pragma comment(lib, "dxguid.lib")
+#pragma comment(lib, "windowscodecs.lib")
+
+//## 외부 라이브러리 링커
+// FMOD: Configuration에 따라 Debug 또는 Release 라이브러리 링크
+//#ifdef _DEBUG
+//#pragma comment(lib, "fmodL_vc.lib")
+//#else
+//#pragma comment(lib, "fmod_vc.lib")
+//#endif
 
 using namespace std;
 namespace fs = std::filesystem;
 using json = nlohmann::json;
-
-#include "Engine_Enum.h"
-#include "Engine_Macro.h"
-#include "Engine_Struct.h"
-#include "Engine_Typedef.h"
-#include "Engine_Function.h"
-#include "Vertex_Types.h"
-
-#pragma warning(disable : 4251)
-
-#ifdef _DEBUG
-
-#define _CRTDBG_MAP_ALLOC
-#include <stdlib.h>
-#include <crtdbg.h>
-
-#ifndef DBG_NEW 
-
-#define DBG_NEW new ( _NORMAL_BLOCK , __FILE__ , __LINE__ ) 
-#define new DBG_NEW 
-
-#endif
-#endif
-
-
 using namespace Engine;
+using namespace DirectX;
+using namespace physx;
 
 #endif // Engine_Define_h__

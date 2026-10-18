@@ -69,40 +69,53 @@
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <OutDir>..\Bin\</OutDir>
+    <OutDir>..\Bin\$(Configuration)\</OutDir>
+    <IntDir>x64\$(Configuration)\</IntDir>
     <TargetName>MainEditor</TargetName>
+    <LocalDebuggerWorkingDirectory>$(OutDir)</LocalDebuggerWorkingDirectory>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <OutDir>..\Bin\</OutDir>
+    <OutDir>..\Bin\$(Configuration)\</OutDir>
+    <IntDir>x64\$(Configuration)\</IntDir>
     <TargetName>MainEditor</TargetName>
+    <LocalDebuggerWorkingDirectory>$(OutDir)</LocalDebuggerWorkingDirectory>
+  </PropertyGroup>
+  <PropertyGroup Label="Vcpkg" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <VcpkgTriplet>x64-windows</VcpkgTriplet>
+    <VcpkgHostTriplet>x64-windows</VcpkgHostTriplet>
+  </PropertyGroup>
+  <PropertyGroup Label="Vcpkg" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <VcpkgTriplet>x64-windows</VcpkgTriplet>
+    <VcpkgHostTriplet>x64-windows</VcpkgHostTriplet>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>_DEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_DEBUG;_EDITOR;_WINDOWS;NOMINMAX;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <LanguageStandard>stdcpp20</LanguageStandard>
-      <AdditionalIncludeDirectories>$(ProjectDir);..\Public;..\..\Engine\Public;..\..\EngineSDK\inc;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <AdditionalIncludeDirectories>$(ProjectDir);..\Public;..\..\Client\Public;..\..\EngineSDK\inc\Engine;..\..\EngineSDK\inc;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <ProgramDataBaseFileName>$(IntDir)MainEditorCompile.pdb</ProgramDataBaseFileName>
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
       <ForcedIncludeFiles>pch.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <AdditionalOptions>/utf-8 /bigobj %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>..\..\Engine\Bin;..\..\EngineSDK\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>Engine.lib;DirectXTKd.lib;d3d11.lib;dxgi.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>..\..\Client\Bin\$(Configuration);..\..\EngineSDK\lib\$(Configuration);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>Client.lib;Engine.lib;d3d11.lib;dxgi.lib;Comdlg32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalOptions>/WHOLEARCHIVE:Client.lib /WHOLEARCHIVE:Engine.lib %(AdditionalOptions)</AdditionalOptions>
     </Link>
-    <PreBuildEvent>
-      <Command>pushd "$(ProjectDir)..\.." &amp;&amp; call "UpdateLib.bat" &amp;&amp; popd</Command>
-    </PreBuildEvent>
     <PostBuildEvent>
-      <Command>if exist "$(ProjectDir)..\..\Engine\Bin\Engine.dll" xcopy /y /d "$(ProjectDir)..\..\Engine\Bin\Engine.dll" "$(OutDir)"
-if exist "$(ProjectDir)..\..\Client\Bin\assimp-vc143-mtd.dll" xcopy /y /d "$(ProjectDir)..\..\Client\Bin\assimp-vc143-mtd.dll" "$(OutDir)"
-if exist "$(ProjectDir)..\..\Client\Bin\assimp-vc143-mt.dll" xcopy /y /d "$(ProjectDir)..\..\Client\Bin\assimp-vc143-mt.dll" "$(OutDir)"</Command>
+      <Command>if exist "$(ProjectDir)..\..\Engine\Bin\$(Configuration)\Engine.dll" xcopy /y /d "$(ProjectDir)..\..\Engine\Bin\$(Configuration)\Engine.dll" "$(OutDir)"
+if exist "$(ProjectDir)..\..\Engine\Bin\$(Configuration)\Engine.pdb" xcopy /y /d "$(ProjectDir)..\..\Engine\Bin\$(Configuration)\Engine.pdb" "$(OutDir)"
+if exist "$(ProjectDir)..\..\EngineSDK\lib\$(Configuration)\fmodL.dll" xcopy /y /d "$(ProjectDir)..\..\EngineSDK\lib\$(Configuration)\fmodL.dll" "$(OutDir)"
+if exist "$(ProjectDir)..\..\EngineSDK\lib\$(Configuration)\fmod.dll" xcopy /y /d "$(ProjectDir)..\..\EngineSDK\lib\$(Configuration)\fmod.dll" "$(OutDir)"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -111,35 +124,37 @@ if exist "$(ProjectDir)..\..\Client\Bin\assimp-vc143-mt.dll" xcopy /y /d "$(Proj
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>NDEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>NDEBUG;_EDITOR;_WINDOWS;NOMINMAX;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>$(ProjectDir);..\Public;..\..\Engine\Public;..\..\EngineSDK\inc;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir);..\Public;..\..\Client\Public;..\..\EngineSDK\inc\Engine;..\..\EngineSDK\inc;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
       <ForcedIncludeFiles>pch.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <LanguageStandard>stdcpp20</LanguageStandard>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <AdditionalOptions>/utf-8 /bigobj %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>..\..\Engine\Bin;..\..\EngineSDK\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>Engine.lib;DirectXTK.lib;d3d11.lib;dxgi.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>..\..\Client\Bin\$(Configuration);..\..\EngineSDK\lib\$(Configuration);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>Client.lib;Engine.lib;d3d11.lib;dxgi.lib;Comdlg32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalOptions>/WHOLEARCHIVE:Client.lib /WHOLEARCHIVE:Engine.lib %(AdditionalOptions)</AdditionalOptions>
     </Link>
-    <PreBuildEvent>
-      <Command>pushd "$(ProjectDir)..\.." &amp;&amp; call "UpdateLib.bat" &amp;&amp; popd</Command>
-    </PreBuildEvent>
     <PostBuildEvent>
-      <Command>if exist "$(ProjectDir)..\..\Engine\Bin\Engine.dll" xcopy /y /d "$(ProjectDir)..\..\Engine\Bin\Engine.dll" "$(OutDir)"
-if exist "$(ProjectDir)..\..\Client\Bin\assimp-vc143-mtd.dll" xcopy /y /d "$(ProjectDir)..\..\Client\Bin\assimp-vc143-mtd.dll" "$(OutDir)"
-if exist "$(ProjectDir)..\..\Client\Bin\assimp-vc143-mt.dll" xcopy /y /d "$(ProjectDir)..\..\Client\Bin\assimp-vc143-mt.dll" "$(OutDir)"</Command>
+      <Command>if exist "$(ProjectDir)..\..\Engine\Bin\$(Configuration)\Engine.dll" xcopy /y /d "$(ProjectDir)..\..\Engine\Bin\$(Configuration)\Engine.dll" "$(OutDir)"
+if exist "$(ProjectDir)..\..\Engine\Bin\$(Configuration)\Engine.pdb" xcopy /y /d "$(ProjectDir)..\..\Engine\Bin\$(Configuration)\Engine.pdb" "$(OutDir)"
+if exist "$(ProjectDir)..\..\EngineSDK\lib\$(Configuration)\fmodL.dll" xcopy /y /d "$(ProjectDir)..\..\EngineSDK\lib\$(Configuration)\fmodL.dll" "$(OutDir)"
+if exist "$(ProjectDir)..\..\EngineSDK\lib\$(Configuration)\fmod.dll" xcopy /y /d "$(ProjectDir)..\..\EngineSDK\lib\$(Configuration)\fmod.dll" "$(OutDir)"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_EDITOR;_WINDOWS;NOMINMAX;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
@@ -149,9 +164,6 @@ if exist "$(ProjectDir)..\..\Client\Bin\assimp-vc143-mt.dll" xcopy /y /d "$(Proj
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
-    <PreBuildEvent>
-      <Command>pushd "$(ProjectDir)..\.." &amp;&amp; call "UpdateLib.bat" &amp;&amp; popd</Command>
-    </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <ClCompile>
@@ -159,7 +171,7 @@ if exist "$(ProjectDir)..\..\Client\Bin\assimp-vc143-mt.dll" xcopy /y /d "$(Proj
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;NDEBUG;_EDITOR;_WINDOWS;NOMINMAX;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
@@ -171,18 +183,55 @@ if exist "$(ProjectDir)..\..\Client\Bin\assimp-vc143-mt.dll" xcopy /y /d "$(Proj
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
-    <PreBuildEvent>
-      <Command>pushd "$(ProjectDir)..\.." &amp;&amp; call "UpdateLib.bat" &amp;&amp; popd</Command>
-    </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="..\Private\Action_Command.cpp" />
+    <ClCompile Include="..\Private\AnimationNotifyEditor.cpp" />
+    <ClCompile Include="..\Private\Animation_View.cpp" />
+    <ClCompile Include="..\Private\AnimSequencerAdapter.cpp" />
+    <ClCompile Include="..\private\AIController_Inspector.cpp" />
+    <ClCompile Include="..\Private\AnimState_View.cpp" />
+    <ClCompile Include="..\private\BT_View.cpp" />
+    <ClCompile Include="..\private\Camera_Tool.cpp" />
+    <ClCompile Include="..\Private\BattleCameraPreview_Effects.cpp" />
+    <ClCompile Include="..\Private\BattleCameraPreview_View.cpp" />
+    <ClCompile Include="..\private\Cinematic_Tool.cpp" />
+    <ClCompile Include="..\Private\Collider_Inspector.cpp" />
+    <ClCompile Include="..\Private\CombatStat_Inspector.cpp" />
+    <ClCompile Include="..\Private\CommandHistory.cpp" />
+    <ClCompile Include="..\Private\Component_Inspector.cpp" />
+    <ClCompile Include="..\Private\Console_View.cpp" />
+    <ClCompile Include="..\Private\EditorPickingSystem.cpp" />
+    <ClCompile Include="..\Private\Editor_Camera_Free.cpp" />
+    <ClCompile Include="..\Private\Editor_Context.cpp" />
+    <ClCompile Include="..\Private\Inspector_Factory.cpp" />
+    <ClCompile Include="..\Private\Level_Tool.cpp" />
+    <ClCompile Include="..\Private\MainEditorApp.cpp" />
+    <ClCompile Include="..\Private\MaterialCreateHelper.cpp" />
+    <ClCompile Include="..\Private\Material_View.cpp" />
+    <ClCompile Include="..\Private\Model_Inspector.cpp" />
+    <ClCompile Include="..\Private\MonsterStat_Inspector.cpp" />
+    <ClCompile Include="..\Private\Notification_Manager.cpp" />
+    <ClCompile Include="..\Private\PathTool.cpp" />
+    <ClCompile Include="..\Private\PlayerStat_Inspector.cpp" />
+    <ClCompile Include="..\Private\PostProcess_View.cpp" />
+    <ClCompile Include="..\Private\Prefab_View.cpp" />
+    <ClCompile Include="..\Private\ImGui_Manager.cpp" />
+    <ClCompile Include="..\Private\ImSequencer.cpp" />
+    <ClCompile Include="..\Private\ScreenFx_View.cpp" />
+    <ClCompile Include="..\Private\SoulLike_Viewer.cpp" />
+    <ClCompile Include="..\Private\SoulLikeCamera_Viewer.cpp" />
+    <ClCompile Include="..\Private\Transform_Inspector.cpp" />
     <ClCompile Include="pch.cpp">
       <PrecompiledHeader>Create</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="MainEditor.cpp" />
     <ClCompile Include="..\Private\EditorInstance.cpp" />
-    <ClCompile Include="..\Private\EditorWindow.cpp" />
+    <ClCompile Include="..\Private\Editor_Window.cpp" />
     <ClCompile Include="..\Private\Editor_Manager.cpp" />
+    <ClCompile Include="..\Private\EnvironmentView.cpp" />
+    <ClCompile Include="..\Private\Profile_View.cpp" />
+    <ClCompile Include="..\Private\RenderCall_View.cpp" />
     <ClCompile Include="..\Private\Scene_View.cpp" />
     <ClCompile Include="..\Private\Game_View.cpp" />
     <ClCompile Include="..\Private\Hierarchy_View.cpp" />
@@ -190,17 +239,69 @@ if exist "$(ProjectDir)..\..\Client\Bin\assimp-vc143-mt.dll" xcopy /y /d "$(Proj
     <ClCompile Include="..\Private\Inspector.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\Public\Action_Command.h" />
+    <ClInclude Include="..\Public\AnimationNotifyEditor.h" />
+    <ClInclude Include="..\Public\Animation_NameUtils.h" />
+    <ClInclude Include="..\Public\Animation_View.h" />
+    <ClInclude Include="..\Public\AnimSequencerAdapter.h" />
+    <ClInclude Include="..\Public\ImSequencer.h" />
+    <ClInclude Include="..\public\AIController_Inspector.h" />
+    <ClInclude Include="..\Public\AnimState_View.h" />
+    <ClInclude Include="..\public\BT_VIew.h" />
+    <ClInclude Include="..\Public\BattleCameraPreview_View.h" />
+    <ClInclude Include="..\public\Camera_Tool.h" />
+    <ClInclude Include="..\Public\Collider_Inspector.h" />
+    <ClInclude Include="..\Public\CombatStat_Inspector.h" />
+    <ClInclude Include="..\Public\CommandHistory.h" />
+    <ClInclude Include="..\Public\Component_Inspector.h" />
+    <ClInclude Include="..\Public\Console_View.h" />
+    <ClInclude Include="..\Public\EditorPickingSystem.h" />
+    <ClInclude Include="..\Public\Editor_Camera_Free.h" />
+    <ClInclude Include="..\Public\Editor_Context.h" />
+    <ClInclude Include="..\Public\Editor_Enum.h" />
+    <ClInclude Include="..\Public\Editor_Macro.h" />
+    <ClInclude Include="..\Public\Editor_Struct.h" />
+    <ClInclude Include="..\Public\ImGui_Manager.h" />
+    <ClInclude Include="..\Public\Inspector_Factory.h" />
+    <ClInclude Include="..\Public\Material_BundleTypes.h" />
+    <ClInclude Include="..\Public\MaterialCreateHelper.h" />
+    <ClInclude Include="..\Public\Material_View.h" />
+    <ClInclude Include="..\Public\Level_Tool.h" />
+    <ClInclude Include="..\Public\Model_Inspector.h" />
+    <ClInclude Include="..\Public\MonsterStat_Inspector.h" />
+    <ClInclude Include="..\Public\Notification_Manager.h" />
+    <ClInclude Include="..\Public\PathTool.h" />
+    <ClInclude Include="..\Public\PlayerStat_Inspector.h" />
+    <ClInclude Include="..\Public\PostProcess_View.h" />
+    <ClInclude Include="..\Public\Prefab_View.h" />
+    <ClInclude Include="..\Public\ScreenFx_View.h" />
+    <ClInclude Include="..\Public\SoulLike_Viewer.h" />
+    <ClInclude Include="..\Public\SoulLikeCamera_Viewer.h" />
+    <ClInclude Include="..\Public\Transform_Inspector.h" />
     <ClInclude Include="pch.h" />
+    <ClInclude Include="..\Public\MainEditorApp.h" />
     <ClInclude Include="..\Public\EditorInstance.h" />
-    <ClInclude Include="..\Public\EditorWindow.h" />
+    <ClInclude Include="..\Public\Editor_Window.h" />
     <ClInclude Include="..\Public\Editor_Defines.h" />
+    <ClInclude Include="..\Public\IconsFontAwesome6.h" />
+    <ClInclude Include="..\Public\EnvironmentView.h" />
     <ClInclude Include="..\Public\Editor_ImGuiInclude.h" />
     <ClInclude Include="..\Public\Editor_Manager.h" />
+    <ClInclude Include="..\Public\Profile_View.h" />
+    <ClInclude Include="..\Public\RenderCall_View.h" />
     <ClInclude Include="..\Public\Scene_View.h" />
     <ClInclude Include="..\Public\Game_View.h" />
     <ClInclude Include="..\Public\Hierarchy_View.h" />
     <ClInclude Include="..\Public\Content_Browser.h" />
     <ClInclude Include="..\Public\Inspector.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\Client\Default\Client.vcxproj">
+      <Project>{76CA7900-4B7D-431A-BA5C-F2AAAB3EA9CA}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\..\Engine\Default\Engine.vcxproj">
+      <Project>{03054186-8B87-4D59-91C6-0AC09D31002D}</Project>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets" />

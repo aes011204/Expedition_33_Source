@@ -4,7 +4,7 @@
 #include "GameObject.h"
 
 NS_BEGIN(Engine)
-class Shader;
+class ShaderCom;
 class Texture;
 class VIBuffer_Terrain;
 NS_END
@@ -13,16 +13,18 @@ NS_BEGIN(Client)
 
 class Terrain final : public GameObject
 {
+    GENERATED_GAMEOBJECT(Terrain, ObjectType::Terrain)
+
 public:
-	enum TEXTURE { DIFFUSE, MASK, BRUSH, END };
+	enum TEXTURE { Diffuse, Mask, Brush, END };
 	typedef struct tagTerrainDesc final : public GameObject::GAMEOBJECT_DESC
 	{
 		
 	}TERRAIN_DESC;
 public:
-	Terrain(ComPtr<Device> device, ComPtr<Context> context);
-	Terrain(const Terrain& Prototype);
-	virtual ~Terrain() { Free(); }
+	Terrain(const ComPtr<Device>& device, const ComPtr<Context>& context);
+	Terrain(const Terrain& prototype);
+	virtual ~Terrain() = default;
 
 public:
 	virtual HRESULT Initialize_Prototype() override;
@@ -33,7 +35,7 @@ public:
 	virtual HRESULT Render() override;
 
 protected:
-	Shared<Shader> _shader = { nullptr };
+	Shared<ShaderCom> _shader = { nullptr };
 	Shared<VIBuffer_Terrain> _vibuffer = { nullptr };
 	Shared<Texture> _textures[TEXTURE::END] = { nullptr };
 
@@ -43,7 +45,7 @@ protected:
 
 
 public:
-	static Shared<Terrain> Create(ComPtr<Device> device, ComPtr<Context> context);
+	static Shared<Terrain> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);
 	virtual Shared<GameObject> Clone(void* pArg) override;
 	virtual void Free() override;
 };

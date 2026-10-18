@@ -1,34 +1,103 @@
 ﻿#pragma once
 
-#include "Transform.h"
+#include "TransformCom.h"
 #include "GameInstance.h"
 #include <type_traits>
 
 NS_BEGIN(Engine)
 
+class ColliderCom;
+struct RenderHotspotInstancedMeshStats;
+
 class ENGINE_DLL GameObject abstract : public Base
 {
 public:
-    typedef struct tagGameObjectDesc : public Transform::TRANSFORM_DESC
+    typedef struct tagGameObjectDesc : public TransformCom::TRANSFORM_DESC
     {
-        uint32		iFlag = {};
+        uint32		flag = {};
     }GAMEOBJECT_DESC;
 
 public:
-    GameObject(ComPtr<Device> device, ComPtr<Context> context);
-    GameObject(const GameObject& Prototype);
+    GameObject(const ComPtr<Device>& device, const ComPtr<Context>& context);
+    GameObject(const GameObject& prototype);
     virtual ~GameObject() = default;
 
 public:
     virtual HRESULT Initialize_Prototype();
-    virtual HRESULT Initialize(void* pArg);
-    virtual void    Priority_Update(float fTimeDelta);
-    virtual void    Update(float fTimeDelta);
-    virtual void    Late_Update(float fTimeDelta);
+    virtual HRESULT Initialize(void* arg);
+    virtual void    BeginPlay();
+
+    virtual void    Priority_Update(float timeDelta);
+    virtual void    Update(float timeDelta);
+    virtual void    Late_Update(float timeDelta);
+    virtual void    Post_PhysX_Update(float timeDelta);
     virtual HRESULT Render();
+    virtual HRESULT Render_Shadow() { return S_OK; }
+    virtual HRESULT RenderPickingID(uint32 id) { return S_OK; }
+    virtual bool Is_InstancedMeshShadowBakeable() const { return false; }
+
+    // Shadow Pass 컬링용 월드 Bounds 넘겨주기
+    virtual bool Try_Get_ShadowWorldBounds(BoundingBox& outWorldBounds) const { return false;}
+    virtual bool Allows_DynamicShadowCascade(uint32 cascadeIndex) const { return true; }
+    virtual uint32 Get_RenderHotspotInstanceCount() const { return 0; }
+    virtual wstring Get_RenderHotspotSourceModelPath() const { return {}; }
+    virtual bool Get_RenderHotspotInstancedMeshStats(RenderHotspotInstancedMeshStats&) const { return false; }
+
+    HRESULT         Try_BeginPlay();
+
+    virtual ClassReflectionInfo& Get_ReflectionInfo()
+    {
+        static ClassReflectionInfo emptyInfo{};
+        return emptyInfo;
+    }
+
+    virtual json    To_Json() const;
+    virtual void    From_Json(const json& data);
+
+    void            Set_SourcePrefabName(const string& prefabName) { _sourcePrefabName = prefabName; }
+    const string&   Get_SourcePrefabName() const { return _sourcePrefabName; }
+    void            Set_RuntimeAuthoringLoaded(bool loaded) { _runtimeAuthoringLoaded = loaded; }
+    bool            Is_RuntimeAuthoringLoaded() const { return _runtimeAuthoringLoaded; }
+    void            Set_RuntimeAuthoringSource(const wstring& mapPath, const string& collectionKey, size_t nodeIndex)
+    {
+        _runtimeAuthoringMapPath = mapPath;
+        _runtimeAuthoringCollectionKey = collectionKey;
+        _runtimeAuthoringNodeIndex = nodeIndex;
+    }
+    bool            Has_RuntimeAuthoringSource() const { return !_runtimeAuthoringMapPath.empty() && !_runtimeAuthoringCollectionKey.empty(); }
+    const wstring&  Get_RuntimeAuthoringMapPath() const { return _runtimeAuthoringMapPath; }
+    const string&   Get_RuntimeAuthoringCollectionKey() const { return _runtimeAuthoringCollectionKey; }
+    size_t          Get_RuntimeAuthoringNodeIndex() const { return _runtimeAuthoringNodeIndex; }
 
 public:
-    // 일반적으로 컴포넌트 가져올 때 = Get_Component<Shader>(); 이런느낌
+    virtual void    OnBeginOverlap(Shared<ColliderCom> self, Shared<ColliderCom> other) {}
+    virtual void    OnStayOverlap(Shared<ColliderCom> self, Shared<ColliderCom> other)  {}
+    virtual void    OnEndOverlap(Shared<ColliderCom> self, Shared<ColliderCom> other)   {}
+
+    virtual void    OnBlockBegin(Shared<ColliderCom> self, Shared<ColliderCom> other) {}
+    virtual void    OnBlockStay(Shared<ColliderCom> self, Shared<ColliderCom> other) {}
+
+public:
+    Shared<GameObject> Get_Owner() const { return _owner.lock(); }
+    void Set_Owner(Shared<GameObject> owner) { _owner = owner; }
+    bool Rename_ComponentTag(const wstring& oldTag, const wstring& newTag);
+
+    virtual ObjectType Get_ObjectType() const { return ObjectType::None; }
+
+    bool Is_Visible() const { return _isVisible; }
+    void Set_Visible(bool visible) { _isVisible = visible; }
+
+    bool Is_MarkDestroy() const { return _markDestroy; }
+    void Set_MarkDestroy(bool markDestroy) { _markDestroy = markDestroy; }
+
+public: /* 그림자 */
+    void Set_ShadowCasterType(ShadowCasterType type) { _shadowCasterType = type; }
+    ShadowCasterType Get_ShadowCasterType() const { return _shadowCasterType; }
+
+    bool Casts_DynamicShadow() const { return _shadowCasterType == ShadowCasterType::Dynamic; }
+
+public:
+    // 일반적으로 컴포넌트 가져올 때 = Get_Component<ShaderCom>(); 이런느낌
     template<typename T>
     Shared<T> Get_Component()
     {
@@ -44,7 +113,7 @@ public:
     
         return nullptr;
     }
-    // 한 객체 안에, 동일 컴포넌트가 여러 개 있을 때 -> Get_Component<Shader>(TEXT("Shader_VtxAnimMesh"));
+    // 한 객체 안에, 동일 컴포넌트가 여러 개 있을 때 -> Get_Component<ShaderCom>(TEXT("Shader_VtxAnimMesh"));
     template<typename T>
     Shared<T> Get_Component(const wstring& componentTag)
     {
@@ -59,49 +128,78 @@ public:
     }
 
     // 트랜스폼은 자주 사용하니까
-    Shared<Transform> Get_Transform() const { return _transformCom; }
+    Shared<TransformCom> Get_Transform() const { return _transformCom; }
 
 public:
     template<typename T>
     HRESULT Add_Component(
-        uint32 prototpyeLevelIndex, const wstring& strPrototypeTag, Shared<T>& outCom, void* arg = nullptr)
+        uint32 prototpyeLevelIndex, const wstring& prototypeTag, Shared<T>& outCom, void* arg = nullptr)
     {
         static_assert(std::is_base_of_v<Component, T>,
             "Add_Component<T>() requires T to derive from Component.");
 
-        if (_components.end() != _components.find(strPrototypeTag))
+        if (_components.end() != _components.find(prototypeTag))
             return E_FAIL;
 
         Shared<Component> component =
             dynamic_pointer_cast<Component>(
                 GAME->Clone_Prototype(
-                    Prototype::COMPONENT,
+                    Prototype::Comopnent,
                     prototpyeLevelIndex,
-                    strPrototypeTag,
+                    prototypeTag,
                     arg));
 
         if (nullptr == component)
             return E_FAIL;
 
+        component->Set_Owner(this->GetSharedPtr<GameObject>());
+
         outCom = dynamic_pointer_cast<T>(component);
         if (nullptr == outCom)
             return E_FAIL;
 
-        _components.emplace(strPrototypeTag, component);
+
+        _components.emplace(prototypeTag, component);
 
         return S_OK;
     }
 
-protected:
-    ComPtr<Device>      _device = { nullptr };
-    ComPtr<Context>     _context = { nullptr };
-    Shared<Transform>  _transformCom = { nullptr };
+    // 컴포넌트 순회용. 반환 ㄴ
+    template<typename Visitor>
+    void Visit_Components(Visitor&& visitor) const
+    {
+        for (const auto& [tag, component] : _components)
+        {
+            visitor(tag, component);
+        }
+    }
 
 protected:
-    map<const wstring, Shared<Component>>		_components;
+    ComPtr<Device>          _device = { nullptr };
+    ComPtr<Context>         _context = { nullptr };
+    Shared<TransformCom>    _transformCom = { nullptr };
+
+    ObjectType              _objectType = ObjectType::None;
+    ShadowCasterType        _shadowCasterType = ShadowCasterType::None;
+
+    string                  _sourcePrefabName = {};
+    bool                    _runtimeAuthoringLoaded = false;
+    wstring                 _runtimeAuthoringMapPath = {};
+    string                  _runtimeAuthoringCollectionKey = {};
+    size_t                  _runtimeAuthoringNodeIndex = 0;
+
+protected:
+    map<const wstring, Shared<Component>> _components;
+
+protected:
+    Weak<GameObject> _owner;
+
+    bool _hasBegunPlay = false;
+    bool _isVisible = true;
+    bool _markDestroy = false;
 
 public:
-    virtual Shared<GameObject> Clone(void* pArg) = 0;
+    virtual Shared<GameObject> Clone(void* arg) = 0;
     virtual void Free() override;
 };
 

@@ -4,7 +4,7 @@
 #include "GameObject.h"
 
 NS_BEGIN(Engine)
-class Shader;
+class ShaderCom;
 class Texture;
 class VIBuffer_Cube;
 NS_END
@@ -13,15 +13,17 @@ NS_BEGIN(Client)
 
 class Sky final : public GameObject
 {
+    GENERATED_GAMEOBJECT(Sky, ObjectType::Sky)
+
 public:
 	typedef struct tagTerrainDesc final : public GameObject::GAMEOBJECT_DESC
 	{
 		
 	}TERRAIN_DESC;
 public:
-	Sky(ComPtr<Device> device, ComPtr<Context> context);
-	Sky(const Sky& Prototype);
-	virtual ~Sky() { Free(); }
+	Sky(const ComPtr<Device>& device, const ComPtr<Context>& context);
+	Sky(const Sky& prototype);
+	virtual ~Sky() = default;
 
 public:
 	virtual HRESULT Initialize_Prototype() override;
@@ -32,7 +34,7 @@ public:
 	virtual HRESULT Render() override;
 
 protected:
-	Shared<Shader> _shader = { nullptr };
+	Shared<ShaderCom> _shader = { nullptr };
 	Shared<VIBuffer_Cube> _vibuffer = { nullptr };
 	Shared<Texture> _texture = { nullptr };
 
@@ -42,7 +44,7 @@ protected:
 
 
 public:
-	static Shared<Sky> Create(ComPtr<Device> device, ComPtr<Context> context);
+	static Shared<Sky> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);
 	virtual Shared<GameObject> Clone(void* pArg) override;
 	virtual void Free() override;
 };

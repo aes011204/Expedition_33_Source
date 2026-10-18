@@ -1,0 +1,72 @@
+﻿#pragma once
+#include "../../MainEditor/Public/ImSequencer.h"
+#include "Cinematic_Types.h"
+
+class CinematicSequencerAdapter : public ImSequencer::SequenceInterface
+{
+public:
+    static constexpr int kModifierTrackCount = 7;
+    static constexpr int kEventTrackCount = 1;
+
+public:
+    CinematicSequencerAdapter(
+        CINEMATIC_SEQUENCE* sequence,
+        int* selectedTrackIndex,
+        int* selectedKeyIndex,
+        int* selectedEventIndex,
+        int* selectedActorRelativeTrackIndex,
+        int* selectedActorRelativeKeyIndex,
+        int* selectedActorTransformTrackIndex,
+        int* selectedActorTransformKeyIndex,
+        int* selectedPartRotationTrackIndex,
+        int* selectedPartRotationKeyIndex,
+        int* currentFrame,
+        bool* consumedKeyClick,
+        bool* requestOpenKeyPopup,
+        bool* requestOpenInsertPopup,
+        bool* requestRemoveKeyPopup, 
+        int* contextTrackIndex,
+        int* contextFrame,
+        bool* previewDirty = nullptr,
+        bool* cameraTrackEnabled = nullptr,
+        bool* eventTrackEnabled = nullptr,
+        bool* actorTransformTrackEnabled = nullptr);
+
+public:
+    int GetFrameMin() const override;
+    int GetFrameMax() const override;
+    int GetItemCount() const override;
+    const char* GetItemLabel(int index) const override;
+    void SetVisibleFrameRange(int frameMin, int frameMax) override;
+    bool BlocksFrameScrub() const override;
+    void Get(int index, int** start, int** end, int* type, unsigned int* color) override;
+    size_t GetCustomHeight(int index) override;
+    void CustomDraw(int index, ImDrawList* draw_list, const ImRect& rc, const ImRect& legendRect, const ImRect& clippingRect, const ImRect& legendClippingRect) override;
+    void CustomDrawCompact(int index, ImDrawList* draw_list, const ImRect& rc, const ImRect& clippingRect) override;
+
+private:
+    CINEMATIC_SEQUENCE* _sequence = nullptr;
+    int* _selectedTrackIndex = nullptr;
+    int* _selectedKeyIndex = nullptr;
+    int* _selectedEventIndex = nullptr;
+    int* _selectedActorRelativeTrackIndex = nullptr;
+    int* _selectedActorRelativeKeyIndex = nullptr;
+    int* _selectedActorTransformTrackIndex = nullptr;
+    int* _selectedActorTransformKeyIndex = nullptr;
+    int* _selectedPartRotationTrackIndex = nullptr;
+    int* _selectedPartRotationKeyIndex = nullptr;
+    int* _currentFrame = nullptr;
+    bool* _consumedKeyClick = nullptr;
+    bool* _requestOpenKeyPopup = nullptr;
+    bool* _requestOpenInsertPopup = nullptr;
+    bool* _requestRemoveKeyPopup = nullptr;
+    int* _contextTrackIndex = nullptr;
+    int* _contextFrame = nullptr;
+    bool* _previewDirty = nullptr;
+    bool* _cameraTrackEnabled = nullptr;
+    bool* _eventTrackEnabled = nullptr;
+    bool* _actorTransformTrackEnabled = nullptr;
+    int _visibleFrameMin = 0;
+    int _visibleFrameMax = 1;
+};
+

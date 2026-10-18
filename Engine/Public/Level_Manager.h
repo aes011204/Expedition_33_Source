@@ -4,19 +4,26 @@
 
 NS_BEGIN(Engine)
 
+class Level;
+
 class Level_Manager final : public Base
 {
-private:
+public:
 	Level_Manager();
+	virtual ~Level_Manager() = default;
 
 public:
-	virtual ~Level_Manager() = default;
-	HRESULT Change_Level(uint32 iNewLevelIndex, Shared<class Level> pNewLevel);
-	void Update(float fTimeDelta);
+	void    Update(float timeDelta);
 	HRESULT Render();
 
+public:
+	HRESULT Change_Level(uint32 newLevelIndex, Shared<Level> newLevel, bool clearPreviousLevelPrototypes = true);
+
+    uint32  Get_CurrentLevelIndex() { return _currentLevelIndex; }
+    Shared<Level> Get_CurrentLevelType() { return _currentLevel; }
+
 private:
-	Shared<class Level> _currentLevel = nullptr;
+	Shared<Level> _currentLevel = nullptr;
 	uint32 _currentLevelIndex = {};
 
 public:

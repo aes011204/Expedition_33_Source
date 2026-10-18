@@ -71,28 +71,31 @@
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <OutDir>..\Bin\</OutDir>
+    <OutDir>..\Bin\$(Configuration)\</OutDir>
+    <IntDir>x64\$(Configuration)\</IntDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <OutDir>..\Bin\</OutDir>
+    <OutDir>..\Bin\$(Configuration)\</OutDir>
+    <IntDir>x64\$(Configuration)\</IntDir>
+  </PropertyGroup>
+  <PropertyGroup Label="Vcpkg" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <VcpkgTriplet>x64-windows</VcpkgTriplet>
+    <VcpkgHostTriplet>x64-windows</VcpkgHostTriplet>
+  </PropertyGroup>
+  <PropertyGroup Label="Vcpkg" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <VcpkgTriplet>x64-windows</VcpkgTriplet>
+    <VcpkgHostTriplet>x64-windows</VcpkgHostTriplet>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;NOMINMAX;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
       <ForcedIncludeFiles>pch.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
     </ClCompile>
-    <Link>
-      <SubSystem>Windows</SubSystem>
-      <GenerateDebugInformation>true</GenerateDebugInformation>
-    </Link>
-    <PreBuildEvent>
-      <Command>pushd "$(ProjectDir)..\.." &amp;&amp; call "UpdateLib.bat" &amp;&amp; popd</Command>
-    </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <ClCompile>
@@ -100,50 +103,34 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;NOMINMAX;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
       <ForcedIncludeFiles>pch.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
     </ClCompile>
-    <Link>
-      <SubSystem>Windows</SubSystem>
-      <EnableCOMDATFolding>true</EnableCOMDATFolding>
-      <OptimizeReferences>true</OptimizeReferences>
-      <GenerateDebugInformation>true</GenerateDebugInformation>
-    </Link>
-    <PreBuildEvent>
-      <Command>pushd "$(ProjectDir)..\.." &amp;&amp; call "UpdateLib.bat" &amp;&amp; popd</Command>
-    </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>_DEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_DEBUG;_WINDOWS;NOMINMAX;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>$(ProjectDir);../Public/;../../EngineSDK/inc/;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir);../Public/;../../EngineSDK/inc/Engine/;../../EngineSDK/inc/;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <LanguageStandard>stdcpp20</LanguageStandard>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
       <ForcedIncludeFiles>pch.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <AdditionalOptions>/utf-8 /bigobj %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
-    <Link>
-      <SubSystem>Windows</SubSystem>
-      <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>../../EngineSDK/lib/;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>Engine.lib;DirectXTKd.lib;%(AdditionalDependencies)</AdditionalDependencies>
-    </Link>
     <FxCompile>
       <ShaderType>Effect</ShaderType>
     </FxCompile>
     <FxCompile>
       <ShaderModel>5.0</ShaderModel>
     </FxCompile>
-    <PreBuildEvent>
-      <Command>pushd "$(ProjectDir)..\.." &amp;&amp; call "UpdateLib.bat" &amp;&amp; popd</Command>
-    </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
@@ -151,35 +138,518 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>NDEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>NDEBUG;_WINDOWS;NOMINMAX;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>$(ProjectDir);../Public/;../../EngineSDK/inc/;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir);../Public/;../../EngineSDK/inc/Engine/;../../EngineSDK/inc/;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
       <ForcedIncludeFiles>pch.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <LanguageStandard>stdcpp20</LanguageStandard>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <AdditionalOptions>/utf-8 /bigobj %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
-    <Link>
-      <SubSystem>Windows</SubSystem>
-      <EnableCOMDATFolding>true</EnableCOMDATFolding>
-      <OptimizeReferences>true</OptimizeReferences>
-      <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>../../EngineSDK/lib/;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>Engine.lib;DirectXTK.lib;%(AdditionalDependencies)</AdditionalDependencies>
-    </Link>
     <FxCompile>
       <ShaderType>Effect</ShaderType>
     </FxCompile>
     <FxCompile>
       <ShaderModel>5.0</ShaderModel>
     </FxCompile>
-    <PreBuildEvent>
-      <Command>pushd "$(ProjectDir)..\.." &amp;&amp; call "UpdateLib.bat" &amp;&amp; popd</Command>
-    </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="..\Public\AL_SL_State.h" />
+    <ClInclude Include="..\Public\ANS_BattleTargetTrack.h" />
+    <ClInclude Include="..\Public\ANS_AnimSpeed.h" />
+    <ClInclude Include="..\Public\ANS_CanAction.h" />
+    <ClInclude Include="..\Public\ANS_CollisionEnable.h" />
+    <ClInclude Include="..\Public\ANS_ParkourCameraLag.h" />
+    <ClInclude Include="..\Public\ANS_SL_PartCollisionEnable.h" />
+    <ClInclude Include="..\Public\ANS_ComboEnable.h" />
+    <ClInclude Include="..\Public\ANS_CounterTimeScale.h" />
+    <ClInclude Include="..\public\ANS_Dodge.h" />
+    <ClInclude Include="..\public\ANS_Jump.h" />
+    <ClInclude Include="..\public\ANS_JumpCounter.h" />
+    <ClInclude Include="..\public\ANS_Emissive.h" />
+    <ClInclude Include="..\Public\ANS_IdleOffset.h" />
+    <ClInclude Include="..\public\ANS_Move.h" />
+    <ClInclude Include="..\Public\ANS_SL_MoveTo.h" />
+    <ClInclude Include="..\public\ANS_Parry.h" />
+    <ClInclude Include="..\Public\ANS_ParryWindow.h" />
+    <ClInclude Include="..\Public\ANS_PlayEffect.h" />
+    <ClInclude Include="..\public\ANS_QTE.h" />
+    <ClInclude Include="..\Public\ANS_RootController.h" />
+    <ClInclude Include="..\Public\ANS_ScreenFxCue.h" />
+    <ClInclude Include="..\Public\ANS_SourceHistoryEffect.h" />
+    <ClInclude Include="..\Public\ANS_Trail.h" />
+    <ClInclude Include="..\Public\ANS_Visible_Parts.h" />
+    <ClInclude Include="..\Public\ANS_WeaponRotate.h" />
+    <ClInclude Include="..\Public\ANS_WeakColor.h" />
+    <ClInclude Include="..\public\ANS_WorldTimeScale.h" />
+    <ClInclude Include="..\public\AN_Attack.h" />
+    <ClInclude Include="..\public\AN_BattleShot.h" />
+    <ClInclude Include="..\public\AN_Battle_EndAnim.h" />
+    <ClInclude Include="..\public\AN_CameraShake.h" />
+    <ClInclude Include="..\Public\AN_CanFreeAimShoot.h" />
+    <ClInclude Include="..\public\AN_Change_Anim.h" />
+    <ClInclude Include="..\Public\AN_CounterDamage.h" />
+    <ClInclude Include="..\Public\AN_CounterReturnAll.h" />
+    <ClInclude Include="..\Public\AN_SimonPlayEffectToggle.h" />
+    <ClInclude Include="..\Public\AN_SimonCriticalGlow.h" />
+    <ClInclude Include="..\Public\AN_SL_CachePlayerPosition.h" />
+    <ClInclude Include="..\Public\AN_SL_PlayCachedPlayerEffect.h" />
+    <ClInclude Include="..\Public\AN_SL_DuallisteCloneSkill.h" />
+    <ClInclude Include="..\Public\AN_EndTurn.h" />
+    <ClInclude Include="..\Public\AN_PlayEffect.h" />
+    <ClInclude Include="..\Public\AN_PlayEffectBattleDir.h" />
+    <ClInclude Include="..\Public\AN_SL_SpawnAttColl.h" />
+    <ClInclude Include="..\Public\AN_PlaySound.h" />
+    <ClInclude Include="..\Public\AN_ReturnBattleIdle.h" />
+    <ClInclude Include="..\Public\AN_SL_UseHealingPotion.h" />
+    <ClInclude Include="..\Public\AN_WeaponAttach.h" />
+    <ClInclude Include="..\Public\AN_WeaponDetach.h" />
+    <ClInclude Include="..\Public\ANS_WeaponEcho.h" />
+    <ClInclude Include="..\Public\AN_SpawnActor.h" />
+    <ClInclude Include="..\public\AN_SpawnLineGroundEffect.h" />
+    <ClInclude Include="..\Public\AN_VanishDissolve.h" />
+    <ClInclude Include="..\public\AN_EnterAnim.h" />
+    <ClInclude Include="..\Public\AN_JumpCounterStart.h" />
+    <ClInclude Include="..\Public\AN_StartCounter.h" />
+    <ClInclude Include="..\Public\AN_Test2.h" />
+    <ClInclude Include="..\Public\AN_WorldFreeAimHit.h" />
+    <ClInclude Include="..\Public\AttackPlaying.h" />
+    <ClInclude Include="..\Public\Base_Gustave_Attack.h" />
+    <ClInclude Include="..\public\BattleAction.h" />
+    <ClInclude Include="..\public\BattleActionExecutor.h" />
+    <ClInclude Include="..\Public\BattleAnimUtils.h" />
+    <ClInclude Include="..\Public\BattleCameraClipIO.h" />
+    <ClInclude Include="..\Public\BattleCameraClipUtils.h" />
+    <ClInclude Include="..\Public\BattleClipSequencerAdapter.h" />
+    <ClInclude Include="..\Public\BattleCameraClipTypes.h" />
+    <ClInclude Include="..\Public\BattleEncounterProfile.h" />
+    <ClInclude Include="..\Public\BattleFollowupManager.h" />
+    <ClInclude Include="..\Public\BattleHitSequenceRunner.h" />
+    <ClInclude Include="..\Public\BattleMechanismCom.h" />
+    <ClInclude Include="..\Public\BattleMonsterSpawnDesc.h" />
+    <ClInclude Include="..\Public\BattleSoundPreset.h" />
+    <ClInclude Include="..\Public\BattleQTEController.h" />
+    <ClInclude Include="..\Public\BattleReactionController.h" />
+    <ClInclude Include="..\Public\BattleResultRecoder.h" />
+    <ClInclude Include="..\Public\BattleSpawnRegistry.h" />
+    <ClInclude Include="..\Public\BattleStartSpawner.h" />
+    <ClInclude Include="..\Public\BattleTransition_ScreenFx.h" />
+    <ClInclude Include="..\Public\BattleTurnCameraPoseUtils.h" />
+    <ClInclude Include="..\Public\BattleTutorialController.h" />
+    <ClInclude Include="..\Public\Battle_Enum.h" />
+    <ClInclude Include="..\Public\BattleTurnCamera.h" />
+    <ClInclude Include="..\Public\Battle_Event.h" />
+    <ClInclude Include="..\public\BT_IsStun.h" />
+    <ClInclude Include="..\Public\BT_HasDeadHero.h" />
+    <ClInclude Include="..\public\BT_LookRange.h" />
+    <ClInclude Include="..\Public\BT_ForceSkillOnDeadHero.h" />
+    <ClInclude Include="..\Public\BT_SetDeadHeroTarget.h" />
+    <ClInclude Include="..\Public\BT_SetSkillAI.h" />
+    <ClInclude Include="..\public\BT_Set_TargetAI.h" />
+    <ClInclude Include="..\public\BT_Stun.h" />
+    <ClInclude Include="..\Public\CameraDirector.h" />
+    <ClInclude Include="..\Public\DialogueCamera.h" />
+    <ClInclude Include="..\Public\CameraPresetIO.h" />
+    <ClInclude Include="..\Public\CameraPresetTypes.h" />
+    <ClInclude Include="..\public\BT_Patrol.h" />
+    <ClInclude Include="..\Public\CA_ScreenFx.h" />
+    <ClInclude Include="..\Public\ChangeSkill_Panel.h" />
+    <ClInclude Include="..\public\ChangeWeapon_Panel.h" />
+    <ClInclude Include="..\Public\SimonCriticalGlowController.h" />
+    <ClInclude Include="..\Public\SL_UseItem.h" />
+    <ClInclude Include="..\Public\Trigger_TeleportZone.h" />
+    <ClInclude Include="..\Public\UpgradeWeapon_Panel.h" />
+    <ClInclude Include="..\Public\Merchant_Panel.h" />
+    <ClInclude Include="..\public\BT_FinishDecision.h" />
+    <ClInclude Include="..\Public\BT_SL_CanAttack.h" />
+    <ClInclude Include="..\Public\BT_SL_CompareBBValue.h" />
+    <ClInclude Include="..\Public\BT_SL_IsDead.h" />
+    <ClInclude Include="..\Public\BT_SL_IsLastAttack.h" />
+    <ClInclude Include="..\Public\BT_SL_IsHit.h" />
+    <ClInclude Include="..\Public\BT_SL_IsIntroDone.h" />
+    <ClInclude Include="..\Public\BT_SL_IsActionLocked.h" />
+    <ClInclude Include="..\Public\BT_SL_IsStun.h" />
+    <ClInclude Include="..\Public\BT_SL_SelectNextAttack.h" />
+    <ClInclude Include="..\Public\BT_SL_SetDesiredState.h" />
+    <ClInclude Include="..\Public\BT_SL_SetSelectedAttack.h" />
+    <ClInclude Include="..\public\BT_SetSkill.h" />
+    <ClInclude Include="..\public\BT_Set_Target.h" />
+    <ClInclude Include="..\Public\CharacterProgression_Panel.h" />
+    <ClInclude Include="..\public\DialogueDB.h" />
+    <ClInclude Include="..\public\DialogueManager.h" />
+    <ClInclude Include="..\Public\DialogueTypes.h" />
+    <ClInclude Include="..\Public\GamePlayUI_SL.h" />
+    <ClInclude Include="..\Public\GradientSkill.h" />
+    <ClInclude Include="..\Public\Item.h" />
+    <ClInclude Include="..\Public\Item_Chroma.h" />
+    <ClInclude Include="..\Public\Item_DailyLog.h" />
+    <ClInclude Include="..\Public\Item_Pictos.h" />
+    <ClInclude Include="..\Public\LevelChange_Portal.h" />
+    <ClInclude Include="..\Public\Level_ReplayTransition.h" />
+    <ClInclude Include="..\Public\MapAmbientVisibility.h" />
+    <ClInclude Include="..\public\NPC_Base.h" />
+    <ClInclude Include="..\public\NPC_Baby.h" />
+    <ClInclude Include="..\public\NPC_Chad.h" />
+    <ClInclude Include="..\public\NPC_Buff.h" />
+    <ClInclude Include="..\public\NPC_Golgra.h" />
+    <ClInclude Include="..\public\NPC_Body.h" />
+    <ClInclude Include="..\public\NPC_Hair.h" />
+    <ClInclude Include="..\public\NPC_Merchant.h" />
+    <ClInclude Include="..\public\NPC_Noco.h" />
+    <ClInclude Include="..\public\NPC_Sumo.h" />
+    <ClInclude Include="..\public\NPC_Tall.h" />
+    <ClInclude Include="..\Public\PictosBattleSystem.h" />
+    <ClInclude Include="..\Public\Pictos_Panel.h" />
+    <ClInclude Include="..\Public\PreviewPlayer.h" />
+    <ClInclude Include="..\Public\RuntimeCheckpointIO.h" />
+    <ClInclude Include="..\Public\RuntimeCheckpointService.h" />
+    <ClInclude Include="..\Public\RuntimeRuleStateIO.h" />
+    <ClInclude Include="..\Public\RuntimeRuleStateService.h" />
+    <ClInclude Include="..\Public\AN_SL_JumpCounterDamage.h" />
+    <ClInclude Include="..\Public\ANS_SL_DodgeMove.h" />
+    <ClInclude Include="..\Public\ANS_SL_MonsterAttackCamera.h" />
+    <ClInclude Include="..\Public\ANS_SL_TargetTrack.h" />
+    <ClInclude Include="..\Public\ANS_SL_JumpCounterThreat.h" />
+    <ClInclude Include="..\Public\ANS_SL_JumpCounterWindow.h" />
+    <ClInclude Include="..\Public\SL_Base.h" />
+    <ClInclude Include="..\Public\SL_BasicAttack.h" />
+    <ClInclude Include="..\Public\SL_DamageSystem.h" />
+    <ClInclude Include="..\Public\SL_Dead.h" />
+    <ClInclude Include="..\Public\SL_Dodge.h" />
+    <ClInclude Include="..\Public\SL_DuallisteCloneSkillManager.h" />
+    <ClInclude Include="..\Public\SL_EstherManager.h" />
+    <ClInclude Include="..\Public\SL_Hit.h" />
+    <ClInclude Include="..\Public\SL_Idle.h" />
+    <ClInclude Include="..\Public\SL_Jump.h" />
+    <ClInclude Include="..\Public\SL_Mon_IntroState.h" />
+    <ClInclude Include="..\Public\SL_Mon_AttackState.h" />
+    <ClInclude Include="..\Public\SL_Mon_ChaseState.h" />
+    <ClInclude Include="..\Public\SL_Mon_DeadState.h" />
+    <ClInclude Include="..\Public\SL_Mon_HitState.h" />
+    <ClInclude Include="..\Public\SL_Mon_IdleState.h" />
+    <ClInclude Include="..\Public\SL_Mon_PhaseChangeState.h" />
+    <ClInclude Include="..\Public\SL_Mon_State.h" />
+    <ClInclude Include="..\Public\SL_Mon_StunState.h" />
+    <ClInclude Include="..\Public\SL_Mon_StateMachineCom.h" />
+    <ClInclude Include="..\Public\SL_JumpCounter.h" />
+    <ClInclude Include="..\Public\SL_Maelle.h" />
+    <ClInclude Include="..\Public\SL_Move.h" />
+    <ClInclude Include="..\Public\SL_Parry.h" />
+    <ClInclude Include="..\Public\SL_Skill.h" />
+    <ClInclude Include="..\Public\SL_State.h" />
+    <ClInclude Include="..\Public\SL_TargetCom.h" />
+    <ClInclude Include="..\Public\SL_Test_Lancelier.h" />
+    <ClInclude Include="..\Public\SL_Types.h" />
+    <ClInclude Include="..\Public\SL_Weapon.h" />
+    <ClInclude Include="..\Public\SoulLikeCamera.h" />
+    <ClInclude Include="..\Public\SoulLikeController.h" />
+    <ClInclude Include="..\Public\SL_StateMachineCom.h" />
+    <ClInclude Include="..\Public\Trigger_BGMZone.h" />
+    <ClInclude Include="..\public\Trigger_Cinematic.h" />
+    <ClInclude Include="..\Public\Trigger_Interaction.h" />
+    <ClInclude Include="..\Public\Trigger_WorldDialogue.h" />
+    <ClInclude Include="..\Public\UI_AbilityPentagon.h" />
+    <ClInclude Include="..\Public\UI_DailyLog.h" />
+    <ClInclude Include="..\Public\UI_SL_LockOn.h" />
+    <ClInclude Include="..\public\CinematicCamera.h" />
+    <ClInclude Include="..\public\CinematicSequenceRunner.h" />
+    <ClInclude Include="..\Public\EyeTarget.h" />
+    <ClInclude Include="..\Public\ClientScreenFxManager.h" />
+    <ClInclude Include="..\Public\CostumeManager.h" />
+    <ClInclude Include="..\Public\Distortion_ScreenFx.h" />
+    <ClInclude Include="..\Public\Flash_ScreenFx.h" />
+    <ClInclude Include="..\Public\ScreenFxCueTypes.h" />
+    <ClInclude Include="..\public\UI_Dialogue.h" />
+    <ClInclude Include="..\Public\UI_EventDialoguePlayer.h" />
+    <ClInclude Include="..\Public\UI_GradientSkillPreviewTest.h" />
+    <ClInclude Include="..\Public\UI_Replay.h" />
+    <ClInclude Include="..\Public\WorldDesaturate_ScreenFx.h" />
+    <ClInclude Include="..\Public\EffectCom.h" />
+    <ClInclude Include="..\Public\EffectInstancePool.h" />
+    <ClInclude Include="..\Public\BattleEffectPrewarmCollector.h" />
+    <ClInclude Include="..\Public\BattleEffectPrewarmTypes.h" />
+    <ClInclude Include="..\Private\EffectAssetRuntimeLoader_Support.h" />
+    <ClInclude Include="..\Public\ExpeditionStat_Panel.h" />
+    <ClInclude Include="..\Public\ComputeTrailEmitter.h" />
+    <ClInclude Include="..\Public\Level_GestralVillage.h" />
+    <ClInclude Include="..\Public\MapAdapter.h" />
+    <ClInclude Include="..\Public\MapCollisionAdapter.h" />
+    <ClInclude Include="..\Public\PlayerInventory.h" />
+    <ClInclude Include="..\Public\ComputeSourceHistoryRibbonEmitter.h" />
+    <ClInclude Include="..\Public\ComputeSourceHistorySpriteTrailEmitter.h" />
+    <ClInclude Include="..\Public\ComputeGeneratedBeamEmitter.h" />
+    <ClInclude Include="..\Public\PreviewRimFeature.h" />
+    <ClInclude Include="..\Public\MapWater.h" />
+    <ClInclude Include="..\public\Mon_WeakPoint.h" />
+    <ClInclude Include="..\public\PuzzleController.h" />
+    <ClInclude Include="..\Public\Skill_Monster_Battle.h" />
+    <ClInclude Include="..\Public\SkyBoxFlow.h" />
+    <ClInclude Include="..\Public\SkyCloudCard.h" />
+    <ClInclude Include="..\Public\SourcePointSampleProvider_ByPart.h" />
+    <ClInclude Include="..\Public\TrailSampleProvider_ByPart.h" />
+    <ClInclude Include="..\Public\FaceAccessory_Player.h" />
+    <ClInclude Include="..\Public\FreeAimTargeting.h" />
+    <ClInclude Include="..\Public\GamePlayMenuFade.h" />
+    <ClInclude Include="..\Public\BattleWorldUI_CommandCards.h" />
+    <ClInclude Include="..\Public\BattleWorldUI_GradientCards.h" />
+    <ClInclude Include="..\Public\BattleWorldUI_ItemCards.h" />
+    <ClInclude Include="..\Public\BattleWorldUI_JsonTextureResolver.h" />
+    <ClInclude Include="..\Public\BattleWorldUI_MaterialVfxBackground.h" />
+    <ClInclude Include="..\Public\BattleWorldUI_SkillCards.h" />
+    <ClInclude Include="..\Private\BattleWorldUI_SurfaceAnim.h" />
+    <ClInclude Include="..\Public\GameplayUI_Battle.h" />
+    <ClInclude Include="..\Public\GameplayUI_World.h" />
+    <ClInclude Include="..\Public\UI_Interaction.h" />
+    <ClInclude Include="..\Public\MapLandscape.h" />
+    <ClInclude Include="..\Public\MainTitleMenuSound.h" />
+    <ClInclude Include="..\public\Level_GameEntry.h" />
+    <ClInclude Include="..\Public\MB_Abbest.h" />
+    <ClInclude Include="..\public\MB_Bishop.h" />
+    <ClInclude Include="..\Public\MB_Mime.h" />
+    <ClInclude Include="..\Public\MB_PotatoBag.h" />
+    <ClInclude Include="..\public\MB_Portier.h" />
+    <ClInclude Include="..\public\MB_Simon.h" />
+    <ClInclude Include="..\public\MB_Volester.h" />
+    <ClInclude Include="..\Public\Mon_Abbest_Body.h" />
+    <ClInclude Include="..\Public\Mon_Dualliste_Body.h" />
+    <ClInclude Include="..\Public\Mon_Dualliste_Sword_L.h" />
+    <ClInclude Include="..\Public\Mon_Dualliste_Sword_R.h" />
+    <ClInclude Include="..\public\Mon_Bishop_Body.h" />
+    <ClInclude Include="..\Public\Mon_Mime_Bagutte.h" />
+    <ClInclude Include="..\Public\Mon_Mime_Body.h" />
+    <ClInclude Include="..\Public\Mon_PotatoBag_Body.h" />
+    <ClInclude Include="..\Public\Mon_PotatoBag_Shield.h" />
+    <ClInclude Include="..\Public\Mon_PotatoBag_Weapon.h" />
+    <ClInclude Include="..\public\Mon_Simon_Body.h" />
+    <ClInclude Include="..\Public\Mon_Simon_Hair.h" />
+    <ClInclude Include="..\public\Mon_Volester_Body.h" />
+    <ClInclude Include="..\Public\MW_Abbest.h" />
+    <ClInclude Include="..\Public\MW_Dualliste.h" />
+    <ClInclude Include="..\public\MW_Bishop.h" />
+    <ClInclude Include="..\Public\MW_Mime.h" />
+    <ClInclude Include="..\Public\MW_PotatoBag.h" />
+    <ClInclude Include="..\public\MW_Portier.h" />
+    <ClInclude Include="..\public\MW_Simon.h" />
+    <ClInclude Include="..\public\MW_Volester.h" />
+    <ClInclude Include="..\Public\GameplayUI_Types.h" />
+    <ClInclude Include="..\Public\PB_Gustave.h" />
+    <ClInclude Include="..\Public\MB_Lancelier.h" />
+    <ClInclude Include="..\Public\PB_Lune.h" />
+    <ClInclude Include="..\Public\PB_Maelle.h" />
+    <ClInclude Include="..\public\Buff.h" />
+    <ClInclude Include="..\public\BuffSystem.h" />
+    <ClInclude Include="..\Public\AN_Test.h" />
+    <ClInclude Include="..\Public\ANS_Test.h" />
+    <ClInclude Include="..\public\AttackTargeting.h">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
+    </ClInclude>
+    <ClInclude Include="..\public\BattleController.h">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
+    </ClInclude>
+    <ClInclude Include="..\public\BattleStateMachine.h">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
+    </ClInclude>
+    <ClInclude Include="..\public\Battle_State.h">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
+    </ClInclude>
+    <ClInclude Include="..\Public\BStateMachine.h">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
+    </ClInclude>
+    <ClInclude Include="..\public\BT_Chase.h" />
+    <ClInclude Include="..\public\BT_CheckDistance.h" />
+    <ClInclude Include="..\public\BT_Idle.h" />
+    <ClInclude Include="..\Public\BT_Node_Bootstrap.h" />
+    <ClInclude Include="..\public\BT_RotateToTarget.h" />
+    <ClInclude Include="..\public\BuffInstance.h" />
+    <ClInclude Include="..\Public\Character_BattleBase.h" />
+    <ClInclude Include="..\Public\Character_WorldBase.h" />
+    <ClInclude Include="..\public\ChooseAction.h">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
+    </ClInclude>
+    <ClInclude Include="..\public\ChooseItem.h">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
+    </ClInclude>
+    <ClInclude Include="..\Public\ChooseGradient.h" />
+    <ClInclude Include="..\public\ChooseSkill.h">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
+    </ClInclude>
+    <ClInclude Include="..\public\ChooseUltimate.h">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
+    </ClInclude>
+    <ClInclude Include="..\Public\CinematicSequencerAdapter.h" />
+    <ClInclude Include="..\Public\Cinematic_Player.h" />
+    <ClInclude Include="..\Public\Cinematic_SequenceIO.h" />
+    <ClInclude Include="..\Public\Cinematic_Types.h" />
+    <ClInclude Include="..\Public\Cinematic_Utils.h" />
+    <ClInclude Include="..\Public\Client_Constants.h" />
+    <ClInclude Include="..\Public\ContentBrowserCore.h" />
     <ClInclude Include="..\Public\Client_Enum.h" />
     <ClInclude Include="..\Public\Client_Macro.h" />
     <ClInclude Include="..\Public\Client_Struct.h" />
+    <ClInclude Include="..\Public\CombatStatCom.h" />
+    <ClInclude Include="..\Public\ComputeSpriteEmitter.h" />
+    <ClInclude Include="..\public\DamageSystem.h" />
+    <ClInclude Include="..\Public\EffectAssetRuntimeLoader.h" />
+    <ClInclude Include="..\Public\EffectEmitterRegistration.h" />
+    <ClInclude Include="..\Public\EffectMaterialScalarModulationRuntime.h" />
+    <ClInclude Include="..\Public\GameDataTable.h" />
+    <ClInclude Include="..\Public\GameplayUI.h" />
+    <ClInclude Include="..\Public\HairChainPhysics.h" />
+    <ClInclude Include="..\Public\Hair_Player.h" />
+    <ClInclude Include="..\Public\Head_Player.h" />
+    <ClInclude Include="..\Public\Hero_Manager.h" />
+    <ClInclude Include="..\Public\InputCom.h" />
+    <ClInclude Include="..\public\ItemTargeting.h">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
+    </ClInclude>
+    <ClInclude Include="..\Public\Level_MapTest.h" />
+    <ClInclude Include="..\Public\LevelTransitionFade.h" />
+    <ClInclude Include="..\Public\Level_Stage01.h" />
+    <ClInclude Include="..\Public\MapInstancedMesh.h" />
+    <ClInclude Include="..\Public\MapAuthoringIO.h" />
+    <ClInclude Include="..\Public\MapLoader.h" />
+    <ClInclude Include="..\Public\MapStaticMesh.h" />
+    <ClInclude Include="..\Public\MeshEmitter.h" />
+    <ClInclude Include="..\public\MonsterStatCom.h" />
+    <ClInclude Include="..\Public\Monster_BattleBase.h" />
+    <ClInclude Include="..\public\Monster_Part.h" />
+    <ClInclude Include="..\Public\Monster_WorldBase.h" />
+    <ClInclude Include="..\public\Mon_AIController.h">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
+    </ClInclude>
+    <ClInclude Include="..\public\Mon_Lancelier_Body.h" />
+    <ClInclude Include="..\public\Mon_Lancelier_Weapon.h" />
+    <ClInclude Include="..\Public\PersistentObjectManager.h" />
+    <ClInclude Include="..\Public\PlayableParts.h" />
+    <ClInclude Include="..\Public\PlayerControllerCom.h" />
+    <ClInclude Include="..\public\PlayerStatCom.h" />
+    <ClInclude Include="..\Public\Player_BattleBase.h" />
+    <ClInclude Include="..\Public\Player_FreeAim.h" />
+    <ClInclude Include="..\Public\Player_GameMenu.h" />
+    <ClInclude Include="..\public\Mon_Portier_Body.h" />
+    <ClInclude Include="..\public\PreviewShotTable.h" />
+    <ClInclude Include="..\Public\IRuntimeUI_EditorTarget.h" />
+    <ClInclude Include="..\Public\RadialBlur_ScreenFx.h" />
+    <ClInclude Include="..\public\SkillScript.h" />
+    <ClInclude Include="..\Public\PW_Gustave.h" />
+    <ClInclude Include="..\Public\PW_Lune.h" />
+    <ClInclude Include="..\Public\PW_Maelle.h" />
+    <ClInclude Include="..\Public\PreviewCamera.h" />
+    <ClInclude Include="..\Public\Player_ParkourAction.h" />
+    <ClInclude Include="..\Public\Player_Climb.h" />
+    <ClInclude Include="..\Public\Player_RopeAction.h" />
+    <ClInclude Include="..\Public\Player_GrappleAction.h" />
+    <ClInclude Include="..\Public\Player_WorldAction.h" />
+    <ClInclude Include="..\Public\SkillTreeCom.h" />
+    <ClInclude Include="..\Public\Player_Idle.h" />
+    <ClInclude Include="..\Public\Player_Jump.h" />
+    <ClInclude Include="..\Public\Player_Move.h" />
+    <ClInclude Include="..\Public\Player_State.h" />
+    <ClInclude Include="..\Public\PlayerStateMachineCom.h" />
+    <ClInclude Include="..\public\SkillTree_Panel.h" />
+    <ClInclude Include="..\public\SkillTargeting.h">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
+    </ClInclude>
+    <ClInclude Include="..\Public\Create_Class.h" />
+    <ClInclude Include="..\Public\DamageTrigger.h" />
+    <ClInclude Include="..\public\Skill_Bishop_Ground_Att.h" />
+    <ClInclude Include="..\Public\Skill_Gustave_Battle.h" />
+    <ClInclude Include="..\Public\Skill_Lune_Battle.h" />
+    <ClInclude Include="..\Public\Skill_Maelle_Battle.h" />
+    <ClInclude Include="..\Public\Spawn_Prefab.h" />
+    <ClInclude Include="..\Public\State.h" />
+    <ClInclude Include="..\Public\StateMachineCom.h" />
+    <ClInclude Include="..\Public\SwitchDissolveFeature.h" />
+    <ClInclude Include="..\Public\StreamingLevel.h" />
+    <ClInclude Include="..\Public\TargetCamera.h" />
+    <ClInclude Include="..\Public\CharacterStatus_Panel.h" />
+    <ClInclude Include="..\Public\Terrain_UE.h" />
+    <ClInclude Include="..\Public\TrailAnchor_Asset.h" />
+    <ClInclude Include="..\Public\Trigger_WorldAction.h" />
+    <ClInclude Include="..\Public\WorldLedgeSpot.h" />
+    <ClInclude Include="..\Public\WorldInteractionSpot.h" />
+    <ClInclude Include="..\Public\WorldGrapplingRopeSpot.h" />
+    <ClInclude Include="..\Public\WorldUpDownRopeSpot.h" />
+    <ClInclude Include="..\public\UIPreviewManager.h" />
+    <ClInclude Include="..\Public\UI_AddAP.h" />
+    <ClInclude Include="..\Public\UI_ArenaCharacterSelect.h" />
+    <ClInclude Include="..\Public\UI_AttackTooltip.h" />
+    <ClInclude Include="..\Public\UI_BattleAnnounce.h" />
+    <ClInclude Include="..\Public\UI_BattleFloatingTextBase.h" />
+    <ClInclude Include="..\Public\UI_BattleItemPanel.h" />
+    <ClInclude Include="..\Public\UI_BattleMechanism.h" />
+    <ClInclude Include="..\Public\UI_BattleGradientGauge.h" />
+    <ClInclude Include="..\Public\UI_BattlePictos.h" />
+    <ClInclude Include="..\Public\UI_BattleTutorial.h" />
+    <ClInclude Include="..\Public\UI_BattleJumpReaction.h" />
+    <ClInclude Include="..\Public\UI_GetCharacter.h" />
+    <ClInclude Include="..\Public\UI_GetClothes.h" />
+    <ClInclude Include="..\Public\UI_GetWeapon.h" />
+    <ClInclude Include="..\Public\UI_GetPictos.h" />
+    <ClInclude Include="..\Public\UI_GetChroma.h" />
+    <ClInclude Include="..\Public\UI_LevelAnnounce.h" />
+    <ClInclude Include="..\Public\UI_HealFont.h" />
+    <ClInclude Include="..\Public\UI_DestroyShield.h" />
+    <ClInclude Include="..\Public\UI_MarkEffect.h" />
+    <ClInclude Include="..\Public\UI_BossHpBar.h" />
+    <ClInclude Include="..\Public\UI_PlayerHpBar.h" />
+    <ClInclude Include="..\Public\UI_BattleSystemHUD.h" />
+    <ClInclude Include="..\Public\UI_BattleSystem_TurnOrder.h" />
+    <ClInclude Include="..\Public\UI_BattleVictory.h" />
+    <ClInclude Include="..\Public\UI_CancelAim.h" />
+    <ClInclude Include="..\Public\UI_BattleCommandHUD.h" />
+    <ClInclude Include="..\Public\UI_BattleDefense.h" />
+    <ClInclude Include="..\Public\UI_BattleTransition.h" />
+    <ClInclude Include="..\Public\UI_ChoiceTarget.h" />
+    <ClInclude Include="..\Public\UI_CrossHair.h" />
+    <ClInclude Include="..\Public\UI_DamageFont.h" />
+    <ClInclude Include="..\Public\UI_Mark.h" />
+    <ClInclude Include="..\Public\UI_Burn.h" />
+    <ClInclude Include="..\Public\UI_Slow.h" />
+    <ClInclude Include="..\Public\UI_EscapeSkipTurnBack.h" />
+    <ClInclude Include="..\Public\UI_MonsterHpBar.h" />
+    <ClInclude Include="..\Public\UI_QTE.h" />
+    <ClInclude Include="..\Public\UI_ReactionResult.h" />
+    <ClInclude Include="..\Public\UI_RuntimeLoader.h" />
+    <ClInclude Include="..\Public\UI_SL_HUD.h" />
+    <ClInclude Include="..\Public\UI_SpriteVfx.h" />
+    <ClInclude Include="..\Public\UI_Vfx.h" />
+    <ClInclude Include="..\Public\SavePoint_Panel.h" />
+    <ClInclude Include="..\Public\ScreenFadeTransition.h" />
+    <ClInclude Include="..\Public\UI_RuntimePanelBase.h" />
+    <ClInclude Include="..\Public\UI_ScreenFade.h" />
+    <ClInclude Include="..\Public\UI_BattleSkillPanel.h" />
+    <ClInclude Include="..\Public\UI_SuddenAttack.h" />
+    <ClInclude Include="..\Public\UI_Utils.h" />
+    <ClInclude Include="..\public\UltimateTargeting.h">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
+    </ClInclude>
+    <ClInclude Include="..\Public\Unlock_Manager.h" />
+    <ClInclude Include="..\public\UtilitySystem.h" />
+    <ClInclude Include="..\Public\VictoriaFlag.h" />
+    <ClInclude Include="..\Public\Wardrobe_Panel.h" />
+    <ClInclude Include="..\Public\WeaponPrefabLoader.h" />
+    <ClInclude Include="..\public\WeaponUI_Common.h" />
+    <ClInclude Include="..\Public\BattleCameraProfileTypes.h" />
+    <ClInclude Include="Battle_Enum.h" />
+    <ClInclude Include="ChainModifierPreset.h" />
+    <ClInclude Include="..\Public\Mon_Simon_Weapon.h" />
+    <ClInclude Include="Base_Gustave_Attack.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="..\public\BackGround.h" />
     <ClInclude Include="..\public\Body_Player.h" />
@@ -188,20 +658,489 @@
     <ClInclude Include="..\public\FreeCamera.h" />
     <ClInclude Include="..\Public\Level_GamePlay.h" />
     <ClInclude Include="..\public\Level_Loading.h" />
-    <ClInclude Include="..\Public\Level_Logo.h" />
+    <ClInclude Include="..\Public\Level_MainTitle.h" />
     <ClInclude Include="..\public\Loader.h" />
-    <ClInclude Include="..\public\MainApp.h" />
-    <ClInclude Include="..\Public\Monster.h" />
-    <ClInclude Include="..\Public\Player.h" />
+    <ClInclude Include="..\Public\MW_Lancelier.h" />
+    <ClInclude Include="..\Public\Player_WorldBase.h" />
     <ClInclude Include="..\Public\ResourceLoader.h" />
     <ClInclude Include="..\Public\Sky.h" />
     <ClInclude Include="..\Public\Terrain.h" />
     <ClInclude Include="..\Public\Weapon.h" />
-    <ClInclude Include="Client.h" />
-    <ClInclude Include="framework.h" />
-    <ClInclude Include="targetver.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\Private\AL_SL_State.cpp" />
+    <ClCompile Include="..\Private\ANS_BattleTargetTrack.cpp" />
+    <ClCompile Include="..\Private\ANS_AnimSpeed.cpp" />
+    <ClCompile Include="..\Private\ANS_CanAction.cpp" />
+    <ClCompile Include="..\Private\ANS_CollisionEnable.cpp" />
+    <ClCompile Include="..\Private\ANS_ParkourCameraLag.cpp" />
+    <ClCompile Include="..\Private\ANS_SL_PartCollisionEnable.cpp" />
+    <ClCompile Include="..\Private\ANS_ComboEnable.cpp" />
+    <ClCompile Include="..\Private\ANS_CounterTimeScale.cpp" />
+    <ClCompile Include="..\private\ANS_Dodge.cpp" />
+    <ClCompile Include="..\private\ANS_Jump.cpp" />
+    <ClCompile Include="..\private\ANS_JumpCounter.cpp" />
+    <ClCompile Include="..\private\ANS_Emissive.cpp" />
+    <ClCompile Include="..\Private\ANS_IdleOffset.cpp" />
+    <ClCompile Include="..\private\ANS_Move.cpp" />
+    <ClCompile Include="..\Private\ANS_SL_MoveTo.cpp" />
+    <ClCompile Include="..\private\ANS_Parry.cpp" />
+    <ClCompile Include="..\Private\ANS_ParryWindow.cpp" />
+    <ClCompile Include="..\Private\ANS_PlayEffect.cpp" />
+    <ClCompile Include="..\Private\ANS_QTE.cpp" />
+    <ClCompile Include="..\Private\ANS_RootController.cpp" />
+    <ClCompile Include="..\Private\ANS_ScreenFxCue.cpp" />
+    <ClCompile Include="..\Private\ANS_SourceHistoryEffect.cpp" />
+    <ClCompile Include="..\Private\ANS_Trail.cpp" />
+    <ClCompile Include="..\Private\ANS_Visible_Parts.cpp" />
+    <ClCompile Include="..\Private\ANS_WeaponRotate.cpp" />
+    <ClCompile Include="..\Private\ANS_WeakColor.cpp" />
+    <ClCompile Include="..\private\ANS_WorldTimeScale.cpp" />
+    <ClCompile Include="..\private\AN_Attack.cpp" />
+    <ClCompile Include="..\private\AN_BattleShot.cpp" />
+    <ClCompile Include="..\private\AN_Battle_EndAnim.cpp" />
+    <ClCompile Include="..\private\AN_CameraShake.cpp" />
+    <ClCompile Include="..\Private\AN_CanFreeAimShoot.cpp" />
+    <ClCompile Include="..\private\AN_Change_Anim.cpp" />
+    <ClCompile Include="..\Private\AN_CounterDamage.cpp" />
+    <ClCompile Include="..\Private\AN_CounterReturnAll.cpp" />
+    <ClCompile Include="..\Private\AN_SimonPlayEffectToggle.cpp" />
+    <ClCompile Include="..\Private\AN_SimonCriticalGlow.cpp" />
+    <ClCompile Include="..\Private\AN_SL_CachePlayerPosition.cpp" />
+    <ClCompile Include="..\Private\AN_SL_PlayCachedPlayerEffect.cpp" />
+    <ClCompile Include="..\Private\AN_SL_DuallisteCloneSkill.cpp" />
+    <ClCompile Include="..\Private\AN_Dissolve_Parts.cpp" />
+    <ClCompile Include="..\Private\AN_EndTurn.cpp" />
+    <ClCompile Include="..\Private\AN_PlayEffect.cpp" />
+    <ClCompile Include="..\Private\AN_PlayEffectBattleDir.cpp" />
+    <ClCompile Include="..\Private\AN_SL_SpawnAttColl.cpp" />
+    <ClCompile Include="..\Private\AN_PlaySound.cpp" />
+    <ClCompile Include="..\Private\AN_ReturnBattleIdle.cpp" />
+    <ClCompile Include="..\Private\AN_SL_UseHealingPotion.cpp" />
+    <ClCompile Include="..\Private\AN_WeaponAttach.cpp" />
+    <ClCompile Include="..\Private\AN_WeaponDetach.cpp" />
+    <ClCompile Include="..\Private\ANS_WeaponEcho.cpp" />
+    <ClCompile Include="..\Private\AN_SpawnActor.cpp" />
+    <ClCompile Include="..\private\AN_SpawnLineGroundEffect.cpp" />
+    <ClCompile Include="..\Private\AN_VanishDissolve.cpp" />
+    <ClCompile Include="..\private\AN_EnterAnim.cpp" />
+    <ClCompile Include="..\Private\AN_JumpCounterStart.cpp" />
+    <ClCompile Include="..\Private\AN_StartCounter.cpp" />
+    <ClCompile Include="..\Private\AN_Test2.cpp" />
+    <ClCompile Include="..\Private\AN_WorldFreeAimHit.cpp" />
+    <ClCompile Include="..\Private\AttackPlaying.cpp" />
+    <ClCompile Include="..\Private\Base_Gustave_Attack.cpp" />
+    <ClCompile Include="..\private\BattleAction.cpp" />
+    <ClCompile Include="..\private\BattleActionExecutor.cpp" />
+    <ClCompile Include="..\Private\BattleAnimutils.cpp" />
+    <ClCompile Include="..\Private\BattleCameraClipIO.cpp" />
+    <ClCompile Include="..\Private\BattleClipSequencerAdapter.cpp" />
+    <ClCompile Include="..\Private\BattleEncounterProfile.cpp" />
+    <ClCompile Include="..\Private\BattleFollowupManager.cpp" />
+    <ClCompile Include="..\Private\BattleHitSequenceRunner.cpp" />
+    <ClCompile Include="..\Private\BattleMechanismCom.cpp" />
+    <ClCompile Include="..\Private\BattleSoundPreset.cpp" />
+    <ClCompile Include="..\Private\BattleQTEController.cpp" />
+    <ClCompile Include="..\Private\BattleReactionController.cpp" />
+    <ClCompile Include="..\Private\BattleResultRecoder.cpp" />
+    <ClCompile Include="..\Private\BattleSpawnRegistry.cpp" />
+    <ClCompile Include="..\Private\BattleStartSpawner.cpp" />
+    <ClCompile Include="..\Private\BattleTransition_ScreenFx.cpp" />
+    <ClCompile Include="..\Private\BattleTurnCamera.cpp" />
+    <ClCompile Include="..\Private\BattleTutorialController.cpp" />
+    <ClCompile Include="..\private\BT_IsStun.cpp" />
+    <ClCompile Include="..\private\BT_LookRange.cpp" />
+    <ClCompile Include="..\Private\BT_SetSkillAI.cpp" />
+    <ClCompile Include="..\private\BT_Set_TargetAI.cpp" />
+    <ClCompile Include="..\private\BT_Stun.cpp" />
+    <ClCompile Include="..\Private\CameraDirector.cpp" />
+    <ClCompile Include="..\private\BT_Patrol.cpp" />
+    <ClCompile Include="..\Private\ChangeSkill_Panel.cpp" />
+    <ClCompile Include="..\Private\CharacterProgression_Panel.cpp" />
+    <ClCompile Include="..\private\DialogueDB.cpp" />
+    <ClCompile Include="..\private\DialogueManager.cpp" />
+    <ClCompile Include="..\Private\GamePlayUI_SL.cpp" />
+    <ClCompile Include="..\Private\GradientSkill.cpp" />
+    <ClCompile Include="..\Private\Item.cpp" />
+    <ClCompile Include="..\Private\Item_Chroma.cpp" />
+    <ClCompile Include="..\Private\Item_DailyLog.cpp" />
+    <ClCompile Include="..\Private\Item_Pictos.cpp" />
+    <ClCompile Include="..\Private\LevelChange_Portal.cpp" />
+    <ClCompile Include="..\Private\Level_ReplayTransition.cpp" />
+    <ClCompile Include="..\Private\MapAmbientVisibility.cpp" />
+    <ClCompile Include="..\private\NPC_Base.cpp" />
+    <ClCompile Include="..\private\NPC_Baby.cpp" />
+    <ClCompile Include="..\private\NPC_Chad.cpp" />
+    <ClCompile Include="..\private\NPC_Buff.cpp" />
+    <ClCompile Include="..\private\NPC_Golgra.cpp" />
+    <ClCompile Include="..\private\NPC_Body.cpp" />
+    <ClCompile Include="..\private\NPC_Hair.cpp" />
+    <ClCompile Include="..\private\NPC_Merchant.cpp" />
+    <ClCompile Include="..\private\NPC_Noco.cpp" />
+    <ClCompile Include="..\private\NPC_Sumo.cpp" />
+    <ClCompile Include="..\private\NPC_Tall.cpp" />
+    <ClCompile Include="..\Private\PictosBattleSystem.cpp" />
+    <ClCompile Include="..\Private\Pictos_Panel.cpp" />
+    <ClCompile Include="..\Private\PreviewPlayer.cpp" />
+    <ClCompile Include="..\Private\RuntimeCheckpointIO.cpp" />
+    <ClCompile Include="..\Private\RuntimeCheckpointService.cpp" />
+    <ClCompile Include="..\Private\RuntimeRuleStateIO.cpp" />
+    <ClCompile Include="..\Private\RuntimeRuleStateService.cpp" />
+    <ClCompile Include="..\Private\AN_SL_JumpCounterDamage.cpp" />
+    <ClCompile Include="..\Private\ANS_SL_DodgeMove.cpp" />
+    <ClCompile Include="..\Private\ANS_SL_MonsterAttackCamera.cpp" />
+    <ClCompile Include="..\Private\ANS_SL_TargetTrack.cpp" />
+    <ClCompile Include="..\Private\ANS_SL_JumpCounterThreat.cpp" />
+    <ClCompile Include="..\Private\ANS_SL_JumpCounterWindow.cpp" />
+    <ClCompile Include="..\Private\SimonCriticalGlowController.cpp" />
+    <ClCompile Include="..\Private\SL_Base.cpp" />
+    <ClCompile Include="..\Private\SL_BasicAttack.cpp" />
+    <ClCompile Include="..\Private\SL_DamageSystem.cpp" />
+    <ClCompile Include="..\Private\SL_Dead.cpp" />
+    <ClCompile Include="..\Private\SL_Dodge.cpp" />
+    <ClCompile Include="..\Private\SL_DuallisteCloneSkillManager.cpp" />
+    <ClCompile Include="..\Private\SL_EstherManager.cpp" />
+    <ClCompile Include="..\Private\SL_Hit.cpp" />
+    <ClCompile Include="..\Private\SL_Idle.cpp" />
+    <ClCompile Include="..\Private\SL_Jump.cpp" />
+    <ClCompile Include="..\Private\SL_Mon_IntroState.cpp" />
+    <ClCompile Include="..\Private\SL_Mon_AttackState.cpp" />
+    <ClCompile Include="..\Private\SL_Mon_ChaseState.cpp" />
+    <ClCompile Include="..\Private\SL_Mon_DeadState.cpp" />
+    <ClCompile Include="..\Private\SL_Mon_HitState.cpp" />
+    <ClCompile Include="..\Private\SL_Mon_IdleState.cpp" />
+    <ClCompile Include="..\Private\SL_Mon_PhaseChangeState.cpp" />
+    <ClCompile Include="..\Private\SL_Mon_State.cpp" />
+    <ClCompile Include="..\Private\SL_Mon_StunState.cpp" />
+    <ClCompile Include="..\Private\SL_Mon_StateMachineCom.cpp" />
+    <ClCompile Include="..\Private\SL_Dualliste.cpp" />
+    <ClCompile Include="..\Private\SL_JumpCounter.cpp" />
+    <ClCompile Include="..\Private\SL_Maelle.cpp" />
+    <ClCompile Include="..\Private\SL_Move.cpp" />
+    <ClCompile Include="..\Private\SL_Parry.cpp" />
+    <ClCompile Include="..\Private\SL_Skill.cpp" />
+    <ClCompile Include="..\Private\SL_State.cpp" />
+    <ClCompile Include="..\Private\SL_TargetCom.cpp" />
+    <ClCompile Include="..\Private\SL_Test_Lancelier.cpp" />
+    <ClCompile Include="..\Private\SL_UseItem.cpp" />
+    <ClCompile Include="..\Private\SL_Weapon.cpp" />
+    <ClCompile Include="..\Private\SoulLikeCamera.cpp" />
+    <ClCompile Include="..\Private\SoulLikeController.cpp" />
+    <ClCompile Include="..\Private\SL_StateMachineCom.cpp" />
+    <ClCompile Include="..\Private\Trigger_BGMZone.cpp" />
+    <ClCompile Include="..\private\Trigger_Cinematic.cpp" />
+    <ClCompile Include="..\Private\Trigger_TeleportZone.cpp" />
+    <ClCompile Include="..\Private\Trigger_Interaction.cpp" />
+    <ClCompile Include="..\Private\Trigger_WorldDialogue.cpp" />
+    <ClCompile Include="..\Private\UI_AbilityPentagon.cpp" />
+    <ClCompile Include="..\Private\ComputeGeneratedBeamEmitter.cpp" />
+    <ClCompile Include="..\private\CinematicCamera.cpp" />
+    <ClCompile Include="..\private\CinematicSequenceRunner.cpp" />
+    <ClCompile Include="..\Private\EyeTarget.cpp" />
+    <ClCompile Include="..\Private\Level_GestralVillage.cpp" />
+    <ClCompile Include="..\Private\MapAdapter.cpp" />
+    <ClCompile Include="..\Private\MapCollisionAdapter.cpp" />
+    <ClCompile Include="..\Private\CostumeManager.cpp" />
+    <ClCompile Include="..\Private\MapWater.cpp" />
+    <ClCompile Include="..\Private\Mon_WeakPoint.cpp" />
+    <ClCompile Include="..\Private\PlayerInventory.cpp" />
+    <ClCompile Include="..\private\PuzzleController.cpp" />
+    <ClCompile Include="..\Private\Skill_Monster_Battle.cpp" />
+    <ClCompile Include="..\Private\SkyBoxFlow.cpp" />
+    <ClCompile Include="..\Private\SkyCloudCard.cpp" />
+    <ClCompile Include="..\Private\SourcePointSampleProvider_ByPart.cpp" />
+    <ClCompile Include="..\Private\TrailSampleProvider_ByPart.cpp" />
+    <ClCompile Include="..\Private\CA_ScreenFx.cpp" />
+    <ClCompile Include="..\private\ChangeWeapon_Panel.cpp" />
+    <ClCompile Include="..\Private\UpgradeWeapon_Panel.cpp" />
+    <ClCompile Include="..\Private\Merchant_Panel.cpp" />
+    <ClCompile Include="..\private\BT_FinishDecision.cpp" />
+    <ClCompile Include="..\private\BT_SetSkill.cpp" />
+    <ClCompile Include="..\private\BT_Set_Target.cpp" />
+    <ClCompile Include="..\Private\ClientScreenFxManager.cpp" />
+    <ClCompile Include="..\Private\DialogueCamera.cpp" />
+    <ClCompile Include="..\Private\Distortion_ScreenFx.cpp" />
+    <ClCompile Include="..\Private\Flash_ScreenFx.cpp" />
+    <ClCompile Include="..\Private\UI_DailyLog.cpp" />
+    <ClCompile Include="..\private\UI_Dialogue.cpp" />
+    <ClCompile Include="..\Private\UI_EventDialoguePlayer.cpp" />
+    <ClCompile Include="..\Private\UI_GradientSkillPreviewTest.cpp" />
+    <ClCompile Include="..\Private\UI_Replay.cpp" />
+    <ClCompile Include="..\Private\WorldDesaturate_ScreenFx.cpp" />
+    <ClCompile Include="..\Private\EffectCom.cpp" />
+    <ClCompile Include="..\Private\EffectInstancePool.cpp" />
+    <ClCompile Include="..\Private\ExpeditionStat_Panel.cpp" />
+    <ClCompile Include="..\Private\ComputeTrailEmitter.cpp" />
+    <ClCompile Include="..\Private\ComputeSourceHistoryRibbonEmitter.cpp" />
+    <ClCompile Include="..\Private\ComputeSourceHistorySpriteTrailEmitter.cpp" />
+    <ClCompile Include="..\Private\FaceAccessory_Player.cpp" />
+    <ClCompile Include="..\Private\FreeAimTargeting.cpp" />
+    <ClCompile Include="..\Private\GamePlayMenuFade.cpp" />
+    <ClCompile Include="..\Private\BattleWorldUI_CommandCards.cpp" />
+    <ClCompile Include="..\Private\BattleWorldUI_GradientCards.cpp" />
+    <ClCompile Include="..\Private\BattleWorldUI_ItemCards.cpp" />
+    <ClCompile Include="..\Private\BattleWorldUI_JsonTextureResolver.cpp" />
+    <ClCompile Include="..\Private\BattleWorldUI_MaterialVfxBackground.cpp" />
+    <ClCompile Include="..\Private\BattleWorldUI_SkillCards.cpp" />
+    <ClCompile Include="..\Private\GameplayUI_Battle.cpp" />
+    <ClCompile Include="..\Private\GameplayUI_World.cpp" />
+    <ClCompile Include="..\Private\UI_Interaction.cpp" />
+    <ClCompile Include="..\Private\MapLandscape.cpp" />
+    <ClCompile Include="..\Private\MainTitleMenuSound.cpp" />
+    <ClCompile Include="..\private\Level_GameEntry.cpp" />
+    <ClCompile Include="..\Private\MB_Abbest.cpp" />
+    <ClCompile Include="..\private\MB_Bishop.cpp" />
+    <ClCompile Include="..\Private\MB_Mime.cpp" />
+    <ClCompile Include="..\Private\MB_PotatoBag.cpp" />
+    <ClCompile Include="..\private\MB_Portier.cpp" />
+    <ClCompile Include="..\private\MB_Simon.cpp" />
+    <ClCompile Include="..\private\MB_Volester.cpp" />
+    <ClCompile Include="..\Private\Mon_Abbest_Body.cpp" />
+    <ClCompile Include="..\Private\Mon_Dualliste_Body.cpp" />
+    <ClCompile Include="..\Private\Mon_Dualliste_Sword_L.cpp" />
+    <ClCompile Include="..\Private\Mon_Dualliste_Sword_R.cpp" />
+    <ClCompile Include="..\private\Mon_Bishop_Body.cpp" />
+    <ClCompile Include="..\Private\Mon_Mime_Bagutte.cpp" />
+    <ClCompile Include="..\Private\Mon_Mime_Body.cpp" />
+    <ClCompile Include="..\Private\Mon_PotatoBag_Body.cpp" />
+    <ClCompile Include="..\Private\Mon_PotatoBag_Shield.cpp" />
+    <ClCompile Include="..\Private\Mon_PotatoBag_Weapon.cpp" />
+    <ClCompile Include="..\private\Mon_Simon_Body.cpp" />
+    <ClCompile Include="..\Private\Mon_Simon_Hair.cpp" />
+    <ClCompile Include="..\private\Mon_Volester_Body.cpp" />
+    <ClCompile Include="..\Private\MW_Abbest.cpp" />
+    <ClCompile Include="..\Private\MW_Dualliste.cpp" />
+    <ClCompile Include="..\private\MW_Bishop.cpp" />
+    <ClCompile Include="..\Private\MW_Mime.cpp" />
+    <ClCompile Include="..\Private\MW_PotatoBag.cpp" />
+    <ClCompile Include="..\private\MW_Portier.cpp" />
+    <ClCompile Include="..\private\MW_Simon.cpp" />
+    <ClCompile Include="..\private\MW_Volester.cpp" />
+    <ClCompile Include="..\Private\PB_Gustave.cpp" />
+    <ClCompile Include="..\Private\MB_Lancelier.cpp" />
+    <ClCompile Include="..\Private\PB_Lune.cpp" />
+    <ClCompile Include="..\Private\PB_Maelle.cpp" />
+    <ClCompile Include="..\private\BuffSystem.cpp" />
+    <ClCompile Include="..\Private\AN_Test.cpp" />
+    <ClCompile Include="..\Private\ANS_Test.cpp" />
+    <ClCompile Include="..\private\AttackTargeting.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\private\BattleController.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\Private\BattleEffectPrewarmCollector.cpp" />
+    <ClCompile Include="..\private\BattleStateMachine.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\private\Battle_State.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\Private\BStateMachine.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\private\BT_Chase.cpp" />
+    <ClCompile Include="..\private\BT_CheckDistance.cpp" />
+    <ClCompile Include="..\Private\BT_HasDeadHero.cpp" />
+    <ClCompile Include="..\Private\BT_ForceSkillOnDeadHero.cpp" />
+    <ClCompile Include="..\Private\BT_SetDeadHeroTarget.cpp" />
+    <ClCompile Include="..\Private\BT_SL_CanAttack.cpp" />
+    <ClCompile Include="..\Private\BT_SL_CompareBBValue.cpp" />
+    <ClCompile Include="..\Private\BT_SL_IsDead.cpp" />
+    <ClCompile Include="..\Private\BT_SL_IsLastAttack.cpp" />
+    <ClCompile Include="..\Private\BT_SL_IsHit.cpp" />
+    <ClCompile Include="..\Private\BT_SL_IsIntroDone.cpp" />
+    <ClCompile Include="..\Private\BT_SL_IsActionLocked.cpp" />
+    <ClCompile Include="..\Private\BT_SL_IsStun.cpp" />
+    <ClCompile Include="..\Private\BT_SL_SelectNextAttack.cpp" />
+    <ClCompile Include="..\Private\BT_SL_SetDesiredState.cpp" />
+    <ClCompile Include="..\Private\BT_SL_SetSelectedAttack.cpp" />
+    <ClCompile Include="..\private\BT_Idle.cpp" />
+    <ClCompile Include="..\private\BT_Node_Bootstrap.cpp" />
+    <ClCompile Include="..\Private\BT_RotateToTarget.cpp" />
+    <ClCompile Include="..\private\BuffInstance.cpp" />
+    <ClCompile Include="..\Private\Character_BattleBase.cpp" />
+    <ClCompile Include="..\Private\Character_WorldBase.cpp" />
+    <ClCompile Include="..\private\ChooseAction.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\private\ChooseItem.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\Private\ChooseGradient.cpp" />
+    <ClCompile Include="..\private\ChooseSkill.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\private\ChooseUltimate.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\Private\CameraPresetIO.cpp" />
+    <ClCompile Include="..\Private\CinematicSequencerAdapter.cpp" />
+    <ClCompile Include="..\Private\Cinematic_Player.cpp" />
+    <ClCompile Include="..\Private\Cinematic_SequenceIO.cpp" />
+    <ClCompile Include="..\Private\CombatStatCom.cpp" />
+    <ClCompile Include="..\Private\ContentBrowserCore.cpp" />
+    <ClCompile Include="..\Private\ComputeSpriteEmitter.cpp" />
+    <ClCompile Include="..\private\DamageSystem.cpp" />
+    <ClCompile Include="..\Private\EffectAssetRuntimeLoader.cpp" />
+    <ClCompile Include="..\Private\EffectAssetRuntimeLoader_Curves.cpp" />
+    <ClCompile Include="..\Private\EffectAssetRuntimeLoader_Emitters.cpp" />
+    <ClCompile Include="..\Private\EffectAssetRuntimeLoader_Json.cpp" />
+    <ClCompile Include="..\Private\EffectAssetRuntimeLoader_Material.cpp" />
+    <ClCompile Include="..\Private\EffectEmitterRegistration.cpp" />
+    <ClCompile Include="..\Private\GameDataTable.cpp" />
+    <ClCompile Include="..\Private\GameplayUI.cpp" />
+    <ClCompile Include="..\Private\HairChainPhysics.cpp" />
+    <ClCompile Include="..\Private\Hair_Player.cpp" />
+    <ClCompile Include="..\Private\Head_Player.cpp" />
+    <ClCompile Include="..\Private\Hero_Manager.cpp" />
+    <ClCompile Include="..\Private\InputCom.cpp" />
+    <ClCompile Include="..\private\ItemTargeting.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\Private\Level_MapTest.cpp" />
+    <ClCompile Include="..\Private\LevelTransitionFade.cpp" />
+    <ClCompile Include="..\Private\Level_Stage01.cpp" />
+    <ClCompile Include="..\Private\MapInstancedMesh.cpp" />
+    <ClCompile Include="..\Private\MapAuthoringIO.cpp" />
+    <ClCompile Include="..\Private\MapLoader.cpp" />
+    <ClCompile Include="..\Private\MapStaticMesh.cpp" />
+    <ClCompile Include="..\Private\MeshEmitter.cpp" />
+    <ClCompile Include="..\private\MonsterStatCom.cpp" />
+    <ClCompile Include="..\Private\Monster_BattleBase.cpp" />
+    <ClCompile Include="..\private\Monster_Part.cpp" />
+    <ClCompile Include="..\Private\Monster_WorldBase.cpp" />
+    <ClCompile Include="..\private\Mon_AIController.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\private\Mon_Lancelier_Body.cpp" />
+    <ClCompile Include="..\private\Mon_Lancelier_Weapon.cpp" />
+    <ClCompile Include="..\Private\PersistentObjectManager.cpp" />
+    <ClCompile Include="..\Private\PlayableParts.cpp" />
+    <ClCompile Include="..\Private\PlayerControllerCom.cpp" />
+    <ClCompile Include="..\private\PlayerStatCom.cpp" />
+    <ClCompile Include="..\Private\Player_BattleBase.cpp" />
+    <ClCompile Include="..\Private\Player_FreeAim.cpp" />
+    <ClCompile Include="..\Private\Player_GameMenu.cpp" />
+    <ClCompile Include="..\private\Mon_Portier_Body.cpp" />
+    <ClCompile Include="..\private\PreviewShotTable.cpp" />
+    <ClCompile Include="..\Private\PW_Gustave.cpp" />
+    <ClCompile Include="..\Private\Player_Idle.cpp" />
+    <ClCompile Include="..\Private\Player_Jump.cpp" />
+    <ClCompile Include="..\Private\PW_Lune.cpp" />
+    <ClCompile Include="..\Private\PW_Maelle.cpp" />
+    <ClCompile Include="..\Private\Player_Move.cpp" />
+    <ClCompile Include="..\Private\Player_State.cpp" />
+    <ClCompile Include="..\Private\PlayerStateMachineCom.cpp" />
+    <ClCompile Include="..\Private\Player_Climb.cpp" />
+    <ClCompile Include="..\Private\Player_RopeAction.cpp" />
+    <ClCompile Include="..\Private\Player_GrappleAction.cpp" />
+    <ClCompile Include="..\Private\Player_WorldAction.cpp" />
+    <ClCompile Include="..\Private\PreviewCamera.cpp" />
+    <ClCompile Include="..\Private\Player_ParkourAction.cpp" />
+    <ClCompile Include="..\Private\IRuntimeUI_EditorTarget.cpp" />
+    <ClCompile Include="..\Private\RadialBlur_ScreenFx.cpp" />
+    <ClCompile Include="..\Private\SimpleMath.cpp" />
+    <ClCompile Include="..\private\SkillScript.cpp" />
+    <ClCompile Include="..\private\SkillTargeting.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\Private\SkillTreeCom.cpp" />
+    <ClCompile Include="..\private\SkillTree_Panel.cpp" />
+    <ClCompile Include="..\Private\Create_Class.cpp" />
+    <ClCompile Include="..\Private\DamageTrigger.cpp" />
+    <ClCompile Include="..\private\Skill_Bishop_Ground_Att.cpp" />
+    <ClCompile Include="..\Private\Skill_Gustave_Battle.cpp" />
+    <ClCompile Include="..\Private\Skill_Lune_Battle.cpp" />
+    <ClCompile Include="..\Private\Skill_Maelle_Battle.cpp" />
+    <ClCompile Include="..\Private\Spawn_Prefab.cpp" />
+    <ClCompile Include="..\Private\State.cpp" />
+    <ClCompile Include="..\Private\StateMachineCom.cpp" />
+    <ClCompile Include="..\Private\StreamingLevel.cpp" />
+    <ClCompile Include="..\Private\TargetCamera.cpp" />
+    <ClCompile Include="..\Private\CharacterStatus_Panel.cpp" />
+    <ClCompile Include="..\Private\Terrain_UE.cpp" />
+    <ClCompile Include="..\Private\TrailAnchor_Asset.cpp" />
+    <ClCompile Include="..\Private\Trigger_WorldAction.cpp" />
+    <ClCompile Include="..\Private\WorldLedgeSpot.cpp" />
+    <ClCompile Include="..\Private\WorldInteractionSpot.cpp" />
+    <ClCompile Include="..\Private\WorldGrapplingRopeSpot.cpp" />
+    <ClCompile Include="..\Private\WorldUpDownRopeSpot.cpp" />
+    <ClCompile Include="..\private\UIPreviewManager.cpp" />
+    <ClCompile Include="..\Private\UI_AddAP.cpp" />
+    <ClCompile Include="..\Private\UI_ArenaCharacterSelect.cpp" />
+    <ClCompile Include="..\Private\UI_AttackTooltip.cpp" />
+    <ClCompile Include="..\Private\UI_BattleAnnounce.cpp" />
+    <ClCompile Include="..\Private\UI_BattleFloatingTextBase.cpp" />
+    <ClCompile Include="..\Private\UI_BattleItemPanel.cpp" />
+    <ClCompile Include="..\Private\UI_BattleMechanism.cpp" />
+    <ClCompile Include="..\Private\UI_BattleGradientGauge.cpp" />
+    <ClCompile Include="..\Private\UI_BattlePictos.cpp" />
+    <ClCompile Include="..\Private\UI_BattleTutorial.cpp" />
+    <ClCompile Include="..\Private\UI_BattleJumpReaction.cpp" />
+    <ClCompile Include="..\Private\UI_GetCharacter.cpp" />
+    <ClCompile Include="..\Private\UI_GetClothes.cpp" />
+    <ClCompile Include="..\Private\UI_GetWeapon.cpp" />
+    <ClCompile Include="..\Private\UI_GetPictos.cpp" />
+    <ClCompile Include="..\Private\UI_GetChroma.cpp" />
+    <ClCompile Include="..\Private\UI_LevelAnnounce.cpp" />
+    <ClCompile Include="..\Private\UI_HealFont.cpp" />
+    <ClCompile Include="..\Private\UI_DestroyShield.cpp" />
+    <ClCompile Include="..\Private\UI_MarkEffect.cpp" />
+    <ClCompile Include="..\Private\UI_BossHpBar.cpp" />
+    <ClCompile Include="..\Private\UI_PlayerHpBar.cpp" />
+    <ClCompile Include="..\Private\UI_BattleSystemHUD.cpp" />
+    <ClCompile Include="..\Private\UI_BattleSystem_TurnOrder.cpp" />
+    <ClCompile Include="..\Private\UI_BattleVictory.cpp" />
+    <ClCompile Include="..\Private\UI_CancelAim.cpp" />
+    <ClCompile Include="..\Private\UI_BattleCommandHUD.cpp" />
+    <ClCompile Include="..\Private\UI_BattleDefense.cpp" />
+    <ClCompile Include="..\Private\UI_BattleTransition.cpp" />
+    <ClCompile Include="..\Private\UI_ChoiceTarget.cpp" />
+    <ClCompile Include="..\Private\UI_CrossHair.cpp" />
+    <ClCompile Include="..\Private\UI_DamageFont.cpp" />
+    <ClCompile Include="..\Private\UI_Mark.cpp" />
+    <ClCompile Include="..\Private\UI_Burn.cpp" />
+    <ClCompile Include="..\Private\UI_Slow.cpp" />
+    <ClCompile Include="..\Private\UI_EscapeSkipTurnBack.cpp" />
+    <ClCompile Include="..\Private\UI_MonsterHpBar.cpp" />
+    <ClCompile Include="..\Private\UI_QTE.cpp" />
+    <ClCompile Include="..\Private\UI_ReactionResult.cpp" />
+    <ClCompile Include="..\Private\UI_RuntimeLoader.cpp" />
+    <ClCompile Include="..\Private\UI_SL_HUD.cpp" />
+    <ClCompile Include="..\Private\UI_SL_LockOn.cpp" />
+    <ClCompile Include="..\Private\UI_SpriteVfx.cpp" />
+    <ClCompile Include="..\Private\UI_Vfx.cpp" />
+    <ClCompile Include="..\Private\SavePoint_Panel.cpp" />
+    <ClCompile Include="..\Private\ScreenFadeTransition.cpp" />
+    <ClCompile Include="..\Private\UI_RuntimePanelBase.cpp" />
+    <ClCompile Include="..\Private\UI_ScreenFade.cpp" />
+    <ClCompile Include="..\Private\UI_BattleSkillPanel.cpp" />
+    <ClCompile Include="..\Private\UI_SuddenAttack.cpp" />
+    <ClCompile Include="..\private\UltimateTargeting.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\Private\Unlock_Manager.cpp" />
+    <ClCompile Include="..\private\UtilitySystem.cpp" />
+    <ClCompile Include="..\Private\VictoriaFlag.cpp" />
+    <ClCompile Include="..\Private\Wardrobe_Panel.cpp" />
+    <ClCompile Include="..\Private\WeaponPrefabLoader.cpp" />
+    <ClCompile Include="..\private\WeaponUI_Common.cpp" />
+    <ClCompile Include="ChainModifierPreset.cpp" />
+    <ClCompile Include="..\Private\Mon_Simon_Weapon.cpp" />
     <ClCompile Include="pch.cpp">
       <PrecompiledHeader>Create</PrecompiledHeader>
     </ClCompile>
@@ -211,22 +1150,127 @@
     <ClCompile Include="..\private\FreeCamera.cpp" />
     <ClCompile Include="..\Private\Level_GamePlay.cpp" />
     <ClCompile Include="..\private\Level_Loading.cpp" />
-    <ClCompile Include="..\Private\Level_Logo.cpp" />
+    <ClCompile Include="..\Private\Level_MainTitle.cpp" />
     <ClCompile Include="..\private\Loader.cpp" />
-    <ClCompile Include="..\private\MainApp.cpp" />
-    <ClCompile Include="..\Private\Monster.cpp" />
-    <ClCompile Include="..\Private\Player.cpp" />
+    <ClCompile Include="..\Private\MW_Lancelier.cpp" />
+    <ClCompile Include="..\Private\Player_WorldBase.cpp" />
     <ClCompile Include="..\Private\ResourceLoader.cpp" />
     <ClCompile Include="..\Private\Sky.cpp" />
     <ClCompile Include="..\Private\Terrain.cpp" />
     <ClCompile Include="..\Private\Weapon.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_RibbonStrip.hlsl">
+      <ShaderType>Compute</ShaderType>
+      <ShaderModel>5.0</ShaderModel>
+      <EntryPointName>CS_Main</EntryPointName>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_Froxel.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_ShadowCull.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectBeam.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectBeamDistortion.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectRibbon.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_Letterbox.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_VictoriaFlag.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectSourceHistorySpriteTrail.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_Water.hlsl" />
+    <None Include="..\Bin\ShaderFiles\Shader_EffectDistortionCommon.hlsli" />
+    <None Include="..\Bin\ShaderFiles\Shader_EffectMeshCommon.hlsli" />
+    <None Include="..\Bin\ShaderFiles\Shader_EffectMaterialScalarModulation.hlsli" />
+    <None Include="..\Bin\ShaderFiles\Shader_EffectSpriteCommon.hlsli" />
+    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimAdditive.hlsl">
+      <ShaderType>Compute</ShaderType>
+      <ShaderModel>5.0</ShaderModel>
+      <EntryPointName>CS_Main</EntryPointName>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimBlend.hlsl">
+      <ShaderType>Compute</ShaderType>
+      <ShaderModel>5.0</ShaderModel>
+      <EntryPointName>CS_Main</EntryPointName>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimEvaluate.hlsl">
+      <ShaderType>Compute</ShaderType>
+      <ShaderModel>5.0</ShaderModel>
+      <EntryPointName>CS_Main</EntryPointName>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimMeshSkinning.hlsl">
+      <ShaderType>Compute</ShaderType>
+      <ShaderModel>5.0</ShaderModel>
+      <EntryPointName>CS_Main</EntryPointName>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimMix.hlsl">
+      <ShaderType>Compute</ShaderType>
+      <ShaderModel>5.0</ShaderModel>
+      <EntryPointName>CS_Main</EntryPointName>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_BoneCombine.hlsl">
+      <ShaderType>Compute</ShaderType>
+      <ShaderModel>5.0</ShaderModel>
+      <EntryPointName>CS_Main</EntryPointName>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_BoneRemap.hlsl">
+      <ShaderType>Compute</ShaderType>
+      <ShaderModel>5.0</ShaderModel>
+      <EntryPointName>CS_Main</EntryPointName>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_InstanceCull.hlsl">
+      <ShaderType>Compute</ShaderType>
+      <ShaderModel>5.0</ShaderModel>
+      <EntryPointName>CS_Main</EntryPointName>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_PointParticle.hlsl">
+      <ShaderType>Compute</ShaderType>
+      <ShaderModel>5.0</ShaderModel>
+      <EntryPointName>CS_Main</EntryPointName>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_TrailStrip.hlsl">
+      <ShaderType>Compute</ShaderType>
+      <ShaderModel>5.0</ShaderModel>
+      <EntryPointName>CS_Main</EntryPointName>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_Deferred.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectDistortionSprite.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectMaterialPreview.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectMaterialPreviewDistortion.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectMesh.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectMeshDistortion.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectMeshGlass.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectMeshPreview.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectMeshPreviewDistortion.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectMeshPreviewGlass.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectRibbonDistortion.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectSprite.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectTrail.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectTrailDistortion.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_PostProcess.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_ScreenFx.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_SkyBoxFlow.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_SkyCloudCard.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_UI.hlsl" />
     <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxAnimMesh.hlsl" />
     <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxCube.hlsl" />
     <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxMesh.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxMeshInstance.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxMeshInstanceExact.hlsl" />
     <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxNorTex.hlsl" />
     <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxTex.hlsl" />
+  </ItemGroup>
+  <ItemGroup>
+    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_BufferSmoke.hlsl">
+      <ShaderType>Compute</ShaderType>
+      <ShaderModel>5.0</ShaderModel>
+      <EntryPointName>CS_Main</EntryPointName>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_InstancingSmoke.hlsl">
+      <ShaderType>Compute</ShaderType>
+      <ShaderModel>5.0</ShaderModel>
+      <EntryPointName>CS_Main</EntryPointName>
+    </FxCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\Engine\Default\Engine.vcxproj">
+      <Project>{03054186-8B87-4D59-91C6-0AC09D31002D}</Project>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

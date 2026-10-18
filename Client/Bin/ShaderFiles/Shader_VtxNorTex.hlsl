@@ -1,150 +1,245 @@
 #include "Engine_Shader_Defines.hlsli"
+#include "Engine_Shader_RenderState.hlsl"
+#include "Engine_Shader_Samplers.hlsl"
+#include "Engine_Shader_Passes.hlsl"
 
-/* Vertex Shader */
-/* 1. Á¤Á¡ÀÇ º¯È¯°úÁ¤À» ¼öÇàÇÑ´Ù.(¿ùµå, ºä, Åõ¿µ µî) */
-/* 2. Á¤Á¡ÀÇ ±¸¼ºÀ» º¯ÇüÇÑ´Ù. */
-
-/* float2, float3, float4 == vector */
-/* float1x4, float4x4 == matrix */
-
-
-/* ÄÁ½ºÅÏÆ® Å×ÀÌºí */
+//==================================================
+// MATRIX
+//==================================================
 float4x4 g_WorldMatrix, g_ViewMatrix, g_ProjMatrix;
 
-vector g_vLightDir;
-vector g_vLightDiffuse;
-vector g_vLightAmbient;
-vector g_vLightSpecular;
+//==================================================
+// CAMERA
+//==================================================
+float g_Far = 0.f;
 
-texture2D g_DiffuseTexture[2];
-texture2D g_MaskTexture;
-texture2D g_BrushTexture;
-vector g_vMtrlAmbient = vector(0.3f, 0.3f, 0.3f, 1.f);
-vector g_vMtrlSpecular = vector(1.f, 1.f, 1.f, 1.f);
-vector g_vCamPosition;
+//==================================================
+// TEXTURE
+//==================================================
+//Texture2D g_DiffuseTexture;
+Texture2D g_Layer0, g_Layer1, g_Layer2, g_Layer3, g_Layer4, g_Layer5, g_Layer6;
+Texture2D g_Weight0, g_Weight1, g_Weight2, g_Weight3, g_Weight4, g_Weight5, g_Weight6;
+Texture2D g_Normal0, g_Normal1, g_Normal2, g_Normal3, g_Normal4, g_Normal5, g_Normal6;
+Texture2D g_Roughness0, g_Roughness1, g_Roughness2, g_Roughness3, g_Roughness4, g_Roughness5, g_Roughness6;
 
-float g_fBrushRange = 15.f;
-vector g_vBrushPosition = vector(70.f, 0.f, 20.f, 1.f);
-
-sampler DefaultSampler = sampler_state
+cbuffer LayerParams : register(b1)
 {
-    Filter = MIN_MAG_MIP_LINEAR;   
-    AddressU = wrap;
-    AddressV = wrap;
+    float4 g_Tiling[7];
+    float4 g_GroundTint[7];
+    float4 g_LayerControl[7];
+    float4 g_AlbedoControl[7];
 };
 
+vector g_vBrushPosition = vector(70.f, 0.f, 20.f, 1.f);
 
-
-/* ÀÌ ½¦ÀÌ´õ·Î ±×¸°´Ù¶ó°í ÀÌ¾ß±âÇÑ Á¤Á¡¹öÆÛÀÇ Á¤Á¡À» ²¨³»¼­ ¹Þ¾Æ¿Â´Ù */
+//==================================================
+// VS
+//==================================================
 struct VS_IN
 {
-    float3 vPosition : POSITION;
-    float3 vNormal : NORMAL;
-    float2 vTexcoord : TEXCOORD0;    
+    float3 Position : POSITION;
+    float3 Normal   : NORMAL;
+    float2 Texcoord : TEXCOORD0;    
 };
 
 struct VS_OUT
 {
-    float4 vPosition : SV_POSITION;
-    float4 vNormal : NORMAL;
-    float2 vTexcoord : TEXCOORD0;
-    float4 vWorldPos : TEXCOORD1;
+    float4 Position : SV_POSITION;
+    float4 Normal   : NORMAL;
+    float2 Texcoord : TEXCOORD0;
+    float4 WorldPos : TEXCOORD1;
+    float4 ProjPos  : TEXCOORD2;
+
 };
 
-VS_OUT VS_MAIN(VS_IN In)
+VS_OUT VS_Default(VS_IN In)
 {
     VS_OUT Out;
     
-    /* Á¤Á¡ÀÇ À§Ä¡ * ¿ùµå * ºä * Åõ¿µ */
+    /* ì •ì ì˜ ìœ„ì¹˜ * ì›”ë“œ * ë·° * íˆ¬ì˜ */
     float4x4 matWV, matWVP;
     
-    /* mul : Çà·Ä³¢¸®ÀÇ °öÇÏ±â¿¬»êÀ» ¼öÇàÇÑ´Ù. */ 
-    /* XMVector3TransformCoord : º¤ÅÍ¿Í Çà·ÄÀÇ °öÇÏ±â¿¬»êÀ» ¼öÇàÇÏ°í w³ª´«´Ù.*/
+    /* mul : í–‰ë ¬ë¼ë¦¬ì˜ ê³±í•˜ê¸°ì—°ì‚°ì„ ìˆ˜í–‰í•œë‹¤. */ 
+    /* XMVector3TransformCoord : ë²¡í„°ì™€ í–‰ë ¬ì˜ ê³±í•˜ê¸°ì—°ì‚°ì„ ìˆ˜í–‰í•˜ê³  wë‚˜ëˆˆë‹¤.*/
     matWV = mul(g_WorldMatrix, g_ViewMatrix);
     matWVP = mul(matWV, g_ProjMatrix);
     
-    Out.vPosition = mul(float4(In.vPosition, 1.f), matWVP); 
-    Out.vNormal = normalize(mul(float4(In.vNormal, 0.f), g_WorldMatrix));
-    Out.vTexcoord = In.vTexcoord;
-    Out.vWorldPos = mul(float4(In.vPosition, 1.f), g_WorldMatrix);
-    
+    Out.Position = mul(float4(In.Position, 1.f), matWVP); 
+    Out.Normal = normalize(mul(float4(In.Normal, 0.f), g_WorldMatrix));
+    Out.Texcoord = In.Texcoord;
+    Out.WorldPos = mul(float4(In.Position, 1.f), g_WorldMatrix);
+    Out.ProjPos = Out.Position;
+
     return Out;
 }
 
-/* w³ª´©±â¿¬»êÀ» ¼öÇàÇÑ´Ù.-> ÀÌ ¿¬»êÀ¸·Î ÀÌ¾îÁú¼ö ÀÖ´Â ÀÌÀ¯ -> VS_OUT±¸Á¶Ã¼ÀÇ À§Ä¡ -> SV_ */
-/* ºäÆ÷Æ®(À©µµ¿ìÁÂÇ¥)·Î º¯È¯ÇÑ´Ù. */
-/* ·¡½ºÅÍ¶óÀÌÁî -> Á¤Á¡ ¼¼°³·Î °¨½ÎÁø ¿µ¿ªÀÇ ÇÈ¼¿ Á¤º¸¸¦ »ý¼ºÇÑ´Ù */
-
+//==================================================
+// PS
+//==================================================
 struct PS_IN
 {
-    float4 vPosition : SV_POSITION;
-    float4 vNormal : NORMAL;
-    float2 vTexcoord : TEXCOORD0;    
-    float4 vWorldPos : TEXCOORD1;
+    float4 Position : SV_POSITION;
+    float4 Normal   : NORMAL;
+    float2 Texcoord : TEXCOORD0;    
+    float4 WorldPos : TEXCOORD1;
+    float4 ProjPos  : TEXCOORD2;
 };
 
 struct PS_OUT
 {
-    vector vColor : SV_TARGET0;
+    vector Diffuse  : SV_TARGET0;
+    vector Normal   : SV_TARGET1;
+    vector Depth    : SV_TARGET2;
+    vector Material : SV_TARGET3; // r=AO, g=Roughness, b=Metalness
+    vector Emissive : SV_TARGET4;
 };
 
-/* Pixel Shader -> ÇÈ¼¿ÀÇ »öÀ» °áÁ¤ÇÑ´Ù. */
-
-PS_OUT PS_MAIN(PS_IN In)
+PS_OUT PS_Default(PS_IN In)
 {
     PS_OUT Out;
-    
-    // Out.vColor = float4(In.vTexcoord.y, In.vTexcoord.y, In.vTexcoord.y, 1.f);
-    vector vSourMtrlDiffuse = g_DiffuseTexture[0].Sample(DefaultSampler, In.vTexcoord * 30.f);
-    vector vDestMtrlDiffuse = g_DiffuseTexture[1].Sample(DefaultSampler, In.vTexcoord * 30.f);
-    vector vMask = g_MaskTexture.Sample(DefaultSampler, In.vTexcoord);
-    vector vBrush = 0.f;
-    
-    if (g_vBrushPosition.x - g_fBrushRange < In.vWorldPos.x && In.vWorldPos.x <= g_vBrushPosition.x + g_fBrushRange && 
-        g_vBrushPosition.z - g_fBrushRange < In.vWorldPos.z && In.vWorldPos.z <= g_vBrushPosition.z + g_fBrushRange)
-    {
-        float2 vTexcoord;
-        
-        vTexcoord.x = (In.vWorldPos.x - (g_vBrushPosition.x - g_fBrushRange)) / (2.f * g_fBrushRange);
-        vTexcoord.y = ((g_vBrushPosition.z + g_fBrushRange) - In.vWorldPos.z) / (2.f * g_fBrushRange);
-        
-        vBrush = g_BrushTexture.Sample(DefaultSampler, vTexcoord);
-    }
-    
-    vector vMtrlDiffuse = vDestMtrlDiffuse * vMask + vSourMtrlDiffuse * (1.f - vMask) + vBrush;
-    
-    
-    vector vShade = saturate(max(dot(normalize(g_vLightDir) * -1.f, In.vNormal), 0.f) + (g_vLightAmbient * g_vMtrlAmbient));
-    
-    vector vLook = In.vWorldPos - g_vCamPosition;
-    vector vRelfect = reflect(normalize(g_vLightDir), In.vNormal);    
-    float fSpecular = pow(max(dot(normalize(vLook) * -1.f, normalize(vRelfect)), 0.f), 50.f);
-    
-    vector vSpecularColor = g_vLightSpecular * g_vMtrlSpecular * fSpecular;
-    
-    Out.vColor = g_vLightDiffuse * vMtrlDiffuse * vShade + vSpecularColor;
+    Out.Diffuse = float4(1.f, 1.f, 1.f, 1.f);
+    Out.Normal = vector(In.Normal.xyz * 0.5f + 0.5f, 1.f);
+    Out.Depth = vector(In.ProjPos.z / In.ProjPos.w, In.ProjPos.w / g_Far, 0.f, 1.f);
+    Out.Material = vector(1.f, 0.8f, 0.f, 0.f);
+    Out.Emissive = vector(0.f, 0.f, 0.f, 0.f);
     
     return Out;
+}
 
+float3 ApplyAlbedoControl(float3 color, float4 ctrl)
+{
+    float lum = dot(color, float3(0.2126f, 0.7152f, 0.0722f));
+    color = lerp(float3(lum, lum, lum), color, ctrl.x);
+    color *= ctrl.y;
+    color = (color - 0.5f) * ctrl.z + 0.5f;
+    return saturate(color);
+}
+
+float3 SampleLandscapeWorldNormal(Texture2D normalTex, float2 uv, float strength, float3x3 tbn)
+{
+    float2 normalXY = normalTex.Sample(LinearWrapSampler, uv).rg * 2.f - 1.f;
+    normalXY *= strength;
+
+    float normalZ = sqrt(saturate(1.f - dot(normalXY, normalXY)));
+    float3 normalTS = normalize(float3(normalXY, normalZ));
+
+    return normalize(mul(normalTS, tbn));
+}
+
+PS_OUT PS_Layer(PS_IN In)
+{
+    PS_OUT Out;
+
+    float3 N = normalize(In.Normal.xyz);
+    float3 T = normalize(float3(1.f, 0.f, 0.f) - dot(float3(1.f, 0.f, 0.f), N) * N);
+    float3 B = cross(N, T);
+    float3x3 TBN = float3x3(T, B, N);
+
+    float w[7];
+    w[0] = g_Weight0.Sample(LinearClampSampler, In.Texcoord).r;
+    w[1] = g_Weight1.Sample(LinearClampSampler, In.Texcoord).r;
+    w[2] = g_Weight2.Sample(LinearClampSampler, In.Texcoord).r;
+    w[3] = g_Weight3.Sample(LinearClampSampler, In.Texcoord).r;
+    w[4] = g_Weight4.Sample(LinearClampSampler, In.Texcoord).r;
+    w[5] = g_Weight5.Sample(LinearClampSampler, In.Texcoord).r;
+    w[6] = g_Weight6.Sample(LinearClampSampler, In.Texcoord).r;
+
+    float4 blendedColor = float4(0.f, 0.f, 0.f, 0.f);
+    float3 blendedNormal = float3(0.f, 0.f, 0.f);
+    float blendedRough = 0.f;
+    float blendedMetallic = 0.f;
+    float totalWeight = 0.f;
+
+    // Layer0
+    float2 uv0 = In.Texcoord * g_Tiling[0].xy;
+    float4 col0 = g_Layer0.Sample(LinearWrapSampler, uv0);
+    col0.rgb = ApplyAlbedoControl(col0.rgb, g_AlbedoControl[0]);
+    blendedColor += col0 * g_GroundTint[0] * w[0];
+    blendedNormal += SampleLandscapeWorldNormal(g_Normal0, uv0, g_LayerControl[0].x, TBN) * w[0];
+    blendedRough += g_Roughness0.Sample(LinearWrapSampler, uv0).r * g_LayerControl[0].y * w[0];
+    blendedMetallic += g_LayerControl[0].w * w[0];
+    totalWeight += w[0];
+    
+    // Layer1
+    float2 uv1 = In.Texcoord * g_Tiling[1].xy;
+    float4 col1 = g_Layer1.Sample(LinearWrapSampler, uv1);
+    col1.rgb = ApplyAlbedoControl(col1.rgb, g_AlbedoControl[1]);
+    blendedColor += col1 * g_GroundTint[1] * w[1];
+    blendedNormal += SampleLandscapeWorldNormal(g_Normal1, uv1, g_LayerControl[1].x, TBN) * w[1];
+    blendedRough += g_Roughness1.Sample(LinearWrapSampler, uv1).r * g_LayerControl[1].y * w[1];
+    blendedMetallic += g_LayerControl[1].w * w[1];
+    totalWeight += w[1];
+    
+    // Layer2
+    float2 uv2 = In.Texcoord * g_Tiling[2].xy;
+    float4 col2 = g_Layer2.Sample(LinearWrapSampler, uv2);
+    col2.rgb = ApplyAlbedoControl(col2.rgb, g_AlbedoControl[2]);
+    blendedColor += col2 * g_GroundTint[2] * w[2];
+    blendedNormal += SampleLandscapeWorldNormal(g_Normal2, uv2, g_LayerControl[2].x, TBN) * w[2];
+    blendedRough += g_Roughness2.Sample(LinearWrapSampler, uv2).r * g_LayerControl[2].y * w[2];
+    blendedMetallic += g_LayerControl[2].w * w[2];
+    totalWeight += w[2];
+    
+    // Layer3
+    float2 uv3 = In.Texcoord * g_Tiling[3].xy;
+    float4 col3 = g_Layer3.Sample(LinearWrapSampler, uv3);
+    col3.rgb = ApplyAlbedoControl(col3.rgb, g_AlbedoControl[3]);
+    blendedColor += col3 * g_GroundTint[3] * w[3];
+    blendedNormal += SampleLandscapeWorldNormal(g_Normal3, uv3, g_LayerControl[3].x, TBN) * w[3];
+    blendedRough += g_Roughness3.Sample(LinearWrapSampler, uv3).r * g_LayerControl[3].y * w[3];
+    blendedMetallic += g_LayerControl[3].w * w[3];
+    totalWeight += w[3];
+    
+    // Layer4
+    float2 uv4 = In.Texcoord * g_Tiling[4].xy;
+    float4 col4 = g_Layer4.Sample(LinearWrapSampler, uv4);
+    col4.rgb = ApplyAlbedoControl(col4.rgb, g_AlbedoControl[4]);
+    blendedColor += col4 * g_GroundTint[4] * w[4];
+    blendedNormal += SampleLandscapeWorldNormal(g_Normal4, uv4, g_LayerControl[4].x, TBN) * w[4];
+    blendedRough += g_Roughness4.Sample(LinearWrapSampler, uv4).r * g_LayerControl[4].y * w[4];
+    blendedMetallic += g_LayerControl[4].w * w[4];
+    totalWeight += w[4];
+    
+    // Layer 5
+    float2 uv5 = In.Texcoord * g_Tiling[5].xy;
+    float4 col5 = g_Layer5.Sample(LinearWrapSampler, uv5);
+    col5.rgb = ApplyAlbedoControl(col5.rgb, g_AlbedoControl[5]);
+    blendedColor += col5 * g_GroundTint[5] * w[5];
+    blendedNormal += SampleLandscapeWorldNormal(g_Normal5, uv5, g_LayerControl[5].x, TBN) * w[5];
+    blendedRough += g_Roughness5.Sample(LinearWrapSampler, uv5).r * g_LayerControl[5].y * w[5];
+    blendedMetallic += g_LayerControl[5].w * w[5];
+    totalWeight += w[5];
+    
+    // Layer 6
+    float2 uv6 = In.Texcoord * g_Tiling[6].xy;
+    float4 col6 = g_Layer6.Sample(LinearWrapSampler, uv6);
+    col6.rgb = ApplyAlbedoControl(col6.rgb, g_AlbedoControl[6]);
+    blendedColor += col6 * g_GroundTint[6] * w[6];
+    blendedNormal += SampleLandscapeWorldNormal(g_Normal6, uv6, g_LayerControl[6].x, TBN) * w[6];
+    blendedRough += g_Roughness6.Sample(LinearWrapSampler, uv6).r * g_LayerControl[6].y * w[6];
+    blendedMetallic += g_LayerControl[6].w * w[6];
+    totalWeight += w[6];
+    
+    if (totalWeight > 0.f)
+    {
+        blendedColor /= totalWeight;
+        blendedRough /= totalWeight;
+        blendedMetallic /= totalWeight;
+    }
+    
+    blendedNormal = normalize(blendedNormal);
+
+    Out.Diffuse = float4(blendedColor.rgb, 1.f);
+    Out.Normal = float4(blendedNormal * 0.5f + 0.5f, 1.f);
+    Out.Depth = float4(In.ProjPos.z / In.ProjPos.w, In.ProjPos.w / g_Far, 0.f, 1.f);
+    Out.Material = float4(1.f, saturate(blendedRough), saturate(blendedMetallic), 0.f);
+    Out.Emissive = float4(0.f, 0.f, 0.f, 0.f);
+    
+    return Out;
 }
 
 technique11 DefaultTechnique
 {
-    pass DefaultPass
-    {
-        SetRasterizerState(RS_Default);
-        SetDepthStencilState(DSS_Default, 0);
-        SetBlendState(BS_Default, float4(0.f, 0.f, 0.f, 0.f), 0xffffffff);
-
-        VertexShader = compile vs_5_0 VS_MAIN();
-        PixelShader = compile ps_5_0 PS_MAIN();
-    }
+    PASS_RS_DS_BS_VP(DefaultPass, RS_Default, DSS_Default, BS_Default, VS_Default, PS_Default) // 0
+    PASS_RS_DS_BS_VP(LayerPass, RS_Default, DSS_Default, BS_Default, VS_Default, PS_Layer) // 1
 }
-
-//    pass DefaultPass1
-//    {
-//        VertexShader = compile vs_5_0 VS_MAIN1();
-//        PixelShader = compile ps_5_0 PS_MAIN1();
-
-//    }
-//}

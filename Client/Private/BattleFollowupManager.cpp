@@ -1,0 +1,182 @@
+﻿#include "BattleFollowupManager.h"
+#include "GameObject.h"
+#include "GameInstance.h"
+#include "MapInstancedMesh.h"
+#include "MapStaticMesh.h"
+#include "ClientInstance.h"
+#include "SimonCriticalGlowController.h"
+
+namespace
+{
+    constexpr wchar_t kSimonPhase2MoonName[] = L"EditorSphere_11";
+    constexpr wchar_t kSimonBackgroundSwordNamePrefix[] = L"SM_Simon_Sword_UE5_2_";
+}
+
+HRESULT BattleFollowupManager::Initialize()
+{
+    Clear_PendingFollowup();
+
+    return S_OK;
+}
+
+void BattleFollowupManager::Handle_BattleVictory(const vector<string>& defeatedEnemyKeys, const vector<HeroId>& heroIds,
+    uint32 battleFieldId, const Shared<GameObject>& sourceWorldObject)
+{
+    Clear_PendingFollowup();
+
+    if (Should_StartSimonPhase2(defeatedEnemyKeys, sourceWorldObject))
+    {
+        Queue_SimonPhase2(heroIds, battleFieldId, sourceWorldObject);
+    }
+}
+
+bool BattleFollowupManager::Should_StartSimonPhase2(const vector<string>& defeatedEnemyKeys,
+    const Shared<GameObject>& sourceWorldObject) const
+{
+    if (!sourceWorldObject)
+        return false;
+
+    // 페이즈 전환은 시몬한테만
+    if (sourceWorldObject->Get_SourcePrefabName() != Constants::Prefab::MW_Simon)
+        return false;
+
+    // 시몽 1페가 잡혔는지 확인
+    const bool defeatedSimonPhase1 =
+        find(defeatedEnemyKeys.begin(), defeatedEnemyKeys.end(), Constants::Prefab::MB_Simon) !=
+        defeatedEnemyKeys.end();
+
+    const bool defeatedSimonPhase2 =
+        find(defeatedEnemyKeys.begin(), defeatedEnemyKeys.end(), Constants::Prefab::MB_Simon_V2) !=
+        defeatedEnemyKeys.end();
+
+    return defeatedSimonPhase1 && !defeatedSimonPhase2;
+}
+
+void BattleFollowupManager::Queue_SimonPhase2(const vector<HeroId>& heroIds, uint32 battleFieldId,
+    const Shared<GameObject>& sourceWorldObject)
+{
+    BattleMonsterSpawnDesc simonPhase2{};
+    simonPhase2.prefabName = Constants::Prefab::MB_Simon_V2;
+    simonPhase2.offset = Vec3(0.f, -0.12f, 0.f);
+
+    _hasPendingFollowup = true;
+    _pendingFollowup = {};
+    _pendingFollowup.battleFieldId = battleFieldId;
+    _pendingFollowup.isPlayerAdvantage = false;
+    _pendingFollowup.heroIds = heroIds;
+    _pendingFollowup.monsterSpawnDescs = { simonPhase2 };
+    _pendingFollowup.sourceWorldObject = sourceWorldObject;
+}
+
+bool BattleFollowupManager::Consume_PendingFollowup(BattleFollowupDesc& outDesc)
+{
+    if (!_hasPendingFollowup)
+        return false;
+
+    if (_pendingFollowup.sourceWorldObject == nullptr)
+    {
+        Clear_PendingFollowup();
+        return false;
+    }
+
+    outDesc = _pendingFollowup;
+    Clear_PendingFollowup();
+    return true;
+}
+
+void BattleFollowupManager::Clear_PendingFollowup()
+{
+    _hasPendingFollowup = false;
+    _pendingFollowup = {};
+}
+
+void BattleFollowupManager::Apply_SimonPhase2WorldVisualChange()
+{
+    if (GAME->Current_LevelIndex() != ETOI(LevelType::Stage01))
+        return;
+
+    if (SimonCriticalGlowController* glowController = CLIENT->Get_SimonCriticalGlowController())
+        glowController->Reset_ToBaseColor();
+
+    GAME->Visit_LevelObjects(
+        GAME->Current_LevelIndex(),
+        [](const wstring& layerTag, const Shared<GameObject>& gameObject)
+        {
+            if (const Shared<MapInstancedMesh> instancedMesh = dynamic_pointer_cast<MapInstancedMesh>(gameObject))
+            {
+                instancedMesh->Set_MapVisible(false);
+                return;
+            }
+
+            if (const Shared<MapStaticMesh> staticMesh = dynamic_pointer_cast<MapStaticMesh>(gameObject))
+            {
+                if (staticMesh->Get_Name() == kSimonPhase2MoonName)
+                {
+                    staticMesh->Set_MapVisible(true);
+                }
+            }
+        });
+
+    _simonPhase2WorldVisualApplied = true;
+}
+
+void BattleFollowupManager::Restore_SimonPhase2WorldVisualChange()
+{
+    if (!_simonPhase2WorldVisualApplied)
+        return;
+
+    if (GAME->Current_LevelIndex() != ETOI(LevelType::Stage01))
+    {
+        _simonPhase2WorldVisualApplied = false;
+        return;
+    }
+
+    if (SimonCriticalGlowController* glowController = CLIENT->Get_SimonCriticalGlowController())
+        glowController->Reset_ToBaseColor();
+
+    GAME->Visit_LevelObjects(
+        GAME->Current_LevelIndex(),
+        [](const wstring& layerTag, const Shared<GameObject>& gameObject)
+        {
+            if (const Shared<MapInstancedMesh> instancedMesh = dynamic_pointer_cast<MapInstancedMesh>(gameObject))
+            {
+                instancedMesh->Set_MapVisible(true);
+                return;
+            }
+
+            if (const Shared<MapStaticMesh> staticMesh = dynamic_pointer_cast<MapStaticMesh>(gameObject))
+            {
+                const wstring& meshName = staticMesh->Get_Name();
+                if (meshName == kSimonPhase2MoonName)
+                {
+                    staticMesh->Set_MapVisible(false);
+                    return;
+                }
+
+                if (meshName.find(kSimonBackgroundSwordNamePrefix) == 0)
+                {
+                    staticMesh->Set_MapVisible(true);
+                }
+            }
+        });
+
+    _simonPhase2WorldVisualApplied = false;
+}
+
+Unique<BattleFollowupManager> BattleFollowupManager::Create()
+{
+    auto instance = make_unique<BattleFollowupManager>();
+
+    if (FAILED(instance->Initialize()))
+    {
+        LOG_ERROR("Failed to Created : BattleFollowupManager");
+        return nullptr;
+    }
+
+    return instance;
+}
+
+void BattleFollowupManager::Free()
+{
+    Base::Free();
+}

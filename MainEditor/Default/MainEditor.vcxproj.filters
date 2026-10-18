@@ -1,10 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
-<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003" ToolsVersion="4.0">
   <ItemGroup>
     <ClCompile Include="pch.cpp">
       <Filter>98. Default</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\Content_Browser.cpp">
+      <Filter>01. View</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\Editor_Camera_Free.cpp">
       <Filter>01. View</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\Editor_Manager.cpp">
@@ -13,7 +16,7 @@
     <ClCompile Include="..\Private\EditorInstance.cpp">
       <Filter>00. Main</Filter>
     </ClCompile>
-    <ClCompile Include="..\Private\EditorWindow.cpp">
+    <ClCompile Include="..\Private\Editor_Window.cpp">
       <Filter>01. View</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\Hierarchy_View.cpp">
@@ -28,19 +31,142 @@
     <ClCompile Include="MainEditor.cpp">
       <Filter>00. Main</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\MainEditorApp.cpp">
+      <Filter>00. Main</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\MaterialCreateHelper.cpp">
+      <Filter>97. Utils</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\Material_View.cpp">
+      <Filter>01. View</Filter>
+    </ClCompile>
     <ClCompile Include="..\Private\Scene_View.cpp">
       <Filter>01. View</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\EnvironmentView.cpp">
+      <Filter>01. View</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\Profile_View.cpp">
+      <Filter>01. View</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\RenderCall_View.cpp">
+      <Filter>01. View</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\ImGui_Manager.cpp">
+      <Filter>01. Manager</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\CommandHistory.cpp">
+      <Filter>97. Utils</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\Action_Command.cpp">
+      <Filter>97. Utils</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\Notification_Manager.cpp">
+      <Filter>01. Manager</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\Editor_Context.cpp">
+      <Filter>97. Utils</Filter>
+    </ClCompile>
+    <ClCompile Include="..\private\Camera_Tool.cpp">
+      <Filter>01. View</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\BattleCameraPreview_Effects.cpp">
+      <Filter>01. View</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\BattleCameraPreview_View.cpp">
+      <Filter>01. View</Filter>
+    </ClCompile>
+    <ClCompile Include="..\private\BT_View.cpp">
+      <Filter>01. View</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\Prefab_View.cpp">
+      <Filter>01. View</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\Component_Inspector.cpp">
+      <Filter>02. Inspector</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\AnimationNotifyEditor.cpp">
+      <Filter>01. View</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\Animation_View.cpp">
+      <Filter>01. View</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\Console_View.cpp">
+      <Filter>01. View</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\Inspector_Factory.cpp">
+      <Filter>97. Utils</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\Model_Inspector.cpp">
+      <Filter>02. Inspector</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\Transform_Inspector.cpp">
+      <Filter>02. Inspector</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\AnimSequencerAdapter.cpp">
+      <Filter>01. View</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\ImSequencer.cpp">
+      <Filter>01. View</Filter>
+    </ClCompile>
+    <ClCompile Include="..\private\AIController_Inspector.cpp">
+      <Filter>02. Inspector</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\Level_Tool.cpp">
+      <Filter>01. View</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\Collider_Inspector.cpp">
+      <Filter>02. Inspector</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\AnimState_View.cpp">
+      <Filter>01. View</Filter>
+      <Filter>01. View</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\EditorPickingSystem.cpp">
+      <Filter>03. System\PickingSystem</Filter>
+    </ClCompile>
+    <ClCompile Include="..\private\Cinematic_Tool.cpp">
+      <Filter>01. View</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\CombatStat_Inspector.cpp">
+      <Filter>02. Inspector</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\PlayerStat_Inspector.cpp">
+      <Filter>02. Inspector</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\MonsterStat_Inspector.cpp">
+      <Filter>02. Inspector</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\ScreenFx_View.cpp">
+      <Filter>01. View</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\SoulLike_Viewer.cpp">
+      <Filter>01. View</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\SoulLikeCamera_Viewer.cpp">
+      <Filter>01. View</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\PostProcess_View.cpp">
+      <Filter>01. View</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\PathTool.cpp">
+      <Filter>03. System\PathTool</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h">
       <Filter>98. Default</Filter>
     </ClInclude>
-    <ClInclude Include="..\Public\Editor_ImGuiInclude.h" />
     <ClInclude Include="..\Public\Content_Browser.h">
       <Filter>01. View</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\Editor_Camera_Free.h">
+      <Filter>01. View</Filter>
+    </ClInclude>
     <ClInclude Include="..\Public\Editor_Defines.h">
+      <Filter>99. Defines</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\IconsFontAwesome6.h">
       <Filter>99. Defines</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\Editor_Manager.h">
@@ -49,7 +175,19 @@
     <ClInclude Include="..\Public\EditorInstance.h">
       <Filter>00. Main</Filter>
     </ClInclude>
-    <ClInclude Include="..\Public\EditorWindow.h">
+    <ClInclude Include="..\Public\MainEditorApp.h">
+      <Filter>00. Main</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Material_View.h">
+      <Filter>01. View</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Material_BundleTypes.h">
+      <Filter>97. Utils</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\MaterialCreateHelper.h">
+      <Filter>97. Utils</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Editor_Window.h">
       <Filter>01. View</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\Hierarchy_View.h">
@@ -63,6 +201,124 @@
     </ClInclude>
     <ClInclude Include="..\Public\Scene_View.h">
       <Filter>01. View</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\EnvironmentView.h">
+      <Filter>01. View</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Profile_View.h">
+      <Filter>01. View</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\RenderCall_View.h">
+      <Filter>01. View</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Editor_ImGuiInclude.h">
+      <Filter>99. Defines</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\ImGui_Manager.h">
+      <Filter>01. Manager</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Editor_Enum.h">
+      <Filter>99. Defines</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Editor_Struct.h">
+      <Filter>99. Defines</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Editor_Macro.h">
+      <Filter>99. Defines</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\CommandHistory.h">
+      <Filter>97. Utils</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Action_Command.h">
+      <Filter>97. Utils</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Notification_Manager.h">
+      <Filter>01. Manager</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Editor_Context.h">
+      <Filter>97. Utils</Filter>
+    </ClInclude>
+    <ClInclude Include="..\public\Camera_Tool.h">
+      <Filter>01. View</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\BattleCameraPreview_View.h">
+      <Filter>01. View</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Component_Inspector.h">
+      <Filter>02. Inspector</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Transform_Inspector.h">
+      <Filter>02. Inspector</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Inspector_Factory.h">
+      <Filter>02. Inspector</Filter>
+    </ClInclude>
+    <ClInclude Include="..\public\BT_VIew.h">
+      <Filter>01. View</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Prefab_View.h">
+      <Filter>01. View</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Model_Inspector.h">
+      <Filter>02. Inspector</Filter>
+    </ClInclude>
+    <ClInclude Include="..\public\AIController_Inspector.h">
+      <Filter>02. Inspector</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Level_Tool.h">
+      <Filter>01. View</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Collider_Inspector.h">
+      <Filter>02. Inspector</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Animation_NameUtils.h">
+      <Filter>97. Utils</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\AnimState_View.h">
+      <Filter>01. View</Filter>
+      <Filter>01. View</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\EditorPickingSystem.h">
+      <Filter>03. System\PickingSystem</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Console_View.h">
+      <Filter>01. View</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\AnimationNotifyEditor.h">
+      <Filter>01. View</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Animation_View.h">
+      <Filter>01. View</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\AnimSequencerAdapter.h">
+      <Filter>97. Utils</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\ImSequencer.h">
+      <Filter>97. Utils</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\CombatStat_Inspector.h">
+      <Filter>02. Inspector</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\PlayerStat_Inspector.h">
+      <Filter>02. Inspector</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\MonsterStat_Inspector.h">
+      <Filter>02. Inspector</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\ScreenFx_View.h">
+      <Filter>01. View</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\SoulLike_Viewer.h">
+      <Filter>01. View</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\SoulLikeCamera_Viewer.h">
+      <Filter>01. View</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\PostProcess_View.h">
+      <Filter>01. View</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\PathTool.h">
+      <Filter>03. System\PathTool</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -83,6 +339,18 @@
     </Filter>
     <Filter Include="01. Manager">
       <UniqueIdentifier>{2da15314-2e57-43af-9f9c-145f0727fc64}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="97. Utils">
+      <UniqueIdentifier>{5057f8f1-7bf5-4b0e-8c70-0a1894725747}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="03. System">
+      <UniqueIdentifier>{bcc6b61a-d906-4795-8a1f-6fe9eb03ea7f}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="03. System\PickingSystem">
+      <UniqueIdentifier>{2013d582-5c36-4183-b467-256517649e33}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="03. System\PathTool">
+      <UniqueIdentifier>{c85d9fab-ae0f-4c67-8874-ef66725b8a15}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
 </Project>

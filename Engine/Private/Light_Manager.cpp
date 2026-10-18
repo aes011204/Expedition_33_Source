@@ -1,29 +1,284 @@
-#include "Light_Manager.h"
+﻿#include "Light_Manager.h"
 #include "Light.h"
+#include "ShaderCom.h"
+#include "Shader_CBuffer_Define.h"
 
 Light_Manager::Light_Manager()
 {
 }
 
-const LIGHT_DESC* Light_Manager::Get_LightDesc(uint32 iIndex)
+const LIGHT_DESC* Light_Manager::Get_LightDesc(uint32 index)
 {
-	auto	iter = _lights.begin();
+    if (_lights.empty())
+        return nullptr;
 
-	for (uint32 i = 0; i < iIndex; i++)
-		++iter;
+	auto iter = _lights.begin();
 
-	return (*iter)->Get_LightDesc();	
+    for (uint32 i = 0; i < index; i++)
+    {
+        ++iter;
+        if (iter == _lights.end())
+            return nullptr;
+    }
+
+	return (*iter)->Get_LightDesc();
 }
 
-HRESULT Light_Manager::Add_Light(const LIGHT_DESC& LightDesc)
+const LIGHT_DESC* Light_Manager::Get_PrimaryShadowLightDesc() const
 {
-	Shared<Light> pLight = Light::Create(LightDesc);
-	if (nullptr == pLight)
+    // 아직 사용 안 한다. 이후 환경 요소 설정 관련해서 필요해지면 연결
+    if (_lights.empty())
+        return nullptr;
+
+    for (const auto& light : _lights)
+    {
+        if (!light) continue;
+
+        const LIGHT_DESC* desc = light->Get_LightDesc();
+        if (!desc) continue;
+
+        if (desc->type == LightType::Directional && desc->castShadow)
+            return desc;
+    }
+
+    return nullptr;
+}
+
+HRESULT Light_Manager::Bind_PrimaryShadowLightCB(Shared<ShaderCom> shader) const
+{
+    // 아직 사용 안 한다. 이후 환경 요소 설정 관련해서 필요해지면 연결
+    if (_lights.empty())
+        return E_FAIL;
+
+    for (const auto& light : _lights)
+    {
+        if (!light) continue;
+
+        const LIGHT_DESC* desc = light->Get_LightDesc();
+        if (!desc) continue;
+
+        if (desc->type == LightType::Directional && desc->castShadow)
+            return light->Bind_LightCB(shader);
+    }
+
+    return E_FAIL;
+}
+
+uint32 Light_Manager::Get_LightCount() const
+{
+    return static_cast<uint32>(_lights.size());
+}
+
+void Light_Manager::Clear_Lights()
+{
+    _lights.clear();
+}
+
+void Light_Manager::Get_LightDescs(vector<LIGHT_DESC>& outLightDescs) const
+{
+    outLightDescs.clear();
+    outLightDescs.reserve(_lights.size());
+
+    for (const auto& light : _lights)
+    {
+        if (light == nullptr)
+            continue;
+
+        const LIGHT_DESC* desc = light->Get_LightDesc();
+        if (desc == nullptr)
+            continue;
+
+        outLightDescs.push_back(*desc);
+    }
+}
+
+HRESULT Light_Manager::Add_Light(const LIGHT_DESC& lightDesc)
+{
+	Shared<Light> light = Light::Create(lightDesc);
+	if (nullptr == light)
 		return E_FAIL;
 
-	_lights.push_back(pLight);
+	_lights.push_back(light);
 
 	return S_OK;
+}
+
+HRESULT Light_Manager::Set_Lights(const vector<LIGHT_DESC>& lightDescs)
+{
+    _lights.clear();
+
+    for (const LIGHT_DESC& lightDesc : lightDescs)
+    {
+        if (FAILED(Add_Light(lightDesc)))
+            return E_FAIL;
+    }
+
+    return S_OK;
+}
+
+HRESULT Light_Manager::Update_PrimaryShadowLightDesc(const LIGHT_DESC& lightDesc)
+{
+    Shared<Light> fallbackDirectional = nullptr;
+
+    for (auto& light : _lights)
+    {
+        if (light == nullptr)
+            continue;
+
+        const LIGHT_DESC* desc = light->Get_LightDesc();
+        if (desc == nullptr || desc->type != LightType::Directional)
+            continue;
+
+        if (fallbackDirectional == nullptr)
+            fallbackDirectional = light;
+
+        if (desc->castShadow)
+            return light->Update_Desc(lightDesc);
+    }
+
+    if (fallbackDirectional != nullptr)
+        return fallbackDirectional->Update_Desc(lightDesc);
+
+    if (_lights.empty())
+        return E_FAIL;
+
+    return _lights.front()->Update_Desc(lightDesc);
+}
+
+Shared<Light> Light_Manager::Find_PointLight(uint32 pointIndex) const
+{
+    uint32 currentPointIndex = 0u;
+
+    for (const auto& light : _lights)
+    {
+        if (light == nullptr)
+            continue;
+
+        const LIGHT_DESC* desc = light->Get_LightDesc();
+        if (desc == nullptr || desc->type != LightType::Point)
+            continue;
+
+        if (currentPointIndex == pointIndex)
+            return light;
+
+        ++currentPointIndex;
+    }
+
+    return nullptr;
+}
+
+const LIGHT_DESC* Light_Manager::Get_PointLightDesc(uint32 pointIndex) const
+{
+    Shared<Light> light = Find_PointLight(pointIndex);
+    return light != nullptr ? light->Get_LightDesc() : nullptr;
+}
+
+uint32 Light_Manager::Get_PointLightCount() const
+{
+    uint32 count = 0u;
+
+    for (const auto& light : _lights)
+    {
+        if (light == nullptr)
+            continue;
+
+        const LIGHT_DESC* desc = light->Get_LightDesc();
+        if (desc != nullptr && desc->type == LightType::Point)
+            ++count;
+    }
+
+    return count;
+}
+
+HRESULT Light_Manager::Add_PointLight(
+    const Vec3& position,
+    float range,
+    const Vec4& diffuse,
+    const Vec4& ambient,
+    const Vec4& specular,
+    float attenuationPower)
+{
+    LIGHT_DESC desc{};
+    desc.type = LightType::Point;
+    desc.position = Vec4(position.x, position.y, position.z, 1.f);
+    desc.range = max(range, 0.f);
+    desc.pointAttenuationPower = max(attenuationPower, 0.001f);
+    desc.diffuse = diffuse;
+    desc.diffuse.w = std::clamp(desc.diffuse.w, 0.f, 1.f);
+    desc.ambient = ambient;
+    desc.specular = specular;
+
+    return Add_Light(desc);
+}
+
+HRESULT Light_Manager::Update_PointLightDesc(uint32 pointIndex, const LIGHT_DESC& lightDesc)
+{
+    Shared<Light> light = Find_PointLight(pointIndex);
+    if (light == nullptr)
+        return E_FAIL;
+
+    LIGHT_DESC desc = lightDesc;
+    desc.type = LightType::Point;
+    desc.range = max(desc.range, 0.f);
+    desc.pointAttenuationPower = max(desc.pointAttenuationPower, 0.001f);
+    desc.diffuse.w = std::clamp(desc.diffuse.w, 0.f, 1.f);
+
+    return light->Update_Desc(desc);
+}
+
+HRESULT Light_Manager::Set_PointLightPosition(uint32 pointIndex, const Vec3& position)
+{
+    const LIGHT_DESC* currentDesc = Get_PointLightDesc(pointIndex);
+    if (currentDesc == nullptr)
+        return E_FAIL;
+
+    LIGHT_DESC desc = *currentDesc;
+    desc.position = Vec4(position.x, position.y, position.z, 1.f);
+    return Update_PointLightDesc(pointIndex, desc);
+}
+
+HRESULT Light_Manager::Set_PointLightRange(uint32 pointIndex, float range)
+{
+    const LIGHT_DESC* currentDesc = Get_PointLightDesc(pointIndex);
+    if (currentDesc == nullptr)
+        return E_FAIL;
+
+    LIGHT_DESC desc = *currentDesc;
+    desc.range = range;
+    return Update_PointLightDesc(pointIndex, desc);
+}
+
+HRESULT Light_Manager::Set_PointLightAlpha(uint32 pointIndex, float alpha)
+{
+    const LIGHT_DESC* currentDesc = Get_PointLightDesc(pointIndex);
+    if (currentDesc == nullptr)
+        return E_FAIL;
+
+    LIGHT_DESC desc = *currentDesc;
+    desc.diffuse.w = alpha;
+    return Update_PointLightDesc(pointIndex, desc);
+}
+
+HRESULT Light_Manager::Set_PointLightAttenuationPower(uint32 pointIndex, float attenuationPower)
+{
+    const LIGHT_DESC* currentDesc = Get_PointLightDesc(pointIndex);
+    if (currentDesc == nullptr)
+        return E_FAIL;
+
+    LIGHT_DESC desc = *currentDesc;
+    desc.pointAttenuationPower = attenuationPower;
+    return Update_PointLightDesc(pointIndex, desc);
+}
+
+HRESULT Light_Manager::Render_Lights(Shared<ShaderCom> shader, Shared<VIBuffer_Rect> viBuffer)
+{
+    for (auto& pLight : _lights)
+    {
+        if (nullptr != pLight)
+            pLight->Render(shader, viBuffer);
+    }
+
+    return S_OK;
 }
 
 Unique<Light_Manager> Light_Manager::Create()
@@ -34,9 +289,6 @@ Unique<Light_Manager> Light_Manager::Create()
 void Light_Manager::Free()
 {
 	__super::Free();
-
-	for (auto& pLight : _lights)
-		Safe_Release(pLight);
 
 	_lights.clear();
 

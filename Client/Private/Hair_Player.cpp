@@ -1,0 +1,395 @@
+﻿#include "pch.h"
+#include "Hair_Player.h"
+#include "GameInstance.h"
+#include "Material.h"
+#include "Material_Types.h"
+#include "Player_WorldBase.h"
+#include "ModelCom.h"
+#include "Debug_Profile.h"
+#include "AnimComputeRuntime.h"
+#include "EffectCom.h"
+#include "ChainModifier.h"
+#include "ChainModifierPreset.h"
+#include "PhysicsModifier.h"
+
+namespace
+{
+    Client::PlayerCharacterType ToPlayerCharacterType(Client::HairPhysicsProfile profile)
+    {
+        switch (profile)
+        {
+        case Client::HairPhysicsProfile::Gustave:
+            return Client::PlayerCharacterType::Gustave;
+        case Client::HairPhysicsProfile::Lune:
+            return Client::PlayerCharacterType::Lune;
+        case Client::HairPhysicsProfile::Maelle:
+            return Client::PlayerCharacterType::Maelle;
+        default:
+            return Client::PlayerCharacterType::None;
+        }
+    }
+}
+
+Hair_Player::Hair_Player(const ComPtr<Device>& device, const ComPtr<Context>& context)
+    : PlayableParts{ device, context } {
+}
+
+Hair_Player::Hair_Player(const Hair_Player& prototype)
+    : PlayableParts{ prototype } {
+}
+
+HRESULT Hair_Player::Initialize_Prototype()
+{
+    return PlayableParts::Initialize_Prototype();
+}
+
+HRESULT Hair_Player::Initialize(void* arg)
+{
+    if (FAILED(PlayableParts::Initialize(arg)))
+    {
+        LOG_ERROR("[Hair_Player] : Failed to Initialize");
+        return E_FAIL;
+    }
+
+    if (const HAIR_PLAYER_DESC* desc = static_cast<const HAIR_PLAYER_DESC*>(arg))
+    {
+        // PW_* 캐릭터에서 넘긴 hair physics 값을 실제 파츠에 저장
+        _hairPhysicsDesc = desc->hairPhysicsDesc;
+        _hairCB = desc->hairCB;
+        _useHairModifier = desc->useHairModifier;
+        _useLuneHairPhysicsModifier = desc->useLuneHairPhysicsModifier;
+    }
+
+    _offsetMatrix = Matrix::Identity;
+
+    //Vec3 hairOffset = Vec3(17.61f, 0.0f, -2.765f);
+    //Vec3 hairOffset = Vec3(17.61f, -2.765f, 0.f);
+
+    //_transformCom->Set_Position(hairOffset);
+
+    return S_OK;
+}
+
+void Hair_Player::BeginPlay()
+{
+    PlayableParts::BeginPlay();
+
+}
+
+void Hair_Player::Enable_HairModifier()
+{
+    _useHairModifier = true;
+    _hairModifierReady = false;
+}
+
+void Hair_Player::Set_CinematicPreviewSimulationSuppressed(bool suppressed)
+{
+    _suppressCinematicPreviewSimulation = suppressed;
+}
+
+void Hair_Player::Priority_Update(float timeDelta)
+{
+}
+
+void Hair_Player::Update(float timeDelta)
+{
+    PlayableParts::Update(timeDelta);
+
+    ENGINE_PROFILE_SCOPE_DETAIL("Player::Hair::Update");
+
+    if (_modelCom == nullptr)
+        return;
+
+    Update_CombinedWorldMatrix(_transformCom->Get_WorldMatrix());
+
+    if (_useHairModifier || _useLuneHairPhysicsModifier)
+    {
+        if (!_hairModifierReady)
+        {
+            Shared<TransformCom> ownerTransform{};
+            if (const Shared<GameObject> owner = Get_Owner())
+                ownerTransform = owner->Get_Transform();
+
+            const PlayerCharacterType characterType = ToPlayerCharacterType(_hairPhysicsDesc.profile);
+            bool modifierAdded = false;
+            auto addModifier = [&](ChainModifier::ChainModifierDesc& desc)
+            {
+                desc.runtime.ownerWorldMatrix = &_combinedWorldMatrix;
+
+                desc.groups.erase(
+                    remove_if(
+                        desc.groups.begin(),
+                        desc.groups.end(),
+                        [this](const ChainModifier::BoneChainGroupDesc& group)
+                        {
+                            return _modelCom->Get_BoneIndex(group.rootBoneName) < 0;
+                        }),
+                    desc.groups.end());
+
+                if (desc.groups.empty())
+                {
+                    return;
+                }
+
+                if (auto modifier = ChainModifier::Create(&desc))
+                {
+                    _modelCom->Add_AnimModifier(modifier);
+                    modifierAdded = true;
+                }
+            };
+            auto addPhysicsModifier = [&](PhysicsModifier::PhysicsModifierDesc& desc)
+            {
+                desc.ownerWorldMatrix = &_combinedWorldMatrix;
+                desc.collisionOwnerWorldMatrix = &_combinedWorldMatrix;
+
+                desc.chains.erase(
+                    remove_if(
+                        desc.chains.begin(),
+                        desc.chains.end(),
+                        [this](const PhysicsModifier::ChainDesc& chain)
+                        {
+                            return _modelCom->Get_BoneIndex(chain.rootBoneName) < 0;
+                        }),
+                    desc.chains.end());
+
+                if (desc.chains.empty())
+                {
+                    return;
+                }
+
+                if (auto modifier = PhysicsModifier::Create(&desc))
+                {
+                    _modelCom->Add_AnimModifier(modifier);
+                    modifierAdded = true;
+                }
+            };
+
+            if (characterType == PlayerCharacterType::Maelle)
+            {
+                PhysicsModifier::PhysicsModifierDesc backHairPhysicsDesc{};
+                ChainModifierPreset::BuildMaelleBackHairPhysicsDesc(
+                    backHairPhysicsDesc,
+                    ownerTransform.get());
+                addPhysicsModifier(backHairPhysicsDesc);
+
+                PhysicsModifier::PhysicsModifierDesc frontHairPhysicsDesc{};
+                ChainModifierPreset::BuildMaelleFrontHairPhysicsDesc(
+                    frontHairPhysicsDesc,
+                    ownerTransform.get());
+                addPhysicsModifier(frontHairPhysicsDesc);
+            }
+            else if (characterType == PlayerCharacterType::Gustave)
+            {
+                PhysicsModifier::PhysicsModifierDesc hairPhysicsDesc{};
+                ChainModifierPreset::BuildGustaveHairPhysicsDesc(
+                    hairPhysicsDesc,
+                    ownerTransform.get());
+                addPhysicsModifier(hairPhysicsDesc);
+            }
+            else if (characterType == PlayerCharacterType::Lune && _useLuneHairPhysicsModifier)
+            {
+                PhysicsModifier::PhysicsModifierDesc hairPhysicsDesc{};
+                ChainModifierPreset::BuildLuneHairPhysicsDesc(
+                    hairPhysicsDesc,
+                    ownerTransform.get());
+                addPhysicsModifier(hairPhysicsDesc);
+            }
+            else
+            {
+                ChainModifier::ChainModifierDesc hairDesc{};
+                ChainModifierPreset::BuildBindPoseHairDesc(
+                    hairDesc,
+                    ownerTransform.get(),
+                    characterType);
+
+                addModifier(hairDesc);
+            }
+
+            _hairModifierReady = modifierAdded;
+        }
+
+        if (_hairModifierReady)
+        {
+            if (_animComputeRuntime != nullptr)
+            {
+                CHECK_FAILED(_animComputeRuntime->Update_Frame(timeDelta));
+            }
+            else
+            {
+                _modelCom->Play_Animation(timeDelta);
+                CHECK_FAILED(_modelCom->Prepare_BoneMatrixBuffers());
+            }
+        }
+
+        _wasPhysicsSkipped = false;
+        return;
+    }
+
+    if (!_hairPhysicsReady)
+    {
+        _hairPhysics.Initialize(_modelCom.get(), _hairPhysicsDesc);
+        _hairPhysicsReady = _hairPhysics.Is_Built();
+    }
+
+    Vec3 ownerVelocity = Vec3::Zero;
+    if (const Shared<GameObject> owner = Get_Owner())
+    {
+        if (const Player_WorldBase* player = dynamic_cast<const Player_WorldBase*>(owner.get()))
+            ownerVelocity = player->Get_MovementVelocity();
+    }
+
+    if (_hairPhysicsReady)
+    {
+        // 카메라 거리 기반 추가
+        const Vec4* camPos = GAME->Get_CamPosition();
+        float dist = 0.f;
+        if (camPos)
+        {
+            const Vec3 hairPos(_combinedWorldMatrix._41, _combinedWorldMatrix._42, _combinedWorldMatrix._43);
+            dist = Vec3::Distance(hairPos, Vec3(camPos->x, camPos->y, camPos->z));
+        }
+
+        bool doSimulate = false;
+
+
+        if (dist <= 8.f)
+        {
+            // 매 프레임 simulate
+            doSimulate = true;
+        }
+        else if (dist <= 18.f)
+        {
+            _physicsTickAccumulator += timeDelta;
+            if (_physicsTickAccumulator >= _physicsTickIntervalSec)
+            {
+                _physicsTickAccumulator -= _physicsTickIntervalSec;
+                doSimulate = true;
+            }
+        }
+        else
+        {
+            // far: simulate 스킵, bone buffer는 유지
+            _physicsTickAccumulator = 0.f;
+        }
+        if (doSimulate)
+        {
+            ENGINE_PROFILE_SCOPE_DETAIL("Player::Hair::Physics");
+            _hairPhysics.Simulate(_modelCom.get(), timeDelta, _combinedWorldMatrix, ownerVelocity);
+            _wasPhysicsSkipped = false;
+        }
+        else
+        {
+            _wasPhysicsSkipped = true;
+        }
+    }
+    // physics를 실제로 실행한 프레임에만 bone buffer 재업로드
+    if (!_wasPhysicsSkipped)
+        CHECK_FAILED(_animComputeRuntime->Prepare_BoneMatrixBuffers());
+}
+
+void Hair_Player::Late_Update(float timeDelta)
+{
+    if (!Is_Visible())
+        return;
+
+    Shared<GameObject> owner = Get_Owner();
+    if (!owner)
+    {
+        return;
+    }
+
+    if (!owner->Is_Visible())
+        return;
+
+    if (Casts_DynamicShadow())
+        GAME->Add_RenderGroup(RenderGroup::Shadow, GetSharedPtr<GameObject>());
+
+    GAME->Add_RenderGroup(RenderGroup::NonBlend, GetSharedPtr<GameObject>());
+    GAME->Add_RenderGroup(RenderGroup::Blend, GetSharedPtr<GameObject>());
+}
+
+HRESULT Hair_Player::Render()
+{
+    ENGINE_PROFILE_SCOPE_DETAIL("Player::Hair::Render");
+
+    const Shared<GameObject> owner = Get_Owner();
+    if (!Is_Visible() || owner == nullptr || !owner->Is_Visible())
+        return S_OK;
+
+    if (FAILED(Bind_ShaderResources()))
+        return E_FAIL;
+
+    CHECK_FAILED_THROTTLED(_animComputeRuntime->Prepare_BoneMatrixBuffers(), 60, E_FAIL);
+
+    const uint32 iNumMeshes = static_cast<uint32>(_modelCom->Get_NumMeshes());
+    const uint32 supportFeatureMask = Build_DrawFeatureSupportMask(*this);
+
+    for (uint32 i = 0; i < iNumMeshes; i++)
+    {
+        const uint32 materialIndex = _modelCom->Get_MeshMaterialIndex(i);
+        const Shared<Material> material = _modelCom->Get_Material(materialIndex);
+
+        if (FAILED(_shaderCom->Bind_MaterialTextures(*material)))
+            continue;
+
+        if (FAILED(_shaderCom->Bind_CBufferData(material->Get_CB())))
+            return E_FAIL;
+
+        CHECK_FAILED_THROTTLED(_animComputeRuntime->Bind_PreparedBoneMatrices(_shaderCom.get(), "g_BoneMatricesBuffer", i), 60, E_FAIL);
+
+        CHECK_FAILED_THROTTLED(EffectCom::Bind_DrawFeatures(Get_Owner(), _shaderCom.get(), supportFeatureMask), 60, E_FAIL);
+
+        uint32 passIndex = 0;
+        if (GAME->Get_CurrentRenderGroup() == RenderGroup::Blend)
+            passIndex = static_cast<uint32>(VtxAnimMeshPass::HairBlend);
+        else 
+            passIndex = material->Get_PassIndex();
+
+        if (FAILED(_shaderCom->Begin(passIndex)))
+            return E_FAIL;
+
+        // 플레이어 파츠가 그려진 픽셀에 stencil=1을 남겨 Background UI가 이 영역을 피하게 한다.
+        const bool depthWrite = passIndex != static_cast<uint32>(VtxAnimMeshPass::HairBlend);
+        CHECK_FAILED_THROTTLED(GAME->Bind_PlayerStencilWriteState(depthWrite), 60, E_FAIL);
+
+        _modelCom->Render(i);
+    }
+
+    return S_OK;
+}
+
+HRESULT Hair_Player::Render_Shadow()
+{
+    return PlayableParts::Render_Shadow();
+}
+
+Shared<Hair_Player> Hair_Player::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)
+{
+    auto instance = make_shared<Hair_Player>(device, context);
+
+    if (FAILED(instance->Initialize_Prototype()))
+    {
+        LOG_ERROR("[Hair_Player] : Failed to Initialize Prototype");
+        return nullptr;
+    }
+
+    return instance;
+}
+
+Shared<GameObject> Hair_Player::Clone(void* arg)
+{
+    auto clone = make_shared<Hair_Player>(*this);
+
+    if (FAILED(clone->Initialize(arg)))
+    {
+        MSG_BOX("[Hair_Player] : Failed to Initialize");
+        return nullptr;
+    }
+
+    return clone;
+}
+
+void Hair_Player::Free()
+{
+    __super::Free();
+}

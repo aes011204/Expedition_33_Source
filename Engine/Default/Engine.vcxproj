@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
@@ -71,16 +71,26 @@
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <OutDir>..\Bin\</OutDir>
+    <OutDir>..\Bin\$(Configuration)\</OutDir>
+    <IntDir>x64\$(Configuration)\</IntDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <OutDir>..\Bin\</OutDir>
+    <OutDir>..\Bin\$(Configuration)\</OutDir>
+    <IntDir>x64\$(Configuration)\</IntDir>
+  </PropertyGroup>
+  <PropertyGroup Label="Vcpkg" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <VcpkgTriplet>x64-windows</VcpkgTriplet>
+    <VcpkgHostTriplet>x64-windows</VcpkgHostTriplet>
+  </PropertyGroup>
+  <PropertyGroup Label="Vcpkg" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <VcpkgTriplet>x64-windows</VcpkgTriplet>
+    <VcpkgHostTriplet>x64-windows</VcpkgHostTriplet>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>WIN32;_DEBUG;ENGINE_EXPORTS;_WINDOWS;_USRDLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_EDITOR;ENGINE_EXPORTS;_WINDOWS;_USRDLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
@@ -92,7 +102,9 @@
       <EnableUAC>false</EnableUAC>
     </Link>
     <PostBuildEvent>
-      <Command>pushd "$(ProjectDir)..\.." &amp;&amp; call "UpdateLib.bat" &amp;&amp; popd</Command>
+      <Command>pushd "$(ProjectDir)..\.." &amp;&amp; call "UpdateLib.bat" &amp;&amp; popd
+if exist "$(OutDir)Engine.dll" xcopy /y /d "$(OutDir)Engine.dll" "$(ProjectDir)..\..\MainEditor\Bin\$(Configuration)\"
+if exist "$(OutDir)Engine.pdb" xcopy /y /d "$(OutDir)Engine.pdb" "$(ProjectDir)..\..\MainEditor\Bin\$(Configuration)\"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -101,7 +113,7 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>WIN32;NDEBUG;ENGINE_EXPORTS;_WINDOWS;_USRDLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;NDEBUG;_EDITOR;ENGINE_EXPORTS;_WINDOWS;_USRDLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
@@ -115,14 +127,16 @@
       <EnableUAC>false</EnableUAC>
     </Link>
     <PostBuildEvent>
-      <Command>pushd "$(ProjectDir)..\.." &amp;&amp; call "UpdateLib.bat" &amp;&amp; popd</Command>
+      <Command>pushd "$(ProjectDir)..\.." &amp;&amp; call "UpdateLib.bat" &amp;&amp; popd
+if exist "$(OutDir)Engine.dll" xcopy /y /d "$(OutDir)Engine.dll" "$(ProjectDir)..\..\MainEditor\Bin\$(Configuration)\"
+if exist "$(OutDir)Engine.pdb" xcopy /y /d "$(OutDir)Engine.pdb" "$(ProjectDir)..\..\MainEditor\Bin\$(Configuration)\"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>_DEBUG;ENGINE_EXPORTS;_WINDOWS;_USRDLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_DEBUG;_EDITOR;ENGINE_EXPORTS;_WINDOWS;_USRDLL;NOMINMAX;SPDLOG_ACTIVE_LEVEL=0;SPDLOG_COMPILED_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <AdditionalIncludeDirectories>$(ProjectDir);../Public/;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
@@ -130,13 +144,14 @@
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
       <ForcedIncludeFiles>pch.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <AdditionalOptions>/utf-8 /bigobj %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableUAC>false</EnableUAC>
-      <AdditionalDependencies>d3d11.lib;dxguid.lib;DirectXTKd.lib;Effects11d.lib;assimp-vc143-mtd.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalLibraryDirectories>../ThirdPartyLib/</AdditionalLibraryDirectories>
+      <AdditionalDependencies>d3d11.lib;dxguid.lib;fmodL_vc.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>..\..\EngineSDK\lib\$(Configuration)\;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
     <PostBuildEvent>
       <Command>pushd "$(ProjectDir)..\.." &amp;&amp; call "UpdateLib.bat" &amp;&amp; popd</Command>
@@ -148,12 +163,15 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>NDEBUG;ENGINE_EXPORTS;_WINDOWS;_USRDLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>NDEBUG;_EDITOR;ENGINE_EXPORTS;_WINDOWS;_USRDLL;NOMINMAX;SPDLOG_ACTIVE_LEVEL=0;SPDLOG_COMPILED_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <AdditionalIncludeDirectories>$(ProjectDir);../Public/;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
       <ForcedIncludeFiles>pch.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <LanguageStandard>stdcpp20</LanguageStandard>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <AdditionalOptions>/utf-8 /bigobj %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -161,15 +179,139 @@
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableUAC>false</EnableUAC>
-      <AdditionalDependencies>d3d11.lib;dxguid.lib;DirectXTK.lib;Effects11.lib;assimp-vc143-mt.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalLibraryDirectories>../ThirdPartyLib/</AdditionalLibraryDirectories>
+      <AdditionalDependencies>d3d11.lib;dxguid.lib;fmod_vc.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>..\..\EngineSDK\lib\$(Configuration)\;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
     <PostBuildEvent>
       <Command>pushd "$(ProjectDir)..\.." &amp;&amp; call "UpdateLib.bat" &amp;&amp; popd</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="..\Public\AIController.h" />
+    <ClInclude Include="..\Public\ChainModifier.h" />
+    <ClInclude Include="..\Public\PhysicsModifier.h" />
+    <ClInclude Include="..\Public\PoseFollowChainModifier.h" />
+    <ClInclude Include="..\Public\Engine_Static.h" />
+    <ClInclude Include="..\Public\FacialAnimationModifier.h" />
+    <ClInclude Include="..\Public\FacialClip.h" />
+    <ClInclude Include="..\Public\ModelDeform.h" />
+    <ClInclude Include="..\Public\ModelPhysicsParser.h" />
+    <ClInclude Include="..\Public\MotionScaleAnimationModifier.h" />
+    <ClInclude Include="..\Public\OffsetAnimationModifier.h" />
+    <ClInclude Include="..\Public\AnimationModifier.h" />
+    <ClInclude Include="..\Public\AnimComputeRuntime.h" />
+    <ClInclude Include="..\Public\AnimCompute_Types.h" />
+    <ClInclude Include="..\Public\AnimNotify.h" />
+    <ClInclude Include="..\Public\AnimNotifyState.h" />
+    <ClInclude Include="..\Public\AnimNotify_Parser.h" />
+    <ClInclude Include="..\Public\AnimNotify_Types.h" />
+    <ClInclude Include="..\Public\AnimState_Parser.h" />
+    <ClInclude Include="..\public\AStar.h">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
+    </ClInclude>
+    <ClInclude Include="..\Public\BehaviorTree.h" />
+    <ClInclude Include="..\Public\BlackBoard.h" />
+    <ClInclude Include="..\Public\BNode.h" />
+    <ClInclude Include="..\Public\Bounding.h" />
+    <ClInclude Include="..\Public\Bounding_AABB.h" />
+    <ClInclude Include="..\Public\Bounding_OBB.h" />
+    <ClInclude Include="..\Public\Bounding_Sphere.h" />
+    <ClInclude Include="..\Public\BT_MoveTo.h" />
+    <ClInclude Include="..\Public\Camera_Manager.h" />
+    <ClInclude Include="..\Public\Character.h" />
+    <ClInclude Include="..\Public\ColliderCom.h" />
+    <ClInclude Include="..\Public\CollisionProxy_Types.h" />
+    <ClInclude Include="..\Public\Collision_Manager.h" />
+    <ClInclude Include="..\Public\Collision_Define.h" />
+    <ClInclude Include="..\Public\Composite.h" />
+    <ClInclude Include="..\Public\ComputeShaderCom.h" />
+    <ClInclude Include="..\Public\ComputeStructuredBuffer.h" />
+    <ClInclude Include="..\Public\Culling_Manager.h" />
+    <ClInclude Include="..\Public\ShaderCom_Controller.h" />
+    <ClInclude Include="..\Public\Debug_Manager.h" />
+    <ClInclude Include="..\Public\Debug_Profile.h" />
+    <ClInclude Include="..\Public\DebugMemoryTracker.h" />
+    <ClInclude Include="..\Public\Debug_Types.h" />
+    <ClInclude Include="..\Public\DebugDraw.h" />
+    <ClInclude Include="..\Public\Decorator.h" />
+    <ClInclude Include="..\Public\Delegate.h" />
+    <ClInclude Include="..\Public\DelegateHub.h" />
+    <ClInclude Include="..\Public\EffectEmitter.h" />
+    <ClInclude Include="..\Public\EffectEmitterFactory.h" />
+    <ClInclude Include="..\Public\EffectInstance.h" />
+    <ClInclude Include="..\Public\EffectMaterial_Types.h" />
+    <ClInclude Include="..\Public\EffectRuntime_Lowering.h" />
+    <ClInclude Include="..\Public\EffectRuntime_Types.h" />
+    <ClInclude Include="..\Public\Engine_Constants.h" />
+    <ClInclude Include="..\Public\Environment_Manager.h" />
+    <ClInclude Include="..\Public\EnumFlags.h" />
+    <ClInclude Include="..\Public\Event_Bus.h" />
+    <ClInclude Include="..\Public\Event_Manager.h" />
+    <ClInclude Include="..\Public\Engine_Model_Struct.h" />
+    <ClInclude Include="..\Public\Event_Struct.h" />
+    <ClInclude Include="..\Public\Helper_Math.h" />
+    <ClInclude Include="..\Public\Helper_LogRateLimit.h" />
+    <ClInclude Include="..\Public\ICommand.h" />
+    <ClInclude Include="..\Public\IKAnimationModifier.h" />
+    <ClInclude Include="..\Public\InstanceCullParams.h" />
+    <ClInclude Include="..\Public\Log_Manager.h" />
+    <ClInclude Include="..\Public\Helper_String.h" />
+    <ClInclude Include="..\Public\MapStaticCollisionBuilder.h" />
+    <ClInclude Include="..\Public\Log_Define.h" />
+    <ClInclude Include="..\Public\Material_Define.h" />
+    <ClInclude Include="..\Public\Material_Types.h" />
+    <ClInclude Include="..\Public\MovementCom.h" />
+    <ClInclude Include="..\public\Parallel.h" />
+    <ClInclude Include="..\Public\PhysicsCharacterController.h" />
+    <ClInclude Include="..\Public\PhysX_Filter.h" />
+    <ClInclude Include="..\Public\PhysX_Handle.h" />
+    <ClInclude Include="..\Public\PhysX_Types.h" />
+    <ClInclude Include="..\Public\Picking.h" />
+    <None Include="..\Bin\ShaderFiles\Engine_Shader_ComputeAnimTypes.hlsli" />
+    <None Include="..\Public\PostProcessPipeline.h" />
+    <None Include="..\Public\LightingPipeline.h" />
+    <ClInclude Include="..\Public\Print_Manager.h" />
+    <ClInclude Include="..\Public\PathFollower.h" />
+    <ClInclude Include="..\Public\Reflection_JsonUtil.h" />
+    <ClInclude Include="..\Public\Reflection_Macro.h" />
+    <ClInclude Include="..\Public\PhysX_Manager.h" />
+    <ClInclude Include="..\Public\Particle_Types.h" />
+    <ClInclude Include="..\Public\Reflection_Types.h" />
+    <ClInclude Include="..\Public\Renderer_Define.h" />
     <ClInclude Include="..\Public\RenderTarget.h" />
+    <ClInclude Include="..\Public\ScreenFx_Instance.h" />
+    <ClInclude Include="..\Public\ScreenFx_Manager.h" />
+    <ClInclude Include="..\Public\ShaderPassFinder.h" />
+    <ClInclude Include="..\Public\ShaderResourceRegistry.h" />
+    <ClInclude Include="..\Public\Shader_CBuffer_Define.h" />
+    <ClInclude Include="..\Public\Shadow.h" />
+    <ClInclude Include="..\Public\ShadowHelper.h" />
+    <ClInclude Include="..\Public\Sound_Manager.h" />
+    <ClInclude Include="..\Public\StaticCollisionData.h" />
+    <ClInclude Include="..\Public\Target_Manager.h" />
+    <ClInclude Include="..\Public\RegistorFactory.h" />
+    <ClInclude Include="..\Public\Selector.h" />
+    <ClInclude Include="..\public\Sequence.h" />
+    <ClInclude Include="..\Public\Service.h" />
+    <ClInclude Include="..\Public\Task.h" />
+    <ClInclude Include="..\Public\SkeletalMesh.h" />
+    <ClInclude Include="..\Public\StaticMesh.h" />
+    <ClInclude Include="..\Public\ThreadPool.h" />
+    <ClInclude Include="..\Public\TypeRegistry.h" />
+    <ClInclude Include="..\Public\UI_Animation.h" />
+    <ClInclude Include="..\public\UI_Base.h" />
+    <ClInclude Include="..\public\UI_Button.h" />
+    <ClInclude Include="..\public\UI_Image.h" />
+    <ClInclude Include="..\public\UI_Manager.h" />
+    <ClInclude Include="..\public\UI_Panel.h" />
+    <ClInclude Include="..\public\UI_Text.h" />
+    <ClInclude Include="..\public\UI_Transform.h" />
+    <ClInclude Include="..\Public\VIBufferCom_ComputePointParticle.h" />
+    <ClInclude Include="..\Public\VIBufferCom_Instance.h" />
+    <ClInclude Include="..\Public\VIBuffer_Landscape.h" />
+    <ClInclude Include="..\Public\VIBuffer_MeshInstance.h" />
+    <ClInclude Include="..\Public\VIBuffer_Plane.h" />
+    <ClInclude Include="..\Public\VIBuffer_TerrainUE.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="..\public\Animation.h" />
     <ClInclude Include="..\public\Asset_Manager.h" />
@@ -180,6 +322,7 @@
     <ClInclude Include="..\public\Component.h" />
     <ClInclude Include="..\public\ContainerObject.h" />
     <ClInclude Include="..\public\CustomFont.h" />
+    <ClInclude Include="..\Public\Engine_Config.h" />
     <ClInclude Include="..\Public\Engine_Define.h" />
     <ClInclude Include="..\Public\Engine_Enum.h" />
     <ClInclude Include="..\Public\Engine_Function.h" />
@@ -196,29 +339,119 @@
     <ClInclude Include="..\public\Level_Manager.h" />
     <ClInclude Include="..\public\Light.h" />
     <ClInclude Include="..\public\Light_Manager.h" />
-    <ClInclude Include="..\public\Material.h" />
+    <ClInclude Include="..\Public\MaterialCB_OverrideFields.inl" />
+    <ClInclude Include="..\Public\MaterialCom.h" />
+    <ClInclude Include="..\public\MaterialBuilder.h" />
     <ClInclude Include="..\public\Mesh.h" />
-    <ClInclude Include="..\public\Model.h" />
+    <ClInclude Include="..\public\ModelCom.h" />
     <ClInclude Include="..\public\Object_Manager.h" />
     <ClInclude Include="..\Public\PartObject.h" />
     <ClInclude Include="..\public\PipeLine.h" />
     <ClInclude Include="..\public\Prototype_Manager.h" />
     <ClInclude Include="..\Public\Renderer.h" />
-    <ClInclude Include="..\public\Shader.h" />
+    <ClInclude Include="..\public\ShaderCom.h" />
     <ClInclude Include="..\public\Texture.h" />
     <ClInclude Include="..\Public\Timer.h" />
     <ClInclude Include="..\Public\Timer_Manager.h" />
-    <ClInclude Include="..\public\Transform.h" />
+    <ClInclude Include="..\public\TransformCom.h" />
     <ClInclude Include="..\public\UIObject.h" />
     <ClInclude Include="..\public\VIBuffer.h" />
     <ClInclude Include="..\Public\VIBuffer_Cube.h" />
     <ClInclude Include="..\public\VIBuffer_Rect.h" />
     <ClInclude Include="..\Public\VIBuffer_Terrain.h" />
-    <ClInclude Include="..\Public\Utils.h" />
     <ClInclude Include="..\Public\Vertex_Types.h" />
+    <ClInclude Include="resource.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\Private\AIController.cpp" />
+    <ClCompile Include="..\Private\ChainModifier.cpp" />
+    <ClCompile Include="..\Private\PhysicsModifier.cpp" />
+    <ClCompile Include="..\Private\PoseFollowChainModifier.cpp" />
+    <ClCompile Include="..\Private\FacialAnimationModifier.cpp" />
+    <ClCompile Include="..\Private\FacialClip.cpp" />
+    <ClCompile Include="..\Private\MapStaticCollisionBuilder.cpp" />
+    <ClCompile Include="..\Private\ModelDeform.cpp" />
+    <ClCompile Include="..\Private\ModelPhysicsParser.cpp" />
+    <ClCompile Include="..\Private\MotionScaleAnimationModifier.cpp" />
+    <ClCompile Include="..\Private\OffsetAnimationModifier.cpp" />
+    <ClCompile Include="..\Private\AnimationModifier.cpp" />
+    <ClCompile Include="..\Private\AnimComputeRuntime.cpp" />
+    <ClCompile Include="..\Private\AnimNotify.cpp" />
+    <ClCompile Include="..\Private\AnimNotifyState.cpp" />
+    <ClCompile Include="..\Private\AnimNotify_Parser.cpp" />
+    <ClCompile Include="..\Private\AnimState_Parser.cpp" />
+    <ClCompile Include="..\private\AStar.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\Private\BehaviorTree.cpp" />
+    <ClCompile Include="..\Private\BlackBoard.cpp" />
+    <ClCompile Include="..\Private\BNode.cpp" />
+    <ClCompile Include="..\Private\Bounding.cpp" />
+    <ClCompile Include="..\Private\Bounding_AABB.cpp" />
+    <ClCompile Include="..\Private\Bounding_OBB.cpp" />
+    <ClCompile Include="..\Private\Bounding_Sphere.cpp" />
+    <ClCompile Include="..\Private\BT_MoveTo.cpp" />
+    <ClCompile Include="..\Private\Camera_Manager.cpp" />
+    <ClCompile Include="..\Private\Character.cpp" />
+    <ClCompile Include="..\Private\ColliderCom.cpp" />
+    <ClCompile Include="..\Private\Collision_Manager.cpp" />
+    <ClCompile Include="..\Private\Composite.cpp" />
+    <ClCompile Include="..\Private\ComputeShaderCom.cpp" />
+    <ClCompile Include="..\Private\ComputeStructuredBuffer.cpp" />
+    <ClCompile Include="..\Private\Culling_Manager.cpp" />
+    <ClCompile Include="..\Private\Debug_Manager.cpp" />
+    <ClCompile Include="..\Private\Debug_Profile.cpp" />
+    <ClCompile Include="..\Private\DebugMemoryTracker.cpp" />
+    <ClCompile Include="..\Private\DebugDraw.cpp" />
+    <ClCompile Include="..\Private\Decorator.cpp" />
+    <ClCompile Include="..\Private\DelegateHub.cpp" />
+    <ClCompile Include="..\Private\EffectEmitter.cpp" />
+    <ClCompile Include="..\Private\EffectEmitterFactory.cpp" />
+    <ClCompile Include="..\Private\EffectInstance.cpp" />
+    <ClCompile Include="..\Private\Environment_Manager.cpp" />
+    <ClCompile Include="..\Private\Event_Manager.cpp" />
+    <ClCompile Include="..\Private\ICommand.cpp" />
+    <ClCompile Include="..\Private\Log_Manager.cpp" />
+    <ClCompile Include="..\Private\MovementCom.cpp" />
+    <ClCompile Include="..\private\Parallel.cpp" />
+    <ClCompile Include="..\Private\PathFollower.cpp" />
+    <ClCompile Include="..\Private\PhysicsCharacterController.cpp" />
+    <ClCompile Include="..\Private\PhysX_Filter.cpp" />
+    <ClCompile Include="..\Private\PhysX_Manager.cpp" />
+    <ClCompile Include="..\Private\Picking.cpp" />
+    <ClCompile Include="..\Private\PostProcessPipeline.cpp" />
+    <ClCompile Include="..\Private\ScreenFx_Instance.cpp" />
+    <ClCompile Include="..\Private\ScreenFx_Manager.cpp" />
+    <ClCompile Include="..\Private\Sound_Manager.cpp" />
+    <ClCompile Include="..\Private\LightingPipeline.cpp" />
+    <ClCompile Include="..\Private\Print_Manager.cpp" />
     <ClCompile Include="..\Private\RenderTarget.cpp" />
+    <ClCompile Include="..\Private\Shadow.cpp" />
+    <ClCompile Include="..\private\Selector.cpp" />
+    <ClCompile Include="..\private\Sequence.cpp" />
+    <ClCompile Include="..\Private\Service.cpp" />
+    <ClCompile Include="..\Private\SimpleMath.cpp" />
+    <ClCompile Include="..\Private\Target_Manager.cpp" />
+    <ClCompile Include="..\Private\RegistorFactory.cpp" />
+    <ClCompile Include="..\Private\SkeletalMesh.cpp" />
+    <ClCompile Include="..\Private\StaticMesh.cpp" />
+    <ClCompile Include="..\Private\Task.cpp" />
+    <ClCompile Include="..\Private\ThreadPool.cpp" />
+    <ClCompile Include="..\Private\TypeRegistry.cpp" />
+    <ClCompile Include="..\Private\UI_Animation.cpp" />
+    <ClCompile Include="..\private\UI_Base.cpp" />
+    <ClCompile Include="..\private\UI_Button.cpp" />
+    <ClCompile Include="..\private\UI_Image.cpp" />
+    <ClCompile Include="..\private\UI_Manager.cpp" />
+    <ClCompile Include="..\private\UI_Panel.cpp" />
+    <ClCompile Include="..\private\UI_Text.cpp" />
+    <ClCompile Include="..\private\UI_Transform.cpp" />
+    <ClCompile Include="..\Private\VIBufferCom_ComputePointParticle.cpp" />
+    <ClCompile Include="..\Private\VIBufferCom_Instance.cpp" />
+    <ClCompile Include="..\Private\VIBuffer_Landscape.cpp" />
+    <ClCompile Include="..\Private\VIBuffer_MeshInstance.cpp" />
+    <ClCompile Include="..\Private\VIBuffer_Plane.cpp" />
+    <ClCompile Include="..\Private\VIBuffer_TerrainUE.cpp" />
     <ClCompile Include="pch.cpp">
       <PrecompiledHeader>Create</PrecompiledHeader>
     </ClCompile>
@@ -242,27 +475,70 @@
     <ClCompile Include="..\private\Light.cpp" />
     <ClCompile Include="..\private\Light_Manager.cpp" />
     <ClCompile Include="..\private\Material.cpp" />
+    <ClCompile Include="..\private\MaterialBuilder.cpp" />
     <ClCompile Include="..\private\Mesh.cpp" />
-    <ClCompile Include="..\private\Model.cpp" />
+    <ClCompile Include="..\private\ModelCom.cpp" />
     <ClCompile Include="..\private\Object_Manager.cpp" />
     <ClCompile Include="..\Private\PartObject.cpp" />
     <ClCompile Include="..\private\PipeLine.cpp" />
     <ClCompile Include="..\private\Prototype_Manager.cpp" />
     <ClCompile Include="..\Private\Renderer.cpp" />
-    <ClCompile Include="..\private\Shader.cpp" />
+    <ClCompile Include="..\private\ShaderCom.cpp" />
+    <ClCompile Include="..\Private\ShaderCom_Controller.cpp" />
+    <ClCompile Include="..\Private\ShaderResourceRegistry.cpp" />
     <ClCompile Include="..\private\Texture.cpp" />
     <ClCompile Include="..\Private\Timer.cpp" />
     <ClCompile Include="..\Private\Timer_Manager.cpp" />
-    <ClCompile Include="..\private\Transform.cpp" />
+    <ClCompile Include="..\private\TransformCom.cpp" />
     <ClCompile Include="..\private\UIObject.cpp" />
     <ClCompile Include="..\private\VIBuffer.cpp" />
     <ClCompile Include="..\Private\VIBuffer_Cube.cpp" />
     <ClCompile Include="..\private\VIBuffer_Rect.cpp" />
     <ClCompile Include="..\Private\VIBuffer_Terrain.cpp" />
-    <ClCompile Include="..\Private\Utils\Utils.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="Engine.rc" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\Bin\ShaderFiles\Engine_Shader_ConstantBuffer.hlsl">
+      <FileType>Document</FileType>
+    </None>
+    <None Include="..\Bin\ShaderFiles\Engine_Shader_EffectMaterial.hlsl">
+      <FileType>Document</FileType>
+    </None>
+    <None Include="..\Bin\ShaderFiles\Engine_Shader_Material.hlsl">
+      <FileType>Document</FileType>
+    </None>
+    <None Include="..\Bin\ShaderFiles\Engine_Shader_Passes.hlsl">
+      <FileType>Document</FileType>
+    </None>
+    <None Include="..\Bin\ShaderFiles\Engine_Shader_RenderState.hlsl">
+      <FileType>Document</FileType>
+    </None>
+    <None Include="..\Bin\ShaderFiles\Engine_Shader_Samplers.hlsl">
+      <FileType>Document</FileType>
+    </None>
+    <None Include="..\Bin\ShaderFiles\Engine_Shader_Utils.hlsl">
+      <FileType>Document</FileType>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <None Include="..\Bin\ShaderFiles\Engine_Shader_Defines.hlsli" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\Bin\ShaderFiles\Engine_Shader_PostProcess.hlsl">
+      <FileType>Document</FileType>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\Bin\ShaderFiles\Engine_Shader_Deferred.hlsl">
+      <FileType>Document</FileType>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\Bin\ShaderFiles\Engine_Shader_Feature.hlsl">
+      <FileType>Document</FileType>
+    </None>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

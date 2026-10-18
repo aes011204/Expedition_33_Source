@@ -1,12 +1,12 @@
 ﻿#include "VIBuffer_Rect.h"
 
-VIBuffer_Rect::VIBuffer_Rect(ComPtr<Device> device, ComPtr<Context> context)
+VIBuffer_Rect::VIBuffer_Rect(const ComPtr<Device>& device, const ComPtr<Context>& context)
 	: VIBuffer { device, context }
 {
 }
 
-VIBuffer_Rect::VIBuffer_Rect(const VIBuffer_Rect& Prototype)
-	: VIBuffer{ Prototype }
+VIBuffer_Rect::VIBuffer_Rect(const VIBuffer_Rect& prototype)
+	: VIBuffer{ prototype }
 {
 }
 
@@ -25,20 +25,20 @@ HRESULT VIBuffer_Rect::Initialize_Prototype()
 	VertexBufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
 	VertexBufferDesc.StructureByteStride = _vertexStride;
 
-	VTXTEX* pVertices = new VTXTEX[_numVertices];
-	pVertices[0].vPosition = XMFLOAT3(-0.5f, 0.5f, 0.f);
-	pVertices[0].vTexcoord = XMFLOAT2(0.f, 0.f);
-	pVertices[1].vPosition = XMFLOAT3(0.5f, 0.5f, 0.f);
-	pVertices[1].vTexcoord = XMFLOAT2(1.f, 0.f);
-	pVertices[2].vPosition = XMFLOAT3(0.5f, -0.5f, 0.f);
-	pVertices[2].vTexcoord = XMFLOAT2(1.f, 1.f);
-	pVertices[3].vPosition = XMFLOAT3(-0.5f,-0.5f, 0.f);
-	pVertices[3].vTexcoord = XMFLOAT2(0.f, 1.f);
+	vector<VTXTEX> vertices(_numVertices);
+	vertices[0].position = XMFLOAT3(-0.5f, 0.5f, 0.f);
+	vertices[0].texcoord = XMFLOAT2(0.f, 0.f);
+	vertices[1].position = XMFLOAT3(0.5f, 0.5f, 0.f);
+	vertices[1].texcoord = XMFLOAT2(1.f, 0.f);
+	vertices[2].position = XMFLOAT3(0.5f, -0.5f, 0.f);
+	vertices[2].texcoord = XMFLOAT2(1.f, 1.f);
+	vertices[3].position = XMFLOAT3(-0.5f,-0.5f, 0.f);
+	vertices[3].texcoord = XMFLOAT2(0.f, 1.f);
 
 	D3D11_SUBRESOURCE_DATA VertexInitialData{};
-	VertexInitialData.pSysMem = pVertices;
+	VertexInitialData.pSysMem = vertices.data();
 
-	if (FAILED(_device->CreateBuffer(&VertexBufferDesc, &VertexInitialData, &_vb)))
+	if (FAILED(_device->CreateBuffer(&VertexBufferDesc, &VertexInitialData, _vb.GetAddressOf())))
 		return E_FAIL;
 
 	D3D11_BUFFER_DESC IndexBufferDesc{};
@@ -47,53 +47,50 @@ HRESULT VIBuffer_Rect::Initialize_Prototype()
 	IndexBufferDesc.BindFlags = D3D11_BIND_INDEX_BUFFER;
 	IndexBufferDesc.StructureByteStride = _indexStride;
 
-	uint16* pIndices = new uint16[_numIndices];
-	pIndices[0] = 0;
-	pIndices[1] = 1;
-	pIndices[2] = 2;
-	pIndices[3] = 0;
-	pIndices[4] = 2;
-	pIndices[5] = 3;
+	vector<uint16> indices(_numIndices);
+	indices[0] = 0;
+	indices[1] = 1;
+	indices[2] = 2;
+	indices[3] = 0;
+	indices[4] = 2;
+	indices[5] = 3;
 
 	D3D11_SUBRESOURCE_DATA IndexInitialData{};
-	IndexInitialData.pSysMem = pIndices;
+	IndexInitialData.pSysMem = indices.data();
 
-	if (FAILED(_device->CreateBuffer(&IndexBufferDesc, &IndexInitialData, &_ib)))
+	if (FAILED(_device->CreateBuffer(&IndexBufferDesc, &IndexInitialData, _ib.GetAddressOf())))
 		return E_FAIL;
 
-	Safe_Delete_Array(pVertices);
-	Safe_Delete_Array(pIndices);
-
 	return S_OK;
 }
 
-HRESULT VIBuffer_Rect::Initialize(void* pArg)
+HRESULT VIBuffer_Rect::Initialize(void* arg)
 {
 	return S_OK;
 }
 
-Shared<VIBuffer_Rect> VIBuffer_Rect::Create(ComPtr<Device> device, ComPtr<Context> context)
+Shared<VIBuffer_Rect> VIBuffer_Rect::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)
 {
-	auto pInstance = make_shared<VIBuffer_Rect>(device, context);
+	auto instance = make_shared<VIBuffer_Rect>(device, context);
 
-	if (FAILED(pInstance->Initialize_Prototype()))
+	if (FAILED(instance->Initialize_Prototype()))
 	{
-		MSG_BOX("Failed to Created : VIBuffer_Rect");
+		LOG_WARN("Failed to create VIBuffer_Rect");
 		return nullptr;
 	}
-	return pInstance;
+	return instance;
 }
 
-Shared<Component> VIBuffer_Rect::Clone(void* pArg)
+Shared<Component> VIBuffer_Rect::Clone(void* arg)
 {
-	auto pInstance = make_shared<VIBuffer_Rect>(*this);
+	auto instance = make_shared<VIBuffer_Rect>(*this);
 
-	if (FAILED(pInstance->Initialize(pArg)))
+	if (FAILED(instance->Initialize(arg)))
 	{
 		MSG_BOX("Failed to Cloned : VIBuffer_Rect");
 		return nullptr;
 	}
-	return pInstance;
+	return instance;
 }
 
 void VIBuffer_Rect::Free()

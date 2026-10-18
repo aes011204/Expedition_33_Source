@@ -2,7 +2,7 @@
   <ItemDefinitionGroup>
     <ClCompile>
       <!-- 프로젝트별 include 설정 뒤에 vcpkg manifest 헤더 경로를 보강한다. -->
-      <AdditionalIncludeDirectories>$(MSBuildThisFileDirectory)vcpkg_installed\x64-windows-static-md\include;$(MSBuildThisFileDirectory)vcpkg_installed\x64-windows-static-md\include\physx;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(VcpkgInstalledDir)$(VcpkgTriplet)\include;$(VcpkgInstalledDir)$(VcpkgTriplet)\include\physx;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <AdditionalOptions>/FS %(AdditionalOptions)</AdditionalOptions>
       <RuntimeLibrary Condition="'$(Configuration)'=='Debug'">MultiThreadedDebugDLL</RuntimeLibrary>
       <RuntimeLibrary Condition="'$(Configuration)'=='Debug_Unity'">MultiThreadedDebugDLL</RuntimeLibrary>
@@ -10,12 +10,27 @@
     </ClCompile>
     <Link>
       <!-- 프로젝트별 lib 설정 뒤에 protobuf 제외 vcpkg 정적 라이브러리를 보강한다. -->
-      <AdditionalLibraryDirectories Condition="'$(Configuration)'=='Debug'">$(MSBuildThisFileDirectory)vcpkg_installed\x64-windows-static-md\debug\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalLibraryDirectories Condition="'$(Configuration)'=='Debug_Unity'">$(MSBuildThisFileDirectory)vcpkg_installed\x64-windows-static-md\debug\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalLibraryDirectories Condition="'$(Configuration)'=='Release'">$(MSBuildThisFileDirectory)vcpkg_installed\x64-windows-static-md\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories Condition="'$(Configuration)'=='Debug'">$(VcpkgInstalledDir)$(VcpkgTriplet)\debug\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories Condition="'$(Configuration)'=='Debug_Unity'">$(VcpkgInstalledDir)$(VcpkgTriplet)\debug\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories Condition="'$(Configuration)'=='Release'">$(VcpkgInstalledDir)$(VcpkgTriplet)\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalDependencies Condition="'$(Configuration)'=='Debug'">$(VcpkgDebugStaticLibraries);%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalDependencies Condition="'$(Configuration)'=='Debug_Unity'">$(VcpkgDebugStaticLibraries);%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalDependencies Condition="'$(Configuration)'=='Release'">$(VcpkgReleaseStaticLibraries);%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
+
+  <Target Name="CopyVcpkgRuntimeBinaries" AfterTargets="Build">
+    <ItemGroup Condition="'$(Configuration)'=='Debug' or '$(Configuration)'=='Debug_Unity'">
+      <VcpkgRuntimeBinaries Include="$(VcpkgInstalledDir)$(VcpkgTriplet)\debug\bin\*.dll" />
+    </ItemGroup>
+    <ItemGroup Condition="'$(Configuration)'=='Release'">
+      <VcpkgRuntimeBinaries Include="$(VcpkgInstalledDir)$(VcpkgTriplet)\bin\*.dll" />
+    </ItemGroup>
+
+    <Copy
+      SourceFiles="@(VcpkgRuntimeBinaries)"
+      DestinationFolder="$(OutDir)"
+      SkipUnchangedFiles="true"
+      Condition="'@(VcpkgRuntimeBinaries)' != '' and '$(OutDir)' != ''" />
+  </Target>
 </Project>

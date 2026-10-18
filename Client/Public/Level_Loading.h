@@ -3,32 +3,40 @@
 #include "Client_Defines.h"
 #include "Level.h"
 
-/* 1. 로딩 장면을 구성해주기위한 객체를 생성해주고 업데이트와 렌더의 반복적이 ㄴ수행. */
-/* 2. 로딩 다음에 등장할 레벨을 위한 자원을 로드해준다.(Loader) == 로더를 생성해준다. */
-
 NS_BEGIN(Client)
+
+class Loader;
 
 class Level_Loading final : public Level
 {
 public:
-	Level_Loading(ComPtr<Device> device, ComPtr<Context> context);
-	virtual ~Level_Loading() { Free(); }
+	Level_Loading(const ComPtr<Device>& device, const ComPtr<Context>& context);
+	virtual ~Level_Loading() = default;
 
 public:
 	virtual HRESULT Initialize(LevelType eNextLevelID);
-	virtual void Update(float fTimeDelta) override;
+	virtual void    Update(float fTimeDelta) override;
 	virtual HRESULT Render() override;
 
 private:
-	LevelType			_nextLevel = { LevelType::END };
-	Shared<class Loader> _loader = nullptr;
+	LevelType			    _nextLevel = { LevelType::END };
+	Shared<Loader>          _loader = nullptr;
+	chrono::steady_clock::time_point _loadingStartTime = {};
+	bool                    _printedLoadCompleteLog = false;
+	bool                    _hasRenderedFirstFrame = false;
+	uint32                  _postFirstRenderFrameCount = 0;
+    bool                    _requestedNextLevelTransition = false;
+    Shared<Level>           _preparedNextLevel = nullptr;
+    bool                    _hasRenderedPreparedNextLevel = false;
 
 private:
+    HRESULT Ready_LoadingUIRenderResources();
 	HRESULT Ready_Layer_BackGround(const wchar_t* pLayerTag);
 	HRESULT Ready_Layer_UI(const wchar_t* pLayerTag);
+    void    Queue_BattleEffectPrewarmForNextLevel();
 
 public:
-	static Shared<Level_Loading> Create(ComPtr<Device> device, ComPtr<Context> context, LevelType eNextLevelID);
+	static Shared<Level_Loading> Create(const ComPtr<Device>& device, const ComPtr<Context>& context, LevelType eNextLevelID);
 	virtual void Free() override;
 };
 

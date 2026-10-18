@@ -1,0 +1,2 @@
+맵 json파일을 bin로 변환시키는 배치툴.
+bin가 없다면 json을 자동으로 읽게 MapLoader에서 설정해놨음.

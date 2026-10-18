@@ -1,0 +1,349 @@
+#include "Engine_Shader_Defines.hlsli"
+#include "Engine_Shader_RenderState.hlsl"
+#include "Engine_Shader_Samplers.hlsl"
+#include "Engine_Shader_Passes.hlsl"
+#include "Engine_Shader_ConstantBuffer.hlsl"
+#include "Engine_Shader_Material.hlsl"
+#include "Engine_Shader_Utils.hlsl"
+
+float4x4 g_PreTransformMatrix;
+uint g_iObjectID;
+float g_fAccTime;
+
+struct VS_IN
+{
+    // slot 0
+    float3 vPosition : POSITION;
+    float3 vNormal : NORMAL;
+    float3 vTangent : TANGENT;
+    float3 vBinormal : BINORMAL;
+    float2 vTexcoord : TEXCOORD;
+
+    //slot 1
+    float4 vWorld0 : INST_WORLD0;
+    float4 vWorld1 : INST_WORLD1;
+    float4 vWorld2 : INST_WORLD2;
+    float4 vWorld3 : INST_WORLD3;
+};
+
+struct VS_OUT
+{
+    float4 vPosition : SV_POSITION;
+    float4 vNormal : NORMAL;
+    float3 vTangent : TANGENT;
+    float3 vBinormal : BINORMAL;
+    float2 vTexcoord : TEXCOORD0;
+    float4 vWorldPos : TEXCOORD1;
+    float4 vProjPos : TEXCOORD2;
+};
+
+VS_OUT VS_MAIN(VS_IN In)
+{
+    VS_OUT Out;
+    float4x4 mWorld = float4x4(In.vWorld0, In.vWorld1, In.vWorld2, In.vWorld3);
+    float4x4 mPreWorld = mul(g_PreTransformMatrix, mWorld);
+
+    Out.vPosition = mul(float4(In.vPosition, 1.f), mul(mPreWorld, mul(g_ViewMatrix, g_ProjMatrix)));
+    Out.vNormal = float4(normalize(mul(float4(In.vNormal, 0.f), mPreWorld)).xyz, 0.f);
+    Out.vTangent = normalize(mul(float4(In.vTangent, 0.f), mPreWorld)).xyz;
+    Out.vBinormal = normalize(mul(float4(In.vBinormal, 0.f), mPreWorld)).xyz;
+    Out.vTexcoord = In.vTexcoord;
+    Out.vWorldPos = mul(float4(In.vPosition, 1.f), mPreWorld);
+    Out.vProjPos = Out.vPosition;
+
+    return Out;
+}
+
+struct VS_SHADOW_OUT
+{
+    float4 vPosition : SV_POSITION;
+    float4 vProjPos : TEXCOORD0;
+};
+
+VS_SHADOW_OUT VS_Shadow_Instance(VS_IN In)
+{
+    VS_SHADOW_OUT Out;
+    float4x4 mWorld = float4x4(In.vWorld0, In.vWorld1, In.vWorld2, In.vWorld3);
+    float4x4 mPreWorld = mul(g_PreTransformMatrix, mWorld);
+
+    Out.vPosition = mul(float4(In.vPosition, 1.f), mul(mPreWorld, mul(g_LightViewMatrix, g_LightProjMatrix)));
+    Out.vProjPos = Out.vPosition;
+
+    return Out;
+}
+
+struct PS_IN
+{
+    float4 vPosition : SV_POSITION;
+    float4 vNormal : NORMAL;
+    float3 vTangent : TANGENT;
+    float3 vBinormal : BINORMAL;
+    float2 vTexcoord : TEXCOORD0;
+    float4 vWorldPos : TEXCOORD1;
+    float4 vProjPos : TEXCOORD2;
+};
+
+struct PS_OUT
+{
+    vector vDiffuse : SV_TARGET0;
+    vector vNormal : SV_TARGET1;
+    vector vDepth : SV_TARGET2;
+    vector vMaterial : SV_TARGET3;
+    vector vEmissive : SV_TARGET4;
+};
+
+struct PS_OUT_ID
+{
+    vector vColor : SV_TARGET0;
+};
+
+
+PS_OUT PS_Opaque(PS_IN In)
+{
+    PS_OUT Out;
+
+    float2 finalUV = ApplyUVTransform(In.vTexcoord);
+
+    float4 baseColor = SampleBaseColor(finalUV);
+
+    float3 worldNormal = ComputeWorldNormal(In.vNormal.xyz, In.vTangent, In.vBinormal, finalUV);
+
+    float3 orm = SampleOrm(finalUV);
+
+    // emissive 는 이후에 별도 RTV로 분리해야 한다. 일단은 텍스처 잘 들어오는지 확인만
+    float3 emissive = SampleEmissive(finalUV);
+    //baseColor.rgb = baseColor.rgb * orm.r + emissive;
+
+    Out.vDiffuse = baseColor;
+    Out.vNormal = float4(EncodeNormal(worldNormal), 1.f);
+    Out.vDepth = float4(In.vProjPos.z / In.vProjPos.w, In.vProjPos.w / g_Far, 0.f, 1.f);
+    Out.vMaterial = float4(orm.xyz, 1.f);
+    Out.vEmissive = float4(emissive.xyz, 1.f);
+    
+    return Out;
+}
+
+struct PS_OUT_SHADOW
+{
+    float LightDepth : SV_TARGET0;
+};
+
+PS_OUT_SHADOW PS_Shadow(VS_SHADOW_OUT In)
+{
+    PS_OUT_SHADOW Out;
+    Out.LightDepth = In.vProjPos.z / In.vProjPos.w;
+    return Out;
+}
+
+PS_OUT PS_Mask(PS_IN In)
+{
+    PS_OUT Out;
+
+    float2 finalUV = ApplyUVTransform(In.vTexcoord);
+
+    float4 baseColor = SampleBaseColorFallback(finalUV);
+
+    float mask = GetOpacityMaskForMasked(finalUV, baseColor);
+    if (mask < g_OpacityMaskClipValue)
+        discard;
+
+    float3 worldNormal = ComputeWorldNormal(In.vNormal.xyz, In.vTangent, In.vBinormal, finalUV);
+
+    float3 orm = SampleOrm(finalUV);
+
+    // emissive 는 이후에 별도 RTV로 분리해야 한다. 일단은 텍스처 잘 들어오는지 확인만
+    float3 emissive = SampleEmissiveColorFallback(finalUV);
+
+    Out.vDiffuse = baseColor;
+    Out.vNormal = float4(EncodeNormal(worldNormal), 1.f);
+    Out.vDepth = float4(In.vProjPos.z / In.vProjPos.w, In.vProjPos.w / g_Far, 0.f, 1.f);
+    Out.vMaterial = float4(orm.xyz, 1.f);
+    Out.vEmissive = float4(emissive.xyz, 1.f);
+    
+    return Out;
+}
+
+PS_OUT PS_NoTexture(PS_IN In)
+{   
+    PS_OUT Out;
+
+    Out.vDiffuse = vector(0.8f, 0.8f, 0.8f, 1.f);
+    Out.vNormal = vector(In.vNormal.xyz * 0.5f + 0.5f, 1.f);
+    Out.vDepth = vector(In.vPosition.z, In.vPosition.w / g_Far, 0.f, 0.f);
+    Out.vMaterial = float4(1.f, 1.f, 0.f, 1.f); // AO=1, Roughness=1, Metalness=0
+    Out.vEmissive = float4(0.f, 0.f, 0.f, 1.f); // 발광 없음
+    
+    return Out;
+}
+
+PS_OUT PS_OpaqueAR(PS_IN In)
+{   
+    PS_OUT Out;
+    float2 finalUV = ApplyUVTransform(In.vTexcoord);
+
+    float4 arTex = g_MaterialTextures[MATERIAL_SLOT_BASECOLOR].Sample(LinearWrapSampler, finalUV);
+    float4 baseColor = float4(arTex.rgb * g_BaseColorTint.rgb, 1.f);
+
+    float3 worldNormal = ComputeWorldNormal(In.vNormal.xyz, In.vTangent, In.vBinormal, finalUV);
+
+    float3 orm = float3(g_AoScale, saturate(arTex.a * g_RoughnessScale), g_MetalnessScale);
+
+    float3 emissive = SampleEmissive(finalUV);
+    //baseColor.rgb = baseColor.rgb * orm.r + emissive;
+
+    Out.vDiffuse = baseColor;
+    //Out.vDiffuse = float4(worldNormal * 0.5f + 0.5f, 1.f);
+    
+    Out.vNormal = float4(EncodeNormal(worldNormal), 1.f);
+    Out.vDepth = float4(In.vProjPos.z / In.vProjPos.w, In.vProjPos.w / g_Far, 0.f, 1.f);
+    Out.vMaterial = float4(orm.xyz, 1.f);
+    Out.vEmissive = float4(emissive.xyz, 1.f);
+    return Out;
+}
+
+PS_OUT_ID PS_ID(PS_IN In)
+{
+    PS_OUT_ID Out;
+    Out.vColor.r = float(g_iObjectID & 0xFF) / 255.f;
+    Out.vColor.g = float((g_iObjectID >> 8) & 0xFF) / 255.f;
+    Out.vColor.b = float((g_iObjectID >> 16) & 0xFF) / 255.f;
+    Out.vColor.a = 1.f;
+    return Out;
+}
+
+struct VS_ID_INST_IN
+{
+    float3 vPosition : POSITION;
+    float3 vNormal : NORMAL;
+    float3 vTangent : TANGENT;
+    float3 vBinormal : BINORMAL;
+    float2 vTexcoord : TEXCOORD;
+    float4 vWorld0 : INST_WORLD0;
+    float4 vWorld1 : INST_WORLD1;
+    float4 vWorld2 : INST_WORLD2;
+    float4 vWorld3 : INST_WORLD3;
+    uint instanceID : SV_InstanceID;
+};
+
+struct VS_ID_INST_OUT
+{
+    float4 vPosition : SV_POSITION;
+    uint vInstanceID : TEXCOORD3;
+};
+
+VS_ID_INST_OUT VS_ID_Instance(VS_ID_INST_IN In)
+{
+    VS_ID_INST_OUT Out;
+    float4x4 mWorld = float4x4(In.vWorld0, In.vWorld1, In.vWorld2, In.vWorld3);
+    float4x4 mPreWorld = mul(g_PreTransformMatrix, mWorld);
+    Out.vPosition = mul(float4(In.vPosition, 1.f), mul(mPreWorld, mul(g_ViewMatrix, g_ProjMatrix)));
+    Out.vInstanceID = In.instanceID;
+    return Out;
+}
+
+struct PS_ID_INST_IN
+{
+    float4 vPosition : SV_POSITION;
+    uint vInstanceID : TEXCOORD3;
+};
+
+PS_OUT_ID PS_ID_Instance(PS_ID_INST_IN In)
+{
+    PS_OUT_ID Out;
+    uint finalID = g_iObjectID + In.vInstanceID;
+    Out.vColor.r = float(finalID & 0xFF) / 255.f;
+    Out.vColor.g = float((finalID >> 8) & 0xFF) / 255.f;
+    Out.vColor.b = float((finalID >> 16) & 0xFF) / 255.f;
+    Out.vColor.a = float((finalID >> 24) & 0xFF) / 255.f;
+    return Out;
+}
+
+struct PS_OUT_GLOW
+{
+    vector vColor : SV_Target0;
+};
+
+PS_OUT_GLOW PS_GlowOnly(PS_IN In)
+{
+    PS_OUT_GLOW Out;
+    float2 uv = In.vTexcoord;
+    
+    float cloudMask = 1.f;
+    if (HasMaterialTexture(MATERIAL_SLOT_EMISSIVE))
+    {
+        float2 cloudUV = uv * 4.f + float2(g_fAccTime * 0.01f, g_fAccTime * 0.01f);
+        cloudMask = g_MaterialTextures[MATERIAL_SLOT_EMISSIVE].Sample(LinearWrapSampler, cloudUV).r;
+    }
+    
+    float auraMask = 1.f;
+    if (HasMaterialTexture(MATERIAL_SLOT_ORM2))
+    {
+        float2 auraUV = uv + float2(g_fAccTime * -0.03f, g_fAccTime * 0.02f);
+        auraMask = g_MaterialTextures[MATERIAL_SLOT_ORM2].Sample(LinearWrapSampler, auraUV).r;
+    }
+    
+    float finalMask = cloudMask * auraMask;
+    
+    float3 N = normalize(In.vNormal.xyz);
+    if (HasMaterialTexture(MATERIAL_SLOT_NORMAL))
+    {
+        float3 normalSample = g_MaterialTextures[MATERIAL_SLOT_NORMAL].Sample(LinearWrapSampler, uv).xyz;
+        normalSample = normalSample * 2.f - 1.f;
+        float3 T = normalize(In.vTangent);
+        float3 B = normalize(In.vBinormal);
+        N = normalize(normalSample.x * T + normalSample.y * B + normalSample.z * N);
+    }
+    
+    float3 viewDir = normalize(g_CamPosition.xyz - In.vWorldPos.xyz);
+    float rim = 1.0f - saturate(dot(viewDir, N));
+    rim = pow(rim, 2.918f);
+    
+    Out.vColor = float4(g_EmissiveColor.rgb * g_EmissiveIntensity * (rim + finalMask * 0.5f) * 8.f, 0.f);
+    return Out;
+}
+
+PS_OUT PS_UnlitFlame(PS_IN In)
+{
+    PS_OUT Out;
+    
+    const float cols = 4.f;
+    const float rows = 4.f;
+    const float fps = 12.f;
+    
+    float totalFrames = cols * rows;
+    float frame = fmod(floor(g_fAccTime * fps), totalFrames);
+    float col = fmod(frame, cols);
+    float row = floor(frame / cols);
+    
+    float2 cellSize = float2(1.f / cols, 1.f / rows);
+    float2 uv = In.vTexcoord * cellSize + float2(col * cellSize.x, row * cellSize.y);
+    
+    float4 color = g_MaterialTextures[MATERIAL_SLOT_BASECOLOR].Sample(LinearWrapSampler, uv);
+    
+    float luma = dot(color.rgb, float3(0.299f, 0.587f, 0.114f));
+    if (luma < 0.05f)
+        discard;
+    
+    Out.vDiffuse = float4(color.rgb, 1.f);
+    Out.vNormal = float4(In.vNormal.xyz * 0.5f + 0.5f, 1.f);
+    Out.vDepth = float4(In.vProjPos.z / In.vProjPos.w, In.vProjPos.w / g_Far, 0.f, 1.f);
+    Out.vMaterial = float4(1.f, 1.f, 0.f, 1.f);
+    Out.vEmissive = float4(color.rgb * 3.f, 1.f);
+    return Out;
+}
+
+technique11 DefaultTechnique
+{
+    PASS_RS_DS_BS_VP(DefaultPass, RS_Default, DSS_Default, BS_Default, VS_MAIN, PS_Opaque) // 0
+    PASS_RS_DS_BS_VP(ShadowPass, RS_Default, DSS_Default, BS_Default, VS_Shadow_Instance, PS_Shadow) // 1
+    PASS_RS_DS_BS_VP(NoTexturePass, RS_Default, DSS_Default, BS_Default, VS_MAIN, PS_NoTexture) // 2
+    PASS_RS_DS_BS_VP(MaskedPass, RS_Default, DSS_Default, BS_Default, VS_MAIN, PS_Mask) // 3
+    PASS_RS_DS_BS_VP(TwoSidedPass, RS_CullNone, DSS_Default, BS_Default, VS_MAIN, PS_Opaque) // 4
+    PASS_RS_DS_BS_VP(MaskedTwoSidedPass, RS_CullNone, DSS_Default, BS_Default, VS_MAIN, PS_Mask) // 5
+    PASS_RS_DS_BS_VP(IDPass, RS_CullNone, DSS_Default, BS_Default, VS_MAIN, PS_ID) // 6
+    PASS_RS_DS_BS_VP(OpaqueARPass, RS_Default, DSS_Default, BS_Default, VS_MAIN, PS_OpaqueAR) // 7
+    PASS_RS_DS_BS_VP(OpaqueARTwoSidedPass, RS_CullNone, DSS_Default, BS_Default, VS_MAIN, PS_OpaqueAR) // 8
+    PASS_RS_DS_BS_VP(IDInstancePass, RS_CullNone, DSS_Default, BS_Default, VS_ID_Instance, PS_ID_Instance) // 9
+    PASS_RS_DS_BS_VP(EmissiveGlowPass, RS_Default, DSS_DepthRead, BS_EffectAdditive, VS_MAIN, PS_GlowOnly) // 10
+    PASS_RS_DS_BS_VP(UnlitFlamePass, RS_CullNone, DSS_Default, BS_Default, VS_MAIN, PS_UnlitFlame) // 11
+}

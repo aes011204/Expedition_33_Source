@@ -1,47 +1,49 @@
 ﻿#pragma once
-
 #include "VIBuffer.h"
+#include "Engine_Model_Struct.h"
 
 NS_BEGIN(Engine)
 
-class Mesh final : public VIBuffer
+class Bone;
+class ShaderCom;
+
+class ENGINE_DLL Mesh abstract : public VIBuffer
 {
 public:
-	Mesh(ComPtr<Device> device, ComPtr<Context> context);
-	Mesh(const Mesh& Prototype);
-	virtual ~Mesh() { Free(); }
+    Mesh(const ComPtr<Device>& device, const ComPtr<Context>& context);
+    Mesh(const Mesh& prototype);
+    ~Mesh() override = default;
 
 public:
-	uint32 Get_MaterialIndex() const {
-		return _materialIndex;
-	}
+    uint32 Get_MaterialIndex() const { return _materialIndex; }
+    HRESULT RenderInstanced(Buffer* instanceVB, uint32 instanceStride, uint32 instanceCount);
+    HRESULT RenderInstancedIndirect(Buffer* instanceVB, uint32 instanceStride, Buffer* indirectArgsBuffer);
+    HRESULT Render_ComputeSkinned(Buffer* vertexBuffer, uint32 vertexStride);
+    const string& Get_Name() const { return _name;  }
+    uint32 Get_MaterialIndex() { return _materialIndex;  }
+    uint32 Get_NumIndices() const { return _numIndices; }
 
 public:
-	virtual HRESULT Initialize_Prototype(ModelType eType, const aiMesh* pAIMesh, class Model* pModel, FXMMATRIX PreTransformMatrix);
-	virtual HRESULT Initialize(void* pArg) override;
+    virtual HRESULT Bind_BoneMatrices(ShaderCom* shader, const char* constantName, const vector<Shared<Bone>>& bones) PURE;
+    virtual HRESULT Bind_BoneMatrices(ShaderCom* shader, const char* constantName, const vector<Matrix>& combinedMatrices) PURE;
+
+    // combined bone matrix 목록을 기준으로 이 mesh가 참조하는 bone matrix 배열 생성
+    virtual HRESULT Build_MeshBoneMatrices(
+        const vector<Matrix>& combinedMatrices,
+        vector<Matrix>& outBoneMatrices) const PURE;
+
+    virtual uint32 Get_NumBoneRefs() const { return 0; }
+
+    virtual const vector<uint32>& Get_BoneIndices() const;
+
+protected:
+    string	_name;
+    uint32	_materialIndex = {};
+    Matrix  _preTransformMatrix{};
 
 public:
-	HRESULT Bind_BoneMatrices(class Shader* pShader, const char* pConstantName, const vector<Shared<class Bone>>& Bones);
-
-private:
-	char					_name[MAX_PATH] = {};
-	uint32					_materialIndex = {};
-	uint32					_numBones = {};
-	vector<uint32>			_boneIndices;
-	XMFLOAT4X4				_boneMatrices[512] = {};
-	vector<XMFLOAT4X4>		_offsetMatrices;
-
-
-
-private:
-	HRESULT Ready_VertexBuffer_For_NonAnim(const aiMesh* pAIMesh, FXMMATRIX PreTransformMatrix);
-	HRESULT Ready_VertexBuffer_For_Anim(const aiMesh* pAIMesh, class Model* pModel);
-
-public:
-	static Shared<Mesh> Create(ComPtr<Device> device, ComPtr<Context> context, ModelType eType, const aiMesh* pAIMesh, class Model* pModel, FXMMATRIX PreTransformMatrix);
-	virtual Shared<Component> Clone(void* pArg) override;
-	virtual void Free() override;
-
+    virtual Shared<Component> Clone(void* arg) override PURE;
+    virtual void Free() override;
 
 };
 

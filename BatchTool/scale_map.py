@@ -1,0 +1,297 @@
+"""
+UE5 OriginJson을 읽어 스케일을 보정한 뒤 SaveJson 포맷으로 저장합니다.
+_Generated_ 서브폴더가 있으면 World Partition 스트리밍 셀도 함께 처리합니다.
+
+Usage:
+  python scale_map.py <OriginJson 파일명>  [--factor 0.001]
+
+예시:
+  python scale_map.py SmallLevel_SimonArea.json
+  python scale_map.py SmallLevel_SimonArea.json --factor 0.01
+"""
+import json
+import math
+import argparse
+import os
+import glob
+
+ORIGIN_DIR = "../Client/Bin/Resources/Map/OriginJson"
+SAVE_DIR   = "../Client/Bin/Resources/Map/SaveJson"
+
+
+# ── UE → DX 좌표 변환 ──────────────────────────────────────────────────────
+
+def convert_translation(x, y, z, factor):
+    return [x / 100.0 * factor, z / 100.0 * factor, y / 100.0 * factor]
+
+def convert_scale(x, y, z, factor):
+    return [x * factor, z * factor, y * factor]
+
+def euler_to_quat(pitch_deg, yaw_deg, roll_deg):
+    p = math.radians(-pitch_deg)
+    y = math.radians(-yaw_deg)
+    r = math.radians(roll_deg)
+
+    cp, sp = math.cos(p * 0.5), math.sin(p * 0.5)
+    cy, sy = math.cos(y * 0.5), math.sin(y * 0.5)
+    cr, sr = math.cos(r * 0.5), math.sin(r * 0.5)
+
+    qpx, qpy, qpz, qpw = sp, 0.0, 0.0, cp
+    qyx, qyy, qyz, qyw = 0.0, sy,  0.0, cy
+    qrx, qry, qrz, qrw = 0.0, 0.0, sr,  cr
+
+    ax = qrw*qpx + qrx*qpw + qry*qpz - qrz*qpy
+    ay = qrw*qpy - qrx*qpz + qry*qpw + qrz*qpx
+    az = qrw*qpz + qrx*qpy - qry*qpx + qrz*qpw
+    aw = qrw*qpw - qrx*qpx - qry*qpy - qrz*qpz
+
+    rx = aw*qyx + ax*qyw + ay*qyz - az*qyy
+    ry = aw*qyy - ax*qyz + ay*qyw + az*qyx
+    rz = aw*qyz + ax*qyy - ay*qyx + az*qyw
+    rw = aw*qyw - ax*qyx - ay*qyy - az*qyz
+
+    return [rx, ry, rz, rw]
+
+def ue_quat_to_euler(qx, qy, qz, qw):
+    """UE5 FQuat::Rotator() — UE 쿼터니언 → UE Euler(Pitch, Yaw, Roll) 도(degree)"""
+    singularity = qz * qx - qw * qy
+    yaw_y = 2.0 * (qw * qz + qx * qy)
+    yaw_x = 1.0 - 2.0 * (qy * qy + qz * qz)
+    pitch = math.degrees(math.asin(max(-1.0, min(1.0, 2.0 * singularity))))
+    yaw   = math.degrees(math.atan2(yaw_y, yaw_x))
+    roll_y = 2.0 * (qw * qx + qy * qz)
+    roll_x = 1.0 - 2.0 * (qx * qx + qy * qy)
+    roll  = math.degrees(math.atan2(roll_y, roll_x))
+    return pitch, yaw, roll
+
+def get_actor_world_offset(data: list, actor_outer_name: str) -> tuple:
+    for comp in data:
+        outer = comp.get("Outer", {})
+        if not isinstance(outer, dict):
+            continue
+        if actor_outer_name not in outer.get("ObjectName", ""):
+            continue
+        name = comp.get("Name", "")
+        if not (name.startswith("RootComponent") or name.startswith("DefaultSceneRoot")):
+            continue
+        loc = comp.get("Properties", {}).get("RelativeLocation")
+        if loc:
+            return (loc["X"], loc["Y"], loc["Z"])
+    return (0.0, 0.0, 0.0)
+
+def extract_mesh_name(object_path: str) -> str:
+    filename = object_path.rsplit("/", 1)[-1]
+    if "." in filename:
+        filename = filename.rsplit(".", 1)[0]
+    return filename
+
+
+# ── 컴포넌트 파싱 ────────────────────────────────────────────────────────
+
+def parse_single(comp: dict, global_index: int, factor: float) -> dict | None:
+    props = comp.get("Properties", {})
+    if "StaticMesh" not in props:
+        return None
+
+    loc = props.get("RelativeLocation", {"X": 0.0, "Y": 0.0, "Z": 0.0})
+    pos = convert_translation(loc["X"], loc["Y"], loc["Z"], factor)
+
+    rot_raw = props.get("RelativeRotation")
+    if rot_raw:
+        quat = euler_to_quat(rot_raw["Pitch"], rot_raw["Yaw"], rot_raw["Roll"])
+    else:
+        quat = [0.0, 0.0, 0.0, 1.0]
+
+    sc = props.get("RelativeScale3D", {"X": 1.0, "Y": 1.0, "Z": 1.0})
+    scale = convert_scale(sc["X"], sc["Y"], sc["Z"], factor)
+
+    name = extract_mesh_name(props["StaticMesh"]["ObjectPath"])
+    return {
+        "Id": f"{name}_{global_index}",
+        "Position": pos,
+        "Rotation": quat,
+        "Scale": scale,
+        "ModelPath": f"{name}.model",
+    }
+
+def get_mesh_name(comp: dict) -> str | None:
+    sm = comp.get("Properties", {}).get("StaticMesh")
+    if not sm:
+        return None
+    return extract_mesh_name(sm["ObjectPath"])
+
+def parse_instance(comp: dict, instance_index: int, factor: float) -> dict | None:
+    """PerInstanceSMData 단일 항목을 인스턴스 트랜스폼으로 변환합니다.
+    Translation은 이미 월드 좌표 — TranslatedInstanceSpaceOrigin은 경계 캐시이므로 더하지 않습니다."""
+    instances = comp.get("PerInstanceSMData", [])
+    if instance_index >= len(instances):
+        return None
+    td = instances[instance_index].get("TransformData")
+    if not td:
+        return None
+
+    rot = td["Rotation"]
+    tr  = td["Translation"]
+    sc  = td["Scale3D"]
+
+    pitch, yaw, roll = ue_quat_to_euler(rot["X"], rot["Y"], rot["Z"], rot["W"])
+    return {
+        "Position": convert_translation(tr["X"], tr["Y"], tr["Z"], factor),
+        "Rotation": euler_to_quat(pitch, yaw, roll),
+        "Scale":    convert_scale(sc["X"], sc["Y"], sc["Z"], factor),
+    }
+
+
+# ── 메인 변환 ─────────────────────────────────────────────────────────────
+
+def convert(origin_path: str, save_path: str, factor: float, model_folder: str = ""):
+    with open(origin_path, "r", encoding="utf-8") as f:
+        root = json.load(f)
+
+    if not isinstance(root, list):
+        print("오류: OriginJson 형식이 아닙니다 (배열이어야 합니다).")
+        return
+
+    map_name = os.path.splitext(os.path.basename(origin_path))[0]
+    if not model_folder:
+        model_folder = map_name
+
+    static_meshes = []
+    instanced_map = {}  # mesh_name → {"Id":..., "ModelPath":..., "Instances":[...]}
+    global_index = 0
+
+    def add_instanced(mesh_name: str, inst: dict):
+        if mesh_name not in instanced_map:
+            instanced_map[mesh_name] = {
+                "Id": mesh_name,
+                "ModelPath": f"{mesh_name}.model",
+                "Instances": [],
+            }
+        instanced_map[mesh_name]["Instances"].append(inst)
+
+    # ── 메인 JSON 처리 ──
+    for comp in root:
+        comp_type = comp.get("Type", "")
+
+        if comp_type == "StaticMeshComponent":
+            obj = parse_single(comp, global_index, factor)
+            if obj:
+                static_meshes.append(obj)
+                global_index += 1
+
+        elif comp_type == "InstancedStaticMeshComponent":
+            mesh_name = get_mesh_name(comp)
+            if not mesh_name:
+                continue
+            actor_outer = comp.get("Outer", {}).get("ObjectName", "")
+            ue_offset = get_actor_world_offset(root, actor_outer)
+            dx_offset = convert_translation(ue_offset[0], ue_offset[1], ue_offset[2], factor)
+            for i in range(len(comp.get("PerInstanceSMData", []))):
+                inst = parse_instance(comp, i, factor)
+                if inst:
+                    inst["Position"][0] += dx_offset[0]
+                    inst["Position"][1] += dx_offset[1]
+                    inst["Position"][2] += dx_offset[2]
+                    add_instanced(mesh_name, inst)
+
+    main_static_count    = len(static_meshes)
+    main_instanced_count = sum(len(v["Instances"]) for v in instanced_map.values())
+
+    # ── _Generated_ 폴더 처리 ──
+    origin_dir    = os.path.dirname(origin_path)
+    generated_dir = os.path.join(origin_dir, map_name, "_Generated_")
+    gen_static_count    = 0
+    gen_instanced_count = 0
+
+    if os.path.isdir(generated_dir):
+        gen_files = sorted(glob.glob(os.path.join(generated_dir, "*.json")))
+        for gen_file in gen_files:
+            with open(gen_file, "r", encoding="utf-8") as f:
+                gen_root = json.load(f)
+            if not isinstance(gen_root, list):
+                continue
+            for comp in gen_root:
+                ctype = comp.get("Type", "")
+
+                if ctype == "StaticMeshComponent":
+                    outer = comp.get("Outer", {})
+                    outer_name = outer.get("ObjectName", "") if isinstance(outer, dict) else ""
+                    if "StaticMeshActor'" not in outer_name:
+                        continue
+                    obj = parse_single(comp, global_index, factor)
+                    if obj:
+                        static_meshes.append(obj)
+                        global_index += 1
+                        gen_static_count += 1
+
+                elif ctype == "FoliageInstancedStaticMeshComponent":
+                    mesh_name = get_mesh_name(comp)
+                    if not mesh_name:
+                        continue
+                    actor_outer = comp.get("Outer", {}).get("ObjectName", "")
+                    ue_offset = get_actor_world_offset(gen_root, actor_outer)
+                    dx_offset = convert_translation(ue_offset[0], ue_offset[1], ue_offset[2], factor)
+                    for i in range(len(comp.get("PerInstanceSMData", []))):
+                        inst = parse_instance(comp, i, factor)
+                        if inst:
+                            inst["Position"][0] += dx_offset[0]
+                            inst["Position"][1] += dx_offset[1]
+                            inst["Position"][2] += dx_offset[2]
+                            add_instanced(mesh_name, inst)
+                            gen_instanced_count += 1
+
+        print(f"  Generated 파일: {len(gen_files)}개 처리")
+        print(f"  Generated StaticMesh +{gen_static_count}개, FoliageInstanced +{gen_instanced_count}개")
+    else:
+        print("  Generated 폴더 없음, 메인 JSON만 처리")
+
+    instanced_meshes = list(instanced_map.values())
+
+    output = {
+        "MapData": {
+            "MapName": map_name,
+            "ModelFolder": model_folder,
+            "StaticMeshes": static_meshes,
+            "InstancedMeshes": instanced_meshes,
+            "SpawnPoints": [],
+            "EncounterZones": [],
+            "TriggerVolumes": [],
+            "CameraZones": [],
+            "PostProcessVolumes": [],
+            "Lights": [],
+        }
+    }
+
+    os.makedirs(os.path.dirname(save_path), exist_ok=True)
+    with open(save_path, "w", encoding="utf-8") as f:
+        json.dump(output, f, indent=4, ensure_ascii=False)
+
+    total_instanced = sum(len(v["Instances"]) for v in instanced_meshes)
+    print(f"완료: StaticMesh {len(static_meshes)}개 (메인 {main_static_count} + Generated {gen_static_count})")
+    print(f"     InstancedMesh {len(instanced_meshes)}종, 총 인스턴스 {total_instanced}개 (메인 {main_instanced_count} + Generated {gen_instanced_count})")
+    print(f"  입력: {origin_path}")
+    print(f"  출력: {save_path}")
+    print(f"  스케일: x{factor}")
+    print(f"  모델 폴더: {model_folder}")
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("filename", help="OriginJson 폴더 안의 파일명 (예: SmallLevel_SimonArea.json)")
+    parser.add_argument("--factor", type=float, default=1.0, help="맵 전체 배율 (기본값: 1.0 = 실제 비율)")
+    parser.add_argument("--folder", type=str, default="", help="모델 폴더 이름 (기본값: JSON 파일 이름과 동일)")
+    args = parser.parse_args()
+
+    script_dir  = os.path.dirname(os.path.abspath(__file__))
+    origin_path = os.path.join(script_dir, ORIGIN_DIR, args.filename)
+    save_path   = os.path.join(script_dir, SAVE_DIR, args.filename)
+
+    if not os.path.exists(origin_path):
+        print(f"오류: 파일을 찾을 수 없습니다 → {origin_path}")
+        return
+
+    convert(origin_path, save_path, args.factor, args.folder)
+
+
+if __name__ == "__main__":
+    main()

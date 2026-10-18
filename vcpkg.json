@@ -1,9 +1,10 @@
-﻿{
+{
   "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg/master/scripts/vcpkg.schema.json",
   "name": "dx11-project-temp",
   "version": "1.0.0",
   "dependencies": [
     "directxtk",
+    "assimp",
     "spdlog",
     "nlohmann-json",
     "magic-enum",
@@ -20,6 +21,8 @@
     "imgui-node-editor",
     "effects11",
     "stduuid",
-    "physx"
+    "physx",
+    "assimp",
+    "tinygltf"
   ]
 }

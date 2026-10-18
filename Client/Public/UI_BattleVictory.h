@@ -1,0 +1,185 @@
+﻿#pragma once
+
+#include "Client_Enum.h"
+#include "UI_RuntimePanelBase.h"
+
+NS_BEGIN(Engine)
+class UI_Base;
+class UI_Text;
+class UI_Image;
+NS_END
+
+NS_BEGIN(Client)
+
+class UI_BattleVictory final : public UI_RuntimePanelBase
+{
+public:
+    struct VictoryPlayerStatDesc
+    {
+        PlayerCharacterType playerType = PlayerCharacterType::None;
+        uint32 level = 1;
+        uint32 curExp = 0;
+        uint32 maxExp = 0;
+
+        uint32 prevLevel = 1;
+        uint32 prevExp = 0;
+        uint32 prevMaxExp = 0;
+
+        uint32 visualSlotIndex = UINT_MAX;
+        string portraitGuid{};
+        wstring displayName{};
+        array<string, 3> equippedPictosIds{}; // Victory 패널에서 실제 장착 슬롯만 노출하기 위한 현재 장착 Pictos ID
+    };
+
+    struct VictorySummaryDesc
+    {
+        uint32 rewardExp = 0;
+        uint32 rewardChroma = 0;
+        float elapsedSec = 0.f;
+        uint32 maxDamage = 0;
+        uint32 totalDamageDealt = 0;
+        uint32 totalDamageTaken = 0;
+        uint32 parrySuccessCount = 0;
+        uint32 dodgeSuccessCount = 0;
+        vector<string> defeatedMonsterPortraitGuids{};
+        vector<string> rewardPictosIds{};
+    };
+
+    struct EquippedPictosSlot
+    {
+        Shared<UI_Base> root{};
+        Shared<UI_Image> markFrame{};
+        Shared<UI_Text> nameText{};
+        umap<string, Shared<UI_Image>> markImagesByPictosId{};
+    };
+
+    struct PlayerSlot
+    {
+        Shared<UI_Base>  root{};
+        Shared<UI_Image> portrait{};
+        Shared<UI_Text>  nameText{};
+        Shared<UI_Text>  curExpText{};
+        Shared<UI_Text>  maxExpText{};
+        Shared<UI_Text>  levelText{};
+        Shared<UI_Image> expGauge{};
+        array<EquippedPictosSlot, 3> equippedPictosSlots{};
+
+        uint32 startLevel = 1;
+        uint32 targetLevel = 1;
+
+        float startExp = 0.f;
+        float displayExp = 0.f;
+        float targetExp = 0.f;
+        float startMaxExp = 1.f;
+        float targetMaxExp = 1.f;
+        float maxExp = 1.f;
+
+        float animElapsed = 0.f;
+        float animDuration = 0.8f;
+        bool  isAnimating = false;
+    };
+
+private:
+    struct RewardPictosPanel
+    {
+        string pictosId{};
+        Shared<UI_Base> root{};
+        Shared<UI_Text> nameText{};
+        Shared<UI_Image> markImage{};
+        vector<Shared<UI_Base>> ownedUis{};
+    };
+
+    struct RewardNumberTween
+    {
+        Shared<UI_Text> text{};
+        Shared<UI_Text> bgText{};
+        uint32 startValue = 0;
+        uint32 targetValue = 0;
+        float elapsed = 0.f;
+        float duration = 0.8f;
+        bool isAnimating = false;
+    };
+
+public:
+    UI_BattleVictory() = default;
+    ~UI_BattleVictory() override = default;
+
+public:
+    HRESULT Initialize(uint32 levelIndex) override;
+    void    Update(float timeDelta) override;
+
+    void    Open() override;
+    void    Close() override;
+    void    Close_Immediately();
+
+    bool    Is_ClosingWithOutro() const { return _isClosingWithOutro; }
+
+    void    Set_PlayerStatus(const vector<VictoryPlayerStatDesc>& stats);
+    void    Set_RewardExp(uint32 rewardExp);
+    void    Set_VictorySummary(const VictorySummaryDesc& summary);
+
+private:
+    HRESULT Load_UI(uint32 levelIndex);
+    HRESULT Bind_UI();
+    void    Play_TargetAnimation(const wchar_t* animationName);
+    void    Stop_TargetAnimations();
+
+    void    Apply_PlayerStat(const VictoryPlayerStatDesc& stat);
+    void    Apply_VictorySummary(const VictorySummaryDesc& summary);
+    void    Apply_EquippedPictos(PlayerSlot& playerSlot, const array<string, 3>& equippedPictosIds);
+    void    Apply_RewardPictosPanels(const vector<string>& rewardPictosIds);
+    void    Apply_DefeatedMonsterPortraits(const vector<string>& portraitGuids);
+    bool    Ensure_DefeatedMonsterPortraitSlot(uint32 slotIndex);
+    static uint32 Get_SlotIndex(PlayerCharacterType playerType);
+    static void   Set_UIntText(const Shared<UI_Text>& text, uint32 value);
+    static void   Set_WStringText(const Shared<UI_Text>& text, const wstring& value);
+    static wstring Format_ClearTime(float elapsedSec);
+    static void   Close_EquippedPictosSlot(EquippedPictosSlot& slot);
+    static void   Show_EquippedPictosSlot(EquippedPictosSlot& slot, const string& pictosId, const wstring& displayName);
+    void          Close_RewardPictosPanels();
+    void          Restart_RewardPictosAnimations();
+    void          Update_RewardPictosAnimations(float timeDelta);
+    void          Start_RewardPictosLoop();
+
+    void Update_ExpGauge(float timeDelta);
+    void Start_RewardNumberTween(RewardNumberTween& tween, const Shared<UI_Text>& text, const Shared<UI_Text>& bgText, uint32 targetValue, float duration);
+    void Update_RewardNumberTweens(float timeDelta);
+    static void Update_RewardNumberTween(RewardNumberTween& tween, float timeDelta);
+
+private:
+    array<PlayerSlot, 3> _playerSlots{};
+    Shared<UI_Text>      _rewardExpText{};
+    Shared<UI_Text>      _rewardExpBgText{};
+    Shared<UI_Text>      _rewardChromaText{};
+    Shared<UI_Text>      _rewardChromaBgText{};
+    Shared<UI_Text>      _maxDamageText{};
+    Shared<UI_Text>      _totalDamageText{};
+    Shared<UI_Text>      _takenDamageText{};
+    Shared<UI_Text>      _clearTimeText{};
+    Shared<UI_Text>      _parrySuccessText{};
+    Shared<UI_Text>      _dodgeSuccessText{};
+    Shared<UI_Base>      _defeatedMonsterPortraitPanel{};
+    Shared<UI_Image>     _defeatedMonsterPortraitTemplate{};
+    vector<Shared<UI_Image>> _defeatedMonsterPortraitSlots{};
+    Shared<UI_Base>      _rewardPictosRoot{};
+    Shared<UI_Image>     _rewardPictosFrame{};
+    umap<string, RewardPictosPanel> _rewardPictosPanelsById{};
+    vector<string>       _activeRewardPictosIds{};
+    float                _rewardPictosIntroElapsed = 0.f;
+    float                _rewardPictosIntroDuration = 0.f;
+    bool                 _rewardPictosLoopStarted = false;
+    Vec2                 _defeatedMonsterPortraitBasePosition{};
+    float                _introDuration = 0.f;
+    float                _expAnimDelayRemaining = 0.f;
+    bool                 _isClosingWithOutro = false;
+    float                _closeElapsed = 0.f;
+    float                _outroDuration = 0.f;
+    RewardNumberTween    _rewardExpTween{};
+    RewardNumberTween    _rewardChromaTween{};
+
+public:
+    static Unique<UI_BattleVictory> Create(uint32 levelIndex);
+    void Free() override;
+};
+
+NS_END

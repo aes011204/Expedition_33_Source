@@ -1,145 +1,197 @@
 ﻿#include "Body_Player.h"
 #include "GameInstance.h"
+#include "Material.h"
+#include "Player_WorldBase.h"
+#include "ModelCom.h"
+#include "Debug_Profile.h"
+#include "ShaderPassFinder.h"
+#include "AnimComputeRuntime.h"
+#include "EffectCom.h"
+#include "OffsetAnimationModifier.h"
+#include "PreviewRimFeature.h"
 
-#include "Player.h"
+REGISTER_GLOBAL_ENUM(Client::Body_Player::PlayerWorldAnimation, "PlayerWorldAnimation")
 
-Body_Player::Body_Player(ComPtr<Device> device, ComPtr<Context> context)
-	: PartObject { device, context }
+Body_Player::Body_Player(const ComPtr<Device>& device, const ComPtr<Context>& context)
+    : PlayableParts{ device, context }
 {
 }
 
-Body_Player::Body_Player(const Body_Player& Prototype)
-	: PartObject{ Prototype }
+Body_Player::Body_Player(const Body_Player& prototype)
+    : PlayableParts{ prototype }
 {
-}
 
-const XMFLOAT4X4* Body_Player::Get_SocketBoneMatrixPtr(const char* pBoneName)
-{
-	return _model->Get_BoneMatrixPtr(pBoneName);
 }
 
 HRESULT Body_Player::Initialize_Prototype()
 {
-	return S_OK;
+    return S_OK;
 }
 
-HRESULT Body_Player::Initialize(void* pArg)
+HRESULT Body_Player::Initialize(void* arg)
 {
-	auto	pDesc = static_cast<BODY_PLAYER_DESC*>(pArg);
+    if (FAILED(PlayableParts::Initialize(arg)))
+    {
+        MSG_BOX("[Body_Player] : Failed to Initialize");
+        return E_FAIL;
+    }
 
-	_parentState = pDesc->pParentState;
+    _rootBoneIndex = _modelCom->Get_BoneIndex("root");
+    _modelCom->Set_LocalRootNode(_rootBoneIndex);
 
-
-	if (FAILED(__super::Initialize(pArg)))
-		return E_FAIL;
-
-	if (FAILED(Ready_Components()))
-		return E_FAIL;
-
-	/*_transformCom->Set_State(State::POSITION, XMVectorSet(
-		GAME->Random(0.f, 10.f),
-		2.f,
-		GAME->Random(0.f, 10.f),
-		1.f
-	));*/
-
-	_model->Set_Animation(/*rand() % 20*/0, true);
-
-	return S_OK;
+    return S_OK;
 }
 
 void Body_Player::Priority_Update(float fTimeDelta)
 {
 }
 
-void Body_Player::Update(float fTimeDelta)
+void Body_Player::Update(float timeDelta)
 {
+    PlayableParts::Update(timeDelta);
 
-	if(*_parentState & Player::PLAYERSTATE::IDLE)
-		_model->Set_Animation(3, true);
+    ENGINE_PROFILE_SCOPE_DETAIL("Player::Body::Update");
 
-	if (*_parentState & Player::PLAYERSTATE::WALK)
-		_model->Set_Animation(4, true);
+    Update_CombinedWorldMatrix(_transformCom->Get_WorldMatrix());
 
-	if (true == _model->Play_Animation(fTimeDelta))
-		int a = 10;
+    if (Has_LeaderPoseComponent())
+    {
+        Update_LeaderPoseMatrices(timeDelta);
+    }
+    else if (_useComputeSkinning && _animComputeRuntime != nullptr)
+    {
+        ENGINE_PROFILE_SCOPE_DETAIL("Player::Body::ComputeUpdate");
+        CHECK_FAILED_THROTTLED(_animComputeRuntime->Update_Frame(timeDelta), 60); // compute animation 파이프라인 전체 실행
+    }
+    else
+    {
+        _modelCom->Play_Animation(timeDelta);
+        CHECK_FAILED_THROTTLED(_modelCom->Prepare_BoneMatrixBuffers(), 60);
+    }
 
-	Update_CombinedWorldMatrix(XMLoadFloat4x4(_transformCom->Get_WorldMatrixPtr()));
-
+    Update_CombinedWorldMatrix(_transformCom->Get_WorldMatrix());
 }
 
 void Body_Player::Late_Update(float fTimeDelta)
 {
-	GAME->Add_RenderGroup(RenderGroup::NONBLEND, this);
+    __super::Late_Update(fTimeDelta);
 }
 
 HRESULT Body_Player::Render()
 {
-	if (FAILED(Bind_ShaderResources()))
-		return E_FAIL;
+    ENGINE_PROFILE_SCOPE_DETAIL("Player::Body::Render");
 
-	size_t iNumMeshes = _model->Get_NumMeshes();
+    const Shared<GameObject> owner = Get_Owner();
+    if (!Is_Visible() || owner == nullptr || !owner->Is_Visible())
+        return S_OK;
 
-	for (size_t i = 0; i < iNumMeshes; i++)
-	{
-		_model->Bind_Material(_shader.get(), "g_DiffuseTexture", i, aiTextureType_DIFFUSE, 0);
-		_model->Bind_BoneMatrices(_shader.get(), "g_BoneMatrices", i);
+    if (!_useComputeSkinning)
+        return PlayableParts::Render();
 
-		if (FAILED(_shader->Begin(0)))
-			return E_FAIL;
+    if (_useComputeSkinning && _animComputeRuntime != nullptr)
+    {
+        CHECK_FAILED_THROTTLED(_animComputeRuntime->Prepare_ComputeSkinning(), 60, E_FAIL); // skinned VB 준비는 runtime이 담당
+    }
 
-		_model->Render(i);
-	}
+    if (FAILED(_computeRenderShaderCom->Bind_ObjectCB(_combinedWorldMatrix)))
+        return E_FAIL;
 
-	return S_OK;
+    if (FAILED(GAME->Bind_CameraCB(_computeRenderShaderCom)))
+        return E_FAIL;
+
+    if (FAILED(Bind_PlayerRenderCB(_computeRenderShaderCom)))
+        return E_FAIL;
+
+    const uint32 numMeshes = static_cast<uint32>(_modelCom->Get_NumMeshes());
+
+    for (uint32 i = 0; i < numMeshes; ++i)
+    {
+        const uint32 materialIndex = _modelCom->Get_MeshMaterialIndex(i);
+        const Shared<Material> material = _modelCom->Get_Material(materialIndex);
+        if (material == nullptr)
+            continue;
+
+        if (FAILED(_computeRenderShaderCom->Bind_MaterialTextures(*material)))
+            continue;
+
+        if (FAILED(_computeRenderShaderCom->Bind_CBufferData(material->Get_CB())))
+            return E_FAIL;
+
+        CHECK_FAILED_THROTTLED(
+            EffectCom::Bind_DrawFeatures(
+                Get_Owner(),
+                _computeRenderShaderCom.get(),
+                DrawFeatureFlagDissolve | DrawFeatureFlagPreviewRim),
+            60,
+            E_FAIL
+        );
+
+        const uint32 passIndex =
+            ShaderPassFinder::Find_PassIndex(ShaderType::VtxMesh, material->Get_RenderState());
+
+        if (FAILED(_computeRenderShaderCom->Begin(passIndex)))
+            return E_FAIL;
+
+        // Compute skinning 바디도 기존 pass는 유지하고 stencil=1만 함께 기록한다.
+        CHECK_FAILED_THROTTLED(GAME->Bind_PlayerStencilWriteState(true), 60, E_FAIL);
+
+        if (FAILED(_animComputeRuntime->Render_ComputeSkinned(i)))
+            return E_FAIL;
+    }
+
+    return S_OK;
 }
 
-HRESULT Body_Player::Ready_Components()
+HRESULT Body_Player::Render_Shadow()
 {
-	if (FAILED(__super::Add_Component(ETOI(LevelType::GamePlay), TEXT("Shader_VtxAnimMesh"), _shader)))
-		return E_FAIL;
+    const Shared<GameObject> owner = Get_Owner();
+    if (!Is_Visible() || owner == nullptr || !owner->Is_Visible())
+        return S_OK;
 
-	if (FAILED(__super::Add_Component(ETOI(LevelType::GamePlay), TEXT("Model_Fiona"), _model)))
-		return E_FAIL;
+    if (!_useComputeSkinning)
+        return PlayableParts::Render_Shadow();
 
-	return S_OK;
+    if (_useComputeSkinning && _animComputeRuntime != nullptr)
+    {
+        CHECK_FAILED(_animComputeRuntime->Prepare_ComputeSkinning(), E_FAIL); // skinned VB 준비는 runtime이 담당
+    }
+
+    if (FAILED(_computeRenderShaderCom->Bind_ObjectCB(_combinedWorldMatrix)))
+        return E_FAIL;
+
+    if (FAILED(GAME->Bind_ShadowCB(_computeRenderShaderCom)))
+        return E_FAIL;
+
+    const uint32 numMeshes = static_cast<uint32>(_modelCom->Get_NumMeshes());
+
+    for (uint32 i = 0; i < numMeshes; ++i)
+    {
+        if (FAILED(_computeRenderShaderCom->Begin(1)))
+            return E_FAIL;
+
+        if (FAILED(_animComputeRuntime->Render_ComputeSkinned(i)))
+            return E_FAIL;
+    }
+
+    return S_OK;
 }
 
-HRESULT Body_Player::Bind_ShaderResources()
+HRESULT Body_Player::Ready_Components(const PLAYABLE_PART_DESC& desc)
 {
-	/*if (FAILED(_transformCom->Bind_ShaderResource(_states, "g_WorldMatrix")))
-		return E_FAIL;*/
-	if (FAILED(_shader->Bind_Matrix("g_WorldMatrix", &_combinedWorldMatrix)))
-		return E_FAIL;
+    CHECK_FAILED(PlayableParts::Ready_Components(desc), E_FAIL);
 
-	if (FAILED(GAME->Bind_TransformMatrix(D3DTS::VIEW, _shader.get(), "g_ViewMatrix")))
-		return E_FAIL;
+    _useComputeSkinning = true;
 
-	if (FAILED(GAME->Bind_TransformMatrix(D3DTS::PROJ, _shader.get(), "g_ProjMatrix")))
-		return E_FAIL;
+    if (_useComputeSkinning)
+    {
+        CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Shader_VtxMesh"), _computeRenderShaderCom), E_FAIL);
+        CHECK_NULL(_animComputeRuntime, E_FAIL);
+    }
 
-
-
-	if (FAILED(GAME->Bind_CamPosition(_shader.get(), "g_vCamPosition")))
-		return E_FAIL;
-
-	const LIGHT_DESC* pLightDesc = GAME->Get_LightDesc(0);
-	if (nullptr == pLightDesc)
-		return E_FAIL;
-
-	if (FAILED(_shader->Bind_RawValue("g_vLightDir", &pLightDesc->vDirection, sizeof(XMFLOAT4))))
-		return E_FAIL;
-	if (FAILED(_shader->Bind_RawValue("g_vLightDiffuse", &pLightDesc->vDiffuse, sizeof(XMFLOAT4))))
-		return E_FAIL;
-	if (FAILED(_shader->Bind_RawValue("g_vLightAmbient", &pLightDesc->vAmbient, sizeof(XMFLOAT4))))
-		return E_FAIL;
-	if (FAILED(_shader->Bind_RawValue("g_vLightSpecular", &pLightDesc->vSpecular, sizeof(XMFLOAT4))))
-		return E_FAIL;
-
-	return S_OK;
+    return S_OK;
 }
 
-Shared<Body_Player> Body_Player::Create(ComPtr<Device> device, ComPtr<Context> context)
+Shared<Body_Player> Body_Player::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)
 {
     auto instance = make_shared<Body_Player>(device, context);
 
@@ -167,10 +219,5 @@ Shared<GameObject> Body_Player::Clone(void* arg)
 
 void Body_Player::Free()
 {
-	__super::Free();
-
-
+    __super::Free();
 }
-
-
-

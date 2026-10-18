@@ -4,60 +4,60 @@ Bone::Bone()
 {
 }
 
-HRESULT Bone::Initialize(const aiNode* pAINode, int32 iParentBoneIndex)
+Bone::Bone(const Bone& rhs)
+    : _parentBoneIndex{rhs._parentBoneIndex}
 {
-	strcpy_s(_name, pAINode->mName.data);
+    _name = rhs._name;
+    _transformationMatrix = rhs._transformationMatrix;
+    _combinedTransformationMatrix = rhs._combinedTransformationMatrix;
+}
 
-	_parentBoneIndex = iParentBoneIndex;
-
-	memcpy(&_transformationMatrix, &pAINode->mTransformation, sizeof(XMFLOAT4X4));
-	XMStoreFloat4x4(&_transformationMatrix, XMMatrixTranspose(XMLoadFloat4x4(&_transformationMatrix)));
-
-	XMStoreFloat4x4(&_combinedTransformationMatrix, XMMatrixIdentity());
+HRESULT Bone::Initialize(const ModelBoneData& boneData)
+{
+	_name = boneData.name;
+	_parentBoneIndex = boneData.parentBoneIndex;
+	_transformationMatrix = boneData.localTransform;
+    _combinedTransformationMatrix = Matrix::Identity;
+    _offsetMatrix = boneData.offsetMatrix;
 
 	return S_OK;
 }
 
-void Bone::Update_CombinedTransformationMatrix(const vector<Shared<Bone>>& Bones, FXMMATRIX PreTransformMatrix)
+void Bone::Update_CombinedTransformationMatrix(const vector<Shared<Bone>>& bones, const Matrix& preTransformMatrix)
 {
 	if (-1 == _parentBoneIndex)
 	{
-		XMStoreFloat4x4(&_combinedTransformationMatrix,
-			XMLoadFloat4x4(&_transformationMatrix) * PreTransformMatrix);
-
-
+        _combinedTransformationMatrix = _transformationMatrix * preTransformMatrix;
 	}
 	else
 	{
-		XMStoreFloat4x4(&_combinedTransformationMatrix,
-			XMLoadFloat4x4(&_transformationMatrix) * XMLoadFloat4x4(&Bones[_parentBoneIndex]->_combinedTransformationMatrix));
-
+        _combinedTransformationMatrix = _transformationMatrix * bones[_parentBoneIndex]->_combinedTransformationMatrix;
 	}
-
-	
-
 }
 
-void Bone::Update_TransformationMatrix(FXMMATRIX TransformMatrix)
+
+
+void Bone::Update_TransformationMatrix(const Matrix& transformMatrix)
 {
-	XMStoreFloat4x4(&_transformationMatrix, TransformMatrix);
+	_transformationMatrix = transformMatrix;
 }
 
-Shared<Bone> Bone::Create(const aiNode* pAINode, int32 iParentBoneIndex)
+Shared<Bone> Bone::Create(const ModelBoneData& boneData)
 {
-	auto pInstance = make_shared<Bone>();
+	auto instance = make_shared<Bone>();
 
-	if (FAILED(pInstance->Initialize(pAINode, iParentBoneIndex)))
+	if (FAILED(instance->Initialize(boneData)))
 	{
 		MSG_BOX("Failed to Created : Bone");
 		return nullptr;
 	}
-	return pInstance;
+	return instance;
 }
 
 Shared<Bone> Bone::Clone()
 {
-	return make_shared<Bone>(*this);
+	auto instance = make_shared<Bone>(*this);
+	return instance;
 }
 
 void Bone::Free()

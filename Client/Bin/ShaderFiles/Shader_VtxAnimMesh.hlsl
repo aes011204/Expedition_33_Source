@@ -1,133 +1,545 @@
 #include "Engine_Shader_Defines.hlsli"
+#include "Engine_Shader_RenderState.hlsl"
+#include "Engine_Shader_Passes.hlsl"
+#include "Engine_Shader_Material.hlsl"
+#include "Engine_Shader_Feature.hlsl"
+#include "Engine_Shader_Samplers.hlsl"
+#include "Engine_Shader_Utils.hlsl"
+#include "Engine_Shader_ConstantBuffer.hlsl"
 
-float4x4 g_WorldMatrix, g_ViewMatrix, g_ProjMatrix;
+//cbuffer BoneTransform : register(b1)
+//{
+//    matrix g_BoneMatrices[950];
+//}
 
-vector g_vLightDir;
-vector g_vLightDiffuse;
-vector g_vLightAmbient;
-vector g_vLightSpecular;
-
-texture2D g_DiffuseTexture;
-vector g_vMtrlAmbient = vector(0.3f, 0.3f, 0.3f, 1.f);
-vector g_vMtrlSpecular = vector(1.f, 1.f, 1.f, 1.f);
-vector g_vCamPosition;
-
-matrix g_BoneMatrices[512];
-
-
-
-
-
-
-sampler DefaultSampler = sampler_state
+// Ï∂îÌõÑ compute shader Í∏∞Î∞ò animation/skinning ÌôïÏû•ÏùÑ ÏúÑÌï¥ bone matricesÎ•º SRVÎ°ú Î∞õÎäîÎã§.
+struct BoneMatrixElement
 {
-    Filter = MIN_MAG_MIP_LINEAR;   
-    AddressU = wrap;
-    AddressV = wrap;
+    row_major float4x4 BoneMatrix;
 };
 
+StructuredBuffer<BoneMatrixElement> g_BoneMatricesBuffer;
 
-
-/* ¿Ã Ω¶¿Ã¥ı∑Œ ±◊∏∞¥Ÿ∂Û∞Ì ¿Ãæﬂ±‚«— ¡§¡°πˆ∆€¿« ¡§¡°¿ª ≤®≥ªº≠ πﬁæ∆ø¬¥Ÿ */
+//==================================================
+// VS
+//==================================================
 struct VS_IN
 {
-    float3 vPosition : POSITION;
-    float3 vNormal : NORMAL;
-    float3 vTangent : TANGENT;
-    float2 vTexcoord : TEXCOORD0;    
-    uint4 vBlendIndex : BLENDINDEX;
-    float4 vBlendWeight : BLENDWEIGHT;
+    float3  Position    : POSITION;
+    float3  Normal      : NORMAL;
+    float3  Tangent     : TANGENT;
+    float3  Binormal    : BINORMAL;
+    float2  Texcoord    : TEXCOORD0;
+    uint4   BlendIndex  : BLENDINDEX;
+    float4  BlendWeight : BLENDWEIGHT;
 };
 
 struct VS_OUT
 {
-    float4 vPosition : SV_POSITION;
-    float4 vNormal : NORMAL;
-    float2 vTexcoord : TEXCOORD0;
-    float4 vWorldPos : TEXCOORD1;
+    float4  Position    : SV_POSITION;
+    float4  Normal      : NORMAL;
+    float3  Tangent     : TANGENT;
+    float3  Binormal    : BINORMAL;
+    float2  Texcoord    : TEXCOORD0;
+    float4  WorldPos    : TEXCOORD1;
+    float4  ProjPos     : TEXCOORD2;
 };
 
-VS_OUT VS_MAIN(VS_IN In)
+struct VS_SHADOW_OUT
+{
+    float4 Position     : SV_POSITION;
+    float2 Texcoord     : TEXCOORD0;
+    float4 ProjPos      : TEXCOORD1;
+};
+
+VS_OUT VS_Main(VS_IN In)
 {
     VS_OUT Out;
-    
-    /* ¡§¡°¿« ¿ßƒ° * ø˘µÂ * ∫‰ * ≈ıøµ */
+
     float4x4 matWV, matWVP;
-    
-    matrix BoneMatrix = g_BoneMatrices[In.vBlendIndex.x] * In.vBlendWeight.x + 
-        g_BoneMatrices[In.vBlendIndex.y] * In.vBlendWeight.y + 
-        g_BoneMatrices[In.vBlendIndex.z] * In.vBlendWeight.z + 
-        g_BoneMatrices[In.vBlendIndex.w] * In.vBlendWeight.w;
-    
-    vector vPosition = mul(float4(In.vPosition, 1.f), BoneMatrix);
-    
-    
+
+    float fWeightW = 1.f - (In.BlendWeight.x + In.BlendWeight.y + In.BlendWeight.z);
+
+    //float4x4 BoneMatrix = g_BoneMatrices[In.vBlendIndex.x] * In.vBlendWeight.x +
+    //    g_BoneMatrices[In.vBlendIndex.y] * In.vBlendWeight.y +
+    //    g_BoneMatrices[In.vBlendIndex.z] * In.vBlendWeight.z +
+    //    g_BoneMatrices[In.vBlendIndex.w] * fWeightW;
+
+    float4x4 BoneMatrix =
+        g_BoneMatricesBuffer[In.BlendIndex.x].BoneMatrix * In.BlendWeight.x +
+        g_BoneMatricesBuffer[In.BlendIndex.y].BoneMatrix * In.BlendWeight.y +
+        g_BoneMatricesBuffer[In.BlendIndex.z].BoneMatrix * In.BlendWeight.z +
+        g_BoneMatricesBuffer[In.BlendIndex.w].BoneMatrix * fWeightW;
+
+    vector Position = mul(float4(In.Position, 1.f), BoneMatrix);
+    vector Normal = mul(float4(In.Normal, 0.f), BoneMatrix);
+    vector Tangent = mul(float4(In.Tangent, 0.f), BoneMatrix);
+    vector Binormal = mul(float4(In.Binormal, 0.f), BoneMatrix);
+
     matWV = mul(g_WorldMatrix, g_ViewMatrix);
     matWVP = mul(matWV, g_ProjMatrix);
-    
-    Out.vPosition = mul(vPosition, matWVP);
-    Out.vNormal = normalize(mul(float4(In.vNormal, 0.f), g_WorldMatrix));
-    
-    Out.vTexcoord = In.vTexcoord;
-    Out.vWorldPos = mul(float4(In.vPosition, 1.f), g_WorldMatrix);
-    
+
+    Out.Position = mul(Position, matWVP);
+    Out.Normal = normalize(mul(Normal, g_WorldMatrix));
+
+    Out.Tangent = normalize(mul(Tangent, g_WorldMatrix));
+    Out.Binormal = normalize(mul(Binormal, g_WorldMatrix));
+
+    Out.Texcoord = In.Texcoord;
+    Out.WorldPos = mul(Position, g_WorldMatrix);
+    Out.ProjPos = Out.Position;
+
     return Out;
 }
 
-/* w≥™¥©±‚ø¨ªÍ¿ª ºˆ«‡«—¥Ÿ.-> ¿Ã ø¨ªÍ¿∏∑Œ ¿ÃæÓ¡˙ºˆ ¿÷¥¬ ¿Ã¿Ø -> VS_OUT±∏¡∂√º¿« ¿ßƒ° -> SV_ */
-/* ∫‰∆˜∆Æ(¿©µµøÏ¡¬«•)∑Œ ∫Ø»Ø«—¥Ÿ. */
-/* ∑°Ω∫≈Õ∂Û¿Ã¡Ó -> ¡§¡° ºº∞≥∑Œ ∞®ΩŒ¡¯ øµø™¿« «»ºø ¡§∫∏∏¶ ª˝º∫«—¥Ÿ */
+VS_SHADOW_OUT VS_Shadow(VS_IN In)
+{
+    VS_SHADOW_OUT Out;
 
+    float fWeightW = 1.f - (In.BlendWeight.x + In.BlendWeight.y + In.BlendWeight.z);
+
+    float4x4 BoneMatrix =
+        g_BoneMatricesBuffer[In.BlendIndex.x].BoneMatrix * In.BlendWeight.x +
+        g_BoneMatricesBuffer[In.BlendIndex.y].BoneMatrix * In.BlendWeight.y +
+        g_BoneMatricesBuffer[In.BlendIndex.z].BoneMatrix * In.BlendWeight.z +
+        g_BoneMatricesBuffer[In.BlendIndex.w].BoneMatrix * fWeightW;
+
+    vector Position = mul(float4(In.Position, 1.f), BoneMatrix);
+
+    float4x4 matWV = mul(g_WorldMatrix, g_LightViewMatrix);
+    float4x4 matWVP = mul(matWV, g_LightProjMatrix);
+
+    Out.Position = mul(Position, matWVP);
+    Out.Texcoord = In.Texcoord;
+    Out.ProjPos = Out.Position;
+
+    return Out;
+}
+
+//==================================================
+// PS
+//==================================================
 struct PS_IN
 {
-    float4 vPosition : SV_POSITION;
-    float4 vNormal : NORMAL;
-    float2 vTexcoord : TEXCOORD0;    
-    float4 vWorldPos : TEXCOORD1;
+    float4 Position : SV_POSITION;
+    float4 Normal   : NORMAL;
+    float3 Tangent  : TANGENT;
+    float3 Binormal : BINORMAL;
+    float2 Texcoord : TEXCOORD0;
+    float4 WorldPos : TEXCOORD1;
+    float4 ProjPos  : TEXCOORD2;
 };
 
 struct PS_OUT
 {
-    vector vColor : SV_TARGET0;
+    vector Diffuse  : SV_TARGET0;   // BaseColor
+    vector Normal   : SV_TARGET1;   // Normal
+    vector Depth    : SV_TARGET2;   // Depth
+    vector Material : SV_TARGET3;   // AO, Roughness, Metalness
+    vector Emissive  : SV_TARGET4;  // HDR Emissive
 };
 
-/* Pixel Shader -> «»ºø¿« ªˆ¿ª ∞·¡§«—¥Ÿ. */
-
-PS_OUT PS_MAIN(PS_IN In)
+PS_OUT PS_Opaque(PS_IN In)
 {
+    ApplyPlayerNearClip(In.WorldPos);
+
     PS_OUT Out;
-    
-    // Out.vColor = float4(In.vTexcoord.y, In.vTexcoord.y, In.vTexcoord.y, 1.f);
-    vector      vMtrlDiffuse = g_DiffuseTexture.Sample(DefaultSampler, In.vTexcoord);
-    
-    if (vMtrlDiffuse.a < 0.3f)
+
+    float2 finalUV = ApplyUVTransform(In.Texcoord);
+    float dissolveEdge = 0.f;
+
+    if (IsSwitchDissolveEnabled())
+    {
+        dissolveEdge = ApplySwitchDissolveClip(finalUV);
+    }
+
+    // BaseColor
+    float4 baseColor = SampleBaseColor(finalUV);
+    // Normal
+    float3 worldNormal = ComputeWorldNormal(In.Normal.xyz, In.Tangent, In.Binormal, finalUV);
+
+    Out.Diffuse = baseColor;
+    Out.Normal = float4(EncodeNormal(worldNormal), 1.f);
+
+    // x = ndc depth(z Î∂ÑÌï† ÌõÑ), y = view-space z(0 ~ 1 Ï†ïÍ∑úÌôî)
+    Out.Depth = float4(In.ProjPos.z / In.ProjPos.w, In.ProjPos.w / g_Far, 0.f, 1.f);
+
+    float3 orm = SampleOrm(finalUV);
+    Out.Material = float4(orm.xyz, 1.f); 
+
+    float3 emissive = SampleEmissive(finalUV);
+    emissive += dissolveEdge * g_FeatureParam1.rgb * 0.45f;
+
+    if (HasPreviewRim())
+    {
+        float3 viewDir = normalize(g_CamPosition.xyz - In.WorldPos.xyz);
+        float3 rimNormal = normalize(In.Normal.xyz);
+        float rim = ComputePreviewRim(rimNormal, viewDir, g_FeatureParam3.x);
+        emissive += GetPreviewRimColor() * (rim * GetPreviewRimIntensity());
+    }
+
+    Out.Emissive = float4(emissive.xyz, 1.f);
+
+    return Out;
+}
+
+PS_OUT PS_Mask(PS_IN In)
+{
+    ApplyPlayerNearClip(In.WorldPos);
+
+    PS_OUT Out;
+
+    float2 finalUV = ApplyUVTransform(In.Texcoord);
+    float dissolveEdge = 0.f;
+    // BaseColor
+    float4 baseColor = SampleBaseColor(finalUV);
+    // Mask
+    float mask = GetOpacityMaskForMasked(finalUV, baseColor);
+    if (mask < g_OpacityMaskClipValue)
         discard;
-    
-    vector vShade = saturate(max(dot(normalize(g_vLightDir) * -1.f, In.vNormal), 0.f) + (g_vLightAmbient * g_vMtrlAmbient));
-    
-    vector vLook = In.vWorldPos - g_vCamPosition;
-    vector vRelfect = reflect(normalize(g_vLightDir), In.vNormal);    
-    float fSpecular = pow(max(dot(normalize(vLook) * -1.f, normalize(vRelfect)), 0.f), 50.f);
-    
-    vector vSpecularColor = g_vLightSpecular * g_vMtrlSpecular * fSpecular;
-    
-    Out.vColor = g_vLightDiffuse * vMtrlDiffuse * vShade + vSpecularColor;
-    
-    Out.vColor.a = 0.3f;
+
+    if (IsSwitchDissolveEnabled())
+    {
+        dissolveEdge = ApplySwitchDissolveClip(finalUV);
+    }
+
+    // Normal
+    float3 worldNormal = ComputeWorldNormal(In.Normal.xyz, In.Tangent, In.Binormal, finalUV);
+
+    Out.Diffuse = baseColor;
+    Out.Normal = float4(EncodeNormal(worldNormal), 1.f);
+    Out.Depth = float4(In.ProjPos.z / In.ProjPos.w, In.ProjPos.w / g_Far, 0.f, 1.f);
+
+    float3 orm = SampleOrm(finalUV);
+    Out.Material = float4(orm.xyz, 1.f);
+
+    float3 emissive = SampleEmissive(finalUV);
+    emissive += dissolveEdge * g_FeatureParam1.rgb * 0.45f;
+
+    if (HasPreviewRim())
+    {
+        float3 viewDir = normalize(g_CamPosition.xyz - In.WorldPos.xyz);
+        float3 rimNormal = normalize(In.Normal.xyz);
+        float rim = ComputePreviewRim(rimNormal, viewDir, g_FeatureParam3.x);
+        emissive += GetPreviewRimColor() * (rim * GetPreviewRimIntensity());
+    }
+
+    Out.Emissive = float4(emissive.xyz, 1.f);
     
     return Out;
+}
 
+// for character picking
+uint g_iObjectID;
+struct PS_OUT_ID
+{
+    vector Color : SV_Target0;
+};
+
+PS_OUT_ID PS_ID(PS_IN In)
+{
+    PS_OUT_ID Out;
+    Out.Color.r = float(g_iObjectID & 0xFF) / 255.f;
+    Out.Color.g = float((g_iObjectID >> 8) & 0xFF) / 255.f;
+    Out.Color.b = float((g_iObjectID >> 16) & 0xFF) / 255.f;
+    Out.Color.a = 1.f;
+    return Out;
+}
+
+struct PS_OUT_SHADOW
+{
+    float LightDepth : SV_TARGET0;
+};
+
+PS_OUT_SHADOW PS_Shadow(VS_SHADOW_OUT In)
+{
+    PS_OUT_SHADOW Out;
+
+    Out.LightDepth = In.ProjPos.z / In.ProjPos.w;
+
+    return Out;
+}
+
+PS_OUT PS_CharacterEye(PS_IN In)
+{
+    ApplyPlayerNearClip(In.WorldPos);
+
+    PS_OUT Out;
+
+    float2 baseUV = In.Texcoord;
+    float2 irisUV = ApplyUVTransform(In.Texcoord);
+
+    float3 viewDirWS = normalize(g_CamPosition.xyz - In.WorldPos.xyz);
+    float2 irisViewOffset = float2(dot(viewDirWS, normalize(In.Tangent.xyz)), dot(viewDirWS, normalize(In.Binormal.xyz)));
+
+    irisUV -= irisViewOffset * 0.1f;
+
+
+    float dissolveEdge = 0.f;
+
+    if (IsSwitchDissolveEnabled())
+        dissolveEdge = ApplySwitchDissolveClip(baseUV);
+
+    EyeMaterialSample eye = SampleEyeMaterial(baseUV, irisUV);
+
+    if (eye.opacity < g_OpacityMaskClipValue)
+        discard;
+
+    float3 worldNormal = ComputeWorldNormal(In.Normal.xyz, In.Tangent, In.Binormal, baseUV);
+    float3 eyeBaseColor = eye.baseColor;
+
+    // Ïπ¥Î©îÎùºÎ•º Ï†ïÎ©¥ÏúºÎ°ú Î∞îÎùºÎ≥¥Îäî Í≥≥ÏùÄ Î∞ùÍ≤å, ÎààÏïåÏùò ÏòÜÎ©¥Í≥º Í∞ÄÏû•ÏûêÎ¶¨Îäî Ïñ¥Îë°Í≤å ÎßåÎì§Ïñ¥ Íµ¨ ÌòïÌÉúÎ•º Í∞ïÏ°∞ÌïúÎã§.
+    float NdotV = saturate(dot(worldNormal, viewDirWS));
+    float eyeCurvatureShade = lerp(0.32f, 1.f, pow(NdotV, 0.65f));
+    float scleraMask = 1.f - eye.irisArea;
+
+    eyeBaseColor *= lerp(1.f, eyeCurvatureShade, scleraMask);
+
+    Out.Diffuse = float4(eyeBaseColor, 1.f);
+    Out.Normal = float4(EncodeNormal(worldNormal), 1.f);
+    Out.Depth = float4(In.ProjPos.z / In.ProjPos.w, In.ProjPos.w / g_Far, 0.f, 1.f);\
+
+    // Îàà Ï†ÑÏ≤¥Î•º ÎçÆÎäî Îß§ÎÅàÌïú Í∞ÅÎßâ ÌëúÎ©¥. Í∞íÏù¥ ÎÇÆÏùÑÏàòÎ°ù Î∞òÏÇ¨Í∞Ä ÏûëÍ≥† ÎÇ†Ïπ¥Î°≠Í≤å ÎÇòÌÉÄÎÇúÎã§.
+    float3 orm = SampleOrm(baseUV);
+    const float corneaRoughness = 0.005f;
+    orm.r = max(orm.r, 0.92f);
+    orm.g = min(orm.g, corneaRoughness);
+    orm.b = 0.f;
+
+    Out.Material = float4(orm.xyz, 1.f);
+
+    // Îàà ÌëúÎ©¥ Í∞ÄÏû•ÏûêÎ¶¨ÏóêÏÑú ÎÇòÌÉÄÎÇòÎäî Í∞ÅÎßâ Fresnel Î∞òÏÇ¨
+    float corneaFresnel = pow(1.f - NdotV, 5.f);
+
+    // Í≥ºÌïòÏßÄ ÏïäÏùÄ Ï∞®Í∞ÄÏö¥ Í∞ÅÎßâ Î∞òÏÇ¨ÏÉâ
+    float3 corneaReflection = float3(0.80f, 0.90f, 1.f) * corneaFresnel * 0.10f;
+
+    float3 T = normalize(In.Tangent.xyz);
+    float3 B = normalize(In.Binormal.xyz);
+
+    float3 glintNormalWS = normalize(worldNormal + T * 0.32f - B * 0.18f);
+
+    // ÎÇ†Ïπ¥Î°úÏö¥ ÏûëÏùÄ ÏïàÍ¥ë
+    float corneaGlint = pow(saturate(dot(viewDirWS, glintNormalWS)), 140.f);
+    float glintMask = saturate(0.20f + eye.irisArea * 0.80f);
+
+    // ÏûëÏùÄ Ìù∞ÏÉâ ÏïàÍ¥ë. Îß® Îí§ Í∞íÏùÑ ÎÜíÏù¥Î©¥ ÏïàÍ¥ë Ïª§Ïßê
+    float3 corneaHighlight = float3(1.f, 0.96f, 0.90f) * corneaGlint * glintMask * 0.35f;
+    float3 emissive = corneaReflection + corneaHighlight;
+    
+    Out.Emissive = float4(emissive, 1.f);
+
+    return Out;
+}
+
+PS_OUT PS_CharacterHair(PS_IN In, bool IsFrontFace : SV_IsFrontFace)
+{
+    ApplyPlayerNearClip(In.WorldPos);
+
+    PS_OUT Out;
+
+    float2 finalUV = ApplyUVTransform(In.Texcoord);
+    float dissolveEdge = 0.f;
+
+    if (IsSwitchDissolveEnabled())
+    {
+        dissolveEdge = ApplySwitchDissolveClip(finalUV);
+    }
+
+    float hairMask = SampleHairMask(finalUV);
+    float hairDepth = SampleHairDepth(finalUV);
+    float hairIDValue = SampleHairIDValue(finalUV);
+    float hairMaskDensity = SampleHairMaskDensity(finalUV);
+    float3 viewDir = normalize(g_CamPosition.xyz - In.WorldPos.xyz);
+
+    float facing = saturate(abs(dot(normalize(In.Normal.xyz), viewDir)));
+    float edgeFade = smoothstep(0.08f, 0.42f, facing);
+
+    const float hairCoreStart = 0.22f;
+    const float hairCoreEnd = 0.50f;
+
+    float coreMask = smoothstep(hairCoreStart, hairCoreEnd, hairMask);
+    
+    coreMask *= lerp(0.42f, 1.0f, edgeFade);
+
+    // Í≥†Î¶ΩÎêú ÏñáÏùÄ ÏÑ†ÏùÄ GBuffer Î≥∏Ï≤¥ Ìå®Ïä§ÏóêÏÑú Îçî Í∞ïÌïòÍ≤å Ï†úÍ±∞ÌïúÎã§.
+    float clumpDensity = smoothstep(0.08f, 0.24f, hairMaskDensity);
+    float isolatedStrandWeight = lerp(0.55f, 1.0f, clumpDensity);
+    float coverage = coreMask * isolatedStrandWeight;
+
+    clip(coverage - 0.14f);
+
+    float3 hairBSDFColor = Compute_BlenderHairColor(finalUV);
+
+    float3 normalW = In.Normal.xyz;
+    float3 tangentW = In.Tangent.xyz;
+    float3 binormalW = In.Binormal.xyz;
+
+    float3 worldNormal = ComputeWorldNormal(normalW, tangentW, binormalW, finalUV);
+    worldNormal = normalize(worldNormal);
+    // Ïπ¥Îìú ÌèâÎ©¥ ÎäêÎÇåÏùÑ Ï§ÑÏù¥Í∏∞ ÏúÑÌï¥ ÎÖ∏Î©ÄÏùÑ ÏïΩÍ∞Ñ Ïπ¥Î©îÎùº Ï™ΩÏúºÎ°ú ÌèâÍ∑†ÌôîÌïúÎã§.
+    worldNormal = normalize(worldNormal);
+
+    const float hairAO = 1.f;
+    float hairRoughness = lerp(0.58f, 0.36f, hairDepth);
+
+    // ÏñáÏùÄ Î∂ÄÎ∂Ñ roughness Ï¶ùÍ∞ÄÎ•º ÎÑàÎ¨¥ ÏÑ∏Í≤å Ï£ºÏßÄ ÏïäÎäîÎã§.
+    hairRoughness += (1.f - coreMask) * 0.025f;
+
+    // ID variationÎèÑ ÎÑàÎ¨¥ ÌïúÏ™ΩÏúºÎ°ú Î∞ÄÏßÄ ÏïäÎäîÎã§.
+    hairRoughness += (hairIDValue - 0.5f) * 0.25f;
+
+    hairRoughness = clamp(hairRoughness, 0.36f, 0.60f) * 2.f;
+
+    const float hairMetalness = 0.f;
+
+    Out.Diffuse = float4(hairBSDFColor, 1.f);
+    Out.Normal = float4(EncodeNormal(worldNormal), 1.f);
+    Out.Depth = float4(In.ProjPos.z / In.ProjPos.w, In.ProjPos.w / g_Far, 0.f, 1.f);
+    Out.Material = float4(hairAO, hairRoughness, hairMetalness, 1.f);
+
+    float3 emissive = float3(0.f, 0.f, 0.f);
+
+    // emissiveÎ°ú ÏïΩÌïòÍ≤å Î≥¥Í∞ïÌï¥ Ïã§Ï†ú Î®∏Î¶¨Ïπ¥ÎùΩ Í∞ôÏùÄ Í≤∞ÏùÑ Î®ºÏ†Ä ÎßåÎì†Îã§.
+    float3 tangentWS = normalize(In.Tangent.xyz);
+    float tangentView = abs(dot(tangentWS, viewDir));
+    float strandSheen = pow(saturate(1.f - tangentView), 10.f);
+    strandSheen *= lerp(0.35f, 1.0f, hairDepth);
+    strandSheen *= lerp(0.55f, 1.0f, coreMask);
+    strandSheen *= saturate(hairMask);
+
+    strandSheen *= lerp(0.45f, 1.0f, clumpDensity);
+    emissive += (hairBSDFColor * 0.06f + float3(1.0f, 0.96f, 0.90f) * 0.025f) * strandSheen;
+
+    if (HasPreviewRim())
+    {
+        float3 rimNormal = normalize(worldNormal);
+        float rim = ComputePreviewRim(rimNormal, viewDir, g_FeatureParam3.x);
+        float edgeMask = saturate(1.f - coreMask);
+        float hairRim = rim * saturate(hairMask) * lerp(0.35f, 1.0f, edgeMask);
+        emissive += GetPreviewRimColor() * (hairRim * GetPreviewRimIntensity() * GetPreviewHairRimIntensity());
+    }
+
+    Out.Emissive = float4(emissive, 1.f);
+
+    return Out;
+}
+
+struct PS_OUT_HAIR_BLEND
+{
+    vector Color : SV_TARGET0;
+};
+
+PS_OUT_HAIR_BLEND PS_CharacterHairBlend(PS_IN In)
+{
+    ApplyPlayerNearClip(In.WorldPos);
+
+    PS_OUT_HAIR_BLEND Out;
+
+    float2 finalUV = ApplyUVTransform(In.Texcoord);
+    float dissolveEdge = 0.f;
+
+    if (IsSwitchDissolveEnabled())
+    {
+        dissolveEdge = ApplySwitchDissolveClip(finalUV);
+    }
+
+    float3 hairColor = Compute_BlenderHairColor(finalUV);
+    float3 viewDir = normalize(g_CamPosition.xyz - In.WorldPos.xyz);
+    float facing = saturate(abs(dot(normalize(In.Normal.xyz), viewDir)));
+    float edgeFade = smoothstep(0.10f, 0.38f, facing);
+
+    float hairMask = SampleHairMask(finalUV);
+    float hairMaskDensity = SampleHairMaskDensity(finalUV);
+
+    const float hairCoreStart = 0.22f;
+    const float hairCoreEnd = 0.50f;
+
+    float coreMask = smoothstep(hairCoreStart, hairCoreEnd, hairMask);
+
+    coreMask *= lerp(0.72f, 1.0f, edgeFade);
+
+    float clumpDensity = smoothstep(0.08f, 0.24f, hairMaskDensity);
+    float isolatedStrandWeight = lerp(0.55f, 1.0f, clumpDensity);
+    float gbufferCoverage = coreMask * isolatedStrandWeight;
+
+    // soft passÎäî GBufferÏóêÏÑú Îπ†ÏßÑ ÎÇÆÏùÄ Mask ÏòÅÏó≠Îßå Îã¥ÎãπÌïúÎã§.
+    float softMask = smoothstep(0.015f, 0.30f, hairMask);
+    float hairAlpha = softMask * (1.f - saturate(gbufferCoverage));
+
+    hairAlpha *= lerp(0.40f, 1.0f, edgeFade);
+
+    // ÏûîÎ®∏Î¶¨Îäî soft passÏóêÏÑú ÏôÑÏ†ÑÌûà Ï£ΩÏù¥ÏßÄ ÏïäÍ≥† ÏïΩÌïòÍ≤å Ïú†ÏßÄÌïúÎã§.
+    hairAlpha *= lerp(0.65f, 1.0f, clumpDensity);
+
+    clip(hairAlpha);
+
+    // soft hairÎäî ÎÑàÎ¨¥ ÏÑ∏Î©¥ ÎÖ∏Ïù¥Ï¶àÍ∞Ä ÎêòÎØÄÎ°ú Ï†ÅÎãπÌûàÎßå
+    hairAlpha *= 0.18f;
+
+    // Ïã§Ï†ú ÌÖåÏä§Ìä∏ÏóêÏÑúÎäî ÎÑàÎ¨¥ Ïñ¥Îë°Í≤å ÎàÑÎ•¥ÏßÄ Îßê Í≤É
+    float3 blendHairColor = hairColor;
+
+    Out.Color = float4(blendHairColor, hairAlpha);
+
+    return Out;
+}
+
+PS_OUT PS_CharacterEyeLash(PS_IN In)
+{
+    ApplyPlayerNearClip(In.WorldPos);
+
+    PS_OUT Out;
+
+    float2 finalUV = ApplyUVTransform(In.Texcoord);
+    float dissolveEdge = 0.f;
+
+    if (IsSwitchDissolveEnabled())
+        dissolveEdge = ApplySwitchDissolveClip(finalUV);
+
+    float4 baseColor = g_MaterialTextures[MATERIAL_SLOT_BASECOLOR].Sample(LinearClampSampler, finalUV);
+    baseColor.rgb *= g_BaseColorTint.rgb;
+    baseColor.a *= g_BaseColorTint.a;
+
+    float mask = baseColor.a;
+
+    if (HasMaterialTexture(MATERIAL_SLOT_OPACITY_MASK))
+    {
+        float4 maskTex = g_MaterialTextures[MATERIAL_SLOT_OPACITY_MASK].Sample(LinearClampSampler, finalUV);
+        mask = max(mask, ResolveScalarChannel(maskTex, g_OpacityMaskSource));
+    }
+
+    float clipBias = max(fwidth(mask) * 0.75f, 0.02f);
+    if (mask < (g_OpacityMaskClipValue - clipBias))
+        discard;
+
+    float3 worldNormal = ComputeWorldNormal(In.Normal.xyz, In.Tangent, In.Binormal, finalUV);
+
+    Out.Diffuse = float4(baseColor.rgb, 1.f);
+    Out.Normal = float4(EncodeNormal(worldNormal), 1.f);
+    Out.Depth = float4(In.ProjPos.z / In.ProjPos.w, In.ProjPos.w / g_Far, 0.f, 1.f);
+
+    float3 orm = SampleOrm(finalUV);
+    Out.Material = float4(orm.xyz, 1.f);
+
+    float3 emissive = SampleEmissive(finalUV);
+    emissive += dissolveEdge * g_FeatureParam1.rgb * 0.45f;
+    Out.Emissive = float4(emissive, 1.f);
+
+    return Out;
 }
 
 technique11 DefaultTechnique
 {
-    pass DefaultPass
-    {
-        SetRasterizerState(RS_Default);
-        SetDepthStencilState(DSS_Default, 0);
-        SetBlendState(BS_AlphaBlend, float4(0.f, 0.f, 0.f, 0.f), 0xffffffff);
-
-        VertexShader = compile vs_5_0 VS_MAIN();
-        PixelShader = compile ps_5_0 PS_MAIN();
-    }
+    PASS_RS_DS_BS_VP(OpaquePass,            RS_Default,     DSS_Default,    BS_Default,         VS_Main,    PS_Opaque)          // 0
+    PASS_RS_DS_BS_VP(MaskedPass,            RS_Default,     DSS_Default,    BS_Default,         VS_Main,    PS_Mask)            // 1
+    PASS_RS_DS_BS_VP(OpaqueTwoSidedPass,    RS_CullNone,    DSS_Default,    BS_Default,         VS_Main,    PS_Opaque)          // 2
+    PASS_RS_DS_BS_VP(MaskedTwoSidedPass,    RS_CullNone,    DSS_Default,    BS_Default,         VS_Main,    PS_Mask)            // 3
+    PASS_RS_DS_BS_VP(ShadowPass,            RS_Default,     DSS_Default,    BS_Default,         VS_Shadow,  PS_Shadow)          // 4
+    PASS_RS_DS_BS_VP(CharacterEye,          RS_Default,     DSS_Default,    BS_Default,         VS_Main,    PS_CharacterEye)      // 5
+    PASS_RS_DS_BS_VP(CharacterHair,         RS_CullNone,    DSS_Default,    BS_Default,         VS_Main,    PS_CharacterHair)     // 6
+    PASS_RS_DS_BS_VP(IDPass,                RS_Default,     DSS_Default,    BS_Default,         VS_Main,    PS_ID)                // 7
+    PASS_RS_DS_BS_VP(CharacterHairBlend,    RS_CullNone,    DSS_DepthRead,  BS_AlphaBlend,      VS_Main,    PS_CharacterHairBlend) // 8
+    PASS_RS_DS_BS_VP(CharacterEyeLash,      RS_CullNone,    DSS_Default,    BS_Default,         VS_Main,    PS_CharacterEyeLash) // 9
 }
+

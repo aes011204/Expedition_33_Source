@@ -1,0 +1,212 @@
+﻿#pragma once
+
+#include <variant>
+
+#include "Delegate.h"
+#include "EffectCom.h"
+#include "ScalarTrackTypes.h"
+#include "CameraModifierTypes.h"
+
+enum class CinematicType
+{
+    Cinematic,
+    Interaction
+};
+
+typedef struct CameraPose
+{
+    Vec3  position = Vec3::Zero;
+    Vec3  rotation = Vec3::Zero;
+    float fovY = XMConvertToRadians(60.f);
+    float nearPlane = 0.1f;
+    float farPlane = 500.f;
+
+}CAMERAPOSE;
+
+
+typedef struct CinematicKeyframe
+{
+    int               frame = 0;
+    CAMERAPOSE        camPose;
+    InterpolationMode interpolation = InterpolationMode::Linear;
+
+}CINEMATIC_KEYFRAME;
+
+typedef struct CinematicActorRelativeCameraKeyframe
+{
+    int   frame = 0;
+    float distance = 3.f;
+    float height = 1.2f;
+    float sideOffset = 0.f;
+    float yawOffset = 0.f;
+    float pitch = 0.f;
+    float lookHeight = 1.f;
+    float fovY = XMConvertToRadians(60.f);
+    float nearPlane = 0.1f;
+    float farPlane = 500.f;
+
+    InterpolationMode interpolation = InterpolationMode::Linear;
+
+}CINEMATIC_ACTOR_RELATIVE_CAMERA_KEYFRAME;
+
+typedef struct CinematicTrack
+{
+    string name = "Camera Track";
+    bool   enabled = true;
+    vector<CINEMATIC_KEYFRAME> keyframes;
+
+}CINEMATIC_TRACK;
+
+typedef struct CinematicActorRelativeCameraTrack
+{
+    string targetId;
+    string name = "Actor Relative Camera Track";
+    bool   enabled = true;
+    vector<CINEMATIC_ACTOR_RELATIVE_CAMERA_KEYFRAME> keyframes;
+
+}CINEMATIC_ACTOR_RELATIVE_CAMERA_TRACK;
+
+typedef struct CinematicActorTransformKeyframe
+{
+    int frame = 0;
+    Vec3 position = Vec3::Zero;
+    Vec3 rotation = Vec3::Zero;
+    InterpolationMode interpolation = InterpolationMode::Linear;
+
+}CINEMATIC_ACTOR_TRANSFORM_KEYFRAME;
+
+typedef struct CinematicActorTransformTrack
+{
+    string targetId;
+    string name = "Actor Transform Track";
+    bool enabled = true;
+    vector<CINEMATIC_ACTOR_TRANSFORM_KEYFRAME> keyframes;
+
+}CINEMATIC_ACTOR_TRANSFORM_TRACK;
+
+typedef struct CinematicPartRotationKeyframe
+{
+    int frame = 0;
+    Vec3 rotation = Vec3::Zero;
+    InterpolationMode interpolation = InterpolationMode::Linear;
+
+}CINEMATIC_PART_ROTATION_KEYFRAME;
+
+typedef struct CinematicPartRotationTrack
+{
+    string targetId;
+    string partTag;
+    string name = "Part Rotation Track";
+    bool enabled = true;
+    vector<CINEMATIC_PART_ROTATION_KEYFRAME> keyframes;
+
+}CINEMATIC_PART_ROTATION_TRACK;
+
+typedef struct CinematicCameraShot
+{
+    string name = "Camera Shot";
+    int    trackIndex = 0;
+    int    startFrame = 0;
+    int    endFrame = 30;
+    bool   enabled = true;
+
+}CINEMATIC_CAMERA_SHOT;
+
+enum class CinematicCleanupPolicy
+{
+    DespawnOnStop,
+    Keep,
+};
+
+struct CinematicSpawnEventData
+{
+    string prefabName;
+    wstring layerTag = TEXT("Layer_GameObject");
+    Vec3 position = Vec3::Zero;
+    Vec3 rotation = Vec3::Zero;
+    Vec3 scale = Vec3::One;
+    CinematicCleanupPolicy cleanupPolicy = CinematicCleanupPolicy::DespawnOnStop;
+};
+
+struct CinematicPlayAnimEventData
+{
+    string animName;
+    float blendDuration = 0.25f;
+    bool loop = false;
+    float startFrame = 0.f;
+    float speed = 1.f;
+    bool holdFrame = false;
+};
+
+struct CinematicDespawnEventData
+{
+};
+
+struct CinematicPartVisibilityEventData
+{
+    string partTag;
+    bool visible = true;
+};
+
+struct CinematicWorldTimeScaleEventData
+{
+    float worldTimeScale = 1.f;
+};
+
+struct CinematicPlayEffectEventData
+{
+    wstring effectName;
+    Client::EffectCom::EffectPlayTarget target = Client::EffectCom::EffectPlayTarget::OwnerRoot;
+    wstring partTag;
+    string socketName;
+    wstring layerTag = L"Layer_Effect";
+    Vec3 localOffset = Vec3::Zero;
+    Vec3 localRotation = Vec3::Zero;
+    Vec3 scale = Vec3::One;
+    float playbackSpeed = 1.f;
+};
+
+struct CinematicPlaySoundEventData
+{
+    wstring soundCue;
+    bool useTargetPosition = true;
+    float volume = 1.f;
+    float speed = 1.f;
+    float startRatio = 0.f;
+};
+
+using CinematicEventPayload = variant<
+    CinematicSpawnEventData,
+    CinematicPlayAnimEventData,
+    CinematicDespawnEventData,
+    CinematicPartVisibilityEventData,
+    CinematicWorldTimeScaleEventData,
+    CinematicPlayEffectEventData,
+    CinematicPlaySoundEventData>;
+
+typedef struct CinematicEvent
+{
+    int frame = 0;
+    string targetId;
+    CinematicEventPayload payload{ CinematicSpawnEventData{} };
+
+}CINEMATIC_EVENT;
+
+typedef struct CinematicSequence
+{
+    string name = "New Sequence";
+    int    fps = 30;
+    vector<CINEMATIC_TRACK> cinematicTracks;
+    vector<CINEMATIC_ACTOR_RELATIVE_CAMERA_TRACK> actorRelativeCameraTracks;
+    vector<CINEMATIC_CAMERA_SHOT> cameraShots;
+    Client::CameraModifierClip modifierClip;
+    vector<CINEMATIC_EVENT> eventTrack;
+    vector<CINEMATIC_ACTOR_TRANSFORM_TRACK> actorTransformTracks;
+    vector<CINEMATIC_PART_ROTATION_TRACK> partRotationTracks;
+    int    startFrame = 0;
+    int    endFrame = 300;
+
+}CINEMATIC_SEQUENCE;
+
+// 시네마틱이 종료됐을 떄 알림용
+DECLARE_DELEGATE(FOnCinematicCompleted);

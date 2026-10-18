@@ -8,7 +8,7 @@ class ENGINE_DLL Timer : public Base
 {
 public:
 	Timer();
-	virtual ~Timer() { Free(); }
+	virtual ~Timer() = default;
 
 
 public:

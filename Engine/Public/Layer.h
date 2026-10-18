@@ -4,20 +4,29 @@
 
 NS_BEGIN(Engine)
 
+class GameObject;
+
 class Layer final : public Base
 {
 public:
 	Layer();
-	virtual ~Layer() { Free(); }
+	virtual ~Layer() = default;
 
 public:
-	HRESULT Add_GameObject(Shared<class GameObject> pGameObject);
-	void Priority_Update(float fTimeDelta);
-	void Update(float fTimeDelta);
-	void Late_Update(float fTimeDelta);
+	HRESULT Add_GameObject(Shared<GameObject> gameObject);
+    bool    Remove_GameObject(const Shared<GameObject>& gameObject);
+	void    Priority_Update(float timeDelta);
+	void    Update(float timeDelta);
+	void    Late_Update(float timeDelta);
+    void    Post_PhysX_Update(float timeDelta);
+
+public:
+    Shared<GameObject> Find_FirstObject();
+
+    const list<Shared<GameObject>>& Get_GameObjects() const { return _gameObjects; }
 
 private:
-	list<Shared<class GameObject>> _gameObjects;
+	list<Shared<GameObject>> _gameObjects;
 
 public:
 	static Shared<Layer> Create();

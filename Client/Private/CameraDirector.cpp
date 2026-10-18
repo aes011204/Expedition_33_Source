@@ -1,0 +1,193 @@
+﻿#include "CameraDirector.h"
+#include "GameInstance.h"
+#include "TargetCamera.h"
+#include "ClientInstance.h"
+#include "CinematicCamera.h"
+#include "DialogueCamera.h"
+
+namespace
+{
+    bool IsRegisteredCamera(const Shared<Camera>& camera)
+    {
+        if (camera == nullptr)
+            return false;
+
+        const int cameraCount = GAME->Get_CameraCount();
+        for (int i = 0; i < cameraCount; ++i)
+        {
+            if (GAME->Get_Camera(i) == camera)
+                return true;
+        }
+
+        return false;
+    }
+}
+
+CameraDirector::CameraDirector()
+{
+}
+
+CameraDirector::~CameraDirector()
+{
+}
+
+void CameraDirector::Request_GamePlay()
+{
+    if(GAME->Is_ActiveCameraType(ObjectType::TargetCamera))
+        return;
+
+    auto camera = GAME->Get_ActiveCamera();
+
+    if(camera == nullptr)
+    {
+        GAME->Activate_CameraByType(ObjectType::TargetCamera);
+        return;
+    }
+
+    if(GAME->Activate_CameraByType(ObjectType::TargetCamera))
+    {
+        _previousCamera = camera;
+    }
+}
+
+void CameraDirector::Request_SoulLikeCamera()
+{
+    if (GAME->Is_ActiveCameraType(ObjectType::SoulLikeCamera))
+        return;
+
+    auto camera = GAME->Get_ActiveCamera();
+
+    if (camera == nullptr)
+    {
+        GAME->Activate_CameraByType(ObjectType::SoulLikeCamera);
+        return;
+    }
+
+    if (GAME->Activate_CameraByType(ObjectType::SoulLikeCamera))
+    {
+        _previousCamera = camera;
+    }
+}
+
+void CameraDirector::Request_Preview()
+{
+    if(GAME->Is_ActiveCameraType(ObjectType::PreviewCamera))
+        return;
+
+    auto camera = GAME->Get_ActiveCamera();
+
+    if(camera == nullptr)
+        return;
+
+    if(GAME->Activate_CameraByType(ObjectType::PreviewCamera))
+    {
+        _previousCamera = camera;
+    }
+}
+
+void CameraDirector::Request_BattleTurn()
+{
+    if(GAME->Is_ActiveCameraType(ObjectType::BattleTurnCamera))
+        return;
+
+    auto camera = GAME->Get_ActiveCamera();
+
+    if(camera == nullptr)
+        return;
+
+    if(GAME->Activate_CameraByType(ObjectType::BattleTurnCamera))
+    {
+        _previousCamera = camera;
+    }
+}
+
+Shared<DialogueCamera>  CameraDirector::Request_DialogueCamera()
+{
+    Shared<Camera> currentCamera = nullptr;
+
+    if(GAME->Is_ActiveCameraType(ObjectType::DialogueCamera))
+    {
+        return dynamic_pointer_cast<DialogueCamera>(GAME->Get_ActiveCamera());
+    }
+
+    currentCamera = GAME->Get_ActiveCamera();
+
+    if(currentCamera == nullptr)
+        return nullptr;
+
+    auto dialogueCamera = CLIENT->Ensure_DialogueCamera();
+
+    if(!GAME->Activate_CameraByType(ObjectType::DialogueCamera))
+      return nullptr;
+
+    _previousCamera = currentCamera;
+    return dialogueCamera;
+}
+
+Shared<CinematicCamera> CameraDirector::Request_Cinematic()
+{
+    Shared<Camera> currentCamera = nullptr;
+
+    if(GAME->Is_ActiveCameraType(ObjectType::CinematicCamera))
+    {
+        return dynamic_pointer_cast<CinematicCamera>( GAME->Get_ActiveCamera());
+    }
+
+    currentCamera = GAME->Get_ActiveCamera();
+
+    if(currentCamera == nullptr)
+        return nullptr;
+
+    auto cinematicCamera = CLIENT->Ensure_CinematicCamera();
+
+    if(cinematicCamera == nullptr)
+        return nullptr;
+
+    if(!GAME->Activate_CameraByType(ObjectType::CinematicCamera))
+        return nullptr;
+
+    _previousCamera = currentCamera;
+    return cinematicCamera;
+}
+
+void CameraDirector::Restore_PreviousCamera()
+{
+    //이전 상태가 뭐냐에 따라서    GAME->Set_PlayerInputBlocked(false); 이거 할지말지 결정해야하나
+
+    if(_previousCamera == nullptr)
+        return;
+
+    if (!IsRegisteredCamera(_previousCamera))
+    {
+        _previousCamera.reset();
+        GAME->Activate_CameraByType(ObjectType::TargetCamera);
+        return;
+    }
+
+    if (const auto targetCamera = dynamic_pointer_cast<TargetCamera>(_previousCamera))
+        targetCamera->Change_Mode(TargetCameraMode::NORMAL);
+
+    GAME->Change_ActiveCamera(_previousCamera);
+
+    _previousCamera.reset();
+}
+
+void CameraDirector::Request_ChangeTargetCameraMode(TargetCameraMode cameraMode)
+{
+    const Shared<Camera> activeCamera = GAME->Get_ActiveCamera();
+
+    if(!GAME->Is_ActiveCameraType(ObjectType::TargetCamera))
+        GAME->Activate_CameraByType(ObjectType::TargetCamera);
+
+   auto targetCamera =  GAME->Get_CameraByType(ObjectType::TargetCamera);
+
+    if(targetCamera == nullptr)
+        return;
+
+    dynamic_pointer_cast<TargetCamera>(targetCamera)->Change_Mode(cameraMode);
+}
+
+Unique<CameraDirector> CameraDirector::Create()
+{
+    return make_unique<CameraDirector>();
+}

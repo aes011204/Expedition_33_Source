@@ -1,0 +1,728 @@
+﻿#include "PlayerStatCom.h"
+
+#include "GameObject.h"
+#include "ClientInstance.h"
+
+namespace
+{
+    struct WeaponGradeStatBonus
+    {
+        int32 vitality = 0;
+        int32 might = 0;
+        int32 agility = 0;
+        int32 defense = 0;
+        int32 luck = 0;
+    };
+
+    struct WeaponMilestoneStatBonus
+    {
+        int32 hp = 0;
+        int32 attack = 0;
+        int32 defense = 0;
+        int32 criticalRate = 0;
+    };
+
+    int32 Resolve_WeaponGradeBonusValue(const string& grade)
+    {
+        if (grade == "S")
+            return 20;
+
+        if (grade == "A")
+            return 10;
+
+        if (grade == "B")
+            return 5;
+
+        return 0;
+    }
+
+    string Resolve_PlayerCharacterIdFromOwner(const Shared<GameObject>& owner)
+    {
+        if (owner == nullptr)
+            return "";
+
+        const wstring& ownerName = owner->Get_Name();
+        if (ownerName.find(L"Gustave") != wstring::npos)
+            return "Gustave";
+
+        if (ownerName.find(L"Lune") != wstring::npos)
+            return "Lune";
+
+        if (ownerName.find(L"Maelle") != wstring::npos)
+            return "Maelle";
+
+        return "";
+    }
+
+    WeaponGradeStatBonus Resolve_EquippedWeaponGradeBonus(
+        const PlayerStatCom::PlayerCombatStatDesc& playerDesc,
+        const Shared<GameObject>& owner)
+    {
+        WeaponGradeStatBonus bonus{};
+        if (playerDesc.equippedWeaponId.empty())
+            return bonus;
+
+        const string characterId = Resolve_PlayerCharacterIdFromOwner(owner);
+        if (characterId.empty())
+            return bonus;
+
+        const uint32 enhanceLevel = CLIENT->Resolve_WeaponEnhanceLevel(characterId, playerDesc.equippedWeaponId);
+        const auto upgradeDesc = CLIENT->Get_WeaponUpgradeDesc(characterId, playerDesc.equippedWeaponId, enhanceLevel);
+        if (upgradeDesc == nullptr)
+            return bonus;
+
+        bonus.vitality = Resolve_WeaponGradeBonusValue(upgradeDesc->vitalityGrade);
+        bonus.might = Resolve_WeaponGradeBonusValue(upgradeDesc->mightGrade);
+        bonus.agility = Resolve_WeaponGradeBonusValue(upgradeDesc->agilityGrade);
+        bonus.defense = Resolve_WeaponGradeBonusValue(upgradeDesc->defenseGrade);
+        bonus.luck = Resolve_WeaponGradeBonusValue(upgradeDesc->luckGrade);
+        return bonus;
+    }
+
+    WeaponMilestoneStatBonus Resolve_EquippedWeaponMilestoneStatBonus(
+        const PlayerStatCom::PlayerCombatStatDesc& playerDesc,
+        const Shared<GameObject>& owner)
+    {
+        WeaponMilestoneStatBonus bonus{};
+        if (playerDesc.equippedWeaponId.empty())
+            return bonus;
+
+        const string characterId = Resolve_PlayerCharacterIdFromOwner(owner);
+        if (characterId.empty())
+            return bonus;
+
+        const uint32 enhanceLevel = CLIENT->Resolve_WeaponEnhanceLevel(characterId, playerDesc.equippedWeaponId);
+        const string& weaponId = playerDesc.equippedWeaponId;
+
+        if (characterId == "Gustave")
+        {
+            if (weaponId == "Lanceram" || weaponId == "Tireso")
+            {
+                if (enhanceLevel >= 1)
+                    bonus.criticalRate += 15;
+
+                if (enhanceLevel >= 5)
+                    bonus.attack += 158;
+            }
+            else if (weaponId == "Baguette")
+            {
+                if (enhanceLevel >= 1)
+                    bonus.criticalRate += 15;
+
+                if (enhanceLevel >= 5)
+                    bonus.defense += 158;
+            }
+        }
+        else if (characterId == "Lune")
+        {
+            if (weaponId == "Baguette")
+            {
+                if (enhanceLevel >= 5)
+                    bonus.criticalRate += 15;
+            }
+            else if (weaponId == "Colim" || weaponId == "Snowim")
+            {
+                if (enhanceLevel >= 5)
+                    bonus.hp += 158;
+            }
+        }
+        else if (characterId == "Maelle")
+        {
+            if (weaponId == "Medalum")
+            {
+                if (enhanceLevel >= 1)
+                    bonus.hp += 158;
+
+                if (enhanceLevel >= 5)
+                    bonus.defense += 158;
+            }
+            else if (weaponId == "Baguette")
+            {
+                if (enhanceLevel >= 1)
+                    bonus.criticalRate += 15;
+
+                if (enhanceLevel >= 5)
+                    bonus.hp += 158;
+            }
+            else if (weaponId == "Plenum")
+            {
+                if (enhanceLevel >= 1)
+                    bonus.attack += 158;
+
+                if (enhanceLevel >= 5)
+                    bonus.defense += 158;
+            }
+        }
+
+        return bonus;
+    }
+
+}
+
+IMPLEMENT_REFLECTION(PlayerStatCom)
+{
+    auto& info = GetStaticReflectionInfo();
+    info.properties.clear();
+
+    info.className = "PlayerStatCom";
+    info.displayName = "PlayerStatCom";
+
+    // 캐릭터별 초기 세팅값을 프리팹에서 직접 주기 위해
+    PROPERTY_INT("Level", _playerDesc.level, 1.f, 99.f, 1.f);
+    PROPERTY_INT("Exp", _playerDesc.exp, 0.f, 999999.f, 1.f);
+
+    PROPERTY_INT("Stat Point", _playerDesc.statPoint, 0.f, 999.f, 1.f);
+    PROPERTY_INT("Skill Point", _playerDesc.skillPoint, 0.f, 999.f, 1.f);
+    PROPERTY_INT("Respec Count", _playerDesc.respecCount, 0.f, 99.f, 1.f);
+
+    PROPERTY_INT("Vitality", _playerDesc.vitality, 0.f, 99.f, 1.f);
+    PROPERTY_INT("Might", _playerDesc.might, 0.f, 99.f, 1.f);
+    PROPERTY_INT("Agility", _playerDesc.agility, 0.f, 99.f, 1.f);
+    PROPERTY_INT("Defense", _playerDesc.defense, 0.f, 99.f, 1.f);
+    PROPERTY_INT("Luck", _playerDesc.luck, 0.f, 99.f, 1.f);
+
+    // 필요하면 테스트용으로 기본 전투값도 프리팹에서 분리 가능
+    PROPERTY_FLOAT("Base Max HP", _playerDesc.maxHp, 0.f, 9999.f, 1.f);
+    PROPERTY_INT("Base Max AP", _playerDesc.maxAp, 0.f, 99.f, 1.f);
+
+    PROPERTY_STRING("Portrait", _playerDesc.portraitGuid);
+    PROPERTY_WSTRING("Battle Announce Name", _playerDesc.battleAnnounceName);
+
+    return true;
+}
+
+PlayerStatCom::PlayerStatCom(const ComPtr<Device>& device, const ComPtr<Context>& context)
+    : CombatStatCom(device, context)
+{
+}
+
+PlayerStatCom::PlayerStatCom(const PlayerStatCom& Prototype)
+    : CombatStatCom(Prototype)
+    , _playerDesc(Prototype._playerDesc)
+    , _PRuntimeStat(Prototype._PRuntimeStat)
+{
+}
+
+HRESULT PlayerStatCom::Initialize_Prototype()
+{
+    return CombatStatCom::Initialize_Prototype();
+}
+
+HRESULT PlayerStatCom::Initialize(void* arg)
+{
+    CHECK_FAILED(CombatStatCom::Initialize(arg), E_FAIL);
+
+    PlayerCombatStatDesc desc{};
+    _PRuntimeStat = {};
+
+    if (arg != nullptr)
+    {
+        _playerDesc = *static_cast<PlayerCombatStatDesc*>(arg);
+    }
+    else
+    {
+        _playerDesc = desc;
+    }
+
+    // desc -> runtime 초기 반영
+    _PRuntimeStat.CurStatPoint = _playerDesc.statPoint;
+    _PRuntimeStat.CurSkillPoint = _playerDesc.skillPoint;
+    _PRuntimeStat.CurRespecCount = _playerDesc.respecCount;
+
+    _PRuntimeStat.CurVitality = _playerDesc.vitality;
+    _PRuntimeStat.CurMight = _playerDesc.might;
+    _PRuntimeStat.CurAgility = _playerDesc.agility;
+    _PRuntimeStat.CurDefense = _playerDesc.defense;
+    _PRuntimeStat.CurLuck = _playerDesc.luck;
+
+    _PRuntimeStat.CurLevel = _playerDesc.level;
+    _PRuntimeStat.CurExp = _playerDesc.exp;
+    _PRuntimeStat.CurChroma = _playerDesc.chroma;
+
+    _PRuntimeStat.CurMaxHp = _playerDesc.maxHp;
+    _PRuntimeStat.CurMaxAp = _playerDesc.maxAp;
+
+    Recalculate_Stats(); // 활력/무력/민첩/방어/행운으로 재계산
+    Update_StatInfo();   // UI가 읽는 CurMaxHp, CurAttack, CurSpeed 값 갱신용
+
+    _isPlayer = true;
+   
+
+    return S_OK;
+}
+
+void PlayerStatCom::From_Json(const json& data)
+{
+    CombatStatCom::From_Json(data);
+
+    _PRuntimeStat.CurStatPoint = _playerDesc.statPoint;
+    _PRuntimeStat.CurSkillPoint = _playerDesc.skillPoint;
+    _PRuntimeStat.CurRespecCount = _playerDesc.respecCount;
+
+    _PRuntimeStat.CurVitality = _playerDesc.vitality;
+    _PRuntimeStat.CurMight = _playerDesc.might;
+    _PRuntimeStat.CurAgility = _playerDesc.agility;
+    _PRuntimeStat.CurDefense = _playerDesc.defense;
+    _PRuntimeStat.CurLuck = _playerDesc.luck;
+
+    _PRuntimeStat.CurLevel = _playerDesc.level;
+    _PRuntimeStat.CurExp = _playerDesc.exp;
+    _PRuntimeStat.CurChroma = _playerDesc.chroma;
+
+    _PRuntimeStat.CurHp = _playerDesc.maxHp; // 테스트는 캐릭터별 풀피 상태로 통일
+    _PRuntimeStat.CurAp = _playerDesc.maxAp;
+    _PRuntimeStat.CurShield = _playerDesc.commonCharacterStats.ShieldPointsAtSpawn;
+
+    Recalculate_Stats(); // desc 기준 파생 스탯 확정
+    Update_StatInfo();   // CharacterStatus가 읽는 값 최종 반영
+
+
+    
+
+   
+
+
+}
+
+bool PlayerStatCom::Add_Stat(StatType type, int32 value)
+{
+    if (value <= 0)
+        return false;
+
+    if (_PRuntimeStat.CurStatPoint < static_cast<uint32>(value))
+        return false;
+
+    int32* stat = Find_StatValue(type);
+    if (stat == nullptr)
+        return false;
+
+    const float hpRate = (_playerDesc.maxHp > 0.f) ? (_PRuntimeStat.CurHp / _playerDesc.maxHp) : 1.f;
+
+    *stat += value;
+    _PRuntimeStat.CurStatPoint -= static_cast<uint32>(value);
+
+    Recalculate_Stats();
+    _PRuntimeStat.CurHp = _playerDesc.maxHp * hpRate;
+    Update_StatInfo();
+
+    return true;
+}
+
+bool PlayerStatCom::Reset_Stat()
+{
+    if (_PRuntimeStat.CurRespecCount == 0)
+        return false;
+
+    uint32 usedPoint = 0;
+
+    for (int32* stat : Get_StatValues())
+    {
+        usedPoint += static_cast<uint32>(max(0, *stat));
+        *stat = 0;
+    }
+
+    _PRuntimeStat.CurStatPoint += usedPoint;
+    --_PRuntimeStat.CurRespecCount;
+
+    Recalculate_Stats();
+    _PRuntimeStat.CurHp = min(_PRuntimeStat.CurHp, _playerDesc.maxHp);
+    
+    Update_StatInfo();
+
+    return true;
+}
+
+
+
+
+uint32 PlayerStatCom::Get_NextExp(uint32 level) const
+{
+    return CLIENT->Get_NextExp(level);
+}
+
+void PlayerStatCom::Add_Exp(uint32 value)
+{
+    // 만렙
+    if (_playerDesc.level >= 99)
+    {
+        _playerDesc.exp = 0;
+        Update_StatInfo();
+        return;
+    }
+
+    _playerDesc.exp += value;
+
+    while (_playerDesc.level < 99)
+    {
+        const uint32 nextExp = Get_NextExp(_playerDesc.level);
+        if (_playerDesc.exp < nextExp)
+            break;
+
+        _playerDesc.exp -= nextExp;
+        ++_playerDesc.level;
+        ++_PRuntimeStat.CurStatPoint;
+        ++_PRuntimeStat.CurSkillPoint;
+    }
+
+    if (_playerDesc.level >= 99)
+        _playerDesc.exp = 0;
+
+    const float hpRate = (_playerDesc.maxHp > 0.f) ? (_PRuntimeStat.CurHp / _playerDesc .maxHp) : 1.f;
+
+    Recalculate_Stats();
+
+    _PRuntimeStat.CurHp = _playerDesc.maxHp * hpRate;
+    //_PRuntimeStat.CurHp = _PRuntimeStat.CurHp;
+
+    Update_StatInfo();
+
+}
+
+void PlayerStatCom::Set_BattleStartAp()
+{
+    Get_StatInfo().maxAp = 9;   
+    Get_PlayerRuntimeStat().CurMaxAp = 9;
+    Get_PlayerRuntimeStat().CurAp = 3;
+}
+
+void PlayerStatCom::Set_EquippedWeapon(const string& weaponId, uint32 power)
+{
+    const float hpRate = (_playerDesc.maxHp > 0.f) ? (_PRuntimeStat.CurHp / _playerDesc.maxHp) : 1.f;
+
+    _playerDesc.equippedWeaponId = weaponId;
+    _playerDesc.equippedWeaponPower = power;
+
+    // 무기 Power와 등급 보너스가 파생 스탯에 들어가므로 즉시 재계산
+    Recalculate_Stats();
+    _PRuntimeStat.CurHp = _playerDesc.maxHp * hpRate;
+    Update_StatInfo();
+}
+
+PlayerStatCom::PreviewStat PlayerStatCom::Calculate_PreviewStat(int32 vitality, int32 might, int32 agility,
+                                                                int32 defense, int32 luck)
+{
+    PreviewStat preview{};
+    preview.maxHp = 100.f + static_cast<float>(vitality) * 10.f;                  // 기존 HP 공식
+    preview.physicalAttack = 10.f + static_cast<float>(might) * 2.f;              // 기존 공격력 공식
+    preview.speed = 100.f + static_cast<float>(agility) * 2.f;                    // 기존 속도 공식
+    preview.physicalDefense = static_cast<float>(defense) * 2.f;                  // 기존 방어 공식
+    preview.criticalRate = min(100.f, static_cast<float>(luck) * 0.5f); // 기존 치명타율 공식
+
+    return preview;
+}
+
+void PlayerStatCom::Set_RuntimePrimaryStats(int32 vitality, int32 might, int32 agility, int32 defense, int32 luck)
+{
+    const float hpRate = (_playerDesc.maxHp > 0.f) ? (_PRuntimeStat.CurHp / _playerDesc.maxHp) : 1.f;
+
+    // CharacterStatus / Inspector가 같은 현재값을 보게 하려고 runtime 원본값을 먼저 갱신
+    _PRuntimeStat.CurVitality = vitality;
+    _PRuntimeStat.CurMight = might;
+    _PRuntimeStat.CurAgility = agility;
+    _PRuntimeStat.CurDefense = defense;
+    _PRuntimeStat.CurLuck = luck;
+
+    // 현재 구조상 Update_StatInfo()는 desc도 같이 쓰므로 desc도 동기화해 둔다.
+    _playerDesc.vitality = vitality;
+    _playerDesc.might = might;
+    _playerDesc.agility = agility;
+    _playerDesc.defense = defense;
+    _playerDesc.luck = luck;
+
+    Recalculate_Stats();
+    _PRuntimeStat.CurHp = _playerDesc.maxHp * hpRate; // 스탯 조정 후 현재 체력 비율 유지
+    Update_StatInfo();
+}
+
+void PlayerStatCom::Set_RuntimeProgress(uint32 level, uint32 exp, uint32 statPoint, uint32 skillPoint,
+    uint32 respecCount)
+{
+    // Player 쪽은 CurLevel / CurExp가 desc에서 다시 채워지므로 desc를 먼저 갱신
+    _playerDesc.level = level;
+    _playerDesc.exp = exp;
+    _playerDesc.statPoint = statPoint;
+    _playerDesc.skillPoint = skillPoint;
+    _playerDesc.respecCount = respecCount;
+
+    _PRuntimeStat.CurStatPoint = statPoint;
+    _PRuntimeStat.CurSkillPoint = skillPoint;
+    _PRuntimeStat.CurRespecCount = respecCount;
+
+    Update_StatInfo();
+}
+
+void PlayerStatCom::Restore_HpToMax()
+{
+    Update_StatInfo();
+    _PRuntimeStat.CurHp = _PRuntimeStat.CurMaxHp;
+    Set_AliveStatus(EAliveStatus::Alive);
+}
+
+PlayerStatCom::BattleSyncSnapshot PlayerStatCom::Create_BattleSyncSnapshot() const
+{
+    BattleSyncSnapshot snapshot{};
+    snapshot.desc = _playerDesc;
+
+    // desc만 넘기면, F로 반영한 스탯이 빠질수도 있어서 추가로
+    snapshot.curStatPoint = _PRuntimeStat.CurStatPoint;
+    snapshot.curSkillPoint = _PRuntimeStat.CurSkillPoint;
+    snapshot.curRespecCount = _PRuntimeStat.CurRespecCount;
+
+    snapshot.curVitality = _playerDesc.vitality;
+    snapshot.curMight = _playerDesc.might;
+    snapshot.curAgility = _playerDesc.agility;
+    snapshot.curDefense = _playerDesc.defense;
+    snapshot.curLuck = _playerDesc.luck;
+
+    snapshot.curHp = _PRuntimeStat.CurHp;
+    snapshot.curAp = _PRuntimeStat.CurAp;
+    snapshot.curShield = _PRuntimeStat.CurShield;
+
+    return snapshot;
+}
+
+void PlayerStatCom::Apply_BattleSyncSnapshot(const BattleSyncSnapshot& snapshot)
+{
+    _playerDesc = snapshot.desc;
+
+    _PRuntimeStat.CurStatPoint = snapshot.curStatPoint;
+    _PRuntimeStat.CurSkillPoint = snapshot.curSkillPoint;
+    _PRuntimeStat.CurRespecCount = snapshot.curRespecCount;
+
+    _PRuntimeStat.CurVitality = snapshot.curVitality;
+    _PRuntimeStat.CurMight = snapshot.curMight;
+    _PRuntimeStat.CurAgility = snapshot.curAgility;
+    _PRuntimeStat.CurDefense = snapshot.curDefense;
+    _PRuntimeStat.CurLuck = snapshot.curLuck;
+
+    Recalculate_Stats();
+    Update_StatInfo();
+
+    // 계산 후 다시 덮어써야 전투 중 소모/피해 결과가 유지
+    _PRuntimeStat.CurHp = min(snapshot.curHp, _PRuntimeStat.CurMaxHp);
+    _PRuntimeStat.CurAp = min(snapshot.curAp, _PRuntimeStat.CurMaxAp);
+    _PRuntimeStat.CurShield = snapshot.curShield;
+}
+
+json PlayerStatCom::Create_SaveJson() const
+{
+    const BattleSyncSnapshot snapshot = Create_BattleSyncSnapshot();
+
+    json root = json::object();
+    root["level"] = snapshot.desc.level;
+    root["exp"] = snapshot.desc.exp;
+    root["stat_point"] = snapshot.curStatPoint;
+    root["skill_point"] = snapshot.curSkillPoint;
+    root["respec_count"] = snapshot.curRespecCount;
+    root["vitality"] = snapshot.curVitality;
+    root["might"] = snapshot.curMight;
+    root["agility"] = snapshot.curAgility;
+    root["defense"] = snapshot.curDefense;
+    root["luck"] = snapshot.curLuck;
+    root["hp"] = snapshot.curHp;
+    root["ap"] = snapshot.curAp;
+    root["shield"] = snapshot.curShield;
+    root["equipped_weapon_id"] = snapshot.desc.equippedWeaponId;
+    root["equipped_weapon_power"] = snapshot.desc.equippedWeaponPower;
+    root["equipped_pictos_ids"] = snapshot.desc.equippedPictosIds;
+    root["_skillKeys"] = Get_SkillKeys();
+    root["alive_status"] = string(magic_enum::enum_name(const_cast<PlayerStatCom*>(this)->Get_AliveStatus()));
+
+    return root;
+}
+
+bool PlayerStatCom::Apply_SaveJson(const json& data)
+{
+    if (!data.is_object())
+        return false;
+
+    BattleSyncSnapshot snapshot = Create_BattleSyncSnapshot();
+
+    snapshot.desc.level = data.value("level", snapshot.desc.level);
+    snapshot.desc.exp = data.value("exp", snapshot.desc.exp);
+
+    snapshot.curStatPoint = data.value("stat_point", snapshot.curStatPoint);
+    snapshot.curSkillPoint = data.value("skill_point", snapshot.curSkillPoint);
+    snapshot.curRespecCount = data.value("respec_count", snapshot.curRespecCount);
+
+    snapshot.curVitality = data.value("vitality", snapshot.curVitality);
+    snapshot.curMight = data.value("might", snapshot.curMight);
+    snapshot.curAgility = data.value("agility", snapshot.curAgility);
+    snapshot.curDefense = data.value("defense", snapshot.curDefense);
+    snapshot.curLuck = data.value("luck", snapshot.curLuck);
+
+    snapshot.desc.statPoint = snapshot.curStatPoint;       // desc/runtime 양쪽을 같은 진행 상태로 맞춘다.
+    snapshot.desc.skillPoint = snapshot.curSkillPoint;
+    snapshot.desc.respecCount = snapshot.curRespecCount;
+    snapshot.desc.vitality = snapshot.curVitality;
+    snapshot.desc.might = snapshot.curMight;
+    snapshot.desc.agility = snapshot.curAgility;
+    snapshot.desc.defense = snapshot.curDefense;
+    snapshot.desc.luck = snapshot.curLuck;
+
+    snapshot.curHp = data.value("hp", snapshot.curHp);
+    snapshot.curAp = data.value("ap", snapshot.curAp);
+    snapshot.curShield = data.value("shield", snapshot.curShield);
+
+    snapshot.desc.equippedWeaponId = data.value("equipped_weapon_id", snapshot.desc.equippedWeaponId);
+    snapshot.desc.equippedWeaponPower = data.value("equipped_weapon_power", snapshot.desc.equippedWeaponPower);
+
+    if (auto pictosIds = data.find("equipped_pictos_ids"); pictosIds != data.end() && pictosIds->is_array())
+    {
+        for (size_t i = 0; i < EquippedPictosSlotCount && i < pictosIds->size(); ++i)
+        {
+            if ((*pictosIds)[i].is_string())
+                snapshot.desc.equippedPictosIds[i] = (*pictosIds)[i].get<string>();
+        }
+    }
+
+    if (auto skillKeys = data.find("_skillKeys"); skillKeys != data.end() && skillKeys->is_array())
+    {
+        vector<string> savedSkillKeys{};
+        for (const json& entry : *skillKeys)
+        {
+            if (entry.is_string())
+                savedSkillKeys.emplace_back(entry.get<string>());
+        }
+        Set_SkillKeys(savedSkillKeys);
+    }
+
+    Apply_BattleSyncSnapshot(snapshot);
+
+    if (const auto aliveStatus = magic_enum::enum_cast<EAliveStatus>(data.value("alive_status", string{})))
+        Set_AliveStatus(aliveStatus.value());
+
+    return true;
+}
+
+void PlayerStatCom::Set_EquippedPictos(size_t slotIndex, const string& pictosId)
+{
+    if (slotIndex >= EquippedPictosSlotCount)
+        return;
+
+    const float hpRate = (_playerDesc.maxHp > 0.f) ? (_PRuntimeStat.CurHp / _playerDesc.maxHp) : 1.f;
+
+    _playerDesc.equippedPictosIds[slotIndex] = pictosId;
+    Recalculate_Stats();
+    _PRuntimeStat.CurHp = _playerDesc.maxHp * hpRate; // HP 픽토스 장착/해제 시 현재 체력 비율을 즉시 유지한다.
+    Update_StatInfo();
+}
+
+int32* PlayerStatCom::Find_StatValue(StatType type)
+{
+    switch (type)
+    {
+    case StatType::Vitality: return &_playerDesc.vitality;
+    case StatType::Might:    return &_playerDesc.might;
+    case StatType::Agility:  return &_playerDesc.agility;
+    case StatType::Defense:  return &_playerDesc.defense;
+    case StatType::Luck:     return &_playerDesc.luck;
+    default:                 return nullptr;
+    }
+}
+
+array<int32*, static_cast<size_t>(StatType::END)> PlayerStatCom::Get_StatValues()
+{
+    return { &_playerDesc.vitality, &_playerDesc.might, &_playerDesc.agility, &_playerDesc.defense, &_playerDesc.luck };
+}
+
+void PlayerStatCom::Recalculate_Stats()
+{
+    const WeaponGradeStatBonus weaponBonus = Resolve_EquippedWeaponGradeBonus(_playerDesc, Get_Owner());
+    const WeaponMilestoneStatBonus milestoneBonus = Resolve_EquippedWeaponMilestoneStatBonus(_playerDesc, Get_Owner());
+
+    _PRuntimeStat.CurVitality = _playerDesc.vitality + weaponBonus.vitality;
+    _PRuntimeStat.CurMight = _playerDesc.might + weaponBonus.might;
+    _PRuntimeStat.CurAgility = _playerDesc.agility + weaponBonus.agility;
+    _PRuntimeStat.CurDefense = _playerDesc.defense + weaponBonus.defense;
+    _PRuntimeStat.CurLuck = _playerDesc.luck + weaponBonus.luck;
+
+    const PreviewStat preview = Calculate_PreviewStat(
+        _PRuntimeStat.CurVitality,
+        _PRuntimeStat.CurMight,
+        _PRuntimeStat.CurAgility,
+        _PRuntimeStat.CurDefense,
+        _PRuntimeStat.CurLuck);
+
+    const float weaponAttack = static_cast<float>(_playerDesc.equippedWeaponPower);
+
+    int32 resultHp = 0;
+    int32 resultSpeed = 0;
+    int32 resultCritical = 0;
+
+    for (const string& pictosId : _playerDesc.equippedPictosIds)
+    {
+        if (pictosId.empty())
+            continue;
+
+        const GameDataTable::PictosDesc* pictosDesc = CLIENT->Get_PictosDesc(pictosId);
+        if (!pictosDesc)
+            continue;
+
+        // 픽토스 데이터 연동, 증가
+        resultHp += pictosDesc->hp;
+        resultSpeed += pictosDesc->speed;
+        resultCritical += pictosDesc->critical;
+    }
+
+    _playerDesc.maxHp = preview.maxHp + static_cast<float>(resultHp + milestoneBonus.hp);
+    _playerDesc.physicalAttack = preview.physicalAttack + weaponAttack + static_cast<float>(milestoneBonus.attack);
+    _playerDesc.physicalDefense = preview.physicalDefense + static_cast<float>(milestoneBonus.defense);
+    _playerDesc.speed = preview.speed + static_cast<float>(resultSpeed);
+    _playerDesc.criticalRate = preview.criticalRate + static_cast<float>(resultCritical + milestoneBonus.criticalRate);
+
+    _PRuntimeStat.CurHp = min(_PRuntimeStat.CurHp, _playerDesc.maxHp);
+}
+
+void PlayerStatCom::Update_StatInfo()
+{
+    _PRuntimeStat.CurLevel = _playerDesc.level;
+    _PRuntimeStat.CurExp = _playerDesc.exp;
+    _PRuntimeStat.CurChroma = _playerDesc.chroma;
+    _PRuntimeStat.nextExp = Get_NextExp(_playerDesc.level);
+    _PRuntimeStat.CurMaxExp = _PRuntimeStat.nextExp;
+
+    _PRuntimeStat.CurMaxHp = _playerDesc.maxHp;
+    _PRuntimeStat.CurMaxAp = _playerDesc.maxAp;
+    _PRuntimeStat.CurPhysicalAttack = _playerDesc.physicalAttack;
+    _PRuntimeStat.CurPhysicalDefense = _playerDesc.physicalDefense;
+    _PRuntimeStat.CurAccuracy = _playerDesc.accuracy;
+    _PRuntimeStat.CurSpeed = _playerDesc.speed;
+    _PRuntimeStat.CurCriticalRate = _playerDesc.criticalRate;
+    _PRuntimeStat.CurMastery = _playerDesc.mastery;
+    _PRuntimeStat.CurCriticalChance = _playerDesc.criticalChance;
+
+    _PRuntimeStat.CurEquippedWeaponId = _playerDesc.equippedWeaponId;
+    _PRuntimeStat.CurEquippedWeaponPower = _playerDesc.equippedWeaponPower;
+}
+
+Shared<PlayerStatCom> PlayerStatCom::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)
+{
+    auto instance = make_shared<PlayerStatCom>(device, context);
+
+    if (FAILED(instance->Initialize_Prototype()))
+    {
+        LOG_ERROR("Failed to Created : PlayerStatCom");
+        return nullptr;
+    }
+
+    return instance;
+}
+
+Shared<Component> PlayerStatCom::Clone(void* arg)
+{
+    auto clone = make_shared<PlayerStatCom>(*this);
+
+    if (FAILED(clone->Initialize(arg)))
+    {
+        MSG_BOX("Failed to Cloned : PlayerStatCom");
+        return nullptr;
+    }
+
+    return clone;
+}
+
+void PlayerStatCom::Free()
+{
+    CombatStatCom::Free();
+}

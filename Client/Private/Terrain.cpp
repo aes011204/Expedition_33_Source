@@ -1,13 +1,24 @@
-#include "Terrain.h"
+﻿#include "Terrain.h"
 #include "GameInstance.h"
 
-Terrain::Terrain(ComPtr<Device> device, ComPtr<Context> context)
+IMPLEMENT_REFLECTION(Terrain)
+{
+    auto& info = GetStaticReflectionInfo();
+    info.properties.clear();
+
+    info.displayName = "Terrain";
+    info.category = "World";
+
+    return true;
+}
+
+Terrain::Terrain(const ComPtr<Device>& device, const ComPtr<Context>& context)
 	: GameObject { device, context }
 {
 }
 
-Terrain::Terrain(const Terrain& Prototype)
-	: GameObject { Prototype }
+Terrain::Terrain(const Terrain& prototype)
+	: GameObject { prototype }
 
 {
 }
@@ -40,7 +51,7 @@ void Terrain::Update(float fTimeDelta)
 
 void Terrain::Late_Update(float fTimeDelta)
 {
- 	GAME->Add_RenderGroup(RenderGroup::NONBLEND, this);
+ 	GAME->Add_RenderGroup(RenderGroup::NonBlend, GetSharedPtr<GameObject>());
 }
 
 HRESULT Terrain::Render()
@@ -63,14 +74,14 @@ HRESULT Terrain::Render()
 
 HRESULT Terrain::Ready_Components()
 {
-	if (FAILED(__super::Add_Component(ETOI(LevelType::GamePlay), TEXT("Texture_Terrain"), _textures[TEXTURE::DIFFUSE])))
+	if (FAILED(__super::Add_Component(ETOI(LevelType::GamePlay), TEXT("Texture_Terrain"), _textures[TEXTURE::Diffuse])))
 		return E_FAIL;
-	if (FAILED(__super::Add_Component(ETOI(LevelType::GamePlay), TEXT("Texture_Terrain_Mask"), _textures[TEXTURE::MASK])))
+	if (FAILED(__super::Add_Component(ETOI(LevelType::GamePlay), TEXT("Texture_Terrain_Mask"), _textures[TEXTURE::Mask])))
 		return E_FAIL;
-	if (FAILED(__super::Add_Component(ETOI(LevelType::GamePlay), TEXT("Texture_Terrain_Brush"), _textures[TEXTURE::BRUSH])))
+	if (FAILED(__super::Add_Component(ETOI(LevelType::GamePlay), TEXT("Texture_Terrain_Brush"), _textures[TEXTURE::Brush])))
 		return E_FAIL;
 
-	if (FAILED(__super::Add_Component(ETOI(LevelType::GamePlay), TEXT("Shader_VtxNorTex"), _shader)))
+	if (FAILED(__super::Add_Component(ETOI(LevelType::Static), TEXT("Shader_VtxNorTex"), _shader)))
 		return E_FAIL;
 
 	if (FAILED(__super::Add_Component(ETOI(LevelType::GamePlay), TEXT("VIBuffer_Terrain"), _vibuffer)))
@@ -84,39 +95,22 @@ HRESULT Terrain::Bind_ShaderResources()
 	if (FAILED(_transformCom->Bind_ShaderResource(_shader.get(), "g_WorldMatrix")))
 		return E_FAIL;
 
-	if (FAILED(GAME->Bind_TransformMatrix(D3DTS::VIEW, _shader.get(), "g_ViewMatrix")))
+	if (FAILED(GAME->Bind_TransformMatrix(D3DTS::View, _shader.get(), "g_ViewMatrix")))
 		return E_FAIL;
 
-	if (FAILED(GAME->Bind_TransformMatrix(D3DTS::PROJ, _shader.get(), "g_ProjMatrix")))
+	if (FAILED(GAME->Bind_TransformMatrix(D3DTS::Proj, _shader.get(), "g_ProjMatrix")))
 		return E_FAIL;
 
-	if (FAILED(_textures[TEXTURE::DIFFUSE]->Bind_ShaderResourceViews(_shader.get(), "g_DiffuseTexture")))
-		return E_FAIL;
-	if (FAILED(_textures[TEXTURE::MASK]->Bind_ShaderResourceView(_shader.get(), "g_MaskTexture", 0)))
-		return E_FAIL;
-	if (FAILED(_textures[TEXTURE::BRUSH]->Bind_ShaderResourceView(_shader.get(), "g_BrushTexture", 0)))
-		return E_FAIL;
+    if (FAILED(GAME->Bind_CameraFar(_shader, "g_Far")))
+        return E_FAIL;
 
-	if (FAILED(GAME->Bind_CamPosition(_shader.get(), "g_vCamPosition")))
-		return E_FAIL;
-
-	const LIGHT_DESC*		pLightDesc = GAME->Get_LightDesc(0);
-	if (nullptr == pLightDesc)
-		return E_FAIL;
-
-	if (FAILED(_shader->Bind_RawValue("g_vLightDir", &pLightDesc->vDirection, sizeof(XMFLOAT4))))
-		return E_FAIL;
-	if (FAILED(_shader->Bind_RawValue("g_vLightDiffuse", &pLightDesc->vDiffuse, sizeof(XMFLOAT4))))
-		return E_FAIL;
-	if (FAILED(_shader->Bind_RawValue("g_vLightAmbient", &pLightDesc->vAmbient, sizeof(XMFLOAT4))))
-		return E_FAIL;
-	if (FAILED(_shader->Bind_RawValue("g_vLightSpecular", &pLightDesc->vSpecular, sizeof(XMFLOAT4))))
+	if (FAILED(_textures[TEXTURE::Diffuse]->Bind_ShaderResourceView(_shader.get(), "g_DiffuseTexture", 0)))
 		return E_FAIL;
 
 	return S_OK;
 }
 
-Shared<Terrain> Terrain::Create(ComPtr<Device> device, ComPtr<Context> context)
+Shared<Terrain> Terrain::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)
 {
 	auto pInstance = make_shared<Terrain>(device, context);
 
@@ -144,14 +138,6 @@ Shared<GameObject> Terrain::Clone(void* pArg)
 void Terrain::Free()
 {
 	__super::Free();
-
-	
-	Safe_Release(_shader);
-
-	for (auto& pTextureCom : _textures)
-		Safe_Release(pTextureCom);
-	
-	Safe_Release(_vibuffer);
 }
 
 

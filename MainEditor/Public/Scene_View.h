@@ -1,11 +1,10 @@
 ﻿#pragma once
 
-#include "EditorWindow.h"
-#include "Editor_ImGuiInclude.h"
+#include "Editor_Window.h"
 
 NS_BEGIN(MainEditor)
 
-class Scene_View final : public EditorWindow
+class Scene_View final : public Editor_Window
 {
 public:
     /* 에디터 카메라 렌더링과 기즈모 편집을 붙일 씬 뷰포트 창을 생성한다. */
@@ -13,23 +12,62 @@ public:
     virtual ~Scene_View() = default;
 
 public:
-    /* ImGui 렌더 전에 씬 뷰포트의 임시 상태를 갱신한다. */
-    virtual void Update(float fTimeDelta) override;
-
-    /* 씬 뷰포트 영역과 기본 ImGuizmo 툴바를 그린다. */
+    virtual void Update(float timeDelta) override;
+    virtual void Pre_Render() override;
     virtual void Render() override;
 
+    // for PathTool
+public:
+    ImVec2 Get_ViewportMin() const { return _viewportMin; }
+    ImVec2 Get_ViewportMax() const { return _viewportMax; }
+
 private:
-    /* 트랜스폼 기즈모 모드를 바꾸는 간단한 툴바를 그린다. */
-    void Render_GizmoToolbar();
+    void Handle_GizmoShortcut();
+    void Render_GizmoOverlay();
+    void Render_PreviewViewportOverlay();
+    void Sync_PreviewViewportInput();
+
+    /* MRT 디버그 렌더 */
+    void Render_MRTDebugPopup();
 
     /* 렌더 타겟이 연결되기 전까지 사용할 임시 뷰포트 영역을 그린다. */
     void Render_ViewportCanvas();
+    void Handle_FocusRequest();
+    void Render_SelectedObjectGizmo();
+    void Tick_SelectedLoopingEffect(float timeDelta);
+
+private: /* Prefab Preview */ 
+    void Set_DragPreviewObject(const string& prefabName);
+    void Clear_DragPreviewObject();
+    void Tick_DragPreview(float timeDelta);
 
 private:
-    ImVec2 _viewportSize = {};                      /* 마지막으로 표시된 씬 뷰포트 크기. */
-    ImGuizmo::OPERATION _gizmoOperation = ImGuizmo::TRANSLATE; /* 씬 기즈모의 현재 트랜스폼 동작. */
-    ImGuizmo::MODE _gizmoMode = ImGuizmo::LOCAL;    /* 선택 오브젝트 편집에 사용할 현재 트랜스폼 좌표계. */
+    /* 마지막으로 표시된 씬 뷰포트 크기. */
+    ImVec2 _viewportSize = {};
+    ImVec2 _viewportCanvasMin = {};
+    ImVec2 _viewportCanvasMax = {};
+    ImVec2 _viewportMin = {};
+    ImVec2 _viewportMax = {};
+
+    ImGuizmo::OPERATION _gizmoOperation = ImGuizmo::TRANSLATE;
+    ImGuizmo::MODE _gizmoMode = ImGuizmo::LOCAL;
+    bool _altDuplicateActive = false;
+    /* MRT 디버그 전체 드로우 영역 크기. */
+    ImVec2 _mrtDebugDrawArea = ImVec2(0.f, 0.f);
+    /* DrawArea 기본값을 씬 뷰 크기로 한 번만 동기화했는지 여부. */
+    bool _mrtDebugInitialized = false;
+
+    int _pendingPreviewViewportWidth = 0;
+    int _pendingPreviewViewportHeight = 0;
+
+private: /* Prefab Preview */
+    Shared<GameObject>  _dragPreviewObject;
+    string              _dragPreviewPrefabName{};
+    POINT               _dragPreviewPixelPos{};
+
+    bool                _dragPreviewRequestPending = false;
+    bool                _dragPreviewHasWorldPos = false;
+    Vec3                _dragPreviewWorldPos = Vec3::Zero;
 
 public:
     static Shared<Scene_View> Create();

@@ -1,56 +1,123 @@
-#include "Font_Manager.h"
+﻿#include "Font_Manager.h"
 #include "CustomFont.h"
 
-Font_Manager::Font_Manager(ComPtr<Device> device, ComPtr<Context> context)
+namespace
+{
+    float Resolve_FontScaleCorrection(const wchar_t* fontFilePath)
+    {
+        if (nullptr == fontFilePath || L'\0' == *fontFilePath)
+            return 1.f;
+
+        const string fileName = String::ToLowerCopy(
+            String::ToString(fs::path(fontFilePath).filename().wstring()));
+
+        if (fileName == "33_mainkr_font.spritefont")
+        {
+            return 24.f / 56.f;
+        }
+
+        if (fileName == "33_subkr_font.spritefont")
+        {
+            return 24.f / 60.f;
+        }
+
+        if (fileName == "33_damagenum_font.spritefont")
+        {
+            return 24.f / 240.f;
+        }
+
+        if (fileName == "33_mainen_font.spritefont"  ||
+            fileName == "33_mainnum_font.spritefont" ||
+            fileName == "33_subnum_font.spritefont")
+        {
+            return 24.f / 96.f;
+        }
+
+        return 1.f;
+    }
+}
+
+Font_Manager::Font_Manager(const ComPtr<Device>& device, const ComPtr<Context>& context)
     : _device { device }
     , _context{ context }
 {
 }
 
-HRESULT Font_Manager::Add_Font(const wstring& strFontTag, const wchar_t* pFontFilePath)
+Font_Manager::~Font_Manager()
 {
-    if (nullptr != Find_Font(strFontTag))
+    int a = 10;
+}
+
+HRESULT Font_Manager::Add_Font(const wstring& fontTag, const wchar_t* fontFilePath)
+{
+    if (Has_Font(fontTag))
+    {
+        LOG_WARN("Font already registered: {}", String::ToString(fontTag));
+        return S_OK;
+    }
+
+    Shared<CustomFont> font = CustomFont::Create(
+        _device.Get(),
+        _context.Get(),
+        fontFilePath,
+        Resolve_FontScaleCorrection(fontFilePath));
+    if (nullptr == font)
         return E_FAIL;
 
-    Shared<CustomFont> pFont = CustomFont::Create(_device.Get(), _context.Get(), pFontFilePath);
-    if (nullptr == pFont)
-        return E_FAIL;
-
-    _fonts.emplace(strFontTag, pFont);
+    _fonts.emplace(fontTag, font);
 
     return S_OK;
 }
 
-void Font_Manager::Draw(const wstring& strFontTag, const wchar_t* pText, const Vec2& position, FXMVECTOR vColor)
+bool Font_Manager::Has_Font(const wstring& fontTag) const
 {
-    auto    pFont = Find_Font(strFontTag);
-    
-    if(nullptr == pFont)
-        return;
-
-    pFont->Draw(pText, position, vColor);
+    return nullptr != Find_Font(fontTag);
 }
 
-Shared<CustomFont> Font_Manager::Find_Font(const wstring& strFontTag)
+Vec2 Font_Manager::Measure(const wstring& fontTag, const wchar_t* text)
 {
-    auto    iter = _fonts.find(strFontTag);
+    auto    font = Find_Font(fontTag);
+
+    if(nullptr == font)
+        return Vec2(0.f, 0.f);
+
+    return font->Measure(text);
+}
+
+void Font_Manager::Draw(
+    const wstring& fontTag,
+    const wchar_t* text,
+    const Vec2& position,
+    FXMVECTOR color,
+    float rotationRadians,
+    const Vec2& pivot,
+    float scale)
+{
+    auto    font = Find_Font(fontTag);
+    
+    if(nullptr == font)
+        return;
+
+    font->Draw(text, position, color, rotationRadians, pivot, scale);
+}
+
+Shared<CustomFont> Font_Manager::Find_Font(const wstring& fontTag) const
+{
+    auto    iter = _fonts.find(fontTag);
     if(iter == _fonts.end())
         return nullptr; 
 
     return iter->second;
 }
 
-Unique<Font_Manager> Font_Manager::Create(ComPtr<Device> device, ComPtr<Context> context)
+Unique<Font_Manager> Font_Manager::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)
 {
-    return Unique<Font_Manager>{ new Font_Manager(device, context) };
+    return make_unique<Font_Manager>(device, context);
 }
 
 void Font_Manager::Free()
 {
     __super::Free();
-
-    for (auto& Pair : _fonts)
-        Safe_Release(Pair.second);
 
     _fonts.clear();
 }

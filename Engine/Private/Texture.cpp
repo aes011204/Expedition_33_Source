@@ -1,106 +1,142 @@
 ﻿#include "Texture.h"
 
-#include "Shader.h"
+#include "DebugMemoryTracker.h"
+#include "ShaderCom.h"
 
-Texture::Texture(ComPtr<Device> device, ComPtr<Context> context)
+Texture::Texture(const ComPtr<Device>& device, const ComPtr<Context>& context)
     : Component { device, context }
 {
 }
 
-Texture::Texture(const Texture& Prototype)
-    : Component{ Prototype }
-    , _numSRVs { Prototype._numSRVs }
-    , _srvs { Prototype._srvs }
+Texture::Texture(const Texture& prototype)
+    : Component{ prototype }
+    , _numSRVs { prototype._numSRVs }
+    , _srvs { prototype._srvs }
 {
-    for (auto& pSRV : _srvs)
-        Safe_AddRef(pSRV);
+    
 }
 
-HRESULT Texture::Initialize_Prototype(const wchar_t* pTextureFilePath, uint32 iNumSRVs)
+HRESULT Texture::Initialize_Prototype(const wchar_t* texturePathPattern, uint32 numSRVs, bool ignoreWicSrgb)
 {
-    _numSRVs = iNumSRVs;
+    if (nullptr == texturePathPattern || L'\0' == *texturePathPattern)
+        return E_FAIL;
 
-    for (size_t i = 0; i < iNumSRVs; i++)
+    _numSRVs = numSRVs;
+    _srvs.clear();
+    _srvs.reserve(numSRVs);
+
+    for (size_t i = 0; i < numSRVs; i++)
     {
-        ID3D11ShaderResourceView* pSRV = { nullptr };
+        ComPtr<ID3D11ShaderResourceView> srv = nullptr;
 
-        wchar_t          szTextureFilePath[MAX_PATH] = {};
+        wchar_t resolvedTexturePath[MAX_PATH] = {};
+        if (nullptr != wcschr(texturePathPattern, L'%'))
+            swprintf_s(resolvedTexturePath, texturePathPattern, static_cast<int>(i));
+        else
+            wcscpy_s(resolvedTexturePath, texturePathPattern);
 
-        wsprintf(szTextureFilePath, pTextureFilePath, i);
+        wchar_t extensionBuffer[MAX_PATH] = {};
 
-        wchar_t          szEXT[MAX_PATH] = {};
-
-        _wsplitpath_s(szTextureFilePath, nullptr, 0, nullptr, 0, nullptr, 0, szEXT, MAX_PATH);
+        _wsplitpath_s(resolvedTexturePath, nullptr, 0, nullptr, 0, nullptr, 0, extensionBuffer, MAX_PATH);
 
         HRESULT         hr = {};
 
-        if (false == lstrcmp(szEXT, TEXT(".dds")))
-            hr = CreateDDSTextureFromFile(_device.Get(), szTextureFilePath, nullptr, &pSRV);
+        if (false == lstrcmp(extensionBuffer, TEXT(".dds")))
+            hr = CreateDDSTextureFromFile(_device.Get(), resolvedTexturePath, nullptr, srv.GetAddressOf());
 
-        else if (false == lstrcmp(szEXT, TEXT(".tga")))
+        else if (false == lstrcmp(extensionBuffer, TEXT(".tga")))
             hr = E_FAIL;
 
+        else if (ignoreWicSrgb)
+        {
+            hr = DirectX::CreateWICTextureFromFileEx(
+                _device.Get(),
+                resolvedTexturePath,
+                0,
+                D3D11_USAGE_DEFAULT,
+                D3D11_BIND_SHADER_RESOURCE,
+                0,
+                0,
+                DirectX::WIC_LOADER_IGNORE_SRGB,
+                nullptr,
+                srv.GetAddressOf());
+        }
         else
-            hr = CreateWICTextureFromFile(_device.Get(), szTextureFilePath, nullptr, &pSRV);
+        {
+            hr = CreateWICTextureFromFile(_device.Get(), resolvedTexturePath, nullptr, srv.GetAddressOf());
+        }
 
         if (FAILED(hr))
             return E_FAIL;
 
-        _srvs.push_back(pSRV);
+        const string category = DebugMemoryTracker::Guess_TextureCategory(resolvedTexturePath);
+        DebugMemoryTracker::Record_TextureSRV(
+            category.c_str(),
+            "Texture",
+            wstring(resolvedTexturePath),
+            srv.Get());
+
+        _srvs.emplace_back(std::move(srv));
     }
 
     return S_OK;
 }
 
-HRESULT Texture::Initialize(void* pArg)
+HRESULT Texture::Initialize(void* arg)
 {
     return S_OK;
 }
 
-HRESULT Texture::Bind_ShaderResourceView(Shader* pShader, const char* pConstantName, uint32 iIndex)
+HRESULT Texture::Bind_ShaderResourceView(ShaderCom* shader, const char* constantName, uint32 index)
 {
-    if (iIndex >= _numSRVs)
+    if (index >= _numSRVs)
         return E_FAIL;
 
-    return pShader->Bind_SRV(pConstantName, _srvs[iIndex]);    
+    return shader->Bind_SRV(constantName, _srvs[index].Get());
 }
 
-HRESULT Texture::Bind_ShaderResourceViews(Shader* pShader, const char* pConstantName)
+HRESULT Texture::Bind_ShaderResourceViews(ShaderCom* shader, const char* constantName)
 {
-    return pShader->Bind_SRVs(pConstantName, &_srvs.front(), _numSRVs);    
+    vector<ID3D11ShaderResourceView*> rawSRVs;
+    rawSRVs.reserve(_srvs.size());
+
+    for (const auto& srv : _srvs)
+        rawSRVs.push_back(srv.Get());
+
+    return shader->Bind_SRVs(constantName, rawSRVs.empty() ? nullptr : rawSRVs.data(), _numSRVs);
 }
 
-Shared<Texture> Texture::Create(ComPtr<Device> device, ComPtr<Context> context, const wchar_t* pTextureFilePath, uint32 iNumSRVs)
+Shared<Texture> Texture::Create(const ComPtr<Device>& device, const ComPtr<Context>& context, const wchar_t* texturePathPattern, uint32 numSRVs, bool ignoreWicSrgb)
 {
-    auto pInstance = make_shared<Texture>(device, context);
+    auto instance = make_shared<Texture>(device, context);
 
-    if (FAILED(pInstance->Initialize_Prototype(pTextureFilePath, iNumSRVs)))
+    if (FAILED(instance->Initialize_Prototype(texturePathPattern, numSRVs, ignoreWicSrgb)))
     {
-        MSG_BOX("Failed to Created : Texture");
+        LOG_WARN(
+            "Failed to create Texture: path='{}', count={}",
+            String::ToString(texturePathPattern),
+            numSRVs);
         return nullptr;
 	}
-    return pInstance;
+    return instance;
 }
 
 
-Shared<Component> Texture::Clone(void* pArg)
+Shared<Component> Texture::Clone(void* arg)
 {
-    auto pInstance = make_shared<Texture>(*this);
+    auto instance = make_shared<Texture>(*this);
 
-    if (FAILED(pInstance->Initialize(pArg)))
+    if (FAILED(instance->Initialize(arg)))
     {
         MSG_BOX("Failed to Cloned : Texture");
         return nullptr;
 	}
-    return pInstance;
+    return instance;
 }
 
 void Texture::Free()
 {
     __super::Free();
-
-    for (auto& pSRV : _srvs)
-        Safe_Release(pSRV);
 
     _srvs.clear();
 }

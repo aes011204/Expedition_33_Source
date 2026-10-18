@@ -1,10 +1,9 @@
-#pragma once
+ï»¿#pragma once
 
 #include "Base.h"
 
-/* »ÀÇÏ³ªÀÇ Á¤º¸. */
-/* ºÎ¸ğ »ÀÀÇ Á¤º¸¿Í ÇöÀç »ÀÀÇ »óÅÂÇà·ÄµéÀ» °¡Áø´Ù. */
-/* assimp ³»¿¡¼­ ÀÌ¿ëµÇ´Â »À : aiNode, aiBone, aiNodeAnim */
+/* ë¼ˆí•˜ë‚˜ì˜ ì •ë³´. */
+/* ë¶€ëª¨ ë¼ˆì˜ ì •ë³´ì™€ í˜„ì¬ ë¼ˆì˜ ìƒíƒœí–‰ë ¬ë“¤ì„ ê°€ì§„ë‹¤. */
 
 NS_BEGIN(Engine)
 
@@ -12,30 +11,33 @@ class Bone final : public Base
 {
 public:
 	Bone();
-	virtual ~Bone() { Free(); }
+    Bone(const Bone& rhs);
+	~Bone() override = default;
+
 public:
-	const XMFLOAT4X4* Get_CombinedTransformationMatrixPtr() const {
-		return &_combinedTransformationMatrix;
-	}
+        const Matrix* Get_OffsetMatrix() const { return &_offsetMatrix; }
+        const Matrix* Get_CombinedTransformationMatrixPtr() const { return &_combinedTransformationMatrix; }
+        bool Check_BoneByName(const string& boneName) const { return boneName == _name; }
+        int32 Get_ParentIndex() const { return _parentBoneIndex; }
+        const string& Get_BoneName() const { return _name; }
+
 public:
-	HRESULT Initialize(const aiNode* pAINode, int32 iParentBoneIndex);
-	bool isCompare(const char* pBoneName) {
-		return !strcmp(pBoneName, _name);
-	}
+        HRESULT Initialize(const ModelBoneData& boneData);
+        void Update_CombinedTransformationMatrix(const vector<Shared<Bone>>& bones, const Matrix& preTransformMatrix);
+        void Update_TransformationMatrix(const Matrix& transformMatrix);
 
-	void Update_CombinedTransformationMatrix(const vector<Shared<Bone>>& Bones, FXMMATRIX PreTransformMatrix);
-	void Update_TransformationMatrix(FXMMATRIX TransformMatrix);
-
-
+        const Matrix& Get_TransformationMatrix() const { return _transformationMatrix; }
+        const Matrix& Get_CombinedTransformationMatrix() const { return _combinedTransformationMatrix; }
 
 private:
-	char					_name[MAX_PATH] = {};
-	XMFLOAT4X4				_transformationMatrix = {};
-	XMFLOAT4X4				_combinedTransformationMatrix = {};	
-	int32					_parentBoneIndex = { -1 };
+        string              _name;
+        Matrix              _transformationMatrix{};
+        Matrix              _combinedTransformationMatrix{};
+        Matrix              _offsetMatrix{};
+        int32               _parentBoneIndex = { -1 };
 
 public:
-	static Shared<Bone> Create(const aiNode* pAINode, int32 iParentBoneIndex);
+	static Shared<Bone> Create(const ModelBoneData& boneData);
 	Shared<Bone> Clone();
 	virtual void Free() override;
 };

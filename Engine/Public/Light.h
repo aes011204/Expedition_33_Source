@@ -4,25 +4,31 @@
 
 NS_BEGIN(Engine)
 
+class ShaderCom;
+class VIBuffer_Rect;
+
 class Light final : public Base
 {
 public:
 	Light();
-	virtual ~Light() { Free(); }
+	virtual ~Light() = default;
 
 public:
 	const LIGHT_DESC* Get_LightDesc() const {
 		return &_desc;
 	}
+    HRESULT Bind_LightCB(Shared<ShaderCom> shader);
 
 public:
-	HRESULT Initialize(const LIGHT_DESC& LightDesc);
+	HRESULT Initialize(const LIGHT_DESC& lightDesc);
+    HRESULT Update_Desc(const LIGHT_DESC& lightDesc);
+    HRESULT Render(Shared<ShaderCom> shader, Shared<VIBuffer_Rect> viBuffer);
 
 private:
 	LIGHT_DESC					_desc{};
 
 public:
-	static Shared<Light> Create(const LIGHT_DESC& LightDesc);
+	static Shared<Light> Create(const LIGHT_DESC& lightDesc);
 	virtual void Free() override;
 };
 
