@@ -514,3 +514,18 @@ Client/Bin/Client.pdb
 Engine/Bin/Engine.lib
 Engine/Bin/Engine.exp
 Engine/Bin/Engine.pdb
+
+# Source-only distribution overrides
+**/Resources/**
+!Client/Bin/Resources/
+!Client/Bin/Resources/Data/
+!Client/Bin/Resources/Data/ConvertXLSX.py
+!Client/Bin/Resources/Data/RunConvertXLSX.bat
+!Client/Bin/Resources/Data/사용방법 참고.txt
+/EngineSDK/lib/
+/EngineSDK/inc/Engine/
+/.dotnet/
+/.github/
+*.dll
+*.lib
+*.exe
