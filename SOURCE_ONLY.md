@@ -1,6 +1,6 @@
 # Source-only repository
 
-This copy retains 40 locally available branches and 8 tags, with game assets and build artifacts removed from their history. Commit IDs differ from the original repository. The original repository was not modified.
+This public copy keeps only the main branch and 8 tags, with game assets and build artifacts removed from history. The former branches were backed up separately before removal. Commit IDs differ from the original repository. The original repository was not modified.
 
 The latest upstream refs could not be queried because GitHub authentication was unavailable. Branches preserved here are those already present in the original local checkout, including its remote-tracking branches.
 
@@ -10,17 +10,17 @@ Build and test in the original development checkout. Copy changed source files i
 
 This repository omits runtime game resources and prebuilt libraries. vcpkg dependencies must be restored and FMOD dependencies supplied separately for builds. Existing machine-specific paths may need adjustment. No build or game execution was tested here.
 
-The source-only ignore overrides were added on feat-monsterAI-BT. Other branches retain their historical ignore configuration: apply the same exclusions before adding files there.
+The main branch includes source-only ignore overrides and the latest project README.
 
 ## Upload to a NEW EMPTY repository
 
 Run in PowerShell from this folder after creating a new empty GitHub/GitLab repository without an initial README or license commit:
 
     git remote add origin YOUR_NEW_REPOSITORY_URL
-    git push origin --all
+    git push origin main
     git push origin --tags
 
-No remote is configured yet. Do not use the original repository URL. Choose the default branch in the new repository settings after uploading.
+The public remote is https://github.com/aes011204/Expedition_33_Source.git and its default branch is main. Do not use the original team repository URL.
 
 ## Verification
 

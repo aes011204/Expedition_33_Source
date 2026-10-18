@@ -16,7 +16,7 @@
 | 개발 언어 | C++ |
 | 그래픽 API | DirectX 11 |
 | 개발 환경 | Visual Studio |
-| 주요 코드 브랜치 | `feat-monsterAI-BT` |
+| 주요 코드 브랜치 | `main` |
 
 ## 플레이 영상
 
