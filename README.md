@@ -48,7 +48,6 @@
 - Behavior Tree 편집 및 데이터 로딩
 - 실행 중 행동 흐름을 확인하기 위한 런타임 디버깅
 
-세부 구현과 문제 해결 과정은 별도 포트폴리오 사이트에 정리할 예정입니다.
 
 ## 팀 프로젝트 전체 구조
 
@@ -77,17 +76,6 @@
 - 편집 도구 및 디버깅: ImGui, ImPlot, ImGuizmo, imgui-node-editor
 - 데이터 및 유틸리티: nlohmann/json, magic_enum, spdlog, stduuid, tinygltf
 
-## 빌드 및 실행 안내
-
-게임 실행에 필요한 리소스와 일부 외부 라이브러리가 포함되어 있지 않아,
-저장소를 클론하는 것만으로 게임을 바로 실행할 수는 없습니다.
-
-빌드를 위해서는 다음 준비가 필요합니다.
-
-- Visual Studio의 C++ 개발 환경 및 Windows SDK
-- `vcpkg.json`에 정의된 의존성 설치
-- FMOD 등 별도 SDK 및 라이브러리 준비
-- 개발 환경에 맞는 라이브러리 경로 설정
 
 ## 참고
 
