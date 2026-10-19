@@ -8,14 +8,14 @@
 
 NS_BEGIN(EffectEditor)
 
-namespace Internal
+namespace
 {
     constexpr float kPreviewPaneWidthRatio = 0.42f;
     constexpr float kPreviewPaneMinWidth = 420.f;
     constexpr float kPreviewPaneMaxWidth = 640.f;
     constexpr float kSideBySideLayoutMinWidth = 760.f;
 
-    static const char* Get_BlendModeLabel(EffectMaterialBlendMode value)
+    const char* Get_BlendModeLabel(EffectMaterialBlendMode value)
     {
         switch (value)
         {
@@ -32,7 +32,7 @@ namespace Internal
         }
     }
 
-    static const char* Get_AdditiveColorSourceLabel(EffectMaterialAdditiveColorSource value)
+    const char* Get_AdditiveColorSourceLabel(EffectMaterialAdditiveColorSource value)
     {
         switch (value)
         {
@@ -49,7 +49,7 @@ namespace Internal
         }
     }
 
-    static const char* Get_AdditiveAmountSourceLabel(EffectMaterialAdditiveAmountSource value)
+    const char* Get_AdditiveAmountSourceLabel(EffectMaterialAdditiveAmountSource value)
     {
         switch (value)
         {
@@ -68,7 +68,7 @@ namespace Internal
         }
     }
 
-    static const char* Get_AdditiveCoveragePolicyLabel(EffectMaterialAdditiveCoveragePolicy value)
+    const char* Get_AdditiveCoveragePolicyLabel(EffectMaterialAdditiveCoveragePolicy value)
     {
         switch (value)
         {
@@ -252,14 +252,14 @@ void EffectMaterial_View::Render_PresetInfo()
     };
 
     const float contentWidth = ImGui::GetContentRegionAvail().x;
-    const bool useSideBySideLayout = contentWidth >= Internal::kSideBySideLayoutMinWidth;
+    const bool useSideBySideLayout = contentWidth >= kSideBySideLayoutMinWidth;
     if (useSideBySideLayout)
     {
         const float spacing = ImGui::GetStyle().ItemSpacing.x;
         const float previewPaneWidth = clamp(
-            contentWidth * Internal::kPreviewPaneWidthRatio,
-            Internal::kPreviewPaneMinWidth,
-            Internal::kPreviewPaneMaxWidth
+            contentWidth * kPreviewPaneWidthRatio,
+            kPreviewPaneMinWidth,
+            kPreviewPaneMaxWidth
         );
 
         ImGui::BeginChild("EffectMaterialPreviewPane", ImVec2(previewPaneWidth, 0.f), false);
@@ -380,12 +380,12 @@ void EffectMaterial_View::Render_MaterialInstanceTable(const char* tableId, cons
         ImGui::Text("%.2f / %.2f", material.coreEmissive.outerPower, material.coreEmissive.outerIntensity);
     }
 
-    draw_row("Preset Blend Mode", Internal::Get_BlendModeLabel(material.blendMode));
+    draw_row("Preset Blend Mode", Get_BlendModeLabel(material.blendMode));
     if (material.blendMode == EffectMaterialBlendMode::Additive)
     {
-        draw_row("Additive Color Source", Internal::Get_AdditiveColorSourceLabel(material.additive.colorSource));
-        draw_row("Additive Amount Source", Internal::Get_AdditiveAmountSourceLabel(material.additive.amountSource));
-        draw_row("Additive Coverage", Internal::Get_AdditiveCoveragePolicyLabel(material.additive.coveragePolicy));
+        draw_row("Additive Color Source", Get_AdditiveColorSourceLabel(material.additive.colorSource));
+        draw_row("Additive Amount Source", Get_AdditiveAmountSourceLabel(material.additive.amountSource));
+        draw_row("Additive Coverage", Get_AdditiveCoveragePolicyLabel(material.additive.coveragePolicy));
 
         ImGui::TableNextRow();
         ImGui::TableSetColumnIndex(0);
@@ -521,8 +521,8 @@ bool EffectMaterial_View::Load_PresetFile(const wstring& filePath)
         LOG_ERROR("EffectMaterial material preset load failed: material read failed. path='{}'", String::ToString(filePath));
         return false;
     }
-    const bool warnSubUVRows = Internal::Should_WarnInvalidSubUv(root, "subUVRows");
-    const bool warnSubUVCols = Internal::Should_WarnInvalidSubUv(root, "subUVCols");
+    const bool warnSubUVRows = Should_WarnInvalidSubUv(root, "subUVRows");
+    const bool warnSubUVCols = Should_WarnInvalidSubUv(root, "subUVCols");
 
     const string presetPath = String::ToString(filePath);
     if (warnSubUVRows)
@@ -530,7 +530,7 @@ bool EffectMaterial_View::Load_PresetFile(const wstring& filePath)
     if (warnSubUVCols)
         LOG_WARN("EffectMaterial material preset corrected invalid subUVCols to 1. path='{}'", presetPath);
 
-    if (!Internal::Is_SupportedOpacitySource(material.opacitySource))
+    if (!Is_SupportedOpacitySource(material.opacitySource))
     {
         _statusMessage = "Unsupported opacitySource in material preset.";
         LOG_ERROR(

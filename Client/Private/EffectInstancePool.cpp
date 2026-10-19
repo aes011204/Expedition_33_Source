@@ -68,11 +68,6 @@ HRESULT EffectInstancePool::Reload_Attached(const AcquireDesc& desc, AttachedHan
     CHECK_FAILED(Prepare_AcquiredInstance(desc, definition, entry->instance), E_FAIL);
     Populate_Handle(desc, definition, entry->instance, handle);
 
-    //LOG_INFO(
-    //    "[EffectPool] reloaded attached instance. key={}, emitters={}, entries={}",
-    //    String::ToString(desc.effectName),
-    //    definition->emitters.size(),
-    //    _entries.size());
 
     return S_OK;
 }
@@ -124,7 +119,6 @@ void EffectInstancePool::Clear()
 
     if (entryCount > 0)
     {
-        //LOG_INFO("[EffectPool] cleared. count={}", entryCount);
     }
 }
 
@@ -154,15 +148,9 @@ void EffectInstancePool::Discard_Inactive(const wstring& effectName)
 
     if (discardedCount > 0)
     {
-        //LOG_INFO(
-        //    "[EffectPool] discarded inactive entries. key={}, count={}, entries={}",
-        //    String::ToString(effectName),
-        //    discardedCount,
-        //    _entries.size());
     }
     else
     {
-        //LOG_DEBUG("[EffectPool] discard inactive skipped. key={}, entries={}", String::ToString(effectName), _entries.size());
     }
 }
 
@@ -240,9 +228,8 @@ string EffectInstancePool::Build_DebugActiveEffectBreakdown(uint32 maxItems) con
         if (!entry.inUse)
             continue;
 
-        auto found = std::find_if(
-            counts.begin(),
-            counts.end(),
+        auto found = ranges::find_if(
+            counts,
             [&entry](const EffectCount& effectCount)
             {
                 return effectCount.effectName == entry.effectName;
@@ -260,9 +247,8 @@ string EffectInstancePool::Build_DebugActiveEffectBreakdown(uint32 maxItems) con
     if (counts.empty())
         return "<none>";
 
-    std::sort(
-        counts.begin(),
-        counts.end(),
+    ranges::sort(
+        counts,
         [](const EffectCount& lhs, const EffectCount& rhs)
         {
             if (lhs.count != rhs.count)
@@ -271,8 +257,8 @@ string EffectInstancePool::Build_DebugActiveEffectBreakdown(uint32 maxItems) con
         });
 
     const uint32 outputCount = maxItems == 0
-        ? static_cast<uint32>(counts.size())
-        : std::min(maxItems, static_cast<uint32>(counts.size()));
+                               ? static_cast<uint32>(counts.size())
+                               : min(maxItems, static_cast<uint32>(counts.size()));
 
     string result{};
     for (uint32 i = 0; i < outputCount; ++i)
@@ -282,7 +268,7 @@ string EffectInstancePool::Build_DebugActiveEffectBreakdown(uint32 maxItems) con
 
         result += String::ToString(counts[i].effectName);
         result += ":";
-        result += std::to_string(counts[i].count);
+        result += to_string(counts[i].count);
     }
 
     if (outputCount < counts.size())
@@ -299,27 +285,22 @@ HRESULT EffectInstancePool::Prewarm(const AcquireDesc& desc, uint32 count)
     vector<AttachedHandle> handles{};
     handles.reserve(count);
 
+    // 각 prewarm instance가 다음 frame의 첫 BeginPlay에서 다시 재생되지 않도록 미리 시작 상태를 확정한다.
     for (uint32 i = 0; i < count; ++i)
     {
         AttachedHandle handle{};
         CHECK_FAILED(Acquire(desc, handle), E_FAIL);
 
-        // prewarm instance가 다음 frame 첫 BeginPlay에서 다시 Play되지 않게 미리 BeginPlay를 완료한다.
         if (handle.effectObject != nullptr)
             CHECK_FAILED(handle.effectObject->Try_BeginPlay(), E_FAIL);
 
-        // count개를 한 번에 확보해야 같은 슬롯 1개만 재사용하는 prewarm이 되지 않는다.
         handles.push_back(handle);
     }
 
+    // 모든 슬롯을 확보한 뒤 반환해야 같은 idle slot 하나만 반복 재사용하지 않는다.
     for (const AttachedHandle& handle : handles)
         Release(handle);
 
-    //LOG_INFO(
-    //    "[EffectPool] prewarmed. key={}, count={}, entries={}",
-    //    String::ToString(desc.effectName),
-    //    count,
-    //    _entries.size());
 
     return S_OK;
 }
@@ -511,6 +492,7 @@ HRESULT EffectInstancePool::Prepare_AcquiredInstance(
     CHECK_NULL(instance, E_FAIL);
     instance->Bind_TrailSampleProvider(desc.trailSampleProvider, desc.trailSampleGroupKey);
     instance->Bind_SourcePointSampleProvider(desc.sourcePointSampleProvider, desc.sourcePointGroupKey);
+    instance->Bind_RibbonSourcePointSampleProvider(desc.ribbonSourcePointSampleProvider);
     instance->Set_Name(Make_EffectInstanceDisplayName(desc, definition));
 
     const Shared<TransformCom> transform = instance->Get_Transform();
@@ -601,7 +583,6 @@ Unique<EffectInstancePool> EffectInstancePool::Create()
         return nullptr;
     }
 
-    //LOG_INFO("[EffectPool] created.");
 
     return instance;
 }

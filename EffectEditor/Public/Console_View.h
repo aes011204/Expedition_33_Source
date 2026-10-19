@@ -5,7 +5,6 @@
 
 NS_BEGIN(EffectEditor)
 
-// EffectEditor log entries를 필터링하고 console window로 표시한다.
 class Console_View final : public Editor_Window
 {
 public:

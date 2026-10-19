@@ -36,13 +36,49 @@ enum class EffectMaterialFamily : uint32
     END,
 };
 
-// SpriteDistortion family에서 screen UV offset 강도에 곱할 card-local 영향 범위를 고른다.
+// SpriteDistortion family에서 screen UV offset 강도에 곱할 renderer-local 영향 범위를 고른다.
 enum class EffectDistortionShapeMode : uint32
 {
-    None = 0,      // 기존 square card 전체 distortion 동작이다.
-    Radial,        // sprite UV 중심 기준 soft circle/aura 계열 영향 범위다.
-    Ring,          // sprite UV 중심 기준 shockwave rim 계열 영향 범위다.
-    ShockwaveRing, // 수명 진행률로 확장하며 screen pixel 기준 두께를 유지하는 shockwave ring이다.
+    None = 0,       // 기존 square card 전체 distortion 동작이다.
+    Radial,         // sprite UV 중심 기준 soft circle/aura 계열 영향 범위다.
+    Ring,           // sprite UV 중심 기준 shockwave rim 계열 영향 범위다.
+    ShockwaveRing,  // 수명 진행률로 확장하며 screen pixel 기준 두께를 유지하는 shockwave ring이다.
+    AirSheath = 4,  // Trail 폭 방향의 분석적 lens profile로 공기막 굴절을 만든다.
+    END,
+};
+
+// AirSheath가 기존 Flow Texture를 해석하는 방식이다. 비-AirSheath renderer는 이 값을 소비하지 않는다.
+enum class EffectAirSheathMapInterpretation : uint32
+{
+    VectorField = 0,
+    HeightGradient,
+    ScalarModulation,
+    END,
+};
+
+enum class EffectAirSheathMapScalarSource : uint32
+{
+    Red = 0,
+    Green,
+    Blue,
+    Alpha,
+    Luminance,
+    END,
+};
+
+enum class EffectAirSheathMapVectorSpace : uint32
+{
+    Screen = 0,
+    TrailLocal,
+    BaseField,
+    END,
+};
+
+enum class EffectAirSheathMapComposition : uint32
+{
+    Replace = 0,
+    Add,
+    Modulate,
     END,
 };
 
@@ -163,6 +199,12 @@ struct EffectMaterialInstanceData
     float refractionIntensity{ 0.f };                                                  // SpriteDistortion screen UV offset 강도다.
     float refractionPresence{ 1.f };                                                   // SpriteDistortion refraction 영향도를 켜고 줄이는 authored scalar다.
     EffectDistortionShapeMode distortionShapeMode{ EffectDistortionShapeMode::None };  // SpriteDistortion 영향 범위 weight mode다.
+    EffectAirSheathMapInterpretation airSheathMapInterpretation{ EffectAirSheathMapInterpretation::VectorField };
+    EffectAirSheathMapScalarSource airSheathMapXSource{ EffectAirSheathMapScalarSource::Red };
+    EffectAirSheathMapScalarSource airSheathMapYSource{ EffectAirSheathMapScalarSource::Green };
+    EffectAirSheathMapVectorSpace airSheathMapVectorSpace{ EffectAirSheathMapVectorSpace::Screen };
+    EffectAirSheathMapComposition airSheathMapComposition{ EffectAirSheathMapComposition::Replace };
+    float airSheathMapInfluence{ 0.f }; // 0이면 AirSheath base wake만 사용한다.
     float distortionShapeRadius{ 0.45f };                                              // sprite UV 중심에서 shape 기준 반경이다.
     float distortionShapeThickness{ 0.10f };                                           // Ring은 UV 폭, ShockwaveRing은 screen pixel half-width다.
     float distortionShapeSoftness{ 0.15f };                                            // Ring은 UV falloff, ShockwaveRing은 screen pixel falloff다.

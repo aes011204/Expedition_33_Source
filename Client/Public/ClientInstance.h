@@ -114,6 +114,9 @@ public:
     static void Toggle_PotatoBagArenaMapRenderGateDebug();
     static void Draw_PotatoBagArenaMapRenderGateDebug();
 
+    static bool Is_DebugDisableInstanceComputeCull();
+    static void Set_DebugDisableInstanceComputeCull(bool disabled);
+
 public: /* 플레이어 찾기 -> 일단 임시 */
     Shared<GameObject> Find_Player(uint32 levelIndex);
 
@@ -270,7 +273,8 @@ public: /*CinematicSequenceRunner*/
         int trackIndex,
         bool applyCameraTrack = true,
         bool applyEventTrack = true,
-        bool applyActorTransformTrack = true);
+        bool applyActorTransformTrack = true,
+        const CinematicPreviewOptions& previewOptions = {});
     void Pause_Sequence();
     void Resume_Sequence(
         bool applyCameraTrack = true,

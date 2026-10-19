@@ -53,7 +53,7 @@ void Camera_Manager::Update(float timeDelta)
     //}
 }
 
-void Camera_Manager::Change_ActiveCamera(Shared<Camera> camera)
+void Camera_Manager::Change_ActiveCamera(const Shared<Camera>& camera)
 {
     if (nullptr == camera)
         return;
@@ -103,7 +103,7 @@ void Camera_Manager::SwitchTo_NextCamera()
     m_activeCamera = nextCamera;
 }
 
-HRESULT Camera_Manager::Add_Camera(Shared<Camera> camera)
+HRESULT Camera_Manager::Add_Camera(const Shared<Camera>& camera)
 {
     if (nullptr != Find_Camera(camera))
     {
@@ -133,7 +133,7 @@ void Camera_Manager::Remove_Camera(Shared<Camera> camera)
     _hasPendingFreeCameraFocus = false;
 }
 
-Shared<Camera> Camera_Manager::Find_Camera(Shared<Camera> camera)
+Shared<Camera> Camera_Manager::Find_Camera(const Shared<Camera>& camera)
 {
     auto iter = find(m_cameras.begin(), m_cameras.end(), camera);
 
@@ -143,7 +143,7 @@ Shared<Camera> Camera_Manager::Find_Camera(Shared<Camera> camera)
     return (*iter);
 }
 
-bool Camera_Manager::Is_ActiveCamera(Shared<Camera> camera)
+bool Camera_Manager::Is_ActiveCamera(const Shared<Camera>& camera)
 {
     if (m_activeCamera != camera)
         return false;
@@ -228,7 +228,7 @@ bool Camera_Manager::Focus_FreeCameraOnPosition(const Vec3& position)
     return false;
 }
 
-HRESULT Camera_Manager::Bind_CameraFar(Shared<ShaderCom> shader, const char* constantName)
+HRESULT Camera_Manager::Bind_CameraFar(const Shared<ShaderCom>& shader, const char* constantName)
 {
     if (!m_activeCamera)
         return E_FAIL;

@@ -4,7 +4,6 @@
 
 NS_BEGIN(EffectEditor)
 
-// undo/redo lambda 한 쌍을 ICommand로 감싸는 단순 action command다.
 class Action_Command final : public ICommand
 {
 public:
@@ -18,7 +17,7 @@ public:
 
     string Get_Description() const override { return _desc; }
 
-private: //## Data
+private: //## Data::Command
     function<void()> _onUndo{};
     function<void()> _onRedo{};
     string _desc{};

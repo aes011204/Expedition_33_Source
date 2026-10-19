@@ -7,9 +7,9 @@
 
 NS_BEGIN(EffectEditor)
 
-namespace Internal
+namespace
 {
-    static bool Is_PreviewCameraDragInputHeld()
+    bool Is_PreviewCameraDragInputHeld()
     {
         const bool altHeld =
             GAME->KeyPress(KEY_TYPE::ALT) || GAME->KeyDown(KEY_TYPE::ALT);
@@ -140,7 +140,7 @@ void EffectEditorCamera::Priority_Update(float timeDelta)
         return;
     }
 
-    if (EDITOR->Is_PreviewCameraDragging() && !Internal::Is_PreviewCameraDragInputHeld())
+    if (EDITOR->Is_PreviewCameraDragging() && !Is_PreviewCameraDragInputHeld())
         EDITOR->End_PreviewCameraDrag();
 
     if (ImGui::IsKeyPressed(ImGuiKey_F, false))

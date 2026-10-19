@@ -391,6 +391,11 @@ void ComputeSourceHistoryRibbonEmitter::Bind_SourcePointSampleProvider(const Wea
     _desc.sourcePointSampleProvider = provider;
 }
 
+void ComputeSourceHistoryRibbonEmitter::Bind_RibbonSourcePointSampleProvider(const Weak<IEffectSourcePointSampleProvider>& provider)
+{
+    _ribbonSourcePointSampleProvider = provider;
+}
+
 bool ComputeSourceHistoryRibbonEmitter::Try_Get_BlendSortWorldPosition(Vec3& outWorldPosition) const
 {
     if (nullptr == _transformCom)
@@ -450,7 +455,7 @@ void ComputeSourceHistoryRibbonEmitter::Advance_Playback(float timeDelta)
         return;
     }
 
-    // Source-driven ribbons keep their active history alive across phase wraps.
+    // Source-driven ribbon은 phase가 순환해도 진행 중인 history를 유지한다.
     Wrap_PlaybackLoop();
     _playbackState = PlaybackState::Emitting;
 }
@@ -1724,8 +1729,11 @@ Vec3 ComputeSourceHistoryRibbonEmitter::Sample_HeadOffset(uint32 seed) const
     };
 }
 
-Vec3 ComputeSourceHistoryRibbonEmitter::Resolve_HeadOffsetWorld(const Vec3& localOffset) const
+Vec3 ComputeSourceHistoryRibbonEmitter::Resolve_HeadOffsetWorld(const Vec3& localOffset, const Quat* sourceRotation) const
 {
+    if (sourceRotation != nullptr)
+        return Vec3::Transform(localOffset, Matrix::CreateFromQuaternion(*sourceRotation));
+
     if (_transformCom == nullptr)
         return localOffset;
 
@@ -1734,21 +1742,30 @@ Vec3 ComputeSourceHistoryRibbonEmitter::Resolve_HeadOffsetWorld(const Vec3& loca
            _transformCom->Get_WorldForward() * localOffset.z;
 }
 
-Vec3 ComputeSourceHistoryRibbonEmitter::Apply_HeadOffset(const Vec3& sourcePosition, const Vec3& localOffset) const
+Vec3 ComputeSourceHistoryRibbonEmitter::Apply_HeadOffset(
+    const Vec3& sourcePosition,
+    const Vec3& localOffset,
+    const Quat* sourceRotation) const
 {
-    return sourcePosition + Resolve_HeadOffsetWorld(localOffset);
+    return sourcePosition + Resolve_HeadOffsetWorld(localOffset, sourceRotation);
 }
 
 bool ComputeSourceHistoryRibbonEmitter::Try_Resolve_SourcePosition(Vec3& outPosition) const
 {
-    const Shared<IEffectSourcePointSampleProvider> sampleProvider = _desc.sourcePointSampleProvider.lock();
+    const Shared<IEffectSourcePointSampleProvider> sampleProvider = _ribbonSourcePointSampleProvider.lock();
     if (sampleProvider != nullptr)
     {
         EffectSourcePointSample sample{};
         if (!sampleProvider->Try_GetSourcePointSample(sample))
             return false;
 
-        outPosition = Apply_HeadOffset(sample.worldPosition, _selfRootHeadOffset);
+        Quat sourceRotation = sample.worldRotation;
+        if (sourceRotation.LengthSquared() <= 0.000001f)
+            sourceRotation = Quat::Identity;
+        else
+            sourceRotation.Normalize();
+
+        outPosition = Apply_HeadOffset(sample.worldPosition, _selfRootHeadOffset, &sourceRotation);
         return true;
     }
 

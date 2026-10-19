@@ -25,6 +25,23 @@ public:
         string materialBundleKey{};
     };
 
+    struct WeaponEchoTrailProfile
+    {
+        wstring mainEffectName{};
+        wstring tipEffectName{};
+    };
+
+    struct WeaponEchoTrailEventDesc
+    {
+        uint64 notifyToken = 0;
+        string animationName{};
+        float startSec = 0.f;
+        float durationSec = 0.f;
+        wstring sourceEffectName{};
+        wstring layerTag{};
+        EffectCom::TrailOffsetRuntimeDesc offsetDesc{};
+    };
+
 public:
     Mon_Simon_Weapon(const ComPtr<Device>& device, const ComPtr<Context>& context);
     Mon_Simon_Weapon(const Mon_Simon_Weapon& prototype);
@@ -53,7 +70,8 @@ public:
         const string& sourceAnimationName = {},
         float sourceTimeSec = 0.f,
         const WeaponEchoMaterialOverrideDesc* materialOverrides = nullptr,
-        uint32 materialOverrideCount = 0);
+        uint32 materialOverrideCount = 0,
+        const WeaponEchoTrailProfile& trailProfile = {});
 
     void Record_WeaponEchoSample(float elapsedSec);
     void End_WeaponEchoPlayback();
@@ -64,13 +82,10 @@ public:
     vector<WeaponSourceHistoryAnchorDesc>& Get_SourceHistoryAnchors() { return _sourceHistoryAnchors; }
     const vector<WeaponSourceHistoryAnchorDesc>& Get_SourceHistoryAnchors() const { return _sourceHistoryAnchors; }
     const WeaponSourceHistoryAnchorDesc* Find_SourceHistoryAnchor(const string& anchorName) const;
-    bool Try_GetWeaponEchoTrailSample(uint32 laneIndex, const TrailAnchorAsset& trailAnchorAsset, EffectTrailSample& outSample) const;
-    void Begin_WeaponEchoTrail(
-        const wstring& effectName,
-        const wstring& layerTag,
-        const EffectCom::TrailOffsetRuntimeDesc& offsetDesc);
-    void Update_WeaponEchoTrailOffset(const EffectCom::TrailOffsetRuntimeDesc& offsetDesc);
-    void Set_WeaponEchoTrailEffectOverride(const wstring& effectName);
+    bool Try_GetWeaponEchoTrailSample(uint32 laneIndex, uint64 notifyToken, EffectTrailSample& outSample) const;
+    void Register_WeaponEchoTrailEvent(const WeaponEchoTrailEventDesc& desc);
+    void Update_WeaponEchoTrailEvent(uint64 notifyToken, float sourceTimeSec, const EffectCom::TrailOffsetRuntimeDesc& offsetDesc);
+    void End_WeaponEchoTrailEvent(uint64 notifyToken, float sourceEndSec);
 
 private:
     virtual uint32 Decide_PassIndex(Shared<Material> mat) override;
@@ -98,14 +113,39 @@ private:
         float playbackSec = 0.f;
         float endElapsedSec = 0.f;
 
-        TrailAnchorAsset trailAnchorAsset{};
-        Shared<IEffectTrailSampleProvider> trailSampleProvider{};
-        EffectInstancePool::AttachedHandle trailHandle{};
-        EffectCom::TrailOffsetRuntimeDesc trailOffset{};
-        bool trailStarted = false;
-
         WeaponEchoMaterialOverrideDesc materialOverride{};
         unordered_map<uint32, Shared<Material>> materialOverrideCache{};
+    };
+
+    enum class WeaponEchoTrailRole : uint8
+    {
+        Main,
+        Tip
+    };
+
+    struct WeaponEchoTrailLaneState
+    {
+        Shared<IEffectTrailSampleProvider> trailSampleProvider{};
+        Shared<IEffectSourcePointSampleProvider> sourcePointSampleProvider{};
+        EffectInstancePool::AttachedHandle handle{};
+        bool started = false;
+    };
+
+    struct WeaponEchoTrailEvent
+    {
+        uint64 notifyToken = 0;
+        string animationName{};
+        float startSec = 0.f;
+        float plannedEndSec = 0.f;
+        float endSec = 0.f;
+        float lastSourceTimeSec = 0.f;
+        bool sourceEnded = false;
+        WeaponEchoTrailRole role = WeaponEchoTrailRole::Main;
+        wstring layerTag{};
+        EffectCom::TrailOffsetRuntimeDesc offsetDesc{};
+        TrailAnchorAsset trailAnchorAsset{};
+        bool trailAnchorLoaded = false;
+        array<WeaponEchoTrailLaneState, kMaxWeaponEchoLaneCount> laneStates{};
     };
 
     void Reset_WeaponEchoLane(WeaponEchoLane& lane);
@@ -116,15 +156,16 @@ private:
         WeaponEchoLane& lane,
         uint32 materialIndex,
         const Shared<Material>& sourceMaterial);
-    void Start_WeaponEchoTrail(
-        WeaponEchoLane& lane,
+    void Update_WeaponEchoTrailEvents();
+    void Start_WeaponEchoTrailEvent(
+        WeaponEchoTrailEvent& trailEvent,
         uint32 laneIndex,
-        const wstring& effectName,
-        const wstring& layerTag,
-        const EffectCom::TrailOffsetRuntimeDesc& offsetDesc);
-    const wstring& Resolve_WeaponEchoTrailEffectName(const wstring& effectName) const;
-    void Stop_WeaponEchoTrail();
-    void Stop_WeaponEchoTrail(WeaponEchoLane& lane);
+        const wstring& effectName);
+    void Stop_WeaponEchoTrailEvents();
+    void Stop_WeaponEchoTrailEvent(WeaponEchoTrailLaneState& laneState);
+    void Clear_WeaponEchoPlayback();
+    WeaponEchoTrailEvent* Find_WeaponEchoTrailEvent(uint64 notifyToken);
+    const WeaponEchoTrailEvent* Find_WeaponEchoTrailEvent(uint64 notifyToken) const;
 
 private:
     const Matrix* _socketMatrix = nullptr;
@@ -134,18 +175,14 @@ private:
     bool _isDetached = false;
 
     array<WeaponEchoLane, kMaxWeaponEchoLaneCount> _weaponEchoLanes{};
-    bool _weaponEchoPendingTrailValid = false;
-    wstring _weaponEchoPendingTrailEffectName{};
-    wstring _weaponEchoPendingTrailLayerTag{};
-    EffectCom::TrailOffsetRuntimeDesc _weaponEchoPendingTrailOffset{};
-    float _weaponEchoPendingTrailAgeSec = 0.f;
-    wstring _weaponEchoTrailEffectOverride{};
+    vector<WeaponEchoTrailEvent> _weaponEchoTrailEvents{};
+    WeaponEchoTrailProfile _weaponEchoTrailProfile{};
     ModelCom* _weaponEchoSourceModel = nullptr;
     string _weaponEchoSourceAnimationName{};
     float _weaponEchoLastKnownSourceTimeSec = 0.f;
     bool _weaponEchoHasSourceTime = false;
 
-    wstring _trailEffectName = L"";
+    wstring _trailEffectName = L"Simon_Trail_Phase1";
     vector<WeaponSourceHistoryAnchorDesc> _sourceHistoryAnchors{};
 
 public:

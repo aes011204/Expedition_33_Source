@@ -39,6 +39,54 @@ namespace
         actorRotation.y = targetYawDeg;
         actorTransform->Set_WorldRotationEuler(actorRotation);
     }
+
+    void FaceDialogueTargetSmooth(const Shared<GameObject>& actorObject, const Vec3& targetPos, float timeDelta)
+    {
+        if (actorObject == nullptr)
+            return;
+
+        Shared<TransformCom> actorTransform = actorObject->Get_Transform();
+        if (actorTransform == nullptr)
+            return;
+
+        Vec3 actorPos = actorTransform->Get_WorldPosition();
+        Vec3 toTarget = targetPos - actorPos;
+        toTarget.y = 0.f;
+
+        if (toTarget.LengthSquared() <= 0.0001f)
+            return;
+
+        const float targetYawDeg = XMConvertToDegrees(atan2f(toTarget.x, toTarget.z));
+        Vec3 actorRotation = actorTransform->Get_WorldRotationEuler();
+        float yawDelta = targetYawDeg - actorRotation.y;
+        yawDelta = remainderf(yawDelta, 360.f);
+         
+        constexpr float kDialogueTurnSpeedDegPerSec = 160.f;
+        const float maxStep = kDialogueTurnSpeedDegPerSec * max(0.f, timeDelta);
+        yawDelta = clamp(yawDelta, -maxStep, maxStep);
+
+        actorRotation.y += yawDelta;
+        actorTransform->Set_WorldRotationEuler(actorRotation);
+    }
+
+    void UpdateDialogueNpcFacing(
+        const Shared<GameObject>& playerObject,
+        const Shared<GameObject>& npcObject,
+        float timeDelta)
+    {
+        if (playerObject == nullptr || npcObject == nullptr)
+            return;
+
+        auto npc = dynamic_pointer_cast<NPC_Base>(npcObject);
+        if (npc == nullptr || !npc->Should_FacePlayerOnDialogueStart())
+            return;
+
+        Shared<TransformCom> playerTransform = playerObject->Get_Transform();
+        if (playerTransform == nullptr)
+            return;
+
+        FaceDialogueTargetSmooth(npcObject, playerTransform->Get_WorldPosition(), timeDelta);
+    }
 }
 
 DialogueManager::DialogueManager() = default;
@@ -89,11 +137,24 @@ void DialogueManager::StartDialogue(const DialogueRequest& request)
     {
         _startAnimationKey = npc->Get_CurrentAnimationKey();
         _startAnimationOffsetY = npc->Get_DialogueVisualOffsetY();
+
+        if (Shared<TransformCom> npcTransform = npc->Get_Transform())
+        {
+            _startNpcRotation = npcTransform->Get_WorldRotationEuler();
+            _hasStartNpcRotation = true;
+        }
+        else
+        {
+            _startNpcRotation = Vec3::Zero;
+            _hasStartNpcRotation = false;
+        }
     }
     else
     {
         _startAnimationKey.clear();
         _startAnimationOffsetY = 0.f;
+        _startNpcRotation = Vec3::Zero;
+        _hasStartNpcRotation = false;
     }
 
     AlignDialogueActors();
@@ -142,6 +203,12 @@ void DialogueManager::EndDialogue(bool restoreWorldState)
 {
     if (auto npc = dynamic_pointer_cast<NPC_Base>(_dialogueNpcObject))
     {
+        if (restoreWorldState && _hasStartNpcRotation)
+        {
+            if (Shared<TransformCom> npcTransform = npc->Get_Transform())
+                npcTransform->Set_WorldRotationEuler(_startNpcRotation);
+        }
+
         if (_currentDialogueData->restoreToStartAnimation == true)
         {
             if (!_startAnimationKey.empty())
@@ -164,6 +231,8 @@ void DialogueManager::EndDialogue(bool restoreWorldState)
 
     _lastAnimationKey.clear();
     _lastAnimationOffsetY = 0.f;
+    _startNpcRotation = Vec3::Zero;
+    _hasStartNpcRotation = false;
 
     GAME->Set_GameplayInputMode(GameplayInputMode::Normal);
 
@@ -204,21 +273,13 @@ void DialogueManager::AlignDialogueActors()
     if (_dialoguePlayerObject == nullptr || _dialogueNpcObject == nullptr)
         return;
 
-    Shared<TransformCom> playerTransform = _dialoguePlayerObject->Get_Transform();
     Shared<TransformCom> npcTransform = _dialogueNpcObject->Get_Transform();
-    if (playerTransform == nullptr || npcTransform == nullptr)
+    if (npcTransform == nullptr)
         return;
 
-    const Vec3 playerPos = playerTransform->Get_WorldPosition();
     const Vec3 npcPos = npcTransform->Get_WorldPosition();
 
     FaceDialogueTarget(_dialoguePlayerObject, npcPos);
-
-    if (auto npc = dynamic_pointer_cast<NPC_Base>(_dialogueNpcObject))
-    {
-        if (npc->Should_FacePlayerOnDialogueStart())
-            FaceDialogueTarget(_dialogueNpcObject, playerPos);
-    }
 }
 
 void DialogueManager::Update()
@@ -233,6 +294,8 @@ void DialogueManager::Update()
 
     if (!_isActive)
         return;
+
+    UpdateDialogueNpcFacing(_dialoguePlayerObject, _dialogueNpcObject, GAME->Get_WorldTimeDelta());
 
     const DialogueLine* currentLine = GetCurrentLine();
     if (currentLine == nullptr)
@@ -554,6 +617,7 @@ void DialogueManager::ApplyCurrentLine()
             dialogueCamera->Set_AnchorTransform(speakerObject->Get_Transform());
             dialogueCamera->Set_SpeakerTransform(speakerObject->Get_Transform());
             dialogueCamera->Set_ListenerTransform(listenerObject->Get_Transform());
+            dialogueCamera->Capture_AnchorPose();
             dialogueCamera->Snap_ToDialogueTargets();
         }
     }

@@ -16,7 +16,6 @@ NS_BEGIN(EffectEditor)
 
 class TrailPreviewPlayerObject;
 
-// Trail preview weapon mesh와 trail/source sample provider를 구현한다.
 class TrailPreviewWeaponObject final : public PartObject, public IEffectTrailSampleProvider, public IEffectSourcePointSampleProvider
 {
 public:
@@ -24,34 +23,27 @@ public:
     TrailPreviewWeaponObject(const TrailPreviewWeaponObject& prototype);
     ~TrailPreviewWeaponObject() override = default;
 
-public: //## Lifecycle
+public:
     HRESULT Initialize_Prototype() override { return S_OK; }
     HRESULT Initialize(void* arg) override;
     void Update(float timeDelta) override;
     void Late_Update(float timeDelta) override;
     HRESULT Render() override;
 
-public: //## Runtime::TrailSample
-    // Weapon-local trail anchor가 현재 preview frame에서 world sample로 유효한지 반환한다.
+public: //## Behavior::TrailSample
     bool Has_TrailSample() const;
-    // 다음 trail/ribbon consumer가 읽을 weapon-local base world sample이다.
     Vec3 Get_TrailBaseWorldPosition() const { return _trailBaseWorldPosition; }
-    // 다음 trail/ribbon consumer가 읽을 weapon-local tip world sample이다.
     Vec3 Get_TrailTipWorldPosition() const { return _trailTipWorldPosition; }
-    // 다음 source-history consumer가 읽을 weapon-local source world sample이다.
     Vec3 Get_SourcePointWorldPosition() const { return _sourcePointWorldPosition; }
 
-    // Trail runtime이 attachment 계산을 몰라도 되도록 base/tip sample만 제공한다.
     bool Try_GetTrailSample(EffectTrailSample& outSample) const override;
-    // SourceHistory runtime이 attachment 계산을 몰라도 되도록 단일 point sample만 제공한다.
     bool Try_GetSourcePointSample(EffectSourcePointSample& outSample) const override;
 
-private: //## Static Values
+private: //## Static::PreviewFixture
     static constexpr auto kWeaponModelRelativePath{
         L"../../../Client/Bin/Resources/Effects/Models/Editor_TrailPreview/Lanceram_TrailPreview.model" };
     static constexpr auto kWeaponSocketName{ "Weapon_R" };
 
-    // 이 각도로 돌려야 무기가 제대로 장착된다.
     inline static const Vec3 kWeaponAttachRotationDegrees{ -90.f, -60.f, 210.f };
     inline static const Vec3 kFallbackLocalPosition{ 0.65f, 0.9f, 0.15f };
     inline static const float kTrailAnchorMarkerRadius{ 0.03f };
@@ -65,6 +57,7 @@ private: //## Data::TrailSample
     Vec3 _trailBaseWorldPosition{};
     Vec3 _trailTipWorldPosition{};
     Vec3 _sourcePointWorldPosition{};
+    Quat _weaponWorldRotation{ Quat::Identity };
     bool _hasTrailSample{ false };
     bool _isSocketAttached{ false };
     bool _socketWarningLogged{ false };

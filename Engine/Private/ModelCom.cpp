@@ -88,6 +88,22 @@ ModelCom::ModelCom(const ModelCom& prototype)
     }
 }
 
+void ModelCom::Set_SuppressedAnimNotifyTypeNames(const vector<string>& typeNames)
+{
+    _suppressedAnimNotifyTypeNames.clear();
+
+    for (const string& typeName : typeNames)
+    {
+        if (!typeName.empty())
+            _suppressedAnimNotifyTypeNames.insert(typeName);
+    }
+}
+
+vector<string> ModelCom::Get_SuppressedAnimNotifyTypeNames() const
+{
+    return { _suppressedAnimNotifyTypeNames.begin(), _suppressedAnimNotifyTypeNames.end() };
+}
+
 size_t ModelCom::Get_DebugEstimatedAnimationBytes() const
 {
     size_t bytes = sizeof(Shared<Animation>) * _animations.capacity()
@@ -565,12 +581,6 @@ const Matrix* ModelCom::Get_BoneMatrixPtr(uint32 boneIndex) const
         return &_leaderPoseCombinedMatrices[boneIndex];
     }
     
-    if (!_combinedBoneMatrixCache.empty())
-    {
-        if (boneIndex < _combinedBoneMatrixCache.size())
-            return &_combinedBoneMatrixCache[boneIndex];
-    }
-
     return _bones[boneIndex]->Get_CombinedTransformationMatrixPtr();
 }
 
@@ -1845,6 +1855,9 @@ void ModelCom::Update_AnimNotifies(const AnimNotifyData& animationData, const An
         if (entry.notify == nullptr)
             continue;
 
+        if (Is_AnimNotifyTypeSuppressed(entry.notify->Get_TypeName()))
+            continue;
+
         // 시작 타이밍
         if (!Is_NotifyTimeInRange(entry.timeSec, context.previousTimeSec, context.currentTimeSec, context.wrapped))
             continue;
@@ -1869,6 +1882,9 @@ void ModelCom::Update_AnimNotifyStates(const AnimNotifyData& animationData, cons
     {
         const auto& entry = animationData.notifyStates[stateIndex];
         if (entry.notifyState == nullptr)
+            continue;
+
+        if (Is_AnimNotifyTypeSuppressed(entry.notifyState->Get_TypeName()))
             continue;
 
         const bool isActiveNow = Is_NotifyStateActiveTime(context.currentTimeSec, entry.startSec, entry.durationSec);
@@ -1969,6 +1985,12 @@ int32 ModelCom::Find_ActiveNotifyStateIndex(const vector<ActiveAnimNotifyState>&
     }
 
     return -1;
+}
+
+bool ModelCom::Is_AnimNotifyTypeSuppressed(const string& typeName) const
+{
+    return !typeName.empty() &&
+        _suppressedAnimNotifyTypeNames.contains(typeName);
 }
 
 void ModelCom::Set_LeaderPoseComponent(const ModelCom* leaderModel)

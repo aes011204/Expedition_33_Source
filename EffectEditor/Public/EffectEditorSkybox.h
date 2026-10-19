@@ -10,7 +10,6 @@ NS_END
 
 NS_BEGIN(EffectEditor)
 
-// EffectEditor preview scene skybox를 렌더링한다.
 class EffectEditorSkybox final : public GameObject
 {
 public:

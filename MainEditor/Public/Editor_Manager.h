@@ -84,8 +84,9 @@ private:
     fs::path _selectedRuleStatePath = {};
     bool _openSaveCheckpointPopup = false;
     char _checkpointSaveNameBuffer[128] = "Demo";
-    float _soundVolumePercent = 100.f;
-    bool _soundVolumePercentInitialized = false;
+    float _masterVolumePercent = 100.f;
+    float _bgmVolumePercent = 100.f;
+    float _sfxVolumePercent = 100.f;
 
 public:
 	static Unique<Editor_Manager> Create();

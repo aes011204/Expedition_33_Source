@@ -136,6 +136,7 @@ HRESULT MB_Simon::Ready_PartObjects()
     headDesc.socketMatrix = _body->Get_SocketBoneMatrixPtr("headSocket");
     headDesc.collisionModel = _body->Get_Model().get();
     headDesc.collisionOwnerWorldMatrix = &_body->Get_CombinedWorldMatrix();
+    headDesc.physicsPreset = Mon_Simon_Hair::PhysicsPreset::Dev;
 
     CHECK_FAILED(Add_PartObject(ETOI(LevelType::Static), TEXT("GameObject_Simon_Hair"), TEXT("Part_Hair"), &headDesc), E_FAIL);
 
@@ -180,7 +181,9 @@ void MB_Simon::From_Json(const json& data)
     Apply_WeaponScaleMultiplier();
 
     if (Is_SimonPhase2PrefabJson(data))
+    {
         Apply_SimonPhase2HairTint(_hair);
+    }
 }
 
 void MB_Simon::Set_PlayEffect(bool playEffect)

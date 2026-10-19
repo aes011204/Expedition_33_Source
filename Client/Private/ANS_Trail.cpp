@@ -110,11 +110,16 @@ void ANS_Trail::On_Begin(const AnimNotifyContext& context)
     if (trailPart == nullptr)
         return;
 
-    // 숨겨진 파츠에서 들어온 trail notify는 실제 재생 대상이 없으니 조용히 무시한다.
     if (!trailPart->Is_Visible())
         return;
 
     _trailNotifyToken = Generate_TrailNotifyToken();
+    _trailNotifyAnimationName = context.animationName;
+    _trailNotifyStartSec = max(
+        0.f,
+        context.currentTimeSec - std::clamp(context.notifyStateProgress, 0.f, 1.f) * context.notifyStateDurationSec);
+    _trailNotifyEndSec = _trailNotifyStartSec + max(0.f, context.notifyStateDurationSec);
+    _trailNotifyLastTimeSec = context.currentTimeSec;
 
     EffectCom::TrailOffsetRuntimeDesc offsetDesc{};
     offsetDesc.phase = std::clamp(context.notifyStateProgress, 0.f, 1.f);
@@ -135,19 +140,15 @@ void ANS_Trail::On_Begin(const AnimNotifyContext& context)
     {
         if (Mon_Simon_Weapon* simonWeapon = Resolve_SimonWeapon(context, _partTag))
         {
-            wstring activeTrailEffectName{};
-            wstring activeTrailLayerTag{};
-            EffectCom::TrailOffsetRuntimeDesc activeTrailOffset{};
-            if (effectCom->Try_GetActiveTrailEffect(_partTag, activeTrailEffectName, activeTrailLayerTag, activeTrailOffset))
-            {
-                simonWeapon->Begin_WeaponEchoTrail(activeTrailEffectName, activeTrailLayerTag, activeTrailOffset);
-            }
-            else
-            {
-                const wstring fallbackEffectName = _effectName.empty() ? simonWeapon->Get_TrailEffectName() : _effectName;
-                if (!fallbackEffectName.empty())
-                    simonWeapon->Begin_WeaponEchoTrail(fallbackEffectName, _layerTag, offsetDesc);
-            }
+            Mon_Simon_Weapon::WeaponEchoTrailEventDesc trailEventDesc{};
+            trailEventDesc.notifyToken = _trailNotifyToken;
+            trailEventDesc.animationName = _trailNotifyAnimationName;
+            trailEventDesc.startSec = _trailNotifyStartSec;
+            trailEventDesc.durationSec = max(0.f, context.notifyStateDurationSec);
+            trailEventDesc.sourceEffectName = _effectName.empty() ? simonWeapon->Get_TrailEffectName() : _effectName;
+            trailEventDesc.layerTag = _layerTag;
+            trailEventDesc.offsetDesc = offsetDesc;
+            simonWeapon->Register_WeaponEchoTrailEvent(trailEventDesc);
         }
     }
 }
@@ -168,22 +169,43 @@ void ANS_Trail::On_Tick(const AnimNotifyContext& context)
     offsetDesc.tipLocalOffsetCurve = _tipLocalOffsetCurve;
 
     effectCom->Update_TrailEffectOffset(_effectName, _partTag, _trailNotifyToken, offsetDesc);
+    _trailNotifyLastTimeSec = max(_trailNotifyStartSec, context.currentTimeSec);
 
     if (_trailAnchorSource == TrailAnchorSource::ModelDefault)
     {
         if (Mon_Simon_Weapon* simonWeapon = Resolve_SimonWeapon(context, _partTag))
-            simonWeapon->Update_WeaponEchoTrailOffset(offsetDesc);
+            simonWeapon->Update_WeaponEchoTrailEvent(_trailNotifyToken, _trailNotifyLastTimeSec, offsetDesc);
     }
 }
 
 void ANS_Trail::On_End(const AnimNotifyContext& context)
 {
-    Shared<EffectCom> effectCom = Resolve_EffectCom(context);
-    if (effectCom == nullptr)
+    if (_trailNotifyToken == 0)
         return;
 
-    effectCom->Stop_TrailEffect(_effectName, _partTag, _trailNotifyToken);
+    float observedEndSec = _trailNotifyLastTimeSec;
+    if (context.animationName == _trailNotifyAnimationName)
+        observedEndSec = max(observedEndSec, context.currentTimeSec);
+
+    const float sourceEndSec = _trailNotifyEndSec > _trailNotifyStartSec
+        ? std::clamp(observedEndSec, _trailNotifyStartSec, _trailNotifyEndSec)
+        : _trailNotifyStartSec;
+
+    if (_trailAnchorSource == TrailAnchorSource::ModelDefault)
+    {
+        if (Mon_Simon_Weapon* simonWeapon = Resolve_SimonWeapon(context, _partTag))
+            simonWeapon->End_WeaponEchoTrailEvent(_trailNotifyToken, sourceEndSec);
+    }
+
+    Shared<EffectCom> effectCom = Resolve_EffectCom(context);
+    if (effectCom != nullptr)
+        effectCom->Stop_TrailEffect(_effectName, _partTag, _trailNotifyToken);
+
     _trailNotifyToken = 0;
+    _trailNotifyAnimationName.clear();
+    _trailNotifyStartSec = 0.f;
+    _trailNotifyEndSec = 0.f;
+    _trailNotifyLastTimeSec = 0.f;
 }
 
 json ANS_Trail::To_Json() const
@@ -605,7 +627,6 @@ uint64 ANS_Trail::Generate_TrailNotifyToken()
 
 Shared<EffectCom> ANS_Trail::Resolve_EffectCom(const AnimNotifyContext& context) const
 {
-    // trail/source-history는 partTag를 owner container 기준으로 해석해야 하므로
-    // 가장 가까운 part EffectCom이 아니라 container owner의 EffectCom를 사용한다.
+    // Trail partTag는 container owner 기준이므로 가장 가까운 part가 아니라 owner root의 EffectCom을 사용한다.
     return EffectCom::Find_FromNotifyOwner(context.owner, EffectCom::EffectPlayTarget::PartRoot);
 }

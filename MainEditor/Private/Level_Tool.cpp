@@ -262,6 +262,12 @@ void Level_Tool::Change_To(LevelType targetLevel)
     if (loadingLevel == nullptr)
         return;
 
+    EDITOR->Set_CinematicPreviewFreeCameraOverride(false);
+    GAME->Set_PreviewLetterboxEnabled(false);
+    CLIENT->Stop_Sequence(true);
+    CLIENT->Clear_RuntimeEffects();
+    GAME->Flush_RemovedGameObjects();
+
     GAME->Change_Level(ETOI(LevelType::Loading), loadingLevel);
 }
 

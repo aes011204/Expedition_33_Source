@@ -3,7 +3,7 @@
 #include "EditorInstance.h"
 #include "RenderTarget.h"
 
-namespace MainEditor::Internal
+namespace
 {
 struct ViewportImageRect
 {
@@ -139,11 +139,11 @@ void Game_View::Render()
         {
             const ImTextureID textureId = static_cast<ImTextureID>(reinterpret_cast<intptr_t>(pSRV));
             const float aspect = EDITOR->Get_EffectiveViewportAspect();
-            const Internal::ViewportImageRect imageRect =
-                Internal::Compute_AspectFitRect(canvasMin, viewportSize, aspect);
+            const ViewportImageRect imageRect =
+                Compute_AspectFitRect(canvasMin, viewportSize, aspect);
 
             drawList->AddImage(textureId, imageRect.imageMin, imageRect.imageMax);
-            Internal::Sync_GameMousePositionOverride(imageRect);
+            Sync_GameMousePositionOverride(imageRect);
         }
         else
         {

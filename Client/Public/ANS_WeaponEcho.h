@@ -56,6 +56,7 @@ private:
 
     float   _lastSampleElapsedSec = -1.f;
     float   _stateStartTimeSec = 0.f;
+    string  _stateAnimationName{};
 
     bool _overrideEchoMaterial = true;
     wstring _echoCount1MaterialBundleKey = L"SimonWeapon_Alpha";

@@ -2,7 +2,7 @@
 
 This public copy keeps only the main branch and 8 tags, with game assets and build artifacts removed from history. The former branches were backed up separately before removal. Commit IDs differ from the original repository. The original repository was not modified.
 
-The latest upstream refs could not be queried because GitHub authentication was unavailable. Branches preserved here are those already present in the original local checkout, including its remote-tracking branches.
+The current source snapshot matches the original repository dev branch at `743f2a13ba350eadd2858541ff264eeeee095597`, verified against the upstream dev ref on 2026-10-19. Game resources and build artifacts remain excluded. The public README and distribution-specific ignore rules are preserved.
 
 ## Development
 
@@ -24,6 +24,6 @@ The public remote is https://github.com/aes011204/Expedition_33_Source.git and i
 
 ## Verification
 
-All original locally available branch/tag tips were retained through filtering. 1,882 current source and shader files were compared against the original tree without content changes. git fsck passed after removal of the temporary original-object reference. Technical documentation that had not been committed in the original was copied here.
+All original locally available branch/tag tips were retained through filtering. 2,078 included files were verified byte-for-byte against the dev snapshot during the latest sync. git fsck passed after removal of the temporary original-object reference. Technical documentation that had not been committed in the original was copied here.
 
 Migration details and the old/new commit mapping are stored locally under .git/filter-repo and .git/migration-*.json.

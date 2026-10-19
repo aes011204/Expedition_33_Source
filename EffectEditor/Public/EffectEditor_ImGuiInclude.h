@@ -6,7 +6,6 @@
 #define EFFECTEDITOR_RESTORE_NEW_MACRO
 #endif
 
-// ImGui New 매크로 충돌 방지
 #include <imgui.h>
 #include <imgui_impl_dx11.h>
 #include <imgui_impl_win32.h>

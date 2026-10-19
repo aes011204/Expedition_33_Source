@@ -4,7 +4,6 @@
 
 NS_BEGIN(EffectEditor)
 
-// level object hierarchy를 검색 가능한 tree/list window로 표시한다.
 class Hierarchy_View final : public Editor_Window
 {
 public:

@@ -152,6 +152,9 @@
     <ClCompile Include="..\Private\PathTool.cpp">
       <Filter>03. System\PathTool</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\Compare_Culling_View.cpp">
+      <Filter>01. View</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h">
@@ -319,6 +322,9 @@
     </ClInclude>
     <ClInclude Include="..\Public\PathTool.h">
       <Filter>03. System\PathTool</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Compare_Culling_View.h">
+      <Filter>01. View</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

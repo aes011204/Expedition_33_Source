@@ -63,6 +63,7 @@ namespace
     bool g_debugUseMapInstancedMeshShadowLOD = false;
     bool g_debugDisableGrassInstancedShadow = false;
     bool g_debugDisableMapStaticMeshShadow = false;
+    bool g_debugDisableInstanceComputeCull = false;
     bool g_potatoBagArenaRenderGateReady = false;
     bool g_potatoBagArenaRenderGateDebugVisible = false;
     bool g_potatoBagArenaInstancedShadowOverrideActive = false;
@@ -753,6 +754,16 @@ void ClientInstance::Draw_PotatoBagArenaMapRenderGateDebug()
     desc.style.depthEnabled = false;
 
     GAME->Draw_DebugBox(desc);
+}
+
+bool ClientInstance::Is_DebugDisableInstanceComputeCull()
+{
+    return g_debugDisableInstanceComputeCull;
+}
+
+void ClientInstance::Set_DebugDisableInstanceComputeCull(bool disabled)
+{
+    g_debugDisableInstanceComputeCull = disabled;
 }
 
 HRESULT ClientInstance::Ready_StaticResources()
@@ -1838,14 +1849,16 @@ bool ClientInstance::Play_Sequence(
     int trackIndex,
     bool applyCameraTrack,
     bool applyEventTrack,
-    bool applyActorTransformTrack)
+    bool applyActorTransformTrack,
+    const CinematicPreviewOptions& previewOptions)
 {
     return _cinematicSequenceRunner->Play_Sequence(
         sequence,
         trackIndex,
         applyCameraTrack,
         applyEventTrack,
-        applyActorTransformTrack);
+        applyActorTransformTrack,
+        previewOptions);
 }
 
 void ClientInstance::Stop_Sequence(bool forceRemoveAllSpawned)
