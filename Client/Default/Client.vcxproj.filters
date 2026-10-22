@@ -466,6 +466,12 @@
     <ClCompile Include="..\Private\BattleHitSequenceRunner.cpp">
       <Filter>BattleState</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\TurnScheduler.cpp">
+      <Filter>05. BattleSystem</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\TurnLifecycle.cpp">
+      <Filter>05. BattleSystem</Filter>
+    </ClCompile>
     <ClCompile Include="..\Private\BattleMechanismCom.cpp">
       <Filter>BattleState</Filter>
     </ClCompile>
@@ -524,6 +530,9 @@
       <Filter>02. GameObject\Camera</Filter>
     </ClCompile>
     <ClCompile Include="..\private\BT_Patrol.cpp">
+      <Filter>BehavoirTree\world</Filter>
+    </ClCompile>
+    <ClCompile Include="..\private\PatrolAvoidance.cpp">
       <Filter>BehavoirTree\world</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\ChangeSkill_Panel.cpp">
@@ -1961,6 +1970,12 @@
     <ClInclude Include="..\Public\BattleHitSequenceRunner.h">
       <Filter>BattleState</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\TurnScheduler.h">
+      <Filter>05. BattleSystem</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\TurnLifecycle.h">
+      <Filter>05. BattleSystem</Filter>
+    </ClInclude>
     <ClInclude Include="..\Public\BattleMechanismCom.h">
       <Filter>BattleState</Filter>
     </ClInclude>
@@ -2040,6 +2055,9 @@
       <Filter>02. GameObject\Camera</Filter>
     </ClInclude>
     <ClInclude Include="..\public\BT_Patrol.h">
+      <Filter>BehavoirTree\world</Filter>
+    </ClInclude>
+    <ClInclude Include="..\public\PatrolAvoidance.h">
       <Filter>BehavoirTree\world</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\CA_ScreenFx.h">

@@ -272,6 +272,8 @@
     <ClInclude Include="..\Public\BattleEncounterProfile.h" />
     <ClInclude Include="..\Public\BattleFollowupManager.h" />
     <ClInclude Include="..\Public\BattleHitSequenceRunner.h" />
+    <ClInclude Include="..\Public\TurnScheduler.h" />
+    <ClInclude Include="..\Public\TurnLifecycle.h" />
     <ClInclude Include="..\Public\BattleMechanismCom.h" />
     <ClInclude Include="..\Public\BattleMonsterSpawnDesc.h" />
     <ClInclude Include="..\Public\BattleSoundPreset.h" />
@@ -299,6 +301,7 @@
     <ClInclude Include="..\Public\CameraPresetIO.h" />
     <ClInclude Include="..\Public\CameraPresetTypes.h" />
     <ClInclude Include="..\public\BT_Patrol.h" />
+    <ClInclude Include="..\public\PatrolAvoidance.h" />
     <ClInclude Include="..\Public\CA_ScreenFx.h" />
     <ClInclude Include="..\Public\ChangeSkill_Panel.h" />
     <ClInclude Include="..\public\ChangeWeapon_Panel.h" />
@@ -783,6 +786,8 @@
     <ClCompile Include="..\Private\BattleEncounterProfile.cpp" />
     <ClCompile Include="..\Private\BattleFollowupManager.cpp" />
     <ClCompile Include="..\Private\BattleHitSequenceRunner.cpp" />
+    <ClCompile Include="..\Private\TurnScheduler.cpp" />
+    <ClCompile Include="..\Private\TurnLifecycle.cpp" />
     <ClCompile Include="..\Private\BattleMechanismCom.cpp" />
     <ClCompile Include="..\Private\BattleSoundPreset.cpp" />
     <ClCompile Include="..\Private\BattleQTEController.cpp" />
@@ -800,6 +805,7 @@
     <ClCompile Include="..\private\BT_Stun.cpp" />
     <ClCompile Include="..\Private\CameraDirector.cpp" />
     <ClCompile Include="..\private\BT_Patrol.cpp" />
+    <ClCompile Include="..\private\PatrolAvoidance.cpp" />
     <ClCompile Include="..\Private\ChangeSkill_Panel.cpp" />
     <ClCompile Include="..\Private\CharacterProgression_Panel.cpp" />
     <ClCompile Include="..\private\DialogueDB.cpp" />

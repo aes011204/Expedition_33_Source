@@ -1,5 +1,6 @@
 ﻿#pragma once
 #include "Task.h"
+#include "PatrolAvoidance.h"
 NS_BEGIN(Client)
 class BT_Patrol :
     public Task
@@ -23,11 +24,10 @@ private:
     uint32 _curIndex = 0;
     bool _hasPatrolProgress = false;
     bool _resumePatrolProgressAfterHit = false;
-    Vec3 _lastSamplePos = Vec3::Zero;
-    float _stuckAccum = 0.f;
-    bool _usingBypassTarget = false;
-    Vec3 _bypassTarget = Vec3::Zero;
-    uint32 _bypassAttemptCount = 0;
+    PatrolAvoidance _avoidance;
+    Vec3 _requestedTarget = Vec3::Zero;
+    bool _hasRequestedTarget = false;
+    bool _reportedUnavailable = false;
 };
 
 NS_END

@@ -7,6 +7,8 @@
 #include "Battle_Enum.h"
 #include "BattleReactionController.h"
 #include "BattleHitSequenceRunner.h"
+#include "TurnScheduler.h"
+#include "TurnLifecycle.h"
 #include "BattleQTEController.h"
 #include "CameraPresetTypes.h"
 #include "Event_Struct.h"
@@ -267,7 +269,6 @@ private:
     void    Clear_BattleRuntimeState();
     void    Stop_BattleSpawnAttachedEffects();
     bool    Try_RequestSimonFinalOutroCinematic();
-    void    Push_TurnEntry(const BattleChar& actor, float nextTime);
     float   Resolve_PrefabGroundOffsetY(const Shared<GameObject>& actor) const;
     bool    Try_ResolveSimonBattleBGM(wstring& outIntroBGM, wstring& outMainBGM) const;
 
@@ -334,7 +335,9 @@ public: /* Delegate */
     EvtHandle                       _battlePresentationHandle{}; // Event_Bus 구독 핸들이라 FDelegateHandle이 아니라 EvtHandle을 쓴다.
 
 private:
-    BattleChar                      _currentTurnActor = {};
+    const BattleChar& Get_CurrentTurnActor() const { return _turnLifecycle.Get_CurrentActor(); }
+
+    TurnLifecycle                  _turnLifecycle;
     BattleAction                   _turnAction = {};
     ActionRequest                  _turnActionRequest = {};
 
@@ -383,22 +386,8 @@ private:
     bool _requestEndTurnOnCurrentActorDeath = false;
     bool _lastCompletedTurnWasPlayer = true;
 
-public:
-    struct Compare
-    {
-        bool operator()(const TurnEntry& a, const TurnEntry& b) const
-        {
-            if (a.nextTime != b.nextTime)
-                return a.nextTime > b.nextTime; // nextTime이 작을수록 먼저 행동한다.
-
-            return a.orderSeq > b.orderSeq; // 같은 시간대면 먼저 예약된 턴이 먼저다.
-        }
-    };
-
 private:
-    priority_queue<TurnEntry, vector<TurnEntry>, Compare> _turnQueue;
-    float _battleTime = {};
-    uint64 _nextTurnEntrySeq = 0;
+    TurnScheduler _turnScheduler;
     vector<BattleChar> _heroes;
     vector<BattleChar> _enemies;
 

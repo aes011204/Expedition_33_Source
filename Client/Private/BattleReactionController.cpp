@@ -122,6 +122,7 @@ void BattleReactionController::CloseWindow(BattleReactionType type)
 
 void BattleReactionController::Clear()
 {
+    _hasFailedSkillParry = false;
     const bool keepJumpCounterWindow =
         _jumpCounterState == JumpCounterState::CounterWindowOpen;
 
@@ -205,13 +206,6 @@ bool BattleReactionController::TryConsume(BattleReactionType& outResult, uint32 
                 outResult == BattleReactionType::Parry ||
                 outResult == BattleReactionType::Jump ||
                 outResult == BattleReactionType::JumpCounter;
-        }
-
-        // 현재 데미지보다 앞선 입력은 더 이상 소비될 수 없으므로 버린다.
-        if (input.consumeKey < consumeKey)
-        {
-            _consumedReactionInputs.erase(_consumedReactionInputs.begin() + i);
-            continue;
         }
 
         ++i;
@@ -350,7 +344,13 @@ bool BattleReactionController::TryConsumeGuard(
         consumeKey == UINT32_MAX ? Make_ReactionConsumeKey(stepIndex) : consumeKey;
 
     if (!TryConsume(result, resolvedConsumeKey))
+    {
+        _hasFailedSkillParry = true;
         return false;
+    }
+
+    if (result != BattleReactionType::Parry)
+        _hasFailedSkillParry = true;
 
     if (result == BattleReactionType::Jump ||
         result == BattleReactionType::JumpCounter)
@@ -1443,7 +1443,6 @@ void BattleReactionController::FinishReactionAnimation()
     _reactionAnimTargets.clear();
     _counterReturnRuntimes.clear();
     _counterDamageTarget = {};
-    Clear_ParryCounterRuntime();
     _animPhase = ReactionAnimPhase::None;
     _isCounterPending = false;
     _isCounterDamageApplied = false;
@@ -1627,15 +1626,22 @@ bool BattleReactionController::Is_ParryCounterGuardChainComplete(uint32 stepInde
 
 void BattleReactionController::Try_ArmParryCounterAfterGuard(const BattleChar& target, uint32 stepIndex)
 {
-    if (!Is_LastSkillAttackStep(stepIndex))
+    if (_hasFailedSkillParry || _curSkillData == nullptr || _curSkillData->targetingType.empty())
         return;
+    const uint32 lastStepIndex = static_cast<uint32>(_curSkillData->targetingType.size() - 1);
 
     if (_pendingParryCounterTarget.actor == nullptr ||
         _pendingParryCounterTarget.statCom == nullptr)
         return;
 
-    if (!Is_ParryCounterGuardChainComplete(stepIndex))
-        return;
+    for (uint32 attackStep = 0; attackStep <= lastStepIndex; ++attackStep)
+    {
+        const auto guardedIt = _parryCounterGuardedConsumeKeys.find(attackStep);
+        if (guardedIt == _parryCounterGuardedConsumeKeys.end() ||
+            guardedIt->second.find(Make_ReactionConsumeKey(attackStep)) == guardedIt->second.end() ||
+            !Is_ParryCounterGuardChainComplete(attackStep))
+            return;
+    }
 
     _isCounterPending = true;
     _counterDamageTarget = _pendingParryCounterTarget;
@@ -1650,11 +1656,11 @@ void BattleReactionController::Try_ArmParryCounterAfterGuard(const BattleChar& t
 
     GAME->Get_EventBus().Publish(event);
 
-    LOG_INFO("PARRY counter armed step={}", stepIndex);
+    LOG_INFO("PARRY counter armed after all hits lastStep={} resolvedStep={}", lastStepIndex, stepIndex);
 
     _pendingParryCounterTarget = {};
-    _parryCounterRequiredConsumeKeys.erase(stepIndex);
-    _parryCounterGuardedConsumeKeys.erase(stepIndex);
+    _parryCounterRequiredConsumeKeys.clear();
+    _parryCounterGuardedConsumeKeys.clear();
 }
 
 void BattleReactionController::Clear_ParryCounterRuntime()

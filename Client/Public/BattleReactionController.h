@@ -163,6 +163,7 @@ public:
     void Set_CurSkillData(const Skill_Data* curSkillData)
     {
         _curSkillData = curSkillData;
+        _hasFailedSkillParry = false;
         ClearConsumedInput();
         _echoCounterSuppressedSteps.clear();
         Clear_ParryCounterRuntime();
@@ -237,6 +238,7 @@ private:
     vector<CounterReturnRuntime> _counterReturnRuntimes = {};
     BattleChar _counterDamageTarget = {}; // Parry 성공 후 Counter 데미지를 받을놈
     BattleChar _pendingParryCounterTarget = {};
+    bool _hasFailedSkillParry = false;
     umap<uint32, uset<uint32>> _parryCounterRequiredConsumeKeys = {};
     umap<uint32, uset<uint32>> _parryCounterGuardedConsumeKeys = {};
 
